@@ -90,8 +90,8 @@ async function reconcilePendingSnapshots(): Promise<{ synced: number; errors: nu
     }
     
     return { synced, errors };
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
+  } catch (error: unknown) {
+    const msg = getErrorMessage(error);
     if (msg.includes('timeout')) {
       logger.warn('[Fee Snapshot Reconciliation] Skipped due to DB connection timeout — will retry next cycle');
     } else {
@@ -163,7 +163,7 @@ async function cancelAbandonedPaymentIntents(): Promise<{ cancelled: number; err
                   );
                 }
                 await client.query('COMMIT');
-              } catch (txErr) {
+              } catch (txErr: unknown) {
                 await client.query('ROLLBACK');
                 throw txErr;
               }
@@ -194,7 +194,7 @@ async function cancelAbandonedPaymentIntents(): Promise<{ cancelled: number; err
             [spi.stripe_payment_intent_id]
           );
           await client.query('COMMIT');
-        } catch (txErr) {
+        } catch (txErr: unknown) {
           await client.query('ROLLBACK');
           throw txErr;
         }
@@ -210,8 +210,8 @@ async function cancelAbandonedPaymentIntents(): Promise<{ cancelled: number; err
     }
 
     return { cancelled, errors };
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
+  } catch (error: unknown) {
+    const msg = getErrorMessage(error);
     if (msg.includes('timeout')) {
       logger.warn('[Abandoned PI Cleanup] Skipped due to DB connection timeout — will retry next cycle');
     } else {
@@ -339,8 +339,8 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
     }
 
     return { reconciled, errors };
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
+  } catch (error: unknown) {
+    const msg = getErrorMessage(error);
     if (msg.includes('timeout')) {
       logger.warn('[Payment Intent Reconciliation] Skipped due to DB connection timeout — will retry next cycle');
     } else {
@@ -374,7 +374,7 @@ export function startFeeSnapshotReconciliationScheduler(): void {
           schedulerTracker.recordRun('Fee Snapshot Reconciliation', true);
         }
       })
-      .catch(err => {
+      .catch((err: unknown) => {
         logger.error('[Fee Snapshot Reconciliation] Initial run error:', { error: err as Error });
         schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, String(err));
       });
@@ -386,7 +386,7 @@ export function startFeeSnapshotReconciliationScheduler(): void {
           schedulerTracker.recordRun('Fee Snapshot Reconciliation', true);
         }
       })
-      .catch(err => {
+      .catch((err: unknown) => {
         logger.error('[Payment Intent Reconciliation] Initial run error:', { error: err as Error });
         schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, String(err));
       });
@@ -398,7 +398,7 @@ export function startFeeSnapshotReconciliationScheduler(): void {
           schedulerTracker.recordRun('Fee Snapshot Reconciliation', true);
         }
       })
-      .catch(err => {
+      .catch((err: unknown) => {
         logger.error('[Abandoned PI Cleanup] Initial run error:', { error: err as Error });
         schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, String(err));
       });
@@ -412,7 +412,7 @@ export function startFeeSnapshotReconciliationScheduler(): void {
           schedulerTracker.recordRun('Fee Snapshot Reconciliation', true);
         }
       })
-      .catch(err => {
+      .catch((err: unknown) => {
         logger.error('[Fee Snapshot Reconciliation] Uncaught error:', { error: err as Error });
         schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, String(err));
       });
@@ -424,7 +424,7 @@ export function startFeeSnapshotReconciliationScheduler(): void {
           schedulerTracker.recordRun('Fee Snapshot Reconciliation', true);
         }
       })
-      .catch(err => {
+      .catch((err: unknown) => {
         logger.error('[Payment Intent Reconciliation] Uncaught error:', { error: err as Error });
         schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, String(err));
       });
@@ -436,7 +436,7 @@ export function startFeeSnapshotReconciliationScheduler(): void {
           schedulerTracker.recordRun('Fee Snapshot Reconciliation', true);
         }
       })
-      .catch(err => {
+      .catch((err: unknown) => {
         logger.error('[Abandoned PI Cleanup] Uncaught error:', { error: err as Error });
         schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, String(err));
       });

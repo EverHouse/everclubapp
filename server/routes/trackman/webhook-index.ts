@@ -71,7 +71,7 @@ async function notifyMemberBookingConfirmed(
         }
       );
     }
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error('[Trackman Webhook] Failed to notify member', { error: e instanceof Error ? e : new Error(String(e)) });
   }
 }
@@ -126,7 +126,7 @@ async function checkWebhookIdempotency(trackmanBookingId: string): Promise<boole
     }
     
     return isNewWebhook;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[Trackman Webhook] Failed to check webhook idempotency', {
       extra: { trackmanBookingId, error: (error as Error).message }
     });
@@ -912,7 +912,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
         source: 'trackman_webhook',
         createdBy: 'staff_auto_match'
       });
-    } catch (sessionErr) {
+    } catch (sessionErr: unknown) {
       logger.warn('[Trackman Auto-Match] Failed to ensure session', { extra: { bookingId: match.id, error: sessionErr } });
     }
 
@@ -924,7 +924,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
         pacificStartTime,
         `Bay ${resourceId}`
       );
-    } catch (notifyErr) {
+    } catch (notifyErr: unknown) {
       logger.warn('[Trackman Auto-Match] Failed to notify member', { error: notifyErr instanceof Error ? notifyErr : new Error(String(notifyErr)) });
     }
     
@@ -969,7 +969,7 @@ export async function cleanupOldWebhookLogs(): Promise<{ deleted: number }> {
     }
     
     return { deleted };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[Trackman Webhook] Failed to cleanup old logs', { error: error instanceof Error ? error : new Error(String(error)) });
     return { deleted: 0 };
   }
@@ -1133,11 +1133,11 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
               sessionId,
               feeResult: feeResult?.totalSessionFee || 0
             });
-          } catch (feeError) {
+          } catch (feeError: unknown) {
             logger.warn('[Simulate Confirm] Failed to calculate fees (non-blocking)', { error: feeError instanceof Error ? feeError : new Error(String(feeError)) });
           }
         }
-      } catch (sessionError) {
+      } catch (sessionError: unknown) {
         logger.error('[Simulate Confirm] Failed to create session (non-blocking)', { error: sessionError instanceof Error ? sessionError : new Error(String(sessionError)) });
       }
     }
@@ -1202,7 +1202,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
         title: 'Booking Confirmed',
         message: 'Your booking has been confirmed',
       });
-    } catch (notifyError) {
+    } catch (notifyError: unknown) {
       logger.error('[Simulate Confirm] Notification error (non-blocking)', { error: notifyError instanceof Error ? notifyError : new Error(String(notifyError)) });
     }
     

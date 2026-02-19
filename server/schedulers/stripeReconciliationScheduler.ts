@@ -29,7 +29,7 @@ async function tryClaimReconciliationSlot(todayStr: string): Promise<boolean> {
       .returning({ key: systemSettings.key });
     
     return result.length > 0;
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Stripe Reconciliation] Database error:', { error: err as Error });
     schedulerTracker.recordRun('Stripe Reconciliation', false, String(err));
     return false;
@@ -56,7 +56,7 @@ async function checkAndRunReconciliation(): Promise<void> {
           const subscriptionResults = await reconcileSubscriptions();
           logger.info('[Stripe Reconciliation] Subscription reconciliation complete:', { extra: { results: subscriptionResults } });
           schedulerTracker.recordRun('Stripe Reconciliation', true);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('[Stripe Reconciliation] Error running reconciliation:', { error: error as Error });
           schedulerTracker.recordRun('Stripe Reconciliation', false, String(error));
           
@@ -70,7 +70,7 @@ async function checkAndRunReconciliation(): Promise<void> {
         }
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[Stripe Reconciliation] Scheduler error:', { error: error as Error });
     schedulerTracker.recordRun('Stripe Reconciliation', false, String(error));
   }
@@ -89,7 +89,7 @@ export function startStripeReconciliationScheduler(): void {
   schedulerTracker.recordRun('Stripe Reconciliation', true);
   
   intervalId = setInterval(() => {
-    checkAndRunReconciliation().catch(err => {
+    checkAndRunReconciliation().catch((err: unknown) => {
       logger.error('[Stripe Reconciliation] Uncaught error:', { error: err as Error });
       schedulerTracker.recordRun('Stripe Reconciliation', false, String(err));
     });

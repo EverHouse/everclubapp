@@ -231,7 +231,7 @@ router.post('/api/availability/batch', async (req, res) => {
           });
           conferenceRoomIds.forEach(id => calendarByResource.set(id, calendarSlots));
         }
-      } catch (calError) {
+      } catch (calError: unknown) {
         logger.error('Failed to fetch Google Calendar busy times (non-blocking)', { extra: { error: calError } });
       }
     }
@@ -320,7 +320,7 @@ router.get('/api/availability', async (req, res) => {
            )`,
         [resource_id, date]
       );
-    } catch (e) {
+    } catch (e: unknown) {
       // Non-blocking: continue without unmatched booking checks if table doesn't exist
       logger.error('Failed to fetch unmatched Trackman bookings (non-blocking)', { extra: { error: e } });
     }
@@ -353,7 +353,7 @@ router.get('/api/availability', async (req, res) => {
             };
           });
         }
-      } catch (calError) {
+      } catch (calError: unknown) {
         logger.error('Failed to fetch Google Calendar busy times (non-blocking)', { extra: { error: calError } });
       }
     }

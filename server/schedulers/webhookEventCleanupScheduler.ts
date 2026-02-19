@@ -10,7 +10,7 @@ async function cleanupOldWebhookEvents(): Promise<void> {
 
     logger.info(`[Webhook Event Cleanup] Deleted ${result.rowCount} old webhook deduplication record(s)`);
     schedulerTracker.recordRun('Webhook Event Cleanup', true);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[Webhook Event Cleanup] Scheduler error:', { error: error as Error });
     schedulerTracker.recordRun('Webhook Event Cleanup', false, String(error));
   }
@@ -27,14 +27,14 @@ export function startWebhookEventCleanupScheduler(): void {
   logger.info('[Startup] Webhook event cleanup scheduler enabled (runs every 24 hours)');
 
   intervalId = setInterval(() => {
-    cleanupOldWebhookEvents().catch(err => {
+    cleanupOldWebhookEvents().catch((err: unknown) => {
       logger.error('[Webhook Event Cleanup] Uncaught error:', { error: err as Error });
       schedulerTracker.recordRun('Webhook Event Cleanup', false, String(err));
     });
   }, 24 * 60 * 60 * 1000);
 
   setTimeout(() => {
-    cleanupOldWebhookEvents().catch(err => {
+    cleanupOldWebhookEvents().catch((err: unknown) => {
       logger.error('[Webhook Event Cleanup] Initial run error:', { error: err as Error });
       schedulerTracker.recordRun('Webhook Event Cleanup', false, String(err));
     });

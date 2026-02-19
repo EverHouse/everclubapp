@@ -79,7 +79,7 @@ async function cleanupPendingUsers(): Promise<void> {
 
     logger.info(`[Pending User Cleanup] Summary: deleted=${deleted}, stripeCleanedUp=${stripeCleanedUp}, errors=${errors}`);
     schedulerTracker.recordRun('Pending User Cleanup', true);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[Pending User Cleanup] Scheduler error:', { error: error as Error });
     schedulerTracker.recordRun('Pending User Cleanup', false, String(error));
   }
@@ -96,14 +96,14 @@ export function startPendingUserCleanupScheduler(): void {
   logger.info('[Startup] Pending user cleanup scheduler enabled (runs every 6 hours)');
 
   intervalId = setInterval(() => {
-    cleanupPendingUsers().catch(err => {
+    cleanupPendingUsers().catch((err: unknown) => {
       logger.error('[Pending User Cleanup] Uncaught error:', { error: err as Error });
       schedulerTracker.recordRun('Pending User Cleanup', false, String(err));
     });
   }, 6 * 60 * 60 * 1000);
 
   setTimeout(() => {
-    cleanupPendingUsers().catch(err => {
+    cleanupPendingUsers().catch((err: unknown) => {
       logger.error('[Pending User Cleanup] Initial run error:', { error: err as Error });
       schedulerTracker.recordRun('Pending User Cleanup', false, String(err));
     });

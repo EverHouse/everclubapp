@@ -247,7 +247,7 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
                 logger.warn('[Stripe] Stale payment intent : PI amount != requested , cancelling and creating new one', { extra: { existingStripe_payment_intent_id: existing.stripe_payment_intent_id, piAmount: pi.amount, MathRound_amountCents: Math.round(amountCents) } });
                 try {
                   await cancelPaymentIntent(existing.stripe_payment_intent_id as string);
-                } catch (cancelErr) {
+                } catch (cancelErr: unknown) {
                   logger.warn('[Stripe] Failed to cancel stale payment intent', { extra: { cancelErr } });
                 }
                 await db.execute(sql`DELETE FROM booking_fee_snapshots WHERE id = ${existing.id}`);
@@ -260,7 +260,7 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
                 });
               }
             }
-          } catch (err) {
+          } catch (err: unknown) {
             logger.warn('[Stripe] Failed to check existing payment intent, creating new one');
           }
         }
@@ -282,7 +282,7 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
         });
         await applyFeeBreakdownToParticipants(sessionId, feeBreakdown);
         logger.info('[Stripe] Applied unified fees for session : $', { extra: { sessionId, feeBreakdownTotalsTotalCents_100_ToFixed_2: (feeBreakdown.totals.totalCents/100).toFixed(2) } });
-      } catch (unifiedError) {
+      } catch (unifiedError: unknown) {
         logger.error('[Stripe] Unified fee service error', { extra: { unifiedError } });
         return res.status(500).json({ error: 'Failed to calculate fees' });
       }
@@ -325,7 +325,7 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
         
         await client.query('COMMIT');
         logger.info('[Stripe] Created fee snapshot for booking : $ with participants', { extra: { snapshotId, bookingId, serverTotal_100_ToFixed_2: (serverTotal/100).toFixed(2), serverFeesLength: serverFees.length } });
-      } catch (err) {
+      } catch (err: unknown) {
         await client.query('ROLLBACK');
         throw err;
       } finally {
@@ -365,7 +365,7 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
           sessionId,
           metadata: Object.keys(metadata).length > 0 ? metadata : undefined
         });
-      } catch (stripeErr) {
+      } catch (stripeErr: unknown) {
         if (snapshotId) {
           await db.execute(sql`DELETE FROM booking_fee_snapshots WHERE id = ${snapshotId}`);
           logger.info('[Stripe] Deleted orphaned snapshot after PaymentIntent creation failed', { extra: { snapshotId } });
@@ -432,7 +432,7 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
         description: finalDescription,
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined
       });
-    } catch (stripeErr) {
+    } catch (stripeErr: unknown) {
       if (snapshotId) {
         await db.execute(sql`DELETE FROM booking_fee_snapshots WHERE id = ${snapshotId}`);
         logger.info('[Stripe] Deleted orphaned snapshot after PaymentIntent creation failed', { extra: { snapshotId } });
@@ -1304,7 +1304,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
         );
 
         await txClient.query('COMMIT');
-      } catch (txErr) {
+      } catch (txErr: unknown) {
         await txClient.query('ROLLBACK');
         logger.error('[Stripe] Transaction failed for staff charge post-payment DB updates', { extra: { txErr } });
         throw txErr;
@@ -1535,7 +1535,7 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, async (re
         );
 
         await txClient.query('COMMIT');
-      } catch (txErr) {
+      } catch (txErr: unknown) {
         await txClient.query('ROLLBACK');
         logger.error('[Stripe] Transaction failed for POS charge post-payment DB updates', { extra: { txErr } });
         throw txErr;
@@ -2413,7 +2413,7 @@ router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Re
       );
 
       await txClient.query('COMMIT');
-    } catch (txError) {
+    } catch (txError: unknown) {
       await txClient.query('ROLLBACK');
       throw txError;
     } finally {

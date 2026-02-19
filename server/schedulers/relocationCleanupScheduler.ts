@@ -6,7 +6,7 @@ export function startRelocationCleanupScheduler(): void {
   setInterval(async () => {
     try {
       await clearStaleRelocations();
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('[Relocation Cleanup] Scheduler error:', { error: err as Error });
       schedulerTracker.recordRun('Relocation Cleanup', false, String(err));
     }

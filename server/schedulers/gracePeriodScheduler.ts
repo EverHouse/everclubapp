@@ -41,7 +41,7 @@ async function getReactivationLink(stripeCustomerId: string | null): Promise<str
       },
     });
     return session.url;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.warn('[Grace Period] Could not create billing portal session, using fallback link');
     return fallbackLink;
   }
@@ -119,7 +119,7 @@ async function processGracePeriodMembers(): Promise<void> {
               await syncMemberToHubSpot({ email, status: 'terminated', billingProvider: 'mindbody' });
               logger.info(`[Grace Period] Synced ${email} status=terminated to HubSpot`);
               schedulerTracker.recordRun('Grace Period', true);
-            } catch (hubspotError) {
+            } catch (hubspotError: unknown) {
               logger.error('[Grace Period] HubSpot sync failed:', { error: hubspotError as Error });
               schedulerTracker.recordRun('Grace Period', false, String(hubspotError));
             }
@@ -132,7 +132,7 @@ async function processGracePeriodMembers(): Promise<void> {
             );
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`[Grace Period] Error processing member ${email}:`, { error: error as Error });
         schedulerTracker.recordRun('Grace Period', false, String(error));
       }
@@ -140,7 +140,7 @@ async function processGracePeriodMembers(): Promise<void> {
     
     logger.info('[Grace Period] Daily check complete');
     schedulerTracker.recordRun('Grace Period', true);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[Grace Period] Scheduler error:', { error: error as Error });
     schedulerTracker.recordRun('Grace Period', false, String(error));
   }
@@ -157,7 +157,7 @@ export function startGracePeriodScheduler(): void {
   logger.info(`[Startup] Grace period scheduler enabled (runs at 10am Pacific)`);
   
   intervalId = setInterval(() => {
-    processGracePeriodMembers().catch(err => {
+    processGracePeriodMembers().catch((err: unknown) => {
       logger.error('[Grace Period] Uncaught error:', { error: err as Error });
       schedulerTracker.recordRun('Grace Period', false, String(err));
     });

@@ -29,7 +29,7 @@ async function tryClaimMorningSlot(todayStr: string): Promise<boolean> {
       .returning({ key: systemSettings.key });
     
     return result.length > 0;
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Morning Closures] Database error:', { error: err as Error });
     schedulerTracker.recordRun('Morning Closure', false, String(err));
     return false;
@@ -51,13 +51,13 @@ async function checkAndSendMorningNotifications(): Promise<void> {
           const result = await sendMorningClosureNotifications();
           logger.info(`[Morning Closures] Completed: ${result.message}`);
           schedulerTracker.recordRun('Morning Closure', true);
-        } catch (err) {
+        } catch (err: unknown) {
           logger.error('[Morning Closures] Send failed:', { error: err as Error });
           schedulerTracker.recordRun('Morning Closure', false, String(err));
         }
       }
     }
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Morning Closures] Scheduler error:', { error: err as Error });
     schedulerTracker.recordRun('Morning Closure', false, String(err));
   }

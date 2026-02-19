@@ -90,7 +90,7 @@ async function handleEmailBounced(event: ResendEmailEvent) {
       logger.info('Marked user email as bounced', {
         extra: { email: recipientEmail }
       });
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('Failed to update user bounce status', { error: err as Error });
     }
   }
@@ -123,7 +123,7 @@ async function handleEmailComplained(event: ResendEmailEvent) {
       logger.info('Unsubscribed user after complaint', {
         extra: { email: recipientEmail }
       });
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('Failed to update user complaint status', { error: err as Error });
     }
   }
@@ -157,7 +157,7 @@ router.post('/api/webhooks/resend', async (req: Request, res: Response) => {
       const wh = new Webhook(webhookSecret);
       const rawBody = JSON.stringify(req.body);
       wh.verify(rawBody, svixHeaders);
-    } catch (err) {
+    } catch (err: unknown) {
       logger.warn('Resend webhook signature verification failed', {
         error: err as Error
       });

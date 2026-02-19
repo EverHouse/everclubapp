@@ -10,7 +10,7 @@ export function startSessionCleanupScheduler(): void {
         await runSessionCleanup();
         schedulerTracker.recordRun('Session Cleanup', true);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('[Session Cleanup] Scheduler error:', { error: err as Error });
       schedulerTracker.recordRun('Session Cleanup', false, String(err));
     }

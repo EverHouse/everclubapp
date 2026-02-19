@@ -61,7 +61,7 @@ async function processOnboardingNudges(): Promise<void> {
         logger.warn(`[Onboarding Nudge] Failed to send to ${member.email}: ${sendResult.error}`);
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[Onboarding Nudge] Scheduler error:', { error: error as Error });
   }
 }

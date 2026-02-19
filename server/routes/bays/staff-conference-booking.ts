@@ -58,7 +58,7 @@ router.get('/api/staff/conference-room/available-slots', isStaffOrAdmin, async (
           return { start_time: startStr + ':00', end_time: endStr + ':00' };
         });
       }
-    } catch (calError) {
+    } catch (calError: unknown) {
       logger.error('Failed to fetch Google Calendar busy times', { error: calError as Error });
     }
 
@@ -332,7 +332,7 @@ router.post('/api/staff/conference-room/booking', isStaffOrAdmin, async (req: Re
         overageMinutes,
         overageCents
       });
-    } catch (error) {
+    } catch (error: unknown) {
       await client.query('ROLLBACK');
       throw error;
     } finally {

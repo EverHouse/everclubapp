@@ -29,7 +29,7 @@ async function tryClaimReminderSlot(todayStr: string): Promise<boolean> {
       .returning({ key: systemSettings.key });
     
     return result.length > 0;
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Daily Reminders] Database error:', { error: err as Error });
     schedulerTracker.recordRun('Daily Reminder', false, String(err));
     return false;
@@ -51,13 +51,13 @@ async function checkAndSendReminders(): Promise<void> {
           const result = await sendDailyReminders();
           logger.info(`[Daily Reminders] Completed: ${result.message}`);
           schedulerTracker.recordRun('Daily Reminder', true);
-        } catch (err) {
+        } catch (err: unknown) {
           logger.error('[Daily Reminders] Send failed:', { error: err as Error });
           schedulerTracker.recordRun('Daily Reminder', false, String(err));
         }
       }
     }
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Daily Reminders] Scheduler error:', { error: err as Error });
     schedulerTracker.recordRun('Daily Reminder', false, String(err));
   }

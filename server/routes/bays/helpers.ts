@@ -15,7 +15,7 @@ export async function getCalendarNameForBayAsync(bayId: number | null): Promise<
     if (resourceType === 'conference_room' || resourceName.includes('conference')) {
       return CALENDAR_CONFIG.conference.name;
     }
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error('[Bays] Failed to get calendar name for bay', { extra: { error: e } });
   }
   
@@ -29,7 +29,7 @@ export function getCalendarNameForBay(bayId: number | null): string | null {
 export async function dismissStaffNotificationsForBooking(bookingId: number): Promise<void> {
   try {
     await bookingEvents.cleanupNotificationsForBooking(bookingId, { markRead: true });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to dismiss staff notifications', { error: error instanceof Error ? error : new Error(String(error)) });
   }
 }
@@ -49,7 +49,7 @@ export async function isStaffOrAdminCheck(email: string): Promise<boolean> {
       [email]
     );
     return (result as any).rows.length > 0;
-  } catch (error) {
+  } catch (error: unknown) {
     return false;
   }
 }

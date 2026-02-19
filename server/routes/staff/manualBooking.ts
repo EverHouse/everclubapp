@@ -265,11 +265,11 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
             source: 'staff_manual',
             createdBy: 'staff_manual_day_pass'
           });
-        } catch (sessionErr) {
+        } catch (sessionErr: unknown) {
           logger.error('[StaffManualBooking] Failed to ensure session', { extra: { sessionErr } });
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       await client.query('ROLLBACK');
       throw error;
     } finally {
@@ -283,7 +283,7 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
         if (resource?.name) {
           resourceName = resource.name;
         }
-      } catch (e) {
+      } catch (e: unknown) {
         logger.error('[ManualBooking] Failed to fetch resource name', { extra: { e } });
       }
     }
@@ -358,7 +358,7 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
         day_pass_id: dayPassRedeemed ? dayPassPurchaseId : undefined,
         payment_status: isDayPassPayment ? 'paid_day_pass' : undefined
       });
-    } catch (postCommitError) {
+    } catch (postCommitError: unknown) {
       logger.error('[StaffManualBooking] Post-commit operations failed', { extra: { postCommitError } });
     }
   } catch (error: unknown) {

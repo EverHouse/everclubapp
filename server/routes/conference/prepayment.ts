@@ -177,7 +177,7 @@ router.post('/api/member/conference/prepay/create-intent', isAuthenticated, asyn
               reused: true
             });
           }
-        } catch (err) {
+        } catch (err: unknown) {
           logger.warn('[ConferencePrepay] Failed to retrieve existing payment intent, creating new one', {
             extra: { paymentIntentId: existing.payment_intent_id }
           });
@@ -250,7 +250,7 @@ router.post('/api/member/conference/prepay/create-intent', isAuthenticated, asyn
             );
 
             await creditClient.query('COMMIT');
-          } catch (txError) {
+          } catch (txError: unknown) {
             await creditClient.query('ROLLBACK');
             throw txError;
           } finally {
@@ -320,7 +320,7 @@ router.post('/api/member/conference/prepay/create-intent', isAuthenticated, asyn
         );
 
         await balanceClient.query('COMMIT');
-      } catch (txError) {
+      } catch (txError: unknown) {
         await balanceClient.query('ROLLBACK');
         throw txError;
       } finally {
@@ -359,7 +359,7 @@ router.post('/api/member/conference/prepay/create-intent', isAuthenticated, asyn
       );
 
       await stripeClient.query('COMMIT');
-    } catch (txError) {
+    } catch (txError: unknown) {
       await stripeClient.query('ROLLBACK');
       throw txError;
     } finally {
@@ -464,7 +464,7 @@ router.post('/api/member/conference/prepay/:id/confirm', isAuthenticated, async 
       );
 
       await confirmClient.query('COMMIT');
-    } catch (txError) {
+    } catch (txError: unknown) {
       await confirmClient.query('ROLLBACK');
       throw txError;
     } finally {

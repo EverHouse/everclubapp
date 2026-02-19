@@ -7,7 +7,7 @@ async function scheduleWebhookLogCleanup(): Promise<void> {
     const { cleanupOldWebhookLogs } = await import('../routes/trackman/index');
     await cleanupOldWebhookLogs();
     schedulerTracker.recordRun('Webhook Log Cleanup', true);
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Webhook Cleanup] Scheduler error:', { error: err as Error });
     schedulerTracker.recordRun('Webhook Log Cleanup', false, String(err));
   }
@@ -19,7 +19,7 @@ export function startWebhookLogCleanupScheduler(): void {
       if (getPacificHour() === 4) {
         await scheduleWebhookLogCleanup();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('[Webhook Cleanup] Check error:', { error: err as Error });
     }
   }, 60 * 60 * 1000);

@@ -14,7 +14,7 @@ async function tryClaimResetSlot(monthKey: string): Promise<boolean> {
        WHERE system_settings.value IS DISTINCT FROM ${monthKey}
        RETURNING key`);
     return (result.rowCount || 0) > 0;
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Guest Pass Reset] Failed to claim reset slot:', { error: err as Error });
     schedulerTracker.recordRun('Guest Pass Reset', false, String(err));
     return false;
@@ -63,7 +63,7 @@ async function resetGuestPasses(): Promise<void> {
       schedulerTracker.recordRun('Guest Pass Reset', true);
     }
     
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[Guest Pass Reset] Scheduler error:', { error: error as Error });
     schedulerTracker.recordRun('Guest Pass Reset', false, String(error));
   }
@@ -82,7 +82,7 @@ export function startGuestPassResetScheduler(): void {
   schedulerTracker.recordRun('Guest Pass Reset', true);
   
   intervalId = setInterval(() => {
-    resetGuestPasses().catch(err => {
+    resetGuestPasses().catch((err: unknown) => {
       logger.error('[Guest Pass Reset] Uncaught error:', { error: err as Error });
       schedulerTracker.recordRun('Guest Pass Reset', false, String(err));
     });

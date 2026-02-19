@@ -368,7 +368,7 @@ async function fetchAllHubSpotContacts(forceRefresh: boolean = false): Promise<R
         }
         
         allContactsCache.lastModifiedCheck = now;
-      } catch (err) {
+      } catch (err: unknown) {
         // Incremental sync failed, continue with cached data
         if (!isProduction) logger.warn('[HubSpot] Incremental sync failed, using cached data', { extra: { err } });
       }
@@ -1445,7 +1445,7 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
         // Future: Link deal to member, set up billing
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[HubSpot Webhook] Error processing event', { error: error instanceof Error ? error : new Error(String(error)) });
   }
 });

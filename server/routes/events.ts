@@ -26,7 +26,7 @@ async function getMemberDisplayName(email: string): Promise<string> {
     if (result.length > 0 && (result[0].firstName || result[0].lastName)) {
       return [result[0].firstName, result[0].lastName].filter(Boolean).join(' ');
     }
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn('Failed to lookup member name', { extra: { error: err } });
   }
   return email.split('@')[0];
@@ -426,7 +426,7 @@ router.post('/api/events', isStaffOrAdmin, async (req, res) => {
       try {
         const userEmail = getSessionUser(req)?.email || 'system';
         await createEventAvailabilityBlocks(createdEvent.id, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, createdEvent.title);
-      } catch (blockError) {
+      } catch (blockError: unknown) {
         logger.error('Failed to create availability blocks for event', { extra: { error: blockError } });
       }
     }
@@ -559,7 +559,7 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
             trimmedEndTime || trimmedStartTime
           );
         }
-      } catch (calError) {
+      } catch (calError: unknown) {
         logger.error('Failed to update Google Calendar event', { extra: { error: calError } });
       }
     }
@@ -584,7 +584,7 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
         // Blocks changed or time/date changed
         await updateEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, updatedEvent.title);
       }
-    } catch (blockError) {
+    } catch (blockError: unknown) {
       logger.error('Failed to update availability blocks for event', { extra: { error: blockError } });
     }
     logFromRequest(req, 'update_event', 'event', String(updatedEvent.id), updatedEvent.title, {
@@ -669,7 +669,7 @@ router.delete('/api/events/:id', isStaffOrAdmin, async (req, res) => {
     
     try {
       await removeEventAvailabilityBlocks(eventId);
-    } catch (blockError) {
+    } catch (blockError: unknown) {
       logger.error('Failed to remove availability blocks for event', { extra: { error: blockError } });
     }
     
@@ -853,7 +853,7 @@ router.get('/api/rsvps', async (req, res) => {
               [sessionEmail]
             );
             isStaff = (result as any).rows.length > 0;
-          } catch (e) {
+          } catch (e: unknown) {
             logger.warn('[events] Staff check query failed', { extra: { error: e } });
           }
         }

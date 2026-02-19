@@ -86,7 +86,7 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
         source: 'stripe' as const
       });
       await applyFeeBreakdownToParticipants(booking.session_id, breakdown);
-    } catch (feeError) {
+    } catch (feeError: unknown) {
       logger.error('[Stripe] Failed to compute fees', { extra: { feeError } });
       return res.status(500).json({ error: 'Failed to calculate fees' });
     }
@@ -154,7 +154,7 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       }
 
       await client.query('COMMIT');
-    } catch (err) {
+    } catch (err: unknown) {
       await client.query('ROLLBACK');
       throw err;
     } finally {
@@ -181,7 +181,7 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
             }))
           });
         }
-      } catch (intentError) {
+      } catch (intentError: unknown) {
         logger.info('[Stripe] Could not reuse intent , creating new one', { extra: { existingPaymentIntentId } });
       }
     }
@@ -263,7 +263,7 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
         description,
         metadata
       });
-    } catch (stripeErr) {
+    } catch (stripeErr: unknown) {
       if (snapshotId) {
         await pool.query(`DELETE FROM booking_fee_snapshots WHERE id = $1`, [snapshotId]);
       }
@@ -420,7 +420,7 @@ router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, async (
       let participantFees: Array<{ id: number; amountCents?: number }> = [];
       try {
         participantFees = JSON.parse(snapshot.participant_fees || '[]');
-      } catch (parseErr) {
+      } catch (parseErr: unknown) {
         logger.error('[MemberPayments] Failed to parse participant_fees for snapshot', { extra: { snapshot_id: snapshot.id, data: ':', parseErr } });
       }
       const participantIds = participantFees.map((pf) => pf.id);
@@ -456,7 +456,7 @@ router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, async (
         bookingId,
         status: 'paid'
       });
-    } catch (txError) {
+    } catch (txError: unknown) {
       await client.query('ROLLBACK');
       logger.error('[Stripe] Transaction rolled back for member payment confirmation', { extra: { txError } });
       throw txError;
@@ -1029,7 +1029,7 @@ router.get('/api/member/balance', isAuthenticated, async (req: Request, res: Res
                 allCacheUpdates.push({ id: p.participantId, cents: p.totalCents });
               }
             }
-          } catch (sessionErr) {
+          } catch (sessionErr: unknown) {
             logger.error('[Member Balance] Failed to compute fees for session', { extra: { sessionId, sessionErr } });
           }
         }
@@ -1045,12 +1045,12 @@ router.get('/api/member/balance', isAuthenticated, async (req: Request, res: Res
                WHERE bp.id = updates.id`,
               [ids, cents]
             );
-          } catch (cacheErr) {
+          } catch (cacheErr: unknown) {
             logger.error('[Member Balance] Failed to write-through cache', { extra: { cacheErr } });
           }
         }
       }
-    } catch (uncachedErr) {
+    } catch (uncachedErr: unknown) {
       logger.error('[Member Balance] Error computing on-the-fly fees', { extra: { uncachedErr } });
     }
 
@@ -1256,7 +1256,7 @@ router.post('/api/member/balance/pay', isAuthenticated, async (req: Request, res
       }
       
       await client.query('COMMIT');
-    } catch (err) {
+    } catch (err: unknown) {
       await client.query('ROLLBACK');
       throw err;
     } finally {
@@ -1293,7 +1293,7 @@ router.post('/api/member/balance/pay', isAuthenticated, async (req: Request, res
             creditApplied: false
           });
         }
-      } catch (intentError) {
+      } catch (intentError: unknown) {
         logger.info('[Member Balance] Could not reuse intent , creating new one', { extra: { existingPaymentIntentId } });
       }
     }

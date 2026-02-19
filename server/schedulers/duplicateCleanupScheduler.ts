@@ -56,7 +56,7 @@ async function cleanupDuplicateTrackmanBookings(): Promise<{ deletedCount: numbe
     
     logger.info(`[Duplicate Cleanup] Successfully removed ${idsToDelete.length} duplicate bookings`);
     return { deletedCount: idsToDelete.length };
-  } catch (error) {
+  } catch (error: unknown) {
     await client.query('ROLLBACK');
     throw error;
   } finally {
@@ -78,7 +78,7 @@ async function checkAndRunCleanup(): Promise<void> {
         schedulerTracker.recordRun('Duplicate Cleanup', true);
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[Duplicate Cleanup] Scheduler error:', { error: error as Error });
     schedulerTracker.recordRun('Duplicate Cleanup', false, String(error));
   }
@@ -97,7 +97,7 @@ export function startDuplicateCleanupScheduler(): void {
       } else {
         logger.info('[Duplicate Cleanup] No duplicates found');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[Duplicate Cleanup] Startup cleanup error:', { error: error as Error });
       schedulerTracker.recordRun('Duplicate Cleanup', false, String(error));
     }

@@ -70,7 +70,7 @@ async function expireStaleBookingRequests(): Promise<void> {
       );
     }
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[Booking Expiry] Error expiring stale bookings:', { error: error as Error });
     schedulerTracker.recordRun('Booking Expiry', false, String(error));
     logger.error('Failed to expire stale booking requests', { error: error as Error, extra: { context: 'booking_expiry_scheduler' } });
@@ -88,13 +88,13 @@ export function startBookingExpiryScheduler(): void {
   logger.info('[Startup] Booking expiry scheduler enabled (runs every hour)');
 
   intervalId = setInterval(() => {
-    expireStaleBookingRequests().catch(err => {
+    expireStaleBookingRequests().catch((err: unknown) => {
       logger.error('[Booking Expiry] Uncaught error:', { error: err as Error });
     });
   }, 60 * 60 * 1000);
   
   setTimeout(() => {
-    expireStaleBookingRequests().catch(err => {
+    expireStaleBookingRequests().catch((err: unknown) => {
       logger.error('[Booking Expiry] Initial run error:', { error: err as Error });
     });
   }, 60 * 1000);

@@ -31,7 +31,7 @@ async function tryClaimIntegritySlot(todayStr: string): Promise<boolean> {
       .returning({ key: systemSettings.key });
     
     return result.length > 0;
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Integrity Check] Database error:', { error: err as Error });
     return false;
   }
@@ -55,7 +55,7 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
             if (cleanupResult.orphanedNotifications > 0 || cleanupResult.orphanedBookings > 0 || cleanupResult.normalizedEmails > 0) {
               logger.info(`[Integrity Check] Pre-check cleanup: ${cleanupResult.orphanedNotifications} orphaned notifications removed, ${cleanupResult.orphanedBookings} orphaned bookings marked, ${cleanupResult.normalizedEmails} emails normalized`);
             }
-          } catch (cleanupErr) {
+          } catch (cleanupErr: unknown) {
             logger.error('[Integrity Check] Pre-check cleanup failed (continuing with checks):', { error: cleanupErr as Error });
           }
 
@@ -88,7 +88,7 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
             logger.info('[Integrity Check] No critical issues found, no alert needed');
           }
           schedulerTracker.recordRun('Integrity Check', true);
-        } catch (err) {
+        } catch (err: unknown) {
           logger.error('[Integrity Check] Check failed:', { error: err as Error });
           schedulerTracker.recordRun('Integrity Check', false, String(err));
           
@@ -96,13 +96,13 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
             'Daily Integrity Check',
             err instanceof Error ? err : new Error(String(err)),
             { context: 'Scheduled check at midnight Pacific' }
-          ).catch(alertErr => {
+          ).catch((alertErr: unknown) => {
             logger.error('[Integrity Check] Failed to send staff alert:', { error: alertErr as Error });
           });
         }
       }
     }
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Integrity Check] Scheduler error:', { error: err as Error });
     schedulerTracker.recordRun('Integrity Check', false, String(err));
     
@@ -110,7 +110,7 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
       'Daily Integrity Check',
       err instanceof Error ? err : new Error(String(err)),
       { context: 'Scheduler loop error' }
-    ).catch(alertErr => {
+    ).catch((alertErr: unknown) => {
       logger.error('[Integrity Check] Failed to send staff alert:', { error: alertErr as Error });
     });
   }
@@ -132,7 +132,7 @@ async function runPeriodicAutoFix(): Promise<void> {
       logger.info(`[Auto-Fix] Synced staff roles for ${result.syncedStaffRoles} users`);
     }
     schedulerTracker.recordRun('Auto-Fix Tiers', true);
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Auto-Fix] Periodic tier fix failed:', { error: err as Error });
     schedulerTracker.recordRun('Auto-Fix Tiers', false, String(err));
   }
@@ -183,7 +183,7 @@ async function cleanupAbandonedPendingUsers(): Promise<void> {
         if (deleteResult.rowCount && deleteResult.rowCount > 0) {
           deletedCount++;
         }
-      } catch (err) {
+      } catch (err: unknown) {
         await client.query('ROLLBACK');
         logger.error(`[Auto-Cleanup] Failed to cleanup user ${user.email}:`, { error: err as Error });
       } finally {
@@ -196,7 +196,7 @@ async function cleanupAbandonedPendingUsers(): Promise<void> {
       logger.info(`[Auto-Cleanup] Deleted ${deletedCount} abandoned pending users with all related records: ${emails}`);
     }
     schedulerTracker.recordRun('Abandoned Pending Cleanup', true);
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Auto-Cleanup] Failed to cleanup abandoned pending users:', { error: err as Error });
     schedulerTracker.recordRun('Abandoned Pending Cleanup', false, String(err));
   }

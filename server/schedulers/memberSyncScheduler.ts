@@ -29,7 +29,7 @@ async function runDailyMemberSync(): Promise<void> {
     logger.info(`[MemberSync] Daily sync complete - Synced: ${result.synced}, Errors: ${result.errors}`);
     schedulerTracker.recordRun('Member Sync', true);
     await setLastMemberSyncTime(Date.now());
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[MemberSync] Daily sync failed:', { error: err as Error });
     schedulerTracker.recordRun('Member Sync', false, String(err));
   }

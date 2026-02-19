@@ -75,7 +75,7 @@ async function checkStuckCancellations(): Promise<void> {
       { sendPush: true }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[Stuck Cancellations] Scheduler error:', { error: error as Error });
     schedulerTracker.recordRun('Stuck Cancellation', false, String(error));
     logger.error('Failed to check stuck cancellation bookings', { error: error as Error, extra: { context: 'stuck_cancellation_scheduler' } });
@@ -93,7 +93,7 @@ export function startStuckCancellationScheduler(): void {
   logger.info('[Startup] Stuck cancellation check scheduler enabled (runs every 2 hours)');
 
   intervalId = setInterval(() => {
-    checkStuckCancellations().catch(err => {
+    checkStuckCancellations().catch((err: unknown) => {
       logger.error('[Stuck Cancellations] Uncaught error:', { error: err as Error });
       schedulerTracker.recordRun('Stuck Cancellation', false, String(err));
     });
@@ -101,7 +101,7 @@ export function startStuckCancellationScheduler(): void {
 
   // Run initial check after 1 minute
   setTimeout(() => {
-    checkStuckCancellations().catch(err => {
+    checkStuckCancellations().catch((err: unknown) => {
       logger.error('[Stuck Cancellations] Initial run error:', { error: err as Error });
       schedulerTracker.recordRun('Stuck Cancellation', false, String(err));
     });

@@ -89,7 +89,7 @@ async function expireUnacceptedInvites(): Promise<void> {
             ownerEmail: invite.owner_email
           }
         });
-      } catch (inviteError) {
+      } catch (inviteError: unknown) {
         await client.query('ROLLBACK');
         logger.error('[Invite Expiry] Error processing individual invite', {
           error: inviteError as Error,
@@ -102,7 +102,7 @@ async function expireUnacceptedInvites(): Promise<void> {
     
     logger.info(`[Invite Expiry] Completed processing ${expiredInvites.rows.length} expired invites`);
     schedulerTracker.recordRun('Invite Expiry', true);
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Invite Expiry] Scheduler error:', { error: err as Error });
     schedulerTracker.recordRun('Invite Expiry', false, String(err));
   }

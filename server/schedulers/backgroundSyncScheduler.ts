@@ -52,7 +52,7 @@ async function syncWithRetry<T extends { error?: string }>(
       `${name} calendar sync`,
       new Error(result.error || `${name} sync failed`),
       { calendarName: name }
-    ).catch(err => {
+    ).catch((err: unknown) => {
       logger.error(`[Auto-sync] Failed to send ${name} failure alert:`, { error: err as Error });
     });
   } else {
@@ -75,7 +75,7 @@ const runBackgroundSync = async () => {
     const closuresMsg = closuresResult.error ? closuresResult.error : `${(closuresResult as Record<string, unknown>).synced} synced`;
     const confRoomMsg = confRoomResult.error ? confRoomResult.error : (confRoomResult.warning ? 'not configured' : `${confRoomResult.synced} synced`);
     logger.info(`[Auto-sync] Events: ${eventsMsg}, Wellness: ${wellnessMsg}, Tours: ${toursMsg}, Closures: ${closuresMsg}, ConfRoom: ${confRoomMsg}`);
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Auto-sync] Calendar sync failed:', { error: err as Error });
     schedulerTracker.recordRun('Background Sync', false, String(err));
   } finally {

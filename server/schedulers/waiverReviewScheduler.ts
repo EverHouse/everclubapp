@@ -65,7 +65,7 @@ export async function checkStaleWaivers(): Promise<{
       notificationSent,
       waivers: staleWaivers
     };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[Waiver Review] Error checking stale waivers:', { error: error as Error });
     schedulerTracker.recordRun('Waiver Review', false, String(error));
     throw error;
@@ -83,7 +83,7 @@ async function scheduledCheck(): Promise<void> {
 
     lastCheckTime = now;
     await checkStaleWaivers();
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[Waiver Review] Scheduled check failed:', { error: error as Error });
     schedulerTracker.recordRun('Waiver Review', false, String(error));
     
@@ -92,7 +92,7 @@ async function scheduledCheck(): Promise<void> {
       'Waiver Review Check',
       error instanceof Error ? error : new Error(String(error)),
       { context: 'Scheduled check for stale waivers' }
-    ).catch(alertErr => {
+    ).catch((alertErr: unknown) => {
       logger.error('[Waiver Review] Failed to send staff alert:', { error: alertErr as Error });
       schedulerTracker.recordRun('Waiver Review', false, String(alertErr));
     });

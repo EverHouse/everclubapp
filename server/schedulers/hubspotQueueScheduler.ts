@@ -43,7 +43,7 @@ async function processQueue(): Promise<void> {
     logger.error('[HubSpot Queue] Scheduler error', { error: getErrorMessage(error) });
     try {
       await alertOnScheduledTaskFailure('HubSpot Queue Processor', error instanceof Error ? error : getErrorMessage(error));
-    } catch (alertError) {
+    } catch (alertError: unknown) {
       // Ignore alert failures
     }
     schedulerTracker.recordRun('HubSpot Queue', false, getErrorMessage(error));
@@ -66,14 +66,14 @@ export function startHubSpotQueueScheduler(): void {
       if (result.errors.length > 0) {
         logger.error(`[HubSpot] Property errors: ${result.errors.join(', ')}`);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('[HubSpot] Failed to ensure properties exist:', { error: err as Error });
     }
   }, 15000);
   
   // Run immediately on startup to process any pending jobs
   setTimeout(() => {
-    processQueue().catch(err => {
+    processQueue().catch((err: unknown) => {
       logger.error('[HubSpot Queue] Initial run failed:', { error: err as Error });
     });
   }, 30000); // Wait 30 seconds after startup

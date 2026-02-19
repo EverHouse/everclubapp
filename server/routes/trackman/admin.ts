@@ -772,7 +772,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
           try {
             await recalculateSessionFees(sessionId as number, 'checkin');
             logger.info('[Trackman Resolve] Recalculated fees for session', { extra: { sessionId } });
-          } catch (feeErr) {
+          } catch (feeErr: unknown) {
             logger.warn('[Trackman Resolve] Failed to recalculate fees for session', { extra: { sessionId, feeErr } });
           }
           
@@ -1270,7 +1270,7 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
     if (sessionId) {
       try {
         await recalculateSessionFees(sessionId as number, 'roster_update');
-      } catch (feeErr) {
+      } catch (feeErr: unknown) {
         logger.warn('[Reassign] Fee recalculation failed', { extra: { sessionId, feeErr } });
       }
     }
@@ -2163,7 +2163,7 @@ router.delete('/api/admin/booking/:id/guests/:guestId', isStaffOrAdmin, async (r
             try {
               await refundGuestPassForParticipant(participant.id as number, booking.owner_email as string, guestDisplayName);
               logger.info('[RemoveGuest] Guest pass refunded for', { extra: { guestDisplayName } });
-            } catch (err) {
+            } catch (err: unknown) {
               logger.error('[RemoveGuest] Failed to refund guest pass', { extra: { err } });
             }
           }
@@ -2181,7 +2181,7 @@ router.delete('/api/admin/booking/:id/guests/:guestId', isStaffOrAdmin, async (r
           try {
             await refundGuestPassForParticipant(participant.id as number, booking.owner_email as string, guestDisplayName);
             logger.info('[RemoveGuest] Guest pass refunded for', { extra: { guestDisplayName } });
-          } catch (err) {
+          } catch (err: unknown) {
             logger.error('[RemoveGuest] Failed to refund guest pass', { extra: { err } });
           }
         }
@@ -2294,7 +2294,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
       // Recalculate fees after adding participant
       try {
         await recalculateSessionFees(sessionId as number, 'roster_update');
-      } catch (feeErr) {
+      } catch (feeErr: unknown) {
         logger.warn('[Link Member] Failed to recalculate fees for session', { extra: { sessionId, feeErr } });
       }
     }
@@ -2372,7 +2372,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/unlink', isStaffOrAdmi
         try {
           const { recalculateSessionFees } = await import('../../core/billing/unifiedFeeService');
           await recalculateSessionFees(sessionId as number, 'roster_update');
-        } catch (feeError) {
+        } catch (feeError: unknown) {
           logger.warn('[unlink] Failed to recalculate session fees (non-blocking)', { extra: { feeError } });
         }
       } else {
@@ -2863,7 +2863,7 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
         // Rollback to savepoint so we can continue with next booking
         try {
           await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
-        } catch (rollbackError) {
+        } catch (rollbackError: unknown) {
           // If rollback fails, log but continue
           logger.error('[Backfill] Failed to rollback savepoint for booking', { extra: { bookingId: booking.id } });
         }

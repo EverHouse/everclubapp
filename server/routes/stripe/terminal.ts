@@ -215,7 +215,7 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
         if (finalDescription && !finalDescription.startsWith('#')) {
           finalDescription = `#${displayId} - ${finalDescription}`;
         }
-      } catch (lookupErr) {
+      } catch (lookupErr: unknown) {
         logger.warn('[Terminal] Could not look up booking for description prefix', { extra: { lookupErr_as_Error_message: (lookupErr as Error).message } });
       }
     }
@@ -814,7 +814,7 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
           billingProvider: updatedUser.billingProvider || undefined,
           billingGroupRole: 'Primary',
         });
-      } catch (hubspotError) {
+      } catch (hubspotError: unknown) {
         logger.error('[Terminal] HubSpot sync error (non-blocking)', { extra: { hubspotError } });
       }
     }
@@ -916,7 +916,7 @@ router.post('/api/stripe/terminal/process-existing-payment', isStaffOrAdmin, asy
     try {
       const readerObj = await stripe.terminal.readers.retrieve(readerId);
       readerLabel = (readerObj as any).label || readerId;
-    } catch (e) { /* reader label is cosmetic, ignore */ }
+    } catch (e: unknown) { /* reader label is cosmetic, ignore */ }
 
     const updateParams: Stripe.PaymentIntentUpdateParams = {
       payment_method_types: ['card_present'],

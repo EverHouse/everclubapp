@@ -29,7 +29,7 @@ async function tryClaimUnresolvedTrackmanSlot(todayStr: string): Promise<boolean
       .returning({ key: systemSettings.key });
     
     return result.length > 0;
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Unresolved Trackman Check] Database error:', { error: err as Error });
     schedulerTracker.recordRun('Unresolved Trackman', false, String(err));
     return false;
@@ -79,13 +79,13 @@ async function checkUnresolvedTrackmanBookings(): Promise<void> {
           } else {
             logger.info('[Unresolved Trackman Check] No unresolved bookings found');
           }
-        } catch (err) {
+        } catch (err: unknown) {
           logger.error('[Unresolved Trackman Check] Check failed:', { error: err as Error });
           schedulerTracker.recordRun('Unresolved Trackman', false, String(err));
         }
       }
     }
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Unresolved Trackman Check] Scheduler error:', { error: err as Error });
     schedulerTracker.recordRun('Unresolved Trackman', false, String(err));
   }

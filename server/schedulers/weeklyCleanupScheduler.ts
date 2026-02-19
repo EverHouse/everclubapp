@@ -27,7 +27,7 @@ async function checkAndRunCleanup(): Promise<void> {
       logger.info('[Cleanup] Weekly cleanup completed');
       schedulerTracker.recordRun('Weekly Cleanup', true);
     }
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Cleanup] Scheduler error:', { error: err as Error });
     schedulerTracker.recordRun('Weekly Cleanup', false, String(err));
   }
