@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.85.0",
+    date: "2026-02-19",
+    title: "Unified Participant Data: Staff & Member Views Now Read From One Source",
+    isMajor: true,
+    changes: [
+      "Architecture: Staff booking views now read participant data from the same source as member views, billing, and check-in — eliminating data inconsistencies",
+      "Fixed: Players added or removed by members now appear instantly in staff views without any sync delay",
+      "Fixed: Staff and member views always show identical participant lists, names, and fee calculations",
+      "Fixed: Check-in process no longer cross-references legacy tables for participant validation — uses the authoritative participant data directly",
+      "Improved: Legacy slot-based tables preserved as fallback for older bookings and Trackman imports that don't yet have session data",
+    ]
+  },
+  {
     version: "7.84.0",
     date: "2026-02-19",
     title: "Improved Add Guest Experience & Unified Member/Staff Views",

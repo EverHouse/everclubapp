@@ -38,7 +38,7 @@ The application is built with a React 19 frontend (Vite, Tailwind CSS) and an Ex
 - **Timezone Handling**: All date/time operations prioritize 'America/Los_Angeles'.
 - **Backend**: Modular API routes, core services, loader modules, health checks, graceful shutdown.
 - **Member Management**: Supports tiers, discount tracking, directory, billing groups, member notes, communications log, visitor matching, and flexible tier features.
-- **Booking System**: "Request & Hold," conflict detection, staff/member bookings, multi-member bookings, calendar management, conference room bookings, transactional with row-level locking. Player Management Modal handles all player/roster management. Players added to bookings are auto-confirmed.
+- **Booking System**: "Request & Hold," conflict detection, staff/member bookings, multi-member bookings, calendar management, conference room bookings, transactional with row-level locking. Player Management Modal handles all player/roster management. Players added to bookings are auto-confirmed. **Unified participant architecture (v7.85):** Staff and member views both read from `booking_participants` (session-based) as the single source of truth. Legacy `booking_members`/`booking_guests` tables are still written to for backward compatibility but are only read as fallback for bookings without sessions.
 - **Trackman Integration**: 1:1 sync with CSV imports and webhooks.
 - **Google Sign-In**: Members can sign in with Google or link accounts.
 - **Error Handling**: Shared `server/utils/errorUtils.ts` utility for safe error handling.
