@@ -8,7 +8,6 @@ import { useToast } from '../../components/Toast';
 import { apiRequest } from '../../lib/apiRequest';
 import TabButton from '../../components/TabButton';
 import SwipeablePage from '../../components/SwipeablePage';
-import PullToRefresh from '../../components/PullToRefresh';
 import { MotionList, MotionListItem, AnimatedPage } from '../../components/motion';
 import { TabTransition } from '../../components/motion/TabTransition';
 import { EmptyEvents } from '../../components/EmptyState';
@@ -147,13 +146,6 @@ const Wellness: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshPromiseResolve, setRefreshPromiseResolve] = useState<(() => void) | null>(null);
 
-  const handleRefresh = useCallback(async () => {
-    return new Promise<void>((resolve) => {
-      setRefreshPromiseResolve(() => resolve);
-      setRefreshKey(k => k + 1);
-    });
-  }, []);
-
   const onRefreshComplete = useCallback(() => {
     if (refreshPromiseResolve) {
       refreshPromiseResolve();
@@ -163,7 +155,6 @@ const Wellness: React.FC = () => {
 
   return (
     <AnimatedPage>
-    <PullToRefresh onRefresh={handleRefresh}>
     <SwipeablePage className="px-6 relative overflow-hidden">
       <section className="mb-4 pt-4 md:pt-2 animate-content-enter-delay-1">
         <h1 className={`text-3xl font-bold leading-tight drop-shadow-md ${isDark ? 'text-white' : 'text-primary'}`}>Wellness</h1>
@@ -196,7 +187,6 @@ const Wellness: React.FC = () => {
       )}
 
     </SwipeablePage>
-    </PullToRefresh>
     </AnimatedPage>
   );
 };

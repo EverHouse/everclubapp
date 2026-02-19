@@ -3,7 +3,6 @@ import { usePageReady } from '../../../contexts/PageReadyContext';
 import EmptyState from '../../../components/EmptyState';
 import { formatDateDisplayWithDay, formatTime12Hour } from '../../../utils/dateUtils';
 import { formatPhoneNumber } from '../../../utils/formatting';
-import PullToRefresh from '../../../components/PullToRefresh';
 import { AnimatedPage } from '../../../components/motion';
 import { useTourData, useSyncTours, useCheckInTour, useUpdateTourStatus } from '../../../hooks/queries';
 import { ToursTabSkeleton } from '../../../components/skeletons';
@@ -40,16 +39,6 @@ const ToursTab: React.FC = () => {
   React.useEffect(() => {
     setPageReady(true);
   }, [setPageReady]);
-
-  const handlePullRefresh = async () => {
-    setSyncMessage(null);
-    try {
-      const result = await syncMutation.mutateAsync();
-      setSyncMessage(`Synced ${result.synced} tours (${result.created} new, ${result.updated} updated)`);
-    } catch (err: unknown) {
-      setSyncMessage('Network error - please try again');
-    }
-  };
 
   const handleCheckIn = async (tour: Tour) => {
     const confirmed = await confirm({
@@ -199,7 +188,6 @@ const ToursTab: React.FC = () => {
   };
 
   return (
-    <PullToRefresh onRefresh={handlePullRefresh}>
       <AnimatedPage className="space-y-6 pb-32 backdrop-blur-sm">
         <p className="text-sm text-primary/80 dark:text-white/80 animate-content-enter-delay-1">
           Synced from Google Calendar: <span className="font-medium">Tours Scheduled</span>
@@ -271,7 +259,6 @@ const ToursTab: React.FC = () => {
 
       <ConfirmDialogComponent />
       </AnimatedPage>
-    </PullToRefresh>
   );
 };
 

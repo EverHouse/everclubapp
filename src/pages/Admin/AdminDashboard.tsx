@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation, useSearchParams, Outlet } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useData } from '../../contexts/DataContext';
 import { BottomSentinel } from '../../components/layout/BottomSentinel';
 import BackToTop from '../../components/BackToTop';
@@ -15,6 +16,7 @@ import StaffMobileSidebar from '../../components/StaffMobileSidebar';
 import { useConfirmDialog } from '../../components/ConfirmDialog';
 import { TabTransition } from '../../components/motion';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
+import PullToRefresh from '../../components/PullToRefresh';
 
 import { TabType, StaffBottomNav, StaffSidebar, usePendingCounts, useUnreadNotifications, getTabFromPathname, tabToPath } from './layout';
 
@@ -37,6 +39,10 @@ const AdminDashboard: React.FC = () => {
   
   const { pendingRequestsCount, refetch: refetchPendingCounts } = usePendingCounts();
   const { unreadNotifCount } = useUnreadNotifications(actualUser?.email);
+  const adminQueryClient = useQueryClient();
+  const handleAdminRefresh = useCallback(async () => {
+    await adminQueryClient.invalidateQueries();
+  }, [adminQueryClient]);
 
   const handleGlobalBookingEvent = useCallback(() => {
     console.log('[AdminDashboard] Received global booking event, refreshing counts');
@@ -164,18 +170,20 @@ const AdminDashboard: React.FC = () => {
       {createPortal(headerContent, document.body)}
 
       <main className="flex-1 px-4 md:px-8 pt-[max(112px,calc(env(safe-area-inset-top)+96px))] relative z-0 lg:ml-64 w-full lg:w-auto">
-        <TabTransition activeKey={activeTab} className="animate-content-enter">
-          {activeTab === 'training' ? (
-            <StaffTrainingGuide key="training" />
-          ) : (
-            <PageErrorBoundary pageName={`Admin Tab: ${activeTab}`}>
-              <Suspense fallback={<TabLoadingFallback />}>
-                <Outlet context={{ navigateToTab, isAdmin: actualUser?.role === 'admin', wsConnected: staffWsConnected }} />
-              </Suspense>
-            </PageErrorBoundary>
-          )}
-        </TabTransition>
-        <BottomSentinel />
+        <PullToRefresh onRefresh={handleAdminRefresh}>
+          <TabTransition activeKey={activeTab} className="animate-content-enter">
+            {activeTab === 'training' ? (
+              <StaffTrainingGuide key="training" />
+            ) : (
+              <PageErrorBoundary pageName={`Admin Tab: ${activeTab}`}>
+                <Suspense fallback={<TabLoadingFallback />}>
+                  <Outlet context={{ navigateToTab, isAdmin: actualUser?.role === 'admin', wsConnected: staffWsConnected }} />
+                </Suspense>
+              </PageErrorBoundary>
+            )}
+          </TabTransition>
+          <BottomSentinel />
+        </PullToRefresh>
       </main>
 
       <div className="lg:hidden">

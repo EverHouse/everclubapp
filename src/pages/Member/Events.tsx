@@ -8,7 +8,6 @@ import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from
 import { EventCardSkeleton, SkeletonList } from '../../components/skeletons';
 import TabButton from '../../components/TabButton';
 import SwipeablePage from '../../components/SwipeablePage';
-import PullToRefresh from '../../components/PullToRefresh';
 import { MotionList, MotionListItem, AnimatedPage } from '../../components/motion';
 import { EmptyEvents } from '../../components/EmptyState';
 import { downloadICalFile } from '../../utils/icalUtils';
@@ -256,13 +255,8 @@ const MemberEvents: React.FC = () => {
     setPendingEvent(null);
   };
 
-  const handleRefresh = async () => {
-    await refetchRsvps();
-  };
-
   return (
     <AnimatedPage>
-    <PullToRefresh onRefresh={handleRefresh}>
     <SwipeablePage className="px-6 relative overflow-hidden">
       <section className="mb-4 pt-4 md:pt-2 animate-content-enter-delay-1">
         <p className={`text-sm font-medium ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Discover what's happening at the House.</p>
@@ -486,7 +480,6 @@ const MemberEvents: React.FC = () => {
         )}
       </ModalShell>
     </SwipeablePage>
-    </PullToRefresh>
     </AnimatedPage>
   );
 };

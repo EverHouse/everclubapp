@@ -10,7 +10,6 @@ import { fetchWithCredentials, postWithCredentials, putWithCredentials } from '.
 import { usePricing } from '../../hooks/usePricing';
 import TabButton from '../../components/TabButton';
 import SwipeablePage from '../../components/SwipeablePage';
-import PullToRefresh from '../../components/PullToRefresh';
 import { haptic } from '../../utils/haptics';
 import { playSound } from '../../utils/sounds';
 import { useTierPermissions } from '../../hooks/useTierPermissions';
@@ -933,26 +932,8 @@ const BookGolf: React.FC = () => {
     return Object.values(grouped).sort((a, b) => a.hour24.localeCompare(b.hour24));
   }, [slotsToDisplay]);
 
-  const handleRefresh = useCallback(async () => {
-    // Preserve scroll position
-    const scrollY = window.scrollY;
-    
-    setSelectedSlot(null);
-    setSelectedResource(null);
-    setExpandedHour(null);
-    
-    // Invalidate all BookGolf-related queries to refetch data
-    await queryClient.invalidateQueries({ queryKey: bookGolfKeys.all });
-    
-    // Restore scroll position after data refresh
-    requestAnimationFrame(() => {
-      window.scrollTo(0, scrollY);
-    });
-  }, [queryClient]);
-
   return (
     <AnimatedPage>
-    <PullToRefresh onRefresh={handleRefresh}>
     <SwipeablePage className="px-6 lg:px-8 xl:px-12 relative">
       <section className="mb-6 pt-4 md:pt-2 animate-content-enter-delay-1">
         <h1 className={`text-3xl font-bold leading-tight drop-shadow-md ${isDark ? 'text-white' : 'text-primary'}`}>Book</h1>
@@ -1678,7 +1659,6 @@ const BookGolf: React.FC = () => {
         )}
       </ModalShell>
     </SwipeablePage>
-    </PullToRefresh>
     </AnimatedPage>
   );
 };

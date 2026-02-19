@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../../../components/Toast';
-import PullToRefresh from '../../../components/PullToRefresh';
 import FloatingActionButton from '../../../components/FloatingActionButton';
 import PageErrorBoundary from '../../../components/PageErrorBoundary';
 import { EventsAdminContent } from './events/EventsAdminContent';
@@ -83,13 +82,7 @@ const EventsTab: React.FC = () => {
         }
     });
     
-    const handlePullRefresh = async () => {
-        setSyncMessage(null);
-        syncMutation.mutate();
-    };
-
     return (
-        <PullToRefresh onRefresh={handlePullRefresh}>
             <div className="animate-pop-in backdrop-blur-sm">
                 {syncMessage && (
                     <div className={`mb-4 px-4 py-2 rounded-lg text-sm font-medium ${
@@ -146,7 +139,6 @@ const EventsTab: React.FC = () => {
                     label={activeSubTab === 'events' ? 'Add event' : 'Add wellness session'} 
                 />
             </div>
-        </PullToRefresh>
     );
 };
 

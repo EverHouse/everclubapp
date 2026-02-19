@@ -4,7 +4,6 @@ import { useData, Announcement } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import SwipeablePage from '../../components/SwipeablePage';
-import PullToRefresh from '../../components/PullToRefresh';
 import { MotionList, MotionListItem } from '../../components/motion';
 import { getTodayPacific, formatDateDisplayWithDay, formatDateTimePacific, addDaysToPacificDate } from '../../utils/dateUtils';
 import { getMemberNoticeTitle, getAffectedAreasList, isBlockingClosure } from '../../utils/closureUtils';
@@ -219,10 +218,6 @@ const MemberUpdates: React.FC = () => {
       console.error('Failed to mark all notifications read:', err);
     }
   };
-
-  const handleRefresh = useCallback(async () => {
-    await Promise.all([fetchClosures(), fetchNotifications()]);
-  }, [fetchClosures, fetchNotifications]);
 
   const handleAnnouncementClick = (item: Announcement) => {
     if (item.linkType) {
@@ -658,7 +653,6 @@ const MemberUpdates: React.FC = () => {
   );
 
   return (
-    <PullToRefresh onRefresh={handleRefresh}>
     <SwipeablePage className="px-6 relative overflow-hidden">
       <section className="mb-4 pt-4 md:pt-2">
         <h1 className={`text-3xl font-bold leading-tight drop-shadow-md ${isDark ? 'text-white' : 'text-primary'}`}>Updates</h1>
@@ -712,7 +706,6 @@ const MemberUpdates: React.FC = () => {
         {activeTab === 'announcements' ? renderAnnouncementsTab() : activeTab === 'notices' ? renderNoticesTab() : renderActivityTab()}
       </div>
     </SwipeablePage>
-    </PullToRefresh>
   );
 };
 

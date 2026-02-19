@@ -20,7 +20,6 @@ import { getTierColor } from '../../utils/tierUtils';
 import { getStatusBadge as getStatusBadgeColor, formatStatusLabel } from '../../utils/statusColors';
 import TierBadge from '../../components/TierBadge';
 import HubSpotFormModal from '../../components/HubSpotFormModal';
-import PullToRefresh from '../../components/PullToRefresh';
 import { useTierPermissions } from '../../hooks/useTierPermissions';
 import AnnouncementAlert from '../../components/AnnouncementAlert';
 import ClosureAlert from '../../components/ClosureAlert';
@@ -289,10 +288,6 @@ const Dashboard: React.FC = () => {
       }
     }
   }, [user?.email]);
-
-  const handleRefresh = useCallback(async () => {
-    refetchAllData();
-  }, [refetchAllData]);
 
   const allItems = [
     ...dbBookings.map(b => {
@@ -740,7 +735,7 @@ const Dashboard: React.FC = () => {
       <DashboardSkeleton isDark={isDark} />
     ) : (
     <>
-    <PullToRefresh onRefresh={handleRefresh} className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col">
       <div className="px-6 lg:px-8 xl:px-12 pt-4 md:pt-2 pb-32 font-sans relative flex-1">
         <ClosureAlert />
         <AnnouncementAlert />
@@ -1129,7 +1124,7 @@ const Dashboard: React.FC = () => {
         </>
       )}
       </div>
-    </PullToRefresh>
+    </div>
 
     <ModalShell 
       isOpen={!!confirmModal} 

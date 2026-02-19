@@ -7,7 +7,6 @@ import { useToast } from '../../../components/Toast';
 import { formatDateTimePacific, formatDateDisplayWithDay } from '../../../utils/dateUtils';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 import ModalShell from '../../../components/ModalShell';
-import PullToRefresh from '../../../components/PullToRefresh';
 import RosterManager from '../../../components/booking/RosterManager';
 import { UnifiedBookingSheet } from '../../../components/staff-command-center/modals/UnifiedBookingSheet';
 import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
@@ -429,11 +428,6 @@ const TrackmanTab: React.FC = () => {
     return name.includes(query) || email.includes(query);
   });
 
-  const handlePullRefresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['trackman'] });
-    await queryClient.invalidateQueries({ queryKey: ['hubspot', 'contacts'] });
-  };
-
   const invalidateTrackmanQueries = () => {
     queryClient.invalidateQueries({ queryKey: ['trackman'] });
   };
@@ -443,7 +437,6 @@ const TrackmanTab: React.FC = () => {
   }
 
   return (
-    <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="px-6 pb-4 space-y-6">
       <div className="glass-card p-6 rounded-2xl border border-primary/10 dark:border-white/25">
         <h2 className="text-lg font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
@@ -1188,7 +1181,6 @@ const TrackmanTab: React.FC = () => {
         />
       )}
     </div>
-    </PullToRefresh>
   );
 };
 

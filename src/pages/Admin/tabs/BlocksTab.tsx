@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useData } from '../../../contexts/DataContext';
 import { useToast } from '../../../components/Toast';
 import { getTodayPacific, formatDateDisplayWithDay } from '../../../utils/dateUtils';
-import PullToRefresh from '../../../components/PullToRefresh';
 import { SlideUpDrawer } from '../../../components/SlideUpDrawer';
 import FloatingActionButton from '../../../components/FloatingActionButton';
 import AvailabilityBlocksContent from '../components/AvailabilityBlocksContent';
@@ -451,10 +450,6 @@ const BlocksTab: React.FC = () => {
         setIsClosureModalOpen(true);
     };
 
-    const handlePullRefresh = async () => {
-        syncClosuresMutation.mutate();
-    };
-
     const toggleNoticeExpand = (closureId: number) => {
         setExpandedNotices(prev => {
             const newSet = new Set(prev);
@@ -640,7 +635,6 @@ const BlocksTab: React.FC = () => {
     }
 
     return (
-        <PullToRefresh onRefresh={handlePullRefresh}>
         <AnimatedPage className="space-y-6">
             <div className="flex items-center justify-between gap-3 flex-wrap animate-content-enter-delay-1">
                 <div className="inline-flex bg-black/5 dark:bg-white/10 backdrop-blur-sm rounded-full p-1 relative">
@@ -1593,7 +1587,6 @@ const BlocksTab: React.FC = () => {
             </TabTransition>
             <ConfirmDialogComponent />
         </AnimatedPage>
-        </PullToRefresh>
     );
 };
 

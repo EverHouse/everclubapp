@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useData } from '../../contexts/DataContext';
@@ -7,7 +7,6 @@ import { usePageReady } from '../../contexts/PageReadyContext';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
 import TabButton from '../../components/TabButton';
 import SwipeablePage from '../../components/SwipeablePage';
-import PullToRefresh from '../../components/PullToRefresh';
 import MemberBottomNav from '../../components/MemberBottomNav';
 import { BottomSentinel } from '../../components/layout/BottomSentinel';
 import { formatTime12Hour, getRelativeDateLabel } from '../../utils/dateUtils';
@@ -92,9 +91,6 @@ const History: React.FC = () => {
     };
   }, [queryClient, user?.email]);
 
-  const handleRefresh = useCallback(async () => {
-    await Promise.all([refetchVisits(), refetchPurchases()]);
-  }, [refetchVisits, refetchPurchases]);
 
   const getRoleBadgeStyle = (role: string): string => {
     switch (role) {
@@ -130,7 +126,6 @@ const History: React.FC = () => {
 
   return (
     <AnimatedPage>
-    <PullToRefresh onRefresh={handleRefresh}>
       <SwipeablePage className="px-6 lg:px-8 xl:px-12 relative overflow-hidden">
         <section className="mb-4 pt-4 md:pt-2 animate-content-enter-delay-1">
           <h1 className={`text-3xl font-bold leading-tight drop-shadow-md ${isDark ? 'text-white' : 'text-primary'}`}>History</h1>
@@ -435,7 +430,6 @@ const History: React.FC = () => {
           onClose={() => setPayingInvoice(null)}
         />
       )}
-    </PullToRefresh>
     </AnimatedPage>
   );
 };

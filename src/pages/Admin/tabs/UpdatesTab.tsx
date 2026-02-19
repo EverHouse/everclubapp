@@ -6,7 +6,6 @@ import { usePageReady } from '../../../contexts/PageReadyContext';
 import { formatDateTimePacific, formatRelativeTime } from '../../../utils/dateUtils';
 import { useNotificationSounds } from '../../../hooks/useNotificationSounds';
 import FloatingActionButton from '../../../components/FloatingActionButton';
-import PullToRefresh from '../../../components/PullToRefresh';
 import AnnouncementManager from '../../../components/admin/AnnouncementManager';
 import { AnimatedPage } from '../../../components/motion';
 
@@ -96,10 +95,6 @@ const UpdatesTab: React.FC = () => {
             return () => clearInterval(interval);
         }
     }, [actualUser?.email, fetchNotifications]);
-
-    const handleRefresh = useCallback(async () => {
-        await fetchNotifications();
-    }, [fetchNotifications]);
 
     const getStaffNotificationRoute = (notif: StaffNotification): string | null => {
         const routeMap: Record<string, string> = {
@@ -327,7 +322,6 @@ const UpdatesTab: React.FC = () => {
     };
 
     return (
-        <PullToRefresh onRefresh={handleRefresh}>
             <AnimatedPage className="pb-32">
                 <div className="flex gap-1.5 sm:gap-2 mb-6 animate-content-enter-delay-1">
                     <button
@@ -361,7 +355,6 @@ const UpdatesTab: React.FC = () => {
                 {activeSubTab === 'announcements' && <AnnouncementManager triggerCreate={triggerCreateAnnouncement} />}
                 <FloatingActionButton onClick={handleCreateAnnouncement} color="purple" label="Add announcement" />
             </AnimatedPage>
-        </PullToRefresh>
     );
 };
 

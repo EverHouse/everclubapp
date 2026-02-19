@@ -4,7 +4,6 @@ import { changelog } from '../../../data/changelog';
 import EmptyState from '../../../components/EmptyState';
 import { formatRelativeTime } from '../../../utils/dateUtils';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
-import PullToRefresh from '../../../components/PullToRefresh';
 import { AnimatedPage } from '../../../components/motion';
 import { useData } from '../../../contexts/DataContext';
 
@@ -259,12 +258,6 @@ const ChangelogTab: React.FC = () => {
             fetchActivityLog();
         }
     }, [limit, fetchActivityLog, activeTab]);
-
-    const handleRefresh = useCallback(async () => {
-        if (activeTab === 'activity') {
-            await fetchActivityLog(true);
-        }
-    }, [activeTab, fetchActivityLog]);
 
     const loadMore = () => {
         setLimit(prev => prev + 50);
@@ -894,7 +887,6 @@ const ChangelogTab: React.FC = () => {
     };
 
     return (
-        <PullToRefresh onRefresh={handleRefresh}>
             <AnimatedPage className="pb-32">
                 {isAdmin && (
                     <div className="flex gap-2 mb-6 animate-content-enter">
@@ -924,7 +916,6 @@ const ChangelogTab: React.FC = () => {
                 {activeTab === 'updates' && renderUpdatesTab()}
                 {activeTab === 'activity' && isAdmin && renderActivityTab()}
             </AnimatedPage>
-        </PullToRefresh>
     );
 };
 
