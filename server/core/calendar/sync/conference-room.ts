@@ -1,12 +1,16 @@
 import { getGoogleCalendarClient } from '../../integrations';
 import { db } from '../../../db';
 import { bookingRequests, users } from '../../../../shared/models/auth';
-import { eq, and, ilike, or, sql } from 'drizzle-orm';
+import { bookingSessions } from '../../../../shared/models/scheduling';
+import { eq, and, ilike, or, ne, sql } from 'drizzle-orm';
 import { getTodayPacific, getPacificMidnightUTC } from '../../../utils/dateUtils';
 import { CALENDAR_CONFIG, ConferenceRoomBooking, MemberMatchResult, CalendarEventData } from '../config';
 import { getCalendarIdByName } from '../cache';
 import { getConferenceRoomId } from '../../affectedAreas';
 import { ensureSessionForBooking } from '../../bookingService/sessionManager';
+import { releaseGuestPassHold } from '../../billing/guestPassHoldService';
+import { bookingEvents } from '../../bookingEvents';
+import { broadcastAvailabilityUpdate } from '../../websocket';
 
 import { logger } from '../../logger';
 export async function getConferenceRoomBookingsFromCalendar(
@@ -318,22 +322,24 @@ export async function findMemberByCalendarEvent(eventData: CalendarEventData): P
   return { userEmail: null, userName: extractedName, matchMethod: null };
 }
 
-export async function syncConferenceRoomCalendarToBookings(options?: { monthsBack?: number }): Promise<{ synced: number; linked: number; created: number; skipped: number; error?: string; warning?: string }> {
+export async function syncConferenceRoomCalendarToBookings(options?: { monthsBack?: number }): Promise<{ synced: number; linked: number; created: number; skipped: number; cancelled: number; updated: number; error?: string; warning?: string }> {
   let linked = 0;
   let created = 0;
   let skipped = 0;
+  let cancelled = 0;
+  let updated = 0;
 
   try {
     const conferenceRoomId = await getConferenceRoomId();
     if (!conferenceRoomId) {
-      return { synced: 0, linked: 0, created: 0, skipped: 0, warning: 'No conference room resource found in database' };
+      return { synced: 0, linked: 0, created: 0, skipped: 0, cancelled: 0, updated: 0, warning: 'No conference room resource found in database' };
     }
 
     const calendar = await getGoogleCalendarClient();
     const calendarId = await getCalendarIdByName(CALENDAR_CONFIG.conference.name);
 
     if (!calendarId) {
-      return { synced: 0, linked: 0, created: 0, skipped: 0, warning: `Calendar "${CALENDAR_CONFIG.conference.name}" not found` };
+      return { synced: 0, linked: 0, created: 0, skipped: 0, cancelled: 0, updated: 0, warning: `Calendar "${CALENDAR_CONFIG.conference.name}" not found` };
     }
 
     const todayPacific = getTodayPacific();
@@ -367,7 +373,62 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
       for (const event of calendarEvents) {
         if (!event.id) continue;
         
-        if (event.status === 'cancelled' || !event.summary) continue;
+        if (event.status === 'cancelled') {
+          try {
+            const existingBookings = await db
+              .select()
+              .from(bookingRequests)
+              .where(
+                and(
+                  eq(bookingRequests.calendarEventId, event.id),
+                  ne(bookingRequests.status, 'cancelled')
+                )
+              );
+
+            if (existingBookings.length > 0) {
+              const booking = existingBookings[0];
+              await db
+                .update(bookingRequests)
+                .set({
+                  status: 'cancelled',
+                  staffNotes: `${booking.staffNotes ? booking.staffNotes + '\n' : ''}Cancelled via Google Calendar sync on ${new Date().toISOString()}`,
+                  updatedAt: new Date()
+                })
+                .where(eq(bookingRequests.id, booking.id));
+
+              await releaseGuestPassHold(booking.id);
+
+              const bookingDate = typeof booking.requestDate === 'string'
+                ? booking.requestDate
+                : (booking.requestDate as Date).toISOString().split('T')[0];
+
+              await bookingEvents.publish('booking_cancelled', {
+                bookingId: booking.id,
+                memberEmail: booking.userEmail || 'unknown@calendar.sync',
+                bookingDate,
+                startTime: booking.startTime as string,
+                status: 'cancelled'
+              }, {
+                cleanupNotifications: true,
+                notifyMember: true,
+                notifyStaff: true
+              });
+
+              broadcastAvailabilityUpdate({
+                resourceId: booking.resourceId || conferenceRoomId,
+                date: bookingDate
+              });
+
+              cancelled++;
+              logger.info(`[Conference Room Sync] Cancelled booking ${booking.id} (calendar event ${event.id} was deleted)`);
+            }
+          } catch (cancelErr: unknown) {
+            logger.error('[Conference Room Sync] Error handling cancelled calendar event:', { error: cancelErr, eventId: event.id });
+          }
+          continue;
+        }
+
+        if (!event.summary) continue;
 
         const googleEventId = event.id;
         const summary = event.summary;
@@ -442,7 +503,49 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
           .where(eq(bookingRequests.calendarEventId, googleEventId));
 
         if (existingByCalendarEventId.length > 0) {
-          skipped++;
+          const existingBooking = existingByCalendarEventId[0];
+          const existingStartTime = (existingBooking.startTime as string)?.substring(0, 5);
+          const existingEndTime = (existingBooking.endTime as string)?.substring(0, 5);
+          const existingDate = typeof existingBooking.requestDate === 'string'
+            ? existingBooking.requestDate
+            : (existingBooking.requestDate as Date).toISOString().split('T')[0];
+
+          const timeChanged = existingStartTime !== startTime || existingEndTime !== endTime || existingDate !== eventDate;
+
+          if (timeChanged && existingBooking.status !== 'cancelled') {
+            try {
+              await db
+                .update(bookingRequests)
+                .set({
+                  startTime,
+                  endTime,
+                  requestDate: eventDate,
+                  durationMinutes,
+                  updatedAt: new Date()
+                })
+                .where(eq(bookingRequests.id, existingBooking.id));
+
+              if (existingBooking.sessionId) {
+                await db
+                  .update(bookingSessions)
+                  .set({
+                    startTime: startTime + ':00',
+                    endTime: endTime + ':00',
+                    sessionDate: eventDate,
+                    updatedAt: new Date()
+                  })
+                  .where(eq(bookingSessions.id, existingBooking.sessionId));
+              }
+
+              logger.info(`[Conference Room Sync] Updated booking ${existingBooking.id} time: ${existingDate} ${existingStartTime}-${existingEndTime} → ${eventDate} ${startTime}-${endTime}`);
+              updated++;
+            } catch (updateErr: unknown) {
+              logger.error('[Conference Room Sync] Error updating booking time:', { error: updateErr, bookingId: existingBooking.id });
+              skipped++;
+            }
+          } else {
+            skipped++;
+          }
           continue;
         }
 
@@ -545,10 +648,10 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
     } while (pageToken);
 
     const synced = linked + created;
-    logger.info(`[Conference Room Sync] Synced ${synced} events (linked: ${linked}, created: ${created}, skipped: ${skipped})`);
-    return { synced, linked, created, skipped };
+    logger.info(`[Conference Room Sync] Synced ${synced} events (linked: ${linked}, created: ${created}, skipped: ${skipped}, cancelled: ${cancelled}, updated: ${updated})`);
+    return { synced, linked, created, skipped, cancelled, updated };
   } catch (error: unknown) {
     logger.error('Error syncing conference room calendar to bookings:', { error: error });
-    return { synced: 0, linked: 0, created: 0, skipped: 0, error: String(error) };
+    return { synced: 0, linked: 0, created: 0, skipped: 0, cancelled: 0, updated: 0, error: String(error) };
   }
 }
