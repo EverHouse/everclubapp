@@ -142,19 +142,12 @@ const RosterManager: React.FC<RosterManagerProps> = ({
   const [guestPassesRemaining, setGuestPassesRemaining] = useState(0);
   const [feePreview, setFeePreview] = useState<FeePreviewResponse | null>(null);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  const [showGuestModal, setShowGuestModal] = useState(false);
   const [removingId, setRemovingId] = useState<number | null>(null);
 
   const [memberSearch, setMemberSearch] = useState('');
   const [searchResults, setSearchResults] = useState<Member[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [addingMember, setAddingMember] = useState(false);
-
-  const [guestFirstName, setGuestFirstName] = useState('');
-  const [guestLastName, setGuestLastName] = useState('');
-  const [guestEmail, setGuestEmail] = useState('');
-  const [guestEmailError, setGuestEmailError] = useState<string | undefined>(undefined);
-  const [addingGuest, setAddingGuest] = useState(false);
   const [apiDeclaredPlayerCount, setApiDeclaredPlayerCount] = useState<number>(declaredPlayerCount);
   const [apiRemainingSlots, setApiRemainingSlots] = useState<number>(Math.max(0, declaredPlayerCount - 1));
   const [apiCurrentParticipantCount, setApiCurrentParticipantCount] = useState<number>(1); // Owner counts as 1
@@ -163,8 +156,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({
   const [conflictDetails, setConflictDetails] = useState<BookingConflictDetails | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showGuestPaymentChoiceModal, setShowGuestPaymentChoiceModal] = useState(false);
-  const [pendingGuestName, setPendingGuestName] = useState('');
-  const [pendingGuestEmail, setPendingGuestEmail] = useState('');
 
   const canManage = isOwner || isStaff;
 
@@ -317,45 +308,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({
     } finally {
       setAddingMember(false);
     }
-  };
-
-  const validateGuestEmail = (value: string): string | undefined => {
-    if (!value.trim()) return 'Email is required for guest tracking';
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(value)) return 'Please enter a valid email address';
-    return undefined;
-  };
-
-  const handleGuestEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setGuestEmail(value);
-    if (guestEmailError) {
-      setGuestEmailError(validateGuestEmail(value));
-    }
-  };
-
-  const handleAddGuest = () => {
-    if (!guestFirstName.trim() || !guestLastName.trim()) {
-      showToast('Please enter the guest first and last name', 'error');
-      return;
-    }
-    
-    const emailError = validateGuestEmail(guestEmail);
-    if (emailError) {
-      setGuestEmailError(emailError);
-      return;
-    }
-    
-    haptic.light();
-    
-    setPendingGuestName(`${guestFirstName.trim()} ${guestLastName.trim()}`);
-    setPendingGuestEmail(guestEmail.trim());
-    setShowGuestModal(false);
-    setShowGuestPaymentChoiceModal(true);
-    setGuestFirstName('');
-    setGuestLastName('');
-    setGuestEmail('');
-    setGuestEmailError(undefined);
   };
 
   const handleRemoveParticipant = async (participantId: number, displayName: string) => {
@@ -522,7 +474,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                   Add Member
                 </button>
                 <button
-                  onClick={() => setShowGuestModal(true)}
+                  onClick={() => setShowGuestPaymentChoiceModal(true)}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all duration-fast active:scale-[0.98] bg-[#CCB8E4] text-[#293515] hover:bg-[#baa6d6] tactile-btn"
                 >
                   <span className="material-symbols-outlined text-lg">group_add</span>
@@ -747,72 +699,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({
       </ModalShell>
 
       <ModalShell
-        isOpen={showGuestModal}
-        onClose={() => {
-          setShowGuestModal(false);
-          setGuestFirstName('');
-          setGuestLastName('');
-          setGuestEmail('');
-          setGuestEmailError(undefined);
-        }}
-        title="Add Guest"
-        size="md"
-      >
-        <div className="p-4 space-y-4">
-          <Input
-            label="First Name"
-            placeholder="Enter first name"
-            value={guestFirstName}
-            onChange={(e) => setGuestFirstName(e.target.value)}
-            icon="person"
-          />
-          
-          <Input
-            label="Last Name"
-            placeholder="Enter last name"
-            value={guestLastName}
-            onChange={(e) => setGuestLastName(e.target.value)}
-            icon="person"
-          />
-          
-          <Input
-            label="Guest Email"
-            placeholder="Enter guest's email"
-            type="email"
-            value={guestEmail}
-            onChange={handleGuestEmailChange}
-            icon="mail"
-            error={guestEmailError}
-            required
-          />
-          
-          <div className={`p-3 rounded-xl ${guestPassesRemaining > 0 ? (isDark ? 'bg-[#CCB8E4]/10' : 'bg-[#CCB8E4]/20') : (isDark ? 'bg-amber-500/10' : 'bg-amber-50')}`}>
-            <p className={`text-sm ${guestPassesRemaining > 0 ? (isDark ? 'text-[#CCB8E4]' : 'text-[#5a4a6d]') : (isDark ? 'text-amber-400' : 'text-amber-700')}`}>
-              {guestPassesRemaining > 0
-                ? <>You have <span className="font-semibold">{guestPassesRemaining}</span> guest pass{guestPassesRemaining !== 1 ? 'es' : ''} remaining</>
-                : `No passes left — a $${guestFeeDollars} fee will apply`
-              }
-            </p>
-          </div>
-          
-          <button
-            onClick={handleAddGuest}
-            disabled={!guestFirstName.trim() || !guestLastName.trim() || !guestEmail.trim()}
-            className={`w-full py-3 px-4 rounded-xl font-bold text-sm transition-all duration-fast flex items-center justify-center gap-2 ${
-              guestFirstName.trim() && guestLastName.trim() && guestEmail.trim()
-                ? 'bg-[#293515] text-white hover:bg-[#3a4a20] active:scale-[0.98]'
-                : isDark
-                  ? 'bg-white/10 text-white/40 cursor-not-allowed'
-                  : 'bg-black/5 text-black/30 cursor-not-allowed'
-            }`}
-          >
-            <span className="material-symbols-outlined text-lg">arrow_forward</span>
-            Continue
-          </button>
-        </div>
-      </ModalShell>
-
-      <ModalShell
         isOpen={showConflictModal}
         onClose={() => {
           setShowConflictModal(false);
@@ -902,24 +788,18 @@ const RosterManager: React.FC<RosterManagerProps> = ({
         <GuestPaymentChoiceModal
           bookingId={bookingId}
           sessionId={booking.sessionId}
-          guestName={pendingGuestName}
-          guestEmail={pendingGuestEmail}
           ownerEmail={booking.ownerEmail}
           ownerName={booking.ownerName}
           guestPassesRemaining={guestPassesRemaining}
-          onSuccess={() => {
+          onSuccess={(name: string) => {
             haptic.success();
-            showToast(`${pendingGuestName} added as guest`, 'success');
+            showToast(`${name} added as guest`, 'success');
             setShowGuestPaymentChoiceModal(false);
-            setPendingGuestName('');
-            setPendingGuestEmail('');
             fetchParticipants();
             onUpdate?.();
           }}
           onClose={() => {
             setShowGuestPaymentChoiceModal(false);
-            setPendingGuestName('');
-            setPendingGuestEmail('');
           }}
         />
       )}

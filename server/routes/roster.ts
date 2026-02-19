@@ -239,13 +239,9 @@ router.post('/api/bookings/:bookingId/guest-fee-checkout', async (req: Request, 
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
 
-    const { guestName, guestEmail } = req.body;
-    if (!guestName?.trim()) {
-      return res.status(400).json({ error: 'Guest name is required' });
-    }
-    if (!guestEmail?.trim()) {
-      return res.status(400).json({ error: 'Guest email is required' });
-    }
+    const { guestName: rawGuestName, guestEmail: rawGuestEmail } = req.body;
+    const guestName = rawGuestName?.trim() || 'Guest';
+    const guestEmail = rawGuestEmail?.trim() || `guest-${Date.now()}@guest.local`;
 
     const userEmail = sessionUser.email?.toLowerCase() || '';
     const result = await initiateGuestFeeCheckout({
