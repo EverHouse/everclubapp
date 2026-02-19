@@ -15,10 +15,12 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "7.85.2",
     date: "2026-02-19",
-    title: "Player Count & Dashboard Fixes for Unified Participant System",
+    title: "Payment Status & Player Count Fixes for Unified Participant System",
     changes: [
+      "Fixed: Booking cards and calendar cells now correctly show 'Paid' when all participants have paid — previously they ignored actual payment status and showed fees as 'Due' based on an independent estimate",
       "Fixed: Changing the player count on a booking no longer causes a 500 error — the system now correctly updates session-based bookings without touching legacy data tables",
       "Fixed: Members who are participants in a booking (not just the owner) now see those bookings on their dashboard",
+      "Fixed: Booking cards no longer make unnecessary fee estimation calls when fees are already settled",
       "Improved: Player count changes for session-based bookings are now faster and more reliable",
     ]
   },

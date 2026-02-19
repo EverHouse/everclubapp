@@ -16,6 +16,7 @@ function BookingFeeButton({ bookingId, dbOwed, hasUnpaidFees, setBookingSheet, f
     setBookingSheet: (sheet: Record<string, unknown> | null) => void;
     fallback?: React.ReactNode;
 }) {
+    const skipEstimate = !hasUnpaidFees && dbOwed <= 0;
     const { data, isLoading, isError } = useQuery({
         queryKey: ['booking-fee-estimate', bookingId],
         queryFn: async () => {
@@ -25,8 +26,10 @@ function BookingFeeButton({ bookingId, dbOwed, hasUnpaidFees, setBookingSheet, f
         },
         staleTime: 30_000,
         retry: 1,
+        enabled: !skipEstimate,
     });
 
+    if (skipEstimate) return <>{fallback ?? null}</>;
     if (isLoading || isError) return <>{fallback ?? null}</>;
 
     const serverFee = data?.totalFee ?? 0;

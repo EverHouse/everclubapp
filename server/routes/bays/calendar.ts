@@ -159,7 +159,14 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
       const paymentStatusResult = await pool.query(`
         SELECT 
           br.id as booking_id,
-          COALESCE(pending_fees.total_owed, 0)::numeric as total_owed
+          COALESCE(pending_fees.total_owed, 0)::numeric as total_owed,
+          CASE 
+            WHEN br.session_id IS NOT NULL 
+              AND EXISTS (SELECT 1 FROM booking_participants bp2 WHERE bp2.session_id = br.session_id)
+              AND NOT EXISTS (SELECT 1 FROM booking_participants bp3 WHERE bp3.session_id = br.session_id AND bp3.payment_status = 'pending')
+            THEN true
+            ELSE false
+          END as all_participants_paid
         FROM booking_requests br
         LEFT JOIN LATERAL (
           SELECT SUM(COALESCE(bp.cached_fee_cents, 0)) / 100.0 as total_owed
@@ -180,11 +187,14 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
 
       for (const row of paymentStatusResult.rows) {
         const totalOwed = parseFloat(row.total_owed) || 0;
-        const snapshotPaid = feeSnapshotPaidSet.has(row.booking_id) && totalOwed === 0;
+        const snapshotPaid = (feeSnapshotPaidSet.has(row.booking_id) && totalOwed === 0) || row.all_participants_paid === true;
         paymentStatusMap.set(row.booking_id, {
           hasUnpaidFees: snapshotPaid ? false : totalOwed > 0,
           totalOwed: snapshotPaid ? 0 : totalOwed
         });
+        if (snapshotPaid) {
+          feeSnapshotPaidSet.add(row.booking_id);
+        }
       }
       
       const filledSlotsResult = await pool.query(`
