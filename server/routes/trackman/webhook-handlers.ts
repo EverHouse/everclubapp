@@ -942,7 +942,7 @@ async function notifyStaffBookingCreated(
       }
     });
     
-    if (action === 'unmatched') {
+    if (action !== 'unmatched') {
       await notifyAllStaff(
         title,
         message,
