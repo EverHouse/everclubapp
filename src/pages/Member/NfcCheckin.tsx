@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
+import PwaSmartBanner from '../../components/PwaSmartBanner';
 
 type CheckinState = 'loading' | 'checking_in' | 'not_logged_in' | 'error';
 
@@ -57,6 +58,7 @@ const NfcCheckin: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+      <PwaSmartBanner />
       <div className="w-full max-w-sm">
         {state === 'loading' && (
           <div className="text-center">
