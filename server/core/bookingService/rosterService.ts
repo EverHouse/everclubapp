@@ -1776,75 +1776,107 @@ export async function cancelGuestPayment(params: CancelGuestPaymentParams): Prom
 export async function updateDeclaredPlayerCount(params: UpdatePlayerCountParams): Promise<UpdatePlayerCountResult> {
   const { bookingId, playerCount, staffEmail } = params;
 
-  const bookingResult = await pool.query(`
-    SELECT br.id, br.declared_player_count, br.session_id, br.user_email, br.status
-    FROM booking_requests br
-    WHERE br.id = $1
-  `, [bookingId]);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  if (bookingResult.rows.length === 0) {
-    throw createServiceError('Booking not found', 404);
-  }
+    // Step 1: SELECT booking info (inside transaction for consistency)
+    const bookingResult = await client.query(`
+      SELECT br.id, br.declared_player_count, br.session_id, br.user_email, br.status
+      FROM booking_requests br
+      WHERE br.id = $1
+    `, [bookingId]);
 
-  const booking = bookingResult.rows[0];
-  const previousCount = booking.declared_player_count || 1;
-
-  await pool.query(`
-    UPDATE booking_requests 
-    SET declared_player_count = $1
-    WHERE id = $2
-  `, [playerCount, bookingId]);
-
-  if (playerCount > previousCount) {
-    const slotResult = await pool.query(
-      `SELECT COALESCE(MAX(slot_number), 0) as max_slot, COUNT(*) as count FROM booking_members WHERE booking_id = $1`,
-      [bookingId]
-    );
-    const maxSlot = parseInt(slotResult.rows[0].max_slot) || 0;
-    const currentMemberCount = parseInt(slotResult.rows[0].count) || 0;
-    const slotsToCreate = playerCount - currentMemberCount;
-
-    if (slotsToCreate > 0) {
-      await pool.query(`
-        INSERT INTO booking_members (booking_id, slot_number, user_email, is_primary, created_at)
-        SELECT $1, slot_num, NULL, false, NOW()
-        FROM generate_series($2, $3) AS slot_num
-        ON CONFLICT (booking_id, slot_number) DO NOTHING
-      `, [bookingId, maxSlot + 1, maxSlot + slotsToCreate]);
-      logger.info('[rosterService] Created empty booking member slots', {
-        extra: { bookingId, slotsCreated: slotsToCreate, previousCount, newCount: playerCount }
-      });
+    if (bookingResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      throw createServiceError('Booking not found', 404);
     }
-  } else if (playerCount < previousCount) {
-    const deleted = await pool.query(`
-      DELETE FROM booking_members 
-      WHERE booking_id = $1 
-        AND slot_number > $2 
-        AND is_primary = false 
-        AND (user_email IS NULL OR user_email = '')
-    `, [bookingId, playerCount]);
-    if (deleted.rowCount && deleted.rowCount > 0) {
-      logger.info('[rosterService] Cleaned up empty slots after player count decrease', {
-        extra: { bookingId, slotsRemoved: deleted.rowCount, previousCount, newCount: playerCount }
-      });
+
+    const booking = bookingResult.rows[0];
+    const previousCount = booking.declared_player_count || 1;
+
+    // Step 2: UPDATE declared_player_count
+    await client.query(`
+      UPDATE booking_requests 
+      SET declared_player_count = $1
+      WHERE id = $2
+    `, [playerCount, bookingId]);
+
+    // Step 3: INSERT new booking_member slots (if increasing count)
+    if (playerCount > previousCount) {
+      const slotResult = await client.query(
+        `SELECT COALESCE(MAX(slot_number), 0) as max_slot, COUNT(*) as count FROM booking_members WHERE booking_id = $1`,
+        [bookingId]
+      );
+      const maxSlot = parseInt(slotResult.rows[0].max_slot) || 0;
+      const currentMemberCount = parseInt(slotResult.rows[0].count) || 0;
+      const slotsToCreate = playerCount - currentMemberCount;
+
+      if (slotsToCreate > 0) {
+        await client.query(`
+          INSERT INTO booking_members (booking_id, slot_number, user_email, is_primary, created_at)
+          SELECT $1, slot_num, NULL, false, NOW()
+          FROM generate_series($2, $3) AS slot_num
+          ON CONFLICT (booking_id, slot_number) DO NOTHING
+        `, [bookingId, maxSlot + 1, maxSlot + slotsToCreate]);
+        logger.info('[rosterService] Created empty booking member slots', {
+          extra: { bookingId, slotsCreated: slotsToCreate, previousCount, newCount: playerCount }
+        });
+      }
+    } else if (playerCount < previousCount) {
+      // Step 4: DELETE empty slots (if decreasing count)
+      const deleted = await client.query(`
+        DELETE FROM booking_members 
+        WHERE booking_id = $1 
+          AND slot_number > $2 
+          AND is_primary = false 
+          AND (user_email IS NULL OR user_email = '')
+      `, [bookingId, playerCount]);
+      if (deleted.rowCount && deleted.rowCount > 0) {
+        logger.info('[rosterService] Cleaned up empty slots after player count decrease', {
+          extra: { bookingId, slotsRemoved: deleted.rowCount, previousCount, newCount: playerCount }
+        });
+      }
     }
-  }
 
-  if (!params.deferFeeRecalc) {
-    if (booking.session_id) {
-      await recalculateSessionFees(booking.session_id, 'roster_update');
+    // Commit the transaction
+    await client.query('COMMIT');
+
+    // Step 5 (OUTSIDE transaction): Recalculate fees - non-critical, fire-and-forget
+    if (!params.deferFeeRecalc) {
+      if (booking.session_id) {
+        try {
+          await recalculateSessionFees(booking.session_id, 'roster_update');
+        } catch (feeError: unknown) {
+          logger.error('[rosterService] Failed to recalculate session fees after player count update', {
+            error: feeError as Error,
+            extra: { bookingId, sessionId: booking.session_id }
+          });
+          // Don't throw - this is non-critical
+        }
+      }
     }
+
+    logger.info('[rosterService] Player count updated', {
+      extra: { bookingId, previousCount, newCount: playerCount, staffEmail }
+    });
+
+    return {
+      previousCount,
+      newCount: playerCount,
+      feesRecalculated: !!booking.session_id
+    };
+  } catch (error: unknown) {
+    await client.query('ROLLBACK');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('[rosterService] Transaction failed while updating player count', {
+      error: error as Error,
+      extra: { bookingId, playerCount, errorMessage }
+    });
+    throw error;
+  } finally {
+    client.release();
   }
-
-  logger.info('[rosterService] Player count updated', {
-    extra: { bookingId, previousCount, newCount: playerCount, staffEmail }
-  });
-
-  return {
-    previousCount,
-    newCount: playerCount,
-    feesRecalculated: !!booking.session_id
-  };
 }
 
 // ─── Batch Roster Update ──────────────────────────────────────
