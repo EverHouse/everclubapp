@@ -8,6 +8,7 @@ import type { BookingRequest, Resource } from './simulatorTypes';
 import { formatDateShortAdmin, groupBookingsByDate } from './simulatorUtils';
 import GuideBookings from '../../../../components/guides/GuideBookings';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
+import { simulatorKeys } from '../../../../hooks/queries/useBookingsQueries';
 
 function BookingFeeButton({ bookingId, dbOwed, hasUnpaidFees, setBookingSheet, fallback }: {
     bookingId: number;
@@ -18,7 +19,7 @@ function BookingFeeButton({ bookingId, dbOwed, hasUnpaidFees, setBookingSheet, f
 }) {
     const skipEstimate = !hasUnpaidFees && dbOwed <= 0;
     const { data, isLoading, isError } = useQuery({
-        queryKey: ['booking-fee-estimate', bookingId],
+        queryKey: simulatorKeys.feeEstimate(bookingId),
         queryFn: async () => {
             const res = await fetch(`/api/fee-estimate?bookingId=${bookingId}`, { credentials: 'include' });
             if (!res.ok) throw new Error('Failed to fetch fee estimate');

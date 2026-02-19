@@ -13,6 +13,14 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.85.4",
+    date: "2026-02-19",
+    title: "Fee Estimates Refresh on Calendar Sync & Booking Assignment",
+    changes: [
+      "Fixed: Fee estimates on calendar cells and booking cards now refresh when using the Sync Calendar button or after assigning/editing bookings — previously stale fee amounts stayed visible until leaving and returning to the page",
+    ]
+  },
+  {
     version: "7.85.3",
     date: "2026-02-19",
     title: "Cancellation Requests Now Appear in Staff Queue",

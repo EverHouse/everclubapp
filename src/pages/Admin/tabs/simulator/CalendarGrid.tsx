@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { formatTime12Hour, getTodayPacific } from '../../../../utils/dateUtils';
 import type { BookingRequest, Resource, CalendarClosure, AvailabilityBlock } from './simulatorTypes';
 import { formatDateShortAdmin, getClosureForSlot, getBlockForSlot } from './simulatorUtils';
+import { simulatorKeys } from '../../../../hooks/queries/useBookingsQueries';
 
 export interface CalendarGridProps {
     resources: Resource[];
@@ -70,7 +71,7 @@ function CalendarFeeIndicator({
     const skipFeeEstimate = snapshotPaid || isConference || isCheckedIn;
 
     const { data, isLoading, isError } = useQuery({
-        queryKey: ['booking-fee-estimate', bookingId],
+        queryKey: simulatorKeys.feeEstimate(bookingId),
         queryFn: async () => {
             const res = await fetch(`/api/fee-estimate?bookingId=${bookingId}`, { credentials: 'include' });
             if (!res.ok) throw new Error('Failed to fetch fee estimate');
