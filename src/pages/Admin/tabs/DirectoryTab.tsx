@@ -442,8 +442,8 @@ const DirectoryTab: React.FC = () => {
                 delete next[memberEmail];
                 return next;
             });
-            showToast(err.message || 'Failed to assign tier', 'error');
-            setAssignTierError(err.message || 'Failed to assign tier. Please try again.');
+            showToast((err instanceof Error ? err.message : String(err)) || 'Failed to assign tier', 'error');
+            setAssignTierError((err instanceof Error ? err.message : String(err)) || 'Failed to assign tier. Please try again.');
         },
     });
     
@@ -502,7 +502,7 @@ const DirectoryTab: React.FC = () => {
             setFormerError(false);
             try {
                 await fetchFormerMembers();
-            } catch (err) {
+            } catch (err: unknown) {
                 console.error('Error loading former members:', err);
                 setFormerError(true);
             } finally {
@@ -516,7 +516,7 @@ const DirectoryTab: React.FC = () => {
         setFormerError(false);
         try {
             await fetchFormerMembers(true);
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Error loading former members:', err);
             setFormerError(true);
         } finally {

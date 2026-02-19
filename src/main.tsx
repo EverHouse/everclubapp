@@ -46,7 +46,7 @@ if ('serviceWorker' in navigator) {
         registration.update().catch(() => {});
       }, 60 * 60 * 1000);
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[App] Service worker registration failed:', error);
       if ('caches' in window) {
         const keys = await caches.keys();

@@ -131,7 +131,7 @@ const MemberUpdates: React.FC = () => {
         setNotifications(mapped);
         setUnreadCount(mapped.filter((n: NotificationItem) => !n.read).length);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch notifications:', err);
     } finally {
       setNotificationsLoading(false);
@@ -166,7 +166,7 @@ const MemberUpdates: React.FC = () => {
           .sort((a: Closure, b: Closure) => a.startDate.localeCompare(b.startDate));
         setClosures(activeClosures);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch closures:', err);
     } finally {
       setClosuresLoading(false);
@@ -200,7 +200,7 @@ const MemberUpdates: React.FC = () => {
       });
       setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to mark notification read:', err);
     }
   };
@@ -215,7 +215,7 @@ const MemberUpdates: React.FC = () => {
       });
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to mark all notifications read:', err);
     }
   };

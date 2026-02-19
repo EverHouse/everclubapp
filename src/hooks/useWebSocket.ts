@@ -155,7 +155,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           if (message.type === 'tier_update') {
             window.dispatchEvent(new CustomEvent('tier-update', { detail: message }));
           }
-        } catch (e) {
+        } catch (e: unknown) {
           console.error('[WebSocket] Error parsing message:', e);
         }
       };
@@ -176,7 +176,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         isConnectingRef.current = false;
         window.__wsConnected = false;
       };
-    } catch (e) {
+    } catch (e: unknown) {
       isConnectingRef.current = false;
       console.error('[WebSocket] Connection error:', e);
     }

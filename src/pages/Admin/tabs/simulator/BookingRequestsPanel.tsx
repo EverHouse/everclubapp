@@ -358,7 +358,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                         } else {
                                                             showToast(data.error || 'Failed to confirm', 'error');
                                                         }
-                                                    } catch (err) {
+                                                    } catch (err: unknown) {
                                                         showToast('Failed to confirm booking', 'error');
                                                     }
                                                 }}

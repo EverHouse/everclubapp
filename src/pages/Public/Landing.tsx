@@ -51,7 +51,7 @@ const Landing: React.FC = () => {
           const data = await response.json();
           setTiers(data.filter((t: MembershipTier) => ['social', 'core', 'corporate'].includes(t.slug)));
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to fetch tiers:', error);
       } finally {
         setIsLoading(false);

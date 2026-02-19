@@ -63,7 +63,7 @@ const CafeTab: React.FC = () => {
             const data = await uploadImageMutation.mutateAsync(file);
             setNewItem(prev => ({ ...prev, image: data.url }));
             setUploadResult({ originalSize: data.originalSize, optimizedSize: data.optimizedSize });
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Upload error:', err);
         }
     };
@@ -71,7 +71,7 @@ const CafeTab: React.FC = () => {
     const handleSeedMenu = async () => {
         try {
             await seedMenuMutation.mutateAsync();
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Seed menu error:', err);
         }
     };
@@ -92,7 +92,7 @@ const CafeTab: React.FC = () => {
         try {
             await updateItemMutation.mutateAsync(itemData);
             setIsEditing(false);
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Save error:', err);
         }
     };

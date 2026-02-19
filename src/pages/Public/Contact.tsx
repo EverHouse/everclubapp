@@ -58,7 +58,7 @@ const Contact: React.FC = () => {
       setIsSubmitted(true);
       setFormData({ topic: 'Membership Inquiry', fullName: '', email: '', message: '' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setLoading(false);

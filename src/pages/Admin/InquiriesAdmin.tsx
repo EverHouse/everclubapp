@@ -74,7 +74,7 @@ const InquiriesAdmin: React.FC = () => {
                 const data = await res.json();
                 setInquiries(data);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to fetch inquiries:', err);
         } finally {
             setIsLoading(false);
@@ -101,7 +101,7 @@ const InquiriesAdmin: React.FC = () => {
                 });
                 setInquiries(prev => prev.map(i => i.id === inquiry.id ? { ...i, status: 'read' } : i));
                 setSelectedInquiry(prev => prev ? { ...prev, status: 'read' } : null);
-            } catch (err) {
+            } catch (err: unknown) {
                 console.error('Failed to mark as read:', err);
             }
         }
@@ -121,7 +121,7 @@ const InquiriesAdmin: React.FC = () => {
                 setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, status } : i));
                 setSelectedInquiry(prev => prev ? { ...prev, status } : null);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to update status:', err);
         } finally {
             setIsSaving(false);
@@ -142,7 +142,7 @@ const InquiriesAdmin: React.FC = () => {
                 setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, notes } : i));
                 setSelectedInquiry(prev => prev ? { ...prev, notes } : null);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to save notes:', err);
         } finally {
             setIsSaving(false);
@@ -162,7 +162,7 @@ const InquiriesAdmin: React.FC = () => {
                 setIsDetailOpen(false);
                 setSelectedInquiry(null);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to archive:', err);
         } finally {
             setIsSaving(false);

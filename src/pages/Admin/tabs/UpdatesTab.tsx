@@ -78,7 +78,7 @@ const UpdatesTab: React.FC = () => {
                 setUnreadCount(data.filter((n: StaffNotification) => !n.is_read).length);
                 processNotifications(data);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to fetch notifications:', err);
         } finally {
             setNotificationsLoading(false);
@@ -162,7 +162,7 @@ const UpdatesTab: React.FC = () => {
                     setNotifications(snapshot);
                     setUnreadCount(prevUnread);
                 }
-            } catch (err) {
+            } catch (err: unknown) {
                 console.error('Failed to mark notification as read:', err);
                 setNotifications(snapshot);
                 setUnreadCount(prevUnread);
@@ -196,7 +196,7 @@ const UpdatesTab: React.FC = () => {
                 setNotifications(snapshot);
                 setUnreadCount(prevUnread);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to mark all as read:', err);
             setNotifications(snapshot);
             setUnreadCount(prevUnread);
@@ -225,7 +225,7 @@ const UpdatesTab: React.FC = () => {
                 setNotifications(snapshot);
                 setUnreadCount(prevUnread);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to dismiss all notifications:', err);
             setNotifications(snapshot);
             setUnreadCount(prevUnread);

@@ -51,7 +51,7 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
       
       setProducts(productsData.products || []);
       setDiscountRules(rulesData.rules || []);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch products/rules:', err);
     } finally {
       setIsLoading(false);
@@ -87,7 +87,7 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
       });
       await fetchData();
       setEditingId(null);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to save product:', err);
     } finally {
       setIsSaving(false);
@@ -105,7 +105,7 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
       });
       await fetchData();
       setEditingId(null);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to save rule:', err);
     } finally {
       setIsSaving(false);

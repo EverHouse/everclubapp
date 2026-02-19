@@ -48,7 +48,7 @@ const FaqsAdmin: React.FC = () => {
                 const data = await res.json();
                 setFaqs(data);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to fetch FAQs:', err);
         } finally {
             setIsLoading(false);
@@ -112,7 +112,7 @@ const FaqsAdmin: React.FC = () => {
                 const data = await res.json();
                 setMessage({ type: 'error', text: data.error || 'Failed to save' });
             }
-        } catch (err) {
+        } catch (err: unknown) {
             setMessage({ type: 'error', text: 'Network error' });
         } finally {
             setIsSaving(false);
@@ -133,7 +133,7 @@ const FaqsAdmin: React.FC = () => {
                 const data = await res.json();
                 setMessage({ type: 'error', text: data.error || 'Failed to delete' });
             }
-        } catch (err) {
+        } catch (err: unknown) {
             setMessage({ type: 'error', text: 'Network error' });
         } finally {
             setDeleteConfirm(null);
@@ -157,7 +157,7 @@ const FaqsAdmin: React.FC = () => {
             } else {
                 setMessage({ type: 'error', text: data.error || 'Failed to seed FAQs' });
             }
-        } catch (err) {
+        } catch (err: unknown) {
             setMessage({ type: 'error', text: 'Network error' });
         } finally {
             setIsSeeding(false);
@@ -231,7 +231,7 @@ const FaqsAdmin: React.FC = () => {
                 throw new Error('Server rejected reorder');
             }
             haptic.success();
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to reorder:', err);
             setMessage({ type: 'error', text: 'Failed to save new order' });
             await fetchFaqs();

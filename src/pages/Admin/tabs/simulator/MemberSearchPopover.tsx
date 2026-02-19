@@ -71,7 +71,7 @@ const ManualBookingModal: React.FC<{
                     }));
                     setAllMembers(members);
                 }
-            } catch (err) {
+            } catch (err: unknown) {
                 console.error('Failed to fetch members:', err);
             }
         };
@@ -159,7 +159,7 @@ const ManualBookingModal: React.FC<{
                     setMemberName(null);
                     setMemberTier(null);
                 }
-            } catch (err) {
+            } catch (err: unknown) {
                 setMemberLookupStatus('not_found');
                 setMemberName(null);
                 setMemberTier(null);
@@ -197,7 +197,7 @@ const ManualBookingModal: React.FC<{
                         setExistingBookingWarning(null);
                     }
                 }
-            } catch (err) {
+            } catch (err: unknown) {
                 console.error('Failed to check existing bookings:', err);
             }
         };
@@ -273,7 +273,7 @@ const ManualBookingModal: React.FC<{
                 const data = await res.json();
                 setError(data.message || data.error || 'Failed to create booking');
             }
-        } catch (err) {
+        } catch (err: unknown) {
             setError('Network error. Please try again.');
         } finally {
             setIsSubmitting(false);

@@ -34,7 +34,7 @@ export const StaffWebSocketProvider: React.FC<{ children: React.ReactNode }> = (
     callbacksRef.current.forEach((callback) => {
       try {
         callback(event);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('[StaffWebSocketContext] Error in callback:', err);
       }
     });

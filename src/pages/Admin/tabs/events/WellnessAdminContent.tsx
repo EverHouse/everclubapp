@@ -234,7 +234,7 @@ export const WellnessAdminContent: React.FC = () => {
                 return classDate < todayWellness;
             } catch { return false; }
         }).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    } catch (err) {
+    } catch (err: unknown) {
         console.error('[WellnessAdminContent] Error processing classes:', err);
     }
 
@@ -298,7 +298,7 @@ export const WellnessAdminContent: React.FC = () => {
             };
 
             saveClassMutation.mutate({ url, method, payload });
-        } catch (err) {
+        } catch (err: unknown) {
             setError(getNetworkErrorMessage());
         } finally {
             setIsUploading(false);

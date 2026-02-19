@@ -69,7 +69,7 @@ export function useAsyncAction<T = unknown, Args extends unknown[] = unknown[]>(
             try {
               const result = await execute(...args);
               resolve(result);
-            } catch (err) {
+            } catch (err: unknown) {
               reject(err);
             }
           }, waitTime);
@@ -85,7 +85,7 @@ export function useAsyncAction<T = unknown, Args extends unknown[] = unknown[]>(
         const result = await asyncFnRef.current(...args);
         onSuccessRef.current?.(result);
         return result;
-      } catch (err) {
+      } catch (err: unknown) {
         const error = err instanceof Error ? err : new Error(String(err));
         setError(error);
         onErrorRef.current?.(error);

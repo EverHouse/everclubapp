@@ -103,7 +103,7 @@ const ApplicationPipeline: React.FC = () => {
         const data = await res.json();
         setApplications(data);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch applications:', err);
     } finally {
       setIsLoading(false);
@@ -117,7 +117,7 @@ const ApplicationPipeline: React.FC = () => {
         const data = await res.json();
         setTiers(data.filter((t: MembershipTier) => t.product_type === 'subscription' && t.stripe_price_id));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch tiers:', err);
     }
   };
@@ -147,7 +147,7 @@ const ApplicationPipeline: React.FC = () => {
         });
         setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: 'read' } : a));
         setSelectedApp(prev => prev ? { ...prev, status: 'read' } : null);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Failed to mark as read:', err);
       }
     }
@@ -168,7 +168,7 @@ const ApplicationPipeline: React.FC = () => {
         setSelectedApp(prev => prev ? { ...prev, status } : null);
         setToast({ message: `Status updated to ${status}`, type: 'success' });
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to update status:', err);
       setToast({ message: 'Failed to update status', type: 'error' });
     } finally {
@@ -191,7 +191,7 @@ const ApplicationPipeline: React.FC = () => {
         setSelectedApp(prev => prev ? { ...prev, notes } : null);
         setToast({ message: 'Notes saved', type: 'success' });
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to save notes:', err);
       setToast({ message: 'Failed to save notes', type: 'error' });
     } finally {
@@ -217,7 +217,7 @@ const ApplicationPipeline: React.FC = () => {
         const data = await res.json();
         setToast({ message: data.error || 'Failed to send invite', type: 'error' });
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to send invite:', err);
       setToast({ message: 'Failed to send invite', type: 'error' });
     } finally {

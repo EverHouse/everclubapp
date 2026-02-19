@@ -33,7 +33,7 @@ const Gallery: React.FC = () => {
           const data = await res.json();
           setImages(data);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Failed to fetch gallery:', err);
       } finally {
         setIsLoadingData(false);

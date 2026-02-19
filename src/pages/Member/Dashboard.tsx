@@ -577,7 +577,7 @@ const Dashboard: React.FC = () => {
             const data = await res.json().catch(() => ({}));
             showToast(data.error || 'Failed to cancel booking', 'error');
           }
-        } catch (err) {
+        } catch (err: unknown) {
           // Revert optimistic state on error
           setOptimisticCancellingIds(prev => {
             const next = new Set(prev);
@@ -634,7 +634,7 @@ const Dashboard: React.FC = () => {
             const data = await res.json().catch(() => ({}));
             showToast(data.error || 'Failed to leave booking', 'error');
           }
-        } catch (err) {
+        } catch (err: unknown) {
           showToast('Failed to leave booking', 'error');
         }
       }
@@ -662,7 +662,7 @@ const Dashboard: React.FC = () => {
           } else {
             showToast('Failed to cancel RSVP', 'error');
           }
-        } catch (err) {
+        } catch (err: unknown) {
           showToast('Failed to cancel RSVP', 'error');
         }
       }
@@ -690,7 +690,7 @@ const Dashboard: React.FC = () => {
           } else {
             showToast('Failed to cancel enrollment', 'error');
           }
-        } catch (err) {
+        } catch (err: unknown) {
           showToast('Failed to cancel enrollment', 'error');
         }
       }

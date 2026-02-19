@@ -93,7 +93,7 @@ export async function fetchWithErrorHandling<T>(
     
     const data = await response.json();
     return { data, error: null };
-  } catch (err) {
+  } catch (err: unknown) {
     console.error(`Failed to ${context || 'fetch'}:`, err);
     return { data: null, error: getNetworkErrorMessage() };
   }

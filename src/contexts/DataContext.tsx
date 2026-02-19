@@ -336,7 +336,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           safeSetIsLoadingFalse();
           return;
         }
-      } catch (sessionErr) {
+      } catch (sessionErr: unknown) {
         console.error('Failed to verify session:', sessionErr);
       }
       
@@ -354,7 +354,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           const member = JSON.parse(savedMember);
           setActualUser(member);
           useUserStore.getState().setUser(member);
-        } catch (err) {
+        } catch (err: unknown) {
           localStorage.removeItem('eh_member');
         }
       }
@@ -393,7 +393,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             setViewAsUserState(member);
           });
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Failed to fetch member details:', err);
         flushSync(() => {
           setViewAsUserState(member);
@@ -474,7 +474,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             });
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Failed to fetch initial members:', err);
       }
     };
@@ -536,7 +536,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       } else {
         console.error('Failed to fetch former members: API returned', res.status);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch former members:', err);
     }
   }, []);
@@ -580,7 +580,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         return { success: true, count: formatted.length };
       }
       return { success: false, count: 0 };
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to refresh members from database:', err);
       return { success: false, count: 0 };
     }
@@ -685,7 +685,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       }
       
       return { members: [], total: 0, page, limit, totalPages: 0, hasMore: false };
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch paginated members:', err);
       return { members: [], total: 0, page, limit, totalPages: 0, hasMore: false };
     } finally {
@@ -729,7 +729,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             })));
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
         // Only log errors if user is logged in (authenticated API call failed)
         if (actualUserRef.current) {
           console.error('Failed to fetch cafe menu:', err);
@@ -751,7 +751,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           setAnnouncements(data);
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch announcements:', err);
     }
   }, []);
@@ -773,7 +773,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             setAnnouncements(data);
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
         // Only log errors if user is logged in (authenticated API call failed)
         if (actualUserRef.current) {
           console.error('Failed to fetch announcements:', err);
@@ -900,7 +900,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           localStorage.setItem('eh_member', JSON.stringify(memberProfile));
           setActualUser(memberProfile);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Failed to refresh user data:', err);
       }
     };
@@ -1013,7 +1013,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             setEvents(data.length ? formatEventData(data) : []);
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
         // Only log errors if user is logged in (authenticated API call failed)
         if (actualUserRef.current) {
           console.error('Failed to fetch events:', err);
@@ -1097,7 +1097,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         method: 'POST',
         credentials: 'include'
       });
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Server logout failed:', err);
     }
     loginInProgressRef.current = false;
@@ -1137,7 +1137,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         localStorage.setItem('eh_member', JSON.stringify(memberProfile));
         setActualUser(memberProfile);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to refresh user data:', err);
     }
   }, [actualUser?.email]);
@@ -1179,7 +1179,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       } else {
         setCafeMenu(prev => prev.filter(i => i.id !== tempId));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to add cafe item:', err);
       setCafeMenu(prev => prev.filter(i => i.id !== tempId));
     }
@@ -1204,7 +1204,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       if (!res.ok) {
         refreshCafeMenu();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to update cafe item:', err);
       refreshCafeMenu();
     }
@@ -1218,7 +1218,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       if (!res.ok) {
         refreshCafeMenu();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to delete cafe item:', err);
       refreshCafeMenu();
     }
@@ -1261,7 +1261,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         } as EventData;
         setEvents(prev => [...prev, formatted]);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to add event:', err);
     }
   }, []);
@@ -1302,7 +1302,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         } as EventData;
         setEvents(prev => prev.map(i => i.id === formatted.id ? formatted : i));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to update event:', err);
     }
   }, []);
@@ -1316,7 +1316,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       if (res.ok) {
         setEvents(prev => prev.filter(i => i.id !== id));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to delete event:', err);
     }
   }, []);
@@ -1348,7 +1348,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           }
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to sync Eventbrite:', err);
     }
   }, []);
@@ -1376,7 +1376,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         const newItem = await res.json();
         setAnnouncements(prev => [newItem, ...prev]);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to add announcement:', err);
     }
   }, []);
@@ -1409,7 +1409,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       } else {
         refreshAnnouncements();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to update announcement:', err);
       refreshAnnouncements();
     }
@@ -1426,7 +1426,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       if (!res.ok) {
         refreshAnnouncements();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to delete announcement:', err);
       refreshAnnouncements();
     }

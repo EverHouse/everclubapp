@@ -12,7 +12,7 @@ class BookingEventEmitter {
     this.listeners.forEach(callback => {
       try {
         callback();
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('[BookingEvents] Error in listener:', error);
       }
     });

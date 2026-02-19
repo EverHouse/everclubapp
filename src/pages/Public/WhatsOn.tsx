@@ -76,7 +76,7 @@ const WhatsOn: React.FC = () => {
           const data = await wellnessRes.json();
           setWellnessClasses(data.map((w: Record<string, unknown>) => ({ ...w, type: 'wellness' })));
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to fetch data:', error);
       } finally {
         setLoading(false);

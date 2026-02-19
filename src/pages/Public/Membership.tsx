@@ -81,7 +81,7 @@ const MembershipOverview: React.FC = () => {
           const filteredTiers = data.filter((t: MembershipTier) => t.show_on_membership_page !== false && t.product_type === 'subscription');
           setTiers(filteredTiers);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to fetch membership tiers:', error);
       } finally {
         setLoading(false);
@@ -534,7 +534,7 @@ const CompareFeatures: React.FC = () => {
           const activeFeatures = (data.features || []).filter((f: TierFeature) => f.isActive);
           setTierFeatures(activeFeatures);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to fetch data:', error);
       } finally {
         setLoading(false);

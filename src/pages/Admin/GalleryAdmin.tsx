@@ -47,7 +47,7 @@ const GalleryAdmin: React.FC = () => {
             const res = await fetch('/api/gallery?include_inactive=true', { credentials: 'include' });
             const data = await res.json();
             setImages(data);
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to fetch gallery images:', err);
         } finally {
             setIsLoading(false);
@@ -95,7 +95,7 @@ const GalleryAdmin: React.FC = () => {
             const data = await res.json();
             setNewItem({ ...newItem, imageUrl: data.imageUrl });
             setUploadProgress(`Optimized: ${Math.round(data.originalSize/1024)}KB → ${Math.round(data.optimizedSize/1024)}KB`);
-        } catch (err) {
+        } catch (err: unknown) {
             setUploadProgress('Upload failed. Please try again.');
         } finally {
             setUploading(false);
@@ -156,7 +156,7 @@ const GalleryAdmin: React.FC = () => {
             if (res.ok) {
                 await fetchImages();
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to toggle status:', err);
         }
     };
@@ -171,7 +171,7 @@ const GalleryAdmin: React.FC = () => {
             if (res.ok) {
                 await fetchImages();
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to delete image:', err);
         } finally {
             setDeleteConfirm(null);
@@ -244,7 +244,7 @@ const GalleryAdmin: React.FC = () => {
                 throw new Error('Server rejected reorder');
             }
             haptic.success();
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to reorder:', err);
             setReorderError('Failed to save new order');
             await fetchImages();

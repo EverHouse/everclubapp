@@ -272,7 +272,7 @@ const TrainingSectionModal: React.FC<TrainingModalProps> = ({ isOpen, onClose, s
                 steps: steps.filter(s => s.title.trim() && s.content.trim())
             });
             onClose();
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to save section:', err);
         } finally {
             setSaving(false);
@@ -426,7 +426,7 @@ const StaffTrainingGuide: React.FC = () => {
             } else if (response.status === 401) {
                 setAuthError(true);
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('Failed to fetch training sections:', error);
         } finally {
             setLoading(false);
@@ -465,7 +465,7 @@ const StaffTrainingGuide: React.FC = () => {
             if (response.ok) {
                 await fetchSections();
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('Delete failed:', error);
         }
     };

@@ -290,7 +290,7 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
             console.log('[StaffWebSocket] Received tour_update:', message.action);
             window.dispatchEvent(new CustomEvent('tour-update', { detail: message }));
           }
-        } catch (e) {
+        } catch (e: unknown) {
           console.error('[StaffWebSocket] Error parsing message:', e);
         }
       };
@@ -336,7 +336,7 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
         isConnectingRef.current = false;
         setIsConnected(false);
       };
-    } catch (e) {
+    } catch (e: unknown) {
       isConnectingRef.current = false;
       setIsConnected(false);
       console.error('[StaffWebSocket] Connection error:', e);

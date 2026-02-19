@@ -66,7 +66,7 @@ const BugReportsAdmin: React.FC = () => {
                 const data = await res.json();
                 setReports(data);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to fetch bug reports:', err);
         } finally {
             setIsLoading(false);
@@ -99,7 +99,7 @@ const BugReportsAdmin: React.FC = () => {
                 setReports(prev => prev.map(r => r.id === selectedReport.id ? updated : r));
                 setSelectedReport(updated);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to update status:', err);
         } finally {
             setIsSaving(false);
@@ -121,7 +121,7 @@ const BugReportsAdmin: React.FC = () => {
                 setReports(prev => prev.map(r => r.id === selectedReport.id ? updated : r));
                 setSelectedReport(updated);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to save notes:', err);
         } finally {
             setIsSaving(false);
@@ -149,7 +149,7 @@ const BugReportsAdmin: React.FC = () => {
                 setIsDetailOpen(false);
                 setSelectedReport(null);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to delete:', err);
         } finally {
             setIsSaving(false);

@@ -53,7 +53,7 @@ const PublicCafe: React.FC = () => {
           }));
           setCafeMenu(normalized);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to fetch cafe menu:', error);
       } finally {
         setIsLoading(false);

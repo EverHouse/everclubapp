@@ -321,7 +321,7 @@ const TrackmanTab: React.FC = () => {
               linkedEmail: originalEmail
             })
           });
-        } catch (linkErr) {
+        } catch (linkErr: unknown) {
           console.warn('Failed to save email link:', linkErr);
         }
       }
@@ -1168,7 +1168,7 @@ const TrackmanTab: React.FC = () => {
                     excludeTrackmanId: bookingId
                   })
                 });
-              } catch (err) {
+              } catch (err: unknown) {
                 console.warn('Auto-resolve same email failed:', err);
               }
             }

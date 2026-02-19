@@ -43,7 +43,7 @@ export const setCache = (key: string, data: unknown) => {
   const cache: SyncCache = { data, timestamp: Date.now() };
   try {
     localStorage.setItem(`sync_${key}`, JSON.stringify(cache));
-  } catch (e) {
+  } catch (e: unknown) {
     console.error('[BackgroundSync] Sync operation failed:', e);
   }
 };
@@ -137,7 +137,7 @@ const syncAll = async () => {
         window.dispatchEvent(new CustomEvent('notifications-read'));
       }
     );
-  } catch (err) {
+  } catch (err: unknown) {
     // Silently fail if session isn't ready - don't log console errors
   }
 };

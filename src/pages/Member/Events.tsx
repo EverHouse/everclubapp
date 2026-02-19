@@ -239,7 +239,7 @@ const MemberEvents: React.FC = () => {
         startTime: startTime,
         durationMinutes: 120
       });
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to add to calendar:', err);
     }
   };

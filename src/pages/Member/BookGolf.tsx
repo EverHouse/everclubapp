@@ -479,7 +479,7 @@ const BookGolf: React.FC = () => {
           setConferencePaymentRequired(false);
           setConferenceOverageFee(0);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('[BookGolf] Failed to fetch prepayment estimate:', err);
         setConferencePaymentRequired(false);
         setConferenceOverageFee(0);
@@ -709,7 +709,7 @@ const BookGolf: React.FC = () => {
       } else {
         showToast(wasApproved ? 'Booking cancelled successfully' : 'Request cancelled', 'success');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[BookGolf] Failed to cancel request:', err);
       haptic.error();
       showToast((err as Error).message || 'Failed to cancel booking', 'error');

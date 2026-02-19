@@ -32,12 +32,12 @@ const AuthCallback: React.FC = () => {
                     navigate('/admin');
                     return;
                   }
-                } catch (parseErr) {
+                } catch (parseErr: unknown) {
                   console.error('Failed to parse staff/admin response');
                 }
               }
             }
-          } catch (err) {
+          } catch (err: unknown) {
             console.error('Failed to check staff/admin status');
           }
           startNavigation();

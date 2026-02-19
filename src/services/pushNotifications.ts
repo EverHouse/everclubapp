@@ -43,7 +43,7 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   try {
     const registration = await navigator.serviceWorker.register('/sw.js');
     return registration;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Service worker registration failed:', error);
     return null;
   }
@@ -97,7 +97,7 @@ export async function subscribeToPush(userEmail: string): Promise<boolean> {
     }
 
     return result.ok;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Push] Subscription failed:', error);
     return false;
   }
@@ -119,7 +119,7 @@ export async function unsubscribeFromPush(): Promise<boolean> {
     }
     
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Push unsubscription failed:', error);
     return false;
   }
@@ -134,7 +134,7 @@ export async function isSubscribedToPush(): Promise<boolean> {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
     return !!subscription;
-  } catch (error) {
+  } catch (error: unknown) {
     return false;
   }
 }

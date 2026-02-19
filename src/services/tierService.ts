@@ -109,7 +109,7 @@ export async function fetchTierPermissions(tierName: string): Promise<TierPermis
       }
       
       return DEFAULT_PERMISSIONS;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[tierService] Error fetching tier permissions:', error);
       return DEFAULT_PERMISSIONS;
     } finally {

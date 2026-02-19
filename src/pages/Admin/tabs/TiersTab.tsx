@@ -230,7 +230,7 @@ const TiersTab: React.FC = () => {
             }, 1000);
         },
         onError: (err: Error) => {
-            setError(err.message || `Failed to ${isCreating ? 'create' : 'save'} tier`);
+            setError((err instanceof Error ? err.message : String(err)) || `Failed to ${isCreating ? 'create' : 'save'} tier`);
         },
     });
 
@@ -310,7 +310,7 @@ const TiersTab: React.FC = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sortOrder: currentFeature.sortOrder }),
             });
-        } catch (error) {
+        } catch (error: unknown) {
             queryClient.setQueryData(['tier-features'], previousData);
             console.error('Failed to reorder features:', error);
         } finally {
@@ -362,7 +362,7 @@ const TiersTab: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['membership-tiers'] });
         },
         onError: (err: Error) => {
-            const errorMsg = err.message || 'Unknown error';
+            const errorMsg = (err instanceof Error ? err.message : String(err)) || 'Unknown error';
             if (errorMsg.includes('connection not found')) {
                 showToast('Stripe sync failed: Stripe is not configured for this environment. Please set up Stripe live keys in Replit\'s Integrations panel before publishing.', 'error');
             } else {
@@ -386,7 +386,7 @@ const TiersTab: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['cafe-menu'] });
         },
         onError: (err: Error) => {
-            showToast('Pull from Stripe failed: ' + (err.message || 'Unknown error'), 'error');
+            showToast('Pull from Stripe failed: ' + ((err instanceof Error ? err.message : String(err)) || 'Unknown error'), 'error');
         },
     });
 

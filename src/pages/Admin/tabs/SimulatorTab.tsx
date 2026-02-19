@@ -315,7 +315,7 @@ const SimulatorTab: React.FC = () => {
                         });
                     }
                 }
-            } catch (err) {
+            } catch (err: unknown) {
                 console.error('Failed to open booking details:', err);
             }
         };
@@ -722,7 +722,7 @@ const SimulatorTab: React.FC = () => {
                 
                 setAvailabilityStatus(hasConflict ? 'conflict' : 'available');
                 setConflictDetails(hasConflict ? details : null);
-            } catch (err) {
+            } catch (err: unknown) {
                 setAvailabilityStatus(null);
             }
         };
@@ -744,7 +744,7 @@ const SimulatorTab: React.FC = () => {
                     } else {
                         setFeeEstimate(null);
                     }
-                } catch (err) {
+                } catch (err: unknown) {
                     console.error('Failed to fetch fee estimate:', err);
                     setFeeEstimate(null);
                 } finally {
@@ -771,7 +771,7 @@ const SimulatorTab: React.FC = () => {
                         .filter(Boolean);
                     setDeclineAvailableSlots(available);
                 }
-            } catch (err) {
+            } catch (err: unknown) {
                 console.error('Failed to fetch available slots:', err);
                 setDeclineAvailableSlots([]);
             }

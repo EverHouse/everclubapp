@@ -46,7 +46,7 @@ const ToursTab: React.FC = () => {
     try {
       const result = await syncMutation.mutateAsync();
       setSyncMessage(`Synced ${result.synced} tours (${result.created} new, ${result.updated} updated)`);
-    } catch (err) {
+    } catch (err: unknown) {
       setSyncMessage('Network error - please try again');
     }
   };
@@ -63,7 +63,7 @@ const ToursTab: React.FC = () => {
     if (confirmed) {
       try {
         await checkInMutation.mutateAsync({ tourId: tour.id });
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Check-in failed:', err);
       }
     }
@@ -73,7 +73,7 @@ const ToursTab: React.FC = () => {
     setStatusMenuTourId(null);
     try {
       await updateStatusMutation.mutateAsync({ tourId, status: newStatus });
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Status update failed:', err);
     }
   };

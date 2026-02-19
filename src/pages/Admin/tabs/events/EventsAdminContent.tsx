@@ -296,7 +296,7 @@ export const EventsAdminContent: React.FC = () => {
         try {
             const data = await fetchWithCredentials<{ relatedData?: { rsvps: number } }>(`/api/events/${event.id}/cascade-preview`);
             setEventCascadePreview(data.relatedData || null);
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to fetch cascade preview:', err);
         }
         setShowDeleteConfirm(true);

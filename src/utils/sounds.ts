@@ -6,7 +6,7 @@ const getAudioContext = (): AudioContext | null => {
   if (!audioContext) {
     try {
       audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
-    } catch (e) {
+    } catch (e: unknown) {
       console.warn('Web Audio API not supported');
       return null;
     }
@@ -162,7 +162,7 @@ export const sounds = {
 export const playSound = (type: keyof typeof sounds) => {
   try {
     sounds[type]?.();
-  } catch (e) {
+  } catch (e: unknown) {
     console.warn('Sound playback failed:', e);
   }
 };

@@ -93,7 +93,7 @@ const Login: React.FC = () => {
           setShowPasswordField(true);
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to check staff/admin status');
     } finally {
       setCheckingEmail(false);

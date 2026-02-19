@@ -91,7 +91,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                 const data = await res.json();
                 setResources(data);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to fetch resources:', err);
         }
     };
@@ -121,7 +121,7 @@ const AvailabilityBlocksContent: React.FC = () => {
             } else {
                 setError('Failed to fetch availability blocks. Try refreshing the page.');
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to fetch blocks:', err);
             setError('Network error. Check your connection and try again.');
         } finally {
@@ -216,7 +216,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                 const data = await res.json();
                 setFormError(data.error || 'Failed to save block');
             }
-        } catch (err) {
+        } catch (err: unknown) {
             setFormError('Failed to save block');
         } finally {
             setIsSaving(false);
@@ -251,7 +251,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                 setBlocks(snapshot);
                 showToast('Failed to delete block', 'error');
             }
-        } catch (err) {
+        } catch (err: unknown) {
             setBlocks(snapshot);
             showToast('Failed to delete block', 'error');
         } finally {
