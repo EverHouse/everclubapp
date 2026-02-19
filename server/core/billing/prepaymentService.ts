@@ -37,6 +37,29 @@ export async function createPrepaymentIntent(
     return null;
   }
 
+  // Guard: prevent ghost transactions for unmatched bookings without real owners
+  if (!userEmail || !userEmail.includes('@')) {
+    logger.info('[Prepayment] Skipping - no valid owner email (ghost booking prevention)', {
+      extra: { bookingId, sessionId, userEmail: userEmail || '(empty)' }
+    });
+    return null;
+  }
+
+  // Guard: prevent ghost transactions for Unknown Trackman bookings without assigned members
+  const unmatchedCheck = await pool.query(
+    `SELECT is_unmatched, user_email, user_name FROM booking_requests WHERE id = $1 LIMIT 1`,
+    [bookingId]
+  );
+  if (unmatchedCheck.rows.length > 0) {
+    const booking = unmatchedCheck.rows[0];
+    if (booking.is_unmatched && (!booking.user_email || !booking.user_email.includes('@'))) {
+      logger.info('[Prepayment] Skipping - unmatched booking without assigned member (ghost booking prevention)', {
+        extra: { bookingId, sessionId, isUnmatched: booking.is_unmatched, userEmail: booking.user_email || '(empty)', userName: booking.user_name }
+      });
+      return null;
+    }
+  }
+
   // Safety net: never create prepayments for staff or unlimited-tier members
   if (userEmail) {
     const exemptCheck = await pool.query(
@@ -89,9 +112,28 @@ export async function createPrepaymentIntent(
       return null;
     }
 
-    const description = `Prepayment for booking #${bookingId} - Overage: $${(feeBreakdown.overageCents / 100).toFixed(2)}, Guest fees: $${(feeBreakdown.guestCents / 100).toFixed(2)}`;
+    // Fetch Trackman booking ID for Stripe description and metadata cross-referencing
+    const trackmanResult = await pool.query(
+      `SELECT trackman_booking_id FROM booking_requests WHERE id = $1 LIMIT 1`,
+      [bookingId]
+    );
+    const trackmanBookingId = trackmanResult.rows[0]?.trackman_booking_id || null;
+
+    const bookingRef = trackmanBookingId ? `TM-${trackmanBookingId}` : `#${bookingId}`;
+    const description = `Prepayment for booking ${bookingRef} - Overage: $${(feeBreakdown.overageCents / 100).toFixed(2)}, Guest fees: $${(feeBreakdown.guestCents / 100).toFixed(2)}`;
 
     const { customerId } = await getOrCreateStripeCustomer(userId || userEmail, userEmail, userName);
+
+    const stripeMetadata: Record<string, string> = {
+      bookingId: bookingId.toString(),
+      sessionId: sessionId.toString(),
+      overageCents: feeBreakdown.overageCents.toString(),
+      guestCents: feeBreakdown.guestCents.toString(),
+      prepaymentType: 'booking_approval'
+    };
+    if (trackmanBookingId) {
+      stripeMetadata.trackmanBookingId = trackmanBookingId;
+    }
 
     const result = await createBalanceAwarePayment({
       stripeCustomerId: customerId,
@@ -103,13 +145,7 @@ export async function createPrepaymentIntent(
       description,
       bookingId,
       sessionId,
-      metadata: {
-        bookingId: bookingId.toString(),
-        sessionId: sessionId.toString(),
-        overageCents: feeBreakdown.overageCents.toString(),
-        guestCents: feeBreakdown.guestCents.toString(),
-        prepaymentType: 'booking_approval'
-      }
+      metadata: stripeMetadata
     });
 
     if (result.error) {

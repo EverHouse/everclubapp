@@ -118,6 +118,7 @@ export async function createPaymentIntent(
   if (!bookingId) stripeMetadata.type = 'conference_booking';
   if (sessionId) stripeMetadata.sessionId = sessionId.toString();
   if (metadata?.participantFees) stripeMetadata.participantFees = metadata.participantFees;
+  if (metadata?.trackmanBookingId) stripeMetadata.trackmanBookingId = metadata.trackmanBookingId;
   if (productId) stripeMetadata.productId = productId;
   if (productName) stripeMetadata.productName = productName;
 
