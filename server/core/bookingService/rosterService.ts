@@ -1029,6 +1029,25 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
       guestPassesRemaining = passResult.rows[0]?.remaining ?? 0;
     }
 
+    if (type === 'guest' && guest) {
+      const guestSlotResult = await client.query(
+        `SELECT COALESCE(MAX(slot_number), 0) + 1 as next_slot FROM booking_guests WHERE booking_id = $1`,
+        [bookingId]
+      );
+      const nextGuestSlot = guestSlotResult.rows[0]?.next_slot || 1;
+
+      await client.query(
+        `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number, created_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT DO NOTHING`,
+        [bookingId, guest.name.trim(), guest.email?.trim() || null, nextGuestSlot]
+      );
+
+      logger.info('[rosterService] Guest synced to booking_guests for staff view', {
+        extra: { bookingId, guestName: guest.name, slotNumber: nextGuestSlot }
+      });
+    }
+
     if (type === 'member' && memberInfo) {
       const slotResult = await client.query(
         `SELECT COALESCE(MAX(slot_number), 0) + 1 as next_slot FROM booking_members WHERE booking_id = $1`,
@@ -1099,6 +1118,13 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
             `DELETE FROM booking_participants WHERE id = $1`,
             [guestToRemove.id]
           );
+
+          if (guestToRemove.display_name) {
+            await client.query(
+              `DELETE FROM booking_guests WHERE booking_id = $1 AND LOWER(guest_name) = LOWER($2)`,
+              [bookingId, guestToRemove.display_name]
+            );
+          }
 
           if (guestToRemove.used_guest_pass === true) {
             const refundResult = await refundGuestPass(
@@ -1349,6 +1375,19 @@ export async function removeParticipant(params: RemoveParticipantParams): Promis
       [participantId]
     );
 
+    if (participant.participantType === 'guest') {
+      const guestName = participant.displayName;
+      if (guestName) {
+        await client.query(
+          `DELETE FROM booking_guests WHERE booking_id = $1 AND LOWER(guest_name) = LOWER($2)`,
+          [bookingId, guestName]
+        );
+        logger.info('[rosterService] Guest removed from booking_guests for staff view', {
+          extra: { bookingId, guestName }
+        });
+      }
+    }
+
     if (participant.participantType === 'member' && participant.userId) {
       const memberResult = await client.query(
         `SELECT email FROM users WHERE id = $1 OR LOWER(email) = LOWER($1) LIMIT 1`,
@@ -1522,6 +1561,30 @@ export async function initiateGuestFeeCheckout(params: GuestFeeCheckoutParams): 
 
   if (!newParticipant) {
     throw createServiceError('Failed to add guest participant', 500);
+  }
+
+  try {
+    const guestSlotResult = await pool.query(
+      `SELECT COALESCE(MAX(slot_number), 0) + 1 as next_slot FROM booking_guests WHERE booking_id = $1`,
+      [bookingId]
+    );
+    const nextGuestSlot = guestSlotResult.rows[0]?.next_slot || 1;
+
+    await pool.query(
+      `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number, created_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT DO NOTHING`,
+      [bookingId, guestName.trim(), guestEmail.trim(), nextGuestSlot]
+    );
+
+    logger.info('[rosterService] Guest synced to booking_guests for staff view (fee checkout)', {
+      extra: { bookingId, guestName: guestName.trim(), slotNumber: nextGuestSlot }
+    });
+  } catch (syncError) {
+    logger.warn('[rosterService] Failed to sync guest to booking_guests (non-blocking)', {
+      error: syncError as Error,
+      extra: { bookingId, guestName }
+    });
   }
 
   const guestFeeCents = PRICING.GUEST_FEE_CENTS;
