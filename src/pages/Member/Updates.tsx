@@ -203,6 +203,7 @@ const MemberUpdates: React.FC = () => {
       setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
       useNotificationStore.getState().markAsRead(notificationId);
+      window.dispatchEvent(new CustomEvent('notifications-read'));
     } catch (err: unknown) {
       console.error('Failed to mark notification read:', err);
     }
@@ -219,6 +220,7 @@ const MemberUpdates: React.FC = () => {
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
       useNotificationStore.getState().markAllAsRead();
+      window.dispatchEvent(new CustomEvent('notifications-read'));
     } catch (err: unknown) {
       console.error('Failed to mark all notifications read:', err);
     }
@@ -240,7 +242,9 @@ const MemberUpdates: React.FC = () => {
         body: JSON.stringify({ user_email: user.email }),
         credentials: 'include'
       });
-      if (!res.ok) {
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('notifications-read'));
+      } else {
         setNotifications(snapshot);
         setUnreadCount(prevUnread);
         useNotificationStore.getState().setUnreadCount(prevUnread);
