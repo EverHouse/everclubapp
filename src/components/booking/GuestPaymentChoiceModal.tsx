@@ -15,6 +15,7 @@ interface GuestPaymentChoiceModalProps {
   ownerName: string;
   guestPassesRemaining: number;
   onSuccess: (guestName: string) => void;
+  onError?: (error: string) => void;
   onClose: () => void;
 }
 
@@ -44,6 +45,7 @@ export function GuestPaymentChoiceModal({
   ownerName,
   guestPassesRemaining,
   onSuccess,
+  onError,
   onClose
 }: GuestPaymentChoiceModalProps) {
   const { effectiveTheme } = useTheme();
@@ -108,38 +110,31 @@ export function GuestPaymentChoiceModal({
       return;
     }
 
-    setLoading(true);
-    setError(null);
-
     const fullName = `${guestFirstName.trim()} ${guestLastName.trim()}`;
 
-    try {
-      const { ok, data, error: apiError } = await apiRequest<GuestAddResponse>(
-        `/api/bookings/${bookingId}/participants`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'guest',
-            guest: {
-              name: fullName,
-              email: guestEmail.trim()
-            },
-            useGuestPass: true
-          })
-        }
-      );
+    onSuccess(fullName);
 
-      if (ok && data) {
-        onSuccess(fullName);
-      } else {
-        setError(apiError || 'Failed to add guest with pass');
+    apiRequest<GuestAddResponse>(
+      `/api/bookings/${bookingId}/participants`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'guest',
+          guest: {
+            name: fullName,
+            email: guestEmail.trim()
+          },
+          useGuestPass: true
+        })
       }
-    } catch (err: unknown) {
-      setError((err instanceof Error ? err.message : String(err)) || 'Failed to add guest');
-    } finally {
-      setLoading(false);
-    }
+    ).then(({ ok, error: apiError }) => {
+      if (!ok) {
+        onError?.(apiError || 'Failed to add guest with pass');
+      }
+    }).catch((err: unknown) => {
+      onError?.((err instanceof Error ? err.message : String(err)) || 'Failed to add guest');
+    });
   };
 
   const handlePayFee = async () => {

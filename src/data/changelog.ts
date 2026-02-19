@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.85.1",
+    date: "2026-02-19",
+    title: "Critical Fixes: Guest Addition & Staff Booking Sheet Loading",
+    changes: [
+      "Fixed: Staff booking details sheet no longer gets stuck on a loading screen — added a 15-second safety timeout so it always recovers",
+      "Fixed: Loading state properly resets when staff close and reopen the booking details sheet",
+      "Fixed: Staff booking sheet always fetches fresh participant data instead of showing stale cached info",
+      "Fixed: Adding a guest from the member side no longer shows a 'signal aborted' timeout error — the modal now closes instantly while the guest is saved in the background",
+      "Fixed: If a background guest addition fails, members see a clear error message instead of a confusing timeout",
+    ]
+  },
+  {
     version: "7.85.0",
     date: "2026-02-19",
     title: "Unified Participant Data: Staff & Member Views Now Read From One Source",

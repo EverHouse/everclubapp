@@ -795,8 +795,14 @@ const RosterManager: React.FC<RosterManagerProps> = ({
             haptic.success();
             showToast(`${name} added as guest`, 'success');
             setShowGuestPaymentChoiceModal(false);
-            fetchParticipants();
             onUpdate?.();
+            setTimeout(() => {
+              fetchParticipants();
+            }, 1500);
+          }}
+          onError={(error: string) => {
+            showToast(error, 'error');
+            fetchParticipants();
           }}
           onClose={() => {
             setShowGuestPaymentChoiceModal(false);

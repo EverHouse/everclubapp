@@ -164,7 +164,14 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     setIsLoadingRoster(true);
     setRosterError(null);
     try {
-      const res = await fetch(`/api/admin/booking/${bookingId}/members`, { credentials: 'include' });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const res = await fetch(`/api/admin/booking/${bookingId}/members`, { 
+        credentials: 'include',
+        signal: controller.signal,
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      });
+      clearTimeout(timeoutId);
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || 'Failed to load roster');
@@ -244,7 +251,11 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
 
       setSlots(newSlots);
     } catch (err: unknown) {
-      setRosterError((err instanceof Error ? err.message : String(err)) || 'Failed to load roster data');
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setRosterError('Request timed out. Please try again.');
+      } else {
+        setRosterError((err instanceof Error ? err.message : String(err)) || 'Failed to load roster data');
+      }
     } finally {
       setIsLoadingRoster(false);
     }
@@ -275,6 +286,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       setIsCalculatingFees(false);
       setRosterData(null);
       setRosterError(null);
+      setIsLoadingRoster(false);
       setManageModeGuestForm(null);
       setManageModeGuestData({ firstName: '', lastName: '', email: '', phone: '' });
       setMemberMatchWarning(null);
