@@ -186,6 +186,31 @@ const formatJoinDate = (dateStr: string | null | undefined): string => {
 };
 
 
+interface SortableHeaderProps {
+    field: SortField;
+    label: string;
+    className?: string;
+    width: string;
+    currentSortField: SortField;
+    onSort: (field: SortField) => void;
+    getSortIcon: (field: SortField) => string;
+}
+
+const SortableHeader: React.FC<SortableHeaderProps> = ({ field, label, className = '', width, currentSortField, onSort, getSortIcon }) => (
+    <div 
+        className={`p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none tactile-btn ${className}`}
+        style={{ width }}
+        onClick={() => onSort(field)}
+    >
+        <div className="flex items-center gap-1">
+            {label}
+            <span className={`material-symbols-outlined text-[16px] ${currentSortField === field ? 'text-primary dark:text-lavender' : 'text-gray-400'}`}>
+                {getSortIcon(field)}
+            </span>
+        </div>
+    </div>
+);
+
 const DirectoryTab: React.FC = () => {
     const { setPageReady } = usePageReady();
     const { members, formerMembers, fetchFormerMembers, refreshMembers, setViewAsUser, actualUser } = useData();
@@ -795,21 +820,6 @@ const DirectoryTab: React.FC = () => {
         await setViewAsUser(member);
         navigate('/dashboard');
     };
-
-    const SortableHeader = ({ field, label, className = '', width }: { field: SortField; label: string; className?: string; width: string }) => (
-        <div 
-            className={`p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none tactile-btn ${className}`}
-            style={{ width }}
-            onClick={() => handleSort(field)}
-        >
-            <div className="flex items-center gap-1">
-                {label}
-                <span className={`material-symbols-outlined text-[16px] ${sortField === field ? 'text-primary dark:text-lavender' : 'text-gray-400'}`}>
-                    {getSortIcon(field)}
-                </span>
-            </div>
-        </div>
-    );
 
     return (
         <AnimatedPage className="bg-white dark:bg-surface-dark rounded-xl p-4 border border-gray-200 dark:border-white/20 flex flex-col h-full">
@@ -1750,12 +1760,12 @@ const DirectoryTab: React.FC = () => {
 
                         <div className="hidden md:block relative">
                             <div className="flex items-center bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/20">
-                                <SortableHeader field="name" label="Name" width="14%" />
-                                <SortableHeader field="tier" label={memberTab === 'former' ? 'Last Tier' : 'Tier'} width="12%" />
+                                <SortableHeader field="name" label="Name" width="14%" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
+                                <SortableHeader field="tier" label={memberTab === 'former' ? 'Last Tier' : 'Tier'} width="12%" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
                                 <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '10%' }}>Status</div>
-                                <SortableHeader field="visits" label="Visits" width="7%" className="text-center" />
-                                <SortableHeader field="joinDate" label="Joined" width="9%" />
-                                <SortableHeader field="lastVisit" label="Last Visit" width="9%" />
+                                <SortableHeader field="visits" label="Visits" width="7%" className="text-center" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
+                                <SortableHeader field="joinDate" label="Joined" width="9%" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
+                                <SortableHeader field="lastVisit" label="Last Visit" width="9%" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
                                 <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: memberTab === 'former' ? '28%' : '39%' }}>Email</div>
                                 {memberTab === 'former' && (
                                     <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '13%' }}>Reactivation</div>

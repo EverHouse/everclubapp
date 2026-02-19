@@ -3,17 +3,147 @@ import { useAutoAnimate } from '@formkit/auto-animate/react';
 import EmptyState from '../../../../components/EmptyState';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usePageReady } from '../../../../contexts/PageReadyContext';
-import { formatDateDisplayWithDay } from '../../../../utils/dateUtils';
+import { formatDateDisplayWithDay, formatTime12Hour, getTodayPacific } from '../../../../utils/dateUtils';
 import { getNetworkErrorMessage } from '../../../../utils/errorHandling';
 import { useToast } from '../../../../components/Toast';
 import { SlideUpDrawer } from '../../../../components/SlideUpDrawer';
 import { AnimatedPage } from '../../../../components/motion';
 import { fetchWithCredentials, deleteWithCredentials } from '../../../../hooks/queries/useFetch';
 import { EventsTabSkeleton } from '../../../../components/skeletons';
-import { getTodayPacific } from '../../../../utils/dateUtils';
 import { Participant, DBEvent, NeedsReviewEvent, CATEGORY_TABS } from './eventsTypes';
 import WalkingGolferSpinner from '../../../../components/WalkingGolferSpinner';
 import { ParticipantDetailsModal } from './ParticipantDetailsModal';
+
+interface NeedsReviewSectionProps {
+    events: NeedsReviewEvent[];
+    isLoading: boolean;
+    isExpanded: boolean;
+    onToggleExpanded: () => void;
+    onEditEvent: (event: NeedsReviewEvent) => void;
+}
+
+const NeedsReviewSection: React.FC<NeedsReviewSectionProps> = ({ events, isLoading, isExpanded, onToggleExpanded, onEditEvent }) => {
+    const count = events.length;
+    
+    if (!isLoading && count === 0) {
+        return null;
+    }
+    
+    return (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-500/10 backdrop-blur-sm overflow-hidden mb-4">
+            <button
+                onClick={onToggleExpanded}
+                className="w-full flex items-center justify-between p-4 hover:bg-amber-500/5 transition-colors"
+            >
+                <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">
+                        rate_review
+                    </span>
+                    <span className="text-sm font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                        Needs Review
+                    </span>
+                    {count > 0 && (
+                        <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-amber-500 text-white text-xs font-bold">
+                            {count}
+                        </span>
+                    )}
+                </div>
+                <span className={`material-symbols-outlined text-amber-600 dark:text-amber-400 transition-transform duration-fast ${isExpanded ? 'rotate-180' : ''}`}>
+                    expand_more
+                </span>
+            </button>
+            
+            {isExpanded && (
+                <div className="border-t border-amber-500/20 p-4 space-y-4">
+                    {isLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                            <WalkingGolferSpinner size="sm" />
+                        </div>
+                    ) : (
+                        events.map((event) => {
+                            const missingFields: string[] = [];
+                            if (!event.category || event.category === 'General') missingFields.push('Category');
+                            if (!event.description) missingFields.push('Description');
+                            if (!event.location) missingFields.push('Location');
+                            
+                            return (
+                                <div 
+                                    key={event.id}
+                                    className={`p-4 rounded-xl border ${event.conflict_detected ? 'border-orange-500/40 bg-orange-50/60 dark:bg-orange-900/20' : 'border-amber-500/20 bg-white/60 dark:bg-white/5'} space-y-3`}
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                {event.conflict_detected && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500 text-white text-[10px] font-bold uppercase tracking-wider">
+                                                        <span className="material-symbols-outlined text-[12px]">sync_problem</span>
+                                                        Conflict Detected
+                                                    </span>
+                                                )}
+                                                <span className="text-sm font-bold text-primary dark:text-white">
+                                                    {formatTime12Hour(event.start_time)}
+                                                </span>
+                                                {event.end_time && (
+                                                    <span className="text-xs text-primary/70 dark:text-white/70">
+                                                        - {formatTime12Hour(event.end_time)}
+                                                    </span>
+                                                )}
+                                                <span className="text-xs text-primary/60 dark:text-white/60">
+                                                    {formatDateDisplayWithDay(event.event_date)}
+                                                </span>
+                                            </div>
+                                            <h4 className="font-semibold text-primary dark:text-white">
+                                                {event.title}
+                                            </h4>
+                                            {event.location && (
+                                                <p className="text-xs text-primary/80 dark:text-white/80 truncate">
+                                                    {event.location}
+                                                </p>
+                                            )}
+                                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                {event.source && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 dark:bg-white/10 text-primary/70 dark:text-white/70 text-xs">
+                                                        <span className="material-symbols-outlined text-xs">sync</span>
+                                                        {event.source}
+                                                    </span>
+                                                )}
+                                                {event.category && (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 dark:bg-white/10 text-primary/70 dark:text-white/70 text-xs">
+                                                        {event.category}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {missingFields.length > 0 && (
+                                                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                                                    Missing: {missingFields.join(', ')}
+                                                </p>
+                                            )}
+                                            {event.conflict_detected && (
+                                                <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                                                    This event was modified in Google Calendar after being reviewed. Please verify the changes.
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2 pt-2">
+                                        <button
+                                            onClick={() => onEditEvent(event)}
+                                            className="flex-1 px-3 py-2 rounded-full bg-accent text-primary text-xs font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-1"
+                                        >
+                                            <span className="material-symbols-outlined text-sm">edit</span>
+                                            Edit Event
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const EventsAdminContent: React.FC = () => {
     const { setPageReady } = usePageReady();
@@ -334,132 +464,15 @@ export const EventsAdminContent: React.FC = () => {
         return `${h12}:${m.toString().padStart(2, '0')} ${period}`;
     };
 
-    const NeedsReviewSection = () => {
-        const count = needsReviewEvents.length;
-        
-        if (!needsReviewLoading && count === 0) {
-            return null;
-        }
-        
-        return (
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-500/10 backdrop-blur-sm overflow-hidden mb-4">
-                <button
-                    onClick={() => setNeedsReviewExpanded(!needsReviewExpanded)}
-                    className="w-full flex items-center justify-between p-4 hover:bg-amber-500/5 transition-colors"
-                >
-                    <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">
-                            rate_review
-                        </span>
-                        <span className="text-sm font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-                            Needs Review
-                        </span>
-                        {count > 0 && (
-                            <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-amber-500 text-white text-xs font-bold">
-                                {count}
-                            </span>
-                        )}
-                    </div>
-                    <span className={`material-symbols-outlined text-amber-600 dark:text-amber-400 transition-transform duration-fast ${needsReviewExpanded ? 'rotate-180' : ''}`}>
-                        expand_more
-                    </span>
-                </button>
-                
-                {needsReviewExpanded && (
-                    <div className="border-t border-amber-500/20 p-4 space-y-4">
-                        {needsReviewLoading ? (
-                            <div className="flex items-center justify-center py-8">
-                                <WalkingGolferSpinner size="sm" />
-                            </div>
-                        ) : (
-                            needsReviewEvents.map((event) => {
-                                const missingFields: string[] = [];
-                                if (!event.category || event.category === 'General') missingFields.push('Category');
-                                if (!event.description) missingFields.push('Description');
-                                if (!event.location) missingFields.push('Location');
-                                
-                                return (
-                                    <div 
-                                        key={event.id}
-                                        className={`p-4 rounded-xl border ${event.conflict_detected ? 'border-orange-500/40 bg-orange-50/60 dark:bg-orange-900/20' : 'border-amber-500/20 bg-white/60 dark:bg-white/5'} space-y-3`}
-                                    >
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                    {event.conflict_detected && (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500 text-white text-[10px] font-bold uppercase tracking-wider">
-                                                            <span className="material-symbols-outlined text-[12px]">sync_problem</span>
-                                                            Conflict Detected
-                                                        </span>
-                                                    )}
-                                                    <span className="text-sm font-bold text-primary dark:text-white">
-                                                        {formatTime12Hour(event.start_time)}
-                                                    </span>
-                                                    {event.end_time && (
-                                                        <span className="text-xs text-primary/70 dark:text-white/70">
-                                                            - {formatTime12Hour(event.end_time)}
-                                                        </span>
-                                                    )}
-                                                    <span className="text-xs text-primary/60 dark:text-white/60">
-                                                        {formatDateDisplayWithDay(event.event_date)}
-                                                    </span>
-                                                </div>
-                                                <h4 className="font-semibold text-primary dark:text-white">
-                                                    {event.title}
-                                                </h4>
-                                                {event.location && (
-                                                    <p className="text-xs text-primary/80 dark:text-white/80 truncate">
-                                                        {event.location}
-                                                    </p>
-                                                )}
-                                                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                                    {event.source && (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 dark:bg-white/10 text-primary/70 dark:text-white/70 text-xs">
-                                                            <span className="material-symbols-outlined text-xs">sync</span>
-                                                            {event.source}
-                                                        </span>
-                                                    )}
-                                                    {event.category && (
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 dark:bg-white/10 text-primary/70 dark:text-white/70 text-xs">
-                                                            {event.category}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                {missingFields.length > 0 && (
-                                                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                                                        Missing: {missingFields.join(', ')}
-                                                    </p>
-                                                )}
-                                                {event.conflict_detected && (
-                                                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
-                                                        This event was modified in Google Calendar after being reviewed. Please verify the changes.
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="flex items-center gap-2 pt-2">
-                                            <button
-                                                onClick={() => openEditForNeedsReview(event)}
-                                                className="flex-1 px-3 py-2 rounded-full bg-accent text-primary text-xs font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-1"
-                                            >
-                                                <span className="material-symbols-outlined text-sm">edit</span>
-                                                Edit Event
-                                            </button>
-                                        </div>
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-                )}
-            </div>
-        );
-    };
-
     return (
         <AnimatedPage>
-            <NeedsReviewSection />
+            <NeedsReviewSection
+                events={needsReviewEvents}
+                isLoading={needsReviewLoading}
+                isExpanded={needsReviewExpanded}
+                onToggleExpanded={() => setNeedsReviewExpanded(!needsReviewExpanded)}
+                onEditEvent={openEditForNeedsReview}
+            />
 
             <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide -mx-4 px-4 scroll-fade-right">
                 {CATEGORY_TABS.map(tab => (

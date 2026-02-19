@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback, useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmptyState from '../../EmptyState';
 import { formatTime12Hour, getNowTimePacific, getTodayPacific, formatRelativeTime } from '../../../utils/dateUtils';
@@ -6,6 +6,290 @@ import { DateBlock, GlassListRow } from '../helpers';
 import { useAsyncAction } from '../../../hooks/useAsyncAction';
 import type { BookingRequest, TabType } from '../types';
 import { tabToPath } from '../../../pages/Admin/layout/types';
+
+interface PendingRequestsCardProps {
+  pendingRequests: BookingRequest[];
+  today: string;
+  variant: 'desktop' | 'desktop-top' | 'desktop-bottom' | 'mobile';
+  navigateToTab: (tab: TabType) => void;
+  isActionLoading: (actionKey: string) => boolean;
+  onOpenTrackman: (booking?: BookingRequest) => void;
+  onCompleteCancellation?: (request: BookingRequest) => void;
+  executeDeny: (request: BookingRequest) => void;
+}
+
+const PendingRequestsCard = memo<PendingRequestsCardProps>(({
+  pendingRequests,
+  today,
+  variant,
+  navigateToTab,
+  isActionLoading,
+  onOpenTrackman,
+  onCompleteCancellation,
+  executeDeny
+}) => {
+  const hasCancellations = pendingRequests.some(r => r.status === 'cancellation_pending');
+  const cancellationCount = pendingRequests.filter(r => r.status === 'cancellation_pending').length;
+
+  return (
+    <div 
+      className={`flex flex-col bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-2xl p-4 shadow-liquid dark:shadow-liquid-dark ${pendingRequests.length > 0 ? `border-l-4 ${hasCancellations ? 'border-l-red-500' : 'border-l-amber-500'}` : ''}`}
+      role="region"
+      aria-label={pendingRequests.length > 0 ? `Booking Requests - ${pendingRequests.length} pending, action required` : 'Booking Requests'}
+    >
+      <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <h3 className={`font-bold text-primary dark:text-white ${variant === 'desktop' ? 'text-sm' : ''}`}>Booking Requests</h3>
+          {pendingRequests.length > 0 && (
+            <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full">
+              Action Required
+            </span>
+          )}
+          {cancellationCount > 0 && (
+            <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 rounded-full">
+              {cancellationCount} Cancellation{cancellationCount !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+        <button onClick={() => navigateToTab('simulator')} className="tactile-btn text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
+      </div>
+      <div className="space-y-2">
+        {pendingRequests.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-8">
+            <EmptyState icon="check_circle" title="All caught up!" description="No pending requests" variant="compact" />
+          </div>
+        ) : (
+          pendingRequests.map((request, index) => {
+            const isDenying = isActionLoading(`deny-${request.id}`);
+            
+            return (
+              <GlassListRow 
+                key={`${request.source || 'request'}-${request.id}`} 
+                className="flex-col !items-stretch !gap-2 animate-slide-up-stagger"
+                style={{ '--stagger-index': index } as React.CSSProperties}
+              >
+                {request.status === 'cancellation_pending' ? (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <DateBlock dateStr={request.request_date} today={today} />
+                      <span className="material-symbols-outlined text-lg text-red-500 dark:text-red-400">event_busy</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-sm text-primary dark:text-white truncate">{request.user_name}</p>
+                            <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 rounded-full">
+                              Cancellation
+                            </span>
+                          </div>
+                          {request.created_at && (
+                            <span className="text-[10px] text-red-600 dark:text-red-400 shrink-0">
+                              {formatRelativeTime(request.created_at)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-primary/80 dark:text-white/80">
+                          {formatTime12Hour(request.start_time)} - {formatTime12Hour(request.end_time)} • {request.bay_name}
+                        </p>
+                      </div>
+                    </div>
+                    {request.trackman_booking_id && (
+                      <div className="flex items-center gap-1.5 ml-[56px] px-2 py-1 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                        <span className="material-symbols-outlined text-sm text-orange-600 dark:text-orange-400">sports_golf</span>
+                        <span className="text-[10px] font-medium text-orange-700 dark:text-orange-400">
+                          Cancel in Trackman (TM: {request.trackman_booking_id})
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex gap-2 ml-[56px]">
+                      {onCompleteCancellation && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onCompleteCancellation(request); }}
+                          className="tactile-btn flex-1 py-1.5 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center justify-center gap-1.5"
+                        >
+                          <span className="material-symbols-outlined text-sm">check_circle</span>
+                          Complete Cancellation
+                        </button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <DateBlock dateStr={request.request_date} today={today} />
+                      <span className="material-symbols-outlined text-lg text-primary dark:text-[#CCB8E4]">pending_actions</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-semibold text-sm text-primary dark:text-white truncate">{request.user_name}</p>
+                          {request.created_at && (
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 shrink-0">
+                              {formatRelativeTime(request.created_at)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-primary/80 dark:text-white/80">
+                          {formatTime12Hour(request.start_time)} - {formatTime12Hour(request.end_time)} • {request.bay_name}
+                        </p>
+                      </div>
+                    </div>
+                    {request.has_conflict && (
+                      <div className="flex items-center gap-1.5 ml-[56px] px-2 py-1 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                        <span className="material-symbols-outlined text-sm text-orange-600 dark:text-orange-400">warning</span>
+                        <span className="text-[10px] font-medium text-orange-700 dark:text-orange-400">
+                          Conflicts with existing booking{request.conflicting_booking_name ? ` (${request.conflicting_booking_name})` : ''}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex gap-2 ml-[56px]">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onOpenTrackman(request); }}
+                        className="tactile-btn flex-1 py-1.5 px-3 bg-[#E55A22]/10 text-[#E55A22] dark:bg-[#E55A22]/20 dark:text-[#FF7A44] text-xs font-medium rounded-lg hover:bg-[#E55A22]/20 dark:hover:bg-[#E55A22]/30 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <span className="material-symbols-outlined text-sm">sports_golf</span>
+                        Book on Trackman
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); executeDeny(request); }}
+                        disabled={isDenying}
+                        className="tactile-btn flex-1 py-1.5 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      >
+                        {isDenying ? (
+                          <>
+                            <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                            Denying...
+                          </>
+                        ) : (
+                          <>
+                            <span className="material-symbols-outlined text-sm">close</span>
+                            Deny
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </GlassListRow>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+});
+
+interface UpcomingBookingsCardProps {
+  mergedUpcomingBookings: BookingRequest[];
+  today: string;
+  navigateToTab: (tab: TabType) => void;
+  getStatusBadge: (booking: BookingRequest) => React.ReactNode;
+  getSmartActionButton: (booking: BookingRequest) => React.ReactNode;
+  onEditBooking?: (booking: BookingRequest) => void;
+}
+
+const UpcomingBookingsCard = memo<UpcomingBookingsCardProps>(({
+  mergedUpcomingBookings,
+  today,
+  navigateToTab,
+  getStatusBadge,
+  getSmartActionButton,
+  onEditBooking
+}) => {
+  const hasUnmatchedBookings = mergedUpcomingBookings.some(b => b.is_unmatched);
+  
+  return (
+    <div 
+      className="flex flex-col bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-2xl p-4 shadow-liquid dark:shadow-liquid-dark"
+      role="region"
+      aria-label={hasUnmatchedBookings ? "Today's Bookings - some need member assignment" : "Today's Bookings"}
+    >
+      <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0">
+        <h3 className="font-bold text-primary dark:text-white">Today's Bookings</h3>
+        <button onClick={() => navigateToTab('simulator')} className="tactile-btn text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
+      </div>
+      <div className="space-y-2">
+        {mergedUpcomingBookings.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-8">
+            <EmptyState icon="calendar_today" title="No bookings today" variant="compact" />
+          </div>
+        ) : (
+          mergedUpcomingBookings.map((booking, index) => {
+            const isUnmatched = booking.is_unmatched;
+            const cardClass = isUnmatched 
+              ? 'bg-amber-50/80 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30' 
+              : '';
+            
+            return (
+              <GlassListRow 
+                key={`${isUnmatched ? 'unmatched-' : ''}${booking.id}`}
+                onClick={() => navigateToTab('simulator')}
+                className={`flex-col !items-stretch !gap-2 animate-slide-up-stagger ${cardClass}`}
+                style={{ '--stagger-index': index } as React.CSSProperties}
+              >
+                <div className="flex items-start gap-3">
+                  <DateBlock dateStr={booking.request_date || booking.slot_date || ''} today={today} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      {isUnmatched ? (
+                        <>
+                          <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full">
+                            Needs Assignment
+                          </span>
+                          {(booking as Record<string, unknown>).resource_type === 'conference_room' ? (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-glass-surface-primary dark:bg-glass-surface-primary-dark text-glass-surface-primary-text dark:text-purple-400">
+                              Conf
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                              {booking.bay_name || `Bay ${booking.resource_id}`}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-semibold text-sm truncate text-primary dark:text-white">
+                            {booking.user_name || 'Unknown Customer'}
+                          </p>
+                          {(booking as Record<string, unknown>).resource_type === 'conference_room' ? (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-glass-surface-primary dark:bg-glass-surface-primary-dark text-glass-surface-primary-text dark:text-purple-400">
+                              Conf
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 dark:bg-white/10 text-primary/70 dark:text-white/70">
+                              {booking.bay_name || `Bay ${booking.resource_id}`}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    <p className={`text-xs ${isUnmatched ? 'text-amber-600/80 dark:text-amber-400/80' : 'text-primary/80 dark:text-white/80'}`}>
+                      {formatTime12Hour(booking.start_time)} - {formatTime12Hour(booking.end_time)}
+                      {booking.trackman_booking_id && (
+                        <span className="ml-2 text-[10px] text-orange-600 dark:text-orange-400">
+                          TM: {booking.trackman_booking_id}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {getSmartActionButton(booking)}
+                    {onEditBooking && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onEditBooking(booking); }}
+                        className="tactile-btn p-1.5 text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg transition-colors"
+                        aria-label="Edit booking"
+                      >
+                        <span className="material-symbols-outlined text-base">edit</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </GlassListRow>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+});
 
 interface BookingQueuesSectionProps {
   pendingRequests: BookingRequest[];
@@ -89,7 +373,6 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
     const nowTime = getNowTimePacific();
     const todayPacific = getTodayPacific();
     
-    // Convert to strings for reliable Set comparison (avoids number vs string mismatch)
     const unmatchedTrackmanIds = new Set(
       unmatchedBookings
         .filter(b => b.trackman_booking_id)
@@ -98,10 +381,6 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
     const unmatchedBookingIds = new Set(unmatchedBookings.map(b => String(b.id)));
     
     const isUnmatchedBooking = (b: BookingRequest) => {
-      // A booking is unmatched if:
-      // 1. is_unmatched flag is true, OR
-      // 2. user_email is null/empty, OR  
-      // 3. user_email matches placeholder patterns
       const email = b.user_email?.toLowerCase() || '';
       const isPlaceholderEmail = !email || 
         email.includes('@trackman.local') ||
@@ -116,19 +395,16 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
         (b.user_name || '').includes('Unknown (Trackman)');
     };
     
-    // Only show TODAY's bookings that haven't ended yet (staff can click View all for future dates)
     const scheduledBookings = todaysBookings.filter(booking => {
       if (booking.request_date !== todayPacific) return false;
       if (booking.end_time <= nowTime) return false;
       return true;
     }).filter(booking => {
-      // Use String() for reliable comparison
       if (booking.trackman_booking_id && unmatchedTrackmanIds.has(String(booking.trackman_booking_id))) return false;
       if (unmatchedBookingIds.has(String(booking.id))) return false;
       return true;
     }).map(b => ({ ...b, is_unmatched: isUnmatchedBooking(b) }));
     
-    // Only include unmatched bookings that are for today
     const unmatchedWithFlag = unmatchedBookings
       .filter(b => (b.request_date || b.slot_date || '') === todayPacific)
       .map(b => ({
@@ -279,275 +555,79 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
     );
   };
 
-  const PendingRequestsCard = () => {
-    const hasCancellations = pendingRequests.some(r => r.status === 'cancellation_pending');
-    const cancellationCount = pendingRequests.filter(r => r.status === 'cancellation_pending').length;
-
-    return (
-      <div 
-        className={`flex flex-col bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-2xl p-4 shadow-liquid dark:shadow-liquid-dark ${pendingRequests.length > 0 ? `border-l-4 ${hasCancellations ? 'border-l-red-500' : 'border-l-amber-500'}` : ''}`}
-        role="region"
-        aria-label={pendingRequests.length > 0 ? `Booking Requests - ${pendingRequests.length} pending, action required` : 'Booking Requests'}
-      >
-        <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <h3 className={`font-bold text-primary dark:text-white ${variant === 'desktop' ? 'text-sm' : ''}`}>Booking Requests</h3>
-            {pendingRequests.length > 0 && (
-              <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full">
-                Action Required
-              </span>
-            )}
-            {cancellationCount > 0 && (
-              <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 rounded-full">
-                {cancellationCount} Cancellation{cancellationCount !== 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-          <button onClick={() => navigateToTab('simulator')} className="tactile-btn text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
-        </div>
-        <div className="space-y-2">
-          {pendingRequests.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center py-8">
-              <EmptyState icon="check_circle" title="All caught up!" description="No pending requests" variant="compact" />
-            </div>
-          ) : (
-            pendingRequests.map((request, index) => {
-              const isDenying = isActionLoading(`deny-${request.id}`);
-              
-              return (
-                <GlassListRow 
-                  key={`${request.source || 'request'}-${request.id}`} 
-                  className="flex-col !items-stretch !gap-2 animate-slide-up-stagger"
-                  style={{ '--stagger-index': index } as React.CSSProperties}
-                >
-                  {request.status === 'cancellation_pending' ? (
-                    <>
-                      <div className="flex items-center gap-3">
-                        <DateBlock dateStr={request.request_date} today={today} />
-                        <span className="material-symbols-outlined text-lg text-red-500 dark:text-red-400">event_busy</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold text-sm text-primary dark:text-white truncate">{request.user_name}</p>
-                              <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 rounded-full">
-                                Cancellation
-                              </span>
-                            </div>
-                            {request.created_at && (
-                              <span className="text-[10px] text-red-600 dark:text-red-400 shrink-0">
-                                {formatRelativeTime(request.created_at)}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-primary/80 dark:text-white/80">
-                            {formatTime12Hour(request.start_time)} - {formatTime12Hour(request.end_time)} • {request.bay_name}
-                          </p>
-                        </div>
-                      </div>
-                      {request.trackman_booking_id && (
-                        <div className="flex items-center gap-1.5 ml-[56px] px-2 py-1 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                          <span className="material-symbols-outlined text-sm text-orange-600 dark:text-orange-400">sports_golf</span>
-                          <span className="text-[10px] font-medium text-orange-700 dark:text-orange-400">
-                            Cancel in Trackman (TM: {request.trackman_booking_id})
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex gap-2 ml-[56px]">
-                        {onCompleteCancellation && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onCompleteCancellation(request); }}
-                            className="tactile-btn flex-1 py-1.5 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center justify-center gap-1.5"
-                          >
-                            <span className="material-symbols-outlined text-sm">check_circle</span>
-                            Complete Cancellation
-                          </button>
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-3">
-                        <DateBlock dateStr={request.request_date} today={today} />
-                        <span className="material-symbols-outlined text-lg text-primary dark:text-[#CCB8E4]">pending_actions</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="font-semibold text-sm text-primary dark:text-white truncate">{request.user_name}</p>
-                            {request.created_at && (
-                              <span className="text-[10px] text-amber-600 dark:text-amber-400 shrink-0">
-                                {formatRelativeTime(request.created_at)}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-primary/80 dark:text-white/80">
-                            {formatTime12Hour(request.start_time)} - {formatTime12Hour(request.end_time)} • {request.bay_name}
-                          </p>
-                        </div>
-                      </div>
-                      {request.has_conflict && (
-                        <div className="flex items-center gap-1.5 ml-[56px] px-2 py-1 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                          <span className="material-symbols-outlined text-sm text-orange-600 dark:text-orange-400">warning</span>
-                          <span className="text-[10px] font-medium text-orange-700 dark:text-orange-400">
-                            Conflicts with existing booking{request.conflicting_booking_name ? ` (${request.conflicting_booking_name})` : ''}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex gap-2 ml-[56px]">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onOpenTrackman(request); }}
-                          className="tactile-btn flex-1 py-1.5 px-3 bg-[#E55A22]/10 text-[#E55A22] dark:bg-[#E55A22]/20 dark:text-[#FF7A44] text-xs font-medium rounded-lg hover:bg-[#E55A22]/20 dark:hover:bg-[#E55A22]/30 transition-colors flex items-center justify-center gap-1.5"
-                        >
-                          <span className="material-symbols-outlined text-sm">sports_golf</span>
-                          Book on Trackman
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); executeDeny(request); }}
-                          disabled={isDenying}
-                          className="tactile-btn flex-1 py-1.5 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
-                        >
-                          {isDenying ? (
-                            <>
-                              <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
-                              Denying...
-                            </>
-                          ) : (
-                            <>
-                              <span className="material-symbols-outlined text-sm">close</span>
-                              Deny
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </GlassListRow>
-              );
-            })
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const UpcomingBookingsCard = () => {
-    const hasUnmatchedBookings = mergedUpcomingBookings.some(b => b.is_unmatched);
-    
-    return (
-      <div 
-        className="flex flex-col bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-2xl p-4 shadow-liquid dark:shadow-liquid-dark"
-        role="region"
-        aria-label={hasUnmatchedBookings ? "Today's Bookings - some need member assignment" : "Today's Bookings"}
-      >
-        <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0">
-          <h3 className="font-bold text-primary dark:text-white">Today's Bookings</h3>
-          <button onClick={() => navigateToTab('simulator')} className="tactile-btn text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
-        </div>
-        <div className="space-y-2">
-          {mergedUpcomingBookings.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center py-8">
-              <EmptyState icon="calendar_today" title="No bookings today" variant="compact" />
-            </div>
-          ) : (
-            mergedUpcomingBookings.map((booking, index) => {
-              const isUnmatched = booking.is_unmatched;
-              const cardClass = isUnmatched 
-                ? 'bg-amber-50/80 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30' 
-                : '';
-              
-              return (
-                <GlassListRow 
-                  key={`${isUnmatched ? 'unmatched-' : ''}${booking.id}`}
-                  onClick={() => navigateToTab('simulator')}
-                  className={`flex-col !items-stretch !gap-2 animate-slide-up-stagger ${cardClass}`}
-                  style={{ '--stagger-index': index } as React.CSSProperties}
-                >
-                  <div className="flex items-start gap-3">
-                    <DateBlock dateStr={booking.request_date || booking.slot_date || ''} today={today} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        {isUnmatched ? (
-                          <>
-                            <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full">
-                              Needs Assignment
-                            </span>
-                            {(booking as Record<string, unknown>).resource_type === 'conference_room' ? (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-glass-surface-primary dark:bg-glass-surface-primary-dark text-glass-surface-primary-text dark:text-purple-400">
-                                Conf
-                              </span>
-                            ) : (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                                {booking.bay_name || `Bay ${booking.resource_id}`}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <p className="font-semibold text-sm truncate text-primary dark:text-white">
-                              {booking.user_name || 'Unknown Customer'}
-                            </p>
-                            {(booking as Record<string, unknown>).resource_type === 'conference_room' ? (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-glass-surface-primary dark:bg-glass-surface-primary-dark text-glass-surface-primary-text dark:text-purple-400">
-                                Conf
-                              </span>
-                            ) : (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 dark:bg-white/10 text-primary/70 dark:text-white/70">
-                                {booking.bay_name || `Bay ${booking.resource_id}`}
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </div>
-                      <p className={`text-xs ${isUnmatched ? 'text-amber-600/80 dark:text-amber-400/80' : 'text-primary/80 dark:text-white/80'}`}>
-                        {formatTime12Hour(booking.start_time)} - {formatTime12Hour(booking.end_time)}
-                        {booking.trackman_booking_id && (
-                          <span className="ml-2 text-[10px] text-orange-600 dark:text-orange-400">
-                            TM: {booking.trackman_booking_id}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {getSmartActionButton(booking)}
-                      {onEditBooking && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onEditBooking(booking); }}
-                          className="tactile-btn p-1.5 text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg transition-colors"
-                          aria-label="Edit booking"
-                        >
-                          <span className="material-symbols-outlined text-base">edit</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </GlassListRow>
-              );
-            })
-          )}
-        </div>
-      </div>
-    );
-  };
-
   if (variant === 'desktop-top') {
-    return <PendingRequestsCard />;
+    return (
+      <PendingRequestsCard
+        pendingRequests={pendingRequests}
+        today={today}
+        variant={variant}
+        navigateToTab={navigateToTab}
+        isActionLoading={isActionLoading}
+        onOpenTrackman={onOpenTrackman}
+        onCompleteCancellation={onCompleteCancellation}
+        executeDeny={executeDeny}
+      />
+    );
   }
 
   if (variant === 'desktop-bottom') {
-    return <UpcomingBookingsCard />;
+    return (
+      <UpcomingBookingsCard
+        mergedUpcomingBookings={mergedUpcomingBookings}
+        today={today}
+        navigateToTab={navigateToTab}
+        getStatusBadge={getStatusBadge}
+        getSmartActionButton={getSmartActionButton}
+        onEditBooking={onEditBooking}
+      />
+    );
   }
 
   if (variant === 'desktop') {
     return (
       <>
-        <PendingRequestsCard />
-        <UpcomingBookingsCard />
+        <PendingRequestsCard
+          pendingRequests={pendingRequests}
+          today={today}
+          variant={variant}
+          navigateToTab={navigateToTab}
+          isActionLoading={isActionLoading}
+          onOpenTrackman={onOpenTrackman}
+          onCompleteCancellation={onCompleteCancellation}
+          executeDeny={executeDeny}
+        />
+        <UpcomingBookingsCard
+          mergedUpcomingBookings={mergedUpcomingBookings}
+          today={today}
+          navigateToTab={navigateToTab}
+          getStatusBadge={getStatusBadge}
+          getSmartActionButton={getSmartActionButton}
+          onEditBooking={onEditBooking}
+        />
       </>
     );
   }
 
   return (
     <>
-      <PendingRequestsCard />
-      <UpcomingBookingsCard />
+      <PendingRequestsCard
+        pendingRequests={pendingRequests}
+        today={today}
+        variant={variant}
+        navigateToTab={navigateToTab}
+        isActionLoading={isActionLoading}
+        onOpenTrackman={onOpenTrackman}
+        onCompleteCancellation={onCompleteCancellation}
+        executeDeny={executeDeny}
+      />
+      <UpcomingBookingsCard
+        mergedUpcomingBookings={mergedUpcomingBookings}
+        today={today}
+        navigateToTab={navigateToTab}
+        getStatusBadge={getStatusBadge}
+        getSmartActionButton={getSmartActionButton}
+        onEditBooking={onEditBooking}
+      />
     </>
   );
 };
