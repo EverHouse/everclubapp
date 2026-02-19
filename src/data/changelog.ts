@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.79.0",
+    date: "2026-02-19",
+    title: "Trackman CSV Import: No More Fake Outstanding Fees",
+    changes: [
+      "Fixed: Trackman CSV imports no longer create billing sessions — they only backfill Trackman data (names, emails, notes) to make assigning owners easier",
+      "Fixed: Sessions are now created only when staff manually assigns an owner to a Trackman booking, not during CSV import",
+      "Fixed: Cleaned up 47 fake outstanding fees ($2,300 total) from CSV-imported bookings — these were pre-Stripe sessions that were already settled",
+    ]
+  },
+  {
     version: "7.78.0",
     date: "2026-02-19",
     title: "Atomic Roster Changes: No More Ghost Charges",
