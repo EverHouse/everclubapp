@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.78.0",
+    date: "2026-02-19",
+    title: "Atomic Roster Changes: No More Ghost Charges",
+    changes: [
+      "Fixed: Roster changes on the Booking Details sheet (adding/removing players, swapping guests for members) no longer trigger fees mid-edit — fees are recalculated once when you're done",
+      "Fixed: Complex operations like swapping a guest for a member no longer create intermediate 'ghost charges' for removed participants",
+      "Improved: 'Save Changes' button renamed to 'Recalculate Fees' — it now clearly shows what it does",
+      "Improved: If you close the booking sheet without recalculating, fees are automatically updated so nothing gets stuck",
+      "Fixed: Prepayment requests are now created/updated when fees are recalculated after roster changes",
+    ]
+  },
+  {
     version: "7.77.0",
     date: "2026-02-19",
     title: "Trackman Billing Safety: No Session Without Owner",

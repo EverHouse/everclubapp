@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { logAndRespond, logger } from '../core/logger';
+import { pool } from '../core/db';
 import { getSessionUser } from '../types/session';
 import { isStaffOrAdmin } from '../core/middleware';
 import { checkMemberAvailability } from '../core/bookingService/conflictDetection';
@@ -14,7 +15,10 @@ import {
   confirmGuestPayment,
   cancelGuestPayment,
   updateDeclaredPlayerCount,
+  applyRosterBatch,
 } from '../core/bookingService/rosterService';
+import { getSessionParticipants } from '../core/bookingService/sessionManager';
+import { invalidateCachedFees, recalculateSessionFees } from '../core/billing/unifiedFeeService';
 
 const router = Router();
 
@@ -158,7 +162,8 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
       guest,
       rosterVersion,
       userEmail,
-      sessionUserId: sessionUser.id || userEmail
+      sessionUserId: sessionUser.id || userEmail,
+      deferFeeRecalc: req.body.deferFeeRecalc === true
     });
 
     res.status(201).json({ success: true, ...result });
@@ -188,7 +193,8 @@ router.delete('/api/bookings/:bookingId/participants/:participantId', async (req
       participantId,
       rosterVersion,
       userEmail,
-      sessionUserId: sessionUser.id || userEmail
+      sessionUserId: sessionUser.id || userEmail,
+      deferFeeRecalc: req.query.deferFeeRecalc === 'true'
     });
 
     res.json({ success: true, ...result });
@@ -343,7 +349,8 @@ router.patch('/api/admin/booking/:bookingId/player-count', isStaffOrAdmin, async
     const result = await updateDeclaredPlayerCount({
       bookingId,
       playerCount,
-      staffEmail
+      staffEmail,
+      deferFeeRecalc: req.body.deferFeeRecalc === true
     });
 
     const { logFromRequest } = await import('../core/auditLog');
@@ -364,6 +371,130 @@ router.patch('/api/admin/booking/:bookingId/player-count', isStaffOrAdmin, async
     const mapped = mapServiceError(res, error);
     if (mapped) return;
     logAndRespond(req, res, 500, 'Failed to update player count', error);
+  }
+});
+
+router.post('/api/admin/booking/:bookingId/roster/batch', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const sessionUser = getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const bookingId = parseInt(req.params.bookingId as string, 10);
+    if (isNaN(bookingId)) {
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
+
+    const { rosterVersion, operations } = req.body;
+
+    if (typeof rosterVersion !== 'number') {
+      return res.status(400).json({ error: 'rosterVersion must be a number' });
+    }
+
+    if (!Array.isArray(operations) || operations.length === 0) {
+      return res.status(400).json({ error: 'operations must be a non-empty array' });
+    }
+
+    const staffEmail = sessionUser.email?.toLowerCase() || '';
+
+    const result = await applyRosterBatch({
+      bookingId,
+      rosterVersion,
+      operations,
+      staffEmail
+    });
+
+    res.json({ success: true, ...result });
+  } catch (error: unknown) {
+    await handleConstraintAndRespond(req, res, error, 'Failed to apply batch roster update');
+  }
+});
+
+router.post('/api/admin/booking/:bookingId/recalculate-fees', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const sessionUser = getSessionUser(req);
+    if (!sessionUser) return res.status(401).json({ error: 'Authentication required' });
+
+    const bookingId = parseInt(req.params.bookingId);
+    if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
+
+    const booking = await getBookingWithSession(bookingId);
+    if (!booking || !booking.session_id) {
+      return res.status(404).json({ error: 'Booking or session not found' });
+    }
+
+    const allParticipants = await getSessionParticipants(booking.session_id);
+    const participantIds = allParticipants.map(p => p.id);
+
+    await invalidateCachedFees(participantIds, 'batch_recalc');
+    const recalcResult = await recalculateSessionFees(booking.session_id, 'roster_update');
+
+    let prepaymentCreated = false;
+    const totalCents = recalcResult.totals?.totalCents || 0;
+    if (totalCents > 0) {
+      try {
+        const ownerResult = await pool.query(
+          `SELECT u.id, u.email, u.first_name, u.last_name 
+           FROM users u 
+           WHERE LOWER(u.email) = LOWER($1)
+           LIMIT 1`,
+          [booking.owner_email]
+        );
+
+        const owner = ownerResult.rows[0];
+        const ownerUserId = owner?.id || null;
+        const ownerName = owner ? `${owner.first_name || ''} ${owner.last_name || ''}`.trim() || booking.owner_email : booking.owner_email;
+
+        const feeResult = await pool.query(`
+          SELECT SUM(COALESCE(cached_fee_cents, 0)) as total_cents,
+                 SUM(CASE WHEN participant_type = 'owner' THEN COALESCE(cached_fee_cents, 0) ELSE 0 END) as overage_cents,
+                 SUM(CASE WHEN participant_type = 'guest' THEN COALESCE(cached_fee_cents, 0) ELSE 0 END) as guest_cents
+          FROM booking_participants
+          WHERE session_id = $1
+        `, [booking.session_id]);
+
+        const feeTotalCents = parseInt(feeResult.rows[0]?.total_cents || '0');
+        const overageCents = parseInt(feeResult.rows[0]?.overage_cents || '0');
+        const guestCents = parseInt(feeResult.rows[0]?.guest_cents || '0');
+
+        if (feeTotalCents > 0) {
+          const { createPrepaymentIntent } = await import('../core/billing/prepaymentService');
+          const prepayResult = await createPrepaymentIntent({
+            sessionId: booking.session_id,
+            bookingId,
+            userId: ownerUserId,
+            userEmail: booking.owner_email,
+            userName: ownerName,
+            totalFeeCents: feeTotalCents,
+            feeBreakdown: { overageCents, guestCents }
+          });
+
+          if (prepayResult?.paidInFull) {
+            await pool.query(
+              `UPDATE booking_participants SET payment_status = 'paid' WHERE session_id = $1 AND payment_status = 'pending'`,
+              [booking.session_id]
+            );
+          }
+          prepaymentCreated = true;
+        }
+      } catch (prepayError: unknown) {
+        logger.warn('[recalculate-fees] Failed to create prepayment intent (non-blocking)', {
+          error: prepayError as Error,
+          extra: { sessionId: booking.session_id, bookingId }
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      feesRecalculated: true,
+      totalFees: recalcResult.totals?.totalCents || 0,
+      participantsUpdated: recalcResult.participants?.length || 0,
+      prepaymentCreated
+    });
+  } catch (error: unknown) {
+    await handleConstraintAndRespond(req, res, error, 'Failed to recalculate fees');
   }
 });
 

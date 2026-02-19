@@ -2092,7 +2092,9 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
          VALUES (${sessionId}, 'guest', ${guestName.trim()}, 'pending', ${slotDuration})`);
       logger.info('[AddGuest] Created booking_participant for guest in session', { extra: { bookingId, sessionId, guestName: guestName.trim() } });
 
-      await recalculateSessionFees(sessionId, 'roster_update');
+      if (req.body.deferFeeRecalc !== true) {
+        await recalculateSessionFees(sessionId, 'roster_update');
+      }
     }
 
     await db.execute(sql`UPDATE booking_requests SET guest_count = COALESCE(guest_count, 0) + 1, updated_at = NOW() WHERE id = ${bookingId}`);
@@ -2197,9 +2199,10 @@ router.delete('/api/admin/booking/:id/guests/:guestId', isStaffOrAdmin, async (r
       await db.execute(sql`UPDATE booking_requests SET guest_count = GREATEST(0, guest_count - 1), updated_at = NOW() WHERE id = ${bookingId}`);
     }
 
-    // Step 4: Recalculate fees for the session
-    if (sessionId) {
-      await recalculateSessionFees(sessionId as number, 'roster_update');
+    if (req.query.deferFeeRecalc !== 'true') {
+      if (sessionId) {
+        await recalculateSessionFees(sessionId as number, 'roster_update');
+      }
     }
 
     await logFromRequest(req, {
@@ -2291,11 +2294,12 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
            VALUES (${sessionId}, ${userId}, 'member', ${displayName}, 'pending', 'confirmed', ${slotDuration})`);
       }
       
-      // Recalculate fees after adding participant
-      try {
-        await recalculateSessionFees(sessionId as number, 'roster_update');
-      } catch (feeErr: unknown) {
-        logger.warn('[Link Member] Failed to recalculate fees for session', { extra: { sessionId, feeErr } });
+      if (req.body.deferFeeRecalc !== true) {
+        try {
+          await recalculateSessionFees(sessionId as number, 'roster_update');
+        } catch (feeErr: unknown) {
+          logger.warn('[Link Member] Failed to recalculate fees for session', { extra: { sessionId, feeErr } });
+        }
       }
     }
     
@@ -2372,12 +2376,13 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/unlink', isStaffOrAdmi
         await db.execute(sql`DELETE FROM booking_participants 
            WHERE session_id = ${sessionId} AND user_id = ${userId} AND participant_type = 'member'`);
         
-        // Recalculate session fees after removing participant
-        try {
-          const { recalculateSessionFees } = await import('../../core/billing/unifiedFeeService');
-          await recalculateSessionFees(sessionId as number, 'roster_update');
-        } catch (feeError: unknown) {
-          logger.warn('[unlink] Failed to recalculate session fees (non-blocking)', { extra: { feeError } });
+        if (req.query.deferFeeRecalc !== 'true') {
+          try {
+            const { recalculateSessionFees } = await import('../../core/billing/unifiedFeeService');
+            await recalculateSessionFees(sessionId as number, 'roster_update');
+          } catch (feeError: unknown) {
+            logger.warn('[unlink] Failed to recalculate session fees (non-blocking)', { extra: { feeError } });
+          }
         }
       } else {
         logger.warn('[unlink] No user found for email - booking_members may be out of sync with users table', { extra: { memberEmail } });

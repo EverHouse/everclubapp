@@ -87,11 +87,23 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
 
     const manageModeTitle = ownerName || logic.fetchedContext?.ownerName || 'Booking Details';
 
+    const handleManagedClose = async () => {
+      if (logic.rosterDirty && bookingId) {
+        try {
+          await fetch(`/api/admin/booking/${bookingId}/recalculate-fees`, {
+            method: 'POST',
+            credentials: 'include'
+          });
+        } catch {}
+      }
+      onClose();
+    };
+
     const manageModeFooter = (
       <div className="p-4 space-y-2">
         <div className="flex gap-3">
           <button
-            onClick={onClose}
+            onClick={handleManagedClose}
             className="tactile-btn flex-1 py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/20 text-primary dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
           >
             Cancel
@@ -104,12 +116,12 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
             {logic.savingChanges ? (
               <>
                 <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
-                {checkinMode ? 'Checking In...' : 'Saving...'}
+                {checkinMode ? 'Checking In...' : 'Recalculating...'}
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined text-sm">{checkinMode ? 'how_to_reg' : 'save'}</span>
-                {checkinMode ? 'Complete Check-In' : 'Save Changes'}
+                <span className="material-symbols-outlined text-sm">{checkinMode ? 'how_to_reg' : 'calculate'}</span>
+                {checkinMode ? 'Complete Check-In' : 'Recalculate Fees'}
               </>
             )}
           </button>
@@ -120,7 +132,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
     return (
       <SlideUpDrawer
         isOpen={isOpen}
-        onClose={onClose}
+        onClose={handleManagedClose}
         title={manageModeTitle}
         maxHeight="full"
         stickyFooter={manageModeFooter}
