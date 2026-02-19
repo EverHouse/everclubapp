@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.85.3",
+    date: "2026-02-19",
+    title: "Cancellation Requests Now Appear in Staff Queue",
+    changes: [
+      "Fixed: Member cancellation requests now properly appear in the staff bookings queue — previously they disappeared from the page entirely when a member requested cancellation",
+      "Note: When staff cancel in Trackman, the app automatically completes the cancellation and notifies the member — no need to also confirm in the queue",
+    ]
+  },
+  {
     version: "7.85.2",
     date: "2026-02-19",
     title: "Payment Status & Player Count Fixes for Unified Participant System",
