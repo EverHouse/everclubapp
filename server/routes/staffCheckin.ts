@@ -382,9 +382,13 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
     }
 
     const bookingResult = await db.execute(sql`
-      SELECT br.session_id, br.user_email as owner_email, r.name as resource_name
+      SELECT br.session_id, br.user_email as owner_email, r.name as resource_name,
+             br.resource_id, br.booking_date, br.start_time, br.end_time,
+             br.declared_player_count,
+             COALESCE(br.owner_name, u.first_name || ' ' || u.last_name) as owner_name
       FROM booking_requests br
       LEFT JOIN resources r ON br.resource_id = r.id
+      LEFT JOIN users u ON LOWER(br.user_email) = LOWER(u.email)
       WHERE br.id = ${bookingId}
     `);
 
@@ -393,7 +397,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
     }
 
     const booking = bookingResult.rows[0];
-    const sessionId = booking.session_id;
+    let sessionId = booking.session_id;
 
     // Ensure fees are calculated and persisted to DB before taking any payment action
     // This handles the case where we no longer write on GET requests
@@ -541,7 +545,59 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
 
     if (action === 'confirm_all' || action === 'waive_all') {
       if (!sessionId) {
-        return res.status(400).json({ error: 'No session found for this booking' });
+        if (!booking.resource_id || !booking.booking_date || !booking.start_time || !booking.end_time) {
+          return res.status(400).json({ error: 'Booking is missing required fields to create a session' });
+        }
+        try {
+          const bookingDuration = Math.round(
+            (new Date(`2000-01-01T${booking.end_time}`).getTime() - 
+             new Date(`2000-01-01T${booking.start_time}`).getTime()) / 60000
+          );
+
+          const userResult = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${booking.owner_email})`);
+          const userId = userResult.rows[0]?.id || null;
+
+          const sessionResult = await ensureSessionForBooking({
+            bookingId,
+            resourceId: booking.resource_id,
+            sessionDate: booking.booking_date,
+            startTime: booking.start_time,
+            endTime: booking.end_time,
+            ownerEmail: booking.owner_email || '',
+            ownerName: booking.owner_name,
+            ownerUserId: userId?.toString() || undefined,
+            source: 'staff_manual',
+            createdBy: 'payment_action'
+          });
+          sessionId = sessionResult.sessionId || null;
+
+          if (sessionId) {
+            const playerCount = booking.declared_player_count || 1;
+            const existingGuests = await db.execute(sql`
+              SELECT COUNT(*) as count FROM booking_participants 
+              WHERE session_id = ${sessionId} AND participant_type = 'guest'
+            `);
+            const existingGuestCount = parseInt(existingGuests.rows[0]?.count || '0');
+            const guestsToCreate = playerCount - 1 - existingGuestCount;
+            if (guestsToCreate > 0) {
+              const guestNumbers = Array.from({length: guestsToCreate}, (_, i) => existingGuestCount + i + 2);
+              const guestNames = guestNumbers.map(n => `Guest ${n}`);
+              await db.execute(sql`
+                INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
+                SELECT ${sessionId}, NULL, 'guest', name, 'pending', ${bookingDuration}
+                FROM unnest(${guestNames}::text[]) AS t(name)
+              `);
+            }
+
+            await recalculateSessionFees(sessionId, 'staff_action');
+          }
+        } catch (sessionErr: unknown) {
+          logger.error('[StaffCheckin] Failed to create session for payment action', { extra: { sessionErr, bookingId } });
+        }
+      }
+
+      if (!sessionId) {
+        return res.status(400).json({ error: 'No session found for this booking and could not create one' });
       }
 
       const newStatus = action === 'confirm_all' ? 'paid' : 'waived';
