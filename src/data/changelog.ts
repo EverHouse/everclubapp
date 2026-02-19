@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.77.0",
+    date: "2026-02-19",
+    title: "Trackman Billing Safety: No Session Without Owner",
+    changes: [
+      "Fixed: Trackman webhook bookings no longer create billing sessions when there's no member assigned — prevents fake 'Unknown (Trackman)' overdue payments from appearing on the financials page",
+      "Fixed: When staff links a member to an unmatched Trackman booking, a billing session is now created at that point with correct fees calculated",
+      "Fixed: CSV import backfill now recalculates fees when a member is matched to a webhook booking that already had a session",
+      "Fixed: Cleaned up 11 orphaned billing sessions from previously unmatched webhook bookings",
+    ]
+  },
+  {
     version: "7.76.0",
     date: "2026-02-19",
     title: "Data Integrity Resolve Actions",

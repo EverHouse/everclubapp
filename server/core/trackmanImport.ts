@@ -12,6 +12,7 @@ import { bookingEvents } from './bookingEvents';
 import { getMemberTierByEmail } from './tierService';
 import { createSession, recordUsage, ParticipantInput } from './bookingService/sessionManager';
 import { calculateFullSessionBilling, FLAT_GUEST_FEE, Participant } from './bookingService/usageCalculator';
+import { recalculateSessionFees } from './billing/unifiedFeeService';
 import { useGuestPass } from '../routes/guestPasses';
 import { cancelPaymentIntent } from './stripe';
 import { alertOnTrackmanImportIssues } from './dataAlerts';
@@ -1991,7 +1992,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           const ownerName = row.userName || existing.userName;
           
           // Only create session if we have a confirmed owner email
-          if (ownerEmail && ownerEmail !== 'unmatched@trackman.import') {
+          if (ownerEmail && ownerEmail !== 'unmatched@trackman.import' && ownerEmail.includes('@')) {
             const backfillParsedPlayers = parseNotesForPlayers(row.notes);
             await createTrackmanSessionAndParticipants({
               bookingId: existing.id,
@@ -2009,6 +2010,13 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               isPast: !isUpcoming
             });
             process.stderr.write(`[Trackman Import] Backfilled session for webhook booking #${existing.id} (Trackman ID: ${row.bookingId})\n`);
+          }
+        } else if (isWebhookCreated && existing.sessionId && parsedBayId && matchedEmail && existing.isUnmatched) {
+          try {
+            await recalculateSessionFees(existing.sessionId, 'approval');
+            process.stderr.write(`[Trackman Import] Recalculated fees for webhook booking #${existing.id} after member match (session #${existing.sessionId})\n`);
+          } catch (recalcErr: unknown) {
+            process.stderr.write(`[Trackman Import] Failed to recalculate fees for session #${existing.sessionId}: ${getErrorMessage(recalcErr)}\n`);
           }
         }
         

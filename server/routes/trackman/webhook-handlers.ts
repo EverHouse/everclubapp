@@ -609,14 +609,14 @@ export async function createUnmatchedBookingRequest(
         return { created: false, bookingId };
       }
       
-      if (bookingStatus === 'approved') {
+      if (bookingStatus === 'approved' && customerEmail && customerEmail.includes('@')) {
         const sessionResult = await ensureSessionForBooking({
           bookingId,
           resourceId: resourceId!,
           sessionDate: slotDate,
           startTime,
           endTime,
-          ownerEmail: customerEmail || '',
+          ownerEmail: customerEmail,
           ownerName: customerName || 'Unknown (Trackman)',
           trackmanBookingId,
           source: 'trackman_webhook',
@@ -628,6 +628,10 @@ export async function createUnmatchedBookingRequest(
             extra: { bookingId, trackmanBookingId, error: sessionResult.error }
           });
         }
+      } else if (bookingStatus === 'approved') {
+        logger.info('[Trackman Webhook] Session creation deferred until member assignment (no real customer email)', {
+          extra: { bookingId, trackmanBookingId, customerEmail: customerEmail || '(empty)' }
+        });
       }
       
       logger.info('[Trackman Webhook] Created unmatched booking_request to block calendar', {

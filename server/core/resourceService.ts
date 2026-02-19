@@ -1115,6 +1115,32 @@ export async function linkTrackmanToMember(
         extra: { bookingId: result.booking.id, sessionId: result.sessionId, error: recalcErr }
       });
     }
+  } else {
+    try {
+      const booking = result.booking;
+      const sessionResult = await ensureSessionForBooking({
+        bookingId: booking.id,
+        resourceId: booking.resourceId!,
+        sessionDate: typeof booking.requestDate === 'string' ? booking.requestDate : (booking.requestDate as Date).toISOString().split('T')[0],
+        startTime: booking.startTime || '',
+        endTime: booking.endTime || '',
+        ownerEmail: ownerEmail,
+        ownerName: ownerName,
+        trackmanBookingId: trackmanBookingId,
+        source: 'trackman_link',
+        createdBy: staffEmail
+      });
+      if (sessionResult.sessionId) {
+        await db.update(bookingRequests).set({ sessionId: sessionResult.sessionId }).where(eq(bookingRequests.id, booking.id));
+        logger.info('[link-trackman-to-member] Created new session after member assignment', {
+          extra: { bookingId: booking.id, sessionId: sessionResult.sessionId, ownerEmail, ownerName }
+        });
+      }
+    } catch (sessionErr: unknown) {
+      logger.warn('[link-trackman-to-member] Failed to create session after member assignment', {
+        extra: { bookingId: result.booking.id, error: sessionErr }
+      });
+    }
   }
   
   const { broadcastToStaff } = await import('./websocket');
