@@ -1728,6 +1728,14 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
       if (existingBooking.length > 0) {
         // Booking already exists - update with latest data from CSV (backfill webhook-created bookings)
         const existing = existingBooking[0];
+        
+        // Skip bookings that were converted to private events
+        if (existing.userEmail === 'private-event@resolved' || existing.userEmail === 'private-event@club') {
+          process.stderr.write(`[Trackman Import] Skipping booking ${row.bookingId} - already converted to private event\n`);
+          skippedAsPrivateEventBlocks++;
+          continue;
+        }
+        
         const isWebhookCreated = existing.origin === 'trackman_webhook';
         
         // Build update object with changed fields
@@ -2707,6 +2715,21 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             continue;
           }
 
+          // Check if this time slot was already converted to a private event block
+          if (parsedBayId && bookingDate && startTime) {
+            const alreadyPrivateEvent = await isConvertedToPrivateEventBlock(
+              parsedBayId,
+              bookingDate,
+              startTime,
+              endTime
+            );
+            if (alreadyPrivateEvent) {
+              process.stderr.write(`[Trackman Import] Skipping matched booking ${row.bookingId} (${matchedEmail}) - already converted to private event block\n`);
+              skippedAsPrivateEventBlocks++;
+              continue;
+            }
+          }
+          
           const originalBookedDate = row.bookedDate ? new Date(row.bookedDate.replace(' ', 'T') + ':00') : null;
           
           // Parse notes BEFORE insert to count actual guests
