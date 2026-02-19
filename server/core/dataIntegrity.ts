@@ -52,7 +52,7 @@ const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'> = {
   'Deal Stage Drift': 'critical',
   'Stripe Subscription Sync': 'critical',
   'Stuck Transitional Members': 'critical',
-  'Active Bookings Without Sessions': 'critical',
+  'Active Bookings Without Sessions': 'medium',
   'Participant User Relationships': 'high',
   'Booking Resource Relationships': 'high',
   'Booking Time Validity': 'high',

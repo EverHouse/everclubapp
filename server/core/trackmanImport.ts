@@ -2152,8 +2152,31 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             }
           }
           
-          // Skip billing session creation during CSV import - staff must assign owner manually
-          process.stderr.write(`[Trackman Import] Merged booking #${placeholder.id} created without session - staff must assign owner to create billing session\n`);
+          if (matchedEmail && parsedBayId) {
+            try {
+              const mergeParsedPlayersForSession = parseNotesForPlayers(row.notes);
+              await createTrackmanSessionAndParticipants({
+                bookingId: placeholder.id,
+                trackmanBookingId: row.bookingId,
+                resourceId: parsedBayId,
+                sessionDate: bookingDate,
+                startTime: startTime,
+                endTime: endTime,
+                durationMinutes: row.durationMins,
+                ownerEmail: matchedEmail,
+                ownerName: row.userName || matchedEmail,
+                parsedPlayers: mergeParsedPlayersForSession,
+                membersByEmail: membersByEmail,
+                trackmanEmailMapping: trackmanEmailMapping,
+                isPast: !isUpcoming
+              });
+              process.stderr.write(`[Trackman Import] Auto-created billing session for merged booking #${placeholder.id} (${matchedEmail})\n`);
+            } catch (sessionErr: unknown) {
+              process.stderr.write(`[Trackman Import] Failed to create session for merged booking #${placeholder.id}: ${getErrorMessage(sessionErr)}\n`);
+            }
+          } else {
+            process.stderr.write(`[Trackman Import] Merged booking #${placeholder.id} created without session - no matched email or resource\n`);
+          }
           
           // Auto-resolve legacy entry if exists
           if (legacyIsUnresolved && existingUnmatched[0]) {
@@ -2292,7 +2315,29 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 }
                 
                 process.stderr.write(`[Trackman Import] Auto-linked Trackman ID ${row.bookingId} to existing app booking #${existing.id} (${matchedEmail}) - exact time match\n`);
-                process.stderr.write(`[Trackman Import] Linked booking #${existing.id} created without session - staff must assign owner to create billing session\n`);
+                if (!existing.sessionId && parsedBayId) {
+                  try {
+                    const linkedParsedPlayersForSession = parseNotesForPlayers(row.notes);
+                    await createTrackmanSessionAndParticipants({
+                      bookingId: existing.id,
+                      trackmanBookingId: row.bookingId,
+                      resourceId: parsedBayId,
+                      sessionDate: bookingDate,
+                      startTime: startTime,
+                      endTime: endTime,
+                      durationMinutes: row.durationMins,
+                      ownerEmail: matchedEmail,
+                      ownerName: row.userName || matchedEmail,
+                      parsedPlayers: linkedParsedPlayersForSession,
+                      membersByEmail: membersByEmail,
+                      trackmanEmailMapping: trackmanEmailMapping,
+                      isPast: !isUpcoming
+                    });
+                    process.stderr.write(`[Trackman Import] Auto-created billing session for linked booking #${existing.id} (${matchedEmail})\n`);
+                  } catch (sessionErr: unknown) {
+                    process.stderr.write(`[Trackman Import] Failed to create session for linked booking #${existing.id}: ${getErrorMessage(sessionErr)}\n`);
+                  }
+                }
                 
                 // Auto-resolve legacy entry if it exists
                 if (legacyIsUnresolved && existingUnmatched[0]) {
@@ -2310,10 +2355,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 linkedRows++;
                 continue;
               } else if (existing.trackmanBookingId === row.bookingId) {
-                // Already matched - skip session creation during CSV import
                 if (!existing.sessionId) {
-                  process.stderr.write(`[Trackman Import] Matched booking #${existing.id} has no session - staff must assign owner to create billing session\n`);
-                  
                   // Update only trackmanPlayerCount (preserve declaredPlayerCount from app request)
                   await db.update(bookingRequests)
                     .set({ 
@@ -2321,7 +2363,31 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                     })
                     .where(eq(bookingRequests.id, existing.id));
                   
-                  process.stderr.write(`[Trackman Import] Backfilled session for matched booking #${existing.id} (Trackman ID: ${row.bookingId})\n`);
+                  if (matchedEmail && parsedBayId) {
+                    try {
+                      const matchedParsedPlayersForSession = parseNotesForPlayers(row.notes);
+                      await createTrackmanSessionAndParticipants({
+                        bookingId: existing.id,
+                        trackmanBookingId: row.bookingId,
+                        resourceId: parsedBayId,
+                        sessionDate: bookingDate,
+                        startTime: startTime,
+                        endTime: endTime,
+                        durationMinutes: row.durationMins,
+                        ownerEmail: matchedEmail,
+                        ownerName: row.userName || matchedEmail,
+                        parsedPlayers: matchedParsedPlayersForSession,
+                        membersByEmail: membersByEmail,
+                        trackmanEmailMapping: trackmanEmailMapping,
+                        isPast: !isUpcoming
+                      });
+                      process.stderr.write(`[Trackman Import] Auto-created billing session for matched booking #${existing.id} (Trackman ID: ${row.bookingId})\n`);
+                    } catch (sessionErr: unknown) {
+                      process.stderr.write(`[Trackman Import] Failed to create session for matched booking #${existing.id}: ${getErrorMessage(sessionErr)}\n`);
+                    }
+                  } else {
+                    process.stderr.write(`[Trackman Import] Matched booking #${existing.id} has no session - no matched email or resource to create billing session\n`);
+                  }
                 }
                 
                 // Auto-resolve legacy entry if it exists
@@ -2351,6 +2417,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               id: bookingRequests.id,
               trackmanBookingId: bookingRequests.trackmanBookingId,
               status: bookingRequests.status,
+              sessionId: bookingRequests.sessionId,
               startTime: bookingRequests.startTime,
               declaredPlayerCount: bookingRequests.declaredPlayerCount,
               staffNotes: bookingRequests.staffNotes
@@ -2457,7 +2524,29 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               }
               
               process.stderr.write(`[Trackman Import] Auto-linked Trackman ID ${row.bookingId} to existing app booking #${existing.id} (${matchedEmail}) - time tolerance match (${existing.startTime} vs ${startTime})\n`);
-              process.stderr.write(`[Trackman Import] Linked booking #${existing.id} created without session - staff must assign owner to create billing session\n`);
+              if (!existing.sessionId && parsedBayId) {
+                try {
+                  const toleranceParsedPlayersForSession = parseNotesForPlayers(row.notes);
+                  await createTrackmanSessionAndParticipants({
+                    bookingId: existing.id,
+                    trackmanBookingId: row.bookingId,
+                    resourceId: parsedBayId,
+                    sessionDate: bookingDate,
+                    startTime: startTime,
+                    endTime: endTime,
+                    durationMinutes: row.durationMins,
+                    ownerEmail: matchedEmail,
+                    ownerName: row.userName || matchedEmail,
+                    parsedPlayers: toleranceParsedPlayersForSession,
+                    membersByEmail: membersByEmail,
+                    trackmanEmailMapping: trackmanEmailMapping,
+                    isPast: !isUpcoming
+                  });
+                  process.stderr.write(`[Trackman Import] Auto-created billing session for tolerance-linked booking #${existing.id} (${matchedEmail})\n`);
+                } catch (sessionErr: unknown) {
+                  process.stderr.write(`[Trackman Import] Failed to create session for tolerance-linked booking #${existing.id}: ${getErrorMessage(sessionErr)}\n`);
+                }
+              }
               
               // Auto-resolve legacy entry if it exists
               if (legacyIsUnresolved && existingUnmatched[0]) {
@@ -2578,7 +2667,27 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               }
 
               if (parsedBayId && bookingDate && startTime && !existingGhost.sessionId) {
-                process.stderr.write(`[Trackman Import] Ghost booking #${existingGhost.id} updated without session - staff must assign owner to create billing session\n`);
+                try {
+                  const ghostParsedPlayersForSession = parseNotesForPlayers(row.notes);
+                  await createTrackmanSessionAndParticipants({
+                    bookingId: existingGhost.id,
+                    trackmanBookingId: row.bookingId,
+                    resourceId: parsedBayId,
+                    sessionDate: bookingDate,
+                    startTime: startTime,
+                    endTime: endTime,
+                    durationMinutes: row.durationMins,
+                    ownerEmail: matchedEmail,
+                    ownerName: row.userName || matchedEmail,
+                    parsedPlayers: ghostParsedPlayersForSession,
+                    membersByEmail: membersByEmail,
+                    trackmanEmailMapping: trackmanEmailMapping,
+                    isPast: !isUpcoming
+                  });
+                  process.stderr.write(`[Trackman Import] Auto-created billing session for ghost booking #${existingGhost.id} (${matchedEmail})\n`);
+                } catch (sessionErr: unknown) {
+                  process.stderr.write(`[Trackman Import] Failed to create session for ghost booking #${existingGhost.id}: ${getErrorMessage(sessionErr)}\n`);
+                }
               }
             }
 
@@ -2845,7 +2954,30 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               }
             }
             
-            process.stderr.write(`[Trackman Import] Booking #${bookingId} created without session - staff must assign owner to create billing session\n`);
+            if (parsedBayId) {
+              try {
+                await createTrackmanSessionAndParticipants({
+                  bookingId: bookingId,
+                  trackmanBookingId: row.bookingId,
+                  resourceId: parsedBayId,
+                  sessionDate: bookingDate,
+                  startTime: startTime,
+                  endTime: endTime,
+                  durationMinutes: row.durationMins,
+                  ownerEmail: matchedEmail,
+                  ownerName: row.userName || matchedEmail,
+                  parsedPlayers: parsedPlayers,
+                  membersByEmail: membersByEmail,
+                  trackmanEmailMapping: trackmanEmailMapping,
+                  isPast: !isUpcoming
+                });
+                process.stderr.write(`[Trackman Import] Auto-created billing session for booking #${bookingId} (${matchedEmail})\n`);
+              } catch (sessionErr: unknown) {
+                process.stderr.write(`[Trackman Import] Failed to create session for booking #${bookingId}: ${getErrorMessage(sessionErr)}\n`);
+              }
+            } else {
+              process.stderr.write(`[Trackman Import] Booking #${bookingId} created without session - no resource ID available\n`);
+            }
           }
 
           if (normalizedStatus === 'attended') {
