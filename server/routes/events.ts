@@ -26,8 +26,8 @@ async function getMemberDisplayName(email: string): Promise<string> {
     if (result.length > 0 && (result[0].firstName || result[0].lastName)) {
       return [result[0].firstName, result[0].lastName].filter(Boolean).join(' ');
     }
-  } catch (err: unknown) {
-    logger.warn('Failed to lookup member name', { extra: { error: err } });
+  } catch (error: unknown) {
+    logger.warn('Failed to lookup member name', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
   }
   return email.split('@')[0];
 }
@@ -389,7 +389,7 @@ router.post('/api/events', isStaffOrAdmin, async (req, res) => {
         trimmedEndTime || trimmedStartTime
       );
     } catch (calError: unknown) {
-      logger.error('Failed to create Google Calendar event', { extra: { error: calError } });
+      logger.error('Failed to create Google Calendar event', { error: calError instanceof Error ? calError : new Error(getErrorMessage(calError)) });
       return res.status(500).json({ error: 'Failed to create calendar event. Please try again.' });
     }
     
@@ -427,7 +427,7 @@ router.post('/api/events', isStaffOrAdmin, async (req, res) => {
         const userEmail = getSessionUser(req)?.email || 'system';
         await createEventAvailabilityBlocks(createdEvent.id, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, createdEvent.title);
       } catch (blockError: unknown) {
-        logger.error('Failed to create availability blocks for event', { extra: { error: blockError } });
+        logger.error('Failed to create availability blocks for event', { error: blockError instanceof Error ? blockError : new Error(getErrorMessage(blockError)) });
       }
     }
     
@@ -560,7 +560,7 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
           );
         }
       } catch (calError: unknown) {
-        logger.error('Failed to update Google Calendar event', { extra: { error: calError } });
+        logger.error('Failed to update Google Calendar event', { error: calError instanceof Error ? calError : new Error(getErrorMessage(calError)) });
       }
     }
     
@@ -585,7 +585,7 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
         await updateEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, updatedEvent.title);
       }
     } catch (blockError: unknown) {
-      logger.error('Failed to update availability blocks for event', { extra: { error: blockError } });
+      logger.error('Failed to update availability blocks for event', { error: blockError instanceof Error ? blockError : new Error(getErrorMessage(blockError)) });
     }
     logFromRequest(req, 'update_event', 'event', String(updatedEvent.id), updatedEvent.title, {
       event_date: updatedEvent.eventDate,
@@ -663,14 +663,14 @@ router.delete('/api/events/:id', isStaffOrAdmin, async (req, res) => {
           logger.error(`[Events] Calendar "${CALENDAR_CONFIG.events.name}" not found for event deletion`);
         }
       } catch (calError: unknown) {
-        logger.error('Failed to delete Google Calendar event', { extra: { error: (calError as Error)?.message || calError } });
+        logger.error('Failed to delete Google Calendar event', { error: calError instanceof Error ? calError : new Error(getErrorMessage(calError)) });
       }
     }
     
     try {
       await removeEventAvailabilityBlocks(eventId);
     } catch (blockError: unknown) {
-      logger.error('Failed to remove availability blocks for event', { extra: { error: blockError } });
+      logger.error('Failed to remove availability blocks for event', { error: blockError instanceof Error ? blockError : new Error(getErrorMessage(blockError)) });
     }
     
     const eventBeforeDelete = await db.select({
@@ -697,8 +697,8 @@ router.delete('/api/events/:id', isStaffOrAdmin, async (req, res) => {
     
     res.json({ success: true, archived: true, archivedBy });
   } catch (error: unknown) {
-    logger.error('Event archive error', { extra: { error: (error as Error)?.message || error } });
-    res.status(500).json({ error: 'Failed to archive event', details: (error as Error)?.message });
+    logger.error('Event archive error', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
+    res.status(500).json({ error: 'Failed to archive event', details: getErrorMessage(error) });
   }
 });
 
@@ -853,8 +853,8 @@ router.get('/api/rsvps', async (req, res) => {
               [sessionEmail]
             );
             isStaff = (result as any).rows.length > 0;
-          } catch (e: unknown) {
-            logger.warn('[events] Staff check query failed', { extra: { error: e } });
+          } catch (error: unknown) {
+            logger.warn('[events] Staff check query failed', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
           }
         }
         if (!isStaff) {
@@ -1006,7 +1006,7 @@ router.post('/api/rsvps', isAuthenticated, async (req, res) => {
       title: 'RSVP Confirmed!',
       body: memberMessage,
       url: '/member-events'
-    }).catch(err => logger.error('Push notification failed', { extra: { error: err } }));
+    }).catch((err: unknown) => logger.error('Push notification failed', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }));
     
     // Send real-time WebSocket notification to member
     sendNotificationToUser(user_email, {

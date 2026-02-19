@@ -214,12 +214,12 @@ async function createSupabaseToken(user: { id: string, email: string, role: stri
     }
     
     return null;
-  } catch (e: unknown) {
+  } catch (error: unknown) {
     // Suppress network-related errors since we already logged the availability status
-    if (!getErrorMessage(e)?.includes('fetch failed') && 
-        !getErrorMessage(e)?.includes('ENOTFOUND') && 
-        !getErrorMessage(e)?.includes('ECONNREFUSED')) {
-      logger.error('[Supabase] Failed to generate token', { extra: { e } });
+    if (!getErrorMessage(error)?.includes('fetch failed') && 
+        !getErrorMessage(error)?.includes('ENOTFOUND') && 
+        !getErrorMessage(error)?.includes('ECONNREFUSED')) {
+      logger.error('[Supabase] Failed to generate token', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
     }
     return null;
   }
@@ -438,13 +438,13 @@ router.post('/api/auth/verify-member', async (req, res) => {
               await syncMemberToHubSpot({ email: normalizedEmail, status: subscription.status, billingProvider: 'stripe' });
               logger.info('[Auth] Synced auto-fixed status to HubSpot for', { extra: { normalizedEmail } });
             } catch (hubspotError: unknown) {
-              logger.error('[Auth] HubSpot sync failed for auto-fix', { extra: { hubspotError } });
+              logger.error('[Auth] HubSpot sync failed for auto-fix', { error: hubspotError instanceof Error ? hubspotError : new Error(getErrorMessage(hubspotError)) });
             }
           } else {
             return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
           }
         } catch (stripeError: unknown) {
-          logger.error('[Auth] Failed to verify Stripe subscription', { extra: { email: normalizedEmail, error: getErrorMessage(stripeError) } });
+          logger.error('[Auth] Failed to verify Stripe subscription', { error: stripeError instanceof Error ? stripeError : new Error(getErrorMessage(stripeError)), extra: { email: normalizedEmail } });
           return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
         }
       } else if (!activeStatuses.includes(dbMemberStatus)) {
@@ -632,7 +632,7 @@ router.post('/api/auth/request-otp', async (req, res) => {
             return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
           }
         } catch (stripeError: unknown) {
-          logger.error('[Auth] Failed to verify Stripe subscription', { extra: { email: normalizedEmail, error: getErrorMessage(stripeError) } });
+          logger.error('[Auth] Failed to verify Stripe subscription', { error: stripeError instanceof Error ? stripeError : new Error(getErrorMessage(stripeError)), extra: { email: normalizedEmail } });
           // If we can't verify with Stripe, fall back to database status
           return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
         }
@@ -1030,8 +1030,8 @@ router.post('/api/auth/verify-otp', async (req, res) => {
               .where(sql`LOWER(${users.email}) = LOWER(${member.email})`);
           }
         }
-      } catch (e: unknown) {
-        logger.error('[Welcome Email] Error checking/sending', { extra: { e } });
+      } catch (error: unknown) {
+        logger.error('[Welcome Email] Error checking/sending', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
       }
     })();
     
@@ -1201,7 +1201,7 @@ router.post('/api/auth/password-login', async (req, res) => {
         };
       }
     } catch (hubspotError: unknown) {
-      if (!isProduction) logger.error('HubSpot lookup failed', { extra: { hubspotError } });
+      if (!isProduction) logger.error('HubSpot lookup failed', { error: hubspotError instanceof Error ? hubspotError : new Error(getErrorMessage(hubspotError)) });
     }
     
     const sessionTtl = 7 * 24 * 60 * 60 * 1000;

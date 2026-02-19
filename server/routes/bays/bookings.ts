@@ -600,7 +600,7 @@ router.post('/api/booking-requests', async (req, res) => {
               participant.userId = existingUser.id;
             }
           } catch (err: unknown) {
-            logger.error('[Booking] Failed to lookup user for email', { extra: { email: participant.email, err } });
+            logger.error('[Booking] Failed to lookup user for email', { error: err instanceof Error ? err : new Error(getErrorMessage(err)), extra: { email: participant.email } });
           }
         }
         
@@ -627,7 +627,7 @@ router.post('/api/booking-requests', async (req, res) => {
               logger.info('[Booking] Resolved email for directory-selected participant', { extra: { participantEmail: participant.email } });
             }
           } catch (err: unknown) {
-            logger.error('[Booking] Failed to lookup email for userId', { extra: { userId: participant.userId, err } });
+            logger.error('[Booking] Failed to lookup email for userId', { error: err instanceof Error ? err : new Error(getErrorMessage(err)), extra: { userId: participant.userId } });
           }
         }
       }
@@ -850,8 +850,8 @@ router.post('/api/booking-requests', async (req, res) => {
         if (resource?.name) {
           resourceName = resource.name;
         }
-      } catch (e: unknown) {
-        logger.error('[Bookings] Failed to fetch resource name', { extra: { e } });
+      } catch (error: unknown) {
+        logger.error('[Bookings] Failed to fetch resource name', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
       }
     }
     
@@ -926,7 +926,7 @@ router.post('/api/booking-requests', async (req, res) => {
           url: '/admin/bookings',
           sendPush: true
         }
-      ).catch(err => logger.error('Staff notification failed:', { extra: { err } }));
+      ).catch((err: unknown) => logger.error('Staff notification failed:', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }));
       
       bookingEvents.publish('booking_created', {
         bookingId: row.id,
@@ -940,7 +940,7 @@ router.post('/api/booking-requests', async (req, res) => {
         playerCount: declared_player_count || undefined,
         status: row.status || 'pending',
         actionBy: 'member'
-      }, { notifyMember: false, notifyStaff: true }).catch(err => logger.error('Booking event publish failed:', { extra: { err } }));
+      }, { notifyMember: false, notifyStaff: true }).catch((err: unknown) => logger.error('Booking event publish failed:', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }));
       
       broadcastAvailabilityUpdate({
         resourceId: row.resourceId || undefined,
@@ -1139,7 +1139,7 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
           relatedType: 'booking_request',
           url: '/admin/bookings'
         }
-      ).catch(err => logger.error('Staff cancellation notification failed:', { extra: { err } }));
+      ).catch((err: unknown) => logger.error('Staff cancellation notification failed:', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }));
       
       await db.insert(notifications).values({
         userEmail: existing.userEmail || '',
@@ -1344,7 +1344,7 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
           relatedType: 'booking_request',
           url: '/admin/bookings'
         }
-      ).catch(err => logger.error('Staff cancellation notification failed:', { extra: { err } }));
+      ).catch((err: unknown) => logger.error('Staff cancellation notification failed:', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }));
       
       if (existing.trackmanBookingId) {
         let bayName = 'Bay';
@@ -1366,7 +1366,7 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
             relatedType: 'booking_request',
             url: '/admin/bookings'
           }
-        ).catch(err => logger.error('Staff trackman cancellation notification failed:', { extra: { err } }));
+        ).catch((err: unknown) => logger.error('Staff trackman cancellation notification failed:', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }));
       }
       
       if (existing.calendarEventId) {
