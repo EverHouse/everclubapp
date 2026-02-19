@@ -40,6 +40,7 @@ const ADMIN_ITEMS: NavItem[] = [
   { id: 'email-templates', icon: 'forward_to_inbox', label: 'Email Templates' },
   { id: 'changelog', icon: 'history', label: 'Changelog' },
   { id: 'data-integrity', icon: 'fact_check', label: 'Data Integrity' },
+  { id: 'settings', icon: 'settings', label: 'Settings' },
 ];
 
 export const StaffSidebar: React.FC<StaffSidebarProps> = ({ 
