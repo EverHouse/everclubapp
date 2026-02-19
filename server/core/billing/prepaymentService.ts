@@ -37,6 +37,26 @@ export async function createPrepaymentIntent(
     return null;
   }
 
+  // Safety net: never create prepayments for staff or unlimited-tier members
+  if (userEmail) {
+    const exemptCheck = await pool.query(
+      `SELECT u.role, u.tier, COALESCE(tf.unlimited_access, false) as unlimited_access
+       FROM users u 
+       LEFT JOIN tier_features tf ON LOWER(u.tier) = LOWER(tf.tier_name)
+       WHERE LOWER(u.email) = LOWER($1) LIMIT 1`,
+      [userEmail]
+    );
+    if (exemptCheck.rows.length > 0) {
+      const { role, tier, unlimited_access } = exemptCheck.rows[0];
+      if (['staff', 'admin', 'golf_instructor'].includes(role) || unlimited_access) {
+        logger.info('[Prepayment] Skipping - exempt from fees', { 
+          extra: { userEmail, role, tier, unlimited_access, bookingId } 
+        });
+        return null;
+      }
+    }
+  }
+
   try {
     const existingIntent = await pool.query(
       `SELECT stripe_payment_intent_id, status 

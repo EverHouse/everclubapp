@@ -330,7 +330,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
 
   const isStaffRole = (email: string): boolean => {
     const role = roleMap.get(email.toLowerCase());
-    return role === 'staff' || role === 'admin';
+    return role === 'staff' || role === 'admin' || role === 'golf_instructor';
   };
 
   // Batch fetch daily usage - use booking_requests for preview mode (no sessionId)
