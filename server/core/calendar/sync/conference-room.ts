@@ -8,7 +8,6 @@ import { CALENDAR_CONFIG, ConferenceRoomBooking, MemberMatchResult, CalendarEven
 import { getCalendarIdByName } from '../cache';
 import { getConferenceRoomId } from '../../affectedAreas';
 import { ensureSessionForBooking } from '../../bookingService/sessionManager';
-import { bookingEvents } from '../../bookingEvents';
 import { broadcastAvailabilityUpdate } from '../../websocket';
 
 import { logger } from '../../logger';
@@ -378,38 +377,19 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
               .select()
               .from(bookingRequests)
               .where(
-                and(
-                  eq(bookingRequests.calendarEventId, event.id),
-                  ne(bookingRequests.status, 'cancelled')
-                )
+                eq(bookingRequests.calendarEventId, event.id)
               );
 
             if (existingBookings.length > 0) {
               const booking = existingBookings[0];
-              await db
-                .update(bookingRequests)
-                .set({
-                  status: 'cancelled',
-                  staffNotes: `${booking.staffNotes ? booking.staffNotes + '\n' : ''}Cancelled via Google Calendar sync on ${new Date().toISOString()}`,
-                  updatedAt: new Date()
-                })
-                .where(eq(bookingRequests.id, booking.id));
-
               const bookingDate = typeof booking.requestDate === 'string'
                 ? booking.requestDate
                 : (booking.requestDate as Date).toISOString().split('T')[0];
 
-              await bookingEvents.publish('booking_cancelled', {
-                bookingId: booking.id,
-                memberEmail: booking.userEmail || 'unknown@calendar.sync',
-                bookingDate,
-                startTime: booking.startTime as string,
-                status: 'cancelled'
-              }, {
-                cleanupNotifications: true,
-                notifyMember: true,
-                notifyStaff: true
-              });
+              if (booking.sessionId) {
+                await db.delete(bookingSessions).where(eq(bookingSessions.id, booking.sessionId));
+              }
+              await db.delete(bookingRequests).where(eq(bookingRequests.id, booking.id));
 
               broadcastAvailabilityUpdate({
                 resourceId: booking.resourceId || conferenceRoomId,
@@ -417,10 +397,10 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
               });
 
               cancelled++;
-              logger.info(`[Conference Room Sync] Cancelled booking ${booking.id} (calendar event ${event.id} was deleted)`);
+              logger.info(`[Conference Room Sync] Deleted booking ${booking.id} (calendar event ${event.id} was removed)`);
             }
           } catch (cancelErr: unknown) {
-            logger.error('[Conference Room Sync] Error handling cancelled calendar event:', { error: cancelErr, eventId: event.id });
+            logger.error('[Conference Room Sync] Error deleting conference room booking for removed calendar event:', { error: cancelErr, eventId: event.id });
           }
           continue;
         }
