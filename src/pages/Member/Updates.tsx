@@ -7,6 +7,7 @@ import SwipeablePage from '../../components/SwipeablePage';
 import { MotionList, MotionListItem } from '../../components/motion';
 import { getTodayPacific, formatDateDisplayWithDay, formatDateTimePacific, addDaysToPacificDate } from '../../utils/dateUtils';
 import { getMemberNoticeTitle, getAffectedAreasList, isBlockingClosure } from '../../utils/closureUtils';
+import { useNotificationStore } from '../../stores/notificationStore';
 
 const NOTICE_PREVIEW_DAYS = 7; // Show notices this many days before they start
 
@@ -128,7 +129,9 @@ const MemberUpdates: React.FC = () => {
         // Map is_read from API to read for frontend consistency
         const mapped = data.map((n: Record<string, unknown>) => ({ ...n, read: n.is_read ?? n.read ?? false }));
         setNotifications(mapped);
-        setUnreadCount(mapped.filter((n: NotificationItem) => !n.read).length);
+        const newUnreadCount = mapped.filter((n: NotificationItem) => !n.read).length;
+        setUnreadCount(newUnreadCount);
+        useNotificationStore.getState().setUnreadCount(newUnreadCount);
       }
     } catch (err: unknown) {
       console.error('Failed to fetch notifications:', err);
@@ -199,6 +202,7 @@ const MemberUpdates: React.FC = () => {
       });
       setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
+      useNotificationStore.getState().markAsRead(notificationId);
     } catch (err: unknown) {
       console.error('Failed to mark notification read:', err);
     }
@@ -214,8 +218,38 @@ const MemberUpdates: React.FC = () => {
       });
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
+      useNotificationStore.getState().markAllAsRead();
     } catch (err: unknown) {
       console.error('Failed to mark all notifications read:', err);
+    }
+  };
+
+  const dismissAll = async () => {
+    if (!user?.email) return;
+    const snapshot = [...notifications];
+    const prevUnread = unreadCount;
+
+    setNotifications([]);
+    setUnreadCount(0);
+    useNotificationStore.getState().setUnreadCount(0);
+
+    try {
+      const res = await fetch('/api/notifications/dismiss-all', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_email: user.email }),
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        setNotifications(snapshot);
+        setUnreadCount(prevUnread);
+        useNotificationStore.getState().setUnreadCount(prevUnread);
+      }
+    } catch (err) {
+      console.error('Failed to dismiss all notifications:', err);
+      setNotifications(snapshot);
+      setUnreadCount(prevUnread);
+      useNotificationStore.getState().setUnreadCount(prevUnread);
     }
   };
 
@@ -595,15 +629,27 @@ const MemberUpdates: React.FC = () => {
         </div>
       ) : (
         <>
-          {unreadCount > 0 && (
-            <button
-              onClick={markAllRead}
-              className={`tactile-btn mb-4 text-xs font-medium px-3 py-2 rounded-lg transition-colors ${
-                isDark ? 'bg-white/10 text-white/80 hover:bg-white/15' : 'bg-primary/10 text-primary/80 hover:bg-primary/15'
-              }`}
-            >
-              Mark all as read
-            </button>
+          {notifications.length > 0 && (
+            <div className="flex justify-end gap-2 mb-4">
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllRead}
+                  className={`tactile-btn text-xs font-medium px-3 py-2 rounded-lg transition-colors ${
+                    isDark ? 'bg-white/10 text-white/80 hover:bg-white/15' : 'bg-primary/10 text-primary/80 hover:bg-primary/15'
+                  }`}
+                >
+                  Mark all as read
+                </button>
+              )}
+              <button
+                onClick={dismissAll}
+                className={`tactile-btn text-xs font-medium px-3 py-2 rounded-lg transition-colors ${
+                  isDark ? 'text-red-400/70 hover:text-red-400 bg-red-500/10 hover:bg-red-500/15' : 'text-red-600/70 hover:text-red-600 bg-red-500/5 hover:bg-red-500/10'
+                }`}
+              >
+                Dismiss all
+              </button>
+            </div>
           )}
           <MotionList className="space-y-3">
             {notifications.map((notification) => (
