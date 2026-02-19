@@ -295,7 +295,7 @@ const POSRegister: React.FC = () => {
       if (!res.ok) {
         console.warn('[POS] Confirm call returned non-OK status:', res.status);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[POS] Failed to confirm payment record:', err);
     }
 
@@ -314,7 +314,7 @@ const POSRegister: React.FC = () => {
       if (!res.ok) {
         console.warn('[POS] Terminal confirm returned non-OK status:', res.status);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[POS] Failed to confirm terminal payment record:', err);
     }
 
@@ -471,7 +471,7 @@ const POSRegister: React.FC = () => {
             });
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('[POS] Failed to save scanned ID image:', err);
       }
     })();

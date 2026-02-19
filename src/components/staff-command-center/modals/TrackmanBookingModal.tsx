@@ -150,7 +150,7 @@ export function TrackmanBookingModal({
           // Fallback to original participants if fetch fails
           setEnrichedParticipants(requestParticipants);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Failed to fetch participant emails:', err);
         setEnrichedParticipants(requestParticipants);
       }
@@ -169,7 +169,7 @@ export function TrackmanBookingModal({
       await navigator.clipboard.writeText(notesText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to copy:', err);
     }
   }, [notesText]);

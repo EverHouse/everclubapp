@@ -112,7 +112,7 @@ export function BalancePaymentModal({
       if (!ok) {
         console.error('[BalancePaymentModal] Failed to confirm payment:', confirmError);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[BalancePaymentModal] Error confirming payment:', err);
     }
 

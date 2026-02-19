@@ -109,7 +109,7 @@ function InvoiceCheckoutForm({
             body: JSON.stringify({ paymentIntentId })
           }
         );
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('[InvoicePaymentModal] Error confirming payment:', err);
       }
       onSuccess();

@@ -139,7 +139,7 @@ export function MemberPaymentModal({
       if (!ok) {
         console.error('[MemberPaymentModal] Failed to confirm payment:', confirmError);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[MemberPaymentModal] Error confirming payment:', err);
     }
 

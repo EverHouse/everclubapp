@@ -118,7 +118,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
           }));
         setApiResults(results);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Search error:', err);
     } finally {
       setIsSearching(false);

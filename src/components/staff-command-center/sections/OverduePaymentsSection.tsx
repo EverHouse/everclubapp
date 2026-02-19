@@ -43,7 +43,7 @@ export const OverduePaymentsSection: React.FC<OverduePaymentsSectionProps> = ({ 
       if (res.ok) {
         fetchOverduePayments();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to bulk review waivers:', err);
     } finally {
       setBulkReviewing(false);
@@ -64,7 +64,7 @@ export const OverduePaymentsSection: React.FC<OverduePaymentsSectionProps> = ({ 
         const staleData = await staleRes.json();
         setStaleWaiverCount(staleData.length);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch overdue payments:', err);
     } finally {
       setLoading(false);

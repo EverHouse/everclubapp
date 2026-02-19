@@ -186,7 +186,7 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
       showToast(editItem?.id ? 'Notice updated' : 'Notice created', 'success');
       onSuccess?.();
       onClose();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to save notice:', err);
       showToast('Failed to save notice', 'error');
     } finally {

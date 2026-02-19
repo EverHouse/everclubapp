@@ -58,7 +58,7 @@ export const AnnouncementFormDrawer: React.FC<AnnouncementFormDrawerProps> = ({
         showToast('Announcement created', 'success');
       }
       onClose();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to save announcement:', err);
       showToast('Failed to save announcement', 'error');
     } finally {

@@ -121,7 +121,7 @@ class PageErrorBoundary extends Component<Props, State> {
         const registrations = await navigator.serviceWorker.getRegistrations();
         await Promise.all(registrations.map(reg => reg.unregister()));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to clear caches:', err);
     }
     

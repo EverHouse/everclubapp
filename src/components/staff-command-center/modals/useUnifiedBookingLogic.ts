@@ -346,7 +346,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         const data = await res.json();
         setSavedCardInfo(data);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to check saved card:', err);
     } finally {
       setCheckingCard(false);
@@ -370,7 +370,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
           const data = await res.json();
           setStaffList(data);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Failed to fetch staff list:', err);
       } finally {
         setIsLoadingStaff(false);
@@ -403,7 +403,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
             name: v.name || `${v.firstName} ${v.lastName}`
           })));
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Duplicate check error:', err);
       } finally {
         setIsCheckingDuplicates(false);
@@ -428,7 +428,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
           const data = await res.json();
           setVisitorSearchResults(data);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Visitor search error:', err);
       } finally {
         setIsSearchingVisitors(false);
@@ -490,7 +490,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
             guestCents: data.guestCents || 0
           });
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Fee estimation error:', err);
       } finally {
         setIsCalculatingFees(false);
@@ -749,7 +749,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       } else {
         showToast('Failed to confirm payment', 'error');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       showToast('Failed to confirm payment', 'error');
     } finally {
       setInlinePaymentAction(null);
@@ -776,7 +776,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       } else {
         showToast(result.error || 'Failed to charge card', 'error');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       showToast('Failed to charge card', 'error');
     } finally {
       setInlinePaymentAction(null);
@@ -803,7 +803,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       } else {
         showToast('Failed to waive fees', 'error');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       showToast('Failed to waive fees', 'error');
     } finally {
       setInlinePaymentAction(null);
@@ -1049,7 +1049,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       }
       setShowNoticeSelection(true);
       return true;
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch overlapping notices:', err);
       setShowNoticeSelection(true);
       return false;

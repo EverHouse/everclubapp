@@ -81,7 +81,7 @@ export function TerminalPayment({
             credentials: 'include',
             body: JSON.stringify({ readerId: selectedReader, paymentIntentId: paymentIntentIdRef.current })
           });
-        } catch (err) {
+        } catch (err: unknown) {
           console.error('Error canceling on timeout:', err);
         }
       }
@@ -172,7 +172,7 @@ export function TerminalPayment({
           : (data.lastPaymentError.message || 'Payment was declined'));
         setProcessing(false);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error polling payment status:', err);
     }
   }, [onSuccess, clearPollingRef, clearTimeoutRef]);
@@ -225,7 +225,7 @@ export function TerminalPayment({
         setStatusMessage('Card save was canceled');
         setProcessing(false);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error polling setup status:', err);
     }
   }, [onSuccess, clearPollingRef, clearTimeoutRef, paymentMetadata?.customerId, subscriptionId]);
@@ -354,7 +354,7 @@ export function TerminalPayment({
           }, 1500);
           return;
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error canceling payment:', err);
       }
     }

@@ -40,7 +40,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
       if (res.ok) {
         fetchOverduePayments();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to bulk review waivers:', err);
     } finally {
       setBulkReviewing(false);
@@ -61,7 +61,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
         const staleData = await staleRes.json();
         setStaleWaiverCount(staleData.length);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch overdue payments:', err);
     } finally {
       setLoading(false);

@@ -354,7 +354,7 @@ export function StaffManualBookingModal({
       await navigator.clipboard.writeText(notesText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to copy:', err);
     }
   }, [notesText]);
@@ -369,7 +369,7 @@ export function StaffManualBookingModal({
       await navigator.clipboard.writeText(text);
       setLessonCopied(true);
       setTimeout(() => setLessonCopied(false), 2000);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to copy:', err);
     }
   }, [lessonClientName]);

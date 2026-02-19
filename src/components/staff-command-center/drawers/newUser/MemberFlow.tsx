@@ -226,7 +226,7 @@ export function MemberFlow({
           } else {
             showToast('Payment received! Member added to billing group.', 'success');
           }
-        } catch (groupErr) {
+        } catch (groupErr: unknown) {
           console.error('Error adding member to group:', groupErr);
           showToast('Payment received but failed to add to group. Contact support.', 'error');
         }
@@ -327,7 +327,7 @@ export function MemberFlow({
                       const addData = await addMemberRes.json();
                       console.error(`Failed to add group member ${member.email}:`, addData.error);
                     }
-                  } catch (memberErr) {
+                  } catch (memberErr: unknown) {
                     failedCount++;
                     console.error(`Error adding group member ${member.email}:`, memberErr);
                   }
@@ -341,7 +341,7 @@ export function MemberFlow({
                   showToast('Family group created but failed to add members. You can add them manually.', 'warning');
                 }
               }
-            } catch (groupErr) {
+            } catch (groupErr: unknown) {
               console.error('Error creating family group:', groupErr);
               showToast('Membership activated but failed to create family group. You can set this up manually.', 'warning');
             }
@@ -1098,7 +1098,7 @@ export function MemberFlow({
                             credentials: 'include'
                           });
                           showToast('Signup cancelled. No charges were made.', 'info');
-                        } catch (err) {
+                        } catch (err: unknown) {
                           console.error('Failed to cleanup pending signup:', err);
                           showToast('Signup cancelled but cleanup failed. Use the cleanup button to remove the pending account.', 'warning');
                         }

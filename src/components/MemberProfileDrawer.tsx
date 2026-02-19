@@ -198,7 +198,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         const balanceData = await balanceRes.json();
         setAccountBalance(balanceData);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch member data:', err);
     } finally {
       setIsLoading(false);
@@ -214,7 +214,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         const data = await res.json();
         setIdImageUrl(data.idImageUrl);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch ID image:', err);
     } finally {
       setIsLoadingIdImage(false);
@@ -276,7 +276,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         const result = await res.json();
         setIdImageUrl(result.imageUrl);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to save ID image:', err);
     } finally {
       setIsSavingIdImage(false);
@@ -295,7 +295,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         setIdImageUrl(null);
         setShowIdImageFull(false);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to delete ID image:', err);
     } finally {
       setIsDeletingIdImage(false);
@@ -315,7 +315,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         const data = await res.json();
         setLinkedEmails(data.manuallyLinkedEmails || []);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to remove linked email:', err);
     } finally {
       setRemovingEmail(null);
@@ -352,7 +352,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         const errorData = await res.json().catch(() => ({}));
         alert(errorData.error || 'Failed to apply credit');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to apply credit:', err);
       alert('Failed to apply credit');
     } finally {
@@ -399,7 +399,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         setNewNoteContent('');
         setNewNotePinned(false);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to add note:', err);
     } finally {
       setIsAddingNote(false);
@@ -436,7 +436,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         const error = await res.json();
         alert(`Failed to delete ${entityType.toLowerCase()}: ${error.error || 'Unknown error'}`);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to delete:', err);
       alert('Failed to delete. Please try again.');
     } finally {
@@ -459,7 +459,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         setEditingNoteId(null);
         setEditingNoteContent('');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to update note:', err);
     }
   };
@@ -474,7 +474,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
       if (res.ok) {
         setNotes(prev => prev.filter(n => n.id !== noteId));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to delete note:', err);
     }
   };
@@ -505,7 +505,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         setNewCommBody('');
         setShowAddComm(false);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to add communication:', err);
     } finally {
       setIsAddingComm(false);
@@ -522,7 +522,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
       if (res.ok) {
         setCommunications(prev => prev.filter(c => c.id !== logId));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to delete communication:', err);
     }
   };
@@ -953,7 +953,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                           const data = await res.json();
                           alert(data.error || 'Failed to send payment link');
                         }
-                      } catch (err) {
+                      } catch (err: unknown) {
                         alert('Failed to send payment link');
                       } finally {
                         setSendingPaymentLink(false);
@@ -1012,7 +1012,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                       const data = await res.json();
                       alert(data.error || 'Failed to send reactivation link');
                     }
-                  } catch (err) {
+                  } catch (err: unknown) {
                     alert('Failed to send reactivation link');
                   }
                 }}
@@ -1152,7 +1152,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                         alert(error.error || 'Failed to load merge preview');
                         setSelectedMergeTarget(null);
                       }
-                    } catch (err) {
+                    } catch (err: unknown) {
                       console.error('Failed to fetch merge preview:', err);
                       alert('Failed to load merge preview');
                       setSelectedMergeTarget(null);
@@ -1384,7 +1384,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                         const error = await res.json();
                         alert(error.error || 'Failed to merge users');
                       }
-                    } catch (err) {
+                    } catch (err: unknown) {
                       console.error('Failed to merge users:', err);
                       alert('Failed to merge users. Please try again.');
                     } finally {

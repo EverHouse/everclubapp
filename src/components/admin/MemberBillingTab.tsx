@@ -564,7 +564,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       } else {
         setError(await extractApiError(res, 'load billing info'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsLoading(false);
@@ -579,7 +579,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       if (res.ok) {
         setOutstandingData(await res.json());
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[MemberBilling] Error fetching outstanding:', err);
     }
   }, [memberEmail]);
@@ -631,7 +631,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         fetchBillingInfo();
         showSuccess('Membership level updated');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error updating tier:', err);
       setError(getNetworkErrorMessage());
     } finally {
@@ -655,7 +655,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       } else {
         setError(getApiErrorMessage(res, 'update billing source'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsUpdatingSource(false);
@@ -681,7 +681,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       } else {
         setError(getApiErrorMessage(res, 'pause subscription'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsPausing(false);
@@ -702,7 +702,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       } else {
         setError(getApiErrorMessage(res, 'resume subscription'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsResuming(false);
@@ -724,7 +724,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       } else {
         setError(getApiErrorMessage(res, 'cancel subscription'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsCanceling(false);
@@ -748,7 +748,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       } else {
         setError(getApiErrorMessage(res, 'apply credit'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsApplyingCredit(false);
@@ -772,7 +772,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       } else {
         setError(getApiErrorMessage(res, 'apply discount'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsApplyingDiscount(false);
@@ -795,7 +795,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       } else {
         setError(getApiErrorMessage(res, 'get payment link'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsGettingPaymentLink(false);
@@ -820,7 +820,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       } else {
         setError(getApiErrorMessage(res, 'open billing portal'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsOpeningBillingPortal(false);
@@ -844,7 +844,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       } else {
         showSuccess('Activation email sent!');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsSendingActivation(false);
@@ -870,7 +870,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       } else {
         setError(getApiErrorMessage(res, 'get activation link'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     }
   };
@@ -890,7 +890,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       } else {
         setError(getApiErrorMessage(res, 'sync to Stripe'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsSyncingToStripe(false);
@@ -912,7 +912,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         if (metaRes.ok) {
           results.push('Metadata synced');
         }
-      } catch (e) { /* continue */ }
+      } catch (e: unknown) { /* continue */ }
       
       // 2. Sync tier from Stripe
       try {
@@ -928,7 +928,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
             results.push(`Tier: ${data.newTier}`);
           }
         }
-      } catch (e) { /* continue */ }
+      } catch (e: unknown) { /* continue */ }
       
       // 3. Backfill transaction cache
       try {
@@ -940,7 +940,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           const data = await cacheRes.json();
           results.push(`${data.transactionCount || 0} transactions cached`);
         }
-      } catch (e) { /* continue */ }
+      } catch (e: unknown) { /* continue */ }
       
       await fetchBillingInfo();
       
@@ -949,7 +949,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       } else {
         setError('Sync completed but no changes were made');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsSyncingStripeData(false);
@@ -987,7 +987,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       } else {
         setError(getApiErrorMessage(res, 'create subscription'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsCreatingSubscription(false);
@@ -1266,7 +1266,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
                 const data = await res.json();
                 setAvailableCoupons(data.coupons || []);
               }
-            } catch (err) {
+            } catch (err: unknown) {
               console.error('Failed to load coupons:', err);
             } finally {
               setIsLoadingCoupons(false);
@@ -1329,7 +1329,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
                   const data = await res.json();
                   setAvailableCoupons(data.coupons || []);
                 }
-              } catch (err) {
+              } catch (err: unknown) {
                 console.error('Failed to load coupons:', err);
               } finally {
                 setIsLoadingCoupons(false);

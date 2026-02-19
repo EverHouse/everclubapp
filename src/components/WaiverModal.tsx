@@ -45,7 +45,7 @@ export function WaiverModal({ isOpen, onComplete, currentVersion }: WaiverModalP
       
       showToast('Waiver signed successfully', 'success');
       onComplete();
-    } catch (error) {
+    } catch (error: unknown) {
       showToast('Failed to sign waiver. Please try again.', 'error');
     } finally {
       setIsSubmitting(false);

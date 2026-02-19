@@ -151,7 +151,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
           playSound('checkinWarning');
           showToast(result.error || 'Check-in failed', 'error');
         }
-      } catch (err) {
+      } catch (err: unknown) {
         playSound('checkinWarning');
         showToast('Failed to process check-in', 'error');
       }
@@ -173,7 +173,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         playSound('checkinWarning');
         showToast('Invalid QR code format.', 'error');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       playSound('checkinWarning');
       showToast('Invalid QR code.', 'error');
     }
@@ -318,7 +318,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
         showToast('Failed to approve booking', 'error');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       updatePendingRequests(() => previousPendingRequests);
       updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
       showToast('Failed to approve booking', 'error');
@@ -360,7 +360,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
         showToast('Failed to decline booking', 'error');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       updatePendingRequests(() => previousPendingRequests);
       updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
       showToast('Failed to decline booking', 'error');
@@ -402,7 +402,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
         showToast(error.error || 'Failed to complete cancellation', 'error');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       updatePendingRequests(() => previousPendingRequests);
       updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
       showToast('Failed to complete cancellation', 'error');

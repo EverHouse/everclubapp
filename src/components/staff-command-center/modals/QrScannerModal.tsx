@@ -23,7 +23,7 @@ const QrScannerModal: React.FC<QrScannerModalProps> = ({ isOpen, onClose, onScan
         if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
           await qrScannerRef.current.stop();
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("[QrScanner] Failed to stop scanner:", err);
       } finally {
         qrScannerRef.current = null;

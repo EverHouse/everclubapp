@@ -98,7 +98,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
       } else {
         setError(getApiErrorMessage(res, 'load billing group'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsLoading(false);
@@ -112,7 +112,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
         const data = await res.json();
         setProducts(data);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch group billing products', err);
     }
   }, []);
@@ -147,7 +147,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
       } else {
         setError(getApiErrorMessage(res, 'create billing group'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsCreatingGroup(false);
@@ -180,7 +180,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
       } else {
         setError(getApiErrorMessage(res, 'add group member'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsAddingMember(false);
@@ -201,7 +201,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
       } else {
         setError(getApiErrorMessage(res, 'remove group member'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setRemovingMemberId(null);
@@ -238,7 +238,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
       } else {
         setError(getApiErrorMessage(res, 'add team member'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsAddingMember(false);
@@ -265,7 +265,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
       } else {
         setError(getApiErrorMessage(res, 'update group name'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsSavingGroupName(false);
@@ -289,7 +289,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
       } else {
         setError(getApiErrorMessage(res, 'delete billing group'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setIsDeletingGroup(false);

@@ -129,7 +129,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
     
     try {
       await onRefresh();
-    } catch (e) {
+    } catch (e: unknown) {
       console.error('Refresh failed:', e);
     }
     
@@ -291,7 +291,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
       
       try {
         await onRefresh();
-      } catch (e) {
+      } catch (e: unknown) {
         console.error('Refresh failed:', e);
       }
       

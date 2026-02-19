@@ -116,7 +116,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
           credentials: 'include',
           body: JSON.stringify({ paymentIntentId: intentId })
         });
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Failed to cancel overage intent:', err);
       }
     }
@@ -159,7 +159,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
       } else {
         setError(getApiErrorMessage(res, 'load billing context'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setLoading(false);
@@ -176,7 +176,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
         const data = await res.json();
         setSavedCardInfo(data);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to check saved card:', err);
     } finally {
       setCheckingCard(false);
@@ -247,7 +247,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
         setContext(previousContext);
         showToast('Failed to confirm payment', 'error');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to confirm payment:', err);
       setContext(previousContext);
       showToast('Failed to confirm payment', 'error');
@@ -280,7 +280,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
       } else {
         showToast('Failed to waive fee', 'error');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to waive payment:', err);
       showToast('Failed to waive fee', 'error');
     } finally {
@@ -305,7 +305,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
         const data = await res.json();
         showToast(data.error || 'Failed to use guest pass', 'error');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to use guest pass:', err);
       showToast('Failed to use guest pass', 'error');
     } finally {
@@ -342,7 +342,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
         setContext(previousContext);
         showToast('Failed to confirm payments', 'error');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to confirm all payments:', err);
       setContext(previousContext);
       showToast('Failed to confirm payments', 'error');
@@ -381,7 +381,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
       } else {
         setError(getApiErrorMessage(res, 'check in'));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getNetworkErrorMessage());
     } finally {
       setActionInProgress(null);
@@ -405,7 +405,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
       } else {
         showToast('Failed to mark waivers as reviewed', 'error');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to mark waivers as reviewed:', err);
       showToast('Failed to mark waivers as reviewed', 'error');
     } finally {
@@ -442,7 +442,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
         const data = await res.json();
         showToast(data.error || 'Failed to create payment', 'error');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to create overage payment:', err);
       showToast('Failed to create payment', 'error');
     } finally {
@@ -494,7 +494,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
           showToast(result.error || 'Payment succeeded but check-in failed - please retry', 'error');
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       showToast('Payment succeeded but check-in failed - please retry', 'error');
     } finally {
       setActionInProgress(null);

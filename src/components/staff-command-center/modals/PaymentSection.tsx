@@ -252,7 +252,7 @@ export function PaymentSection({
                           credentials: 'include',
                           body: JSON.stringify({ action: 'confirm_all' })
                         });
-                      } catch (err) {
+                      } catch (err: unknown) {
                         console.error('Failed to mark participants as paid after terminal payment:', err);
                       }
                       showToast('Terminal payment successful!', 'success');
@@ -315,7 +315,7 @@ export function PaymentSection({
                       } else {
                         showToast('Failed to confirm payment', 'error');
                       }
-                    } catch (err) {
+                    } catch (err: unknown) {
                       showToast('Failed to confirm payment', 'error');
                     } finally {
                       setInlinePaymentAction(null);

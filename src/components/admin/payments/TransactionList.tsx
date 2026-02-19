@@ -46,7 +46,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
         const data = await res.json();
         setTransactions(data);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch transactions:', err);
     } finally {
       setLoading(false);
@@ -74,7 +74,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
         const data = await res.json();
         setNotes(data.notes || []);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch notes:', err);
     } finally {
       setNotesLoading(false);
@@ -112,7 +112,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
         setNewNote('');
         await fetchNotes(selectedTxId);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to save note:', err);
     } finally {
       setSavingNote(false);

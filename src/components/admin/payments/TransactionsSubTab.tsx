@@ -703,7 +703,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
     setRetryingPaymentId(paymentIntentId);
     try {
       await retryPayment.mutateAsync(paymentIntentId);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error retrying payment:', err);
     } finally {
       setRetryingPaymentId(null);
@@ -721,7 +721,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
     setCancelingPaymentId(paymentIntentId);
     try {
       await cancelPayment.mutateAsync(paymentIntentId);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error canceling payment:', err);
     } finally {
       setCancelingPaymentId(null);

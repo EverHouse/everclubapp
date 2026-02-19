@@ -68,7 +68,7 @@ export function GuestPaymentChoiceModal({
             })
           }
         );
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('[GuestPaymentChoice] Error cancelling payment:', err);
       }
     }

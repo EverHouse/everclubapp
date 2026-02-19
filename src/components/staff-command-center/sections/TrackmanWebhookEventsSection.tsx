@@ -233,7 +233,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
         setWebhookEvents(result.events || []);
         setWebhookTotalCount(result.totalCount || 0);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch webhook events:', err);
     } finally {
       setWebhookLoading(false);
@@ -248,7 +248,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
         const result = await res.json();
         setWebhookStats(result);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch webhook stats:', err);
     }
   }, []);
@@ -320,7 +320,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
       }
       
       setTimeout(() => setAutoMatchResult(null), 5000);
-    } catch (err) {
+    } catch (err: unknown) {
       setAutoMatchResult({
         eventId,
         success: false,

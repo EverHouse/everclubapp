@@ -453,7 +453,7 @@ export function useCommandCenterData(userEmail?: string) {
       }
 
       setLastSynced(new Date());
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[CommandCenter] Data fetch error:', err instanceof Error ? err.message : err);
     } finally {
       setIsLoading(false);

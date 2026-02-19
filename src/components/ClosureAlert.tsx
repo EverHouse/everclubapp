@@ -55,7 +55,7 @@ const ClosureAlert: React.FC = () => {
           const data = await res.json();
           setClosures(data);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to fetch closures:', error);
       } finally {
         setIsLoading(false);

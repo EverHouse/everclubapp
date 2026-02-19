@@ -68,7 +68,7 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
       } else {
         setSearchResults([]);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[AddMemberModal] Error searching members:', err);
       setSearchResults([]);
     } finally {

@@ -193,7 +193,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
       } else {
         console.error('[RosterManager] Failed to fetch participants:', error);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[RosterManager] Error fetching participants:', err);
     } finally {
       setLoading(false);
@@ -210,7 +210,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
       if (ok && data) {
         setFeePreview(data);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[RosterManager] Error fetching fee preview:', err);
     }
   }, [bookingId]);
@@ -242,7 +242,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
         const filtered = data.filter(m => !existingIds.has(m.id));
         setSearchResults(filtered);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[RosterManager] Error searching members:', err);
     } finally {
       setSearchLoading(false);
@@ -311,7 +311,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
           showToast(error || 'Failed to add member', 'error');
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       haptic.error();
       showToast('Failed to add member', 'error');
     } finally {
@@ -377,7 +377,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
         haptic.error();
         showToast(error || 'Failed to remove participant', 'error');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       haptic.error();
       showToast('Failed to remove participant', 'error');
     } finally {

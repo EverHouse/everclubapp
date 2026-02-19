@@ -90,7 +90,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                 showToast('Announcement created', 'success');
             }
             setIsEditing(false);
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to save announcement:', err);
             showToast('Failed to save announcement', 'error');
         }
@@ -100,7 +100,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
         try {
             await deleteAnnouncement(id);
             showToast('Announcement deleted', 'success');
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to delete announcement:', err);
             showToast('Failed to delete announcement', 'error');
         }

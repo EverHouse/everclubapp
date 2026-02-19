@@ -94,7 +94,7 @@ export function NewUserDrawer({
         const data = await res.json();
         setError(data.error || 'Failed to cleanup');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError('Failed to cleanup pending user');
     } finally {
       setIsCleaningUp(false);
@@ -157,7 +157,7 @@ export function NewUserDrawer({
           }));
         setExistingBillingGroups(activeGroups);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch initial data:', err);
     }
   };
