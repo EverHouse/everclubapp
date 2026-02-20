@@ -259,6 +259,8 @@ const DirectoryTab: React.FC = () => {
     const [teamSearchQuery, setTeamSearchQuery] = useState('');
     const [optimisticTiers, setOptimisticTiers] = useState<Record<string, string>>({});
     const [pendingTierUpdates, setPendingTierUpdates] = useState<Set<string>>(new Set());
+    const [filtersOpen, setFiltersOpen] = useState(false);
+    const filterPopoverRef = useRef<HTMLDivElement>(null);
     
     const isAdmin = actualUser?.role === 'admin';
     const { isAtBottom, drawerOpen } = useBottomNav();
@@ -286,6 +288,21 @@ const DirectoryTab: React.FC = () => {
             document.body.style.overflow = '';
         };
     }, [isViewingDetails, selectedMember]);
+
+    useEffect(() => {
+        setFiltersOpen(false);
+    }, [memberTab]);
+
+    useEffect(() => {
+        if (!filtersOpen) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (filterPopoverRef.current && !filterPopoverRef.current.contains(e.target as Node)) {
+                setFiltersOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [filtersOpen]);
 
     const { data: syncStatusData } = useQuery({
         queryKey: directoryKeys.syncStatus(),
@@ -727,6 +744,61 @@ const DirectoryTab: React.FC = () => {
         return Array.from(codes).sort();
     }, [regularMembers]);
 
+    const clearAllFilters = useCallback(() => {
+        if (memberTab === 'visitors') {
+            setVisitorTypeFilter('all');
+            setVisitorSourceFilter('all');
+            setPurchaseFilter('all');
+            setVisitorsPage(1);
+        } else if (memberTab === 'former') {
+            setTierFilter('All');
+            setStatusFilter('All');
+            setBillingFilter('All');
+            setDiscountFilter('All');
+            setShowMissingTierOnly(false);
+        } else {
+            setTierFilter('All');
+            setMembershipStatusFilter('All');
+            setAppUsageFilter('All');
+            setBillingFilter('All');
+            setDiscountFilter('All');
+            setShowMissingTierOnly(false);
+        }
+    }, [memberTab]);
+
+    const activeFilters = useMemo(() => {
+        const filters: Array<{ key: string; label: string; onRemove: () => void }> = [];
+
+        if (memberTab === 'visitors') {
+            if (visitorTypeFilter !== 'all') {
+                const typeLabels: Record<string, string> = { 'NEW': 'New (Staff Added)', 'classpass': 'ClassPass', 'sim_walkin': 'Sim Walk-In', 'private_lesson': 'Private Lesson', 'day_pass': 'Day Pass', 'guest': 'Guest', 'lead': 'Lead' };
+                filters.push({ key: 'type', label: `Type: ${typeLabels[visitorTypeFilter] || visitorTypeFilter}`, onRemove: () => { setVisitorTypeFilter('all'); setVisitorsPage(1); } });
+            }
+            if (visitorSourceFilter !== 'all') {
+                const sourceLabels: Record<string, string> = { 'APP': 'App', 'hubspot': 'HubSpot', 'mindbody': 'MindBody', 'stripe': 'Stripe' };
+                filters.push({ key: 'source', label: `Source: ${sourceLabels[visitorSourceFilter] || visitorSourceFilter}`, onRemove: () => { setVisitorSourceFilter('all'); setVisitorsPage(1); } });
+            }
+            if (purchaseFilter !== 'all') {
+                filters.push({ key: 'purchases', label: `Purchases: ${purchaseFilter === 'purchasers' ? 'Purchasers' : 'Non-Purchasers'}`, onRemove: () => { setPurchaseFilter('all'); setVisitorsPage(1); } });
+            }
+        } else if (memberTab === 'former') {
+            if (tierFilter !== 'All') filters.push({ key: 'tier', label: `Tier: ${tierFilter}`, onRemove: () => setTierFilter('All') });
+            if (statusFilter !== 'All') filters.push({ key: 'status', label: `Status: ${getMemberStatusLabel(statusFilter)}`, onRemove: () => setStatusFilter('All') });
+            if (billingFilter !== 'All') filters.push({ key: 'billing', label: `Billing: ${billingFilter}`, onRemove: () => setBillingFilter('All') });
+            if (discountFilter !== 'All') filters.push({ key: 'discount', label: `Discount: ${discountFilter}`, onRemove: () => setDiscountFilter('All') });
+        } else if (memberTab === 'active') {
+            if (tierFilter !== 'All') filters.push({ key: 'tier', label: `Tier: ${tierFilter}`, onRemove: () => setTierFilter('All') });
+            if (membershipStatusFilter !== 'All') filters.push({ key: 'status', label: `Status: ${getMemberStatusLabel(membershipStatusFilter)}`, onRemove: () => setMembershipStatusFilter('All') });
+            if (appUsageFilter !== 'All') filters.push({ key: 'app', label: `App: ${appUsageFilter}`, onRemove: () => setAppUsageFilter('All') });
+            if (billingFilter !== 'All') filters.push({ key: 'billing', label: `Billing: ${billingFilter}`, onRemove: () => setBillingFilter('All') });
+            if (discountFilter !== 'All') filters.push({ key: 'discount', label: `Discount: ${discountFilter}`, onRemove: () => setDiscountFilter('All') });
+        }
+
+        return filters;
+    }, [memberTab, tierFilter, statusFilter, membershipStatusFilter, appUsageFilter, billingFilter, discountFilter, visitorTypeFilter, visitorSourceFilter, purchaseFilter]);
+
+    const activeFilterCount = activeFilters.length;
+
     const filteredList = useMemo(() => {
         let filtered = regularMembers;
         
@@ -966,17 +1038,210 @@ const DirectoryTab: React.FC = () => {
             )}
 
             <div className="mb-6 space-y-3 animate-content-enter-delay-1 sticky top-0 z-10 bg-transparent pt-2 pb-3">
-                {memberTab !== 'visitors' && (
-                <div className="relative">
-                    <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 text-[20px]">search</span>
-                    <input
-                        type="text"
-                        placeholder="Search members..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                </div>
+                {memberTab !== 'visitors' && memberTab !== 'team' && (
+                    <div className="flex gap-2 relative" ref={filterPopoverRef}>
+                        <div className="relative flex-1">
+                            <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 text-[20px]">search</span>
+                            <input
+                                type="text"
+                                placeholder="Search members..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            />
+                        </div>
+                        <button
+                            onClick={() => setFiltersOpen(!filtersOpen)}
+                            className={`px-3 py-2 rounded-xl border text-sm font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer ${
+                                activeFilterCount > 0
+                                    ? 'border-primary/50 dark:border-lavender/50 text-primary dark:text-lavender bg-primary/5 dark:bg-lavender/5 hover:bg-primary/10 dark:hover:bg-lavender/10'
+                                    : 'border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/10'
+                            }`}
+                            aria-label="Toggle filters"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">filter_list</span>
+                            <span className="hidden sm:inline">Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}</span>
+                            {activeFilterCount > 0 && <span className="sm:hidden min-w-[18px] h-[18px] rounded-full bg-primary dark:bg-lavender text-white text-[10px] font-bold flex items-center justify-center">{activeFilterCount}</span>}
+                        </button>
+
+                        {filtersOpen && (
+                            <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-[#1a1a2e] rounded-xl shadow-lg border border-gray-200 dark:border-white/20 p-4 space-y-3 z-30 transition-all duration-200">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filters</span>
+                                    {activeFilterCount > 0 && (
+                                        <button onClick={() => { clearAllFilters(); }} className="text-xs text-primary dark:text-lavender hover:underline font-medium cursor-pointer">
+                                            Clear All
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase">{memberTab === 'former' ? 'Last Tier' : 'Tier'}</span>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {TIER_OPTIONS.map(tier => {
+                                            const isSelected = tierFilter === tier;
+                                            const colors = tier !== 'All' ? getTierColor(tier) : { bg: '', text: '', border: '' };
+                                            return (
+                                                <button
+                                                    key={tier}
+                                                    onClick={() => { setTierFilter(tier); setShowMissingTierOnly(false); }}
+                                                    className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-all duration-fast flex-shrink-0 whitespace-nowrap ${
+                                                        tier === 'All' 
+                                                            ? isSelected 
+                                                                ? 'bg-primary dark:bg-lavender text-white' 
+                                                                : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500'
+                                                            : !isSelected
+                                                                ? 'bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-white/60 border border-gray-300 dark:border-white/10'
+                                                                : ''
+                                                    }`}
+                                                    style={tier !== 'All' && isSelected ? {
+                                                        backgroundColor: colors.bg,
+                                                        color: colors.text,
+                                                        border: `1px solid ${colors.border}`,
+                                                    } : undefined}
+                                                >
+                                                    {tier}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {memberTab === 'active' && (
+                                    <div className="space-y-1.5">
+                                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase">Status</span>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            <button
+                                                onClick={() => setMembershipStatusFilter('All')}
+                                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                                    membershipStatusFilter === 'All'
+                                                        ? 'bg-primary dark:bg-lavender text-white'
+                                                        : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                                }`}
+                                            >
+                                                All
+                                            </button>
+                                            {(['active', 'trialing', 'past_due', 'grace_period', 'paused', 'pending'] as const).map(status => (
+                                                <button
+                                                    key={status}
+                                                    onClick={() => setMembershipStatusFilter(status)}
+                                                    className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                                        membershipStatusFilter === status
+                                                            ? getMemberStatusBadgeClass(status)
+                                                            : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                                    }`}
+                                                >
+                                                    {getMemberStatusLabel(status)}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {memberTab === 'active' && (
+                                    <div className="space-y-1.5">
+                                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase">App</span>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {(['All', 'Logged In', 'Never Logged In'] as const).map(option => (
+                                                <button
+                                                    key={option}
+                                                    onClick={() => setAppUsageFilter(option)}
+                                                    className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                                        appUsageFilter === option
+                                                            ? 'bg-primary dark:bg-lavender text-white'
+                                                            : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                                    }`}
+                                                >
+                                                    {option}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {memberTab === 'former' && (
+                                    <div className="space-y-1.5">
+                                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase">Status</span>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            <button
+                                                onClick={() => setStatusFilter('All')}
+                                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                                    statusFilter === 'All'
+                                                        ? 'bg-orange-500 text-white'
+                                                        : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
+                                                }`}
+                                            >
+                                                All
+                                            </button>
+                                            {(['terminated', 'expired', 'suspended', 'cancelled', 'frozen', 'inactive', 'former_member'] as const).map(status => (
+                                                <button
+                                                    key={status}
+                                                    onClick={() => setStatusFilter(status)}
+                                                    className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                                        statusFilter === status
+                                                            ? 'bg-orange-500 text-white'
+                                                            : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
+                                                    }`}
+                                                >
+                                                    {getMemberStatusLabel(status)}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="space-y-1.5">
+                                    <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase">Billing</span>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {BILLING_OPTIONS.map(option => (
+                                            <button
+                                                key={option}
+                                                onClick={() => setBillingFilter(option)}
+                                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                                    billingFilter === option
+                                                        ? 'bg-primary dark:bg-lavender text-white'
+                                                        : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                                }`}
+                                            >
+                                                {option}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {discountCodes.length > 0 && (
+                                    <div className="space-y-1.5">
+                                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase">Discount</span>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            <button
+                                                onClick={() => setDiscountFilter('All')}
+                                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                                    discountFilter === 'All'
+                                                        ? 'bg-primary dark:bg-lavender text-white'
+                                                        : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                                }`}
+                                            >
+                                                All
+                                            </button>
+                                            {discountCodes.map(code => (
+                                                <button
+                                                    key={code}
+                                                    onClick={() => setDiscountFilter(code)}
+                                                    className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                                        discountFilter === code
+                                                            ? 'bg-purple-600 text-white'
+                                                            : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                                    }`}
+                                                >
+                                                    {code}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 {memberTab === 'team' && (
@@ -989,163 +1254,6 @@ const DirectoryTab: React.FC = () => {
                             onChange={(e) => setTeamSearchQuery(e.target.value)}
                             className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/30"
                         />
-                    </div>
-                )}
-
-                {memberTab !== 'visitors' && memberTab !== 'team' && (
-                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">{memberTab === 'former' ? 'Last Tier:' : 'Tier:'}</span>
-                        {TIER_OPTIONS.map(tier => {
-                            const isSelected = tierFilter === tier;
-                            const colors = tier !== 'All' ? getTierColor(tier) : { bg: '', text: '', border: '' };
-                            return (
-                                <button
-                                    key={tier}
-                                    onClick={() => { setTierFilter(tier); setShowMissingTierOnly(false); }}
-                                    className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-all duration-fast flex-shrink-0 whitespace-nowrap ${
-                                        tier === 'All' 
-                                            ? isSelected 
-                                                ? 'bg-primary dark:bg-lavender text-white' 
-                                                : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500'
-                                            : !isSelected
-                                                ? 'bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-white/60 border border-gray-300 dark:border-white/10'
-                                                : ''
-                                    }`}
-                                    style={tier !== 'All' && isSelected ? {
-                                        backgroundColor: colors.bg,
-                                        color: colors.text,
-                                        border: `1px solid ${colors.border}`,
-                                    } : undefined}
-                                >
-                                    {tier}
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
-
-                {memberTab === 'active' && (
-                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Status:</span>
-                        <button
-                            onClick={() => setMembershipStatusFilter('All')}
-                            className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
-                                membershipStatusFilter === 'All'
-                                    ? 'bg-primary dark:bg-lavender text-white'
-                                    : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
-                            }`}
-                        >
-                            All
-                        </button>
-                        {(['active', 'trialing', 'past_due', 'grace_period', 'paused', 'pending'] as const).map(status => (
-                            <button
-                                key={status}
-                                onClick={() => setMembershipStatusFilter(status)}
-                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
-                                    membershipStatusFilter === status
-                                        ? getMemberStatusBadgeClass(status)
-                                        : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
-                                }`}
-                            >
-                                {getMemberStatusLabel(status)}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
-                {memberTab === 'active' && (
-                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">App:</span>
-                        {(['All', 'Logged In', 'Never Logged In'] as const).map(option => (
-                            <button
-                                key={option}
-                                onClick={() => setAppUsageFilter(option)}
-                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
-                                    appUsageFilter === option
-                                        ? 'bg-primary dark:bg-lavender text-white'
-                                        : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
-                                }`}
-                            >
-                                {option}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
-                {memberTab === 'former' && (
-                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Status:</span>
-                        <button
-                            onClick={() => setStatusFilter('All')}
-                            className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
-                                statusFilter === 'All'
-                                    ? 'bg-orange-500 text-white'
-                                    : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
-                            }`}
-                        >
-                            All
-                        </button>
-                        {(['terminated', 'expired', 'suspended', 'cancelled', 'frozen', 'inactive', 'former_member'] as const).map(status => (
-                            <button
-                                key={status}
-                                onClick={() => setStatusFilter(status)}
-                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
-                                    statusFilter === status
-                                        ? 'bg-orange-500 text-white'
-                                        : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
-                                }`}
-                            >
-                                {getMemberStatusLabel(status)}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
-                {memberTab !== 'visitors' && memberTab !== 'team' && (
-                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Billing:</span>
-                        {BILLING_OPTIONS.map(option => (
-                            <button
-                                key={option}
-                                onClick={() => setBillingFilter(option)}
-                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
-                                    billingFilter === option
-                                        ? 'bg-primary dark:bg-lavender text-white'
-                                        : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
-                                }`}
-                            >
-                                {option}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
-                {memberTab !== 'visitors' && memberTab !== 'team' && discountCodes.length > 0 && (
-                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Discount:</span>
-                        <button
-                            onClick={() => setDiscountFilter('All')}
-                            className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
-                                discountFilter === 'All'
-                                    ? 'bg-primary dark:bg-lavender text-white'
-                                    : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
-                            }`}
-                        >
-                            All
-                        </button>
-                        {discountCodes.map(code => (
-                            <button
-                                key={code}
-                                onClick={() => setDiscountFilter(code)}
-                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
-                                    discountFilter === code
-                                        ? 'bg-purple-600 text-white'
-                                        : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
-                                }`}
-                            >
-                                {code}
-                            </button>
-                        ))}
                     </div>
                 )}
 
@@ -1174,7 +1282,20 @@ const DirectoryTab: React.FC = () => {
                         </button>
                     </div>
                 )}
-                
+
+                {activeFilters.length > 0 && memberTab !== 'visitors' && (
+                    <div className="flex flex-wrap gap-1.5">
+                        {activeFilters.map(filter => (
+                            <span key={filter.key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 dark:bg-lavender/10 text-primary dark:text-lavender border border-primary/20 dark:border-lavender/20">
+                                {filter.label}
+                                <button onClick={filter.onRemove} className="hover:text-red-500 transition-colors ml-0.5 cursor-pointer" aria-label={`Remove ${filter.label} filter`}>
+                                    <span className="material-symbols-outlined text-[12px]">close</span>
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                )}
+
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                     {memberTab === 'visitors' 
                         ? `Showing ${visitors.length} of ${visitorsTotal.toLocaleString()} visitor${visitorsTotal !== 1 ? 's' : ''}`
@@ -1233,96 +1354,151 @@ const DirectoryTab: React.FC = () => {
 
                 {memberTab === 'visitors' && (
                     <div className="space-y-3 mb-4">
-                        <div className="relative">
-                            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/40 text-[20px]">search</span>
-                            <input
-                                type="text"
-                                value={visitorSearchQuery}
-                                onChange={(e) => setVisitorSearchQuery(e.target.value)}
-                                placeholder="Search by name, email, or phone..."
-                                className="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                aria-label="Search visitors"
-                            />
-                            {visitorSearchQuery && (
-                                <button
-                                    onClick={() => setVisitorSearchQuery('')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-white/40 dark:hover:text-white/70"
-                                    aria-label="Clear search"
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">close</span>
-                                </button>
+                        <div className="flex gap-2 relative" ref={filterPopoverRef}>
+                            <div className="relative flex-1">
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/40 text-[20px]">search</span>
+                                <input
+                                    type="text"
+                                    value={visitorSearchQuery}
+                                    onChange={(e) => setVisitorSearchQuery(e.target.value)}
+                                    placeholder="Search by name, email, or phone..."
+                                    className="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                    aria-label="Search visitors"
+                                />
+                                {visitorSearchQuery && (
+                                    <button
+                                        onClick={() => setVisitorSearchQuery('')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-white/40 dark:hover:text-white/70 cursor-pointer"
+                                        aria-label="Clear search"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">close</span>
+                                    </button>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => setFiltersOpen(!filtersOpen)}
+                                className={`px-3 py-2 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer ${
+                                    activeFilterCount > 0
+                                        ? 'border-primary/50 dark:border-lavender/50 text-primary dark:text-lavender bg-primary/5 dark:bg-lavender/5 hover:bg-primary/10 dark:hover:bg-lavender/10'
+                                        : 'border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/10'
+                                }`}
+                                aria-label="Toggle filters"
+                            >
+                                <span className="material-symbols-outlined text-[18px]">filter_list</span>
+                                <span className="hidden sm:inline">Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}</span>
+                                {activeFilterCount > 0 && <span className="sm:hidden min-w-[18px] h-[18px] rounded-full bg-primary dark:bg-lavender text-white text-[10px] font-bold flex items-center justify-center">{activeFilterCount}</span>}
+                            </button>
+
+                            {filtersOpen && (
+                                <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-[#1a1a2e] rounded-xl shadow-lg border border-gray-200 dark:border-white/20 p-4 space-y-3 z-30 transition-all duration-200">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filters</span>
+                                        {activeFilterCount > 0 && (
+                                            <button onClick={() => { clearAllFilters(); }} className="text-xs text-primary dark:text-lavender hover:underline font-medium cursor-pointer">
+                                                Clear All
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase">View</span>
+                                        <div className="flex rounded-lg border border-gray-200 dark:border-white/20 overflow-hidden w-fit">
+                                            <button
+                                                onClick={() => { setVisitorArchiveView('active'); setVisitorsPage(1); }}
+                                                className={`tactile-btn px-3 py-1.5 text-sm font-medium transition-colors ${
+                                                    visitorArchiveView === 'active'
+                                                        ? 'bg-primary text-white'
+                                                        : 'bg-white dark:bg-surface-dark text-gray-600 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/5'
+                                                }`}
+                                            >
+                                                Active
+                                            </button>
+                                            <button
+                                                onClick={() => { setVisitorArchiveView('archived'); setVisitorsPage(1); }}
+                                                className={`tactile-btn px-3 py-1.5 text-sm font-medium transition-colors ${
+                                                    visitorArchiveView === 'archived'
+                                                        ? 'bg-primary text-white'
+                                                        : 'bg-white dark:bg-surface-dark text-gray-600 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/5'
+                                                }`}
+                                            >
+                                                Archived
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase">Type</span>
+                                        <select
+                                            value={visitorTypeFilter}
+                                            onChange={(e) => { setVisitorTypeFilter(e.target.value as VisitorType); setVisitorsPage(1); }}
+                                            className="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                            aria-label="Filter by type"
+                                        >
+                                            <option value="all">All Types</option>
+                                            <option value="NEW">New (Staff Added)</option>
+                                            <option value="classpass">ClassPass</option>
+                                            <option value="sim_walkin">Sim Walk-In</option>
+                                            <option value="private_lesson">Private Lesson</option>
+                                            <option value="day_pass">Day Pass</option>
+                                            <option value="guest">Guests</option>
+                                            <option value="lead">Leads</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase">Source</span>
+                                        <select
+                                            value={visitorSourceFilter}
+                                            onChange={(e) => { setVisitorSourceFilter(e.target.value as VisitorSource); setVisitorsPage(1); }}
+                                            className="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                            aria-label="Filter by source"
+                                        >
+                                            <option value="all">All Sources</option>
+                                            <option value="APP">App (Staff Added)</option>
+                                            <option value="hubspot">HubSpot</option>
+                                            <option value="mindbody">MindBody</option>
+                                            <option value="stripe">Stripe</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase">Purchases</span>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {(['all', 'purchasers', 'non-purchasers'] as const).map(option => (
+                                                <button
+                                                    key={option}
+                                                    onClick={() => { setPurchaseFilter(option); setVisitorsPage(1); }}
+                                                    className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                                        purchaseFilter === option
+                                                            ? 'bg-primary dark:bg-lavender text-white'
+                                                            : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                                    }`}
+                                                >
+                                                    {option === 'all' ? 'All' : option === 'purchasers' ? 'Purchasers' : 'Non-Purchasers'}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
                             )}
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                            <div className="flex rounded-lg border border-gray-200 dark:border-white/20 overflow-hidden">
-                                <button
-                                    onClick={() => { setVisitorArchiveView('active'); setVisitorsPage(1); }}
-                                    className={`tactile-btn px-3 py-1.5 text-sm font-medium transition-colors ${
-                                        visitorArchiveView === 'active'
-                                            ? 'bg-primary text-white'
-                                            : 'bg-white dark:bg-surface-dark text-gray-600 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/5'
-                                    }`}
-                                >
-                                    Active
-                                </button>
-                                <button
-                                    onClick={() => { setVisitorArchiveView('archived'); setVisitorsPage(1); }}
-                                    className={`tactile-btn px-3 py-1.5 text-sm font-medium transition-colors ${
-                                        visitorArchiveView === 'archived'
-                                            ? 'bg-primary text-white'
-                                            : 'bg-white dark:bg-surface-dark text-gray-600 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/5'
-                                    }`}
-                                >
-                                    Archived
-                                </button>
-                            </div>
-                            <select
-                                value={visitorTypeFilter}
-                                onChange={(e) => { setVisitorTypeFilter(e.target.value as VisitorType); setVisitorsPage(1); }}
-                                className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                aria-label="Filter by type"
-                            >
-                                <option value="all">All Types</option>
-                                <option value="NEW">New (Staff Added)</option>
-                                <option value="classpass">ClassPass</option>
-                                <option value="sim_walkin">Sim Walk-In</option>
-                                <option value="private_lesson">Private Lesson</option>
-                                <option value="day_pass">Day Pass</option>
-                                <option value="guest">Guests</option>
-                                <option value="lead">Leads</option>
-                            </select>
-                            <select
-                                value={visitorSourceFilter}
-                                onChange={(e) => { setVisitorSourceFilter(e.target.value as VisitorSource); setVisitorsPage(1); }}
-                                className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                aria-label="Filter by source"
-                            >
-                                <option value="all">All Sources</option>
-                                <option value="APP">App (Staff Added)</option>
-                                <option value="hubspot">HubSpot</option>
-                                <option value="mindbody">MindBody</option>
-                                <option value="stripe">Stripe</option>
-                            </select>
-                            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-                                <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Purchases:</span>
-                                {(['all', 'purchasers', 'non-purchasers'] as const).map(option => (
-                                    <button
-                                        key={option}
-                                        onClick={() => { setPurchaseFilter(option); setVisitorsPage(1); }}
-                                        className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
-                                            purchaseFilter === option
-                                                ? 'bg-primary dark:bg-lavender text-white'
-                                                : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
-                                        }`}
-                                    >
-                                        {option === 'all' ? 'All' : option === 'purchasers' ? 'Purchasers' : 'Non-Purchasers'}
-                                    </button>
+
+                        {activeFilters.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                                {activeFilters.map(filter => (
+                                    <span key={filter.key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 dark:bg-lavender/10 text-primary dark:text-lavender border border-primary/20 dark:border-lavender/20">
+                                        {filter.label}
+                                        <button onClick={filter.onRemove} className="hover:text-red-500 transition-colors ml-0.5 cursor-pointer" aria-label={`Remove ${filter.label} filter`}>
+                                            <span className="material-symbols-outlined text-[12px]">close</span>
+                                        </button>
+                                    </span>
                                 ))}
                             </div>
-                            <span className="ml-auto text-sm text-gray-500 dark:text-white/60 self-center">
-                                {visitorsTotal.toLocaleString()} {visitorArchiveView === 'archived' ? 'archived' : ''} contacts
-                            </span>
-                        </div>
+                        )}
+
+                        <span className="text-sm text-gray-500 dark:text-white/60">
+                            {visitorsTotal.toLocaleString()} {visitorArchiveView === 'archived' ? 'archived' : ''} contacts
+                        </span>
                     </div>
                 )}
 
