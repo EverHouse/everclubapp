@@ -549,7 +549,7 @@ async function handleCreditNoteCreated(client: PoolClient, creditNote: Stripe.Cr
   
   if (customerId) {
     const memberResult = await client.query(
-      `SELECT email, display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
+      `SELECT email, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
       [customerId]
     );
     
@@ -4142,7 +4142,7 @@ async function handleCustomerUpdated(client: PoolClient, customer: Stripe.Custom
     }
 
     const result = await client.query(
-      `SELECT id, email, first_name, last_name, display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
+      `SELECT id, email, first_name, last_name, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
       [stripeCustomerId]
     );
 
@@ -4180,9 +4180,9 @@ async function handleCustomerUpdated(client: PoolClient, customer: Stripe.Custom
       const currentDisplayName = user.display_name || `${user.first_name || ''} ${user.last_name || ''}`.trim();
       
       if (stripeName !== currentDisplayName) {
-        const updateFields: string[] = ['display_name = $1', 'updated_at = NOW()'];
-        const updateValues: (string | null)[] = [stripeName];
-        let paramIdx = 2;
+        const updateFields: string[] = ['updated_at = NOW()'];
+        const updateValues: (string | null)[] = [];
+        let paramIdx = 1;
 
         if (stripeFirst && stripeFirst !== user.first_name) {
           updateFields.push(`first_name = $${paramIdx}`);
@@ -4195,11 +4195,13 @@ async function handleCustomerUpdated(client: PoolClient, customer: Stripe.Custom
           paramIdx++;
         }
 
-        updateValues.push(user.id);
-        await client.query(
-          `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramIdx}`,
-          updateValues
-        );
+        if (updateValues.length > 0) {
+          updateValues.push(user.id);
+          await client.query(
+            `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramIdx}`,
+            updateValues
+          );
+        }
         updates.push(`name synced: "${currentDisplayName}" → "${stripeName}"`);
       }
     }
@@ -4228,7 +4230,7 @@ async function handleTrialWillEnd(client: PoolClient, subscription: Stripe.Subsc
     const daysLeft = Math.max(0, Math.ceil((trialEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
 
     const memberResult = await client.query(
-      `SELECT id, email, first_name, last_name, display_name, stripe_customer_id FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
+      `SELECT id, email, first_name, last_name, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name, stripe_customer_id FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
       [customerId]
     );
 
@@ -4319,7 +4321,7 @@ async function handlePaymentMethodAttached(client: PoolClient, paymentMethod: St
     }
 
     const memberResult = await client.query(
-      `SELECT email, display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
+      `SELECT email, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
       [customerId]
     );
 
@@ -4357,7 +4359,7 @@ export async function handleCustomerCreated(client: PoolClient, customer: Stripe
     }
 
     const userResult = await client.query(
-      `SELECT id, email, display_name, stripe_customer_id FROM users WHERE LOWER(email) = $1 LIMIT 1`,
+      `SELECT id, email, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name, stripe_customer_id FROM users WHERE LOWER(email) = $1 LIMIT 1`,
       [email]
     );
 
@@ -4432,7 +4434,7 @@ export async function handleCustomerDeleted(client: PoolClient, customer: Stripe
     logger.info(`[Stripe Webhook] customer.deleted ${customerId} (deleted flag: ${(customer as any).deleted})`);
 
     const userResult = await client.query(
-      `SELECT id, email, display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
+      `SELECT id, email, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
       [customerId]
     );
 
@@ -4496,7 +4498,7 @@ export async function handlePaymentMethodDetached(client: PoolClient, paymentMet
     }
 
     const userResult = await client.query(
-      `SELECT id, email, display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
+      `SELECT id, email, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
       [customerId]
     );
 
@@ -4570,7 +4572,7 @@ export async function handlePaymentMethodUpdated(client: PoolClient, paymentMeth
     }
 
     const userResult = await client.query(
-      `SELECT id, email, display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
+      `SELECT id, email, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
       [customerId]
     );
 
@@ -4638,7 +4640,7 @@ export async function handlePaymentMethodAutoUpdated(client: PoolClient, payment
     }
 
     const userResult = await client.query(
-      `SELECT id, email, display_name, requires_card_update FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
+      `SELECT id, email, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name, requires_card_update FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
       [customerId]
     );
 
@@ -4946,7 +4948,7 @@ async function handleCheckoutSessionAsyncPaymentSucceeded(client: PoolClient, se
     let userName = '';
     if (!userEmail && customerId) {
       const userResult = await client.query(
-        `SELECT email, display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
+        `SELECT email, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
         [customerId]
       );
       if (userResult.rows.length > 0) {
@@ -4955,7 +4957,7 @@ async function handleCheckoutSessionAsyncPaymentSucceeded(client: PoolClient, se
       }
     } else if (userEmail) {
       const userResult = await client.query(
-        `SELECT display_name FROM users WHERE LOWER(email) = $1 LIMIT 1`,
+        `SELECT COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name FROM users WHERE LOWER(email) = $1 LIMIT 1`,
         [userEmail]
       );
       if (userResult.rows.length > 0) {
@@ -5061,7 +5063,7 @@ async function handleInvoicePaymentActionRequired(client: PoolClient, invoice: I
     }
 
     const userResult = await client.query(
-      `SELECT email, display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
+      `SELECT email, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
       [customerId]
     );
 
@@ -5134,7 +5136,7 @@ async function handleInvoiceOverdue(client: PoolClient, invoice: InvoiceWithLega
     const amountDue = invoice.amount_due || 0;
 
     const userResult = await client.query(
-      `SELECT email, display_name, billing_provider FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
+      `SELECT email, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name, billing_provider FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
       [customerId]
     );
 
@@ -5216,7 +5218,7 @@ async function handleSetupIntentSucceeded(client: PoolClient, setupIntent: Strip
     logger.info(`[Stripe Webhook] Setup intent succeeded: ${setupIntent.id}, customer: ${customerId}`);
 
     const userResult = await client.query(
-      `SELECT id, email, display_name, requires_card_update FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
+      `SELECT id, email, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name, requires_card_update FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
       [customerId]
     );
 
@@ -5286,7 +5288,7 @@ async function handleSetupIntentFailed(client: PoolClient, setupIntent: Stripe.S
     logger.info(`[Stripe Webhook] Setup intent failed: ${setupIntent.id}, customer: ${customerId}, error: ${errorMessage}`);
 
     const userResult = await client.query(
-      `SELECT email, display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
+      `SELECT email, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
       [customerId]
     );
 
