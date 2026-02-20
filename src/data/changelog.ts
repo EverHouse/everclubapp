@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.88.1",
+    date: "2026-02-20",
+    title: "Glass UI Accessibility Fallbacks for iOS",
+    changes: [
+      "Fixed: FAB menu items and other glass-style elements are no longer invisible on iPhones with 'Reduce Transparency' or 'Reduce Motion' enabled — all glass elements now show solid, readable backgrounds when blur effects are disabled",
+      "Improved: Comprehensive accessibility fallbacks added for all glass components (cards, panels, modals, buttons, inputs, overlays, navbar) in both light and dark modes",
+      "Improved: Inline Tailwind backdrop-blur elements (bottom nav, FAB, toasts, confirm dialogs) now also get solid dark backgrounds when accessibility settings disable blur",
+    ]
+  },
+  {
     version: "7.88",
     date: "2026-02-20",
     title: "Unified Guest Fee Architecture & Staff Quick Add Guest",
