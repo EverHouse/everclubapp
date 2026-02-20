@@ -314,6 +314,11 @@ const RosterManager: React.FC<RosterManagerProps> = ({
     setRemovingId(participantId);
     haptic.light();
     
+    const previousParticipants = [...participants];
+    setParticipants(prev => prev.filter(p => p.id !== participantId));
+    haptic.success();
+    showToast(`${displayName} removed from booking`, 'success');
+    
     try {
       const { ok, error } = await apiRequest(
         `/api/bookings/${bookingId}/participants/${participantId}`,
@@ -321,25 +326,20 @@ const RosterManager: React.FC<RosterManagerProps> = ({
       );
       
       if (ok) {
-        haptic.success();
-        showToast(`${displayName} removed from booking`, 'success');
-        try {
-          await fetchParticipants();
-        } catch {
-          // Refresh may fail if component is re-rendering — removal already succeeded
-        }
+        try { await fetchParticipants(); } catch { /* optimistic state is correct */ }
         onUpdate?.();
       } else {
+        setParticipants(previousParticipants);
         haptic.error();
         showToast(error || 'Failed to remove participant', 'error');
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '';
       if (msg.includes('abort') || msg.includes('signal')) {
-        showToast(`${displayName} removed from booking`, 'success');
-        try { await fetchParticipants(); } catch { /* already removed */ }
+        try { await fetchParticipants(); } catch { /* optimistic state is correct */ }
         onUpdate?.();
       } else {
+        setParticipants(previousParticipants);
         haptic.error();
         showToast('Failed to remove participant', 'error');
       }
