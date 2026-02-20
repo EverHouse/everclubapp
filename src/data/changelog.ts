@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.87.1",
+    date: "2026-02-20",
+    title: "Trackman Cancellation Webhook Fixes",
+    changes: [
+      "Fixed: Trackman cancellation webhooks now properly cancel bookings in the app — previously, cancellation events were silently ignored because the system treated them as duplicates of the original creation event",
+      "Fixed: Members now receive a 'Booking Cancelled' notification when Trackman cancels their booking — previously, only member-requested cancellations triggered notifications",
+      "Fixed: Calendar availability updates instantly when a Trackman cancellation comes in — previously, the freed-up slot wouldn't appear available until the next page refresh",
+      "Fixed: V2 webhooks no longer send incorrect 'Booking Confirmed' notifications when the actual status is 'cancelled' — the notification now correctly reflects the booking's real status",
+      "Improved: Both 'cancelled' (British) and 'canceled' (American) spellings are now handled consistently across all Trackman webhook processing paths",
+    ]
+  },
+  {
     version: "7.87",
     date: "2026-02-20",
     title: "Stripe Payment Integrity v2 — Phantom Charges & Terminal Traceability",

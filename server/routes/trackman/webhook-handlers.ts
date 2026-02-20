@@ -459,17 +459,20 @@ export async function cancelBookingByTrackmanId(
       });
     }
     
-    // If this was completing a member-requested cancellation, notify the member
-    if (wasPendingCancellation && memberEmail) {
+    // Notify the member that their booking was cancelled via Trackman
+    if (memberEmail) {
       try {
         const memberFormattedDate = bookingDate ? formatDatePacific(new Date(bookingDate)) : 'Unknown date';
         const memberFormattedTime = startTime ? formatTimePacific(startTime) : 'Unknown time';
+        const cancelMessage = wasPendingCancellation
+          ? `Your booking on ${memberFormattedDate} at ${memberFormattedTime} has been cancelled and any charges have been refunded.`
+          : `Your booking on ${memberFormattedDate} at ${memberFormattedTime} has been cancelled. Any applicable charges have been refunded.`;
         
         await notifyMember(
           {
             userEmail: memberEmail,
             title: 'Booking Cancelled',
-            message: `Your booking on ${memberFormattedDate} at ${memberFormattedTime} has been cancelled and any charges have been refunded.`,
+            message: cancelMessage,
             type: 'booking_cancelled',
             relatedId: bookingId,
             relatedType: 'booking_request',
@@ -482,11 +485,11 @@ export async function cancelBookingByTrackmanId(
           }
         );
         
-        logger.info('[Trackman Webhook] Sent cancellation confirmation to member', {
-          extra: { bookingId, memberEmail, wasPendingCancellation: true }
+        logger.info('[Trackman Webhook] Sent cancellation notification to member', {
+          extra: { bookingId, memberEmail, wasPendingCancellation }
         });
       } catch (memberNotifyErr: unknown) {
-        logger.warn('[Trackman Webhook] Failed to send member cancellation confirmation', {
+        logger.warn('[Trackman Webhook] Failed to send member cancellation notification', {
           extra: { bookingId, memberEmail, error: (memberNotifyErr as Error).message }
         });
       }

@@ -218,6 +218,8 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
         v2Result.bayRef
       );
       
+      const isCancelledStatus = v2Result.normalized.status?.toLowerCase() === 'cancelled' || v2Result.normalized.status?.toLowerCase() === 'canceled';
+      
       if (v2Result.externalBookingId) {
         const linkResult = await linkByExternalBookingId(
           v2Result.externalBookingId,
@@ -236,7 +238,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
           
           if (resourceId) {
             const slotStatus: 'booked' | 'cancelled' | 'completed' = 
-              v2Result.normalized.status?.toLowerCase() === 'cancelled' ? 'cancelled' :
+              isCancelledStatus ? 'cancelled' :
               v2Result.normalized.status?.toLowerCase() === 'attended' ? 'completed' : 'booked';
             
             await updateBaySlotCache(
@@ -254,7 +256,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
           
           const bayName = resourceId ? `Bay ${resourceId}` : undefined;
           
-          if (linkResult.memberEmail) {
+          if (linkResult.memberEmail && !isCancelledStatus) {
             await notifyMemberBookingConfirmed(
               linkResult.memberEmail,
               linkResult.bookingId,
@@ -265,7 +267,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
           }
           
           logger.info('[Trackman Webhook] V2: Linked via externalBookingId', {
-            extra: { bookingId: matchedBookingId, trackmanBookingId, externalBookingId: v2Result.externalBookingId }
+            extra: { bookingId: matchedBookingId, trackmanBookingId, externalBookingId: v2Result.externalBookingId, status: v2Result.normalized.status }
           });
         } else if (resourceId && v2Result.normalized.parsedDate && v2Result.normalized.parsedStartTime) {
           // externalBookingId didn't match - try bay/date/time matching (handles timing issue where webhook arrives before staff pastes ID)
@@ -286,7 +288,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
             matchedUserId = bayTimeResult.memberEmail;
             
             const slotStatus: 'booked' | 'cancelled' | 'completed' = 
-              v2Result.normalized.status?.toLowerCase() === 'cancelled' ? 'cancelled' :
+              isCancelledStatus ? 'cancelled' :
               v2Result.normalized.status?.toLowerCase() === 'attended' ? 'completed' : 'booked';
             
             await updateBaySlotCache(
@@ -301,7 +303,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
               v2Result.normalized.playerCount
             );
             
-            if (bayTimeResult.memberEmail) {
+            if (bayTimeResult.memberEmail && !isCancelledStatus) {
               await notifyMemberBookingConfirmed(
                 bayTimeResult.memberEmail,
                 bayTimeResult.bookingId,
@@ -333,7 +335,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
           matchedUserId = bayTimeResult.memberEmail;
           
           const slotStatus: 'booked' | 'cancelled' | 'completed' = 
-            v2Result.normalized.status?.toLowerCase() === 'cancelled' ? 'cancelled' :
+            isCancelledStatus ? 'cancelled' :
             v2Result.normalized.status?.toLowerCase() === 'attended' ? 'completed' : 'booked';
           
           await updateBaySlotCache(
@@ -348,7 +350,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
             v2Result.normalized.playerCount
           );
           
-          if (bayTimeResult.memberEmail) {
+          if (bayTimeResult.memberEmail && !isCancelledStatus) {
             await notifyMemberBookingConfirmed(
               bayTimeResult.memberEmail,
               bayTimeResult.bookingId,
@@ -364,19 +366,20 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
         }
       }
       
-      // Handle cancellations for matched bookings (e.g. booking was matched earlier via externalBookingId or bay/date/time,
-      // and now Trackman sends a cancellation webhook for the same booking)
-      if (matchedBookingId && v2Result.normalized.status?.toLowerCase() === 'cancelled') {
+      // Handle cancellations for matched bookings — directly cancel the booking
+      // Note: cancelBookingByTrackmanId handles availability broadcast and member notification internally
+      if (matchedBookingId && isCancelledStatus) {
         const cancelResult = await cancelBookingByTrackmanId(v2Result.normalized.trackmanBookingId!);
         if (cancelResult.cancelled) {
-          logger.info('[Trackman Webhook] V2: Cancelled already-matched booking via Trackman webhook', {
+          logger.info('[Trackman Webhook] V2: Cancelled matched booking via Trackman webhook', {
             extra: { bookingId: matchedBookingId, trackmanBookingId: v2Result.normalized.trackmanBookingId }
           });
         }
       }
       
       if (!matchedBookingId && v2Result.normalized.parsedDate && v2Result.normalized.parsedStartTime) {
-        if (v2Result.normalized.status?.toLowerCase() === 'cancelled') {
+        if (isCancelledStatus) {
+          // cancelBookingByTrackmanId handles availability broadcast and member notification internally
           const cancelResult = await cancelBookingByTrackmanId(v2Result.normalized.trackmanBookingId!);
           if (cancelResult.cancelled) {
             matchedBookingId = cancelResult.bookingId;
