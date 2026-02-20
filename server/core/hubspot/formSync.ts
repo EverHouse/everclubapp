@@ -121,12 +121,15 @@ export async function syncHubSpotFormSubmissions(): Promise<{
 
   try {
     let accessToken: string;
+    let authSource: string;
     const privateAppToken = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
     if (privateAppToken) {
       accessToken = privateAppToken;
+      authSource = 'private_app';
     } else {
       try {
         accessToken = await getHubSpotAccessToken() as string;
+        authSource = 'connector';
       } catch (err: unknown) {
         const msg = `Failed to get HubSpot access token: ${getErrorMessage(err)}`;
         logger.error(`[HubSpot FormSync] ${msg}`);
@@ -134,6 +137,7 @@ export async function syncHubSpotFormSubmissions(): Promise<{
         return result;
       }
     }
+    logger.info(`[HubSpot FormSync] Using auth source: ${authSource}`);
 
     const sinceTimestamp = Date.now() - THIRTY_DAYS_MS;
 
