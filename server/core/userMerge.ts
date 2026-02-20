@@ -96,10 +96,6 @@ export async function previewMerge(primaryUserId: string, secondaryUserId: strin
     throw new Error('Cannot merge a user with themselves');
   }
   
-  if (secondaryUser.archivedAt) {
-    throw new Error('Secondary user has already been archived/merged');
-  }
-  
   const secondaryEmail = normalizeEmail(secondaryUser.email);
   
   // Count bookings (all booking requests for this user)
@@ -321,7 +317,6 @@ export async function executeMerge(
   if (!primaryUser) throw new Error('Primary user not found');
   if (!secondaryUser) throw new Error('Secondary user not found');
   if (primaryUserId === secondaryUserId) throw new Error('Cannot merge a user with themselves');
-  if (secondaryUser.archivedAt) throw new Error('Secondary user has already been archived/merged');
   
   const primaryEmail = normalizeEmail(primaryUser.email);
   const secondaryEmail = normalizeEmail(secondaryUser.email);
