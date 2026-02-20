@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { apiRequest } from '../../lib/apiRequest';
@@ -152,7 +152,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({
   const [apiRemainingSlots, setApiRemainingSlots] = useState<number>(Math.max(0, declaredPlayerCount - 1));
   const [apiCurrentParticipantCount, setApiCurrentParticipantCount] = useState<number>(1); // Owner counts as 1
 
-  const removingRef = useRef(false);
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [conflictDetails, setConflictDetails] = useState<BookingConflictDetails | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -163,7 +162,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({
   const remainingSlots = apiRemainingSlots;
 
   const fetchAllBookingData = useCallback(async () => {
-    if (removingRef.current) return;
     try {
       const [participantsRes, feeRes] = await Promise.all([
         apiRequest<ParticipantsResponse>(`/api/bookings/${bookingId}/participants`),
@@ -172,8 +170,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({
           { method: 'POST', headers: { 'Content-Type': 'application/json' } }
         )
       ]);
-
-      if (removingRef.current) return;
 
       if (participantsRes.ok && participantsRes.data) {
         const d = participantsRes.data;
@@ -297,60 +293,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
 
   const handleRemoveParticipant = async (participantId: number, displayName: string) => {
     setRemovingId(participantId);
-    removingRef.current = true;
     haptic.light();
-
-    const previousParticipants = [...participants];
-    const previousCount = apiCurrentParticipantCount;
-    const previousSlots = apiRemainingSlots;
-    const previousFeePreview = feePreview;
-
-    const newParticipants = participants.filter(p => p.id !== participantId);
-    setParticipants(newParticipants);
-    setApiCurrentParticipantCount(prev => Math.max(1, prev - 1));
-    setApiRemainingSlots(prev => prev + 1);
-
-    if (feePreview) {
-      const removedParticipant = participants.find(p => p.id === participantId);
-      if (removedParticipant) {
-        const matchIdx = feePreview.timeAllocation.allocations.findIndex(
-          a => a.displayName === removedParticipant.displayName &&
-               a.type === removedParticipant.participantType
-        );
-        if (matchIdx !== -1) {
-          const newAllocations = [...feePreview.timeAllocation.allocations];
-          newAllocations.splice(matchIdx, 1);
-          const divisor = Math.max(newAllocations.length, apiDeclaredPlayerCount);
-          const totalMinutes = feePreview.timeAllocation.totalMinutes;
-          const newMinutesPerParticipant = divisor > 0
-            ? Math.floor(totalMinutes / divisor)
-            : totalMinutes;
-          const updatedAllocations = newAllocations.map(a => ({
-            ...a,
-            minutes: newMinutesPerParticipant
-          }));
-
-          const wasGuest = removedParticipant.participantType === 'guest';
-          setFeePreview({
-            ...feePreview,
-            participants: {
-              ...feePreview.participants,
-              total: Math.max(1, feePreview.participants.total - 1),
-              guests: wasGuest ? Math.max(0, feePreview.participants.guests - 1) : feePreview.participants.guests,
-              members: !wasGuest ? Math.max(0, feePreview.participants.members - 1) : feePreview.participants.members,
-            },
-            timeAllocation: {
-              ...feePreview.timeAllocation,
-              minutesPerParticipant: newMinutesPerParticipant,
-              allocations: updatedAllocations,
-            },
-          });
-        }
-      }
-    }
-
-    haptic.success();
-    showToast(`${displayName} removed from booking`, 'success');
 
     try {
       const { ok, error } = await apiRequest(
@@ -358,26 +301,20 @@ const RosterManager: React.FC<RosterManagerProps> = ({
         { method: 'DELETE' }
       );
 
-      if (!ok) {
-        const isAbort = (error || '').toLowerCase().includes('abort');
-        if (!isAbort) {
-          setParticipants(previousParticipants);
-          setApiCurrentParticipantCount(previousCount);
-          setApiRemainingSlots(previousSlots);
-          setFeePreview(previousFeePreview);
-          haptic.error();
-          showToast(error || 'Failed to remove participant', 'error');
-        }
+      if (ok) {
+        haptic.success();
+        showToast(`${displayName} removed from booking`, 'success');
+        await fetchAllBookingData();
+        onUpdate?.();
+      } else {
+        haptic.error();
+        showToast(error || 'Failed to remove participant', 'error');
       }
     } catch {
-      // Network error — optimistic state likely correct, don't rollback
+      haptic.error();
+      showToast('Failed to remove participant', 'error');
     } finally {
       setRemovingId(null);
-      setTimeout(() => {
-        removingRef.current = false;
-        fetchAllBookingData();
-        onUpdate?.();
-      }, 600);
     }
   };
 

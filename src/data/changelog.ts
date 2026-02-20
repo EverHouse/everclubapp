@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.89.7",
+    date: "2026-02-20",
+    title: "Member Portal Roster Accuracy Overhaul",
+    changes: [
+      "Changed: Player removal now waits for server confirmation before updating the display — ensures roster, fees, and slot counts always show exactly what the server calculated, never a local guess",
+      "Changed: Remove button shows a loading spinner and blocks further removals until the server responds — prevents rapid-fire removals that could cause billing inconsistencies",
+      "Improved: Removed complex optimistic update and rollback code in favor of a simpler, more reliable server-first approach — fewer moving parts means fewer potential bugs",
+      "Maintained: Roster and fee data still load together in a single request — no cascading fetch race conditions",
+    ]
+  },
+  {
     version: "7.89.6",
     date: "2026-02-20",
     title: "Member Portal Roster Race Condition Fix",
