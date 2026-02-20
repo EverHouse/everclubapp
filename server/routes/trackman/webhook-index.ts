@@ -219,6 +219,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
       );
       
       const isCancelledStatus = v2Result.normalized.status?.toLowerCase() === 'cancelled' || v2Result.normalized.status?.toLowerCase() === 'canceled';
+      let isNewlyLinked = false;
       
       // Step 1: Try direct match via trackman_booking_id (staff paste the Trackman booking ID number to confirm bookings)
       if (v2Result.normalized.trackmanBookingId) {
@@ -237,6 +238,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
       }
       
       // Step 2: Try bay/date/time matching for unlinked bookings (webhook arrives before staff links)
+      // This also links trackman_booking_id to the booking for future webhook matching
       if (!matchedBookingId && resourceId && v2Result.normalized.parsedDate && v2Result.normalized.parsedStartTime) {
         const bayTimeResult = await tryMatchByBayDateTime(
           resourceId,
@@ -249,6 +251,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
         if (bayTimeResult.matched && bayTimeResult.bookingId) {
           matchedBookingId = bayTimeResult.bookingId;
           matchedUserId = bayTimeResult.memberEmail;
+          isNewlyLinked = true;
           
           logger.info('[Trackman Webhook] V2: Matched via bay/date/time', {
             extra: { bookingId: matchedBookingId, trackmanBookingId, resourceId }
@@ -275,8 +278,9 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
         );
       }
       
-      // Step 4: Notify member for non-cancellation matches
-      if (matchedBookingId && matchedUserId && !isCancelledStatus) {
+      // Step 4: Notify member only for NEWLY linked bookings (not already-linked ones to avoid duplicate notifications)
+      // Members already got notified when staff confirmed the booking, so only notify on new auto-links
+      if (isNewlyLinked && matchedBookingId && matchedUserId && !isCancelledStatus) {
         const bayName = resourceId ? `Bay ${resourceId}` : undefined;
         await notifyMemberBookingConfirmed(
           matchedUserId,
