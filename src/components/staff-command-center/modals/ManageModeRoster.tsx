@@ -382,6 +382,7 @@ export function ManageModeRoster({
         </div>
         <button
           onClick={() => handleManageModeQuickAddGuest(slotNumber)}
+          style={{ marginTop: '8px' }}
           disabled={isQuickAddingGuest}
           className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl font-semibold text-sm transition-all duration-fast active:scale-[0.98] border border-amber-500/30 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 tactile-btn"
         >
