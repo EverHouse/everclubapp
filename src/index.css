@@ -442,6 +442,38 @@ input, select, textarea {
   [class*="backdrop-blur"][class*="bg-black\\/"] {
     background-color: rgba(0, 0, 0, 0.7) !important;
   }
+
+  .dark [class*="backdrop-blur"][class*="bg-\\[\\#"] {
+    background-color: rgba(26, 29, 21, 0.95) !important;
+  }
+
+  [class*="backdrop-blur"][class*="bg-amber-"] {
+    background-color: rgba(245, 158, 11, 0.9) !important;
+  }
+
+  .dark [class*="backdrop-blur"][class*="bg-amber-"] {
+    background-color: rgba(180, 120, 10, 0.9) !important;
+  }
+
+  [class*="backdrop-blur"][class*="bg-gray-"] {
+    background-color: rgba(243, 244, 246, 0.95) !important;
+  }
+
+  .dark [class*="backdrop-blur"][class*="bg-gray-"] {
+    background-color: rgba(30, 33, 25, 0.95) !important;
+  }
+
+  [class*="backdrop-blur"][class*="bg-primary\\/"] {
+    background-color: rgba(41, 53, 21, 0.9) !important;
+  }
+
+  .dark [class*="backdrop-blur"][class*="bg-emerald-"] {
+    background-color: rgba(6, 78, 59, 0.9) !important;
+  }
+
+  [class*="backdrop-blur"][class*="bg-emerald-"] {
+    background-color: rgba(209, 250, 229, 0.9) !important;
+  }
 }
 
 /* ===== MOBILE PERFORMANCE OPTIMIZATIONS FOR GLASS EFFECTS ===== */
@@ -2460,6 +2492,38 @@ html.dark .border-accessible {
 
   [class*="backdrop-blur"][class*="bg-white\\/"] {
     background-color: rgba(255, 255, 255, 0.95) !important;
+  }
+
+  .dark [class*="backdrop-blur"][class*="bg-\\[\\#"] {
+    background-color: rgba(26, 29, 21, 0.95) !important;
+  }
+
+  [class*="backdrop-blur"][class*="bg-amber-"] {
+    background-color: rgba(245, 158, 11, 0.9) !important;
+  }
+
+  .dark [class*="backdrop-blur"][class*="bg-amber-"] {
+    background-color: rgba(180, 120, 10, 0.9) !important;
+  }
+
+  [class*="backdrop-blur"][class*="bg-gray-"] {
+    background-color: rgba(243, 244, 246, 0.95) !important;
+  }
+
+  .dark [class*="backdrop-blur"][class*="bg-gray-"] {
+    background-color: rgba(30, 33, 25, 0.95) !important;
+  }
+
+  [class*="backdrop-blur"][class*="bg-primary\\/"] {
+    background-color: rgba(41, 53, 21, 0.9) !important;
+  }
+
+  .dark [class*="backdrop-blur"][class*="bg-emerald-"] {
+    background-color: rgba(6, 78, 59, 0.9) !important;
+  }
+
+  [class*="backdrop-blur"][class*="bg-emerald-"] {
+    background-color: rgba(209, 250, 229, 0.9) !important;
   }
 }
 
