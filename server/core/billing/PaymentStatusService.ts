@@ -47,12 +47,56 @@ export class PaymentStatusService {
       );
       
       if (snapshotResult.rows.length === 0) {
-        // No snapshot found - might be a non-booking payment, just update stripe_payment_intents
         await client.query(
           `UPDATE stripe_payment_intents SET status = 'succeeded', updated_at = NOW() 
            WHERE stripe_payment_intent_id = $1`,
           [paymentIntentId]
         );
+
+        const piLookup = await client.query(
+          `SELECT booking_id, session_id, amount_cents FROM stripe_payment_intents WHERE stripe_payment_intent_id = $1`,
+          [paymentIntentId]
+        );
+
+        if (piLookup.rows.length > 0 && piLookup.rows[0].booking_id) {
+          const piRow = piLookup.rows[0];
+          const resolvedSessionId = piRow.session_id || (
+            await client.query(`SELECT session_id FROM booking_requests WHERE id = $1`, [piRow.booking_id])
+          ).rows[0]?.session_id;
+
+          if (resolvedSessionId) {
+            const pendingResult = await client.query(
+              `SELECT id, cached_fee_cents FROM booking_participants
+               WHERE session_id = $1 AND payment_status = 'pending' AND cached_fee_cents > 0
+               FOR UPDATE`,
+              [resolvedSessionId]
+            );
+
+            if (pendingResult.rows.length > 0) {
+              const pendingIds = pendingResult.rows.map((r: { id: number }) => r.id);
+              await client.query(
+                `UPDATE booking_participants
+                 SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = $2, cached_fee_cents = 0
+                 WHERE id = ANY($1::int[])`,
+                [pendingIds, paymentIntentId]
+              );
+
+              for (const row of pendingResult.rows) {
+                await client.query(
+                  `INSERT INTO booking_payment_audit
+                    (booking_id, session_id, participant_id, action, staff_email, staff_name, amount_affected, previous_status, new_status, stripe_payment_intent_id)
+                   VALUES ($1, $2, $3, 'payment_succeeded', $4, $5, $6, 'pending', 'paid', $7)`,
+                  [piRow.booking_id, resolvedSessionId, row.id, staffEmail || 'system', staffName || 'Auto-sync', row.cached_fee_cents || 0, paymentIntentId]
+                );
+              }
+
+              logger.info(`[PaymentStatusService] No-snapshot fallback: updated ${pendingIds.length} participant(s) for booking ${piRow.booking_id}`);
+              await client.query('COMMIT');
+              return { success: true, participantsUpdated: pendingIds.length, snapshotsUpdated: 0 };
+            }
+          }
+        }
+
         await client.query('COMMIT');
         return { success: true, participantsUpdated: 0, snapshotsUpdated: 0 };
       }

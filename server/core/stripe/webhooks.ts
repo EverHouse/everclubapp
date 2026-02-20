@@ -1180,6 +1180,39 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: S
     logger.info(`[Stripe Webhook] Fallback validated ${validatedParticipantIds.length} participants using DB cached fees`);
   }
 
+  if (validatedParticipantIds.length === 0 && !isNaN(bookingId) && metadata?.paymentType === 'booking_fee') {
+    logger.warn(`[Stripe Webhook] No snapshot or participantFees metadata for booking_fee PI ${id} — attempting booking-fee fallback`);
+    const fallbackResult = await client.query(
+      `SELECT bp.id, bp.cached_fee_cents FROM booking_participants bp
+       WHERE bp.session_id = (SELECT session_id FROM booking_requests WHERE id = $1)
+       AND bp.payment_status = 'pending' AND bp.cached_fee_cents > 0`,
+      [bookingId]
+    );
+
+    if (fallbackResult.rows.length > 0) {
+      const fallbackTotal = fallbackResult.rows.reduce((sum: number, r: { cached_fee_cents: number }) => sum + r.cached_fee_cents, 0);
+      const tolerance = Math.max(fallbackTotal * 0.05, 100);
+
+      if (Math.abs(fallbackTotal - amount) <= tolerance) {
+        for (const row of fallbackResult.rows) {
+          participantFees.push({ id: row.id, amountCents: row.cached_fee_cents });
+          validatedParticipantIds.push(row.id);
+        }
+        logger.info(`[Stripe Webhook] Booking-fee fallback: matched ${validatedParticipantIds.length} participant(s) for booking ${bookingId} (pending=${fallbackTotal}, paid=${amount})`);
+      } else {
+        logger.warn(`[Stripe Webhook] Booking-fee fallback: amount mismatch for booking ${bookingId} (pending=${fallbackTotal}, paid=${amount}, tolerance=${tolerance}) — skipping auto-update`);
+        if (!isNaN(sessionId)) {
+          await client.query(
+            `UPDATE booking_sessions SET needs_review = true, review_reason = $1 WHERE id = $2`,
+            [`Booking-fee fallback amount mismatch: pending fees ${fallbackTotal} cents vs payment ${amount} cents`, sessionId]
+          );
+        }
+      }
+    } else {
+      logger.info(`[Stripe Webhook] Booking-fee fallback: no pending participants found for booking ${bookingId}`);
+    }
+  }
+
   if (validatedParticipantIds.length > 0) {
     // Update participants directly by ID - we already validated them
     const updateResult = await client.query(

@@ -196,7 +196,7 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
     }
     
     const isBookingFee = metadata?.paymentType === 'booking_fee';
-    const finalMetadata = {
+    const finalMetadata: Record<string, string> = {
       ...(metadata || {}),
       source: metadata?.source || 'terminal',
       email: metadata?.ownerEmail || '',
@@ -204,6 +204,32 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
       readerId,
       readerLabel: metadata?.readerLabel || readerId,
     };
+
+    if (isBookingFee && metadata?.sessionId) {
+      try {
+        const pendingParticipants = await pool.query(
+          `SELECT id, cached_fee_cents FROM booking_participants
+           WHERE session_id = $1 AND payment_status = 'pending' AND cached_fee_cents > 0`,
+          [parseInt(metadata.sessionId)]
+        );
+        if (pendingParticipants.rows.length > 0) {
+          const fees = pendingParticipants.rows.map((r: { id: number; cached_fee_cents: number }) => ({
+            id: r.id,
+            amountCents: r.cached_fee_cents
+          }));
+          const serialized = JSON.stringify(fees);
+          if (serialized.length <= 490) {
+            finalMetadata.participantFees = serialized;
+          } else {
+            finalMetadata.participantFees = serialized.substring(0, 490);
+            logger.warn('[Terminal] participantFees metadata truncated due to size', { extra: { sessionId: metadata.sessionId, count: fees.length } });
+          }
+          logger.info('[Terminal] Attached participantFees to booking_fee PI metadata', { extra: { sessionId: metadata.sessionId, count: fees.length } });
+        }
+      } catch (pfErr: unknown) {
+        logger.warn('[Terminal] Could not attach participantFees to metadata (non-blocking)', { extra: { pfErr: getErrorMessage(pfErr) } });
+      }
+    }
 
     let finalDescription = description || 'Terminal payment';
     if (metadata?.bookingId) {
