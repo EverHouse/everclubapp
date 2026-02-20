@@ -56,3 +56,13 @@ Other: Trackman (Booking CSV/webhooks), Eventbrite, Google Sheets, OpenAI Vision
 
 Future Considerations
 Consult strategy-advisor and brainstorming before proposing major architectural shifts (e.g., Stripe Agent Toolkit integration).
+
+### Environment & Reference Variables
+Do not guess or hallucinate environment variables. We use specific naming conventions across the stack. Refer to the Replit Secrets and Configurations panel for actual values, but strictly use these keys in the code:
+Frontend (Vite/React): import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY
+
+Backend/Server Core: process.env.SUPABASE_URL, process.env.SERVICE_ROLE_KEY, process.env.SESSION_SECRET
+
+Feature Flags & App State: process.env.DEV_LOGIN_ENABLED, process.env.ENABLE_TEST_LOGIN, process.env.ENABLE_CORPORATE_BILLING, process.env.NODE_ENV
+
+Integrations: process.env.HUBSPOT_PORTAL_ID, process.env.HUBSPOT_PRIVATE_APP_TOKEN, process.env.RESEND_API_KEY, process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY
