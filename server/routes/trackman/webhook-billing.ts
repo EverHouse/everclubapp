@@ -63,7 +63,7 @@ export async function createBookingForMember(
 ): Promise<{ success: boolean; bookingId?: number; updated?: boolean }> {
   try {
     const existingBooking = await pool.query(
-      `SELECT id, duration_minutes, session_id FROM booking_requests WHERE trackman_booking_id = $1`,
+      `SELECT id, duration_minutes, session_id, status FROM booking_requests WHERE trackman_booking_id = $1`,
       [trackmanBookingId]
     );
     
@@ -72,32 +72,74 @@ export async function createBookingForMember(
       const newDuration = calculateDurationMinutes(startTime, endTime);
       
       if (oldDuration !== newDuration) {
+        const bookingId = existingBooking.rows[0].id;
+        const sessionId = existingBooking.rows[0].session_id;
+        const bookingStatus = existingBooking.rows[0].status;
+        
+        const isFinalized = ['attended', 'no_show', 'cancelled', 'cancellation_pending'].includes(bookingStatus || '');
+        let hasCompletedPayments = false;
+        if (sessionId) {
+          try {
+            const paymentCheck = await pool.query(
+              `SELECT EXISTS(
+                SELECT 1 FROM booking_fee_snapshots 
+                WHERE session_id = $1 AND status IN ('completed', 'paid')
+              ) AS has_snapshot,
+              EXISTS(
+                SELECT 1 FROM booking_participants 
+                WHERE session_id = $1 AND payment_status IN ('paid', 'refunded')
+              ) AS has_paid_participants`,
+              [sessionId]
+            );
+            hasCompletedPayments = paymentCheck.rows[0]?.has_snapshot || paymentCheck.rows[0]?.has_paid_participants;
+          } catch (checkErr: unknown) {
+            hasCompletedPayments = true;
+            logger.warn('[Trackman Webhook] FAIL-CLOSED: Could not check payment status, treating as frozen', {
+              extra: { bookingId, sessionId, error: String(checkErr) }
+            });
+          }
+        }
+        
+        if (isFinalized || hasCompletedPayments) {
+          const reason = hasCompletedPayments ? 'has completed payments' : `status is ${bookingStatus}`;
+          logger.info(`[Trackman Webhook] FROZEN: Skipping time/fee update - booking ${reason}`, {
+            extra: { bookingId, trackmanBookingId, oldDuration, newDuration }
+          });
+          await pool.query(
+            `UPDATE booking_requests 
+             SET trackman_player_count = $1, last_trackman_sync_at = NOW(), updated_at = NOW()
+             WHERE id = $2`,
+            [playerCount, bookingId]
+          );
+          return { success: true, bookingId, updated: false };
+        }
+        
         await pool.query(
           `UPDATE booking_requests 
            SET start_time = $1, end_time = $2, duration_minutes = $3, 
                trackman_player_count = $4, last_trackman_sync_at = NOW(), updated_at = NOW()
            WHERE id = $5`,
-          [startTime, endTime, newDuration, playerCount, existingBooking.rows[0].id]
+          [startTime, endTime, newDuration, playerCount, bookingId]
         );
         
-        if (existingBooking.rows[0].session_id) {
+        if (sessionId) {
           try {
             await pool.query(
               'UPDATE booking_sessions SET start_time = $1, end_time = $2 WHERE id = $3',
-              [startTime, endTime, existingBooking.rows[0].session_id]
+              [startTime, endTime, sessionId]
             );
-            await recalculateSessionFees(existingBooking.rows[0].session_id, 'trackman_webhook');
+            await recalculateSessionFees(sessionId, 'trackman_webhook');
             logger.info('[Trackman Webhook] Recalculated fees after duration change', {
-              extra: { sessionId: existingBooking.rows[0].session_id }
+              extra: { sessionId }
             });
           } catch (recalcErr: unknown) {
             logger.warn('[Trackman Webhook] Failed to recalculate fees', { 
-              extra: { sessionId: existingBooking.rows[0].session_id } 
+              extra: { sessionId } 
             });
           }
         }
         
-        return { success: true, bookingId: existingBooking.rows[0].id, updated: true };
+        return { success: true, bookingId, updated: true };
       }
       
       logger.info('[Trackman Webhook] Booking already exists and duration unchanged, skipping', { 

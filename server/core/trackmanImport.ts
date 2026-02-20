@@ -1719,7 +1719,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         userEmail: bookingRequests.userEmail,
         userName: bookingRequests.userName,
         origin: bookingRequests.origin,
-        isUnmatched: bookingRequests.isUnmatched
+        isUnmatched: bookingRequests.isUnmatched,
+        status: bookingRequests.status
       })
         .from(bookingRequests)
         .where(eq(bookingRequests.trackmanBookingId, row.bookingId))
@@ -1735,6 +1736,29 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           skippedAsPrivateEventBlocks++;
           continue;
         }
+        
+        const isFinalized = ['attended', 'no_show', 'cancelled', 'cancellation_pending'].includes(existing.status || '');
+        let hasCompletedPayments = false;
+        if (existing.sessionId) {
+          try {
+            const paymentCheck = await pool.query(
+              `SELECT EXISTS(
+                SELECT 1 FROM booking_fee_snapshots 
+                WHERE session_id = $1 AND status IN ('completed', 'paid')
+              ) AS has_snapshot,
+              EXISTS(
+                SELECT 1 FROM booking_participants 
+                WHERE session_id = $1 AND payment_status IN ('paid', 'refunded')
+              ) AS has_paid_participants`,
+              [existing.sessionId]
+            );
+            hasCompletedPayments = paymentCheck.rows[0]?.has_snapshot || paymentCheck.rows[0]?.has_paid_participants;
+          } catch (checkErr: unknown) {
+            hasCompletedPayments = true;
+            process.stderr.write(`[Trackman Import] FAIL-CLOSED: Could not check payment status for booking #${existing.id}, treating as frozen: ${getErrorMessage(checkErr)}\n`);
+          }
+        }
+        const financiallyFrozen = isFinalized || hasCompletedPayments;
         
         const isWebhookCreated = existing.origin === 'trackman_webhook';
         
@@ -1847,6 +1871,22 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         } else if (existing.isUnmatched && !matchedEmail && row.userName && row.userName !== 'Unknown' && !existing.userName?.includes(row.userName)) {
           updateFields.userName = row.userName;
           changes.push(`name: "${existing.userName}" -> "${row.userName}" (still unmatched)`);
+        }
+        
+        if (financiallyFrozen) {
+          const frozenFields = ['resourceId', 'startTime', 'endTime', 'durationMinutes'];
+          const strippedChanges: string[] = [];
+          for (const field of frozenFields) {
+            if (field in updateFields) {
+              delete updateFields[field];
+              strippedChanges.push(field);
+            }
+          }
+          changes = changes.filter(c => !c.startsWith('bay:') && !c.startsWith('start:') && !c.startsWith('end:') && !c.startsWith('duration:'));
+          if (strippedChanges.length > 0) {
+            const reason = hasCompletedPayments ? 'has completed payments' : `status is ${existing.status}`;
+            process.stderr.write(`[Trackman Import] FROZEN: Booking #${existing.id} ${reason} - skipped: ${strippedChanges.join(', ')}\n`);
+          }
         }
         
         // Always update sync tracking fields
@@ -2033,13 +2073,17 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             process.stderr.write(`[Trackman Import] Backfilled session for webhook booking #${existing.id} (Trackman ID: ${row.bookingId})\n`);
           }
         } else if (isWebhookCreated && existing.sessionId && parsedBayId && matchedEmail && existing.isUnmatched) {
-          try {
-            await recalculateSessionFees(existing.sessionId, 'approval');
-            process.stderr.write(`[Trackman Import] Recalculated fees for webhook booking #${existing.id} after member match (session #${existing.sessionId})\n`);
-          } catch (recalcErr: unknown) {
-            process.stderr.write(`[Trackman Import] Failed to recalculate fees for session #${existing.sessionId}: ${getErrorMessage(recalcErr)}\n`);
+          if (!financiallyFrozen) {
+            try {
+              await recalculateSessionFees(existing.sessionId, 'approval');
+              process.stderr.write(`[Trackman Import] Recalculated fees for webhook booking #${existing.id} after member match (session #${existing.sessionId})\n`);
+            } catch (recalcErr: unknown) {
+              process.stderr.write(`[Trackman Import] Failed to recalculate fees for session #${existing.sessionId}: ${getErrorMessage(recalcErr)}\n`);
+            }
+          } else {
+            process.stderr.write(`[Trackman Import] FROZEN: Skipped fee recalculation for booking #${existing.id} (session #${existing.sessionId}) - ${hasCompletedPayments ? 'has completed payments' : `status is ${existing.status}`}\n`);
           }
-          if (!isUpcoming && existing.sessionId) {
+          if (!isUpcoming && existing.sessionId && !hasCompletedPayments) {
             try {
               await db.execute(sql`
                 UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW()
@@ -3355,6 +3399,14 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         AND COALESCE(bp.cached_fee_cents, 0) > 0
         AND bs.session_date < CURRENT_DATE
         AND bp.user_id IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM booking_fee_snapshots bfs 
+          WHERE bfs.session_id = bs.id AND bfs.status IN ('completed', 'paid')
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM stripe_payment_intents spi 
+          WHERE spi.booking_id = bp.booking_id AND spi.status = 'succeeded'
+        )
     `);
     const ghostWaivedResult = await pool.query(`
       UPDATE booking_participants bp
