@@ -240,13 +240,22 @@ router.get('/api/admin/financials/summary', isStaffOrAdmin, async (req, res) => 
     // Overdue payments from booking sessions
     try {
       const overdueCount = await db.execute(sql`
-        SELECT COUNT(DISTINCT bs.booking_id) as count
-        FROM booking_sessions bs
-        JOIN booking_requests br ON br.id = bs.booking_id
-        WHERE bs.payment_status IN ('outstanding', 'partially_paid')
-        AND bs.cancelled_at IS NULL
-        AND bs.fee_status = 'finalized'
-        AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
+        SELECT COUNT(DISTINCT br.id) as count
+        FROM booking_requests br
+        WHERE br.session_id IS NOT NULL
+          AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+          AND br.request_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date - INTERVAL '30 days'
+          AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
+          AND NOT EXISTS (
+            SELECT 1 FROM booking_fee_snapshots bfs
+            WHERE bfs.session_id = br.session_id AND bfs.status IN ('completed', 'paid')
+          )
+          AND EXISTS (
+            SELECT 1 FROM booking_participants bp
+            WHERE bp.session_id = br.session_id
+              AND bp.payment_status = 'pending'
+              AND COALESCE(bp.cached_fee_cents, 0) > 0
+          )
       `);
       results.overduePaymentsCount = parseInt(String(overdueCount.rows[0]?.count || '0'));
     } catch { /* table may not exist */ }

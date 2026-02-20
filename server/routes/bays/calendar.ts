@@ -164,7 +164,7 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
           CASE 
             WHEN br.session_id IS NOT NULL 
               AND EXISTS (SELECT 1 FROM booking_participants bp2 WHERE bp2.session_id = br.session_id)
-              AND NOT EXISTS (SELECT 1 FROM booking_participants bp3 WHERE bp3.session_id = br.session_id AND bp3.payment_status = 'pending')
+              AND NOT EXISTS (SELECT 1 FROM booking_participants bp3 WHERE bp3.session_id = br.session_id AND bp3.payment_status = 'pending' AND COALESCE(bp3.cached_fee_cents, 0) > 0)
             THEN true
             ELSE false
           END as all_participants_paid
