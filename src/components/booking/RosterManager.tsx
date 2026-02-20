@@ -329,20 +329,19 @@ const RosterManager: React.FC<RosterManagerProps> = ({
         try { await fetchParticipants(); } catch { /* optimistic state is correct */ }
         onUpdate?.();
       } else {
-        setParticipants(previousParticipants);
-        haptic.error();
-        showToast(error || 'Failed to remove participant', 'error');
+        const isAbort = (error || '').toLowerCase().includes('abort');
+        if (isAbort) {
+          try { await fetchParticipants(); } catch { /* optimistic state is likely correct */ }
+          onUpdate?.();
+        } else {
+          setParticipants(previousParticipants);
+          haptic.error();
+          showToast(error || 'Failed to remove participant', 'error');
+        }
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '';
-      if (msg.includes('abort') || msg.includes('signal')) {
-        try { await fetchParticipants(); } catch { /* optimistic state is correct */ }
-        onUpdate?.();
-      } else {
-        setParticipants(previousParticipants);
-        haptic.error();
-        showToast('Failed to remove participant', 'error');
-      }
+    } catch {
+      try { await fetchParticipants(); } catch { /* optimistic state is likely correct */ }
+      onUpdate?.();
     } finally {
       setRemovingId(null);
     }
