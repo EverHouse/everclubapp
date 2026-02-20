@@ -23,6 +23,8 @@ export const changelog: ChangelogEntry[] = [
       "New: Staff can Quick Add Guest (+$25) with one click in manage mode — no guest info required, instantly adds a guest and recalculates booking fees",
       "Fixed: Staff-assigned Trackman bookings now properly calculate guest fees — guest participants are inserted into the billing system before fee calculation runs",
       "Improved: Guest participants added without a guest pass are tracked with 'pending' payment status until fees are settled at check-in or via prepayment",
+      "Fixed: Fee calculation now correctly charges the $25 guest fee when a member chooses 'Pay Guest Fee' instead of using a guest pass — previously the fee engine would automatically apply an available pass even when the member explicitly chose to pay",
+      "Cleaned up: Removed 3 orphaned backend routes and ~370 lines of dead code from the old per-guest Stripe checkout system",
     ]
   },
   {

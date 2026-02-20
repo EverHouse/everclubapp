@@ -117,6 +117,7 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
       email: string | null;
       displayName: string;
       participantType: 'owner' | 'member' | 'guest';
+      usedGuestPass?: boolean;
     }> = [];
     
     // Try to load participants from session first
@@ -128,7 +129,8 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
           bp.guest_id,
           u.email,
           bp.display_name,
-          bp.participant_type
+          bp.participant_type,
+          bp.used_guest_pass
          FROM booking_participants bp
          LEFT JOIN users u ON bp.user_id = u.id
          WHERE bp.session_id = $1
@@ -141,7 +143,8 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
         guestId: row.guest_id,
         email: row.email,
         displayName: row.display_name,
-        participantType: row.participant_type as 'owner' | 'member' | 'guest'
+        participantType: row.participant_type as 'owner' | 'member' | 'guest',
+        usedGuestPass: row.used_guest_pass ?? undefined
       }));
     }
     
@@ -643,7 +646,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         logger.info('[FeeBreakdown] Skipping guest fee for member marked as guest', {
           extra: { participantId: participant.participantId, userId: participant.userId }
         });
-      } else if (isRealNamedGuest && guestPassInfo.hasGuestPassBenefit && guestPassesRemaining > 0) {
+      } else if (isRealNamedGuest && guestPassInfo.hasGuestPassBenefit && guestPassesRemaining > 0 && participant.usedGuestPass !== false) {
         lineItem.guestPassUsed = true;
         guestPassesRemaining--;
         guestPassesUsed++;
