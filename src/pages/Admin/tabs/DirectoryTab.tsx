@@ -1067,7 +1067,6 @@ const DirectoryTab: React.FC = () => {
                                         </button>
                                     ))}
                                 </div>
-                            </div>
                         </div>
                         <button
                             onClick={() => { setFiltersOpen(!filtersOpen); setSortOpen(false); }}
