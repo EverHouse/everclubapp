@@ -178,7 +178,7 @@ const SimulatorTab: React.FC = () => {
     const [isSyncing, setIsSyncing] = useState(false);
     const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
     
-    const [rescheduleModal, setRescheduleModal] = useState<{ isOpen: boolean; booking: BookingRequest | null }>({ isOpen: false, booking: null });
+    const [rescheduleModal, setRescheduleModal] = useState<{ isOpen: boolean; booking: { id: number; userEmail: string | null; userName: string | null; resourceId: number | null; bayName: string | null; requestDate: string; startTime: string; endTime: string; durationMinutes: number | null; notes: string | null; trackmanBookingId?: string | null } | null }>({ isOpen: false, booking: null });
     const feeEstimateBookingId = actionModal === 'approve' && selectedRequest?.id ? selectedRequest.id : null;
     const { data: feeEstimate, isLoading: isFetchingFeeEstimate } = useFeeEstimate(feeEstimateBookingId);
     const [trackmanModal, setTrackmanModal] = useState<{ isOpen: boolean; booking: BookingRequest | null }>({ isOpen: false, booking: null });
@@ -1450,7 +1450,7 @@ const SimulatorTab: React.FC = () => {
               ownerMembershipStatus={bookingSheet.ownerMembershipStatus}
               onReschedule={(booking) => {
                 setBookingSheet({ isOpen: false, trackmanBookingId: null });
-                setRescheduleModal({ isOpen: true, booking: booking as any });
+                setRescheduleModal({ isOpen: true, booking: { id: booking.id, userEmail: booking.userEmail || null, userName: booking.userName || null, resourceId: booking.resourceId, bayName: booking.resourceName || null, requestDate: booking.requestDate, startTime: booking.startTime, endTime: booking.endTime, durationMinutes: null, notes: null } });
               }}
               onCancelBooking={async (bookingId) => {
                 const confirmed = await confirm({
@@ -1494,7 +1494,7 @@ const SimulatorTab: React.FC = () => {
               <RescheduleBookingModal
                 isOpen={rescheduleModal.isOpen}
                 onClose={() => setRescheduleModal({ isOpen: false, booking: null })}
-                booking={rescheduleModal.booking as any}
+                booking={rescheduleModal.booking}
                 resources={resources}
                 onSuccess={() => {
                   setRescheduleModal({ isOpen: false, booking: null });

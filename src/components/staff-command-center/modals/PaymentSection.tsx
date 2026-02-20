@@ -119,7 +119,7 @@ interface PaymentActionFooterProps {
   savingChanges: boolean;
   handleManageModeSave: () => void;
   onCheckIn?: (bookingId: number) => void | Promise<void>;
-  onReschedule?: (booking: { id: number; request_date: string; start_time: string; end_time: string; resource_id: number; resource_name?: string; user_name?: string; user_email?: string }) => void;
+  onReschedule?: (booking: { id: number; requestDate: string; startTime: string; endTime: string; resourceId: number; resourceName?: string; userName?: string; userEmail?: string }) => void;
   onCancelBooking?: (bookingId: number) => void;
   bookingContext?: { requestDate?: string; startTime?: string; endTime?: string; resourceId?: number; resourceName?: string };
   bookingStatus?: string;
@@ -201,13 +201,13 @@ export function PaymentActionFooter({
             if (!bookingId) return;
             onReschedule({
               id: bookingId,
-              request_date: bookingContext?.requestDate || bookingDate || '',
-              start_time: bookingContext?.startTime || '',
-              end_time: bookingContext?.endTime || '',
-              resource_id: bookingContext?.resourceId || 0,
-              resource_name: bookingContext?.resourceName || bayName || '',
-              user_name: ownerName || '',
-              user_email: ownerEmail || '',
+              requestDate: bookingContext?.requestDate || bookingDate || '',
+              startTime: bookingContext?.startTime || '',
+              endTime: bookingContext?.endTime || '',
+              resourceId: bookingContext?.resourceId || 0,
+              resourceName: bookingContext?.resourceName || bayName || '',
+              userName: ownerName || '',
+              userEmail: ownerEmail || '',
             });
           }}
           className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center gap-1"

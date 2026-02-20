@@ -8,7 +8,7 @@ interface BookingActionsProps {
   bookingContext?: BookingContextType;
   rosterData?: ManageModeRosterData | null;
   onCheckIn?: (bookingId: number) => void | Promise<void>;
-  onReschedule?: (booking: { id: number; request_date: string; start_time: string; end_time: string; resource_id: number; resource_name?: string; user_name?: string; user_email?: string }) => void;
+  onReschedule?: (booking: { id: number; requestDate: string; startTime: string; endTime: string; resourceId: number; resourceName?: string; userName?: string; userEmail?: string }) => void;
   onCancelBooking?: (bookingId: number) => void;
   ownerName?: string;
   ownerEmail?: string;
@@ -105,13 +105,13 @@ export function BookingActions({
           <button
             onClick={() => onReschedule({
               id: bookingId,
-              request_date: bookingContext?.requestDate || fetchedContext?.bookingDate || '',
-              start_time: bookingContext?.startTime || '',
-              end_time: bookingContext?.endTime || '',
-              resource_id: bookingContext?.resourceId || fetchedContext?.resourceId || 0,
-              resource_name: bookingContext?.resourceName || bayName || fetchedContext?.bayName,
-              user_name: ownerName || fetchedContext?.ownerName,
-              user_email: ownerEmail || fetchedContext?.ownerEmail,
+              requestDate: bookingContext?.requestDate || fetchedContext?.bookingDate || '',
+              startTime: bookingContext?.startTime || '',
+              endTime: bookingContext?.endTime || '',
+              resourceId: bookingContext?.resourceId || fetchedContext?.resourceId || 0,
+              resourceName: bookingContext?.resourceName || bayName || fetchedContext?.bayName,
+              userName: ownerName || fetchedContext?.ownerName,
+              userEmail: ownerEmail || fetchedContext?.ownerEmail,
             })}
             className="tactile-btn flex-1 py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
           >

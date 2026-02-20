@@ -8,16 +8,16 @@ interface RescheduleBookingModalProps {
   onClose: () => void;
   booking: {
     id: number;
-    user_email: string | null;
-    user_name: string | null;
-    resource_id: number | null;
-    bay_name: string | null;
-    request_date: string;
-    start_time: string;
-    end_time: string;
-    duration_minutes: number | null;
+    userEmail: string | null;
+    userName: string | null;
+    resourceId: number | null;
+    bayName: string | null;
+    requestDate: string;
+    startTime: string;
+    endTime: string;
+    durationMinutes: number | null;
     notes: string | null;
-    trackman_booking_id?: string | null;
+    trackmanBookingId?: string | null;
   } | null;
   resources: Array<{ id: number; name: string; type?: string }>;
   onSuccess: () => void;
@@ -45,8 +45,8 @@ export function RescheduleBookingModal({ isOpen, onClose, booking, resources, on
   const [rescheduleStarted, setRescheduleStarted] = useState(false);
 
   const isConferenceRoom = useMemo(() => {
-    if (!booking?.resource_id) return false;
-    const currentResource = resources.find(r => r.id === booking.resource_id);
+    if (!booking?.resourceId) return false;
+    const currentResource = resources.find(r => r.id === booking.resourceId);
     return currentResource?.type === 'conference_room';
   }, [booking, resources]);
 
@@ -56,7 +56,7 @@ export function RescheduleBookingModal({ isOpen, onClose, booking, resources, on
   );
 
   const newDuration = useMemo(() => calculateDuration(newStartTime, newEndTime), [newStartTime, newEndTime]);
-  const originalDuration = booking?.duration_minutes || 0;
+  const originalDuration = booking?.durationMinutes || 0;
   const durationChanged = newDuration > 0 && originalDuration > 0 && newDuration !== originalDuration;
 
   const newBayName = useMemo(() => {
@@ -67,10 +67,10 @@ export function RescheduleBookingModal({ isOpen, onClose, booking, resources, on
   useEffect(() => {
     if (isOpen && booking) {
       setStep(1);
-      setNewResourceId(booking.resource_id);
-      setNewDate(booking.request_date);
-      setNewStartTime(booking.start_time);
-      setNewEndTime(booking.end_time);
+      setNewResourceId(booking.resourceId);
+      setNewDate(booking.requestDate);
+      setNewStartTime(booking.startTime);
+      setNewEndTime(booking.endTime);
       setNewTrackmanId('');
       setErrorMsg(null);
       setIsConfirming(false);
@@ -174,19 +174,19 @@ export function RescheduleBookingModal({ isOpen, onClose, booking, resources, on
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <span className="text-gray-500 dark:text-gray-400">Member</span>
-                  <p className="font-medium text-primary dark:text-white">{booking.user_name || booking.user_email || 'Unknown'}</p>
+                  <p className="font-medium text-primary dark:text-white">{booking.userName || booking.userEmail || 'Unknown'}</p>
                 </div>
                 <div>
                   <span className="text-gray-500 dark:text-gray-400">{isConferenceRoom ? 'Room' : 'Bay'}</span>
-                  <p className="font-medium text-primary dark:text-white">{booking.bay_name || 'Unassigned'}</p>
+                  <p className="font-medium text-primary dark:text-white">{booking.bayName || 'Unassigned'}</p>
                 </div>
                 <div>
                   <span className="text-gray-500 dark:text-gray-400">Date</span>
-                  <p className="font-medium text-primary dark:text-white">{formatDateDisplayWithDay(booking.request_date)}</p>
+                  <p className="font-medium text-primary dark:text-white">{formatDateDisplayWithDay(booking.requestDate)}</p>
                 </div>
                 <div>
                   <span className="text-gray-500 dark:text-gray-400">Time</span>
-                  <p className="font-medium text-primary dark:text-white">{formatTime12Hour(booking.start_time)} – {formatTime12Hour(booking.end_time)}</p>
+                  <p className="font-medium text-primary dark:text-white">{formatTime12Hour(booking.startTime)} – {formatTime12Hour(booking.endTime)}</p>
                 </div>
               </div>
             </div>
@@ -286,7 +286,7 @@ export function RescheduleBookingModal({ isOpen, onClose, booking, resources, on
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <span className="text-blue-500/70 dark:text-blue-400/70">Member</span>
-                  <p className="font-medium text-blue-800 dark:text-blue-200">{booking.user_name || booking.user_email || 'Unknown'}</p>
+                  <p className="font-medium text-blue-800 dark:text-blue-200">{booking.userName || booking.userEmail || 'Unknown'}</p>
                 </div>
                 <div>
                   <span className="text-blue-500/70 dark:text-blue-400/70">{isConferenceRoom ? 'Room' : 'Bay'}</span>
