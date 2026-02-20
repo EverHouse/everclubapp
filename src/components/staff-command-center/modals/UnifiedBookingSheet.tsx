@@ -222,6 +222,8 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                   handleManageModeLinkMember={logic.handleManageModeLinkMember}
                   handleManageModeAddGuest={logic.handleManageModeAddGuest}
                   handleManageModeMemberMatchResolve={logic.handleManageModeMemberMatchResolve}
+                  handleManageModeQuickAddGuest={logic.handleManageModeQuickAddGuest}
+                  isQuickAddingGuest={logic.isQuickAddingGuest}
                   renderTierBadge={logic.renderTierBadge}
                   isReassigningOwner={logic.isReassigningOwner}
                   reassignSearchOpen={logic.reassignSearchOpen}

@@ -24,6 +24,8 @@ interface ManageModeRosterProps {
   handleManageModeLinkMember: (slotId: number, memberEmail: string) => Promise<void>;
   handleManageModeAddGuest: (slotNumber: number, forceAddAsGuest?: boolean) => Promise<void>;
   handleManageModeMemberMatchResolve: (action: 'member' | 'guest') => Promise<void>;
+  handleManageModeQuickAddGuest: (slotNumber: number) => Promise<void>;
+  isQuickAddingGuest: boolean;
   renderTierBadge: (tier: string | null | undefined, membershipStatus?: string | null) => React.ReactNode;
   isReassigningOwner: boolean;
   reassignSearchOpen: boolean;
@@ -54,6 +56,8 @@ export function ManageModeRoster({
   handleManageModeLinkMember,
   handleManageModeAddGuest,
   handleManageModeMemberMatchResolve,
+  handleManageModeQuickAddGuest,
+  isQuickAddingGuest,
   renderTierBadge,
   isReassigningOwner,
   reassignSearchOpen,
@@ -376,6 +380,20 @@ export function ManageModeRoster({
             </button>
           </div>
         </div>
+        <button
+          onClick={() => handleManageModeQuickAddGuest(slotNumber)}
+          disabled={isQuickAddingGuest}
+          className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl font-semibold text-sm transition-all duration-fast active:scale-[0.98] border border-amber-500/30 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 tactile-btn"
+        >
+          {isQuickAddingGuest ? (
+            <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <>
+              <span className="material-symbols-outlined text-lg">person_add</span>
+              Quick Add Guest (+${guestFeeDollars})
+            </>
+          )}
+        </button>
       </div>
     );
   };

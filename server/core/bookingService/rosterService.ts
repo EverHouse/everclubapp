@@ -735,6 +735,7 @@ export interface AddParticipantParams {
   userEmail: string;
   sessionUserId?: string;
   deferFeeRecalc?: boolean;
+  useGuestPass?: boolean;
 }
 
 export interface AddParticipantResult {
@@ -1050,18 +1051,6 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
         displayName,
       };
     } else {
-      await ensureGuestPassRecord(booking.owner_email, ownerTier || undefined);
-
-      const guestPassResult = await useGuestPass(booking.owner_email, guest!.name, true);
-      if (!guestPassResult.success) {
-        await client.query('ROLLBACK');
-        throw createServiceError(
-          guestPassResult.error || 'No guest passes remaining',
-          400,
-          { errorType: 'no_guest_passes' }
-        );
-      }
-
       const guestId = await createOrFindGuest(
         guest!.name,
         guest!.email,
@@ -1069,36 +1058,62 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
         sessionUserId || userEmail
       );
 
-      participantInput = {
-        guestId,
-        participantType: 'guest',
-        displayName: guest!.name,
-      };
-
-      logger.info('[rosterService] Guest pass decremented', {
-        extra: {
-          bookingId,
-          ownerEmail: booking.owner_email,
-          guestName: guest!.name,
-          remainingPasses: guestPassResult.remaining
+      if (params.useGuestPass !== false) {
+        await ensureGuestPassRecord(booking.owner_email, ownerTier || undefined);
+        const guestPassResult = await useGuestPass(booking.owner_email, guest!.name, true);
+        if (!guestPassResult.success) {
+          await client.query('ROLLBACK');
+          throw createServiceError(
+            guestPassResult.error || 'No guest passes remaining',
+            400,
+            { errorType: 'no_guest_passes' }
+          );
         }
-      });
+
+        participantInput = {
+          guestId,
+          participantType: 'guest',
+          displayName: guest!.name,
+        };
+
+        logger.info('[rosterService] Guest pass decremented', {
+          extra: {
+            bookingId,
+            ownerEmail: booking.owner_email,
+            guestName: guest!.name,
+            remainingPasses: guestPassResult.remaining
+          }
+        });
+      } else {
+        participantInput = {
+          guestId,
+          participantType: 'guest',
+          displayName: guest!.name,
+        };
+      }
     }
 
     const [newParticipant] = await linkParticipants(sessionId, [participantInput]);
 
     let guestPassesRemaining: number | undefined;
     if (type === 'guest' && newParticipant) {
-      await client.query(
-        `UPDATE booking_participants SET payment_status = 'paid' WHERE id = $1`,
-        [newParticipant.id]
-      );
+      if (params.useGuestPass !== false) {
+        await client.query(
+          `UPDATE booking_participants SET payment_status = 'paid', used_guest_pass = true WHERE id = $1`,
+          [newParticipant.id]
+        );
 
-      const passResult = await client.query(
-        `SELECT passes_total - passes_used as remaining FROM guest_passes WHERE LOWER(member_email) = LOWER($1)`,
-        [booking.owner_email]
-      );
-      guestPassesRemaining = passResult.rows[0]?.remaining ?? 0;
+        const passResult = await client.query(
+          `SELECT passes_total - passes_used as remaining FROM guest_passes WHERE LOWER(member_email) = LOWER($1)`,
+          [booking.owner_email]
+        );
+        guestPassesRemaining = passResult.rows[0]?.remaining ?? 0;
+      } else {
+        await client.query(
+          `UPDATE booking_participants SET payment_status = 'pending', used_guest_pass = false WHERE id = $1`,
+          [newParticipant.id]
+        );
+      }
     }
 
     if (type === 'guest' && guest) {

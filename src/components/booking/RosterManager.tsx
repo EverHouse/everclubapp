@@ -787,9 +787,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({
       {showGuestPaymentChoiceModal && booking && (
         <GuestPaymentChoiceModal
           bookingId={bookingId}
-          sessionId={booking.sessionId}
-          ownerEmail={booking.ownerEmail}
-          ownerName={booking.ownerName}
           guestPassesRemaining={guestPassesRemaining}
           onSuccess={(name: string) => {
             haptic.success();

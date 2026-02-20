@@ -1,48 +1,22 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { apiRequest } from '../../lib/apiRequest';
-import { StripePaymentForm } from '../stripe/StripePaymentForm';
 import SlideUpDrawer from '../SlideUpDrawer';
 import Input from '../Input';
 import { usePricing } from '../../hooks/usePricing';
 
 interface GuestPaymentChoiceModalProps {
   bookingId: number;
-  sessionId: number | null;
   guestName?: string;
   guestEmail?: string;
-  ownerEmail: string;
-  ownerName: string;
   guestPassesRemaining: number;
   onSuccess: (guestName: string) => void;
   onError?: (error: string) => void;
   onClose: () => void;
 }
 
-interface GuestAddResponse {
-  success: boolean;
-  participantId: number;
-  guestId: number;
-  passesRemaining?: number;
-}
-
-interface PaymentInitResponse {
-  clientSecret?: string;
-  paymentIntentId?: string;
-  amount: number;
-  participantId: number;
-  paidInFull?: boolean;
-  balanceApplied?: number;
-  remainingCents?: number;
-}
-
 export function GuestPaymentChoiceModal({
   bookingId,
-  sessionId,
-  guestName: initialGuestName,
-  guestEmail: initialGuestEmail,
-  ownerEmail,
-  ownerName,
   guestPassesRemaining,
   onSuccess,
   onError,
@@ -52,18 +26,15 @@ export function GuestPaymentChoiceModal({
   const isDark = effectiveTheme === 'dark';
   const { guestFeeDollars } = usePricing();
 
-  const [step, setStep] = useState<'choice' | 'guest-info' | 'payment'>('choice');
+  const [step, setStep] = useState<'choice' | 'guest-info'>('choice');
+  const [selectedMethod, setSelectedMethod] = useState<'guest_pass' | 'pay_fee' | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paymentData, setPaymentData] = useState<PaymentInitResponse | null>(null);
-  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
 
   const [guestFirstName, setGuestFirstName] = useState('');
   const [guestLastName, setGuestLastName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [guestEmailError, setGuestEmailError] = useState<string | undefined>(undefined);
-
-  const [activeGuestName, setActiveGuestName] = useState(initialGuestName || 'Guest');
 
   const validateGuestEmail = (value: string): string | undefined => {
     if (!value.trim()) return 'Email is required for guest tracking';
@@ -82,24 +53,7 @@ export function GuestPaymentChoiceModal({
 
   const guestInfoValid = guestFirstName.trim() && guestLastName.trim() && guestEmail.trim() && !validateGuestEmail(guestEmail);
 
-  const handleClose = async () => {
-    if (step === 'payment' && paymentData) {
-      try {
-        await apiRequest(
-          `/api/bookings/${bookingId}/cancel-guest-payment`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              participantId: paymentData.participantId,
-              paymentIntentId: paymentData.paymentIntentId
-            })
-          }
-        );
-      } catch (err: unknown) {
-        console.error('[GuestPaymentChoice] Error cancelling payment:', err);
-      }
-    }
+  const handleClose = () => {
     onClose();
   };
 
@@ -114,7 +68,7 @@ export function GuestPaymentChoiceModal({
 
     onSuccess(fullName);
 
-    apiRequest<GuestAddResponse>(
+    apiRequest(
       `/api/bookings/${bookingId}/participants`,
       {
         method: 'POST',
@@ -145,80 +99,43 @@ export function GuestPaymentChoiceModal({
     });
   };
 
-  const handlePayFee = async () => {
+  const handleAddPaidGuest = async () => {
+    const emailError = validateGuestEmail(guestEmail);
+    if (emailError) {
+      setGuestEmailError(emailError);
+      return;
+    }
+    const fullName = `${guestFirstName.trim()} ${guestLastName.trim()}`;
     setLoading(true);
     setError(null);
-
-    const gName = 'Guest';
-    setActiveGuestName(gName);
-
     try {
-      const { ok, data, error: apiError } = await apiRequest<PaymentInitResponse>(
-        `/api/bookings/${bookingId}/guest-fee-checkout`,
+      const { ok, error: apiError } = await apiRequest(
+        `/api/bookings/${bookingId}/participants`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            guestName: gName,
-            guestEmail: `guest-${Date.now()}@guest.local`
+            type: 'guest',
+            guest: { name: fullName, email: guestEmail.trim() },
+            useGuestPass: false
           })
         }
       );
-
-      if (ok && data) {
-        if (data.paidInFull) {
-          onSuccess(gName);
-          return;
-        }
-        setPaymentData(data);
-        setPaymentIntentId(data.paymentIntentId || null);
-        setStep('payment');
+      if (ok) {
+        onSuccess(fullName);
       } else {
-        setError(apiError || 'Failed to initialize payment');
+        setError(apiError || 'Failed to add guest');
       }
     } catch (err: unknown) {
-      setError((err instanceof Error ? err.message : String(err)) || 'Failed to initialize payment');
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to add guest');
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePaymentSuccess = async () => {
-    if (!paymentIntentId || !paymentData) {
-      onSuccess(activeGuestName);
-      return;
-    }
-
-    try {
-      const { ok, error: confirmError } = await apiRequest(
-        `/api/bookings/${bookingId}/confirm-guest-payment`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            paymentIntentId,
-            participantId: paymentData.participantId
-          })
-        }
-      );
-
-      if (!ok) {
-        console.error('[GuestPaymentChoice] Failed to confirm payment:', confirmError);
-        setError(confirmError || 'Payment succeeded but confirmation failed. Please contact support.');
-        return;
-      }
-
-      onSuccess(activeGuestName);
-    } catch (err: unknown) {
-      console.error('[GuestPaymentChoice] Error confirming payment:', err);
-      setError((err instanceof Error ? err.message : String(err)) || 'Payment succeeded but confirmation failed. Please contact support.');
-    }
-  };
-
   const getTitle = () => {
     if (step === 'choice') return 'Add Guest';
-    if (step === 'guest-info') return 'Guest Information';
-    return 'Pay Guest Fee';
+    return 'Guest Information';
   };
 
   return (
@@ -243,7 +160,7 @@ export function GuestPaymentChoiceModal({
 
             <div className="space-y-3">
               <button
-                onClick={() => setStep('guest-info')}
+                onClick={() => { setSelectedMethod('guest_pass'); setStep('guest-info'); }}
                 disabled={loading || guestPassesRemaining <= 0}
                 className={`w-full p-4 rounded-xl border-2 transition-all duration-fast flex items-start gap-4 tactile-btn ${
                   guestPassesRemaining > 0
@@ -291,7 +208,7 @@ export function GuestPaymentChoiceModal({
               </button>
 
               <button
-                onClick={handlePayFee}
+                onClick={() => { setSelectedMethod('pay_fee'); setStep('guest-info'); }}
                 disabled={loading}
                 className={`w-full p-4 rounded-xl border-2 transition-all duration-fast flex items-start gap-4 tactile-btn ${
                   isDark
@@ -315,9 +232,6 @@ export function GuestPaymentChoiceModal({
                     ${guestFeeDollars.toFixed(2)}
                   </p>
                 </div>
-                {loading && (
-                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                )}
               </button>
             </div>
           </div>
@@ -328,6 +242,7 @@ export function GuestPaymentChoiceModal({
             <button
               onClick={() => {
                 setStep('choice');
+                setSelectedMethod(null);
                 setError(null);
               }}
               className={`flex items-center gap-1 text-sm font-medium transition-colors ${
@@ -338,16 +253,31 @@ export function GuestPaymentChoiceModal({
               Back
             </button>
 
-            <div className={`p-3 rounded-xl ${isDark ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-emerald-50 border border-emerald-200'}`}>
-              <div className="flex items-center gap-2">
-                <span className={`material-symbols-outlined text-lg ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                  confirmation_number
-                </span>
-                <p className={`text-sm font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
-                  Using Guest Pass ({guestPassesRemaining} remaining)
-                </p>
+            {selectedMethod === 'guest_pass' && (
+              <div className={`p-3 rounded-xl ${isDark ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-emerald-50 border border-emerald-200'}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`material-symbols-outlined text-lg ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                    confirmation_number
+                  </span>
+                  <p className={`text-sm font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                    Using Guest Pass ({guestPassesRemaining} remaining)
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
+
+            {selectedMethod === 'pay_fee' && (
+              <div className={`p-3 rounded-xl ${isDark ? 'bg-[#CCB8E4]/10 border border-[#CCB8E4]/20' : 'bg-[#CCB8E4]/10 border border-[#CCB8E4]/30'}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`material-symbols-outlined text-lg ${isDark ? 'text-[#CCB8E4]' : 'text-[#5a4a6d]'}`}>
+                    credit_card
+                  </span>
+                  <p className={`text-sm font-medium ${isDark ? 'text-[#CCB8E4]' : 'text-[#5a4a6d]'}`}>
+                    Guest Fee: ${guestFeeDollars.toFixed(2)} will be added to booking fees
+                  </p>
+                </div>
+              </div>
+            )}
 
             <Input
               label="First Name"
@@ -382,11 +312,13 @@ export function GuestPaymentChoiceModal({
             />
 
             <button
-              onClick={handleUseGuestPass}
+              onClick={selectedMethod === 'guest_pass' ? handleUseGuestPass : handleAddPaidGuest}
               disabled={!guestInfoValid || loading}
               className={`w-full py-3 px-4 rounded-xl font-bold text-sm transition-all duration-fast flex items-center justify-center gap-2 ${
                 guestInfoValid && !loading
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98]'
+                  ? selectedMethod === 'guest_pass'
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98]'
+                    : 'bg-[#CCB8E4] text-[#293515] hover:bg-[#baa6d6] active:scale-[0.98]'
                   : isDark
                     ? 'bg-white/10 text-white/40 cursor-not-allowed'
                     : 'bg-black/5 text-black/30 cursor-not-allowed'
@@ -394,54 +326,18 @@ export function GuestPaymentChoiceModal({
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : (
+              ) : selectedMethod === 'guest_pass' ? (
                 <>
                   <span className="material-symbols-outlined text-lg">confirmation_number</span>
                   Use Guest Pass
                 </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-lg">credit_card</span>
+                  Add Guest (${guestFeeDollars.toFixed(2)} fee)
+                </>
               )}
             </button>
-          </div>
-        )}
-
-        {step === 'payment' && paymentData && (
-          <div className="space-y-4">
-            <div className={`rounded-xl p-4 ${isDark ? 'bg-white/5' : 'bg-primary/5'}`}>
-              <h4 className={`text-sm font-bold mb-3 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
-                Guest Fee
-              </h4>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                    isDark
-                      ? 'bg-amber-500/20 text-amber-400'
-                      : 'bg-amber-100 text-amber-700'
-                  }`}>
-                    G
-                  </span>
-                  <span className={`text-sm ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
-                    {activeGuestName}
-                  </span>
-                </div>
-                <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-primary'}`}>
-                  ${(paymentData.amount / 100).toFixed(2)}
-                </span>
-              </div>
-            </div>
-
-            <StripePaymentForm
-              amount={paymentData.amount / 100}
-              description={`Guest fee for ${activeGuestName}`}
-              userId={ownerEmail}
-              userEmail={ownerEmail}
-              memberName={ownerName}
-              purpose="guest_fee"
-              bookingId={bookingId}
-              sessionId={sessionId || undefined}
-              participantFees={[{ id: paymentData.participantId, amount: paymentData.amount / 100 }]}
-              onSuccess={handlePaymentSuccess}
-              onCancel={handleClose}
-            />
           </div>
         )}
       </div>

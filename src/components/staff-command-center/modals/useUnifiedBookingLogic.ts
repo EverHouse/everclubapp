@@ -132,6 +132,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   const [deleting, setDeleting] = useState(false);
   const [reassignSearchOpen, setReassignSearchOpen] = useState(false);
   const [isReassigningOwner, setIsReassigningOwner] = useState(false);
+  const [isQuickAddingGuest, setIsQuickAddingGuest] = useState(false);
 
   const isManageMode = mode === 'manage';
 
@@ -1237,6 +1238,31 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     }
   };
 
+  const handleManageModeQuickAddGuest = async (slotNumber: number) => {
+    if (!bookingId) return;
+    setIsQuickAddingGuest(true);
+    try {
+      const res = await fetch(`/api/admin/booking/${bookingId}/guests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ quickAdd: true }),
+      });
+      if (res.ok) {
+        showToast('Guest added', 'success');
+        setRosterDirty(true);
+        await fetchRosterData();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || 'Failed to add guest', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to add guest', 'error');
+    } finally {
+      setIsQuickAddingGuest(false);
+    }
+  };
+
   const handleReassignOwner = useCallback(async (newMemberEmail: string) => {
     if (!bookingId) {
       showToast('No booking ID found', 'error');
@@ -1388,5 +1414,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     setReassignSearchOpen,
     isReassigningOwner,
     handleReassignOwner,
+    isQuickAddingGuest,
+    handleManageModeQuickAddGuest,
   };
 }

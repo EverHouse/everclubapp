@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.88",
+    date: "2026-02-20",
+    title: "Unified Guest Fee Architecture & Staff Quick Add Guest",
+    isMajor: true,
+    changes: [
+      "Fixed: 'Pay Guest Fee' on the member portal no longer forces a separate $25 Stripe payment per guest — guest fees now appear as line items in the booking's fee breakdown, payable together with overage fees through the existing 'Pay Now' button",
+      "New: Both 'Use Guest Pass' and 'Pay Guest Fee' now collect guest name and email before adding — this ensures all guests are properly tracked in the system",
+      "New: Staff can Quick Add Guest (+$25) with one click in manage mode — no guest info required, instantly adds a guest and recalculates booking fees",
+      "Fixed: Staff-assigned Trackman bookings now properly calculate guest fees — guest participants are inserted into the billing system before fee calculation runs",
+      "Improved: Guest participants added without a guest pass are tracked with 'pending' payment status until fees are settled at check-in or via prepayment",
+    ]
+  },
+  {
     version: "7.87.1",
     date: "2026-02-20",
     title: "Trackman Webhook Simplification & Cancellation Fixes",

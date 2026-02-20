@@ -1104,17 +1104,12 @@ export async function linkTrackmanToMember(
     return { booking, created, sessionId };
   });
   
+  let finalSessionId: number | null = result.sessionId || null;
+
   if (result.sessionId) {
-    try {
-      await recalculateSessionFees(result.sessionId, 'approval');
-      logger.info('[link-trackman-to-member] Recalculated fees after member assignment', {
-        extra: { bookingId: result.booking.id, sessionId: result.sessionId, newOwner: ownerEmail }
-      });
-    } catch (recalcErr: unknown) {
-      logger.warn('[link-trackman-to-member] Failed to recalculate fees after assignment', {
-        extra: { bookingId: result.booking.id, sessionId: result.sessionId, error: recalcErr }
-      });
-    }
+    logger.info('[link-trackman-to-member] Using existing session', {
+      extra: { bookingId: result.booking.id, sessionId: result.sessionId }
+    });
   } else {
     try {
       const booking = result.booking;
@@ -1131,6 +1126,7 @@ export async function linkTrackmanToMember(
         createdBy: staffEmail
       });
       if (sessionResult.sessionId) {
+        finalSessionId = sessionResult.sessionId;
         await db.update(bookingRequests).set({ sessionId: sessionResult.sessionId }).where(eq(bookingRequests.id, booking.id));
         logger.info('[link-trackman-to-member] Created new session after member assignment', {
           extra: { bookingId: booking.id, sessionId: sessionResult.sessionId, ownerEmail, ownerName }
@@ -1142,7 +1138,57 @@ export async function linkTrackmanToMember(
       });
     }
   }
-  
+
+  if (finalSessionId && additionalPlayers.length > 0) {
+    try {
+      const durationMinutes = result.booking.durationMinutes || 60;
+      const slotDuration = Math.floor(durationMinutes / Math.max(totalPlayerCount, 1));
+
+      for (const player of additionalPlayers) {
+        if (player.type === 'guest_placeholder') {
+          await pool.query(
+            `INSERT INTO booking_participants (session_id, participant_type, display_name, slot_duration, payment_status, used_guest_pass, created_at)
+             VALUES ($1, 'guest', $2, $3, 'pending', false, NOW())`,
+            [finalSessionId, player.guest_name || 'Guest (info pending)', slotDuration]
+          );
+        } else if (player.type === 'member' && player.email) {
+          const memberLookup = await pool.query(
+            `SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+            [player.email]
+          );
+          const memberRow = memberLookup.rows[0];
+          const displayName = memberRow ? [memberRow.first_name, memberRow.last_name].filter(Boolean).join(' ') || player.email : player.email;
+          await pool.query(
+            `INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, payment_status, created_at)
+             VALUES ($1, $2, 'member', $3, $4, 'pending', NOW())`,
+            [finalSessionId, memberRow?.id || null, displayName, slotDuration]
+          );
+        }
+      }
+
+      logger.info('[link-trackman-to-member] Added additional player participants', {
+        extra: { bookingId: result.booking.id, sessionId: finalSessionId, additionalCount: additionalPlayers.length }
+      });
+    } catch (partErr: unknown) {
+      logger.warn('[link-trackman-to-member] Failed to add additional player participants', {
+        extra: { bookingId: result.booking.id, sessionId: finalSessionId, error: partErr }
+      });
+    }
+  }
+
+  if (finalSessionId) {
+    try {
+      await recalculateSessionFees(finalSessionId, 'approval');
+      logger.info('[link-trackman-to-member] Recalculated fees after member assignment', {
+        extra: { bookingId: result.booking.id, sessionId: finalSessionId, newOwner: ownerEmail }
+      });
+    } catch (recalcErr: unknown) {
+      logger.warn('[link-trackman-to-member] Failed to recalculate fees after assignment', {
+        extra: { bookingId: result.booking.id, sessionId: finalSessionId, error: recalcErr }
+      });
+    }
+  }
+
   const { broadcastToStaff } = await import('./websocket');
   broadcastToStaff({
     type: 'booking_updated',
@@ -1591,6 +1637,40 @@ export async function assignWithPlayers(
     return { booking: updated, sessionId: existingBooking.sessionId };
   });
   
+  if (result.sessionId && additionalPlayers.length > 0) {
+    try {
+      const durationMinutes = Number(result.booking.durationMinutes) || 60;
+      const slotDuration = Math.floor(durationMinutes / Math.max(totalPlayerCount, 1));
+      for (const player of additionalPlayers) {
+        if (player.type === 'guest_placeholder') {
+          await pool.query(
+            `INSERT INTO booking_participants (session_id, participant_type, display_name, slot_duration, payment_status, used_guest_pass, created_at)
+             VALUES ($1, 'guest', $2, $3, 'pending', false, NOW())`,
+            [result.sessionId, player.guest_name || 'Guest (info pending)', slotDuration]
+          );
+        } else if (player.type === 'member' && player.email) {
+          const memberLookup = await pool.query(
+            `SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+            [player.email]
+          );
+          const memberRow = memberLookup.rows[0];
+          const displayName = memberRow
+            ? `${memberRow.first_name || ''} ${memberRow.last_name || ''}`.trim() || player.name || player.email
+            : player.name || player.email;
+          await pool.query(
+            `INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, payment_status, created_at)
+             VALUES ($1, $2, 'member', $3, $4, 'pending', NOW())`,
+            [result.sessionId, memberRow?.id || null, displayName, slotDuration]
+          );
+        }
+      }
+    } catch (partErr: unknown) {
+      logger.warn('[assign-with-players] Failed to add participants to booking_participants', {
+        extra: { bookingId, sessionId: result.sessionId, error: partErr }
+      });
+    }
+  }
+
   if (result.sessionId) {
     try {
       await recalculateSessionFees(result.sessionId, 'approval');

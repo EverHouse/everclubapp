@@ -2394,13 +2394,18 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
 router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) => {
   try {
     const bookingId = parseInt(req.params.id as string);
-    const { guestName, guestEmail, guestPhone, slotId, forceAddAsGuest } = req.body;
+    const { guestEmail, guestPhone, slotId, forceAddAsGuest, quickAdd } = req.body;
+    let { guestName } = req.body;
+    
+    if (quickAdd && !guestName?.trim()) {
+      guestName = 'Guest (info pending)';
+    }
     
     if (!guestName?.trim()) {
       return res.status(400).json({ error: 'Guest name is required' });
     }
     
-    if (guestEmail && !forceAddAsGuest) {
+    if (!quickAdd && guestEmail && !forceAddAsGuest) {
       const memberMatch = await db.execute(sql`SELECT id, email, first_name, last_name, tier FROM users WHERE LOWER(email) = LOWER(${guestEmail.trim()})`);
       if (memberMatch.rowCount && memberMatch.rowCount > 0) {
         const member = memberMatch.rows[0] as DbRow;

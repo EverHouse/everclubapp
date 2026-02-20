@@ -163,7 +163,8 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
       rosterVersion,
       userEmail,
       sessionUserId: sessionUser.id || userEmail,
-      deferFeeRecalc: req.body.deferFeeRecalc === true
+      deferFeeRecalc: req.body.deferFeeRecalc === true,
+      useGuestPass: req.body.useGuestPass
     });
 
     res.status(201).json({ success: true, ...result });
