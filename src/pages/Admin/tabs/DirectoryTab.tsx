@@ -261,6 +261,8 @@ const DirectoryTab: React.FC = () => {
     const [pendingTierUpdates, setPendingTierUpdates] = useState<Set<string>>(new Set());
     const [filtersOpen, setFiltersOpen] = useState(false);
     const filterPopoverRef = useRef<HTMLDivElement>(null);
+    const [sortOpen, setSortOpen] = useState(false);
+    const sortPopoverRef = useRef<HTMLDivElement>(null);
     
     const isAdmin = actualUser?.role === 'admin';
     const { isAtBottom, drawerOpen } = useBottomNav();
@@ -291,6 +293,7 @@ const DirectoryTab: React.FC = () => {
 
     useEffect(() => {
         setFiltersOpen(false);
+        setSortOpen(false);
     }, [memberTab]);
 
     useEffect(() => {
@@ -303,6 +306,17 @@ const DirectoryTab: React.FC = () => {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [filtersOpen]);
+
+    useEffect(() => {
+        if (!sortOpen) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (sortPopoverRef.current && !sortPopoverRef.current.contains(e.target as Node)) {
+                setSortOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [sortOpen]);
 
     const { data: syncStatusData } = useQuery({
         queryKey: directoryKeys.syncStatus(),
@@ -909,70 +923,43 @@ const DirectoryTab: React.FC = () => {
         <AnimatedPage className="bg-white dark:bg-surface-dark rounded-xl p-4 border border-gray-200 dark:border-white/20 flex flex-col h-full">
             <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleTabChange('active');
-                            setShowMissingTierOnly(false);
-                        }}
-                        className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                            memberTab === 'active'
-                                ? 'bg-primary dark:bg-lavender text-white'
-                                : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
-                        }`}
-                    >
-                        Active
-                    </button>
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleTabChange('former');
-                            setShowMissingTierOnly(false);
-                        }}
-                        className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                            memberTab === 'former'
-                                ? 'bg-primary dark:bg-lavender text-white'
-                                : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
-                        }`}
-                    >
-                        Former
-                    </button>
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleTabChange('visitors');
-                            setShowMissingTierOnly(false);
-                        }}
-                        className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                            memberTab === 'visitors'
-                                ? 'bg-primary dark:bg-lavender text-white'
-                                : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
-                        }`}
-                    >
-                        Visitors
-                    </button>
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleTabChange('team');
-                            setShowMissingTierOnly(false);
-                        }}
-                        className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                            memberTab === 'team'
-                                ? 'bg-primary dark:bg-lavender text-white'
-                                : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
-                        }`}
-                    >
-                        Team
-                    </button>
+                    <div className="inline-flex bg-black/5 dark:bg-white/10 backdrop-blur-sm rounded-full p-1 relative">
+                        <div
+                            className="absolute top-1 bottom-1 bg-white dark:bg-white/20 shadow-md rounded-full transition-all duration-normal"
+                            style={{
+                                width: 'calc(25% - 4px)',
+                                left: memberTab === 'active' ? '4px'
+                                    : memberTab === 'former' ? 'calc(25% + 0px)'
+                                    : memberTab === 'visitors' ? 'calc(50% + 0px)'
+                                    : 'calc(75% - 0px)',
+                            }}
+                        />
+                        {([
+                            { key: 'active' as MemberTab, label: 'Active', icon: 'group' },
+                            { key: 'former' as MemberTab, label: 'Former', icon: 'person_off' },
+                            { key: 'visitors' as MemberTab, label: 'Visitors', icon: 'badge' },
+                            { key: 'team' as MemberTab, label: 'Team', icon: 'admin_panel_settings' },
+                        ] as const).map(tab => (
+                            <button
+                                key={tab.key}
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleTabChange(tab.key);
+                                    setShowMissingTierOnly(false);
+                                }}
+                                className={`tactile-btn relative z-10 px-3 py-1.5 text-[11px] sm:text-sm font-medium transition-colors duration-fast rounded-full flex items-center gap-1 sm:gap-1.5 cursor-pointer ${
+                                    memberTab === tab.key
+                                        ? 'text-primary dark:text-white'
+                                        : 'text-gray-500 dark:text-white/60'
+                                }`}
+                            >
+                                <span aria-hidden="true" className="material-symbols-outlined text-[16px] sm:text-[18px]">{tab.icon}</span>
+                                <span className="hidden xs:inline">{tab.label}</span>
+                            </button>
+                        ))}
+                    </div>
                     {syncMessage && (
                         <span className={`text-[10px] font-medium ${syncMessage.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                             {syncMessage.text}
@@ -1050,8 +1037,52 @@ const DirectoryTab: React.FC = () => {
                                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/30"
                             />
                         </div>
+                        <div className="relative" ref={sortPopoverRef}>
+                            <button
+                                onClick={() => { setSortOpen(!sortOpen); setFiltersOpen(false); }}
+                                className={`flex items-center justify-center w-[42px] h-[42px] rounded-xl border text-sm font-medium transition-colors cursor-pointer ${
+                                    sortOpen
+                                        ? 'border-primary/50 dark:border-lavender/50 text-primary dark:text-lavender bg-primary/5 dark:bg-lavender/5'
+                                        : 'border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/10'
+                                }`}
+                                aria-label="Sort options"
+                                title="Sort"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">swap_vert</span>
+                            </button>
+                            {sortOpen && (
+                                <div className="absolute right-0 top-full mt-1 bg-white dark:bg-[#1a1a2e] rounded-xl shadow-lg border border-gray-200 dark:border-white/20 p-2 z-30 min-w-[180px]">
+                                    <div className="flex items-center justify-between px-2 py-1 mb-1">
+                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sort By</span>
+                                        <button
+                                            onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                                            className="tactile-btn flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                                            title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+                                        >
+                                            <span className="material-symbols-outlined text-[14px]">
+                                                {sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                                            </span>
+                                            {sortDirection === 'asc' ? 'Asc' : 'Desc'}
+                                        </button>
+                                    </div>
+                                    {SORT_OPTIONS.map(option => (
+                                        <button
+                                            key={option.value}
+                                            onClick={() => { setSortField(option.value as SortField); setSortOpen(false); }}
+                                            className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors cursor-pointer ${
+                                                sortField === option.value
+                                                    ? 'bg-primary/10 dark:bg-lavender/10 text-primary dark:text-lavender font-medium'
+                                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10'
+                                            }`}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                         <button
-                            onClick={() => setFiltersOpen(!filtersOpen)}
+                            onClick={() => { setFiltersOpen(!filtersOpen); setSortOpen(false); }}
                             className={`px-3 py-2 rounded-xl border text-sm font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer ${
                                 activeFilterCount > 0
                                     ? 'border-primary/50 dark:border-lavender/50 text-primary dark:text-lavender bg-primary/5 dark:bg-lavender/5 hover:bg-primary/10 dark:hover:bg-lavender/10'
@@ -1257,31 +1288,6 @@ const DirectoryTab: React.FC = () => {
                     </div>
                 )}
 
-                {memberTab !== 'visitors' && memberTab !== 'team' && (
-                    <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">Sort:</span>
-                        <select
-                            value={sortField}
-                            onChange={(e) => setSortField(e.target.value as SortField)}
-                            className="px-2 py-0.5 rounded text-[11px] font-bold bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/20 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        >
-                            {SORT_OPTIONS.map(option => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
-                        <button
-                            onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
-                            className="tactile-btn flex items-center justify-center w-6 h-6 rounded bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
-                            title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
-                        >
-                            <span className="material-symbols-outlined text-[16px]">
-                                {sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
-                            </span>
-                        </button>
-                    </div>
-                )}
 
                 {activeFilters.length > 0 && memberTab !== 'visitors' && (
                     <div className="flex flex-wrap gap-1.5">
