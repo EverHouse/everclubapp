@@ -64,6 +64,7 @@ AI-generated casing mismatches are a critical source of bugs. You must strictly 
 - **The Drizzle Boundary**: Drizzle ORM is responsible for the translation. Always define schemas mapping `snake_case` DB columns to `camelCase` TS properties (e.g., `firstName: text('first_name')`).
 - **The API Boundary**: All backend API responses MUST be serialized into `camelCase` before being sent to the client. Never leak `snake_case` database columns into React frontend components.
 - **TypeScript Mismatches**: Never forcefully cast types with `as any`. If frontend interfaces and backend Drizzle inferred types mismatch, fix the underlying schema or DTO rather than bypassing the compiler.
+- **External Property Mappings (HubSpot)**: Never hallucinate CRM internal property names (e.g., `membership_status`, `billing_provider`). These must exactly match HubSpot's strict internal naming conventions. Always consult the hubspot-sync skill for the exact, up-to-date property dictionary before writing sync payloads.
 
 ### Environment & Reference Variables
 Do not guess or hallucinate environment variables. We use specific naming conventions across the stack. Refer to the Replit Secrets and Configurations panel for actual values, but strictly use these keys in the code:
