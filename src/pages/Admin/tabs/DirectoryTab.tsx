@@ -1024,13 +1024,13 @@ const DirectoryTab: React.FC = () => {
                                 placeholder="Search members..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                className="w-full h-[44px] pl-10 pr-4 rounded-xl border border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/30"
                             />
                         </div>
                         <div className="relative" ref={sortPopoverRef}>
                             <button
                                 onClick={() => { setSortOpen(!sortOpen); setFiltersOpen(false); }}
-                                className={`flex items-center justify-center w-[42px] h-[42px] rounded-xl border text-sm font-medium transition-colors cursor-pointer ${
+                                className={`flex items-center justify-center w-[44px] h-[44px] rounded-xl border text-sm font-medium transition-colors cursor-pointer ${
                                     sortOpen
                                         ? 'border-lavender/50 text-[#293515] dark:!text-[#CCB8E4] bg-primary/5 dark:bg-lavender/5'
                                         : 'border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/10'
@@ -1073,7 +1073,7 @@ const DirectoryTab: React.FC = () => {
                         </div>
                         <button
                             onClick={() => { setFiltersOpen(!filtersOpen); setSortOpen(false); }}
-                            className={`px-3 py-2 rounded-xl border text-sm font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer ${
+                            className={`px-3 h-[44px] rounded-xl border text-sm font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer ${
                                 activeFilterCount > 0
                                     ? 'border-lavender/50 text-[#293515] dark:!text-[#CCB8E4] bg-primary/5 dark:bg-lavender/5 hover:bg-primary/10 dark:hover:bg-lavender/10'
                                     : 'border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/10'
@@ -1358,7 +1358,7 @@ const DirectoryTab: React.FC = () => {
                                     value={visitorSearchQuery}
                                     onChange={(e) => setVisitorSearchQuery(e.target.value)}
                                     placeholder="Search by name, email, or phone..."
-                                    className="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                    className="w-full h-[44px] pl-10 pr-4 text-sm rounded-xl border border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
                                     aria-label="Search visitors"
                                 />
                                 {visitorSearchQuery && (
@@ -1373,10 +1373,10 @@ const DirectoryTab: React.FC = () => {
                             </div>
                             <button
                                 onClick={() => setFiltersOpen(!filtersOpen)}
-                                className={`px-3 py-2 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer ${
+                                className={`px-3 h-[44px] rounded-xl border text-sm font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer ${
                                     activeFilterCount > 0
                                         ? 'border-lavender/50 text-[#293515] dark:!text-[#CCB8E4] bg-primary/5 dark:bg-lavender/5 hover:bg-primary/10 dark:hover:bg-lavender/10'
-                                        : 'border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/10'
+                                        : 'border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/10'
                                 }`}
                                 aria-label="Toggle filters"
                             >
