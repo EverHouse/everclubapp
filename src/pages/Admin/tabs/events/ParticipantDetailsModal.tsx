@@ -40,6 +40,7 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
         mutationFn: (rsvpId: number) => 
             deleteWithCredentials(`/api/events/${eventId}/rsvps/${rsvpId}`),
         onMutate: async (rsvpId) => {
+            await queryClient.cancelQueries({ queryKey: ['event-rsvps', eventId] });
             setDeletingParticipantIds(prev => new Set(prev).add(rsvpId));
             setConfirmDeleteId(null);
             return { rsvpId };
@@ -53,6 +54,8 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
                 });
             }
             showToast('RSVP removed successfully', 'success');
+        },
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['event-rsvps', eventId] });
             onRefresh?.();
         },
@@ -72,6 +75,7 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
         mutationFn: ({ userEmail, participantId }: { userEmail: string; participantId: number }) => 
             deleteWithCredentials(`/api/wellness-enrollments/${classId}/${encodeURIComponent(userEmail)}`),
         onMutate: async ({ participantId }) => {
+            await queryClient.cancelQueries({ queryKey: ['class-enrollments', classId] });
             setDeletingParticipantIds(prev => new Set(prev).add(participantId));
             setConfirmDeleteId(null);
             return { participantId };
@@ -85,6 +89,8 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
                 });
             }
             showToast('Enrollment removed successfully', 'success');
+        },
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['class-enrollments', classId] });
             onRefresh?.();
         },
@@ -122,6 +128,11 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
             return postWithCredentials(url, { email });
         },
         onMutate: async (email) => {
+            if (type === 'rsvp') {
+                await queryClient.cancelQueries({ queryKey: ['event-rsvps', eventId] });
+            } else {
+                await queryClient.cancelQueries({ queryKey: ['class-enrollments', classId] });
+            }
             setPendingAddEmail(email);
             const tempId = -Date.now();
             const optimisticParticipant: Participant = {
@@ -144,6 +155,8 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
             }
             setPendingAddEmail(null);
             showToast(`${type === 'rsvp' ? 'RSVP' : 'Enrollment'} added successfully`, 'success');
+        },
+        onSettled: () => {
             if (type === 'rsvp') {
                 queryClient.invalidateQueries({ queryKey: ['event-rsvps', eventId] });
             } else {

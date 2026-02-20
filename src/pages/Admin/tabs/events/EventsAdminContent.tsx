@@ -219,6 +219,7 @@ export const EventsAdminContent: React.FC = () => {
             });
         },
         onMutate: async (payload) => {
+            await queryClient.cancelQueries({ queryKey: ['admin-events'] });
             const tempId = editId || -Date.now();
             setPendingEventIds(prev => new Set(prev).add(tempId));
             
@@ -258,6 +259,8 @@ export const EventsAdminContent: React.FC = () => {
                 setOptimisticEvents(prev => prev.filter(e => e.id !== context.tempId));
             }
             showToast(editId ? 'Event updated successfully' : 'Event created successfully', 'success');
+        },
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-events'] });
             queryClient.invalidateQueries({ queryKey: ['events-needs-review'] });
         },
@@ -278,6 +281,7 @@ export const EventsAdminContent: React.FC = () => {
         mutationFn: (eventId: number) => 
             deleteWithCredentials(`/api/events/${eventId}`),
         onMutate: async (eventId) => {
+            await queryClient.cancelQueries({ queryKey: ['admin-events'] });
             setDeletingEventIds(prev => new Set(prev).add(eventId));
             setShowDeleteConfirm(false);
             setEventToDelete(null);
@@ -294,6 +298,8 @@ export const EventsAdminContent: React.FC = () => {
             setSuccess('Event archived');
             showToast('Event archived successfully', 'success');
             setTimeout(() => setSuccess(null), 3000);
+        },
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-events'] });
         },
         onError: (_, __, context) => {

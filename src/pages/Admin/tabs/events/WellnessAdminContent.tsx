@@ -84,8 +84,6 @@ export const WellnessAdminContent: React.FC = () => {
             });
         },
         onSuccess: (savedItem) => {
-            queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
-            queryClient.invalidateQueries({ queryKey: ['wellness-needs-review'] });
             setIsEditing(false);
             setFormData({ category: 'Classes', status: 'available', duration: '60 min' });
             
@@ -101,21 +99,40 @@ export const WellnessAdminContent: React.FC = () => {
         },
         onError: (error: Error) => {
             setError(error.message || getNetworkErrorMessage());
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
+            queryClient.invalidateQueries({ queryKey: ['wellness-needs-review'] });
         }
     });
 
     const deleteClassMutation = useMutation({
         mutationFn: (classId: number) => 
             deleteWithCredentials(`/api/wellness-classes/${classId}`),
+        onMutate: async (classId) => {
+            await queryClient.cancelQueries({ queryKey: ['wellness-classes'] });
+            const snapshot = queryClient.getQueryData<WellnessClass[]>(['wellness-classes']);
+            queryClient.setQueryData<WellnessClass[]>(['wellness-classes'], (old) => {
+                if (!old) return old;
+                return old.filter(c => c.id !== classId);
+            });
+            return { snapshot };
+        },
         onSuccess: () => {
             setSuccess('Wellness deleted');
+            showToast('Wellness deleted', 'success');
             setTimeout(() => setSuccess(null), 3000);
-            queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
         },
-        onError: () => {
+        onError: (_err, _classId, context) => {
+            if (context?.snapshot !== undefined) {
+                queryClient.setQueryData(['wellness-classes'], context.snapshot);
+            }
             setError(getNetworkErrorMessage());
             setTimeout(() => setError(null), 3000);
-        }
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
+        },
     });
 
     useEffect(() => {

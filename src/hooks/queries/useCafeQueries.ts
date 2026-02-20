@@ -93,7 +93,30 @@ export function useAddCafeItem() {
         icon: item.icon,
         image_url: item.image
       }),
-    onSuccess: () => {
+    onMutate: async (item) => {
+      await queryClient.cancelQueries({ queryKey: cafeKeys.menu() });
+      const snapshot = queryClient.getQueryData<CafeItem[]>(cafeKeys.menu());
+      queryClient.setQueryData<CafeItem[]>(cafeKeys.menu(), (old) => {
+        if (!old) return old;
+        const tempItem: CafeItem = {
+          id: `temp-${Date.now()}`,
+          category: item.category || '',
+          name: item.name || '',
+          price: item.price || 0,
+          desc: item.desc || '',
+          icon: item.icon || '',
+          image: item.image || '',
+        };
+        return [...old, tempItem];
+      });
+      return { snapshot };
+    },
+    onError: (_err, _item, context) => {
+      if (context?.snapshot !== undefined) {
+        queryClient.setQueryData(cafeKeys.menu(), context.snapshot);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: cafeKeys.menu() });
     },
   });
@@ -111,7 +134,21 @@ export function useUpdateCafeItem() {
         icon: item.icon,
         image_url: item.image
       }),
-    onSuccess: () => {
+    onMutate: async (item) => {
+      await queryClient.cancelQueries({ queryKey: cafeKeys.menu() });
+      const snapshot = queryClient.getQueryData<CafeItem[]>(cafeKeys.menu());
+      queryClient.setQueryData<CafeItem[]>(cafeKeys.menu(), (old) => {
+        if (!old) return old;
+        return old.map(i => i.id === item.id ? { ...item } : i);
+      });
+      return { snapshot };
+    },
+    onError: (_err, _item, context) => {
+      if (context?.snapshot !== undefined) {
+        queryClient.setQueryData(cafeKeys.menu(), context.snapshot);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: cafeKeys.menu() });
     },
   });
@@ -122,7 +159,21 @@ export function useDeleteCafeItem() {
   return useMutation({
     mutationFn: (id: string) =>
       deleteWithCredentials<{ success: boolean }>(`/api/cafe-menu/${id}`),
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: cafeKeys.menu() });
+      const snapshot = queryClient.getQueryData<CafeItem[]>(cafeKeys.menu());
+      queryClient.setQueryData<CafeItem[]>(cafeKeys.menu(), (old) => {
+        if (!old) return old;
+        return old.filter(i => i.id !== id);
+      });
+      return { snapshot };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.snapshot !== undefined) {
+        queryClient.setQueryData(cafeKeys.menu(), context.snapshot);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: cafeKeys.menu() });
     },
   });

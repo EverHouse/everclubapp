@@ -437,6 +437,7 @@ const DirectoryTab: React.FC = () => {
             });
         },
         onMutate: async ({ memberEmail, tier }) => {
+            await queryClient.cancelQueries({ queryKey: ['directory'] });
             setOptimisticTiers(prev => ({ ...prev, [memberEmail]: tier }));
             setPendingTierUpdates(prev => new Set(prev).add(memberEmail));
             setAssignTierModalOpen(false);
@@ -454,6 +455,8 @@ const DirectoryTab: React.FC = () => {
                 return next;
             });
             showToast(`Tier updated to ${tier}`, 'success');
+        },
+        onSettled: async () => {
             await refreshMembers();
         },
         onError: (err: Error, { memberEmail }) => {

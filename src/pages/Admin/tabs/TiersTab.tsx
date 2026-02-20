@@ -323,8 +323,10 @@ const TiersTab: React.FC = () => {
             return postWithCredentials<TierFeature>('/api/tier-features', featureData);
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tier-features'] });
             setNewFeatureForm({ key: '', label: '', type: 'boolean' });
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['tier-features'] });
         },
     });
 
@@ -332,11 +334,22 @@ const TiersTab: React.FC = () => {
         mutationFn: async (featureId: number) => {
             return deleteWithCredentials<void>(`/api/tier-features/${featureId}`);
         },
-        onSuccess: (_, featureId) => {
-            queryClient.setQueryData(['tier-features'], (old: TierFeature[] | undefined) => {
+        onMutate: async (featureId) => {
+            await queryClient.cancelQueries({ queryKey: ['tier-features'] });
+            const snapshot = queryClient.getQueryData<TierFeature[]>(['tier-features']);
+            queryClient.setQueryData<TierFeature[]>(['tier-features'], (old) => {
                 if (!old) return old;
                 return old.filter(f => f.id !== featureId);
             });
+            return { snapshot };
+        },
+        onError: (_err, _featureId, context) => {
+            if (context?.snapshot !== undefined) {
+                queryClient.setQueryData(['tier-features'], context.snapshot);
+            }
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['tier-features'] });
         },
     });
 

@@ -295,6 +295,7 @@ const TrackmanTab: React.FC = () => {
       return res.json();
     },
     onMutate: async ({ bookingId, memberEmail }) => {
+      await queryClient.cancelQueries({ queryKey: ['trackman'] });
       snapshotRef.current = unmatchedData?.data || [];
       setOptimisticActions(prev => new Map(prev).set(bookingId, { type: 'linking', targetEmail: memberEmail }));
     },
@@ -333,6 +334,8 @@ const TrackmanTab: React.FC = () => {
         showToast('Booking resolved successfully', 'success');
       }
       await new Promise(resolve => setTimeout(resolve, 300));
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['trackman'] });
     },
     onError: (_, { bookingId }) => {

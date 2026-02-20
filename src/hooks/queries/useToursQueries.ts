@@ -105,7 +105,21 @@ export function useCheckInTour() {
   return useMutation({
     mutationFn: ({ tourId }: { tourId: number }) =>
       postWithCredentials<{ success: boolean }>(`/api/tours/${tourId}/checkin`, {}),
-    onSuccess: () => {
+    onMutate: async ({ tourId }) => {
+      await queryClient.cancelQueries({ queryKey: toursKeys.all });
+      const todaySnapshot = queryClient.getQueryData<Tour[]>(toursKeys.today());
+      queryClient.setQueryData<Tour[]>(toursKeys.today(), (old) => {
+        if (!old) return old;
+        return old.map(t => t.id === tourId ? { ...t, status: 'checked_in', checkedInAt: new Date().toISOString() } : t);
+      });
+      return { todaySnapshot };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.todaySnapshot !== undefined) {
+        queryClient.setQueryData(toursKeys.today(), context.todaySnapshot);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: toursKeys.all });
     },
   });
@@ -116,7 +130,32 @@ export function useUpdateTourStatus() {
   return useMutation({
     mutationFn: ({ tourId, status }: { tourId: number; status: string }) =>
       patchWithCredentials<{ success: boolean }>(`/api/tours/${tourId}/status`, { status }),
-    onSuccess: () => {
+    onMutate: async ({ tourId, status }) => {
+      await queryClient.cancelQueries({ queryKey: toursKeys.all });
+      const todaySnapshot = queryClient.getQueryData<Tour[]>(toursKeys.today());
+      const listSnapshot = queryClient.getQueryData<{ upcoming: Tour[]; past: Tour[] }>(toursKeys.list());
+      queryClient.setQueryData<Tour[]>(toursKeys.today(), (old) => {
+        if (!old) return old;
+        return old.map(t => t.id === tourId ? { ...t, status } : t);
+      });
+      queryClient.setQueryData<{ upcoming: Tour[]; past: Tour[] }>(toursKeys.list(), (old) => {
+        if (!old) return old;
+        return {
+          upcoming: old.upcoming.map(t => t.id === tourId ? { ...t, status } : t),
+          past: old.past.map(t => t.id === tourId ? { ...t, status } : t),
+        };
+      });
+      return { todaySnapshot, listSnapshot };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.todaySnapshot !== undefined) {
+        queryClient.setQueryData(toursKeys.today(), context.todaySnapshot);
+      }
+      if (context?.listSnapshot !== undefined) {
+        queryClient.setQueryData(toursKeys.list(), context.listSnapshot);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: toursKeys.all });
     },
   });
