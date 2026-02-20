@@ -40,6 +40,7 @@ import { broadcastBillingUpdate, sendNotificationToUser } from '../../core/webso
 import { alertOnExternalServiceError } from '../../core/errorAlerts';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { normalizeTierName } from '../../utils/tierUtils';
+import { getBookingInvoiceId, finalizeAndPayInvoice } from '../../core/billing/bookingInvoiceService';
 
 interface DbMemberRow {
   id: string;
@@ -1205,24 +1206,48 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
       }
     }
 
-    const invoiceResult = await createBookingFeeInvoice({
-      customerId: member.stripe_customer_id,
-      bookingId: resolvedBookingId,
-      sessionId: resolvedSessionId,
-      trackmanBookingId,
-      feeLineItems,
-      metadata: {
-        type: 'staff_saved_card_charge',
-        staffEmail,
-        staffName: staffName || '',
-        memberEmail: member.email,
-        memberId: member.id,
-        participantIds: JSON.stringify(participantIds),
-      },
-      purpose: 'booking_fee',
-      offSession: true,
-      paymentMethodId: paymentMethod.id,
-    });
+    // Try to use existing draft invoice from booking approval
+    let invoiceResult;
+    const existingInvoiceId = resolvedBookingId ? await getBookingInvoiceId(resolvedBookingId) : null;
+    
+    if (existingInvoiceId) {
+      try {
+        invoiceResult = await finalizeAndPayInvoice({
+          bookingId: resolvedBookingId,
+          paymentMethodId: paymentMethod.id,
+          offSession: true,
+        });
+        logger.info('[Stripe] Staff charge using existing draft invoice', {
+          extra: { bookingId: resolvedBookingId, invoiceId: existingInvoiceId, paymentIntentId: invoiceResult.paymentIntentId }
+        });
+      } catch (draftErr: unknown) {
+        logger.warn('[Stripe] Failed to use existing draft invoice, falling back to new invoice', {
+          extra: { bookingId: resolvedBookingId, existingInvoiceId, error: getErrorMessage(draftErr) }
+        });
+        invoiceResult = null;
+      }
+    }
+    
+    if (!invoiceResult) {
+      invoiceResult = await createBookingFeeInvoice({
+        customerId: member.stripe_customer_id,
+        bookingId: resolvedBookingId,
+        sessionId: resolvedSessionId,
+        trackmanBookingId,
+        feeLineItems,
+        metadata: {
+          type: 'staff_saved_card_charge',
+          staffEmail,
+          staffName: staffName || '',
+          memberEmail: member.email,
+          memberId: member.id,
+          participantIds: JSON.stringify(participantIds),
+        },
+        purpose: 'booking_fee',
+        offSession: true,
+        paymentMethodId: paymentMethod.id,
+      });
+    }
 
     let successMessage: string;
 
@@ -1334,6 +1359,69 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
       error: 'Failed to charge card. Please try again or use another payment method.',
       retryable: true
     });
+  }
+});
+
+router.post('/api/stripe/staff/mark-booking-paid', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { bookingId, sessionId, participantIds, paymentMethod: paidVia } = req.body;
+    const { staffEmail, staffName } = getStaffInfo(req);
+
+    if (!bookingId || !participantIds || !Array.isArray(participantIds) || participantIds.length === 0) {
+      return res.status(400).json({ error: 'Missing required fields: bookingId, participantIds' });
+    }
+
+    const oobResult = await finalizeInvoicePaidOutOfBand({
+      bookingId,
+      paidVia: paidVia || 'cash',
+    });
+
+    if (!oobResult.success) {
+      logger.warn('[Stripe] No draft invoice to mark paid, proceeding with participant updates only', {
+        extra: { bookingId, error: oobResult.error }
+      });
+    }
+
+    const safeParticipantIds = (participantIds || []).filter((id: unknown) => typeof id === 'number' && Number.isFinite(id) && id > 0).map((id: number) => Math.floor(id));
+    if (safeParticipantIds.length > 0) {
+      const idPlaceholders = safeParticipantIds.map((_: number, i: number) => `$${i + 1}`).join(', ');
+      await pool.query(
+        `UPDATE booking_participants 
+         SET payment_status = 'paid', 
+             paid_at = NOW(),
+             updated_at = NOW()
+         WHERE id IN (${idPlaceholders})`,
+        safeParticipantIds
+      );
+    }
+
+    logFromRequest(req, 'mark_booking_paid', 'payment', oobResult.invoiceId || null, null, {
+      bookingId,
+      participantIds: JSON.stringify(participantIds),
+      paidVia: paidVia || 'cash',
+      invoiceId: oobResult.invoiceId || null,
+      staffEmail,
+    });
+
+    broadcastBillingUpdate({
+      action: 'payment_confirmed',
+      bookingId,
+      status: 'paid'
+    });
+
+    logger.info('[Stripe] Staff marked booking as paid', {
+      extra: { bookingId, paidVia: paidVia || 'cash', participantCount: safeParticipantIds.length, invoiceId: oobResult.invoiceId }
+    });
+
+    res.json({
+      success: true,
+      invoiceId: oobResult.invoiceId || null,
+      hostedInvoiceUrl: oobResult.hostedInvoiceUrl || null,
+      invoicePdf: oobResult.invoicePdf || null,
+    });
+  } catch (error: unknown) {
+    logger.error('[Stripe] Error marking booking as paid', { error: error instanceof Error ? error : new Error(String(error)) });
+    res.status(500).json({ error: 'Failed to mark booking as paid' });
   }
 });
 

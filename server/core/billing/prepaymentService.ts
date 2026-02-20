@@ -1,5 +1,6 @@
 import { getOrCreateStripeCustomer } from '../stripe/customers';
-import { createBookingFeeInvoice, type BookingFeeLineItem } from '../stripe/invoices';
+import { type BookingFeeLineItem } from '../stripe/invoices';
+import { createDraftInvoiceForBooking } from './bookingInvoiceService';
 import { pool } from '../db';
 import { logger } from '../logger';
 
@@ -14,11 +15,11 @@ export interface CreatePrepaymentIntentParams {
 }
 
 export interface PrepaymentIntentResult {
-  paymentIntentId: string;
-  clientSecret: string;
-  paidInFull?: boolean;
+  invoiceId: string;
+  paidInFull: boolean;
+  paymentIntentId?: string;
+  clientSecret?: string;
   balanceTransactionId?: string;
-  invoiceId?: string;
 }
 
 export async function createPrepaymentIntent(
@@ -80,33 +81,13 @@ export async function createPrepaymentIntent(
   }
 
   try {
-    const existingIntent = await pool.query(
-      `SELECT stripe_payment_intent_id, status 
-       FROM stripe_payment_intents 
-       WHERE session_id = $1 
-       AND purpose = 'prepayment' 
-       AND status NOT IN ('canceled', 'cancelled', 'refunded', 'failed')
-       LIMIT 1`,
-      [sessionId]
-    );
-
-    if (existingIntent.rows.length > 0) {
-      logger.info('[Prepayment] Skipping - existing prepayment intent by session_id', { extra: { sessionId } });
-      return null;
-    }
-
-    const existingByBooking = await pool.query(
-      `SELECT stripe_payment_intent_id, status 
-       FROM stripe_payment_intents 
-       WHERE booking_id = $1 
-       AND purpose = 'prepayment' 
-       AND status NOT IN ('canceled', 'cancelled', 'refunded', 'failed', 'succeeded')
-       LIMIT 1`,
+    const existingInvoice = await pool.query(
+      `SELECT stripe_invoice_id FROM booking_requests WHERE id = $1 LIMIT 1`,
       [bookingId]
     );
 
-    if (existingByBooking.rows.length > 0) {
-      logger.info('[Prepayment] Skipping - existing prepayment intent by booking_id', { extra: { bookingId, existingPaymentIntentId: existingByBooking.rows[0].stripe_payment_intent_id } });
+    if (existingInvoice.rows[0]?.stripe_invoice_id) {
+      logger.info('[Prepayment] Skipping - draft invoice already exists for booking', { extra: { bookingId, invoiceId: existingInvoice.rows[0].stripe_invoice_id } });
       return null;
     }
 
@@ -120,7 +101,7 @@ export async function createPrepaymentIntent(
 
     const feeLineItems = await buildParticipantLineItems(sessionId, feeBreakdown);
 
-    const result = await createBookingFeeInvoice({
+    const result = await createDraftInvoiceForBooking({
       customerId,
       bookingId,
       sessionId,
@@ -132,27 +113,9 @@ export async function createPrepaymentIntent(
       purpose: 'prepayment',
     });
 
-    await pool.query(
-      `INSERT INTO stripe_payment_intents 
-       (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [
-        userId || `email-${userEmail}`,
-        result.paymentIntentId,
-        customerId,
-        totalFeeCents,
-        'prepayment',
-        bookingId,
-        sessionId,
-        `Prepayment invoice for booking ${trackmanBookingId ? `TM-${trackmanBookingId}` : `#${bookingId}`}`,
-        'pending'
-      ]
-    );
-
-    logger.info('[Prepayment] Created invoice-based payment', { 
+    logger.info('[Prepayment] Created draft invoice for booking approval', { 
       extra: { 
         invoiceId: result.invoiceId,
-        paymentIntentId: result.paymentIntentId, 
         sessionId, 
         amountDollars: (totalFeeCents / 100).toFixed(2),
         lineItems: feeLineItems.length
@@ -160,13 +123,11 @@ export async function createPrepaymentIntent(
     });
 
     return {
-      paymentIntentId: result.paymentIntentId,
-      clientSecret: result.clientSecret,
-      paidInFull: false,
-      invoiceId: result.invoiceId
+      invoiceId: result.invoiceId,
+      paidInFull: false
     };
   } catch (error: unknown) {
-    logger.error('[Prepayment] Failed to create prepayment invoice', {
+    logger.error('[Prepayment] Failed to create draft invoice', {
       error,
       extra: { sessionId, bookingId, userEmail, totalFeeCents }
     });

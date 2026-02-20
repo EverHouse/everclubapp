@@ -21,7 +21,8 @@ import { computeFeeBreakdown, applyFeeBreakdownToParticipants } from '../../core
 import { GUEST_FEE_CENTS } from './helpers';
 import { sendNotificationToUser, broadcastBillingUpdate } from '../../core/websocket';
 import { alertOnExternalServiceError } from '../../core/errorAlerts';
-import { getErrorCode } from '../../utils/errorUtils';
+import { getErrorCode, getErrorMessage } from '../../utils/errorUtils';
+import { getBookingInvoiceId, finalizeAndPayInvoice, createDraftInvoiceForBooking } from '../../core/billing/bookingInvoiceService';
 
 const router = Router();
 
@@ -109,6 +110,95 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
 
     const serverFees = pendingFees.map(p => ({ id: p.participantId!, amountCents: p.totalCents }));
 
+    const trackmanId = booking.trackman_booking_id;
+    const memberName = [booking.first_name, booking.last_name].filter(Boolean).join(' ') || booking.user_name || booking.user_email.split('@')[0];
+    let resolvedUserId = booking.user_id;
+    if (!resolvedUserId) {
+      const resolved = await resolveUserByEmail(booking.user_email);
+      resolvedUserId = resolved?.userId || booking.user_email;
+    }
+    const { customerId: stripeCustomerId } = await getOrCreateStripeCustomer(
+      resolvedUserId,
+      booking.user_email,
+      memberName
+    );
+
+    // Check if booking already has a draft invoice
+    const existingInvoiceId = await getBookingInvoiceId(bookingId);
+    
+    if (existingInvoiceId) {
+      // Finalize and pay the existing draft invoice
+      try {
+        const invoiceResult = await finalizeAndPayInvoice({ bookingId });
+        
+        // Create snapshot for tracking
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          const snapshotResult = await client.query(
+            `INSERT INTO booking_fee_snapshots (booking_id, session_id, participant_fees, total_cents, status, stripe_payment_intent_id)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+            [bookingId, booking.session_id, JSON.stringify(serverFees), serverTotal, 
+             invoiceResult.paidInFull ? 'completed' : 'pending', invoiceResult.paymentIntentId]
+          );
+          await client.query('COMMIT');
+          
+          if (invoiceResult.paymentIntentId && !invoiceResult.paidInFull) {
+            await pool.query(
+              `INSERT INTO stripe_payment_intents 
+               (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+               ON CONFLICT (stripe_payment_intent_id) DO NOTHING`,
+              [resolvedUserId || booking.user_email, invoiceResult.paymentIntentId, stripeCustomerId,
+               serverTotal, 'booking_fee', bookingId, booking.session_id,
+               `Member payment invoice for booking ${trackmanId ? `TM-${trackmanId}` : `#${bookingId}`}`, 'pending']
+            );
+          }
+        } catch (err: unknown) {
+          await client.query('ROLLBACK');
+          throw err;
+        } finally {
+          client.release();
+        }
+
+        if (invoiceResult.paidInFull) {
+          return res.json({
+            paidInFull: true,
+            invoiceId: invoiceResult.invoiceId,
+            paymentIntentId: invoiceResult.paymentIntentId,
+            totalAmount: serverTotal / 100,
+            balanceApplied: invoiceResult.amountFromBalance / 100,
+            remainingAmount: 0,
+            participantFees: pendingFees.map(f => ({
+              id: f.participantId,
+              displayName: f.displayName,
+              amount: f.totalCents / 100
+            }))
+          });
+        }
+
+        return res.json({
+          paidInFull: false,
+          clientSecret: invoiceResult.clientSecret,
+          paymentIntentId: invoiceResult.paymentIntentId,
+          invoiceId: invoiceResult.invoiceId,
+          totalAmount: serverTotal / 100,
+          balanceApplied: 0,
+          remainingAmount: serverTotal / 100,
+          participantFees: pendingFees.map(f => ({
+            id: f.participantId,
+            displayName: f.displayName,
+            amount: f.totalCents / 100
+          }))
+        });
+      } catch (invoiceErr: unknown) {
+        logger.warn('[Stripe] Failed to use existing draft invoice, falling back to new invoice', {
+          extra: { bookingId, existingInvoiceId, error: getErrorMessage(invoiceErr) }
+        });
+        // Fall through to legacy flow below
+      }
+    }
+
     const client = await pool.connect();
     let snapshotId: number | null = null;
     let existingPaymentIntentId: string | null = null;
@@ -188,8 +278,6 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       }
     }
 
-    const trackmanId = booking.trackman_booking_id;
-
     const feeLineItems: BookingFeeLineItem[] = [];
     for (const p of pendingParticipants.rows) {
       const fee = pendingFees.find(f => f.participantId === p.id);
@@ -211,18 +299,6 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       participantIds: serverFees.map(f => f.id).join(',').substring(0, 490),
       memberPayment: 'true',
     };
-
-    const memberName = [booking.first_name, booking.last_name].filter(Boolean).join(' ') || booking.user_name || booking.user_email.split('@')[0];
-    let resolvedUserId = booking.user_id;
-    if (!resolvedUserId) {
-      const resolved = await resolveUserByEmail(booking.user_email);
-      resolvedUserId = resolved?.userId || booking.user_email;
-    }
-    const { customerId: stripeCustomerId } = await getOrCreateStripeCustomer(
-      resolvedUserId,
-      booking.user_email,
-      memberName
-    );
 
     let invoiceResult;
     try {
