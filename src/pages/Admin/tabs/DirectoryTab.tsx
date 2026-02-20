@@ -969,12 +969,15 @@ const DirectoryTab: React.FC = () => {
                 <button
                     onClick={handleSync}
                     disabled={syncMutation.isPending}
-                    className="tactile-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="tactile-btn flex items-center justify-center gap-1.5 sm:px-3 px-2 py-1.5 rounded-full text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
+                    title={syncMutation.isPending ? 'Syncing...' : lastSyncTime ? `Last sync: ${new Date(lastSyncTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' })}` : 'Sync All'}
                 >
                     <span className={`material-symbols-outlined text-[16px] ${syncMutation.isPending ? 'animate-spin' : ''}`}>
                         sync
                     </span>
-                    {syncMutation.isPending ? 'Syncing...' : lastSyncTime ? `Sync (Last: ${new Date(lastSyncTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' })})` : 'Sync All'}
+                    <span className="hidden sm:inline">
+                        {syncMutation.isPending ? 'Syncing...' : lastSyncTime ? `Sync (${new Date(lastSyncTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' })})` : 'Sync All'}
+                    </span>
                 </button>
             </div>
             
