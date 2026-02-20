@@ -198,13 +198,13 @@ interface SortableHeaderProps {
 
 const SortableHeader: React.FC<SortableHeaderProps> = ({ field, label, className = '', width, currentSortField, onSort, getSortIcon }) => (
     <div 
-        className={`px-4 flex items-center self-stretch font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none tactile-btn ${className}`}
-        style={{ width, minHeight: '44px' }}
+        className={`px-3 flex items-center self-stretch overflow-hidden font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none tactile-btn ${className}`}
+        style={{ width, minWidth: 0, minHeight: '44px' }}
         onClick={() => onSort(field)}
     >
-        <div className="flex items-center gap-1 whitespace-nowrap">
-            {label}
-            <span className={`material-symbols-outlined text-[16px] ${currentSortField === field ? 'text-[#293515] dark:!text-[#CCB8E4]' : 'text-gray-400'}`}>
+        <div className="flex items-center gap-1 truncate">
+            <span className="truncate">{label}</span>
+            <span className={`material-symbols-outlined text-[16px] shrink-0 ${currentSortField === field ? 'text-[#293515] dark:!text-[#CCB8E4]' : 'text-gray-400'}`}>
                 {getSortIcon(field)}
             </span>
         </div>
@@ -1965,14 +1965,14 @@ const DirectoryTab: React.FC = () => {
                         <div className="hidden md:block relative">
                             <div className="flex items-center bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">
                                 <SortableHeader field="name" label="Name" width="14%" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
-                                <SortableHeader field="tier" label={memberTab === 'former' ? 'Last Tier' : 'Tier'} width="12%" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
-                                <div className="px-4 flex items-center self-stretch font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '10%', minHeight: '44px' }}>Status</div>
-                                <SortableHeader field="visits" label="Visits" width="7%" className="text-center" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
-                                <SortableHeader field="joinDate" label="Joined" width="9%" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
-                                <SortableHeader field="lastVisit" label="Last Visit" width="9%" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
-                                <div className="px-4 flex items-center self-stretch font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: memberTab === 'former' ? '28%' : '39%', minHeight: '44px' }}>Email</div>
+                                <SortableHeader field="tier" label={memberTab === 'former' ? 'Last Tier' : 'Tier'} width="11%" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
+                                <div className="px-3 flex items-center self-stretch overflow-hidden font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '9%', minWidth: 0, minHeight: '44px' }}>Status</div>
+                                <SortableHeader field="visits" label="Visits" width="9%" className="text-center" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
+                                <SortableHeader field="joinDate" label="Joined" width="10%" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
+                                <SortableHeader field="lastVisit" label="Last Visit" width="11%" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
+                                <div className="px-3 flex items-center self-stretch overflow-hidden font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: memberTab === 'former' ? '25%' : '36%', minWidth: 0, minHeight: '44px' }}>Email</div>
                                 {memberTab === 'former' && (
-                                    <div className="px-4 flex items-center self-stretch font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '13%', minHeight: '44px' }}>Reactivation</div>
+                                    <div className="px-3 flex items-center self-stretch overflow-hidden font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '11%', minWidth: 0, minHeight: '44px' }}>Reactivation</div>
                                 )}
                             </div>
                             <div ref={membersDesktopParent}>
@@ -1982,8 +1982,8 @@ const DirectoryTab: React.FC = () => {
                                         onClick={() => openDetailsModal(m)}
                                         className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
                                     >
-                                        <div style={{ width: '14%' }} className="p-4 font-medium text-primary dark:text-white truncate">{m.name}</div>
-                                        <div style={{ width: '12%' }} className="p-4">
+                                        <div style={{ width: '14%' }} className="p-3 font-medium text-primary dark:text-white truncate">{m.name}</div>
+                                        <div style={{ width: '11%' }} className="p-3">
                                             {memberTab === 'former' ? (
                                                 <div className="flex items-center gap-1">
                                                     {m.lastTier ? (
@@ -2012,7 +2012,7 @@ const DirectoryTab: React.FC = () => {
                                                 </div>
                                             )}
                                         </div>
-                                        <div style={{ width: '10%' }} className="p-4">
+                                        <div style={{ width: '9%' }} className="p-3">
                                             {m.membershipStatus ? (
                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getMemberStatusBadgeClass(m.membershipStatus)}`}>
                                                     {getMemberStatusLabel(m.membershipStatus)}
@@ -2021,16 +2021,16 @@ const DirectoryTab: React.FC = () => {
                                                 <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
                                             )}
                                         </div>
-                                        <div style={{ width: '7%' }} className="p-4 text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
+                                        <div style={{ width: '9%' }} className="p-3 text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
                                             {m.lifetimeVisits || 0}
                                         </div>
-                                        <div style={{ width: '9%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
+                                        <div style={{ width: '10%' }} className="p-3 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
                                             {formatJoinDate(m.joinDate)}
                                         </div>
-                                        <div style={{ width: '9%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
+                                        <div style={{ width: '11%' }} className="p-3 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
                                             {formatJoinDate(m.lastBookingDate)}
                                         </div>
-                                        <div style={{ width: memberTab === 'former' ? '28%' : '39%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>
+                                        <div style={{ width: memberTab === 'former' ? '25%' : '36%' }} className="p-3 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>
                                             {m.email}
                                             {memberTab === 'active' && m.billingProvider && (
                                                 <span className={`ml-1.5 inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
@@ -2046,7 +2046,7 @@ const DirectoryTab: React.FC = () => {
                                             )}
                                         </div>
                                         {memberTab === 'former' && (
-                                            <div style={{ width: '13%' }} className="p-4">
+                                            <div style={{ width: '11%' }} className="p-3">
                                                 {m.stripeCustomerId ? (
                                                     <span className="px-2 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400">
                                                         Send Link

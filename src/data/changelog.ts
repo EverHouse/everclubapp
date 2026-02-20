@@ -18,7 +18,9 @@ export const changelog: ChangelogEntry[] = [
     title: "Directory Column Header Hover & Alignment Fixes",
     changes: [
       "Fixed: Active/Former Members tab column header hover highlights now fill the full height of the header bar — no more gaps on top/bottom when hovering",
-      "Fixed: Header labels like 'Last Visit' no longer wrap to two lines and push other columns out of alignment — all labels stay on a single line",
+      "Fixed: Sort icons now stay contained within their column's highlighted area — no more overlapping into adjacent headers",
+      "Fixed: Column widths rebalanced so narrower columns (Visits, Joined, Last Visit) have enough room for both the label text and sort icon",
+      "Fixed: Header and data row column widths now match consistently across all columns",
       "Fixed: Visitors tab column headers now properly align with the data rows below them — matched percentage widths with fixed table layout",
     ]
   },
