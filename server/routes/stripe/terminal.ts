@@ -2,7 +2,7 @@ import { logger } from '../../core/logger';
 import { Router, Request, Response } from 'express';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { getStripeClient } from '../../core/stripe/client';
-import { createInvoiceWithLineItems, type CartLineItem } from '../../core/stripe/payments';
+import { createInvoiceWithLineItems, confirmPaymentSuccess, type CartLineItem } from '../../core/stripe/payments';
 import { logFromRequest } from '../../core/auditLog';
 import { pool } from '../../core/db';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
@@ -351,6 +351,21 @@ router.get('/api/stripe/terminal/payment-status/:paymentIntentId', isStaffOrAdmi
         }
       } catch (invErr: unknown) {
         logger.warn('[Terminal] Could not void invoice', { extra: { invoice_id: paymentIntent.metadata.invoice_id, error: getErrorMessage(invErr) } });
+      }
+    }
+
+    if (paymentIntent.status === 'succeeded') {
+      try {
+        const localRecord = await pool.query(
+          `SELECT id, status FROM stripe_payment_intents WHERE stripe_payment_intent_id = $1`,
+          [paymentIntentId]
+        );
+        if (localRecord.rows.length > 0 && localRecord.rows[0].status !== 'succeeded') {
+          const result = await confirmPaymentSuccess(paymentIntentId as string, 'system', 'Terminal auto-sync');
+          logger.info('[Terminal] Auto-synced payment via confirmPaymentSuccess', { extra: { paymentIntentId, result } });
+        }
+      } catch (syncErr: unknown) {
+        logger.warn('[Terminal] Non-blocking: Could not auto-sync payment status', { extra: { syncErr: getErrorMessage(syncErr) } });
       }
     }
     

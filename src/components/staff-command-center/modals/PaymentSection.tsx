@@ -310,7 +310,26 @@ export function PaymentActionFooter({
           bookingId={bookingId}
           sessionId={rosterData?.sessionId}
           participantFees={rosterData?.financialSummary?.playerBreakdown?.filter((p: { fee: number }) => p.fee > 0).map((p: { fee: number }, i: number) => ({ id: i, amount: p.fee })) || []}
-          onSuccess={handleInlineStripeSuccess}
+          onSuccess={async (paymentIntentId?: string) => {
+            if (paymentIntentId) {
+              for (let attempt = 0; attempt < 2; attempt++) {
+                try {
+                  const confirmRes = await fetch('/api/stripe/confirm-payment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ paymentIntentId })
+                  });
+                  if (confirmRes.ok) break;
+                  console.warn(`Confirm-payment attempt ${attempt + 1} returned ${confirmRes.status}`);
+                } catch (err: unknown) {
+                  console.error(`Confirm-payment attempt ${attempt + 1} failed:`, err);
+                }
+                if (attempt === 0) await new Promise(r => setTimeout(r, 1000));
+              }
+            }
+            handleInlineStripeSuccess();
+          }}
           onCancel={() => setInlinePaymentAction(null)}
         />
       );
