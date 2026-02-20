@@ -13,11 +13,13 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "7.89.2",
+    version: "7.89.3",
     date: "2026-02-20",
-    title: "Visitors Tab Column Alignment Fix",
+    title: "Directory Column Header Hover & Alignment Fixes",
     changes: [
-      "Fixed: Directory Visitors tab column headers (Name, Email, Type, Source, Purchases, Last Activity) now properly align with the data rows below them — headers and cells use matched percentage widths with fixed table layout",
+      "Fixed: Active/Former Members tab column header hover highlights now fill the full height of the header bar — no more gaps on top/bottom when hovering",
+      "Fixed: Header labels like 'Last Visit' no longer wrap to two lines and push other columns out of alignment — all labels stay on a single line",
+      "Fixed: Visitors tab column headers now properly align with the data rows below them — matched percentage widths with fixed table layout",
     ]
   },
   {

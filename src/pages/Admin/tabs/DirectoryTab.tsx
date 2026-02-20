@@ -198,11 +198,11 @@ interface SortableHeaderProps {
 
 const SortableHeader: React.FC<SortableHeaderProps> = ({ field, label, className = '', width, currentSortField, onSort, getSortIcon }) => (
     <div 
-        className={`px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none tactile-btn ${className}`}
-        style={{ width }}
+        className={`px-4 flex items-center self-stretch font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none tactile-btn ${className}`}
+        style={{ width, minHeight: '44px' }}
         onClick={() => onSort(field)}
     >
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 whitespace-nowrap">
             {label}
             <span className={`material-symbols-outlined text-[16px] ${currentSortField === field ? 'text-[#293515] dark:!text-[#CCB8E4]' : 'text-gray-400'}`}>
                 {getSortIcon(field)}
@@ -1966,13 +1966,13 @@ const DirectoryTab: React.FC = () => {
                             <div className="flex items-center bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">
                                 <SortableHeader field="name" label="Name" width="14%" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
                                 <SortableHeader field="tier" label={memberTab === 'former' ? 'Last Tier' : 'Tier'} width="12%" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
-                                <div className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '10%' }}>Status</div>
+                                <div className="px-4 flex items-center self-stretch font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '10%', minHeight: '44px' }}>Status</div>
                                 <SortableHeader field="visits" label="Visits" width="7%" className="text-center" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
                                 <SortableHeader field="joinDate" label="Joined" width="9%" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
                                 <SortableHeader field="lastVisit" label="Last Visit" width="9%" currentSortField={sortField} onSort={handleSort} getSortIcon={getSortIcon} />
-                                <div className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: memberTab === 'former' ? '28%' : '39%' }}>Email</div>
+                                <div className="px-4 flex items-center self-stretch font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: memberTab === 'former' ? '28%' : '39%', minHeight: '44px' }}>Email</div>
                                 {memberTab === 'former' && (
-                                    <div className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '13%' }}>Reactivation</div>
+                                    <div className="px-4 flex items-center self-stretch font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '13%', minHeight: '44px' }}>Reactivation</div>
                                 )}
                             </div>
                             <div ref={membersDesktopParent}>
