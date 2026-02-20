@@ -1475,7 +1475,6 @@ const DirectoryTab: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
                         {activeFilters.length > 0 && (
                             <div className="flex flex-wrap gap-1.5">
