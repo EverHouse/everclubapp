@@ -135,6 +135,9 @@ async function initializeApp() {
   const { getSession, registerAuthRoutes } = await import('./replit_integrations/auth');
   const { setupSupabaseAuthRoutes } = await import('./supabase/auth');
   const { isProduction, pool } = await import('./core/db');
+  const { db } = await import('./db');
+  const { sql } = await import('drizzle-orm');
+  const { resources, cafeItems } = await import('../shared/schema');
   const { requestIdMiddleware, logRequest } = await import('./core/logger');
   const { registerRoutes } = await import('./loaders/routes');
   const { runStartupTasks, getStartupHealth } = await import('./loaders/startup');
@@ -169,7 +172,7 @@ async function initializeApp() {
     }
 
     try {
-      await pool.query('SELECT 1');
+      await db.execute(sql`SELECT 1`);
       res.status(200).json({
         ready: true,
         startupHealth,
@@ -305,7 +308,7 @@ async function initializeApp() {
 
   app.get('/api/health', async (req, res) => {
     try {
-      const dbResult = await pool.query('SELECT NOW() as time');
+      const dbResult = await db.execute(sql`SELECT NOW() as time`);
       const isAuthenticated = req.session?.user?.isStaff === true;
       const startupHealth = getStartupHealth();
 
@@ -321,13 +324,13 @@ async function initializeApp() {
         const alertCounts = getAlertCounts();
         const recentCritical = getRecentAlerts({ severity: 'critical', limit: 5 });
 
-        const resourceCount = await pool.query('SELECT COUNT(*) as count FROM resources');
-        const resourceTypes = await pool.query('SELECT type, COUNT(*) as count FROM resources GROUP BY type');
+        const resourceCountResult = await db.select({ count: sql<number>`count(*)` }).from(resources);
+        const resourceTypes = await db.execute(sql`SELECT type, COUNT(*) as count FROM resources GROUP BY type`);
 
         res.json({
           ...baseResponse,
           environment: isProduction ? 'production' : 'development',
-          resourceCount: parseInt(resourceCount.rows[0]?.count ?? '0'),
+          resourceCount: Number(resourceCountResult[0]?.count ?? 0),
           resourcesByType: resourceTypes.rows,
           databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing',
           startupHealth,
@@ -823,7 +826,7 @@ async function initializeApp() {
       logger.error('[Startup] WebSocket initialization failed:', { error: err as Error });
     }
 
-    pool.query(`
+    db.execute(sql`
       UPDATE users SET archived_at = NULL, archived_by = NULL, updated_at = NOW()
       WHERE archived_by = 'system-cleanup'
         AND archived_at IS NOT NULL
@@ -859,12 +862,12 @@ async function initializeApp() {
     if (!isProduction) {
       setTimeout(async () => {
         try {
-          await autoSeedResources(pool, isProduction);
+          await autoSeedResources(db, sql, resources, isProduction);
         } catch (err: unknown) {
           logger.error('[Startup] Auto-seed resources failed:', { error: err as Error });
         }
         try {
-          await autoSeedCafeMenu(pool, isProduction);
+          await autoSeedCafeMenu(db, sql, cafeItems, isProduction);
         } catch (err: unknown) {
           logger.error('[Startup] Auto-seed cafe menu failed:', { error: err as Error });
         }
@@ -879,14 +882,14 @@ async function initializeApp() {
   }, heavyTaskDelay);
 }
 
-async function autoSeedResources(pool: { query: (text: string, values?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }> }, isProduction: boolean) {
+async function autoSeedResources(db: any, sql: any, resourcesTable: any, isProduction: boolean) {
   try {
-    const result = await pool.query('SELECT COUNT(*) as count FROM resources');
-    const count = parseInt(result.rows[0]?.count as string ?? '0');
+    const result = await db.select({ count: sql<number>`count(*)` }).from(resourcesTable);
+    const count = Number(result[0]?.count ?? 0);
 
     if (count === 0) {
       if (!isProduction) logger.info('Auto-seeding resources...');
-      const resources = [
+      const seedResources = [
         { name: 'Simulator Bay 1', type: 'simulator', description: 'TrackMan Simulator Bay 1', capacity: 6 },
         { name: 'Simulator Bay 2', type: 'simulator', description: 'TrackMan Simulator Bay 2', capacity: 6 },
         { name: 'Simulator Bay 3', type: 'simulator', description: 'TrackMan Simulator Bay 3', capacity: 6 },
@@ -894,73 +897,63 @@ async function autoSeedResources(pool: { query: (text: string, values?: unknown[
         { name: 'Conference Room', type: 'conference_room', description: 'Main conference room with AV setup', capacity: 12 },
       ];
 
-      for (const resource of resources) {
-        await pool.query(
-          `INSERT INTO resources (name, type, description, capacity) 
-           VALUES ($1, $2, $3, $4) 
-           ON CONFLICT DO NOTHING`,
-          [resource.name, resource.type, resource.description, resource.capacity]
-        );
+      for (const resource of seedResources) {
+        await db.insert(resourcesTable).values(resource).onConflictDoNothing();
       }
-      if (!isProduction) logger.info(`Auto-seeded ${resources.length} resources`);
+      if (!isProduction) logger.info(`Auto-seeded ${seedResources.length} resources`);
     }
   } catch (error: unknown) {
     if (!isProduction) logger.info('Resources table may not exist yet, skipping auto-seed');
   }
 }
 
-async function autoSeedCafeMenu(pool: { query: (text: string, values?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }> }, isProduction: boolean) {
+async function autoSeedCafeMenu(db: any, sql: any, cafeItemsTable: any, isProduction: boolean) {
   try {
-    const result = await pool.query('SELECT COUNT(*) as count FROM cafe_items');
-    const count = parseInt(result.rows[0]?.count as string ?? '0');
+    const result = await db.select({ count: sql<number>`count(*)` }).from(cafeItemsTable);
+    const count = Number(result[0]?.count ?? 0);
 
     if (count === 0) {
       if (!isProduction) logger.info('Auto-seeding cafe menu...');
-      const cafeItems = [
-        { category: 'Breakfast', name: 'Egg Toast', price: 14, description: 'Schaner Farm scrambled eggs, whipped ricotta, chives, micro greens, toasted country batard', icon: 'egg_alt', sort_order: 1 },
-        { category: 'Breakfast', name: 'Avocado Toast', price: 16, description: 'Hass smashed avocado, radish, lemon, micro greens, dill, toasted country batard', icon: 'eco', sort_order: 2 },
-        { category: 'Breakfast', name: 'Banana & Honey Toast', price: 14, description: 'Banana, whipped ricotta, Hapa Honey Farm local honey, toasted country batard', icon: 'bakery_dining', sort_order: 3 },
-        { category: 'Breakfast', name: 'Smoked Salmon Toast', price: 20, description: 'Alaskan king smoked salmon, whipped cream cheese, dill, capers, lemon, micro greens, toasted country batard', icon: 'set_meal', sort_order: 4 },
-        { category: 'Breakfast', name: 'Breakfast Croissant', price: 16, description: 'Schaner Farm eggs, New School american cheese, freshly baked croissant, choice of cured ham or applewood smoked bacon', icon: 'bakery_dining', sort_order: 5 },
-        { category: 'Breakfast', name: 'French Omelette', price: 14, description: 'Schaner Farm eggs, cultured butter, fresh herbs, served with side of seasonal salad greens', icon: 'egg', sort_order: 6 },
-        { category: 'Breakfast', name: 'Hanger Steak & Eggs', price: 24, description: 'Autonomy Farms Hanger steak, Schaner Farm eggs, cooked your way', icon: 'restaurant', sort_order: 7 },
-        { category: 'Breakfast', name: 'Bacon & Eggs', price: 14, description: 'Applewood smoked bacon, Schaner Farm eggs, cooked your way', icon: 'egg_alt', sort_order: 8 },
-        { category: 'Breakfast', name: 'Yogurt Parfait', price: 14, description: 'Yogurt, seasonal fruits, farmstead granola, Hapa Honey farm local honey', icon: 'icecream', sort_order: 9 },
-        { category: 'Sides', name: 'Bacon, Two Slices', price: 6, description: 'Applewood smoked bacon', icon: 'restaurant', sort_order: 1 },
-        { category: 'Sides', name: 'Eggs, Scrambled', price: 8, description: 'Schaner Farm scrambled eggs', icon: 'egg', sort_order: 2 },
-        { category: 'Sides', name: 'Seasonal Fruit Bowl', price: 10, description: 'Fresh seasonal fruits', icon: 'nutrition', sort_order: 3 },
-        { category: 'Sides', name: 'Smoked Salmon', price: 9, description: 'Alaskan king smoked salmon', icon: 'set_meal', sort_order: 4 },
-        { category: 'Sides', name: 'Toast, Two Slices', price: 3, description: 'Toasted country batard', icon: 'bakery_dining', sort_order: 5 },
-        { category: 'Sides', name: 'Sqirl Seasonal Jam', price: 3, description: 'Artisan seasonal jam', icon: 'local_florist', sort_order: 6 },
-        { category: 'Sides', name: 'Pistachio Spread', price: 4, description: 'House-made pistachio spread', icon: 'spa', sort_order: 7 },
-        { category: 'Lunch', name: 'Caesar Salad', price: 15, description: 'Romaine lettuce, homemade dressing, grated Reggiano. Add: roasted chicken $8, hanger steak 8oz $14', icon: 'local_florist', sort_order: 1 },
-        { category: 'Lunch', name: 'Wedge Salad', price: 16, description: 'Iceberg lettuce, bacon, red onion, cherry tomatoes, Point Reyes bleu cheese, homemade dressing', icon: 'local_florist', sort_order: 2 },
-        { category: 'Lunch', name: 'Chicken Salad Sandwich', price: 14, description: 'Autonomy Farms chicken, celery, toasted pan loaf, served with olive oil potato chips', icon: 'lunch_dining', sort_order: 3 },
-        { category: 'Lunch', name: 'Tuna Salad Sandwich', price: 14, description: 'Wild, pole-caught albacore tuna, sprouts, club chimichurri, toasted pan loaf, served with olive oil potato chips', icon: 'set_meal', sort_order: 4 },
-        { category: 'Lunch', name: 'Grilled Cheese', price: 12, description: 'New School american cheese, brioche pan loaf, served with olive oil potato chips. Add: short rib $6, roasted tomato soup cup $7', icon: 'lunch_dining', sort_order: 5 },
-        { category: 'Lunch', name: 'Heirloom BLT', price: 18, description: 'Applewood smoked bacon, butter lettuce, heirloom tomatoes, olive oil mayo, toasted pan loaf, served with olive oil potato chips', icon: 'lunch_dining', sort_order: 6 },
-        { category: 'Lunch', name: 'Bratwurst', price: 12, description: 'German bratwurst, sautéed onions & peppers, toasted brioche bun', icon: 'lunch_dining', sort_order: 7 },
-        { category: 'Lunch', name: 'Bison Serrano Chili', price: 14, description: 'Pasture raised bison, serrano, anaheim, green bell peppers, mint, cilantro, cheddar cheese, sour cream, green onion, served with organic corn chips', icon: 'soup_kitchen', sort_order: 8 },
-        { category: 'Kids', name: 'Kids Grilled Cheese', price: 6, description: 'Classic grilled cheese for little ones', icon: 'child_care', sort_order: 1 },
-        { category: 'Kids', name: 'Kids Hot Dog', price: 8, description: 'All-beef hot dog', icon: 'child_care', sort_order: 2 },
-        { category: 'Dessert', name: 'Vanilla Bean Gelato Sandwich', price: 6, description: 'Vanilla bean gelato with chocolate chip cookies', icon: 'icecream', sort_order: 1 },
-        { category: 'Dessert', name: 'Sea Salt Caramel Gelato Sandwich', price: 6, description: 'Sea salt caramel gelato with snickerdoodle cookies', icon: 'icecream', sort_order: 2 },
-        { category: 'Dessert', name: 'Seasonal Pie, Slice', price: 6, description: 'Daily seasonal pie with house made crème', icon: 'cake', sort_order: 3 },
-        { category: 'Shareables', name: 'Club Charcuterie', price: 32, description: 'Selection of cured meats and artisan cheeses', icon: 'tapas', sort_order: 1 },
-        { category: 'Shareables', name: 'Chips & Salsa', price: 10, description: 'House-made salsa with organic corn chips', icon: 'tapas', sort_order: 2 },
-        { category: 'Shareables', name: 'Caviar Service', price: 0, description: 'Market price - ask your server', icon: 'dining', sort_order: 3 },
-        { category: 'Shareables', name: 'Tinned Fish Tray', price: 47, description: 'Premium selection of tinned fish', icon: 'set_meal', sort_order: 4 },
+      const seedCafeItems = [
+        { category: 'Breakfast', name: 'Egg Toast', price: '14', description: 'Schaner Farm scrambled eggs, whipped ricotta, chives, micro greens, toasted country batard', icon: 'egg_alt', sortOrder: 1 },
+        { category: 'Breakfast', name: 'Avocado Toast', price: '16', description: 'Hass smashed avocado, radish, lemon, micro greens, dill, toasted country batard', icon: 'eco', sortOrder: 2 },
+        { category: 'Breakfast', name: 'Banana & Honey Toast', price: '14', description: 'Banana, whipped ricotta, Hapa Honey Farm local honey, toasted country batard', icon: 'bakery_dining', sortOrder: 3 },
+        { category: 'Breakfast', name: 'Smoked Salmon Toast', price: '20', description: 'Alaskan king smoked salmon, whipped cream cheese, dill, capers, lemon, micro greens, toasted country batard', icon: 'set_meal', sortOrder: 4 },
+        { category: 'Breakfast', name: 'Breakfast Croissant', price: '16', description: 'Schaner Farm eggs, New School american cheese, freshly baked croissant, choice of cured ham or applewood smoked bacon', icon: 'bakery_dining', sortOrder: 5 },
+        { category: 'Breakfast', name: 'French Omelette', price: '14', description: 'Schaner Farm eggs, cultured butter, fresh herbs, served with side of seasonal salad greens', icon: 'egg', sortOrder: 6 },
+        { category: 'Breakfast', name: 'Hanger Steak & Eggs', price: '24', description: 'Autonomy Farms Hanger steak, Schaner Farm eggs, cooked your way', icon: 'restaurant', sortOrder: 7 },
+        { category: 'Breakfast', name: 'Bacon & Eggs', price: '14', description: 'Applewood smoked bacon, Schaner Farm eggs, cooked your way', icon: 'egg_alt', sortOrder: 8 },
+        { category: 'Breakfast', name: 'Yogurt Parfait', price: '14', description: 'Yogurt, seasonal fruits, farmstead granola, Hapa Honey farm local honey', icon: 'icecream', sortOrder: 9 },
+        { category: 'Sides', name: 'Bacon, Two Slices', price: '6', description: 'Applewood smoked bacon', icon: 'restaurant', sortOrder: 1 },
+        { category: 'Sides', name: 'Eggs, Scrambled', price: '8', description: 'Schaner Farm scrambled eggs', icon: 'egg', sortOrder: 2 },
+        { category: 'Sides', name: 'Seasonal Fruit Bowl', price: '10', description: 'Fresh seasonal fruits', icon: 'nutrition', sortOrder: 3 },
+        { category: 'Sides', name: 'Smoked Salmon', price: '9', description: 'Alaskan king smoked salmon', icon: 'set_meal', sortOrder: 4 },
+        { category: 'Sides', name: 'Toast, Two Slices', price: '3', description: 'Toasted country batard', icon: 'bakery_dining', sortOrder: 5 },
+        { category: 'Sides', name: 'Sqirl Seasonal Jam', price: '3', description: 'Artisan seasonal jam', icon: 'local_florist', sortOrder: 6 },
+        { category: 'Sides', name: 'Pistachio Spread', price: '4', description: 'House-made pistachio spread', icon: 'spa', sortOrder: 7 },
+        { category: 'Lunch', name: 'Caesar Salad', price: '15', description: 'Romaine lettuce, homemade dressing, grated Reggiano. Add: roasted chicken $8, hanger steak 8oz $14', icon: 'local_florist', sortOrder: 1 },
+        { category: 'Lunch', name: 'Wedge Salad', price: '16', description: 'Iceberg lettuce, bacon, red onion, cherry tomatoes, Point Reyes bleu cheese, homemade dressing', icon: 'local_florist', sortOrder: 2 },
+        { category: 'Lunch', name: 'Chicken Salad Sandwich', price: '14', description: 'Autonomy Farms chicken, celery, toasted pan loaf, served with olive oil potato chips', icon: 'lunch_dining', sortOrder: 3 },
+        { category: 'Lunch', name: 'Tuna Salad Sandwich', price: '14', description: 'Wild, pole-caught albacore tuna, sprouts, club chimichurri, toasted pan loaf, served with olive oil potato chips', icon: 'set_meal', sortOrder: 4 },
+        { category: 'Lunch', name: 'Grilled Cheese', price: '12', description: 'New School american cheese, brioche pan loaf, served with olive oil potato chips. Add: short rib $6, roasted tomato soup cup $7', icon: 'lunch_dining', sortOrder: 5 },
+        { category: 'Lunch', name: 'Heirloom BLT', price: '18', description: 'Applewood smoked bacon, butter lettuce, heirloom tomatoes, olive oil mayo, toasted pan loaf, served with olive oil potato chips', icon: 'lunch_dining', sortOrder: 6 },
+        { category: 'Lunch', name: 'Bratwurst', price: '12', description: 'German bratwurst, sautéed onions & peppers, toasted brioche bun', icon: 'lunch_dining', sortOrder: 7 },
+        { category: 'Lunch', name: 'Bison Serrano Chili', price: '14', description: 'Pasture raised bison, serrano, anaheim, green bell peppers, mint, cilantro, cheddar cheese, sour cream, green onion, served with organic corn chips', icon: 'soup_kitchen', sortOrder: 8 },
+        { category: 'Kids', name: 'Kids Grilled Cheese', price: '6', description: 'Classic grilled cheese for little ones', icon: 'child_care', sortOrder: 1 },
+        { category: 'Kids', name: 'Kids Hot Dog', price: '8', description: 'All-beef hot dog', icon: 'child_care', sortOrder: 2 },
+        { category: 'Dessert', name: 'Vanilla Bean Gelato Sandwich', price: '6', description: 'Vanilla bean gelato with chocolate chip cookies', icon: 'icecream', sortOrder: 1 },
+        { category: 'Dessert', name: 'Sea Salt Caramel Gelato Sandwich', price: '6', description: 'Sea salt caramel gelato with snickerdoodle cookies', icon: 'icecream', sortOrder: 2 },
+        { category: 'Dessert', name: 'Seasonal Pie, Slice', price: '6', description: 'Daily seasonal pie with house made crème', icon: 'cake', sortOrder: 3 },
+        { category: 'Shareables', name: 'Club Charcuterie', price: '32', description: 'Selection of cured meats and artisan cheeses', icon: 'tapas', sortOrder: 1 },
+        { category: 'Shareables', name: 'Chips & Salsa', price: '10', description: 'House-made salsa with organic corn chips', icon: 'tapas', sortOrder: 2 },
+        { category: 'Shareables', name: 'Caviar Service', price: '0', description: 'Market price - ask your server', icon: 'dining', sortOrder: 3 },
+        { category: 'Shareables', name: 'Tinned Fish Tray', price: '47', description: 'Premium selection of tinned fish', icon: 'set_meal', sortOrder: 4 },
       ];
 
-      for (const item of cafeItems) {
-        await pool.query(
-          `INSERT INTO cafe_items (category, name, price, description, icon, is_active, sort_order) 
-           VALUES ($1, $2, $3, $4, $5, true, $6) 
-           ON CONFLICT DO NOTHING`,
-          [item.category, item.name, item.price, item.description, item.icon, item.sort_order]
-        );
+      for (const item of seedCafeItems) {
+        await db.insert(cafeItemsTable).values(item).onConflictDoNothing();
       }
-      if (!isProduction) logger.info(`Auto-seeded ${cafeItems.length} cafe menu items`);
+      if (!isProduction) logger.info(`Auto-seeded ${seedCafeItems.length} cafe menu items`);
     }
   } catch (error: unknown) {
     if (!isProduction) logger.info('Cafe menu table may not exist yet, skipping auto-seed');

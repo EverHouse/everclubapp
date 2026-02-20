@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { pool } from '../core/db';
 import { db } from '../db';
 import { dataExportRequests } from '../../shared/schema';
-import { eq, desc } from 'drizzle-orm';
+import { sql, eq, desc } from 'drizzle-orm';
 import { logFromRequest } from '../core/auditLog';
 import { isAuthenticated } from '../core/middleware';
 import { logger } from '../core/logger';
@@ -101,7 +100,7 @@ router.get('/api/account/export-history', isAuthenticated, async (req: Request, 
 async function gatherMemberData(email: string): Promise<MemberDataExport> {
   const normalizedEmail = email.toLowerCase().trim();
   
-  const profileResult = await pool.query(`
+  const profileResult = await db.execute(sql`
     SELECT 
       email, first_name, last_name, phone, tier, 
       membership_status, role, join_date, 
@@ -110,19 +109,19 @@ async function gatherMemberData(email: string): Promise<MemberDataExport> {
       id_image_url,
       created_at, updated_at
     FROM users 
-    WHERE LOWER(email) = $1
-  `, [normalizedEmail]);
+    WHERE LOWER(email) = ${normalizedEmail}
+  `);
   
-  const bookingsResult = await pool.query(`
+  const bookingsResult = await db.execute(sql`
     SELECT 
       id, bay_id, request_date, start_time, end_time, 
       duration_minutes, status, notes, created_at
     FROM booking_requests 
-    WHERE LOWER(user_email) = $1
+    WHERE LOWER(user_email) = ${normalizedEmail}
     ORDER BY request_date DESC
-  `, [normalizedEmail]);
+  `);
   
-  const linkedBookingsResult = await pool.query(`
+  const linkedBookingsResult = await db.execute(sql`
     SELECT 
       br.id, br.request_date, br.start_time, br.end_time, 
       br.duration_minutes, br.status, br.notes, br.created_at,
@@ -131,75 +130,75 @@ async function gatherMemberData(email: string): Promise<MemberDataExport> {
     FROM booking_members bm
     JOIN booking_requests br ON bm.booking_id = br.id
     LEFT JOIN resources r ON br.resource_id = r.id
-    WHERE LOWER(bm.user_email) = $1
-      AND LOWER(br.user_email) != $1
+    WHERE LOWER(bm.user_email) = ${normalizedEmail}
+      AND LOWER(br.user_email) != ${normalizedEmail}
     ORDER BY br.request_date DESC
-  `, [normalizedEmail]);
+  `);
   
-  const notificationsResult = await pool.query(`
+  const notificationsResult = await db.execute(sql`
     SELECT 
       id, title, message, type, is_read, created_at
     FROM notifications 
-    WHERE LOWER(user_email) = $1
+    WHERE LOWER(user_email) = ${normalizedEmail}
     ORDER BY created_at DESC
     LIMIT 500
-  `, [normalizedEmail]);
+  `);
   
-  const guestPassesResult = await pool.query(`
+  const guestPassesResult = await db.execute(sql`
     SELECT passes_used, passes_total, last_reset_date
     FROM guest_passes 
-    WHERE LOWER(member_email) = $1
-  `, [normalizedEmail]);
+    WHERE LOWER(member_email) = ${normalizedEmail}
+  `);
   
-  const eventRsvpsResult = await pool.query(`
+  const eventRsvpsResult = await db.execute(sql`
     SELECT event_id, status, created_at, updated_at
     FROM event_rsvps 
-    WHERE LOWER(user_email) = $1
-  `, [normalizedEmail]);
+    WHERE LOWER(user_email) = ${normalizedEmail}
+  `);
   
-  const memberNotesResult = await pool.query(`
+  const memberNotesResult = await db.execute(sql`
     SELECT content, created_by_name, created_at
     FROM member_notes 
-    WHERE LOWER(member_email) = $1
+    WHERE LOWER(member_email) = ${normalizedEmail}
     ORDER BY created_at DESC
-  `, [normalizedEmail]);
+  `);
   
-  const communicationLogsResult = await pool.query(`
+  const communicationLogsResult = await db.execute(sql`
     SELECT type, direction, subject, occurred_at
     FROM communication_logs 
-    WHERE LOWER(member_email) = $1
+    WHERE LOWER(member_email) = ${normalizedEmail}
     ORDER BY occurred_at DESC
     LIMIT 200
-  `, [normalizedEmail]);
+  `);
   
-  const billingResult = await pool.query(`
+  const billingResult = await db.execute(sql`
     SELECT action_type, action_details, new_value, created_at
     FROM billing_audit_log 
-    WHERE LOWER(member_email) = $1
+    WHERE LOWER(member_email) = ${normalizedEmail}
     ORDER BY created_at DESC
     LIMIT 100
-  `, [normalizedEmail]);
+  `);
   
-  const bookingMembershipsResult = await pool.query(`
+  const bookingMembershipsResult = await db.execute(sql`
     SELECT booking_id, is_primary, status, added_at, updated_at
     FROM booking_members 
-    WHERE LOWER(user_email) = $1
+    WHERE LOWER(user_email) = ${normalizedEmail}
     ORDER BY added_at DESC
-  `, [normalizedEmail]);
+  `);
   
-  const guestCheckInsResult = await pool.query(`
+  const guestCheckInsResult = await db.execute(sql`
     SELECT guest_name, guest_email, check_in_date, check_in_notes, created_at
     FROM guest_check_ins 
-    WHERE LOWER(member_email) = $1
+    WHERE LOWER(member_email) = ${normalizedEmail}
     ORDER BY check_in_date DESC
-  `, [normalizedEmail]);
+  `);
   
-  const wellnessEnrollmentsResult = await pool.query(`
+  const wellnessEnrollmentsResult = await db.execute(sql`
     SELECT class_id, status, created_at, updated_at
     FROM wellness_enrollments 
-    WHERE LOWER(user_email) = $1
+    WHERE LOWER(user_email) = ${normalizedEmail}
     ORDER BY created_at DESC
-  `, [normalizedEmail]);
+  `);
   
   const profile = profileResult.rows[0] || null;
   
@@ -215,7 +214,7 @@ async function gatherMemberData(email: string): Promise<MemberDataExport> {
       joinDate: profile.join_date,
       createdAt: profile.created_at,
     } : null,
-    bookings: bookingsResult.rows.map(b => ({
+    bookings: bookingsResult.rows.map((b: any) => ({
       id: b.id,
       bayId: b.bay_id,
       date: b.request_date,
@@ -226,7 +225,7 @@ async function gatherMemberData(email: string): Promise<MemberDataExport> {
       notes: b.notes,
       createdAt: b.created_at,
     })),
-    linkedBookings: linkedBookingsResult.rows.map(lb => ({
+    linkedBookings: linkedBookingsResult.rows.map((lb: any) => ({
       bookingId: lb.id,
       date: lb.request_date,
       startTime: lb.start_time,
@@ -239,7 +238,7 @@ async function gatherMemberData(email: string): Promise<MemberDataExport> {
       memberStatus: lb.member_status,
       addedAt: lb.added_at,
     })),
-    notifications: notificationsResult.rows.map(n => ({
+    notifications: notificationsResult.rows.map((n: any) => ({
       title: n.title,
       message: n.message,
       type: n.type,
@@ -247,55 +246,55 @@ async function gatherMemberData(email: string): Promise<MemberDataExport> {
       createdAt: n.created_at,
     })),
     guestPasses: guestPassesResult.rows[0] ? {
-      used: guestPassesResult.rows[0].passes_used,
-      total: guestPassesResult.rows[0].passes_total,
-      lastReset: guestPassesResult.rows[0].last_reset_date,
+      used: (guestPassesResult.rows[0] as any).passes_used,
+      total: (guestPassesResult.rows[0] as any).passes_total,
+      lastReset: (guestPassesResult.rows[0] as any).last_reset_date,
     } : null,
-    eventRsvps: eventRsvpsResult.rows.map(r => ({
+    eventRsvps: eventRsvpsResult.rows.map((r: any) => ({
       eventId: r.event_id,
       status: r.status,
       createdAt: r.created_at,
     })),
-    memberNotes: memberNotesResult.rows.map(n => ({
+    memberNotes: memberNotesResult.rows.map((n: any) => ({
       content: n.content,
       createdBy: n.created_by_name,
       createdAt: n.created_at,
     })),
-    communicationLogs: communicationLogsResult.rows.map(c => ({
+    communicationLogs: communicationLogsResult.rows.map((c: any) => ({
       type: c.type,
       direction: c.direction,
       subject: c.subject,
       occurredAt: c.occurred_at,
     })),
-    billingHistory: billingResult.rows.map(b => ({
+    billingHistory: billingResult.rows.map((b: any) => ({
       action: b.action_type,
       details: b.action_details,
       value: b.new_value,
       createdAt: b.created_at,
     })),
-    bookingMemberships: bookingMembershipsResult.rows.map(bm => ({
+    bookingMemberships: bookingMembershipsResult.rows.map((bm: any) => ({
       bookingId: bm.booking_id,
       isPrimary: bm.is_primary,
       status: bm.status,
       addedAt: bm.added_at,
     })),
-    guestCheckIns: guestCheckInsResult.rows.map(g => ({
+    guestCheckIns: guestCheckInsResult.rows.map((g: any) => ({
       guestName: g.guest_name,
       guestEmail: g.guest_email,
       checkInDate: g.check_in_date,
       notes: g.check_in_notes,
       createdAt: g.created_at,
     })),
-    wellnessEnrollments: wellnessEnrollmentsResult.rows.map(w => ({
+    wellnessEnrollments: wellnessEnrollmentsResult.rows.map((w: any) => ({
       classId: w.class_id,
       status: w.status,
       createdAt: w.created_at,
     })),
     preferences: profile ? {
-      emailNotifications: profile.email_notifications_enabled,
-      smsNotifications: profile.sms_notifications_enabled,
-      bookingReminders: profile.booking_reminders_enabled,
-      marketingEmails: profile.marketing_emails_enabled,
+      emailNotifications: (profile as any).email_notifications_enabled,
+      smsNotifications: (profile as any).sms_notifications_enabled,
+      bookingReminders: (profile as any).booking_reminders_enabled,
+      marketingEmails: (profile as any).marketing_emails_enabled,
     } : null,
   };
 }

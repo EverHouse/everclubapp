@@ -1,35 +1,33 @@
 import { Router } from 'express';
-import { pool, isProduction } from '../core/db';
-import { isAdmin, isStaffOrAdmin } from '../core/middleware';
+import { isProduction } from '../core/db';
+import { isStaffOrAdmin, isAdmin } from '../core/middleware';
 import { broadcastCafeMenuUpdate } from '../core/websocket';
 import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
+import { db } from '../db';
+import { cafeItems } from '../../shared/schema';
+import { sql, eq, and, asc } from 'drizzle-orm';
 
 const router = Router();
 
 router.get('/api/cafe-menu', async (req, res) => {
   try {
     const { category, include_inactive } = req.query;
-    const conditions: string[] = [];
-    const params: (string | number)[] = [];
+    const conditions = [];
     
     if (include_inactive !== 'true') {
-      conditions.push('is_active = true');
+      conditions.push(eq(cafeItems.isActive, true));
     }
     
     if (category) {
-      params.push(category as any);
-      conditions.push(`category = $${params.length}`);
+      conditions.push(eq(cafeItems.category, category as string));
     }
     
-    let query = 'SELECT * FROM cafe_items';
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
-    }
-    query += ' ORDER BY sort_order, category, name';
+    const result = await db.select().from(cafeItems)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(asc(cafeItems.sortOrder), asc(cafeItems.category), asc(cafeItems.name));
     
-    const result = await pool.query(query, params);
-    res.json(result.rows);
+    res.json(result);
   } catch (error: unknown) {
     if (!isProduction) logger.error('Cafe menu error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to fetch cafe menu' });
@@ -44,15 +42,20 @@ router.post('/api/cafe-menu', isStaffOrAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Name and category are required' });
     }
     
-    const result = await pool.query(
-      `INSERT INTO cafe_items (category, name, price, description, icon, image_url, is_active, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [category, name, price || 0, description || '', icon || '', image_url || '', is_active !== false, sort_order || 0]
-    );
+    const result = await db.insert(cafeItems).values({
+      category,
+      name,
+      price: String(price || 0),
+      description: description || '',
+      icon: icon || '',
+      imageUrl: image_url || '',
+      isActive: is_active !== false,
+      sortOrder: sort_order || 0,
+    }).returning();
     
     broadcastCafeMenuUpdate('created');
-    logFromRequest(req, 'create_cafe_item', 'cafe', String(result.rows[0].id), result.rows[0].name || name, {});
-    res.status(201).json(result.rows[0]);
+    logFromRequest(req, 'create_cafe_item', 'cafe', String(result[0].id), result[0].name || name, {});
+    res.status(201).json(result[0]);
   } catch (error: unknown) {
     if (!isProduction) logger.error('Cafe item creation error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to create cafe item' });
@@ -64,41 +67,37 @@ router.put('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
     const { id } = req.params;
     const { category, name, price, description, icon, image_url, is_active, sort_order } = req.body;
     
-    const existing = await pool.query('SELECT stripe_product_id FROM cafe_items WHERE id = $1', [id]);
-    if (existing.rows.length === 0) {
+    const existing = await db.select({ stripeProductId: cafeItems.stripeProductId })
+      .from(cafeItems)
+      .where(eq(cafeItems.id, Number(id)));
+    if (existing.length === 0) {
       return res.status(404).json({ error: 'Cafe item not found' });
     }
     
     let result;
-    if (existing.rows[0].stripe_product_id) {
-      result = await pool.query(
-        `UPDATE cafe_items 
-         SET description = COALESCE($1, description),
-             icon = COALESCE($2, icon),
-             image_url = COALESCE($3, image_url),
-             sort_order = COALESCE($4, sort_order)
-         WHERE id = $5 RETURNING *`,
-        [description, icon, image_url, sort_order, id]
-      );
+    if (existing[0].stripeProductId) {
+      result = await db.update(cafeItems).set({
+        description: sql`COALESCE(${description}, ${cafeItems.description})`,
+        icon: sql`COALESCE(${icon}, ${cafeItems.icon})`,
+        imageUrl: sql`COALESCE(${image_url}, ${cafeItems.imageUrl})`,
+        sortOrder: sql`COALESCE(${sort_order}, ${cafeItems.sortOrder})`,
+      }).where(eq(cafeItems.id, Number(id))).returning();
     } else {
-      result = await pool.query(
-        `UPDATE cafe_items 
-         SET category = COALESCE($1, category),
-             name = COALESCE($2, name),
-             price = COALESCE($3, price),
-             description = COALESCE($4, description),
-             icon = COALESCE($5, icon),
-             image_url = COALESCE($6, image_url),
-             is_active = COALESCE($7, is_active),
-             sort_order = COALESCE($8, sort_order)
-         WHERE id = $9 RETURNING *`,
-        [category, name, price, description, icon, image_url, is_active, sort_order, id]
-      );
+      result = await db.update(cafeItems).set({
+        category: sql`COALESCE(${category}, ${cafeItems.category})`,
+        name: sql`COALESCE(${name}, ${cafeItems.name})`,
+        price: sql`COALESCE(${price}, ${cafeItems.price})`,
+        description: sql`COALESCE(${description}, ${cafeItems.description})`,
+        icon: sql`COALESCE(${icon}, ${cafeItems.icon})`,
+        imageUrl: sql`COALESCE(${image_url}, ${cafeItems.imageUrl})`,
+        isActive: sql`COALESCE(${is_active}, ${cafeItems.isActive})`,
+        sortOrder: sql`COALESCE(${sort_order}, ${cafeItems.sortOrder})`,
+      }).where(eq(cafeItems.id, Number(id))).returning();
     }
     
     broadcastCafeMenuUpdate('updated');
     logFromRequest(req, 'update_cafe_item', 'cafe', String(id), name, {});
-    res.json(result.rows[0]);
+    res.json(result[0]);
   } catch (error: unknown) {
     if (!isProduction) logger.error('Cafe item update error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to update cafe item' });
@@ -109,12 +108,14 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     
-    const existing = await pool.query('SELECT stripe_product_id FROM cafe_items WHERE id = $1', [id]);
-    if (existing.rows.length > 0 && existing.rows[0].stripe_product_id) {
+    const existing = await db.select({ stripeProductId: cafeItems.stripeProductId })
+      .from(cafeItems)
+      .where(eq(cafeItems.id, Number(id)));
+    if (existing.length > 0 && existing[0].stripeProductId) {
       return res.status(400).json({ error: 'Cannot delete Stripe-managed items. Archive in Stripe Dashboard instead.' });
     }
     
-    await pool.query('DELETE FROM cafe_items WHERE id = $1', [id]);
+    await db.delete(cafeItems).where(eq(cafeItems.id, Number(id)));
     broadcastCafeMenuUpdate('deleted');
     logFromRequest(req, 'delete_cafe_item', 'cafe', String(id), undefined, {});
     res.json({ success: true });
@@ -124,12 +125,10 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-// Admin-protected seed endpoint for production
 router.post('/api/admin/seed-cafe', isAdmin, async (req, res) => {
   try {
-    // Check current count - only seed if table is empty
-    const countResult = await pool.query('SELECT COUNT(*) as count FROM cafe_items');
-    const existingCount = parseInt(countResult.rows[0].count);
+    const countResult = await db.select({ count: sql<number>`count(*)` }).from(cafeItems);
+    const existingCount = Number(countResult[0].count);
     
     if (existingCount > 0) {
       return res.json({ 
@@ -140,8 +139,7 @@ router.post('/api/admin/seed-cafe', isAdmin, async (req, res) => {
       });
     }
     
-    // Seed cafe items (only when table is empty)
-    const cafeItems = [
+    const cafeItemsData = [
       { category: 'Breakfast', name: 'Egg Toast', price: 14, description: 'Schaner Farm scrambled eggs, whipped ricotta, chives, micro greens, toasted country batard', icon: 'egg_alt', sort_order: 1 },
       { category: 'Breakfast', name: 'Avocado Toast', price: 16, description: 'Hass smashed avocado, radish, lemon, micro greens, dill, toasted country batard', icon: 'eco', sort_order: 2 },
       { category: 'Breakfast', name: 'Banana & Honey Toast', price: 14, description: 'Banana, whipped ricotta, Hapa Honey Farm local honey, toasted country batard', icon: 'bakery_dining', sort_order: 3 },
@@ -176,22 +174,19 @@ router.post('/api/admin/seed-cafe', isAdmin, async (req, res) => {
       { category: 'Shareables', name: 'Caviar Service', price: 0, description: 'Market price - ask your server', icon: 'dining', sort_order: 3 },
       { category: 'Shareables', name: 'Tinned Fish Tray', price: 47, description: 'Premium selection of tinned fish', icon: 'set_meal', sort_order: 4 },
     ];
-    
-    const categories = cafeItems.map(i => i.category);
-    const names = cafeItems.map(i => i.name);
-    const prices = cafeItems.map(i => i.price);
-    const descriptions = cafeItems.map(i => i.description);
-    const icons = cafeItems.map(i => i.icon);
-    const sortOrders = cafeItems.map(i => i.sort_order);
 
-    const insertResult = await pool.query(
-      `INSERT INTO cafe_items (category, name, price, description, icon, is_active, sort_order)
-       SELECT category, name, price, description, icon, true, sort_order
-       FROM unnest($1::text[], $2::text[], $3::numeric[], $4::text[], $5::text[], $6::int[])
-       AS t(category, name, price, description, icon, sort_order)`,
-      [categories, names, prices, descriptions, icons, sortOrders]
+    await db.insert(cafeItems).values(
+      cafeItemsData.map(item => ({
+        category: item.category,
+        name: item.name,
+        price: String(item.price),
+        description: item.description,
+        icon: item.icon,
+        isActive: true,
+        sortOrder: item.sort_order,
+      }))
     );
-    const inserted = insertResult.rowCount || 0;
+    const inserted = cafeItemsData.length;
     
     logFromRequest(req, 'seed_cafe', 'cafe', undefined, 'Cafe Menu Seed', {});
     res.json({ 

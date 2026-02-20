@@ -1,7 +1,7 @@
 import { logger } from '../core/logger';
 import { Router } from 'express';
 import webpush from 'web-push';
-import { pool, isProduction } from '../core/db';
+import { isProduction } from '../core/db';
 import { db } from '../db';
 import { pushSubscriptions, users, notifications, events, eventRsvps, bookingRequests, wellnessClasses, wellnessEnrollments, facilityClosures } from '../../shared/schema';
 import { eq, inArray, and, sql, or, isNull } from 'drizzle-orm';
@@ -36,16 +36,16 @@ export async function sendPushNotification(userEmail: string, payload: { title: 
   }
   
   try {
-    const result = await pool.query(
-      'SELECT * FROM push_subscriptions WHERE user_email = $1',
-      [userEmail]
-    );
+    const subs = await db
+      .select()
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.userEmail, userEmail));
     
-    if (result.rows.length === 0) {
+    if (subs.length === 0) {
       return { sent: false, reason: 'No push subscriptions' };
     }
     
-    const notifications = result.rows.map(async (sub) => {
+    const notifications = subs.map(async (sub) => {
       const pushSubscription = {
         endpoint: sub.endpoint,
         keys: {
@@ -58,7 +58,7 @@ export async function sendPushNotification(userEmail: string, payload: { title: 
         await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
       } catch (err: unknown) {
         if (getErrorStatusCode(err) === 410) {
-          await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
+          await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));
         }
       }
     });
@@ -106,7 +106,7 @@ export async function sendPushNotificationToStaff(payload: { title: string; body
         await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
       } catch (err: unknown) {
         if (getErrorStatusCode(err) === 410) {
-          await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
+          await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));
         }
       }
     });
@@ -204,15 +204,22 @@ router.post('/api/push/subscribe', isAuthenticated, async (req, res) => {
     
     const { endpoint, keys } = subscription;
     
-    await pool.query(
-      `INSERT INTO push_subscriptions (user_email, endpoint, p256dh, auth)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (endpoint) DO UPDATE SET
-         user_email = $1,
-         p256dh = $3,
-         auth = $4`,
-      [userEmail, endpoint, keys.p256dh, keys.auth]
-    );
+    await db
+      .insert(pushSubscriptions)
+      .values({
+        userEmail,
+        endpoint,
+        p256dh: keys.p256dh,
+        auth: keys.auth,
+      })
+      .onConflictDoUpdate({
+        target: pushSubscriptions.endpoint,
+        set: {
+          userEmail,
+          p256dh: keys.p256dh,
+          auth: keys.auth,
+        },
+      });
     
     res.json({ success: true });
   } catch (error: unknown) {
@@ -230,7 +237,7 @@ router.post('/api/push/unsubscribe', isAuthenticated, async (req, res) => {
       return res.status(400).json({ error: 'endpoint is required' });
     }
     
-    await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1 AND user_email = $2', [endpoint, userEmail]);
+    await db.delete(pushSubscriptions).where(and(eq(pushSubscriptions.endpoint, endpoint), eq(pushSubscriptions.userEmail, userEmail)));
     
     res.json({ success: true });
   } catch (error: unknown) {

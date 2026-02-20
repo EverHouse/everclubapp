@@ -4,8 +4,8 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { eq, and, sql, gt, isNotNull } from 'drizzle-orm';
 import { db } from '../db';
-import { users, magicLinks, staffUsers, membershipTiers } from '../../shared/schema';
-import { isProduction, pool } from '../core/db';
+import { users, magicLinks, staffUsers, membershipTiers, rateLimits } from '../../shared/schema';
+import { isProduction } from '../core/db';
 import { getHubSpotClient } from '../core/integrations';
 import { normalizeTierName, DEFAULT_TIER } from '../../shared/constants/tiers';
 import { getResendClient } from '../utils/resend';
@@ -240,24 +240,21 @@ const checkOtpRequestLimit = async (email: string, ip: string): Promise<{ allowe
   const resetAt = new Date(now.getTime() + OTP_REQUEST_WINDOW);
   
   try {
-    const result = await pool.query(
-      `INSERT INTO rate_limits (key, limit_type, count, reset_at, updated_at)
-       VALUES ($1, 'otp_request', 1, $2, NOW())
+    const result = await db.execute(sql`INSERT INTO rate_limits (key, limit_type, count, reset_at, updated_at)
+       VALUES (${key}, 'otp_request', 1, ${resetAt}, NOW())
        ON CONFLICT (key) DO UPDATE SET
          count = CASE 
            WHEN rate_limits.reset_at < NOW() THEN 1
            ELSE rate_limits.count + 1
          END,
          reset_at = CASE 
-           WHEN rate_limits.reset_at < NOW() THEN $2
+           WHEN rate_limits.reset_at < NOW() THEN ${resetAt}
            ELSE rate_limits.reset_at
          END,
          updated_at = NOW()
-       RETURNING count, reset_at`,
-      [key, resetAt]
-    );
+       RETURNING count, reset_at`);
     
-    const { count, reset_at } = result.rows[0];
+    const { count, reset_at } = result.rows[0] as { count: number; reset_at: Date };
     if (count > OTP_REQUEST_LIMIT) {
       const retryAfter = Math.ceil((new Date(reset_at).getTime() - now.getTime()) / 1000);
       return { allowed: false, retryAfter: Math.max(0, retryAfter) };
@@ -276,24 +273,21 @@ const checkMagicLinkRequestLimit = async (email: string, ip: string): Promise<{ 
   const resetAt = new Date(now.getTime() + MAGIC_LINK_REQUEST_WINDOW);
   
   try {
-    const result = await pool.query(
-      `INSERT INTO rate_limits (key, limit_type, count, reset_at, updated_at)
-       VALUES ($1, 'magic_link', 1, $2, NOW())
+    const result = await db.execute(sql`INSERT INTO rate_limits (key, limit_type, count, reset_at, updated_at)
+       VALUES (${key}, 'magic_link', 1, ${resetAt}, NOW())
        ON CONFLICT (key) DO UPDATE SET
          count = CASE 
            WHEN rate_limits.reset_at < NOW() THEN 1
            ELSE rate_limits.count + 1
          END,
          reset_at = CASE 
-           WHEN rate_limits.reset_at < NOW() THEN $2
+           WHEN rate_limits.reset_at < NOW() THEN ${resetAt}
            ELSE rate_limits.reset_at
          END,
          updated_at = NOW()
-       RETURNING count, reset_at`,
-      [key, resetAt]
-    );
+       RETURNING count, reset_at`);
     
-    const { count, reset_at } = result.rows[0];
+    const { count, reset_at } = result.rows[0] as { count: number; reset_at: Date };
     if (count > MAGIC_LINK_REQUEST_LIMIT) {
       const retryAfter = Math.ceil((new Date(reset_at).getTime() - now.getTime()) / 1000);
       return { allowed: false, retryAfter: Math.max(0, retryAfter) };
@@ -311,23 +305,23 @@ const checkOtpVerifyAttempts = async (email: string): Promise<{ allowed: boolean
   const now = new Date();
   
   try {
-    const result = await pool.query(
-      `SELECT count, locked_until FROM rate_limits WHERE key = $1`,
-      [key]
-    );
+    const result = await db.select({
+      count: rateLimits.count,
+      lockedUntil: rateLimits.lockedUntil,
+    }).from(rateLimits).where(eq(rateLimits.key, key));
     
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return { allowed: true };
     }
     
-    const { locked_until } = result.rows[0];
+    const { lockedUntil: locked_until } = result[0];
     if (locked_until && new Date(locked_until) > now) {
       const retryAfter = Math.ceil((new Date(locked_until).getTime() - now.getTime()) / 1000);
       return { allowed: false, retryAfter: Math.max(0, retryAfter) };
     }
     
     if (locked_until && new Date(locked_until) <= now) {
-      await pool.query(`DELETE FROM rate_limits WHERE key = $1`, [key]);
+      await db.delete(rateLimits).where(eq(rateLimits.key, key));
     }
     
     return { allowed: true };
@@ -345,19 +339,16 @@ const recordOtpVerifyFailure = async (email: string): Promise<void> => {
   const lockedUntil = new Date(now.getTime() + OTP_VERIFY_LOCKOUT);
   
   try {
-    const result = await pool.query(
-      `INSERT INTO rate_limits (key, limit_type, count, reset_at, updated_at)
-       VALUES ($1, 'otp_verify', 1, $2, NOW())
+    await db.execute(sql`INSERT INTO rate_limits (key, limit_type, count, reset_at, updated_at)
+       VALUES (${key}, 'otp_verify', 1, ${resetAt}, NOW())
        ON CONFLICT (key) DO UPDATE SET
          count = rate_limits.count + 1,
          locked_until = CASE 
-           WHEN rate_limits.count + 1 >= $3 THEN $4
+           WHEN rate_limits.count + 1 >= ${OTP_VERIFY_MAX_ATTEMPTS} THEN ${lockedUntil}
            ELSE rate_limits.locked_until
          END,
          updated_at = NOW()
-       RETURNING count`,
-      [key, resetAt, OTP_VERIFY_MAX_ATTEMPTS, lockedUntil]
-    );
+       RETURNING count`);
   } catch (error: unknown) {
     logger.error('[RateLimit] Database error recording failure', { error: error instanceof Error ? error : new Error(String(error)) });
   }
@@ -366,7 +357,7 @@ const recordOtpVerifyFailure = async (email: string): Promise<void> => {
 const clearOtpVerifyAttempts = async (email: string): Promise<void> => {
   const key = `otp_verify:${email}`;
   try {
-    await pool.query(`DELETE FROM rate_limits WHERE key = $1`, [key]);
+    await db.delete(rateLimits).where(eq(rateLimits.key, key));
   } catch (error: unknown) {
     logger.error('[RateLimit] Database error clearing attempts', { error: error instanceof Error ? error : new Error(String(error)) });
   }
@@ -425,10 +416,7 @@ router.post('/api/auth/verify-member', async (req, res) => {
           const stripeActiveStatuses = ['active', 'trialing', 'past_due'];
           if (stripeActiveStatuses.includes(subscription.status)) {
             // Auto-fix the database - subscription is actually active
-            await pool.query(
-              `UPDATE users SET membership_status = $1, updated_at = NOW() WHERE id = $2`,
-              [subscription.status, dbUser[0].id]
-            );
+            await db.update(users).set({ membershipStatus: subscription.status, updatedAt: new Date() }).where(eq(users.id, dbUser[0].id));
             logger.info('[Auth] Auto-fixed membership_status for : ->', { extra: { normalizedEmail, dbMemberStatus, subscriptionStatus: subscription.status } });
             dbMemberStatus = subscription.status; // Update for session
             
@@ -612,10 +600,7 @@ router.post('/api/auth/request-otp', async (req, res) => {
           const stripeActiveStatuses = ['active', 'trialing', 'past_due'];
           if (stripeActiveStatuses.includes(subscription.status)) {
             // Auto-fix the database - subscription is actually active
-            await pool.query(
-              `UPDATE users SET membership_status = $1, updated_at = NOW() WHERE id = $2`,
-              [subscription.status, dbUser[0].id]
-            );
+            await db.update(users).set({ membershipStatus: subscription.status, updatedAt: new Date() }).where(eq(users.id, dbUser[0].id));
             logger.info('[Auth] Auto-fixed membership_status for : ->', { extra: { normalizedEmail, dbMemberStatus, subscriptionStatus: subscription.status } });
             
             // Sync corrected status to HubSpot
@@ -807,11 +792,10 @@ router.post('/api/auth/verify-otp', async (req, res) => {
     // SECURITY FIX: Use atomic UPDATE with CTE to prevent OTP replay race condition
     // This preserves the "latest token" semantics while preventing concurrent requests
     // from both succeeding with the same code
-    const atomicResult = await pool.query(
-      `WITH latest_token AS (
+    const atomicResult = await db.execute(sql`WITH latest_token AS (
         SELECT id FROM magic_links
-        WHERE email = $1
-        AND token = $2
+        WHERE email = ${normalizedEmail}
+        AND token = ${normalizedCode}
         AND used = false
         AND expires_at > NOW()
         ORDER BY created_at DESC
@@ -821,9 +805,7 @@ router.post('/api/auth/verify-otp', async (req, res) => {
       UPDATE magic_links
       SET used = true
       WHERE id = (SELECT id FROM latest_token)
-      RETURNING *`,
-      [normalizedEmail, normalizedCode]
-    );
+      RETURNING *`);
     
     if (atomicResult.rows.length === 0) {
       await recordOtpVerifyFailure(normalizedEmail);

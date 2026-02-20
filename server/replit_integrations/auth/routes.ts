@@ -1,20 +1,20 @@
 import type { Express } from "express";
 import { isAuthenticated, isAdminEmail } from "./replitAuth";
-import { Pool } from "pg";
+import { sql, eq, and } from "drizzle-orm";
+import { db } from "../../db";
+import { users, staffUsers } from "../../../shared/schema";
 import { logger } from "../../core/logger";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
 
 async function isStaffEmail(email: string): Promise<boolean> {
   if (!email) return false;
   try {
-    const result = await pool.query(
-      'SELECT id FROM staff_users WHERE LOWER(email) = LOWER($1) AND is_active = true',
-      [email]
-    );
-    return result.rows.length > 0;
+    const result = await db.select({ id: staffUsers.id })
+      .from(staffUsers)
+      .where(and(
+        sql`LOWER(${staffUsers.email}) = LOWER(${email})`,
+        eq(staffUsers.isActive, true)
+      ));
+    return result.length > 0;
   } catch (error: unknown) {
     logger.error('Error checking staff status:', { error: error as Error });
     return false;
@@ -33,26 +33,25 @@ export function registerAuthRoutes(app: Express): void {
       const isStaff = await isStaffEmail(user.email);
       const isAdmin = await isAdminEmail(user.email);
       
-      const userResult = await pool.query(
-        'SELECT id, tags FROM users WHERE LOWER(email) = LOWER($1)',
-        [user.email]
-      );
-      const dbUser = userResult.rows[0];
+      const userResult = await db.select({ id: users.id, tags: users.tags })
+        .from(users)
+        .where(sql`LOWER(${users.email}) = LOWER(${user.email})`);
+      const dbUser = userResult[0];
       
       // Count past bookings using UNION for deduplication
       // Include: host (owner), player (booking_members), guest (booking_guests)
-      const bookingsResult = await pool.query(
-        `SELECT COUNT(*) as count FROM (
+      const bookingsResult = await db.execute(sql`
+        SELECT COUNT(*) as count FROM (
            -- As host
            SELECT br.id FROM booking_requests br
-           WHERE LOWER(br.user_email) = LOWER($1)
+           WHERE LOWER(br.user_email) = LOWER(${user.email})
              AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
              AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
            UNION
            -- As added player
            SELECT br.id FROM booking_requests br
            JOIN booking_members bm ON br.id = bm.booking_id
-           WHERE LOWER(bm.user_email) = LOWER($1)
+           WHERE LOWER(bm.user_email) = LOWER(${user.email})
              AND bm.is_primary IS NOT TRUE
              AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
              AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
@@ -60,77 +59,72 @@ export function registerAuthRoutes(app: Express): void {
            -- As guest
            SELECT br.id FROM booking_requests br
            JOIN booking_guests bg ON br.id = bg.booking_id
-           WHERE LOWER(bg.guest_email) = LOWER($1)
+           WHERE LOWER(bg.guest_email) = LOWER(${user.email})
              AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
              AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
-         ) unified_bookings`,
-        [user.email]
-      );
+         ) unified_bookings
+      `);
       const pastBookingsCount = parseInt(bookingsResult.rows[0]?.count || '0', 10);
       
       // Count past event RSVPs (event date < today, excluding cancelled)
-      const eventRsvpResult = await pool.query(
-        `SELECT COUNT(*) as rsvp_count FROM event_rsvps er
+      const eventRsvpResult = await db.execute(sql`
+        SELECT COUNT(*) as rsvp_count FROM event_rsvps er
          JOIN events e ON er.event_id = e.id
          WHERE e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
          AND er.status != 'cancelled'
          AND (
-           LOWER(er.user_email) = LOWER($1) 
-           OR er.matched_user_id = $2
-         )`,
-        [user.email, dbUser?.id || null]
-      );
+           LOWER(er.user_email) = LOWER(${user.email}) 
+           OR er.matched_user_id = ${dbUser?.id || null}
+         )
+      `);
       const pastEventsCount = parseInt(eventRsvpResult.rows[0]?.rsvp_count || '0', 10);
       
       // Count past wellness enrollments (class date < today, excluding cancelled)
-      const wellnessResult = await pool.query(
-        `SELECT COUNT(*) as wellness_count FROM wellness_enrollments we
+      const wellnessResult = await db.execute(sql`
+        SELECT COUNT(*) as wellness_count FROM wellness_enrollments we
          JOIN wellness_classes wc ON we.class_id = wc.id
-         WHERE LOWER(we.user_email) = LOWER($1) 
+         WHERE LOWER(we.user_email) = LOWER(${user.email}) 
          AND we.status != 'cancelled'
-         AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date`,
-        [user.email]
-      );
+         AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+      `);
       const pastWellnessCount = parseInt(wellnessResult.rows[0]?.wellness_count || '0', 10);
       
       // Get last activity date from all visit sources using UNION
-      const lastActivityResult = await pool.query(
-        `SELECT MAX(last_date) as last_date FROM (
+      const lastActivityResult = await db.execute(sql`
+        SELECT MAX(last_date) as last_date FROM (
            -- Bookings as host
            SELECT MAX(request_date) as last_date FROM booking_requests
-           WHERE LOWER(user_email) = LOWER($1) AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date AND status NOT IN ('cancelled', 'declined', 'cancellation_pending')
+           WHERE LOWER(user_email) = LOWER(${user.email}) AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date AND status NOT IN ('cancelled', 'declined', 'cancellation_pending')
            UNION ALL
            -- Bookings as player
            SELECT MAX(br.request_date) as last_date FROM booking_requests br
            JOIN booking_members bm ON br.id = bm.booking_id
-           WHERE LOWER(bm.user_email) = LOWER($1) AND bm.is_primary IS NOT TRUE
+           WHERE LOWER(bm.user_email) = LOWER(${user.email}) AND bm.is_primary IS NOT TRUE
              AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
            UNION ALL
            -- Bookings as guest
            SELECT MAX(br.request_date) as last_date FROM booking_requests br
            JOIN booking_guests bg ON br.id = bg.booking_id
-           WHERE LOWER(bg.guest_email) = LOWER($1)
+           WHERE LOWER(bg.guest_email) = LOWER(${user.email})
              AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
            UNION ALL
            -- Events
            SELECT MAX(e.event_date) as last_date FROM event_rsvps er
            JOIN events e ON er.event_id = e.id
-           WHERE (LOWER(er.user_email) = LOWER($1) OR er.matched_user_id = $2)
+           WHERE (LOWER(er.user_email) = LOWER(${user.email}) OR er.matched_user_id = ${dbUser?.id || null})
              AND e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date AND er.status != 'cancelled'
            UNION ALL
            -- Wellness
            SELECT MAX(wc.date) as last_date FROM wellness_enrollments we
            JOIN wellness_classes wc ON we.class_id = wc.id
-           WHERE LOWER(we.user_email) = LOWER($1) AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date AND we.status != 'cancelled'
-         ) all_activities`,
-        [user.email, dbUser?.id || null]
-      );
+           WHERE LOWER(we.user_email) = LOWER(${user.email}) AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date AND we.status != 'cancelled'
+         ) all_activities
+      `);
       const lastActivityDate = lastActivityResult.rows[0]?.last_date || null;
       
-      const walkInResult = await pool.query(
-        `SELECT COUNT(*)::int as count FROM walk_in_visits WHERE LOWER(member_email) = LOWER($1)`,
-        [user.email]
-      );
+      const walkInResult = await db.execute(sql`
+        SELECT COUNT(*)::int as count FROM walk_in_visits WHERE LOWER(member_email) = LOWER(${user.email})
+      `);
       const walkInCount = walkInResult.rows[0]?.count || 0;
 
       // Total lifetime visits = past bookings + past event RSVPs + past wellness enrollments + walk-ins
