@@ -438,7 +438,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
           {otherParticipants.map(participant => (
             <div 
               key={participant.id}
-              className={`flex items-center gap-3 p-3 rounded-2xl tactile-row ${isDark ? 'bg-white/5' : 'bg-black/[0.02]'}`}
+              className={`flex items-center gap-3 p-3 rounded-2xl ${isDark ? 'bg-white/5' : 'bg-black/[0.02]'}`}
             >
               <Avatar name={participant.displayName} size="md" />
               <div className="flex-1 min-w-0">
@@ -451,7 +451,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                 <button
                   onClick={() => handleRemoveParticipant(participant.id, participant.displayName)}
                   disabled={removingId === participant.id}
-                  className={`p-2 rounded-full transition-colors tactile-btn ${
+                  className={`min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full transition-colors ${
                     isDark 
                       ? 'hover:bg-red-500/20 text-red-400' 
                       : 'hover:bg-red-100 text-red-600'
