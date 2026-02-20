@@ -11,9 +11,6 @@ import {
   previewRosterFees,
   addParticipant,
   removeParticipant,
-  initiateGuestFeeCheckout,
-  confirmGuestPayment,
-  cancelGuestPayment,
   updateDeclaredPlayerCount,
   applyRosterBatch,
 } from '../core/bookingService/rosterService';
@@ -225,106 +222,6 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Re
     if (statusCode === 404) return res.status(404).json({ error: 'Booking not found' });
     if (statusCode === 403) return res.status(403).json({ error: 'Access denied' });
     logAndRespond(req, res, 500, 'Failed to preview fees', error);
-  }
-});
-
-router.post('/api/bookings/:bookingId/guest-fee-checkout', async (req: Request, res: Response) => {
-  try {
-    const sessionUser = getSessionUser(req);
-    if (!sessionUser) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const bookingId = parseInt(req.params.bookingId as string);
-    if (isNaN(bookingId)) {
-      return res.status(400).json({ error: 'Invalid booking ID' });
-    }
-
-    const { guestName: rawGuestName, guestEmail: rawGuestEmail } = req.body;
-    const guestName = rawGuestName?.trim() || 'Guest';
-    const guestEmail = rawGuestEmail?.trim() || `guest-${Date.now()}@guest.local`;
-
-    const userEmail = sessionUser.email?.toLowerCase() || '';
-    const result = await initiateGuestFeeCheckout({
-      bookingId,
-      guestName,
-      guestEmail,
-      userEmail,
-      sessionUserId: sessionUser.id || userEmail
-    });
-
-    res.json({ success: true, ...result });
-  } catch (error: unknown) {
-    await handleConstraintAndRespond(req, res, error, 'Failed to initiate guest fee checkout');
-  }
-});
-
-router.post('/api/bookings/:bookingId/confirm-guest-payment', async (req: Request, res: Response) => {
-  try {
-    const sessionUser = getSessionUser(req);
-    if (!sessionUser) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const bookingId = parseInt(req.params.bookingId as string);
-    if (isNaN(bookingId)) {
-      return res.status(400).json({ error: 'Invalid booking ID' });
-    }
-
-    const { paymentIntentId, participantId } = req.body;
-    if (!paymentIntentId) {
-      return res.status(400).json({ error: 'Payment intent ID is required' });
-    }
-    if (!participantId) {
-      return res.status(400).json({ error: 'Participant ID is required' });
-    }
-
-    const userEmail = sessionUser.email?.toLowerCase() || '';
-    const result = await confirmGuestPayment({
-      bookingId,
-      paymentIntentId,
-      participantId,
-      userEmail
-    });
-
-    res.json({ success: true, ...result });
-  } catch (error: unknown) {
-    const mapped = mapServiceError(res, error);
-    if (mapped) return;
-    logAndRespond(req, res, 500, 'Failed to confirm guest payment', error);
-  }
-});
-
-router.post('/api/bookings/:bookingId/cancel-guest-payment', async (req: Request, res: Response) => {
-  try {
-    const sessionUser = getSessionUser(req);
-    if (!sessionUser) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const bookingId = parseInt(req.params.bookingId as string);
-    if (isNaN(bookingId)) {
-      return res.status(400).json({ error: 'Invalid booking ID' });
-    }
-
-    const { participantId, paymentIntentId } = req.body;
-    if (!participantId) {
-      return res.status(400).json({ error: 'Participant ID is required' });
-    }
-
-    const userEmail = sessionUser.email?.toLowerCase() || '';
-    const result = await cancelGuestPayment({
-      bookingId,
-      participantId,
-      paymentIntentId,
-      userEmail
-    });
-
-    res.json({ success: true, ...result });
-  } catch (error: unknown) {
-    const mapped = mapServiceError(res, error);
-    if (mapped) return;
-    logAndRespond(req, res, 500, 'Failed to cancel guest payment', error);
   }
 });
 
