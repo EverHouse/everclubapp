@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { apiRequest } from '../../lib/apiRequest';
@@ -152,6 +152,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
   const [apiRemainingSlots, setApiRemainingSlots] = useState<number>(Math.max(0, declaredPlayerCount - 1));
   const [apiCurrentParticipantCount, setApiCurrentParticipantCount] = useState<number>(1); // Owner counts as 1
 
+  const removingRef = useRef(false);
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [conflictDetails, setConflictDetails] = useState<BookingConflictDetails | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -162,11 +163,13 @@ const RosterManager: React.FC<RosterManagerProps> = ({
   const remainingSlots = apiRemainingSlots;
 
   const fetchParticipants = useCallback(async () => {
+    if (removingRef.current) return;
     try {
       const { ok, data, error } = await apiRequest<ParticipantsResponse>(
         `/api/bookings/${bookingId}/participants`
       );
       
+      if (removingRef.current) return;
       if (ok && data) {
         setParticipants(data.participants);
         setBooking(data.booking);
@@ -312,6 +315,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
 
   const handleRemoveParticipant = async (participantId: number, displayName: string) => {
     setRemovingId(participantId);
+    removingRef.current = true;
     haptic.light();
     
     const previousParticipants = [...participants];
@@ -325,25 +329,24 @@ const RosterManager: React.FC<RosterManagerProps> = ({
         { method: 'DELETE' }
       );
       
-      if (ok) {
-        try { await fetchParticipants(); } catch { /* optimistic state is correct */ }
-        onUpdate?.();
-      } else {
+      if (!ok) {
         const isAbort = (error || '').toLowerCase().includes('abort');
-        if (isAbort) {
-          try { await fetchParticipants(); } catch { /* optimistic state is likely correct */ }
-          onUpdate?.();
-        } else {
+        if (!isAbort) {
           setParticipants(previousParticipants);
           haptic.error();
           showToast(error || 'Failed to remove participant', 'error');
         }
       }
     } catch {
-      try { await fetchParticipants(); } catch { /* optimistic state is likely correct */ }
-      onUpdate?.();
+      // Network error — optimistic state likely correct, don't rollback
     } finally {
       setRemovingId(null);
+      removingRef.current = false;
+      // Delay the refresh so the server has time to commit
+      setTimeout(() => {
+        fetchParticipants();
+        onUpdate?.();
+      }, 500);
     }
   };
 
