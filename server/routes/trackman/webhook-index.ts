@@ -106,14 +106,16 @@ function extractTrackmanBookingId(payload: TrackmanWebhookPayload | TrackmanV2We
 
 /**
  * Check if webhook is a duplicate using idempotency guard
+ * Uses trackmanBookingId + status as the dedup key so the same booking
+ * can have different events processed (e.g. created then cancelled).
  * Returns true if this is a NEW webhook (not a duplicate)
  * Returns false if this is a DUPLICATE webhook
  */
-async function checkWebhookIdempotency(trackmanBookingId: string): Promise<boolean> {
+async function checkWebhookIdempotency(trackmanBookingId: string, status?: string): Promise<boolean> {
   try {
-    // Try to INSERT the webhook ID. If it already exists (CONFLICT), this will return no rows
+    const dedupKey = status ? `${trackmanBookingId}_${status.toLowerCase()}` : trackmanBookingId;
     const dedupResult = await db.execute(sql`INSERT INTO trackman_webhook_dedup (trackman_booking_id, received_at)
-       VALUES (${trackmanBookingId}, NOW())
+       VALUES (${dedupKey}, NOW())
        ON CONFLICT (trackman_booking_id) DO NOTHING
        RETURNING id`);
     
@@ -121,7 +123,7 @@ async function checkWebhookIdempotency(trackmanBookingId: string): Promise<boole
     
     if (!isNewWebhook) {
       logger.info('[Trackman Webhook] Duplicate webhook ignored - idempotency guard triggered', {
-        extra: { trackmanBookingId }
+        extra: { trackmanBookingId, status, dedupKey }
       });
     }
     
@@ -130,7 +132,6 @@ async function checkWebhookIdempotency(trackmanBookingId: string): Promise<boole
     logger.error('[Trackman Webhook] Failed to check webhook idempotency', {
       extra: { trackmanBookingId, error: (error as Error).message }
     });
-    // On error, allow processing to continue (fail open)
     return true;
   }
 }
@@ -173,13 +174,14 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
   const payload: TrackmanWebhookPayload = req.body;
   
   // Check for duplicate webhook using idempotency guard BEFORE processing
+  // Include status in dedup key so the same booking can have create + cancel webhooks processed
   const trackmanBookingIdFromPayload = extractTrackmanBookingId(payload);
+  const webhookStatus = (payload as any)?.booking?.status || (payload as any)?.data?.status || (payload as any)?.event_type;
   if (trackmanBookingIdFromPayload) {
-    const isNewWebhook = await checkWebhookIdempotency(trackmanBookingIdFromPayload);
+    const isNewWebhook = await checkWebhookIdempotency(trackmanBookingIdFromPayload, webhookStatus);
     if (!isNewWebhook) {
-      // Duplicate webhook - return success immediately without processing
       logger.info('[Trackman Webhook] Duplicate webhook detected - returning early', {
-        extra: { trackmanBookingId: trackmanBookingIdFromPayload }
+        extra: { trackmanBookingId: trackmanBookingIdFromPayload, status: webhookStatus }
       });
       return res.status(200).json({ received: true, duplicate: true });
     }
@@ -358,6 +360,17 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
           
           logger.info('[Trackman Webhook] V2: Linked via bay/date/time match (no externalBookingId)', {
             extra: { bookingId: matchedBookingId, trackmanBookingId, resourceId }
+          });
+        }
+      }
+      
+      // Handle cancellations for matched bookings (e.g. booking was matched earlier via externalBookingId or bay/date/time,
+      // and now Trackman sends a cancellation webhook for the same booking)
+      if (matchedBookingId && v2Result.normalized.status?.toLowerCase() === 'cancelled') {
+        const cancelResult = await cancelBookingByTrackmanId(v2Result.normalized.trackmanBookingId!);
+        if (cancelResult.cancelled) {
+          logger.info('[Trackman Webhook] V2: Cancelled already-matched booking via Trackman webhook', {
+            extra: { bookingId: matchedBookingId, trackmanBookingId: v2Result.normalized.trackmanBookingId }
           });
         }
       }
