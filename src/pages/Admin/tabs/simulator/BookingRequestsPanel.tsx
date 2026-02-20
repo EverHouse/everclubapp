@@ -594,7 +594,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     <span aria-hidden="true" className="material-symbols-outlined text-lg">check_circle</span>
                                                                     Checked In
                                                                 </span>
-                                                            ) : !isConferenceRoom && isToday && booking.fee_snapshot_paid ? (
+                                                            ) : !isConferenceRoom && isToday && (booking.fee_snapshot_paid || (!booking.has_unpaid_fees && (booking.total_owed || 0) <= 0)) ? (
                                                                 <button
                                                                     onClick={async (e) => {
                                                                         e.stopPropagation();

@@ -26,6 +26,7 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Player slot cards no longer scale down when tapped — this was causing the reassign/remove buttons to shift position mid-tap, making them hard to press on mobile",
       "Fixed: Reassign and remove buttons on player slots now have larger touch targets (40px vs 28px) for easier tapping",
       "Fixed: Booking detail sheet now shows times in 12-hour format (e.g. 12:00 PM - 2:00 PM) instead of 24-hour format (12:00:00 - 14:00:00)",
+      "Fixed: Bookings with $0 fees now show a direct Check In button instead of opening the fee collection sheet — no more unnecessary extra step for bookings within daily allowance",
       "Fixed: Active/Former Members tab column header hover highlights now fill the full height of the header bar — no more gaps on top/bottom when hovering",
       "Fixed: Sort icons now stay contained within their column's highlighted area — no more overlapping into adjacent headers",
       "Fixed: Column widths rebalanced so narrower columns (Visits, Joined, Last Visit) have enough room for both the label text and sort icon",
