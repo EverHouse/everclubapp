@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import EmptyState from '../../EmptyState';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
+import { useRefundPayment } from '../../../hooks/queries/useFinancialsQueries';
 
 export interface Transaction {
   id: string;
@@ -38,6 +39,47 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
   const [notesLoading, setNotesLoading] = useState(false);
   const [newNote, setNewNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+
+  const [refundTarget, setRefundTarget] = useState<Transaction | null>(null);
+  const [isPartialRefund, setIsPartialRefund] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('');
+  const [refundError, setRefundError] = useState<string | null>(null);
+  const [refundSuccess, setRefundSuccess] = useState(false);
+  const refundPaymentMutation = useRefundPayment();
+  const isRefunding = refundPaymentMutation.isPending;
+
+  const handleRefund = async () => {
+    if (!refundTarget) return;
+    setRefundError(null);
+    try {
+      const amountCents = isPartialRefund && refundAmount
+        ? Math.round(parseFloat(refundAmount) * 100)
+        : null;
+      if (isPartialRefund && amountCents && amountCents > refundTarget.amount) {
+        setRefundError('Refund amount cannot exceed original payment amount');
+        return;
+      }
+      await refundPaymentMutation.mutateAsync({
+        paymentIntentId: refundTarget.id,
+        amountCents,
+        reason: refundReason || 'No reason provided'
+      });
+      setRefundSuccess(true);
+      setTimeout(() => {
+        setRefundTarget(null);
+        setIsPartialRefund(false);
+        setRefundAmount('');
+        setRefundReason('');
+        setRefundSuccess(false);
+        fetchTransactions();
+      }, 2000);
+    } catch (err: unknown) {
+      setRefundError((err instanceof Error ? err.message : String(err)) || 'Failed to process refund');
+    }
+  };
+
+  const reasonOptions = ['Customer request', 'Duplicate charge', 'Service not provided', 'Billing error', 'Other'];
 
   const fetchTransactions = async () => {
     try {
@@ -147,12 +189,27 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
             <p className="text-xs text-primary/60 dark:text-white/60 truncate">{tx.description || tx.type}</p>
           </div>
           <button
+            type="button"
             onClick={() => handleOpenNotes(tx.id)}
             className="tactile-btn p-1.5 rounded-full hover:bg-primary/10 dark:hover:bg-white/10 transition-colors flex-shrink-0"
             title="View/Add Notes"
           >
             <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-lg">sticky_note_2</span>
           </button>
+          {tx.status === 'succeeded' && (
+            <button
+              type="button"
+              onClick={() => {
+                setRefundTarget(tx);
+                setRefundError(null);
+                setRefundSuccess(false);
+              }}
+              className="tactile-btn px-2.5 py-1 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-xs font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors flex-shrink-0"
+              title="Refund"
+            >
+              Refund
+            </button>
+          )}
           <div className="text-right flex-shrink-0">
             <p className="font-bold text-primary dark:text-white">${(tx.amount / 100).toFixed(2)}</p>
             <p className="text-xs text-primary/50 dark:text-white/50">
@@ -225,6 +282,133 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
           </div>
         </div>
       )}
+
+      {refundTarget && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => { setRefundTarget(null); setRefundError(null); }}>
+          <div
+            className="bg-white dark:bg-surface-dark rounded-2xl w-full max-w-md shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-primary/10 dark:border-white/10">
+              <h3 className="font-bold text-primary dark:text-white">Refund Payment</h3>
+              <button
+                type="button"
+                onClick={() => { setRefundTarget(null); setRefundError(null); }}
+                className="tactile-btn p-2 rounded-full hover:bg-primary/10 dark:hover:bg-white/10"
+              >
+                <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {refundSuccess ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                  <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-4xl text-green-600">check_circle</span>
+                  </div>
+                  <p className="text-lg font-semibold text-primary dark:text-white">Refund Processed!</p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/30">
+                    <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
+                      <span className="text-purple-600 dark:text-purple-400 font-semibold">
+                        {refundTarget.memberName?.charAt(0)?.toUpperCase() || '?'}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-primary dark:text-white truncate">{refundTarget.memberName}</p>
+                      <p className="text-xs text-primary/60 dark:text-white/60 truncate">{refundTarget.description}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-primary dark:text-white">${(refundTarget.amount / 100).toFixed(2)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/10 dark:border-white/10">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" checked={!isPartialRefund} onChange={() => { setIsPartialRefund(false); setRefundAmount(''); }} className="w-4 h-4 accent-purple-500" />
+                      <span className="text-sm text-primary dark:text-white">Full Refund</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" checked={isPartialRefund} onChange={() => setIsPartialRefund(true)} className="w-4 h-4 accent-purple-500" />
+                      <span className="text-sm text-primary dark:text-white">Partial Refund</span>
+                    </label>
+                  </div>
+
+                  {isPartialRefund && (
+                    <div>
+                      <label className="block text-sm font-medium text-primary dark:text-white mb-2">Refund Amount</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/60 dark:text-white/60 font-medium">$</span>
+                        <input
+                          type="number"
+                          value={refundAmount}
+                          onChange={(e) => setRefundAmount(e.target.value)}
+                          placeholder="0.00"
+                          step="0.01"
+                          min="0.01"
+                          max={(refundTarget.amount / 100).toFixed(2)}
+                          className="w-full pl-8 pr-4 py-3 rounded-xl bg-white/80 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400 text-lg font-semibold"
+                        />
+                      </div>
+                      <p className="text-xs text-primary/50 dark:text-white/50 mt-1">Maximum: ${(refundTarget.amount / 100).toFixed(2)}</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-primary dark:text-white mb-2">Reason</label>
+                    <select
+                      value={refundReason}
+                      onChange={(e) => setRefundReason(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-white/80 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    >
+                      <option value="">Select a reason...</option>
+                      {reasonOptions.map(reason => (
+                        <option key={reason} value={reason}>{reason}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {refundError && (
+                    <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30">
+                      <p className="text-sm text-red-700 dark:text-red-400">{refundError}</p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { setRefundTarget(null); setIsPartialRefund(false); setRefundAmount(''); setRefundReason(''); setRefundError(null); }}
+                      className="flex-1 py-3 rounded-full bg-white dark:bg-white/10 text-primary dark:text-white font-medium border border-primary/20 dark:border-white/20 hover:bg-primary/5 dark:hover:bg-white/20 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRefund}
+                      disabled={isRefunding || (isPartialRefund && (!refundAmount || parseFloat(refundAmount) <= 0))}
+                      className="flex-1 py-3 rounded-full bg-purple-500 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {isRefunding ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined text-lg">undo</span>
+                          Confirm Refund
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -252,7 +436,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
           <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">receipt_long</span>
           <h3 className="font-bold text-primary dark:text-white">Today's Transactions</h3>
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
+        <button type="button" onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
           <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
         </button>
       </div>

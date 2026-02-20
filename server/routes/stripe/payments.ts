@@ -1989,6 +1989,17 @@ router.get('/api/payments/refundable', isStaffOrAdmin, async (req: Request, res:
   }
 });
 
+router.get('/api/payments/refunded', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { getRefundedPayments } = await import('../../core/stripe/paymentRepository');
+    const payments = await getRefundedPayments();
+    res.json(payments);
+  } catch (error: unknown) {
+    logger.error('[Payments] Error fetching refunded payments', { error: error instanceof Error ? error : new Error(String(error)) });
+    res.status(500).json({ error: 'Failed to fetch refunded payments' });
+  }
+});
+
 router.get('/api/payments/failed', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const payments = await getFailedPayments();

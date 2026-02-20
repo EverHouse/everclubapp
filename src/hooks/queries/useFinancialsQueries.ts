@@ -117,6 +117,7 @@ export const financialsKeys = {
   pendingAuthorizations: () => [...financialsKeys.all, 'pending-authorizations'] as const,
   futureBookingsWithFees: () => [...financialsKeys.all, 'future-bookings-with-fees'] as const,
   refundablePayments: () => [...financialsKeys.all, 'refundable-payments'] as const,
+  refundedPayments: () => [...financialsKeys.all, 'refunded-payments'] as const,
   subscriptions: (status?: string) => [...financialsKeys.all, 'subscriptions', { status }] as const,
   invoices: (params?: { status?: string; startDate?: string; endDate?: string }) => 
     [...financialsKeys.all, 'invoices', params] as const,
@@ -170,6 +171,16 @@ export function useRefundablePayments() {
   return useQuery({
     queryKey: financialsKeys.refundablePayments(),
     queryFn: () => fetchWithCredentials<RefundablePayment[]>('/api/payments/refundable'),
+  });
+}
+
+export function useRefundedPayments() {
+  return useQuery({
+    queryKey: financialsKeys.refundedPayments(),
+    queryFn: async () => {
+      const data = await fetchWithCredentials<RefundablePayment[]>('/api/payments/refunded');
+      return Array.isArray(data) ? data : [];
+    },
   });
 }
 
@@ -255,6 +266,7 @@ export function useRefundPayment() {
       postWithCredentials<{ success: boolean }>('/api/payments/refund', { paymentIntentId, amountCents, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: financialsKeys.refundablePayments() });
+      queryClient.invalidateQueries({ queryKey: financialsKeys.refundedPayments() });
       queryClient.invalidateQueries({ queryKey: financialsKeys.dailySummary() });
     },
   });

@@ -65,6 +65,46 @@ export async function getRefundablePayments(): Promise<RefundablePayment[]> {
   }));
 }
 
+export async function getRefundedPayments(): Promise<RefundablePayment[]> {
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+  const refundedStatuses = ['refunded', 'partially_refunded'];
+
+  const results = await db
+    .select({
+      id: stripePaymentIntents.id,
+      paymentIntentId: stripePaymentIntents.stripePaymentIntentId,
+      memberEmail: users.email,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      amount: stripePaymentIntents.amountCents,
+      description: stripePaymentIntents.description,
+      status: stripePaymentIntents.status,
+      createdAt: stripePaymentIntents.createdAt,
+    })
+    .from(stripePaymentIntents)
+    .leftJoin(users, eq(users.id, stripePaymentIntents.userId))
+    .where(
+      and(
+        inArray(stripePaymentIntents.status, refundedStatuses),
+        gte(stripePaymentIntents.createdAt, ninetyDaysAgo)
+      )
+    )
+    .orderBy(desc(stripePaymentIntents.createdAt));
+
+  return results.map(row => ({
+    id: row.id,
+    paymentIntentId: row.paymentIntentId,
+    memberEmail: row.memberEmail,
+    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail),
+    amount: row.amount,
+    description: row.description,
+    status: row.status,
+    createdAt: row.createdAt,
+  }));
+}
+
 export async function getFailedPayments(limit = 50): Promise<FailedPayment[]> {
   // Exclude 'canceled' since those are already resolved/dismissed
   const failedStatuses = ['failed', 'requires_action', 'requires_payment_method'];

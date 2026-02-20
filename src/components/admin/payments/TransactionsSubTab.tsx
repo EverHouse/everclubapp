@@ -6,18 +6,18 @@ import { useConfirmDialog } from '../../ConfirmDialog';
 import { formatTime12Hour } from '../../../utils/dateUtils';
 import RecentTransactionsSection, { TransactionListRef, Transaction } from './TransactionList';
 import OverduePaymentsPanel from './OverduePaymentsPanel';
+import { UnifiedBookingSheet } from '../../staff-command-center/modals/UnifiedBookingSheet';
 import {
   useDailySummary,
   useOverduePayments,
   useFailedPayments,
   usePendingAuthorizations,
   useFutureBookingsWithFees,
-  useRefundablePayments,
+  useRefundedPayments,
   useRetryPayment,
   useCancelPayment,
   useCapturePayment,
   useVoidPayment,
-  useRefundPayment,
 } from '../../../hooks/queries/useFinancialsQueries';
 
 interface Payment {
@@ -577,7 +577,10 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
 };
 
 const FutureBookingsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) => {
-  const { data: futureBookings = [], isLoading: loading } = useFutureBookingsWithFees();
+  const { data: allFutureBookings = [], isLoading: loading } = useFutureBookingsWithFees();
+  const [bookingSheet, setBookingSheet] = useState<{ isOpen: boolean; bookingId: number | null }>({ isOpen: false, bookingId: null });
+
+  const futureBookings = allFutureBookings.filter(b => b.estimatedFeeCents > 0);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + 'T00:00:00');
@@ -591,15 +594,17 @@ const FutureBookingsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
   ) : futureBookings.length === 0 ? (
     <EmptyState 
       icon="event_available" 
-      title="No upcoming bookings"
-      description="No approved future bookings found"
+      title="No upcoming bookings with fees"
+      description="Bookings with outstanding fees will appear here"
     />
   ) : (
     <div className="space-y-3">
       {futureBookings.map((booking) => (
-        <div 
+        <button 
+          type="button"
           key={booking.bookingId}
-          className="flex items-center justify-between p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/10 dark:border-white/10"
+          onClick={() => setBookingSheet({ isOpen: true, bookingId: booking.bookingId })}
+          className="w-full text-left flex items-center justify-between p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10 transition-colors cursor-pointer"
         >
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -637,56 +642,63 @@ const FutureBookingsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
               )}
             </div>
           </div>
-          <div className="text-right">
-            {booking.estimatedFeeCents > 0 ? (
-              <span className="font-bold text-green-600 dark:text-green-400">
-                ${(booking.estimatedFeeCents / 100).toFixed(2)}
-              </span>
-            ) : (
-              <span className="text-sm text-primary/40 dark:text-white/40">No fees</span>
-            )}
+          <div className="text-right flex items-center gap-2">
+            <span className="font-bold text-green-600 dark:text-green-400">
+              ${(booking.estimatedFeeCents / 100).toFixed(2)}
+            </span>
+            <span className="material-symbols-outlined text-primary/30 dark:text-white/30 text-lg">chevron_right</span>
           </div>
-        </div>
+        </button>
       ))}
     </div>
   );
 
-  if (variant === 'card') {
-    return (
-      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-green-600 dark:text-green-400">event_upcoming</span>
-          <h3 className="font-bold text-primary dark:text-white">Future Bookings</h3>
-          {futureBookings.length > 0 && (
-            <span className="px-2 py-0.5 text-xs font-bold bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-full">
-              {futureBookings.length}
-            </span>
-          )}
+  const sectionContent = (
+    <>
+      {variant === 'card' ? (
+        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="material-symbols-outlined text-green-600 dark:text-green-400">event_upcoming</span>
+            <h3 className="font-bold text-primary dark:text-white">Future Bookings</h3>
+            {futureBookings.length > 0 && (
+              <span className="px-2 py-0.5 text-xs font-bold bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-full">
+                {futureBookings.length}
+              </span>
+            )}
+          </div>
+          {content}
         </div>
-        {content}
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-green-600 dark:text-green-400">event_upcoming</span>
-          <h3 className="font-bold text-primary dark:text-white">Future Bookings</h3>
-          {futureBookings.length > 0 && (
-            <span className="px-2 py-0.5 text-xs font-bold bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-full">
-              {futureBookings.length}
-            </span>
-          )}
+      ) : (
+        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-green-600 dark:text-green-400">event_upcoming</span>
+              <h3 className="font-bold text-primary dark:text-white">Future Bookings</h3>
+              {futureBookings.length > 0 && (
+                <span className="px-2 py-0.5 text-xs font-bold bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-full">
+                  {futureBookings.length}
+                </span>
+              )}
+            </div>
+            <button type="button" onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
+              <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+            </button>
+          </div>
+          {content}
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
-          <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
-        </button>
-      </div>
-      {content}
-    </div>
+      )}
+      <UnifiedBookingSheet
+        isOpen={bookingSheet.isOpen}
+        onClose={() => setBookingSheet({ isOpen: false, bookingId: null })}
+        bookingId={bookingSheet.bookingId || undefined}
+        onSuccess={() => {
+          setBookingSheet({ isOpen: false, bookingId: null });
+        }}
+      />
+    </>
   );
+
+  return sectionContent;
 };
 
 const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) => {
@@ -934,218 +946,34 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
 };
 
 const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) => {
-  const { data: payments = [], isLoading: loading } = useRefundablePayments();
-  const refundPaymentMutation = useRefundPayment();
-
-  const [selectedPayment, setSelectedPayment] = useState<RefundablePayment | null>(null);
-  const [isPartialRefund, setIsPartialRefund] = useState(false);
-  const [refundAmount, setRefundAmount] = useState('');
-  const [refundReason, setRefundReason] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-
-  const isProcessing = refundPaymentMutation.isPending;
-
-  const handleRefund = async () => {
-    if (!selectedPayment) return;
-    
-    setError(null);
-    
-    try {
-      const amountCents = isPartialRefund && refundAmount 
-        ? Math.round(parseFloat(refundAmount) * 100) 
-        : null;
-      
-      if (isPartialRefund && amountCents && amountCents > selectedPayment.amount) {
-        setError('Refund amount cannot exceed original payment amount');
-        return;
-      }
-
-      await refundPaymentMutation.mutateAsync({
-        paymentIntentId: selectedPayment.paymentIntentId,
-        amountCents,
-        reason: refundReason || 'No reason provided'
-      });
-
-      setSuccess(true);
-      setTimeout(() => {
-        setSelectedPayment(null);
-        setIsPartialRefund(false);
-        setRefundAmount('');
-        setRefundReason('');
-        setSuccess(false);
-      }, 2000);
-    } catch (err: unknown) {
-      setError((err instanceof Error ? err.message : String(err)) || 'Failed to process refund');
-    }
-  };
-
-  const reasonOptions = [
-    'Customer request',
-    'Duplicate charge',
-    'Service not provided',
-    'Billing error',
-    'Other'
-  ];
+  const { data: payments = [], isLoading: loading } = useRefundedPayments();
 
   const content = loading ? (
     <div className="flex items-center justify-center py-8">
       <WalkingGolferSpinner size="sm" variant="dark" />
     </div>
-  ) : selectedPayment ? (
-    success ? (
-      <div className="flex flex-col items-center justify-center py-8 gap-3">
-        <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
-          <span className="material-symbols-outlined text-4xl text-green-600">check_circle</span>
-        </div>
-        <p className="text-lg font-semibold text-primary dark:text-white">Refund Processed!</p>
-      </div>
-    ) : (
-      <div className="space-y-4">
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/30">
-          <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
-            <span className="text-purple-600 dark:text-purple-400 font-semibold">
-              {selectedPayment.memberName?.charAt(0)?.toUpperCase() || '?'}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-primary dark:text-white truncate">{selectedPayment.memberName}</p>
-            <p className="text-xs text-primary/60 dark:text-white/60 truncate">{selectedPayment.description}</p>
-          </div>
-          <div className="text-right">
-            <p className="font-bold text-primary dark:text-white">${(selectedPayment.amount / 100).toFixed(2)}</p>
-            <p className="text-xs text-primary/50 dark:text-white/50">
-              {new Date(selectedPayment.createdAt).toLocaleDateString()}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/10 dark:border-white/10">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              checked={!isPartialRefund}
-              onChange={() => {
-                setIsPartialRefund(false);
-                setRefundAmount('');
-              }}
-              className="w-4 h-4 text-purple-500 accent-purple-500"
-            />
-            <span className="text-sm text-primary dark:text-white">Full Refund</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              checked={isPartialRefund}
-              onChange={() => setIsPartialRefund(true)}
-              className="w-4 h-4 text-purple-500 accent-purple-500"
-            />
-            <span className="text-sm text-primary dark:text-white">Partial Refund</span>
-          </label>
-        </div>
-
-        {isPartialRefund && (
-          <div>
-            <label className="block text-sm font-medium text-primary dark:text-white mb-2">Refund Amount</label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/60 dark:text-white/60 font-medium">$</span>
-              <input
-                type="number"
-                value={refundAmount}
-                onChange={(e) => setRefundAmount(e.target.value)}
-                placeholder="0.00"
-                step="0.01"
-                min="0.01"
-                max={(selectedPayment.amount / 100).toFixed(2)}
-                className="w-full pl-8 pr-4 py-3 rounded-xl bg-white/80 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400 text-lg font-semibold"
-              />
-            </div>
-            <p className="text-xs text-primary/50 dark:text-white/50 mt-1">
-              Maximum: ${(selectedPayment.amount / 100).toFixed(2)}
-            </p>
-          </div>
-        )}
-
-        <div>
-          <label className="block text-sm font-medium text-primary dark:text-white mb-2">Reason</label>
-          <select
-            value={refundReason}
-            onChange={(e) => setRefundReason(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl bg-white/80 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-          >
-            <option value="">Select a reason...</option>
-            {reasonOptions.map(reason => (
-              <option key={reason} value={reason}>{reason}</option>
-            ))}
-          </select>
-        </div>
-
-        {error && (
-          <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30">
-            <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
-          </div>
-        )}
-
-        <div className="flex gap-3">
-          <button
-            onClick={() => {
-              setSelectedPayment(null);
-              setIsPartialRefund(false);
-              setRefundAmount('');
-              setRefundReason('');
-              setError(null);
-            }}
-            className="flex-1 py-3 rounded-full bg-white dark:bg-white/10 text-primary dark:text-white font-medium border border-primary/20 dark:border-white/20 hover:bg-primary/5 dark:hover:bg-white/20 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleRefund}
-            disabled={isProcessing || (isPartialRefund && (!refundAmount || parseFloat(refundAmount) <= 0))}
-            className="flex-1 py-3 rounded-full bg-purple-500 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {isProcessing ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-lg">undo</span>
-                Confirm Refund
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    )
   ) : payments.length === 0 ? (
-    <EmptyState icon="undo" title="No refundable payments" description="Succeeded payments from the last 30 days will appear here" variant="compact" />
+    <EmptyState icon="undo" title="No refunds yet" description="Completed refunds from the last 90 days will appear here" variant="compact" />
   ) : (
     <div className="space-y-2 max-h-[300px] overflow-y-auto">
-      {payments.map((payment: any) => (
+      {payments.map((payment: RefundablePayment) => (
         <div key={payment.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/5 dark:border-white/10">
           <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-            <span className="text-purple-600 dark:text-purple-400 font-semibold text-sm">
-              {payment.memberName?.charAt(0)?.toUpperCase() || '?'}
-            </span>
+            <span className="material-symbols-outlined text-purple-600 dark:text-purple-400 text-lg">undo</span>
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm text-primary dark:text-white truncate">{payment.memberName || 'Unknown'}</p>
             <p className="text-xs text-primary/60 dark:text-white/60 truncate">{payment.description || 'Payment'}</p>
           </div>
           <div className="text-right flex-shrink-0">
-            <p className="font-bold text-primary dark:text-white">${(payment.amount / 100).toFixed(2)}</p>
+            <p className="font-bold text-purple-600 dark:text-purple-400">${(payment.amount / 100).toFixed(2)}</p>
             <p className="text-xs text-primary/50 dark:text-white/50">
               {new Date(payment.createdAt).toLocaleDateString()}
             </p>
           </div>
-          <button
-            onClick={() => setSelectedPayment(payment)}
-            className="px-3 py-1.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-sm font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors flex-shrink-0"
-          >
-            Refund
-          </button>
+          <span className="px-2 py-1 text-xs rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 font-medium flex-shrink-0">
+            {payment.status === 'partially_refunded' ? 'Partial' : 'Refunded'}
+          </span>
         </div>
       ))}
     </div>
@@ -1156,7 +984,7 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-4">
           <span className="material-symbols-outlined text-purple-600 dark:text-purple-400">undo</span>
-          <h3 className="font-bold text-primary dark:text-white">Refunds</h3>
+          <h3 className="font-bold text-primary dark:text-white">Refund History</h3>
           {payments.length > 0 && (
             <span className="px-2 py-0.5 text-xs font-bold bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 rounded-full">
               {payments.length}
@@ -1173,9 +1001,9 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-purple-600 dark:text-purple-400">undo</span>
-          <h3 className="font-bold text-primary dark:text-white">Refunds</h3>
+          <h3 className="font-bold text-primary dark:text-white">Refund History</h3>
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
+        <button type="button" onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
           <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
         </button>
       </div>
@@ -1205,16 +1033,18 @@ const QuickInvoiceCard: React.FC = () => {
 };
 
 const MobileTransactionsView: React.FC = () => {
-  const [activeSection, setActiveSection] = useState<'overdue' | 'transactions' | 'refunds' | 'failed' | 'summary' | 'pending' | null>(null);
+  const [activeSection, setActiveSection] = useState<'overdue' | 'transactions' | 'refunds' | 'failed' | 'summary' | 'pending' | 'future' | null>(null);
   const activeSectionRef = useRef<HTMLDivElement>(null);
 
   const { data: overduePayments } = useOverduePayments();
   const { data: failedPayments } = useFailedPayments();
   const { data: pendingAuthorizations } = usePendingAuthorizations();
+  const { data: allFutureBookings } = useFutureBookingsWithFees();
 
   const overdueCount = overduePayments?.length || 0;
   const failedCount = failedPayments?.length || 0;
   const pendingCount = pendingAuthorizations?.length || 0;
+  const futureBookingsCount = (allFutureBookings || []).filter(b => b.estimatedFeeCents > 0).length;
 
   useEffect(() => {
     if (activeSection && activeSectionRef.current) {
@@ -1270,6 +1100,17 @@ const MobileTransactionsView: React.FC = () => {
       hoverClass: failedCount > 0 ? 'hover:bg-red-200/60 dark:hover:bg-red-900/60' : 'hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60',
       iconClass: failedCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-zinc-500 dark:text-zinc-500',
       badge: failedCount 
+    },
+    { 
+      id: 'future' as const, 
+      icon: 'event_upcoming', 
+      label: 'Future', 
+      bgClass: futureBookingsCount > 0 ? 'bg-green-100/60 dark:bg-green-950/40' : 'bg-zinc-100/60 dark:bg-zinc-800/40',
+      textClass: futureBookingsCount > 0 ? 'text-green-900 dark:text-green-100' : 'text-zinc-600 dark:text-zinc-400',
+      borderClass: futureBookingsCount > 0 ? 'border-green-200 dark:border-green-500/20' : 'border-zinc-200 dark:border-zinc-600/20',
+      hoverClass: futureBookingsCount > 0 ? 'hover:bg-green-200/60 dark:hover:bg-green-900/60' : 'hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60',
+      iconClass: futureBookingsCount > 0 ? 'text-green-600 dark:text-green-400' : 'text-zinc-500 dark:text-zinc-500',
+      badge: futureBookingsCount 
     },
     { 
       id: 'refunds' as const, 
@@ -1331,6 +1172,9 @@ const MobileTransactionsView: React.FC = () => {
         )}
         {activeSection === 'pending' && (
           <PendingAuthorizationsSection onClose={() => setActiveSection(null)} />
+        )}
+        {activeSection === 'future' && (
+          <FutureBookingsSection onClose={() => setActiveSection(null)} />
         )}
       </div>
     </div>
