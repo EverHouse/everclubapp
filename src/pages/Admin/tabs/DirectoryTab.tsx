@@ -553,6 +553,7 @@ const DirectoryTab: React.FC = () => {
     }, [fetchFormerMembers]);
 
     const visitorToMemberProfile = useCallback((visitor: Visitor) => ({
+        id: String(visitor.id),
         email: visitor.email || '',
         name: [visitor.firstName, visitor.lastName].filter(Boolean).join(' ') || 'Unknown',
         tier: null,
