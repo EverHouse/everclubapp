@@ -474,6 +474,14 @@ input, select, textarea {
   [class*="backdrop-blur"][class*="bg-emerald-"] {
     background-color: rgba(209, 250, 229, 0.9) !important;
   }
+
+  [class*="backdrop-blur"][class*="bg-accent"] {
+    background-color: rgba(204, 184, 228, 0.95) !important;
+  }
+
+  [class*="backdrop-blur"][class*="bg-bone"] {
+    background-color: rgba(242, 242, 236, 0.95) !important;
+  }
 }
 
 /* ===== MOBILE PERFORMANCE OPTIMIZATIONS FOR GLASS EFFECTS ===== */
@@ -2524,6 +2532,14 @@ html.dark .border-accessible {
 
   [class*="backdrop-blur"][class*="bg-emerald-"] {
     background-color: rgba(209, 250, 229, 0.9) !important;
+  }
+
+  [class*="backdrop-blur"][class*="bg-accent"] {
+    background-color: rgba(204, 184, 228, 0.95) !important;
+  }
+
+  [class*="backdrop-blur"][class*="bg-bone"] {
+    background-color: rgba(242, 242, 236, 0.95) !important;
   }
 }
 
