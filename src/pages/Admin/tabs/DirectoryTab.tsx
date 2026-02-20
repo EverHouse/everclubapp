@@ -1038,12 +1038,12 @@ const DirectoryTab: React.FC = () => {
                                 <span className="material-symbols-outlined text-[20px]">swap_vert</span>
                             </button>
                             {sortOpen && (
-                                <div className="absolute right-0 top-full mt-1 bg-white dark:bg-[#1a1a2e] rounded-xl shadow-lg border border-gray-200 dark:border-white/20 p-2 z-30 min-w-[180px]">
+                                <div className="absolute right-0 top-full mt-1 glass-panel rounded-xl p-2 z-30 min-w-[180px]">
                                     <div className="flex items-center justify-between px-2 py-1 mb-1">
-                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sort By</span>
+                                        <span className="text-[11px] font-bold text-gray-500 dark:text-white/50 uppercase tracking-wider">Sort By</span>
                                         <button
                                             onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
-                                            className="tactile-btn flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                                            className="tactile-btn flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-gray-500 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
                                             title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
                                         >
                                             <span className="material-symbols-outlined text-[14px]">
@@ -1058,8 +1058,8 @@ const DirectoryTab: React.FC = () => {
                                             onClick={() => { setSortField(option.value as SortField); setSortOpen(false); }}
                                             className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors cursor-pointer ${
                                                 sortField === option.value
-                                                    ? 'bg-primary/10 dark:bg-lavender/10 text-primary dark:text-lavender font-medium'
-                                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10'
+                                                    ? 'bg-primary/10 dark:bg-lavender/15 text-primary dark:text-lavender font-medium'
+                                                    : 'text-gray-700 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10'
                                             }`}
                                         >
                                             {option.label}
@@ -1083,9 +1083,9 @@ const DirectoryTab: React.FC = () => {
                         </button>
 
                         {filtersOpen && (
-                            <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-[#1a1a2e] rounded-xl shadow-lg border border-gray-200 dark:border-white/20 p-4 space-y-3 z-30 transition-all duration-200">
+                            <div className="absolute left-0 right-0 top-full mt-1 glass-panel rounded-xl p-4 space-y-3 z-30 transition-all duration-200">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filters</span>
+                                    <span className="text-xs font-bold text-gray-500 dark:text-white/50 uppercase tracking-wider">Filters</span>
                                     {activeFilterCount > 0 && (
                                         <button onClick={() => { clearAllFilters(); }} className="text-xs text-primary dark:text-lavender hover:underline font-medium cursor-pointer">
                                             Clear All
@@ -1107,7 +1107,7 @@ const DirectoryTab: React.FC = () => {
                                                         tier === 'All' 
                                                             ? isSelected 
                                                                 ? 'bg-primary dark:bg-lavender text-white' 
-                                                                : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500'
+                                                                : 'bg-gray-200 dark:bg-white/15 text-gray-400 dark:text-white/40'
                                                             : !isSelected
                                                                 ? 'bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-white/60 border border-gray-300 dark:border-white/10'
                                                                 : ''
@@ -1134,7 +1134,7 @@ const DirectoryTab: React.FC = () => {
                                                 className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                                     membershipStatusFilter === 'All'
                                                         ? 'bg-primary dark:bg-lavender text-white'
-                                                        : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                                        : 'bg-gray-200 dark:bg-white/15 text-gray-400 dark:text-white/40 hover:bg-gray-300 dark:hover:bg-white/30'
                                                 }`}
                                             >
                                                 All
@@ -1146,7 +1146,7 @@ const DirectoryTab: React.FC = () => {
                                                     className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                                         membershipStatusFilter === status
                                                             ? getMemberStatusBadgeClass(status)
-                                                            : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                                            : 'bg-gray-200 dark:bg-white/15 text-gray-400 dark:text-white/40 hover:bg-gray-300 dark:hover:bg-white/30'
                                                     }`}
                                                 >
                                                     {getMemberStatusLabel(status)}
@@ -1167,7 +1167,7 @@ const DirectoryTab: React.FC = () => {
                                                     className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                                         appUsageFilter === option
                                                             ? 'bg-primary dark:bg-lavender text-white'
-                                                            : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                                            : 'bg-gray-200 dark:bg-white/15 text-gray-400 dark:text-white/40 hover:bg-gray-300 dark:hover:bg-white/30'
                                                     }`}
                                                 >
                                                     {option}
@@ -1218,7 +1218,7 @@ const DirectoryTab: React.FC = () => {
                                                 className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                                     billingFilter === option
                                                         ? 'bg-primary dark:bg-lavender text-white'
-                                                        : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                                        : 'bg-gray-200 dark:bg-white/15 text-gray-400 dark:text-white/40 hover:bg-gray-300 dark:hover:bg-white/30'
                                                 }`}
                                             >
                                                 {option}
@@ -1236,7 +1236,7 @@ const DirectoryTab: React.FC = () => {
                                                 className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                                     discountFilter === 'All'
                                                         ? 'bg-primary dark:bg-lavender text-white'
-                                                        : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                                        : 'bg-gray-200 dark:bg-white/15 text-gray-400 dark:text-white/40 hover:bg-gray-300 dark:hover:bg-white/30'
                                                 }`}
                                             >
                                                 All
@@ -1248,7 +1248,7 @@ const DirectoryTab: React.FC = () => {
                                                     className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                                         discountFilter === code
                                                             ? 'bg-purple-600 text-white'
-                                                            : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                                            : 'bg-gray-200 dark:bg-white/15 text-gray-400 dark:text-white/40 hover:bg-gray-300 dark:hover:bg-white/30'
                                                     }`}
                                                 >
                                                     {code}
@@ -1383,9 +1383,9 @@ const DirectoryTab: React.FC = () => {
                             </button>
 
                             {filtersOpen && (
-                                <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-[#1a1a2e] rounded-xl shadow-lg border border-gray-200 dark:border-white/20 p-4 space-y-3 z-30 transition-all duration-200">
+                                <div className="absolute left-0 right-0 top-full mt-1 glass-panel rounded-xl p-4 space-y-3 z-30 transition-all duration-200">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filters</span>
+                                        <span className="text-xs font-bold text-gray-500 dark:text-white/50 uppercase tracking-wider">Filters</span>
                                         {activeFilterCount > 0 && (
                                             <button onClick={() => { clearAllFilters(); }} className="text-xs text-primary dark:text-lavender hover:underline font-medium cursor-pointer">
                                                 Clear All
@@ -1464,7 +1464,7 @@ const DirectoryTab: React.FC = () => {
                                                     className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                                         purchaseFilter === option
                                                             ? 'bg-primary dark:bg-lavender text-white'
-                                                            : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                                            : 'bg-gray-200 dark:bg-white/15 text-gray-400 dark:text-white/40 hover:bg-gray-300 dark:hover:bg-white/30'
                                                     }`}
                                                 >
                                                     {option === 'all' ? 'All' : option === 'purchasers' ? 'Purchasers' : 'Non-Purchasers'}
