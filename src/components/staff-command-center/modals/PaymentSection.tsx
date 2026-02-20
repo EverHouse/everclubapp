@@ -104,6 +104,7 @@ interface PaymentActionFooterProps {
   inlinePaymentAction: string | null;
   setInlinePaymentAction: (action: string | null) => void;
   paymentSuccess: boolean;
+  processingPayment?: boolean;
   savedCardInfo: { hasSavedCard: boolean; cardLast4?: string; cardBrand?: string } | null;
   checkingCard: boolean;
   showWaiverInput: boolean;
@@ -139,6 +140,7 @@ export function PaymentActionFooter({
   inlinePaymentAction,
   setInlinePaymentAction,
   paymentSuccess,
+  processingPayment,
   savedCardInfo,
   checkingCard,
   showWaiverInput,
@@ -521,7 +523,12 @@ export function PaymentActionFooter({
 
   return (
     <div className="px-4 py-3 backdrop-blur-xl bg-white/80 dark:bg-[#1a1d15]/80">
-      {showInlinePayment ? (
+      {processingPayment ? (
+        <div className="flex items-center justify-center gap-2 py-3">
+          <span className="material-symbols-outlined animate-spin text-lg text-green-600 dark:text-green-400">progress_activity</span>
+          <span className="text-sm font-medium text-primary/70 dark:text-white/70">Confirming payment...</span>
+        </div>
+      ) : showInlinePayment ? (
         <div className="space-y-2">
           <div className="flex items-center justify-between mb-1">
             <span className="text-sm font-medium text-primary dark:text-white">Collect ${fs?.grandTotal?.toFixed(2)}</span>
@@ -593,6 +600,7 @@ interface PaymentSectionProps {
   inlinePaymentAction: string | null;
   setInlinePaymentAction: (action: string | null) => void;
   paymentSuccess: boolean;
+  processingPayment?: boolean;
   savedCardInfo: { hasSavedCard: boolean; cardLast4?: string; cardBrand?: string } | null;
   checkingCard: boolean;
   showWaiverInput: boolean;

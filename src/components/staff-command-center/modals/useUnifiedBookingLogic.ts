@@ -124,6 +124,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   const [showInlinePayment, setShowInlinePayment] = useState(false);
   const [inlinePaymentAction, setInlinePaymentAction] = useState<string | null>(null);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
   const [savedCardInfo, setSavedCardInfo] = useState<{hasSavedCard: boolean; cardLast4?: string; cardBrand?: string} | null>(null);
   const [checkingCard, setCheckingCard] = useState(false);
   const [waiverReason, setWaiverReason] = useState('');
@@ -132,6 +133,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   const [reassignSearchOpen, setReassignSearchOpen] = useState(false);
   const [isReassigningOwner, setIsReassigningOwner] = useState(false);
   const [isQuickAddingGuest, setIsQuickAddingGuest] = useState(false);
+  const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingCountRef = useRef(0);
 
   const isManageMode = mode === 'manage';
 
@@ -295,14 +298,98 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       setShowInlinePayment(false);
       setInlinePaymentAction(null);
       setPaymentSuccess(false);
+      setProcessingPayment(false);
       setSavedCardInfo(null);
       setShowWaiverInput(false);
       setWaiverReason('');
       setFetchedContext(null);
       setReassignSearchOpen(false);
       setIsReassigningOwner(false);
+      if (pollingTimerRef.current) {
+        clearInterval(pollingTimerRef.current);
+        pollingTimerRef.current = null;
+      }
+      pollingCountRef.current = 0;
     }
   }, [isOpen]);
+
+  const stopPaymentPolling = useCallback(() => {
+    if (pollingTimerRef.current) {
+      clearInterval(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
+    pollingCountRef.current = 0;
+  }, []);
+
+  const onPaymentConfirmed = useCallback(async () => {
+    stopPaymentPolling();
+    setProcessingPayment(false);
+    setPaymentSuccess(true);
+    setShowInlinePayment(false);
+    setInlinePaymentAction(null);
+    await fetchRosterData();
+  }, [stopPaymentPolling, fetchRosterData]);
+
+  const startPaymentPolling = useCallback(() => {
+    stopPaymentPolling();
+    pollingCountRef.current = 0;
+    pollingTimerRef.current = setInterval(async () => {
+      pollingCountRef.current++;
+      if (pollingCountRef.current > 5) {
+        stopPaymentPolling();
+        setProcessingPayment(false);
+        await fetchRosterData();
+        return;
+      }
+      try {
+        if (!bookingId) return;
+        const res = await fetch(`/api/admin/booking/${bookingId}/members`, {
+          credentials: 'include',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        if (!res.ok) return;
+        const data: ManageModeRosterData = await res.json();
+        if (data.financialSummary?.allPaid) {
+          setRosterData(data);
+          membersSnapshotRef.current = [...data.members];
+          stopPaymentPolling();
+          setProcessingPayment(false);
+          setPaymentSuccess(true);
+          setShowInlinePayment(false);
+          setInlinePaymentAction(null);
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }, 2000);
+  }, [bookingId, stopPaymentPolling, fetchRosterData]);
+
+  useEffect(() => {
+    if (!isOpen || !bookingId) return;
+
+    const handleBillingUpdate = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (!detail) return;
+      if (detail.bookingId && Number(detail.bookingId) === bookingId) {
+        console.log('[BookingSheet] Billing update received for this booking, refreshing');
+        onPaymentConfirmed();
+      }
+    };
+
+    window.addEventListener('billing-update', handleBillingUpdate);
+    return () => {
+      window.removeEventListener('billing-update', handleBillingUpdate);
+    };
+  }, [isOpen, bookingId, onPaymentConfirmed]);
+
+  useEffect(() => {
+    return () => {
+      if (pollingTimerRef.current) {
+        clearInterval(pollingTimerRef.current);
+        pollingTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen && isManageMode) {
@@ -779,10 +866,12 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         sessionId: rosterData.sessionId
       });
       if (result.success) {
-        showToast(result.message || 'Card charged successfully', 'success');
-        setPaymentSuccess(true);
+        showToast(result.message || 'Card charged — confirming payment...', 'success');
+        setProcessingPayment(true);
         setShowInlinePayment(false);
-        await fetchRosterData();
+        setInlinePaymentAction(null);
+        startPaymentPolling();
+        return;
       } else if (result.noSavedCard) {
         showToast('No saved card on file', 'warning');
         setSavedCardInfo({ hasSavedCard: false });
@@ -812,22 +901,24 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         setShowInlinePayment(false);
         setShowWaiverInput(false);
         setWaiverReason('');
+        setInlinePaymentAction(null);
         await fetchRosterData();
       } else {
         showToast('Failed to waive fees', 'error');
+        setInlinePaymentAction(null);
       }
     } catch (err: unknown) {
       showToast('Failed to waive fees', 'error');
-    } finally {
       setInlinePaymentAction(null);
     }
   };
 
   const handleInlineStripeSuccess = async () => {
-    showToast('Payment successful!', 'success');
-    setPaymentSuccess(true);
+    showToast('Payment processing...', 'success');
+    setProcessingPayment(true);
     setShowInlinePayment(false);
-    await fetchRosterData();
+    setInlinePaymentAction(null);
+    startPaymentPolling();
   };
 
   const handleManageModeRemoveGuest = async (guestId: number) => {
@@ -1357,6 +1448,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     inlinePaymentAction,
     setInlinePaymentAction,
     paymentSuccess,
+    processingPayment,
     savedCardInfo,
     checkingCard,
     waiverReason,

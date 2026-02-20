@@ -105,6 +105,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
         inlinePaymentAction={logic.inlinePaymentAction}
         setInlinePaymentAction={logic.setInlinePaymentAction}
         paymentSuccess={logic.paymentSuccess}
+        processingPayment={logic.processingPayment}
         savedCardInfo={logic.savedCardInfo}
         checkingCard={logic.checkingCard}
         showWaiverInput={logic.showWaiverInput}
