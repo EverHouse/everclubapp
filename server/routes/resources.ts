@@ -59,12 +59,15 @@ router.get('/api/bookings/check-existing', async (req, res) => {
   try {
     const { user_email, date, resource_type } = req.query;
     
-    if (!user_email || !date) {
+    const sessionUser = getSessionUser(req);
+    const effectiveEmail = (user_email as string)?.toLowerCase() || sessionUser?.email?.toLowerCase();
+    
+    if (!effectiveEmail || !date) {
       return res.status(400).json({ error: 'Missing required parameters: user_email, date' });
     }
     
     const result = await checkExistingBookings(
-      (user_email as string).toLowerCase(),
+      effectiveEmail,
       date as string,
       (resource_type as string) || 'simulator'
     );

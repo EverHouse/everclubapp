@@ -33,7 +33,7 @@ async function expireStaleBookingRequests(): Promise<void> {
            request_date < $1
            OR (request_date = $1 AND start_time < $2)
          )
-       RETURNING id, user_email, user_name, request_date, start_time, resource_id`,
+       RETURNING id, user_email AS "userEmail", user_name AS "userName", request_date AS "requestDate", start_time AS "startTime", resource_id AS "resourceId"`,
       [todayStr, currentTimePacific]
     );
 
