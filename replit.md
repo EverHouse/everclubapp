@@ -57,6 +57,14 @@ Other: Trackman (Booking CSV/webhooks), Eventbrite, Google Sheets, OpenAI Vision
 Future Considerations
 Consult strategy-advisor and brainstorming before proposing major architectural shifts (e.g., Stripe Agent Toolkit integration).
 
+### Data Flow & Type Casing
+AI-generated casing mismatches are a critical source of bugs. You must strictly adhere to these boundaries:
+- **Database Level**: PostgreSQL strictly uses `snake_case` for all tables and columns.
+- **Application Level**: All TypeScript/JavaScript code (both frontend and backend) strictly uses `camelCase`.
+- **The Drizzle Boundary**: Drizzle ORM is responsible for the translation. Always define schemas mapping `snake_case` DB columns to `camelCase` TS properties (e.g., `firstName: text('first_name')`).
+- **The API Boundary**: All backend API responses MUST be serialized into `camelCase` before being sent to the client. Never leak `snake_case` database columns into React frontend components.
+- **TypeScript Mismatches**: Never forcefully cast types with `as any`. If frontend interfaces and backend Drizzle inferred types mismatch, fix the underlying schema or DTO rather than bypassing the compiler.
+
 ### Environment & Reference Variables
 Do not guess or hallucinate environment variables. We use specific naming conventions across the stack. Refer to the Replit Secrets and Configurations panel for actual values, but strictly use these keys in the code:
 Frontend (Vite/React): import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY
