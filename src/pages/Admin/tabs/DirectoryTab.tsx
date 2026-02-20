@@ -204,7 +204,7 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ field, label, className
     >
         <div className="flex items-center gap-1">
             {label}
-            <span className={`material-symbols-outlined text-[16px] ${currentSortField === field ? 'text-primary dark:text-lavender' : 'text-gray-400'}`}>
+            <span className={`material-symbols-outlined text-[16px] ${currentSortField === field ? 'text-primary dark:!text-lavender' : 'text-gray-400'}`}>
                 {getSortIcon(field)}
             </span>
         </div>
@@ -1029,7 +1029,7 @@ const DirectoryTab: React.FC = () => {
                                 onClick={() => { setSortOpen(!sortOpen); setFiltersOpen(false); }}
                                 className={`flex items-center justify-center w-[42px] h-[42px] rounded-xl border text-sm font-medium transition-colors cursor-pointer ${
                                     sortOpen
-                                        ? 'border-primary/50 dark:border-lavender/50 text-primary dark:text-lavender bg-primary/5 dark:bg-lavender/5'
+                                        ? 'border-primary/50 dark:border-lavender/50 text-primary dark:!text-lavender bg-primary/5 dark:bg-lavender/5'
                                         : 'border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/10'
                                 }`}
                                 aria-label="Sort options"
@@ -1059,7 +1059,7 @@ const DirectoryTab: React.FC = () => {
                                             onClick={() => { setSortField(option.value as SortField); setSortOpen(false); }}
                                             className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors cursor-pointer ${
                                                 sortField === option.value
-                                                    ? 'bg-primary/10 dark:bg-lavender/15 text-primary dark:text-lavender font-medium'
+                                                    ? 'bg-primary/10 dark:bg-lavender/15 text-[#293515] dark:!text-[#CCB8E4] font-medium'
                                                     : 'text-gray-700 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10'
                                             }`}
                                         >
@@ -1072,7 +1072,7 @@ const DirectoryTab: React.FC = () => {
                             onClick={() => { setFiltersOpen(!filtersOpen); setSortOpen(false); }}
                             className={`px-3 py-2 rounded-xl border text-sm font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer ${
                                 activeFilterCount > 0
-                                    ? 'border-primary/50 dark:border-lavender/50 text-primary dark:text-lavender bg-primary/5 dark:bg-lavender/5 hover:bg-primary/10 dark:hover:bg-lavender/10'
+                                    ? 'border-primary/50 dark:border-lavender/50 text-primary dark:!text-lavender bg-primary/5 dark:bg-lavender/5 hover:bg-primary/10 dark:hover:bg-lavender/10'
                                     : 'border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/10'
                             }`}
                             aria-label="Toggle filters"
@@ -1088,7 +1088,7 @@ const DirectoryTab: React.FC = () => {
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs font-bold text-gray-500 dark:text-white/50 uppercase tracking-wider">Filters</span>
                                     {activeFilterCount > 0 && (
-                                        <button onClick={() => { clearAllFilters(); }} className="text-xs text-primary dark:text-lavender hover:underline font-medium cursor-pointer">
+                                        <button onClick={() => { clearAllFilters(); }} className="text-xs text-primary dark:!text-lavender hover:underline font-medium cursor-pointer">
                                             Clear All
                                         </button>
                                     )}
@@ -1279,7 +1279,7 @@ const DirectoryTab: React.FC = () => {
                 {activeFilters.length > 0 && memberTab !== 'visitors' && (
                     <div className="flex flex-wrap gap-1.5">
                         {activeFilters.map(filter => (
-                            <span key={filter.key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 dark:bg-lavender/10 text-primary dark:text-lavender border border-primary/20 dark:border-lavender/20">
+                            <span key={filter.key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 dark:bg-lavender/10 text-primary dark:!text-lavender border border-primary/20 dark:border-lavender/20">
                                 {filter.label}
                                 <button onClick={filter.onRemove} className="hover:text-red-500 transition-colors ml-0.5 cursor-pointer" aria-label={`Remove ${filter.label} filter`}>
                                     <span className="material-symbols-outlined text-[12px]">close</span>
@@ -1372,7 +1372,7 @@ const DirectoryTab: React.FC = () => {
                                 onClick={() => setFiltersOpen(!filtersOpen)}
                                 className={`px-3 py-2 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer ${
                                     activeFilterCount > 0
-                                        ? 'border-primary/50 dark:border-lavender/50 text-primary dark:text-lavender bg-primary/5 dark:bg-lavender/5 hover:bg-primary/10 dark:hover:bg-lavender/10'
+                                        ? 'border-primary/50 dark:border-lavender/50 text-primary dark:!text-lavender bg-primary/5 dark:bg-lavender/5 hover:bg-primary/10 dark:hover:bg-lavender/10'
                                         : 'border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/10'
                                 }`}
                                 aria-label="Toggle filters"
@@ -1388,7 +1388,7 @@ const DirectoryTab: React.FC = () => {
                                     <div className="flex items-center justify-between">
                                         <span className="text-xs font-bold text-gray-500 dark:text-white/50 uppercase tracking-wider">Filters</span>
                                         {activeFilterCount > 0 && (
-                                            <button onClick={() => { clearAllFilters(); }} className="text-xs text-primary dark:text-lavender hover:underline font-medium cursor-pointer">
+                                            <button onClick={() => { clearAllFilters(); }} className="text-xs text-primary dark:!text-lavender hover:underline font-medium cursor-pointer">
                                                 Clear All
                                             </button>
                                         )}
@@ -1479,7 +1479,7 @@ const DirectoryTab: React.FC = () => {
                         {activeFilters.length > 0 && (
                             <div className="flex flex-wrap gap-1.5">
                                 {activeFilters.map(filter => (
-                                    <span key={filter.key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 dark:bg-lavender/10 text-primary dark:text-lavender border border-primary/20 dark:border-lavender/20">
+                                    <span key={filter.key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 dark:bg-lavender/10 text-primary dark:!text-lavender border border-primary/20 dark:border-lavender/20">
                                         {filter.label}
                                         <button onClick={filter.onRemove} className="hover:text-red-500 transition-colors ml-0.5 cursor-pointer" aria-label={`Remove ${filter.label} filter`}>
                                             <span className="material-symbols-outlined text-[12px]">close</span>
@@ -1648,7 +1648,7 @@ const DirectoryTab: React.FC = () => {
                                                 <div className="flex items-center gap-1 whitespace-nowrap">
                                                     {label}
                                                     {visitorSortField === field && (
-                                                        <span className="material-symbols-outlined text-[14px] text-primary dark:text-lavender">
+                                                        <span className="material-symbols-outlined text-[14px] text-primary dark:!text-lavender">
                                                             {visitorSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
                                                         </span>
                                                     )}
@@ -1899,7 +1899,7 @@ const DirectoryTab: React.FC = () => {
                                                             <>
                                                                 <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} />
                                                                 {isMemberPendingUpdate(m.email) && (
-                                                                    <span className="material-symbols-outlined text-[14px] text-primary dark:text-lavender animate-spin">progress_activity</span>
+                                                                    <span className="material-symbols-outlined text-[14px] text-primary dark:!text-lavender animate-spin">progress_activity</span>
                                                                 )}
                                                             </>
                                                         )}
@@ -1979,7 +1979,7 @@ const DirectoryTab: React.FC = () => {
                                                     <div className="flex items-center gap-1">
                                                         <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} />
                                                         {isMemberPendingUpdate(m.email) && (
-                                                            <span className="material-symbols-outlined text-[12px] text-primary dark:text-lavender animate-spin">progress_activity</span>
+                                                            <span className="material-symbols-outlined text-[12px] text-primary dark:!text-lavender animate-spin">progress_activity</span>
                                                         )}
                                                     </div>
                                                     {isAdmin && !getDisplayTier(m) && !isMemberPendingUpdate(m.email) && (
@@ -2129,7 +2129,7 @@ const DirectoryTab: React.FC = () => {
                                                 {tier}
                                             </span>
                                             {isSelected && (
-                                                <span className="material-symbols-outlined text-primary dark:text-lavender">check_circle</span>
+                                                <span className="material-symbols-outlined text-primary dark:!text-lavender">check_circle</span>
                                             )}
                                         </div>
                                     </button>
