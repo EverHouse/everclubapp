@@ -1,7 +1,7 @@
 import { SlideUpDrawer } from '../../SlideUpDrawer';
 import { SheetHeader } from './SheetHeader';
 import { BookingActions } from './BookingActions';
-import { PaymentSection } from './PaymentSection';
+import { PaymentSummaryBody, PaymentActionFooter } from './PaymentSection';
 import { AssignModeSlots } from './AssignModeSlots';
 import { ManageModeRoster } from './ManageModeRoster';
 import { AssignModeFooter } from './AssignModeFooter';
@@ -100,33 +100,35 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
     };
 
     const manageModeFooter = (
-      <div className="p-4 space-y-2">
-        <div className="flex gap-3">
-          <button
-            onClick={handleManagedClose}
-            className="tactile-btn flex-1 py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/20 text-primary dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={logic.handleManageModeSave}
-            disabled={logic.savingChanges}
-            className="tactile-btn flex-1 py-2.5 px-4 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white"
-          >
-            {logic.savingChanges ? (
-              <>
-                <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
-                {checkinMode ? 'Checking In...' : 'Recalculating...'}
-              </>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-sm">{checkinMode ? 'how_to_reg' : 'calculate'}</span>
-                {checkinMode ? 'Complete Check-In' : 'Recalculate Fees'}
-              </>
-            )}
-          </button>
-        </div>
-      </div>
+      <PaymentActionFooter
+        isConferenceRoom={logic.isConferenceRoom}
+        bookingId={bookingId}
+        rosterData={logic.rosterData}
+        fetchedContext={logic.fetchedContext}
+        ownerName={ownerName}
+        ownerEmail={ownerEmail}
+        bayName={bayName}
+        bookingDate={bookingDate}
+        showInlinePayment={logic.showInlinePayment}
+        setShowInlinePayment={logic.setShowInlinePayment}
+        inlinePaymentAction={logic.inlinePaymentAction}
+        setInlinePaymentAction={logic.setInlinePaymentAction}
+        paymentSuccess={logic.paymentSuccess}
+        savedCardInfo={logic.savedCardInfo}
+        checkingCard={logic.checkingCard}
+        showWaiverInput={logic.showWaiverInput}
+        setShowWaiverInput={logic.setShowWaiverInput}
+        waiverReason={logic.waiverReason}
+        setWaiverReason={logic.setWaiverReason}
+        handleInlineStripeSuccess={logic.handleInlineStripeSuccess}
+        handleChargeCardOnFile={logic.handleInlineChargeSavedCard}
+        handleWaiveFees={logic.handleInlineWaiveAll}
+        renderTierBadge={logic.renderTierBadge}
+        onClose={handleManagedClose}
+        checkinMode={checkinMode}
+        savingChanges={logic.savingChanges}
+        handleManageModeSave={logic.handleManageModeSave}
+      />
     );
 
     return (
@@ -199,6 +201,31 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                 </div>
               )}
 
+              {!logic.isConferenceRoom && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs">
+                    {logic.rosterData?.tierLimits?.guest_passes_per_month && (
+                      <>
+                        <span className="material-symbols-outlined text-emerald-500 text-sm">redeem</span>
+                        <span className="text-primary/70 dark:text-white/70">
+                          Guest Passes: <span className="font-semibold text-primary dark:text-white">
+                            {logic.rosterData.ownerGuestPassesRemaining}/{logic.rosterData.tierLimits.guest_passes_per_month}
+                          </span> remaining
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <button
+                    onClick={logic.handleManageModeSave}
+                    disabled={logic.savingChanges}
+                    className="tactile-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600 hover:bg-green-700 text-white transition-colors disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined text-sm">calculate</span>
+                    {logic.savingChanges ? 'Recalculating...' : 'Recalculate Fees'}
+                  </button>
+                </div>
+              )}
+
               <ErrorBoundary fallback={<div className="p-3 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-900/10 text-sm text-red-600 dark:text-red-400">Roster section encountered an error. Please close and reopen this booking.</div>}>
                 <ManageModeRoster
                   rosterData={logic.rosterData}
@@ -234,31 +261,12 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
               </ErrorBoundary>
 
               <ErrorBoundary fallback={<div className="p-3 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-900/10 text-sm text-red-600 dark:text-red-400">Payment section encountered an error. Please close and reopen this booking.</div>}>
-              <PaymentSection
-                isConferenceRoom={logic.isConferenceRoom}
-                bookingId={bookingId}
-                rosterData={logic.rosterData}
-                fetchedContext={logic.fetchedContext}
-                ownerName={ownerName}
-                ownerEmail={ownerEmail}
-                bayName={bayName}
-                bookingDate={bookingDate}
-                showInlinePayment={logic.showInlinePayment}
-                setShowInlinePayment={logic.setShowInlinePayment}
-                inlinePaymentAction={logic.inlinePaymentAction}
-                setInlinePaymentAction={logic.setInlinePaymentAction}
-                paymentSuccess={logic.paymentSuccess}
-                savedCardInfo={logic.savedCardInfo}
-                checkingCard={logic.checkingCard}
-                showWaiverInput={logic.showWaiverInput}
-                setShowWaiverInput={logic.setShowWaiverInput}
-                waiverReason={logic.waiverReason}
-                setWaiverReason={logic.setWaiverReason}
-                handleInlineStripeSuccess={logic.handleInlineStripeSuccess}
-                handleChargeCardOnFile={logic.handleInlineChargeSavedCard}
-                handleWaiveFees={logic.handleInlineWaiveAll}
-                renderTierBadge={logic.renderTierBadge}
-              />
+                <PaymentSummaryBody
+                  isConferenceRoom={logic.isConferenceRoom}
+                  rosterData={logic.rosterData}
+                  renderTierBadge={logic.renderTierBadge}
+                  paymentSuccess={logic.paymentSuccess}
+                />
               </ErrorBoundary>
 
               <BookingActions
