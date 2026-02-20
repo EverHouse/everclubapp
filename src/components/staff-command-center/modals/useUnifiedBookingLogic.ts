@@ -904,6 +904,25 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     }
   };
 
+  const handleRecalculateOnly = async () => {
+    setSavingChanges(true);
+    try {
+      if (bookingId) {
+        await fetch(`/api/admin/booking/${bookingId}/recalculate-fees`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+        setRosterDirty(false);
+        await fetchRosterData();
+        showToast('Fees recalculated', 'success');
+      }
+    } catch (err: unknown) {
+      showToast('Failed to recalculate fees', 'error');
+    } finally {
+      setSavingChanges(false);
+    }
+  };
+
   const ownerSlot = slots[0];
   const hasOwner = ownerSlot.type !== 'empty';
   const filledSlotsCount = slots.filter(s => s.type !== 'empty').length;
@@ -1403,6 +1422,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     handleManageModeRemoveGuest,
     handleManageModeMemberMatchResolve,
     handleManageModeSave,
+    handleRecalculateOnly,
     handleFinalizeBooking,
     handleMarkAsEvent,
     executeMarkAsEvent,

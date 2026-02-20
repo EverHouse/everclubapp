@@ -118,6 +118,11 @@ interface PaymentActionFooterProps {
   checkinMode?: boolean;
   savingChanges: boolean;
   handleManageModeSave: () => void;
+  onCheckIn?: (bookingId: number) => void | Promise<void>;
+  onReschedule?: (booking: { id: number; request_date: string; start_time: string; end_time: string; resource_id: number; resource_name?: string; user_name?: string; user_email?: string }) => void;
+  onCancelBooking?: (bookingId: number) => void;
+  bookingContext?: { requestDate?: string; startTime?: string; endTime?: string; resourceId?: number; resourceName?: string };
+  bookingStatus?: string;
 }
 
 export function PaymentActionFooter({
@@ -147,10 +152,22 @@ export function PaymentActionFooter({
   checkinMode,
   savingChanges,
   handleManageModeSave,
+  onCheckIn,
+  onReschedule,
+  onCancelBooking,
+  bookingContext,
+  bookingStatus,
 }: PaymentActionFooterProps) {
   const { showToast } = useToast();
   const [showCancelConfirm, setShowCancelConfirm] = React.useState(false);
   const [cancellingPayment, setCancellingPayment] = React.useState(false);
+  const [checkingIn, setCheckingIn] = React.useState(false);
+  const [checkedIn, setCheckedIn] = React.useState(false);
+
+  React.useEffect(() => {
+    setCheckingIn(false);
+    setCheckedIn(false);
+  }, [bookingId]);
 
   const fs = rosterData?.financialSummary;
 
@@ -161,31 +178,56 @@ export function PaymentActionFooter({
     setWaiverReason('');
   };
 
-  if (isConferenceRoom || !fs || fs.grandTotal <= 0) {
-    return (
-      <div className="px-4 py-3 backdrop-blur-xl bg-white/80 dark:bg-[#1a1d15]/80">
-        <div className="flex items-center justify-end gap-2">
-          {checkinMode ? (
-            <button
-              onClick={handleManageModeSave}
-              disabled={savingChanges}
-              className="tactile-btn px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <span className="material-symbols-outlined text-sm">{savingChanges ? 'progress_activity' : 'how_to_reg'}</span>
-              {savingChanges ? 'Checking In...' : 'Complete Check-In'}
-            </button>
-          ) : (
-            <button
-              onClick={onClose}
-              className="tactile-btn px-4 py-2 rounded-lg border border-gray-200 dark:border-white/20 text-primary dark:text-white text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-            >
-              Close
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
+  const handleCheckIn = async () => {
+    if (!bookingId || !onCheckIn) return;
+    setCheckingIn(true);
+    try {
+      const result = onCheckIn(bookingId);
+      if (result instanceof Promise) await result;
+      setCheckedIn(true);
+    } catch (error) {
+      console.error('Check-in failed:', error);
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  const renderSecondaryActions = () => (
+    <div className="flex items-center justify-center gap-4 mt-2">
+      {onReschedule && bookingStatus !== 'cancelled' && (
+        <button
+          type="button"
+          onClick={() => {
+            if (!bookingId) return;
+            onReschedule({
+              id: bookingId,
+              request_date: bookingContext?.requestDate || bookingDate || '',
+              start_time: bookingContext?.startTime || '',
+              end_time: bookingContext?.endTime || '',
+              resource_id: bookingContext?.resourceId || 0,
+              resource_name: bookingContext?.resourceName || bayName || '',
+              user_name: ownerName || '',
+              user_email: ownerEmail || '',
+            });
+          }}
+          className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center gap-1"
+        >
+          <span className="material-symbols-outlined text-sm">event_repeat</span>
+          Reschedule
+        </button>
+      )}
+      {onCancelBooking && bookingStatus !== 'cancelled' && bookingStatus !== 'cancellation_pending' && (
+        <button
+          type="button"
+          onClick={() => bookingId && onCancelBooking(bookingId)}
+          className="text-xs text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 font-medium flex items-center gap-1"
+        >
+          <span className="material-symbols-outlined text-sm">cancel</span>
+          Cancel Booking
+        </button>
+      )}
+    </div>
+  );
 
   const renderVoidConfirmation = () => {
     if (!showCancelConfirm) return null;
@@ -194,6 +236,7 @@ export function PaymentActionFooter({
         <p className="text-xs text-red-600 dark:text-red-400 font-medium text-center">Are you sure? This will cancel all outstanding payment intents.</p>
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={() => setShowCancelConfirm(false)}
             disabled={cancellingPayment}
             className="tactile-btn flex-1 py-1.5 px-3 rounded-lg border border-gray-300 dark:border-white/20 text-primary/70 dark:text-white/70 text-sm disabled:opacity-50"
@@ -201,6 +244,7 @@ export function PaymentActionFooter({
             Cancel
           </button>
           <button
+            type="button"
             onClick={async () => {
               if (!bookingId) return;
               setCancellingPayment(true);
@@ -249,7 +293,7 @@ export function PaymentActionFooter({
           <div className="text-center py-4 space-y-2">
             <span className="material-symbols-outlined text-3xl text-red-500">error</span>
             <p className="text-sm text-red-600 dark:text-red-400">Unable to load member payment info. Try closing and reopening this booking.</p>
-            <button onClick={() => setInlinePaymentAction(null)} className="tactile-btn py-2 px-4 rounded-lg text-sm font-medium text-primary/70 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+            <button type="button" onClick={() => setInlinePaymentAction(null)} className="tactile-btn py-2 px-4 rounded-lg text-sm font-medium text-primary/70 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
               <span className="material-symbols-outlined text-sm align-middle mr-1">arrow_back</span>Go Back
             </button>
           </div>
@@ -338,6 +382,7 @@ export function PaymentActionFooter({
       <div className="space-y-2">
         {savedCardInfo?.hasSavedCard && (
           <button
+            type="button"
             onClick={handleChargeCardOnFile}
             disabled={!!inlinePaymentAction}
             className="tactile-btn w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
@@ -351,6 +396,7 @@ export function PaymentActionFooter({
         )}
 
         <button
+          type="button"
           onClick={() => setInlinePaymentAction('stripe')}
           disabled={!!inlinePaymentAction}
           className="tactile-btn w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
@@ -360,6 +406,7 @@ export function PaymentActionFooter({
         </button>
 
         <button
+          type="button"
           onClick={() => setInlinePaymentAction('terminal')}
           disabled={!!inlinePaymentAction}
           className="tactile-btn w-full py-2 px-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
@@ -369,6 +416,7 @@ export function PaymentActionFooter({
         </button>
 
         <button
+          type="button"
           onClick={async () => {
             if (!bookingId) return;
             setInlinePaymentAction('mark-paid');
@@ -402,6 +450,7 @@ export function PaymentActionFooter({
 
         {!showWaiverInput ? (
           <button
+            type="button"
             onClick={() => setShowWaiverInput(true)}
             disabled={!!inlinePaymentAction}
             className="tactile-btn w-full py-2 px-3 rounded-lg border border-gray-300 dark:border-white/20 text-primary/70 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
@@ -420,12 +469,14 @@ export function PaymentActionFooter({
             />
             <div className="flex gap-2">
               <button
+                type="button"
                 onClick={() => { setShowWaiverInput(false); setWaiverReason(''); }}
                 className="tactile-btn flex-1 py-1.5 px-3 rounded-lg border border-gray-300 dark:border-white/20 text-primary/70 dark:text-white/70 text-sm"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleWaiveFees}
                 disabled={!waiverReason.trim() || !!inlinePaymentAction}
                 className="tactile-btn flex-1 py-1.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium disabled:opacity-50"
@@ -435,56 +486,28 @@ export function PaymentActionFooter({
             </div>
           </div>
         )}
+
+        <button
+          type="button"
+          onClick={() => setShowCancelConfirm(true)}
+          disabled={!!inlinePaymentAction}
+          className="tactile-btn w-full py-2 px-3 rounded-lg border border-red-300 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+        >
+          <span className="material-symbols-outlined text-sm">block</span>
+          Void All Payments
+        </button>
       </div>
     );
   };
 
   return (
     <div className="px-4 py-3 backdrop-blur-xl bg-white/80 dark:bg-[#1a1d15]/80">
-      {fs.allPaid ? (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-            <span className="material-symbols-outlined text-sm">check_circle</span>
-            <span className="text-sm font-semibold">Paid — ${fs.grandTotal.toFixed(2)}</span>
-          </div>
-          {checkinMode && (
-            <button
-              onClick={handleManageModeSave}
-              disabled={savingChanges}
-              className="tactile-btn px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <span className="material-symbols-outlined text-sm">{savingChanges ? 'progress_activity' : 'how_to_reg'}</span>
-              {savingChanges ? 'Checking In...' : 'Complete Check-In'}
-            </button>
-          )}
-        </div>
-      ) : !showInlinePayment ? (
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-semibold text-primary dark:text-white whitespace-nowrap">
-            Owner Pays: ${fs.totalOwnerOwes?.toFixed(2) || '0.00'}
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowCancelConfirm(true)}
-              className="tactile-btn text-xs text-red-500 hover:text-red-600 font-medium flex items-center gap-1"
-            >
-              <span className="material-symbols-outlined text-sm">block</span>
-              Void
-            </button>
-            <button
-              onClick={() => setShowInlinePayment(true)}
-              className="tactile-btn px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors flex items-center gap-1.5"
-            >
-              <span className="material-symbols-outlined text-sm">payments</span>
-              Collect ${fs.grandTotal?.toFixed(2)}
-            </button>
-          </div>
-        </div>
-      ) : (
+      {showInlinePayment ? (
         <div className="space-y-2">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-medium text-primary dark:text-white">Collect ${fs.grandTotal?.toFixed(2)}</span>
+            <span className="text-sm font-medium text-primary dark:text-white">Collect ${fs?.grandTotal?.toFixed(2)}</span>
             <button
+              type="button"
               onClick={closePaymentOptions}
               className="tactile-btn p-1 rounded-full text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
             >
@@ -492,10 +515,46 @@ export function PaymentActionFooter({
             </button>
           </div>
           {renderPaymentOptions()}
+          {renderVoidConfirmation()}
+        </div>
+      ) : (
+        <div>
+          {fs && !fs.allPaid && fs.grandTotal > 0 ? (
+            <button
+              type="button"
+              onClick={() => setShowInlinePayment(true)}
+              className="tactile-btn w-full py-2.5 px-4 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined text-sm">payments</span>
+              Collect ${fs.grandTotal.toFixed(2)}
+            </button>
+          ) : checkedIn ? (
+            <button type="button" disabled className="tactile-btn w-full py-2.5 px-4 rounded-lg bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-300 text-sm font-semibold cursor-default flex items-center justify-center gap-2">
+              <span className="material-symbols-outlined text-sm">check_circle</span>
+              Checked In
+            </button>
+          ) : bookingStatus !== 'attended' && bookingStatus !== 'cancelled' && onCheckIn ? (
+            <button
+              type="button"
+              onClick={handleCheckIn}
+              disabled={checkingIn}
+              className="tactile-btn w-full py-2.5 px-4 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-sm">{checkingIn ? 'progress_activity' : 'how_to_reg'}</span>
+              {checkingIn ? 'Checking In...' : 'Check In'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onClose}
+              className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/20 text-primary dark:text-white text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+            >
+              Close
+            </button>
+          )}
+          {renderSecondaryActions()}
         </div>
       )}
-
-      {renderVoidConfirmation()}
     </div>
   );
 }

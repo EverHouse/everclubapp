@@ -1,6 +1,5 @@
 import { SlideUpDrawer } from '../../SlideUpDrawer';
 import { SheetHeader } from './SheetHeader';
-import { BookingActions } from './BookingActions';
 import { PaymentSummaryBody, PaymentActionFooter } from './PaymentSection';
 import { AssignModeSlots } from './AssignModeSlots';
 import { ManageModeRoster } from './ManageModeRoster';
@@ -128,6 +127,11 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
         checkinMode={checkinMode}
         savingChanges={logic.savingChanges}
         handleManageModeSave={logic.handleManageModeSave}
+        onCheckIn={onCheckIn}
+        onReschedule={onReschedule}
+        onCancelBooking={onCancelBooking}
+        bookingContext={bookingContext}
+        bookingStatus={bookingStatus}
       />
     );
 
@@ -216,7 +220,8 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                     )}
                   </div>
                   <button
-                    onClick={logic.handleManageModeSave}
+                    type="button"
+                    onClick={logic.handleRecalculateOnly}
                     disabled={logic.savingChanges}
                     className="tactile-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600 hover:bg-green-700 text-white transition-colors disabled:opacity-50"
                   >
@@ -269,19 +274,6 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                 />
               </ErrorBoundary>
 
-              <BookingActions
-                bookingId={bookingId}
-                bookingStatus={bookingStatus}
-                fetchedContext={logic.fetchedContext}
-                bookingContext={bookingContext}
-                rosterData={logic.rosterData}
-                onCheckIn={onCheckIn}
-                onReschedule={onReschedule}
-                onCancelBooking={onCancelBooking}
-                ownerName={ownerName}
-                ownerEmail={ownerEmail}
-                bayName={bayName}
-              />
             </>
           )}
         </div>
