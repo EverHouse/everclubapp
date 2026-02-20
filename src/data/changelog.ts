@@ -13,14 +13,14 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "7.89.3",
+    version: "7.89.4",
     date: "2026-02-20",
-    title: "Directory Column Header Hover & Alignment Fixes",
+    title: "Directory Column Alignment Across All Tabs",
     changes: [
+      "Fixed: Team tab column headers (Name, Email, Role, Job Title, Status) now align correctly with the data rows — uses fixed table layout with matched percentage widths",
       "Fixed: Active/Former Members tab column header hover highlights now fill the full height of the header bar — no more gaps on top/bottom when hovering",
       "Fixed: Sort icons now stay contained within their column's highlighted area — no more overlapping into adjacent headers",
       "Fixed: Column widths rebalanced so narrower columns (Visits, Joined, Last Visit) have enough room for both the label text and sort icon",
-      "Fixed: Header and data row column widths now match consistently across all columns",
       "Fixed: Visitors tab column headers now properly align with the data rows below them — matched percentage widths with fixed table layout",
     ]
   },

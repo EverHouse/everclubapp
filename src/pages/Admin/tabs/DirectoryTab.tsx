@@ -1816,16 +1816,23 @@ const DirectoryTab: React.FC = () => {
                                     </div>
                                 ))}
                             </div>
-                            <table className="hidden md:table w-full">
+                            <table className="hidden md:table w-full" style={{ tableLayout: 'fixed' }}>
+                                <colgroup>
+                                    <col style={{ width: '18%' }} />
+                                    <col style={{ width: '28%' }} />
+                                    <col style={{ width: '12%' }} />
+                                    <col style={{ width: '30%' }} />
+                                    <col style={{ width: '12%' }} />
+                                </colgroup>
                                 <thead className="sticky top-0 z-10">
                                     <tr>
                                         <td colSpan={5} className="p-0">
                                             <div className="flex items-center bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">
-                                                <div className="flex-1 px-3 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Name</div>
-                                                <div className="flex-1 px-3 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Email</div>
-                                                <div className="flex-1 px-3 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Role</div>
-                                                <div className="flex-1 px-3 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Job Title</div>
-                                                <div className="flex-1 px-3 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Status</div>
+                                                <div style={{ width: '18%' }} className="px-3 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Name</div>
+                                                <div style={{ width: '28%' }} className="px-3 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Email</div>
+                                                <div style={{ width: '12%' }} className="px-3 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Role</div>
+                                                <div style={{ width: '30%' }} className="px-3 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Job Title</div>
+                                                <div style={{ width: '12%' }} className="px-3 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Status</div>
                                             </div>
                                         </td>
                                     </tr>
@@ -1837,13 +1844,11 @@ const DirectoryTab: React.FC = () => {
                                             onClick={() => openTeamMemberDetails(member)}
                                             className="border-b border-gray-100 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
                                         >
-                                            <td className="p-3 font-medium text-primary dark:text-white">
-                                                {[member.first_name, member.last_name].filter(Boolean).join(' ') || 'Unknown'}
-                                            </td>
-                                            <td className="p-3 text-sm text-gray-600 dark:text-gray-400">{member.email}</td>
-                                            <td className="p-3"><RoleBadge role={member.role} /></td>
-                                            <td className="p-3 text-sm text-gray-600 dark:text-gray-400">{member.job_title || '-'}</td>
-                                            <td className="p-3">
+                                            <td style={{ width: '18%' }} className="p-3 font-medium text-primary dark:text-white truncate">{[member.first_name, member.last_name].filter(Boolean).join(' ') || 'Unknown'}</td>
+                                            <td style={{ width: '28%' }} className="p-3 text-sm text-gray-600 dark:text-gray-400 truncate">{member.email}</td>
+                                            <td style={{ width: '12%' }} className="p-3"><RoleBadge role={member.role} /></td>
+                                            <td style={{ width: '30%' }} className="p-3 text-sm text-gray-600 dark:text-gray-400 truncate">{member.job_title || '-'}</td>
+                                            <td style={{ width: '12%' }} className="p-3">
                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                                                     member.is_active 
                                                         ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' 
