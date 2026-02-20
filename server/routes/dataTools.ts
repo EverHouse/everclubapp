@@ -2464,6 +2464,8 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
       FROM users u
       WHERE u.membership_status IN ('non-member', 'visitor')
         AND u.archived_at IS NULL
+        AND u.role NOT IN ('admin', 'staff', 'golf_instructor')
+        AND NOT EXISTS (SELECT 1 FROM staff_users su WHERE LOWER(su.email) = LOWER(u.email) AND su.is_active = true)
         AND NOT EXISTS (SELECT 1 FROM booking_requests br WHERE LOWER(br.user_email) = LOWER(u.email))
         AND NOT EXISTS (SELECT 1 FROM booking_guests bg WHERE LOWER(bg.guest_email) = LOWER(u.email))
         AND NOT EXISTS (SELECT 1 FROM booking_members bm WHERE LOWER(bm.user_email) = LOWER(u.email))

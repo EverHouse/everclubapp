@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.86.2",
+    date: "2026-02-20",
+    title: "Google Sign-In Fix & Staff Account Protection",
+    changes: [
+      "Fixed: Google Sign-In was not working for staff/admin users because their accounts were accidentally archived by the visitor cleanup tool on Feb 13 — all 4 affected accounts (Nick, Mara, Sarah, Alyssa) are now automatically restored on deploy",
+      "Fixed: The 'Archive Stale Visitors' tool now explicitly skips all staff, admin, and instructor accounts — this prevents staff from ever being caught in visitor cleanup again",
+    ]
+  },
+  {
     version: "7.86.1",
     date: "2026-02-20",
     title: "Unmatched Booking Conflict Handling & Fee Cleanup",
