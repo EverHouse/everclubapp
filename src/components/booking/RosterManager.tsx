@@ -312,34 +312,41 @@ const RosterManager: React.FC<RosterManagerProps> = ({
 
     if (feePreview) {
       const removedParticipant = participants.find(p => p.id === participantId);
-      const newAllocations = feePreview.timeAllocation.allocations.filter(
-        a => a.displayName !== removedParticipant?.displayName
-      );
-      const newTotalParticipants = newAllocations.length;
-      const totalMinutes = feePreview.timeAllocation.totalMinutes;
-      const newMinutesPerParticipant = newTotalParticipants > 0
-        ? Math.floor(totalMinutes / Math.max(newTotalParticipants, apiDeclaredPlayerCount))
-        : totalMinutes;
-      const updatedAllocations = newAllocations.map(a => ({
-        ...a,
-        minutes: newMinutesPerParticipant
-      }));
+      if (removedParticipant) {
+        const matchIdx = feePreview.timeAllocation.allocations.findIndex(
+          a => a.displayName === removedParticipant.displayName &&
+               a.type === removedParticipant.participantType
+        );
+        if (matchIdx !== -1) {
+          const newAllocations = [...feePreview.timeAllocation.allocations];
+          newAllocations.splice(matchIdx, 1);
+          const divisor = Math.max(newAllocations.length, apiDeclaredPlayerCount);
+          const totalMinutes = feePreview.timeAllocation.totalMinutes;
+          const newMinutesPerParticipant = divisor > 0
+            ? Math.floor(totalMinutes / divisor)
+            : totalMinutes;
+          const updatedAllocations = newAllocations.map(a => ({
+            ...a,
+            minutes: newMinutesPerParticipant
+          }));
 
-      const wasGuest = removedParticipant?.participantType === 'guest';
-      setFeePreview({
-        ...feePreview,
-        participants: {
-          ...feePreview.participants,
-          total: Math.max(1, feePreview.participants.total - 1),
-          guests: wasGuest ? Math.max(0, feePreview.participants.guests - 1) : feePreview.participants.guests,
-          members: !wasGuest ? Math.max(0, feePreview.participants.members - 1) : feePreview.participants.members,
-        },
-        timeAllocation: {
-          ...feePreview.timeAllocation,
-          minutesPerParticipant: newMinutesPerParticipant,
-          allocations: updatedAllocations,
-        },
-      });
+          const wasGuest = removedParticipant.participantType === 'guest';
+          setFeePreview({
+            ...feePreview,
+            participants: {
+              ...feePreview.participants,
+              total: Math.max(1, feePreview.participants.total - 1),
+              guests: wasGuest ? Math.max(0, feePreview.participants.guests - 1) : feePreview.participants.guests,
+              members: !wasGuest ? Math.max(0, feePreview.participants.members - 1) : feePreview.participants.members,
+            },
+            timeAllocation: {
+              ...feePreview.timeAllocation,
+              minutesPerParticipant: newMinutesPerParticipant,
+              allocations: updatedAllocations,
+            },
+          });
+        }
+      }
     }
 
     haptic.success();

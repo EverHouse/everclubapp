@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.89.6",
+    date: "2026-02-20",
+    title: "Member Portal Roster Race Condition Fix",
+    changes: [
+      "Fixed: Removed players would briefly reappear in the member portal booking roster — caused by separate data fetches racing against each other and overwriting optimistic updates",
+      "Improved: Roster and fee data now load together in a single request instead of cascading separately — faster loading and no more flicker",
+      "Improved: When removing a player, the slot count, player list, and fee breakdown all update instantly in one batch instead of updating piecemeal",
+      "Fixed: Fee allocation display now correctly matches by both player name and type to prevent misidentification when updating optimistically",
+    ]
+  },
+  {
     version: "7.89.5",
     date: "2026-02-20",
     title: "Team Tab Column Restructure & Alignment",
