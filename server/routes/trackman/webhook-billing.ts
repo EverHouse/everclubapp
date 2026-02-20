@@ -63,7 +63,7 @@ export async function createBookingForMember(
 ): Promise<{ success: boolean; bookingId?: number; updated?: boolean }> {
   try {
     const existingBooking = await pool.query(
-      `SELECT id, duration_minutes, session_id, status FROM booking_requests WHERE trackman_booking_id = $1`,
+      `SELECT id, duration_minutes, session_id FROM booking_requests WHERE trackman_booking_id = $1`,
       [trackmanBookingId]
     );
     
@@ -74,45 +74,6 @@ export async function createBookingForMember(
       if (oldDuration !== newDuration) {
         const bookingId = existingBooking.rows[0].id;
         const sessionId = existingBooking.rows[0].session_id;
-        const bookingStatus = existingBooking.rows[0].status;
-        
-        const isFinalized = ['attended', 'no_show', 'cancelled', 'cancellation_pending'].includes(bookingStatus || '');
-        let hasCompletedPayments = false;
-        if (sessionId) {
-          try {
-            const paymentCheck = await pool.query(
-              `SELECT EXISTS(
-                SELECT 1 FROM booking_fee_snapshots 
-                WHERE session_id = $1 AND status IN ('completed', 'paid')
-              ) AS has_snapshot,
-              EXISTS(
-                SELECT 1 FROM booking_participants 
-                WHERE session_id = $1 AND payment_status IN ('paid', 'refunded')
-              ) AS has_paid_participants`,
-              [sessionId]
-            );
-            hasCompletedPayments = paymentCheck.rows[0]?.has_snapshot || paymentCheck.rows[0]?.has_paid_participants;
-          } catch (checkErr: unknown) {
-            hasCompletedPayments = true;
-            logger.warn('[Trackman Webhook] FAIL-CLOSED: Could not check payment status, treating as frozen', {
-              extra: { bookingId, sessionId, error: String(checkErr) }
-            });
-          }
-        }
-        
-        if (isFinalized || hasCompletedPayments) {
-          const reason = hasCompletedPayments ? 'has completed payments' : `status is ${bookingStatus}`;
-          logger.info(`[Trackman Webhook] FROZEN: Skipping time/fee update - booking ${reason}`, {
-            extra: { bookingId, trackmanBookingId, oldDuration, newDuration }
-          });
-          await pool.query(
-            `UPDATE booking_requests 
-             SET trackman_player_count = $1, last_trackman_sync_at = NOW(), updated_at = NOW()
-             WHERE id = $2`,
-            [playerCount, bookingId]
-          );
-          return { success: true, bookingId, updated: false };
-        }
         
         await pool.query(
           `UPDATE booking_requests 
