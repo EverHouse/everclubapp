@@ -87,11 +87,12 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
       logger.info(`[Stripe Subscriptions] No payment intent found, creating one for invoice amount: ${invoice.amount_due}`);
       
       try {
+        const tierDesc = metadata?.tierName ? ` - ${metadata.tierName}` : '';
         const newPaymentIntent = await stripe.paymentIntents.create({
           amount: invoice.amount_due,
           currency: invoice.currency || 'usd',
           customer: customerId,
-          description: 'Subscription creation',
+          description: `Membership activation${tierDesc}`,
           setup_future_usage: 'off_session',
           metadata: {
             invoice_id: invoice.id,

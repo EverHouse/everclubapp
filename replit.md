@@ -68,7 +68,7 @@ The application is built with a React 19 frontend (Vite, Tailwind CSS) and an Ex
 - **Booking Prepayment**: Creates prepayment intents for expected fees, blocking check-in until paid, with auto-refunds on cancellation.
 - **Stripe Customer Metadata Sync**: User ID and tier synced to Stripe customer metadata.
 - **Scheduled Maintenance**: Daily and hourly tasks for various system cleanups, reconciliations, and member syncs.
-- **Stripe Terminal Integration**: In-person card reader support for membership signup, with card saving for future renewals.
+- **Stripe Terminal Integration**: In-person card reader support for membership signup, with card saving for future renewals. Terminal payments include readerId/readerLabel in Stripe metadata for traceability. POS invoice reconciliation uses void (not OOB) to prevent phantom charges. Subscription terminal reconciliation cancels stale invoice PIs before OOB marking.
 - **Stripe Product Catalog as Source of Truth**: Two-way sync between app and Stripe.
 - **Google Sheets Integration**: Announcement sync.
 - **Staff Training System**: Training sections managed via `server/routes/training.ts` with seed data.

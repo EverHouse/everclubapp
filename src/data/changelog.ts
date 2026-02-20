@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.87",
+    date: "2026-02-20",
+    title: "Stripe Payment Integrity v2 — Phantom Charges & Terminal Traceability",
+    isMajor: true,
+    changes: [
+      "Fixed: Terminal POS payments no longer create duplicate 'Out of Band' charges in Stripe — the invoice is now voided after the terminal payment succeeds instead of being fake-paid, eliminating phantom transactions",
+      "Fixed: Subscription and invoice payments now cancel stale invoice-generated payment intents before reconciliation, reducing the chance of accidental double-charges",
+      "Fixed: All reconciled invoices now include cross-reference metadata (reconciled_by_pi, reconciliation_source) linking them to the real payment for easy auditing",
+      "Improved: All terminal card reader payments now include readerId and readerLabel in Stripe metadata — staff can trace exactly which card reader processed each payment",
+      "Improved: Subscription terminal payments now show descriptive labels like 'Membership activation - VIP' instead of generic 'Subscription activation - Invoice inv_xxx' text",
+      "Improved: New subscription payment intents now include the tier name in the description for better dashboard readability",
+      "Fixed: Duplicate charge prevention for non-booking payments improved — the retry window is now 60 seconds (was effectively zero due to Date.now() precision), preventing accidental double charges on retry",
+    ]
+  },
+  {
     version: "7.86.2",
     date: "2026-02-20",
     title: "Google Sign-In Fix & Staff Account Protection",

@@ -613,12 +613,35 @@ router.post('/api/member/invoices/:invoiceId/confirm', isAuthenticated, async (r
     }
 
     try {
+      const invoice = await stripe.invoices.retrieve(invoiceId);
+      const invoicePiId = typeof (invoice as any).payment_intent === 'string'
+        ? (invoice as any).payment_intent
+        : (invoice as any).payment_intent?.id;
+      if (invoicePiId && invoicePiId !== paymentIntentId) {
+        try {
+          await stripe.paymentIntents.cancel(invoicePiId);
+          logger.info('[Stripe] Cancelled invoice-generated PI before OOB reconciliation', { extra: { invoicePiId, invoiceId } });
+        } catch (cancelErr: unknown) {
+          logger.warn('[Stripe] Could not cancel invoice PI', { extra: { invoicePiId, error: getErrorMessage(cancelErr) } });
+        }
+      }
+
       await stripe.invoices.pay(invoiceId, {
         paid_out_of_band: true,
       });
-      logger.info('[Stripe] Invoice marked as paid out of band after PaymentIntent succeeded', { extra: { invoiceId, paymentIntentId } });
+
+      try {
+        await stripe.invoices.update(invoiceId, {
+          metadata: {
+            ...((invoice.metadata as Record<string, string>) || {}),
+            reconciled_by_pi: paymentIntentId,
+            reconciliation_source: 'member_payment',
+          }
+        });
+      } catch (_metaErr: unknown) { /* non-blocking */ }
+
+      logger.info('[Stripe] Invoice reconciled with member PI', { extra: { invoiceId, paymentIntentId } });
       
-      // Notify member and broadcast billing update
       sendNotificationToUser(sessionEmail, {
         type: 'billing_update',
         title: 'Invoice Paid',

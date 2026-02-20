@@ -200,7 +200,9 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
       ...(metadata || {}),
       source: metadata?.source || 'terminal',
       email: metadata?.ownerEmail || '',
-      purpose: isBookingFee ? 'booking_fee' : 'one_time_purchase'
+      purpose: isBookingFee ? 'booking_fee' : 'one_time_purchase',
+      readerId,
+      readerLabel: metadata?.readerLabel || readerId,
     };
 
     let finalDescription = description || 'Terminal payment';
@@ -344,11 +346,11 @@ router.get('/api/stripe/terminal/payment-status/:paymentIntentId', isStaffOrAdmi
       try {
         const inv = await stripe.invoices.retrieve(paymentIntent.metadata.invoice_id);
         if (inv.status === 'open') {
-          await stripe.invoices.pay(paymentIntent.metadata.invoice_id, { paid_out_of_band: true });
-          logger.info('[Terminal] Marked invoice as paid after terminal PI succeeded', { extra: { paymentIntentMetadataInvoice_id: paymentIntent.metadata.invoice_id, paymentIntentId } });
+          await stripe.invoices.voidInvoice(paymentIntent.metadata.invoice_id);
+          logger.info('[Terminal] Voided invoice after terminal PI succeeded (prevents phantom OOB charge)', { extra: { invoiceId: paymentIntent.metadata.invoice_id, paymentIntentId } });
         }
       } catch (invErr: unknown) {
-        logger.warn('[Terminal] Could not reconcile invoice', { extra: { invoice_id: paymentIntent.metadata.invoice_id, error: getErrorMessage(invErr) } });
+        logger.warn('[Terminal] Could not void invoice', { extra: { invoice_id: paymentIntent.metadata.invoice_id, error: getErrorMessage(invErr) } });
       }
     }
     
@@ -519,6 +521,12 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
         });
       }
       
+      let readerLabel = readerId;
+      try {
+        const readerObj = await stripe.terminal.readers.retrieve(readerId);
+        readerLabel = readerObj.label || readerId;
+      } catch (_) { /* use readerId as fallback label */ }
+
       try {
         paymentIntent = await stripe.paymentIntents.update(invoicePI.id, {
           payment_method_types: ['card_present'],
@@ -529,7 +537,10 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
             invoiceId: invoice.id,
             userId: userId || '',
             email: email || '',
-            paymentType: 'subscription_terminal'
+            paymentType: 'subscription_terminal',
+            source: 'terminal',
+            readerId,
+            readerLabel,
           }
         });
         logger.info('[Terminal] Using invoice PI for subscription', { extra: { invoicePIId: invoicePI.id, subscriptionId } });
@@ -541,7 +552,24 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
         });
       }
     } else {
-      logger.warn('[Terminal] No invoice PI found for subscription , creating terminal PI linked to invoice', { extra: { subscriptionId } });
+      logger.warn('[Terminal] No invoice PI found for subscription, creating terminal PI linked to invoice', { extra: { subscriptionId } });
+      let readerLabel = readerId;
+      try {
+        const readerObj = await stripe.terminal.readers.retrieve(readerId);
+        readerLabel = readerObj.label || readerId;
+      } catch (_) { /* use readerId as fallback label */ }
+
+      let subDescription = 'Membership activation';
+      try {
+        const userTier = await pool.query(
+          'SELECT t.name AS tier_name FROM users u JOIN membership_tiers t ON u.membership_tier = t.id WHERE u.id = $1',
+          [userId]
+        );
+        if (userTier.rows[0]?.tier_name) {
+          subDescription = `Membership activation - ${userTier.rows[0].tier_name}`;
+        }
+      } catch (_) { /* use default description */ }
+
       paymentIntent = await stripe.paymentIntents.create({
         amount,
         currency: invoice.currency || 'usd',
@@ -549,7 +577,7 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
         payment_method_types: ['card_present'],
         capture_method: 'automatic',
         setup_future_usage: 'off_session',
-        description: `Subscription activation - Invoice ${invoice.id}`,
+        description: subDescription,
         ...(email ? { receipt_email: email } : {}),
         metadata: {
           subscriptionId,
@@ -558,6 +586,9 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
           userId: userId || '',
           email: email || '',
           paymentType: 'subscription_terminal',
+          source: 'terminal',
+          readerId,
+          readerLabel: readerId,
           fallback: 'true',
           requiresInvoiceReconciliation: 'true'
         }
@@ -698,10 +729,27 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
     
     if (piMetadata.requiresInvoiceReconciliation === 'true' && latestInvoice && latestInvoice.status !== 'paid') {
       try {
-        await stripe.invoices.pay(actualInvoiceId, { paid_out_of_band: true });
-        logger.info('[Terminal] Reconciled invoice as paid (out-of-band) after successful terminal payment', { extra: { actualInvoiceId, paymentIntentId } });
+        if (latestInvoice.status === 'open') {
+          const invoicePiId = typeof (latestInvoice as any).payment_intent === 'string'
+            ? (latestInvoice as any).payment_intent
+            : (latestInvoice as any).payment_intent?.id;
+          if (invoicePiId) {
+            try {
+              await stripe.paymentIntents.cancel(invoicePiId);
+              logger.info('[Terminal] Cancelled invoice-generated PI before paying with terminal PI', { extra: { invoicePiId, actualInvoiceId } });
+            } catch (cancelErr: unknown) {
+              logger.warn('[Terminal] Could not cancel invoice PI (may already be cancelled)', { extra: { invoicePiId, error: getErrorMessage(cancelErr) } });
+            }
+          }
+          await stripe.invoices.pay(actualInvoiceId, {
+            paid_out_of_band: true
+          });
+          logger.info('[Terminal] Reconciled subscription invoice after terminal payment', { extra: { actualInvoiceId, paymentIntentId } });
+        } else {
+          logger.info('[Terminal] Invoice not in open state, skipping reconciliation', { extra: { actualInvoiceId, status: latestInvoice.status } });
+        }
       } catch (invoicePayErr: unknown) {
-        logger.error('[Terminal] Failed to reconcile invoice  after terminal payment', { extra: { actualInvoiceId, error: getErrorMessage(invoicePayErr) } });
+        logger.error('[Terminal] Failed to reconcile invoice after terminal payment', { extra: { actualInvoiceId, error: getErrorMessage(invoicePayErr) } });
       }
     }
     

@@ -604,11 +604,34 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
               invoice_settings: { default_payment_method: paymentMethodId }
             });
           }
-          
+
+          const invoicePiId = typeof (invoice as any).payment_intent === 'string'
+            ? (invoice as any).payment_intent
+            : (invoice as any).payment_intent?.id;
+          if (invoicePiId && invoicePiId !== paymentIntentId) {
+            try {
+              await stripe.paymentIntents.cancel(invoicePiId);
+              logger.info('[Stripe Subscriptions] Cancelled invoice-generated PI before OOB reconciliation', { extra: { invoicePiId, invoiceId } });
+            } catch (cancelErr: unknown) {
+              logger.warn('[Stripe Subscriptions] Could not cancel invoice PI', { extra: { invoicePiId, error: getErrorMessage(cancelErr) } });
+            }
+          }
+
           await stripe.invoices.pay(invoiceId, {
             paid_out_of_band: true
           });
-          logger.info('[Stripe Subscriptions] Marked invoice as paid out of band', { extra: { invoiceId } });
+
+          try {
+            await stripe.invoices.update(invoiceId, {
+              metadata: {
+                ...((invoice.metadata as Record<string, string>) || {}),
+                reconciled_by_pi: paymentIntentId,
+                reconciliation_source: 'inline_payment',
+              }
+            });
+          } catch (_metaErr: unknown) { /* non-blocking */ }
+
+          logger.info('[Stripe Subscriptions] Invoice reconciled with inline PI', { extra: { invoiceId, paymentIntentId } });
         }
       } catch (invoiceError: unknown) {
         logger.error('[Stripe Subscriptions] Error paying invoice', { extra: { invoiceError: getErrorMessage(invoiceError) } });

@@ -522,7 +522,7 @@ export async function createBalanceAwarePayment(params: {
       : [];
     const idempotencyKey = bookingId && sessionId
       ? generatePaymentIdempotencyKey(bookingId, sessionId, participantIds, remainingCents)
-      : `pi_${purpose}_${userId.replace(/[^a-zA-Z0-9-]/g, '')}_${remainingCents}_${Date.now()}`;
+      : `pi_${purpose}_${userId.replace(/[^a-zA-Z0-9-]/g, '')}_${remainingCents}_${Math.floor(Date.now() / 300000)}`;
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: remainingCents,
