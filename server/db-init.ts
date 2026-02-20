@@ -210,7 +210,7 @@ export async function ensureDatabaseConstraints() {
         END IF;
         
         ALTER TABLE booking_requests ADD CONSTRAINT booking_requests_status_check 
-          CHECK (status IN ('pending', 'approved', 'confirmed', 'declined', 'cancelled', 'cancellation_pending', 'attended', 'no_show'));
+          CHECK (status IN ('pending', 'approved', 'confirmed', 'declined', 'cancelled', 'cancellation_pending', 'attended', 'no_show', 'expired'));
 
         IF EXISTS (
           SELECT 1 FROM pg_constraint 
