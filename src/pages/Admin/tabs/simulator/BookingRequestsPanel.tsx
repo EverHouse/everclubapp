@@ -595,10 +595,21 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     Checked In
                                                                 </span>
                                                             ) : !isConferenceRoom && isToday && booking.fee_snapshot_paid ? (
-                                                                <span className="flex-1 py-2.5 bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2">
-                                                                    <span aria-hidden="true" className="material-symbols-outlined text-lg">check_circle</span>
-                                                                    Paid
-                                                                </span>
+                                                                <button
+                                                                    onClick={async (e) => {
+                                                                        e.stopPropagation();
+                                                                        e.preventDefault();
+                                                                        const btn = e.currentTarget;
+                                                                        if (btn.disabled) return;
+                                                                        btn.disabled = true;
+                                                                        await updateBookingStatusOptimistic(booking, 'attended');
+                                                                        btn.disabled = false;
+                                                                    }}
+                                                                    className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-fast disabled:opacity-50"
+                                                                >
+                                                                    <span aria-hidden="true" className="material-symbols-outlined text-lg">how_to_reg</span>
+                                                                    Check In
+                                                                </button>
                                                             ) : !isConferenceRoom && isToday ? (
                                                                 <BookingFeeButton
                                                                     bookingId={typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id as number}
