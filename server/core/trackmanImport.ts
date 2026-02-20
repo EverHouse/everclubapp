@@ -2026,6 +2026,16 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           } catch (recalcErr: unknown) {
             process.stderr.write(`[Trackman Import] Failed to recalculate fees for session #${existing.sessionId}: ${getErrorMessage(recalcErr)}\n`);
           }
+          if (!isUpcoming && existing.sessionId) {
+            try {
+              await db.execute(sql`
+                UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW()
+                WHERE session_id = ${existing.sessionId} AND payment_status = 'pending'
+              `);
+            } catch (payErr: unknown) {
+              process.stderr.write(`[Trackman Import] Failed to mark past session #${existing.sessionId} participants as paid: ${getErrorMessage(payErr)}\n`);
+            }
+          }
         }
         
         // Auto-resolve legacy entry if it exists - booking is now tracked in booking_requests
@@ -3301,6 +3311,38 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
     }
   } catch (cleanupErr: unknown) {
     process.stderr.write(`[Trackman Import] Post-import cleanup error: ${getErrorMessage(cleanupErr)}\n`);
+  }
+
+  // POST-IMPORT: Mark past session participants as paid (settled externally via Trackman)
+  // and waive ghost participants (Unknown Trackman with no real owner)
+  try {
+    const pastPaidResult = await pool.query(`
+      UPDATE booking_participants bp
+      SET payment_status = 'paid', paid_at = NOW()
+      FROM booking_sessions bs
+      WHERE bp.session_id = bs.id
+        AND bp.payment_status = 'pending'
+        AND COALESCE(bp.cached_fee_cents, 0) > 0
+        AND bs.session_date < CURRENT_DATE
+        AND bp.user_id IS NOT NULL
+    `);
+    const ghostWaivedResult = await pool.query(`
+      UPDATE booking_participants bp
+      SET payment_status = 'waived'
+      FROM booking_sessions bs
+      WHERE bp.session_id = bs.id
+        AND bp.payment_status = 'pending'
+        AND COALESCE(bp.cached_fee_cents, 0) > 0
+        AND bp.user_id IS NULL
+        AND bp.display_name LIKE '%Unknown%'
+    `);
+    const pastPaidCount = pastPaidResult.rowCount || 0;
+    const ghostWaivedCount = ghostWaivedResult.rowCount || 0;
+    if (pastPaidCount > 0 || ghostWaivedCount > 0) {
+      process.stderr.write(`[Trackman Import] Post-import fee cleanup: marked ${pastPaidCount} past participants as paid, waived ${ghostWaivedCount} ghost participants\n`);
+    }
+  } catch (feeCleanupErr: unknown) {
+    process.stderr.write(`[Trackman Import] Post-import fee cleanup error: ${getErrorMessage(feeCleanupErr)}\n`);
   }
 
   await db.insert(trackmanImportRuns).values({

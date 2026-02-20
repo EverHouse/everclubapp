@@ -2601,4 +2601,81 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
   }
 }
 
+router.post('/api/data-tools/cleanup-ghost-fees', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
+    const { dryRun = true } = req.body;
+
+    const ghostResult = await pool.query(`
+      SELECT bp.id, bp.display_name, bp.cached_fee_cents, bs.trackman_booking_id, bs.session_date
+      FROM booking_participants bp
+      JOIN booking_sessions bs ON bs.id = bp.session_id
+      WHERE bp.payment_status = 'pending'
+        AND COALESCE(bp.cached_fee_cents, 0) > 0
+        AND bp.user_id IS NULL
+        AND bp.display_name LIKE '%Unknown%'
+    `);
+
+    const pastPendingResult = await pool.query(`
+      SELECT bp.id, bp.display_name, bp.cached_fee_cents, bs.trackman_booking_id, bs.session_date
+      FROM booking_participants bp
+      JOIN booking_sessions bs ON bs.id = bp.session_id
+      WHERE bp.payment_status = 'pending'
+        AND COALESCE(bp.cached_fee_cents, 0) > 0
+        AND bs.session_date < CURRENT_DATE
+        AND bp.user_id IS NOT NULL
+    `);
+
+    if (!dryRun) {
+      await pool.query(`
+        UPDATE booking_participants bp
+        SET payment_status = 'waived'
+        FROM booking_sessions bs
+        WHERE bp.session_id = bs.id
+          AND bp.payment_status = 'pending'
+          AND COALESCE(bp.cached_fee_cents, 0) > 0
+          AND bp.user_id IS NULL
+          AND bp.display_name LIKE '%Unknown%'
+      `);
+
+      await pool.query(`
+        UPDATE booking_participants bp
+        SET payment_status = 'paid', paid_at = NOW()
+        FROM booking_sessions bs
+        WHERE bp.session_id = bs.id
+          AND bp.payment_status = 'pending'
+          AND COALESCE(bp.cached_fee_cents, 0) > 0
+          AND bs.session_date < CURRENT_DATE
+          AND bp.user_id IS NOT NULL
+      `);
+
+      logFromRequest(req, {
+        action: 'cleanup_ghost_fees',
+        resourceType: 'booking_participants',
+        details: `Waived ${ghostResult.rows.length} ghost fees, marked ${pastPendingResult.rows.length} past fees as paid`
+      });
+    }
+
+    const ghostTotal = ghostResult.rows.reduce((sum: number, r: any) => sum + (r.cached_fee_cents || 0), 0);
+    const pastTotal = pastPendingResult.rows.reduce((sum: number, r: any) => sum + (r.cached_fee_cents || 0), 0);
+
+    res.json({
+      dryRun,
+      ghostFees: {
+        count: ghostResult.rows.length,
+        totalDollars: ghostTotal / 100,
+        action: dryRun ? 'would waive' : 'waived',
+      },
+      pastMemberFees: {
+        count: pastPendingResult.rows.length,
+        totalDollars: pastTotal / 100,
+        action: dryRun ? 'would mark paid' : 'marked paid',
+      },
+    });
+  } catch (error: unknown) {
+    logger.error('[DataTools] Ghost fee cleanup error', { error: error instanceof Error ? error : new Error(String(error)) });
+    res.status(500).json({ error: getErrorMessage(error) });
+  }
+});
+
 export default router;

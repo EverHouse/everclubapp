@@ -15,10 +15,12 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "7.86.1",
     date: "2026-02-20",
-    title: "Unmatched Booking Conflict Handling",
+    title: "Unmatched Booking Conflict Handling & Fee Cleanup",
     changes: [
       "Fixed: Trackman webhook bookings that overlap with an existing booking on the same bay are now created as 'pending' instead of 'approved' — this prevents phantom 'Needs Assignment' cards from cluttering the dashboard when the time slot is already taken by a confirmed member",
-      "Fixed: Cleaned up 2 existing unmatched bookings that were incorrectly showing as active despite conflicting with real sessions (Jorge Sanchez Bay 1 11-12 PM, Noah Robles Bay 2 6-7:30 PM)",
+      "Fixed: Trackman CSV imports now automatically mark past booking fees as 'paid' (settled externally) and waive ghost fees from unmatched bookings — this prevents old overage fees from showing as outstanding on member profiles",
+      "New: Admin data tool to clean up ghost fees and past outstanding balances in one click (Data Tools > Cleanup Ghost Fees)",
+      "Fixed: Cleaned up 2 existing unmatched bookings that were incorrectly showing as active despite conflicting with real sessions",
     ]
   },
   {
