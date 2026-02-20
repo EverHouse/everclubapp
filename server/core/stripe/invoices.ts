@@ -362,6 +362,195 @@ function mapInvoice(invoice: Stripe.Invoice): InvoiceResult {
   };
 }
 
+export interface BookingFeeLineItem {
+  participantId?: number;
+  displayName: string;
+  participantType: 'owner' | 'member' | 'guest';
+  overageCents: number;
+  guestCents: number;
+  totalCents: number;
+}
+
+export interface CreateBookingFeeInvoiceParams {
+  customerId: string;
+  bookingId: number;
+  sessionId: number;
+  trackmanBookingId?: string | null;
+  feeLineItems: BookingFeeLineItem[];
+  metadata?: Record<string, string>;
+  purpose?: string;
+  offSession?: boolean;
+  paymentMethodId?: string;
+}
+
+export interface BookingFeeInvoiceResult {
+  invoiceId: string;
+  paymentIntentId: string;
+  clientSecret: string;
+  status: string;
+  hostedInvoiceUrl: string | null;
+  invoicePdf: string | null;
+  amountFromBalance?: number;
+  amountCharged?: number;
+}
+
+export async function createBookingFeeInvoice(
+  params: CreateBookingFeeInvoiceParams
+): Promise<BookingFeeInvoiceResult> {
+  const stripe = await getStripeClient();
+  const {
+    customerId,
+    bookingId,
+    sessionId,
+    trackmanBookingId,
+    feeLineItems,
+    metadata = {},
+    purpose = 'booking_fee',
+    offSession = false,
+    paymentMethodId,
+  } = params;
+
+  const totalOverageCents = feeLineItems.reduce((sum, li) => sum + li.overageCents, 0);
+  const totalGuestCents = feeLineItems.reduce((sum, li) => sum + li.guestCents, 0);
+  const totalCents = feeLineItems.reduce((sum, li) => sum + li.totalCents, 0);
+
+  const bookingRef = trackmanBookingId ? `TM-${trackmanBookingId}` : `#${bookingId}`;
+  const description = `Booking ${bookingRef} fees - Overage: $${(totalOverageCents / 100).toFixed(2)}, Guest fees: $${(totalGuestCents / 100).toFixed(2)}`;
+
+  const invoiceMetadata: Record<string, string> = {
+    ...metadata,
+    source: 'ever_house_app',
+    purpose,
+    bookingId: bookingId.toString(),
+    sessionId: sessionId.toString(),
+    overageCents: totalOverageCents.toString(),
+    guestCents: totalGuestCents.toString(),
+  };
+  if (trackmanBookingId) {
+    invoiceMetadata.trackmanBookingId = String(trackmanBookingId);
+  }
+
+  const invoice = await stripe.invoices.create({
+    customer: customerId,
+    auto_advance: false,
+    collection_method: 'charge_automatically',
+    description,
+    metadata: invoiceMetadata,
+    pending_invoice_items_behavior: 'exclude',
+  });
+
+  try {
+    for (const li of feeLineItems) {
+      if (li.totalCents <= 0) continue;
+
+      if (li.overageCents > 0) {
+        const overageDesc = li.participantType === 'owner'
+          ? `Overage fee — ${li.displayName}`
+          : `Overage fee — ${li.displayName} (${li.participantType})`;
+        await stripe.invoiceItems.create({
+          customer: customerId,
+          invoice: invoice.id,
+          amount: li.overageCents,
+          currency: 'usd',
+          description: overageDesc,
+          metadata: {
+            participantId: li.participantId?.toString() || '',
+            feeType: 'overage',
+            participantType: li.participantType,
+          },
+        });
+      }
+
+      if (li.guestCents > 0) {
+        await stripe.invoiceItems.create({
+          customer: customerId,
+          invoice: invoice.id,
+          amount: li.guestCents,
+          currency: 'usd',
+          description: `Guest fee — ${li.displayName}`,
+          metadata: {
+            participantId: li.participantId?.toString() || '',
+            feeType: 'guest',
+            participantType: li.participantType,
+          },
+        });
+      }
+    }
+
+    const finalizedInvoice = await stripe.invoices.finalizeInvoice(invoice.id);
+
+    const invoicePiId = typeof (finalizedInvoice as unknown as { payment_intent: string | Stripe.PaymentIntent | null }).payment_intent === 'string'
+      ? (finalizedInvoice as unknown as { payment_intent: string }).payment_intent
+      : ((finalizedInvoice as unknown as { payment_intent: Stripe.PaymentIntent | null }).payment_intent)?.id;
+
+    if (!invoicePiId) {
+      throw new Error('Invoice finalization did not create a PaymentIntent');
+    }
+
+    await stripe.paymentIntents.update(invoicePiId, {
+      metadata: invoiceMetadata,
+      description,
+    });
+
+    if (offSession && paymentMethodId) {
+      const pi = await stripe.paymentIntents.confirm(invoicePiId, {
+        payment_method: paymentMethodId,
+        off_session: true,
+      });
+
+      const paidInvoice = await stripe.invoices.retrieve(invoice.id, { expand: ['lines.data'] });
+      const startingBalance = paidInvoice.starting_balance || 0;
+      const endingBalance = paidInvoice.ending_balance || 0;
+      const amountFromBalance = Math.max(0, Math.abs(startingBalance) - Math.abs(endingBalance));
+      const amountCharged = paidInvoice.amount_paid - amountFromBalance;
+
+      logger.info(`[Stripe Invoices] Booking fee invoice ${invoice.id} charged off-session: $${(totalCents / 100).toFixed(2)} (PI: ${invoicePiId})`, {
+        extra: { bookingId, sessionId, status: pi.status }
+      });
+
+      return {
+        invoiceId: invoice.id,
+        paymentIntentId: invoicePiId,
+        clientSecret: pi.client_secret || '',
+        status: pi.status,
+        hostedInvoiceUrl: paidInvoice.hosted_invoice_url,
+        invoicePdf: paidInvoice.invoice_pdf,
+        amountFromBalance,
+        amountCharged: Math.max(0, amountCharged),
+      };
+    }
+
+    const paymentIntent = await stripe.paymentIntents.retrieve(invoicePiId);
+
+    logger.info(`[Stripe Invoices] Booking fee invoice ${invoice.id} created: $${(totalCents / 100).toFixed(2)} with ${feeLineItems.length} line items (PI: ${invoicePiId})`, {
+      extra: { bookingId, sessionId }
+    });
+
+    return {
+      invoiceId: invoice.id,
+      paymentIntentId: invoicePiId,
+      clientSecret: paymentIntent.client_secret || '',
+      status: paymentIntent.status,
+      hostedInvoiceUrl: finalizedInvoice.hosted_invoice_url,
+      invoicePdf: finalizedInvoice.invoice_pdf,
+    };
+  } catch (error: unknown) {
+    try {
+      const currentInvoice = await stripe.invoices.retrieve(invoice.id);
+      if (currentInvoice.status === 'draft') {
+        await stripe.invoices.del(invoice.id);
+        logger.info(`[Stripe Invoices] Deleted draft invoice ${invoice.id} after error`);
+      } else if (currentInvoice.status === 'open') {
+        await stripe.invoices.voidInvoice(invoice.id);
+        logger.info(`[Stripe Invoices] Voided open invoice ${invoice.id} after error`);
+      }
+    } catch (cleanupErr: unknown) {
+      logger.error(`[Stripe Invoices] Failed to clean up invoice ${invoice.id}:`, { extra: { detail: getErrorMessage(cleanupErr) } });
+    }
+    throw error;
+  }
+}
+
 export interface CachedTransaction {
   id: string;
   type: string;

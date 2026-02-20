@@ -12,7 +12,9 @@ import {
   confirmPaymentSuccess,
   getOrCreateStripeCustomer,
   getInvoice,
-  createBalanceAwarePayment
+  createBalanceAwarePayment,
+  createBookingFeeInvoice,
+  type BookingFeeLineItem,
 } from '../../core/stripe';
 import { resolveUserByEmail } from '../../core/stripe/customers';
 import { computeFeeBreakdown, applyFeeBreakdownToParticipants } from '../../core/billing/unifiedFeeService';
@@ -186,57 +188,30 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       }
     }
 
-    // Build description and purpose based on fee types present
-    const hasGuestFees = pendingParticipants.rows.some(r => r.participant_type === 'guest');
-    const hasOverageFees = pendingParticipants.rows.some(r => r.participant_type === 'owner' || r.participant_type === 'member');
     const trackmanId = booking.trackman_booking_id;
-    const bookingRef = trackmanId ? `TM-${trackmanId}` : `#${bookingId}`;
-    let purpose: 'guest_fee' | 'overage_fee' = 'guest_fee';
 
-    const feeLines: string[] = [];
+    const feeLineItems: BookingFeeLineItem[] = [];
     for (const p of pendingParticipants.rows) {
       const fee = pendingFees.find(f => f.participantId === p.id);
       if (!fee || fee.totalCents <= 0) continue;
-      const dollars = (fee.totalCents / 100).toFixed(2);
-      if (p.participant_type === 'guest') {
-        feeLines.push(`Guest: ${p.display_name || 'Guest'} — $${dollars}`);
-      } else {
-        feeLines.push(`Overage — $${dollars}`);
-      }
+      const isGuest = p.participant_type === 'guest';
+      feeLineItems.push({
+        participantId: p.id,
+        displayName: p.display_name || (isGuest ? 'Guest' : 'Member'),
+        participantType: p.participant_type as 'owner' | 'member' | 'guest',
+        overageCents: isGuest ? 0 : fee.totalCents,
+        guestCents: isGuest ? fee.totalCents : 0,
+        totalCents: fee.totalCents,
+      });
     }
 
-    let description = `${bookingRef} - Booking Fees`;
-    if (hasGuestFees && hasOverageFees) {
-      description = `${bookingRef} - Overage & Guest Fees`;
-      purpose = 'overage_fee';
-    } else if (hasGuestFees) {
-      description = `${bookingRef} - Guest Fees`;
-      purpose = 'guest_fee';
-    } else if (hasOverageFees) {
-      description = `${bookingRef} - Additional Fees / Overage`;
-      purpose = 'overage_fee';
-    }
-    if (feeLines.length > 0) {
-      const lineItemText = feeLines.join(', ');
-      const maxLen = 990 - description.length;
-      description += ` | ${lineItemText.length > maxLen ? lineItemText.substring(0, maxLen - 3) + '...' : lineItemText}`;
-    }
-
-    const metadata: Record<string, string> = {
+    const invoiceMetadata: Record<string, string> = {
       feeSnapshotId: snapshotId!.toString(),
       participantCount: serverFees.length.toString(),
       participantIds: serverFees.map(f => f.id).join(',').substring(0, 490),
       memberPayment: 'true',
-      ...(trackmanId ? { trackmanBookingId: String(trackmanId) } : {}),
     };
-    const feeBreakdownMeta = feeLines.join('; ');
-    if (feeBreakdownMeta.length <= 500) {
-      metadata.feeBreakdown = feeBreakdownMeta;
-    } else {
-      metadata.feeBreakdown = feeBreakdownMeta.substring(0, 497) + '...';
-    }
 
-    // Get or create Stripe customer for balance-aware payment
     const memberName = [booking.first_name, booking.last_name].filter(Boolean).join(' ') || booking.user_name || booking.user_email.split('@')[0];
     let resolvedUserId = booking.user_id;
     if (!resolvedUserId) {
@@ -249,20 +224,16 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       memberName
     );
 
-    let result;
+    let invoiceResult;
     try {
-      // Use balance-aware payment to apply account credits first
-      result = await createBalanceAwarePayment({
-        stripeCustomerId,
-        userId: booking.user_id || booking.user_email,
-        email: booking.user_email,
-        memberName,
-        amountCents: serverTotal,
-        purpose,
+      invoiceResult = await createBookingFeeInvoice({
+        customerId: stripeCustomerId,
         bookingId,
         sessionId: booking.session_id,
-        description,
-        metadata
+        trackmanBookingId: trackmanId || null,
+        feeLineItems,
+        metadata: invoiceMetadata,
+        purpose: 'booking_fee',
       });
     } catch (stripeErr: unknown) {
       if (snapshotId) {
@@ -271,21 +242,31 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       throw stripeErr;
     }
 
-    if (result.error) {
-      if (snapshotId) {
-        await pool.query(`DELETE FROM booking_fee_snapshots WHERE id = $1`, [snapshotId]);
-      }
-      throw new Error(result.error);
-    }
-
-    // Store payment ID for tracking
-    const paymentRef = result.paymentIntentId || result.balanceTransactionId || 'unknown';
+    const paymentRef = invoiceResult.paymentIntentId;
     await pool.query(
       `UPDATE booking_fee_snapshots SET stripe_payment_intent_id = $1 WHERE id = $2`,
       [paymentRef, snapshotId]
     );
 
-    logger.info('[Stripe] Member payment created for booking : $ (balance: $, remaining: $)', { extra: { bookingId, serverTotal_100_ToFixed_2: (serverTotal / 100).toFixed(2), resultBalanceApplied_100_ToFixed_2: (result.balanceApplied / 100).toFixed(2), resultRemainingCents_100_ToFixed_2: (result.remainingCents / 100).toFixed(2) } });
+    await pool.query(
+      `INSERT INTO stripe_payment_intents 
+       (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (stripe_payment_intent_id) DO NOTHING`,
+      [
+        resolvedUserId || booking.user_email,
+        paymentRef,
+        stripeCustomerId,
+        serverTotal,
+        'booking_fee',
+        bookingId,
+        booking.session_id,
+        `Member payment invoice for booking ${trackmanId ? `TM-${trackmanId}` : `#${bookingId}`}`,
+        'pending'
+      ]
+    );
+
+    logger.info('[Stripe] Member invoice payment created for booking', { extra: { bookingId, invoiceId: invoiceResult.invoiceId, paymentIntentId: paymentRef, totalDollars: (serverTotal / 100).toFixed(2) } });
 
     const participantFeesList = pendingFees.map(f => {
       const participant = pendingParticipants.rows.find(p => p.id === f.participantId);
@@ -296,32 +277,15 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       };
     });
 
-    // If fully paid by balance, mark participants as paid
-    if (result.paidInFull) {
-      const participantIds = pendingFees.map(f => f.participantId);
-      await pool.query(
-        `UPDATE booking_participants 
-         SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = $1, cached_fee_cents = 0
-         WHERE id = ANY($2::int[])`,
-        [paymentRef, participantIds]
-      );
-      
-      await pool.query(
-        `UPDATE booking_fee_snapshots SET status = 'paid' WHERE id = $1`,
-        [snapshotId]
-      );
-    }
-
     res.json({
-      paidInFull: result.paidInFull,
-      clientSecret: result.clientSecret,
-      paymentIntentId: result.paymentIntentId,
-      balanceTransactionId: result.balanceTransactionId,
+      paidInFull: false,
+      clientSecret: invoiceResult.clientSecret,
+      paymentIntentId: invoiceResult.paymentIntentId,
+      invoiceId: invoiceResult.invoiceId,
       totalAmount: serverTotal / 100,
-      balanceApplied: result.balanceApplied / 100,
-      remainingAmount: result.remainingCents / 100,
+      balanceApplied: 0,
+      remainingAmount: serverTotal / 100,
       participantFees: participantFeesList,
-      error: result.error
     });
   } catch (error: unknown) {
     logger.error('[Stripe] Error creating member payment intent', { error: error instanceof Error ? error : new Error(String(error)) });

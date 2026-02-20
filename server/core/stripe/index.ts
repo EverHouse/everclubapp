@@ -38,9 +38,13 @@ export {
   listCustomerInvoices,
   getInvoice,
   voidInvoice,
+  createBookingFeeInvoice,
   type InvoiceItem,
   type CreateInvoiceParams,
-  type InvoiceResult
+  type InvoiceResult,
+  type BookingFeeLineItem,
+  type CreateBookingFeeInvoiceParams,
+  type BookingFeeInvoiceResult
 } from './invoices';
 export {
   syncDiscountRulesToStripeCoupons,

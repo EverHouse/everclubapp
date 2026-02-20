@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.90.0",
+    date: "2026-02-20",
+    title: "Invoice-Based Payment Processing",
+    isMajor: true,
+    changes: [
+      "Upgraded: Booking fee payments now generate Stripe Invoices with itemized line items instead of raw PaymentIntents — each overage fee and guest fee is a separate line item for full transparency",
+      "Added: Members receive downloadable invoice PDFs showing detailed breakdowns of overage fees, guest fees, and other charges per participant",
+      "Improved: Prepayment charges now use invoices with per-participant line items, making billing audits simpler",
+      "Improved: Staff-initiated saved-card charges now generate invoices with full fee breakdowns",
+      "Maintained: All existing metadata (bookingId, sessionId, trackmanBookingId) is preserved on both invoices and PaymentIntents for webhook compatibility",
+      "Maintained: Customer balance/credit handling is now natively managed by Stripe Invoices",
+    ]
+  },
+  {
     version: "7.89.7",
     date: "2026-02-20",
     title: "Member Portal Roster Accuracy Overhaul",

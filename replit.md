@@ -101,6 +101,7 @@ Before marking any task as done:
 - [ ] Vite dev server is running without compilation errors.
 
 ## Recent Changes
+- **Feb 20, 2026**: Migrated booking fee payments from raw PaymentIntents to Stripe Invoices with itemized line items. Each overage fee and guest fee is a separate line item. Members get downloadable invoice PDFs. Affected files: `server/core/stripe/invoices.ts`, `server/core/billing/prepaymentService.ts`, `server/routes/stripe/member-payments.ts`, `server/routes/stripe/payments.ts`.
 - **Feb 20, 2026**: Merged engineering standards into replit.md — added Prime Directive, Camel-to-Snake boundary table, UI/UX interaction standards, pre-completion checklist.
 - **Feb 20, 2026**: Removed manual "Recalculate Fees" button and deferred fee recalculation pattern. Server now auto-recalculates fees immediately on every roster change.
 - **Feb 20, 2026**: Finalized Booking Details sheet layout — smart primary button logic (Collect if unpaid, Check In if $0 balance), secondary actions as ghost text links, Void All Payments inside payment drawer.

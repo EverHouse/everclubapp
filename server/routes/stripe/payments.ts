@@ -20,7 +20,9 @@ import {
   cancelPaymentIntent,
   getOrCreateStripeCustomer,
   createInvoiceWithLineItems,
-  type CartLineItem
+  createBookingFeeInvoice,
+  type CartLineItem,
+  type BookingFeeLineItem
 } from '../../core/stripe';
 import { computeFeeBreakdown, applyFeeBreakdownToParticipants, getEffectivePlayerCount } from '../../core/billing/unifiedFeeService';
 import {
@@ -1143,109 +1145,20 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
     const cardLast4 = paymentMethod.card?.last4 || '****';
     const cardBrand = paymentMethod.card?.brand || 'card';
 
-    // Build detailed description with fee breakdown
-    const displayBookingId = (participantResult.rows[0] as unknown as DbParticipantRow)?.trackman_booking_id || resolvedBookingId;
-    const staffFeeLines: string[] = [];
+    const trackmanBookingId = (participantResult.rows[0] as unknown as DbParticipantRow)?.trackman_booking_id || null;
+
+    const feeLineItems: BookingFeeLineItem[] = [];
     for (const r of participantResult.rows as unknown as DbParticipantRow[]) {
       if ((r.cached_fee_cents || 0) <= 0) continue;
-      const dollars = ((r.cached_fee_cents || 0) / 100).toFixed(2);
-      if (r.participant_type === 'guest') {
-        staffFeeLines.push(`Guest: ${r.display_name || 'Guest'} — $${dollars}`);
-      } else {
-        staffFeeLines.push(`Overage — $${dollars}`);
-      }
-    }
-    let staffChargeDescription = `#${displayBookingId} - Booking fees charged by staff`;
-    if (staffFeeLines.length > 0) {
-      const lineText = staffFeeLines.join(', ');
-      const maxLen = 990 - staffChargeDescription.length;
-      staffChargeDescription += ` | ${lineText.length > maxLen ? lineText.substring(0, maxLen - 3) + '...' : lineText}`;
-    }
-
-    // Check customer balance for available credit
-    const customerObj = await stripe.customers.retrieve(member.stripe_customer_id);
-    const customerBalance = (customerObj as Stripe.Customer).balance || 0;
-    const availableCredit = customerBalance < 0 ? Math.abs(customerBalance) : 0;
-    const balanceToApply = Math.min(availableCredit, authoritativeAmountCents);
-    const chargeAmount = authoritativeAmountCents - balanceToApply;
-
-    let paymentRecordId: string;
-    let successMessage: string;
-
-    if (chargeAmount === 0) {
-      const balanceTxn = await stripe.customers.createBalanceTransaction(member.stripe_customer_id, {
-        amount: balanceToApply,
-        currency: 'usd',
-        description: staffChargeDescription
+      const isGuest = r.participant_type === 'guest';
+      feeLineItems.push({
+        participantId: r.id,
+        displayName: r.display_name || (isGuest ? 'Guest' : 'Member'),
+        participantType: r.participant_type as 'owner' | 'member' | 'guest',
+        overageCents: isGuest ? 0 : r.cached_fee_cents,
+        guestCents: isGuest ? r.cached_fee_cents : 0,
+        totalCents: r.cached_fee_cents,
       });
-
-      paymentRecordId = `balance-${balanceTxn.id}`;
-      successMessage = `Paid with account credit: $${(authoritativeAmountCents / 100).toFixed(2)}`;
-      logger.info('[Stripe] Staff charge fully covered by credit: $ for', { extra: { authoritativeAmountCents_100_ToFixed_2: (authoritativeAmountCents / 100).toFixed(2), memberEmail: member.email } });
-
-      if (participantIds && Array.isArray(participantIds) && participantIds.length > 0) {
-        await db.execute(sql`UPDATE booking_participants 
-           SET payment_status = 'paid', 
-               stripe_payment_intent_id = ${paymentRecordId},
-               paid_at = NOW()
-           WHERE id IN (${sql.join(participantIds.map((id: number) => sql`${id}`), sql`, `)})`);
-        logger.info('[Stripe] Marked participants as paid (credit-only)', { extra: { participantIdsLength: participantIds.length } });
-      }
-
-      await db.execute(sql`INSERT INTO stripe_payment_intents 
-          (payment_intent_id, member_email, member_id, amount_cents, status, purpose, description, created_by)
-         VALUES (${paymentRecordId}, ${member.email}, ${member.id}, ${authoritativeAmountCents}, 'succeeded', 'booking_fee', ${'Staff charge - paid by account credit'}, ${staffEmail})
-         ON CONFLICT (payment_intent_id) DO UPDATE SET status = 'succeeded', updated_at = NOW()`);
-
-      const staffActionDetails = JSON.stringify({
-        amountCents: authoritativeAmountCents,
-        balanceApplied: balanceToApply,
-        paidByCredit: true,
-        balanceTransactionId: balanceTxn.id,
-        bookingId: resolvedBookingId,
-        sessionId: resolvedSessionId
-      });
-      await db.execute(sql`INSERT INTO staff_actions (action_type, staff_email, staff_name, target_email, details, created_at)
-         VALUES ('charge_saved_card', ${staffEmail}, ${staffName || ''}, ${member.email}, ${staffActionDetails}, NOW())`);
-
-      broadcastBillingUpdate({
-        action: 'payment_succeeded',
-        memberEmail: member.email,
-        amount: authoritativeAmountCents
-      });
-
-      return res.json({
-        success: true,
-        message: successMessage,
-        paymentIntentId: paymentRecordId,
-        paidByCredit: true,
-        balanceApplied: balanceToApply,
-        amountCharged: 0,
-        totalAmount: authoritativeAmountCents
-      });
-    }
-
-    // Partial or no credit: charge the card for remaining amount
-    let adjustedDescription = staffChargeDescription;
-    const chargeMetadata: Record<string, string> = {
-      type: 'staff_saved_card_charge',
-      purpose: 'booking_fee',
-      source: 'ever_house_app',
-      staffEmail: staffEmail,
-      staffName: staffName || '',
-      memberEmail: member.email,
-      memberId: member.id,
-      bookingId: resolvedBookingId?.toString() || '',
-      sessionId: resolvedSessionId?.toString() || '',
-      participantIds: JSON.stringify(participantIds),
-      authoritativeAmountCents: authoritativeAmountCents.toString(),
-      feeBreakdown: staffFeeLines.join('; ').substring(0, 500)
-    };
-
-    if (balanceToApply > 0) {
-      chargeMetadata.creditToConsume = balanceToApply.toString();
-      chargeMetadata.originalAmount = authoritativeAmountCents.toString();
-      adjustedDescription += ` | Credit applied: $${(balanceToApply / 100).toFixed(2)}`;
     }
 
     if (resolvedBookingId) {
@@ -1264,20 +1177,28 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
       }
     }
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: chargeAmount,
-      currency: 'usd',
-      customer: member.stripe_customer_id,
-      payment_method: paymentMethod.id,
-      confirm: true,
-      off_session: true,
-      description: adjustedDescription,
-      metadata: chargeMetadata
-    }, {
-      idempotencyKey: `staff_charge_${member.id}_${resolvedBookingId || 'nobooking'}_${chargeAmount}`
+    const invoiceResult = await createBookingFeeInvoice({
+      customerId: member.stripe_customer_id,
+      bookingId: resolvedBookingId,
+      sessionId: resolvedSessionId,
+      trackmanBookingId,
+      feeLineItems,
+      metadata: {
+        type: 'staff_saved_card_charge',
+        staffEmail,
+        staffName: staffName || '',
+        memberEmail: member.email,
+        memberId: member.id,
+        participantIds: JSON.stringify(participantIds),
+      },
+      purpose: 'booking_fee',
+      offSession: true,
+      paymentMethodId: paymentMethod.id,
     });
 
-    if (paymentIntent.status === 'succeeded') {
+    let successMessage: string;
+
+    if (invoiceResult.status === 'succeeded') {
       const txClient = await pool.connect();
       try {
         await txClient.query('BEGIN');
@@ -1291,26 +1212,27 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
                  stripe_payment_intent_id = $${safeParticipantIds.length + 1},
                  paid_at = NOW()
              WHERE id IN (${idPlaceholders})`,
-            [...safeParticipantIds, paymentIntent.id]
+            [...safeParticipantIds, invoiceResult.paymentIntentId]
           );
-          logger.info('[Stripe] Staff charged saved card: $ (credit: $) for , marked participants as paid', { extra: { chargeAmount_100_ToFixed_2: (chargeAmount / 100).toFixed(2), balanceToApply_100_ToFixed_2: (balanceToApply / 100).toFixed(2), memberEmail: member.email, participantIdsLength: participantIds.length } });
+          logger.info('[Stripe] Staff charged via invoice: $ for', { extra: { totalDollars: (authoritativeAmountCents / 100).toFixed(2), memberEmail: member.email, participantIdsLength: participantIds.length, invoiceId: invoiceResult.invoiceId } });
         }
 
         await txClient.query(
           `INSERT INTO stripe_payment_intents 
             (payment_intent_id, member_email, member_id, amount_cents, status, purpose, description, created_by)
-           VALUES ($1, $2, $3, $4, 'succeeded', 'booking_fee', 'Staff charged saved card', $5)
+           VALUES ($1, $2, $3, $4, 'succeeded', 'booking_fee', 'Staff charged via invoice', $5)
            ON CONFLICT (payment_intent_id) DO UPDATE SET status = 'succeeded', updated_at = NOW()`,
-          [paymentIntent.id, member.email, member.id, authoritativeAmountCents, staffEmail]
+          [invoiceResult.paymentIntentId, member.email, member.id, authoritativeAmountCents, staffEmail]
         );
 
         const staffActionDetails = JSON.stringify({
             amountCents: authoritativeAmountCents,
-            cardCharged: chargeAmount,
-            balanceApplied: balanceToApply,
+            cardCharged: invoiceResult.amountCharged || authoritativeAmountCents,
+            balanceApplied: invoiceResult.amountFromBalance || 0,
             cardLast4,
             cardBrand,
-            paymentIntentId: paymentIntent.id,
+            paymentIntentId: invoiceResult.paymentIntentId,
+            invoiceId: invoiceResult.invoiceId,
             bookingId: resolvedBookingId,
             sessionId: resolvedSessionId
           });
@@ -1335,27 +1257,29 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
         amount: authoritativeAmountCents
       });
 
-      successMessage = balanceToApply > 0
-        ? `Charged ${cardBrand} ending in ${cardLast4}: $${(chargeAmount / 100).toFixed(2)} (credit applied: $${(balanceToApply / 100).toFixed(2)})`
+      const balanceApplied = invoiceResult.amountFromBalance || 0;
+      const amountCharged = invoiceResult.amountCharged || authoritativeAmountCents;
+      successMessage = balanceApplied > 0
+        ? `Charged ${cardBrand} ending in ${cardLast4}: $${(amountCharged / 100).toFixed(2)} (credit applied: $${(balanceApplied / 100).toFixed(2)})`
         : `Charged ${cardBrand} ending in ${cardLast4}: $${(authoritativeAmountCents / 100).toFixed(2)}`;
 
       res.json({ 
         success: true, 
         message: successMessage,
-        paymentIntentId: paymentIntent.id,
+        paymentIntentId: invoiceResult.paymentIntentId,
+        invoiceId: invoiceResult.invoiceId,
         cardLast4,
         cardBrand,
-        amountCharged: chargeAmount,
-        balanceApplied: balanceToApply,
+        amountCharged,
+        balanceApplied,
         totalAmount: authoritativeAmountCents
       });
     } else {
-      // Payment requires additional action (3D Secure, etc.)
-      logger.warn('[Stripe] Saved card charge requires action: for', { extra: { paymentIntentStatus: paymentIntent.status, memberEmail: member.email } });
+      logger.warn('[Stripe] Invoice charge requires action', { extra: { invoiceStatus: invoiceResult.status, memberEmail: member.email } });
       res.status(400).json({ 
         error: `Payment requires additional verification. Please use the standard payment flow.`,
         requiresAction: true,
-        status: paymentIntent.status
+        status: invoiceResult.status
       });
     }
   } catch (error: unknown) {

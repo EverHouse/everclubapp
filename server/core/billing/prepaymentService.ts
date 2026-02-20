@@ -1,5 +1,5 @@
-import { createPaymentIntent, createBalanceAwarePayment } from '../stripe/payments';
 import { getOrCreateStripeCustomer } from '../stripe/customers';
+import { createBookingFeeInvoice, type BookingFeeLineItem } from '../stripe/invoices';
 import { pool } from '../db';
 import { logger } from '../logger';
 
@@ -18,6 +18,7 @@ export interface PrepaymentIntentResult {
   clientSecret: string;
   paidInFull?: boolean;
   balanceTransactionId?: string;
+  invoiceId?: string;
 }
 
 export async function createPrepaymentIntent(
@@ -37,7 +38,6 @@ export async function createPrepaymentIntent(
     return null;
   }
 
-  // Guard: prevent ghost transactions for unmatched bookings without real owners
   if (!userEmail || !userEmail.includes('@')) {
     logger.info('[Prepayment] Skipping - no valid owner email (ghost booking prevention)', {
       extra: { bookingId, sessionId, userEmail: userEmail || '(empty)' }
@@ -45,7 +45,6 @@ export async function createPrepaymentIntent(
     return null;
   }
 
-  // Guard: prevent ghost transactions for Unknown Trackman bookings without assigned members
   const unmatchedCheck = await pool.query(
     `SELECT is_unmatched, user_email, user_name FROM booking_requests WHERE id = $1 LIMIT 1`,
     [bookingId]
@@ -60,7 +59,6 @@ export async function createPrepaymentIntent(
     }
   }
 
-  // Safety net: never create prepayments for staff or unlimited-tier members
   if (userEmail) {
     const exemptCheck = await pool.query(
       `SELECT u.role, u.tier, COALESCE(tf.unlimited_access, false) as unlimited_access
@@ -112,73 +110,131 @@ export async function createPrepaymentIntent(
       return null;
     }
 
-    // Fetch Trackman booking ID for Stripe description and metadata cross-referencing
     const trackmanResult = await pool.query(
       `SELECT trackman_booking_id FROM booking_requests WHERE id = $1 LIMIT 1`,
       [bookingId]
     );
     const trackmanBookingId = trackmanResult.rows[0]?.trackman_booking_id || null;
 
-    const bookingRef = trackmanBookingId ? `TM-${trackmanBookingId}` : `#${bookingId}`;
-    const description = `Prepayment for booking ${bookingRef} - Overage: $${(feeBreakdown.overageCents / 100).toFixed(2)}, Guest fees: $${(feeBreakdown.guestCents / 100).toFixed(2)}`;
-
     const { customerId } = await getOrCreateStripeCustomer(userId || userEmail, userEmail, userName);
 
-    const stripeMetadata: Record<string, string> = {
-      bookingId: bookingId.toString(),
-      sessionId: sessionId.toString(),
-      overageCents: feeBreakdown.overageCents.toString(),
-      guestCents: feeBreakdown.guestCents.toString(),
-      prepaymentType: 'booking_approval'
-    };
-    if (trackmanBookingId) {
-      stripeMetadata.trackmanBookingId = String(trackmanBookingId);
-    }
+    const feeLineItems = await buildParticipantLineItems(sessionId, feeBreakdown);
 
-    const result = await createBalanceAwarePayment({
-      stripeCustomerId: customerId,
-      userId: userId || `email-${userEmail}`,
-      email: userEmail,
-      memberName: userName || userEmail,
-      amountCents: totalFeeCents,
-      purpose: 'prepayment',
-      description,
+    const result = await createBookingFeeInvoice({
+      customerId,
       bookingId,
       sessionId,
-      metadata: stripeMetadata
+      trackmanBookingId,
+      feeLineItems,
+      metadata: {
+        prepaymentType: 'booking_approval',
+      },
+      purpose: 'prepayment',
     });
 
-    if (result.error) {
-      logger.error('[Prepayment] Balance-aware payment error', { extra: { error: result.error, sessionId, bookingId } });
-      return null;
-    }
+    await pool.query(
+      `INSERT INTO stripe_payment_intents 
+       (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        userId || `email-${userEmail}`,
+        result.paymentIntentId,
+        customerId,
+        totalFeeCents,
+        'prepayment',
+        bookingId,
+        sessionId,
+        `Prepayment invoice for booking ${trackmanBookingId ? `TM-${trackmanBookingId}` : `#${bookingId}`}`,
+        'pending'
+      ]
+    );
 
-    if (result.paidInFull) {
-      logger.info('[Prepayment] Fully covered by account credit', { 
-        extra: { balanceTransactionId: result.balanceTransactionId, sessionId, amountDollars: (totalFeeCents / 100).toFixed(2) } 
-      });
-      return {
-        paymentIntentId: 'balance-' + result.balanceTransactionId,
-        clientSecret: '',
-        paidInFull: true,
-        balanceTransactionId: result.balanceTransactionId
-      };
-    }
-
-    logger.info('[Prepayment] Created payment intent', { 
-      extra: { paymentIntentId: result.paymentIntentId, sessionId, amountDollars: (totalFeeCents / 100).toFixed(2), balanceApplied: result.balanceApplied } 
+    logger.info('[Prepayment] Created invoice-based payment', { 
+      extra: { 
+        invoiceId: result.invoiceId,
+        paymentIntentId: result.paymentIntentId, 
+        sessionId, 
+        amountDollars: (totalFeeCents / 100).toFixed(2),
+        lineItems: feeLineItems.length
+      } 
     });
 
     return {
-      paymentIntentId: result.paymentIntentId!,
-      clientSecret: result.clientSecret!,
-      paidInFull: false
+      paymentIntentId: result.paymentIntentId,
+      clientSecret: result.clientSecret,
+      paidInFull: false,
+      invoiceId: result.invoiceId
     };
   } catch (error: unknown) {
-    logger.error('[Prepayment] Failed to create prepayment intent', {
+    logger.error('[Prepayment] Failed to create prepayment invoice', {
       error,
       extra: { sessionId, bookingId, userEmail, totalFeeCents }
     });
     return null;
   }
+}
+
+async function buildParticipantLineItems(
+  sessionId: number,
+  aggregateFees: { overageCents: number; guestCents: number }
+): Promise<BookingFeeLineItem[]> {
+  try {
+    const participantsResult = await pool.query(
+      `SELECT id, participant_type, display_name, cached_fee_cents
+       FROM booking_participants
+       WHERE session_id = $1 AND cached_fee_cents > 0
+       ORDER BY participant_type, id`,
+      [sessionId]
+    );
+
+    if (participantsResult.rows.length === 0) {
+      return buildFallbackLineItems(aggregateFees);
+    }
+
+    const lineItems: BookingFeeLineItem[] = [];
+    for (const row of participantsResult.rows) {
+      const feeCents = parseInt(row.cached_fee_cents) || 0;
+      if (feeCents <= 0) continue;
+
+      const isGuest = row.participant_type === 'guest';
+      lineItems.push({
+        participantId: row.id,
+        displayName: row.display_name || (isGuest ? 'Guest' : 'Member'),
+        participantType: row.participant_type as 'owner' | 'member' | 'guest',
+        overageCents: isGuest ? 0 : feeCents,
+        guestCents: isGuest ? feeCents : 0,
+        totalCents: feeCents,
+      });
+    }
+
+    return lineItems.length > 0 ? lineItems : buildFallbackLineItems(aggregateFees);
+  } catch (error: unknown) {
+    logger.warn('[Prepayment] Failed to load participant line items, using aggregate fallback', { error });
+    return buildFallbackLineItems(aggregateFees);
+  }
+}
+
+function buildFallbackLineItems(
+  aggregateFees: { overageCents: number; guestCents: number }
+): BookingFeeLineItem[] {
+  const items: BookingFeeLineItem[] = [];
+  if (aggregateFees.overageCents > 0) {
+    items.push({
+      displayName: 'Booking Owner',
+      participantType: 'owner',
+      overageCents: aggregateFees.overageCents,
+      guestCents: 0,
+      totalCents: aggregateFees.overageCents,
+    });
+  }
+  if (aggregateFees.guestCents > 0) {
+    items.push({
+      displayName: 'Guest Fees',
+      participantType: 'guest',
+      overageCents: 0,
+      guestCents: aggregateFees.guestCents,
+      totalCents: aggregateFees.guestCents,
+    });
+  }
+  return items;
 }
