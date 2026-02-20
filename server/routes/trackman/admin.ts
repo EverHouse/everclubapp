@@ -5,7 +5,7 @@ import { pool } from '../../core/db';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { sendPushNotification } from '../push';
-import { getGuestPassesRemaining } from '../guestPasses';
+import { getGuestPassesRemaining, useGuestPass, ensureGuestPassRecord } from '../guestPasses';
 import { getMemberTierByEmail, getTierLimits } from '../../core/tierService';
 import { computeFeeBreakdown, applyFeeBreakdownToParticipants, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { logFromRequest } from '../../core/auditLog';
@@ -2447,9 +2447,29 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
       const durationMinutes = booking.duration_minutes || 60;
       const declaredPlayerCount = booking.declared_player_count || 1;
       const slotDuration = Math.floor(Number(durationMinutes)/ Math.max(declaredPlayerCount as number, 1));
+      const trimmedName = guestName.trim();
+      const isPlaceholder = /^Guest \d+$/i.test(trimmedName) || /^Guest\s*\(.*pending.*\)$/i.test(trimmedName);
+
+      let passUsed = false;
+      if (!isPlaceholder && ownerEmail) {
+        try {
+          const ownerTier = await getMemberTierByEmail(ownerEmail as string);
+          if (ownerTier) {
+            await ensureGuestPassRecord(ownerEmail as string, ownerTier);
+          }
+          const passResult = await useGuestPass(ownerEmail as string, trimmedName, true);
+          if (passResult.success) {
+            passUsed = true;
+            logger.info('[AddGuest] Guest pass used for guest', { extra: { bookingId, ownerEmail, guestName: trimmedName, remaining: passResult.remaining } });
+          }
+        } catch (passErr: unknown) {
+          logger.info('[AddGuest] No guest pass available, guest will be charged', { extra: { bookingId, ownerEmail, guestName: trimmedName, error: getErrorMessage(passErr) } });
+        }
+      }
+
       await db.execute(sql`INSERT INTO booking_participants (session_id, participant_type, display_name, payment_status, used_guest_pass, slot_duration)
-         VALUES (${sessionId}, 'guest', ${guestName.trim()}, 'pending', false, ${slotDuration})`);
-      logger.info('[AddGuest] Created booking_participant for guest in session', { extra: { bookingId, sessionId, guestName: guestName.trim() } });
+         VALUES (${sessionId}, 'guest', ${trimmedName}, ${passUsed ? 'paid' : 'pending'}, ${passUsed}, ${slotDuration})`);
+      logger.info('[AddGuest] Created booking_participant for guest in session', { extra: { bookingId, sessionId, guestName: trimmedName, guestPassUsed: passUsed } });
 
       if (req.body.deferFeeRecalc !== true) {
         await recalculateSessionFees(sessionId, 'roster_update');

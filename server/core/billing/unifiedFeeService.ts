@@ -646,6 +646,10 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         logger.info('[FeeBreakdown] Skipping guest fee for member marked as guest', {
           extra: { participantId: participant.participantId, userId: participant.userId }
         });
+      } else if (participant.usedGuestPass === true) {
+        lineItem.guestPassUsed = true;
+        guestPassesUsed++;
+        lineItem.guestCents = 0;
       } else if (isRealNamedGuest && guestPassInfo.hasGuestPassBenefit && guestPassesRemaining > 0 && participant.usedGuestPass !== false) {
         lineItem.guestPassUsed = true;
         guestPassesRemaining--;
