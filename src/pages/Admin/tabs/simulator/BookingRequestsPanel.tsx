@@ -6,6 +6,7 @@ import { SwipeableListItem } from '../../../../components/SwipeableListItem';
 import type { BookingRequest, Resource } from './simulatorTypes';
 import { formatDateShortAdmin, groupBookingsByDate } from './simulatorUtils';
 import GuideBookings from '../../../../components/guides/GuideBookings';
+import { TrackmanIcon } from '../../../../components/icons/TrackmanIcon';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useFeeEstimate } from '../../../../hooks/queries/useBookingsQueries';
 
@@ -123,11 +124,10 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                 </div>
                                 <button
                                     onClick={() => navigateToTab('trackman')}
-                                    className="hidden lg:flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary dark:text-white bg-primary/10 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-white/20 rounded-lg transition-colors shadow-sm"
+                                    className="hidden lg:flex p-2 rounded-xl bg-white/60 dark:bg-white/10 backdrop-blur-sm border border-primary/10 dark:border-white/20 hover:bg-white/80 dark:hover:bg-white/15 transition-colors tactile-btn"
                                     title="Import bookings from Trackman CSV"
                                 >
-                                    <span className="material-symbols-outlined text-sm">upload_file</span>
-                                    <span>Import</span>
+                                    <TrackmanIcon size={24} />
                                 </button>
                             </div>
                         </div>

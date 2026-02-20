@@ -20,6 +20,8 @@ export const changelog: ChangelogEntry[] = [
       "Changed: Team tab columns reorganized — added Phone column after Email, moved Role to the last column, removed Status column",
       "Changed: Team tab mobile cards — replaced tier/status badges with job title, moved phone number under email",
       "Fixed: Search bar and filter/sort buttons now have uniform 44px height across Active, Former, and Visitors tabs — no more mismatched heights",
+      "Changed: Bookings page Import button now shows the Trackman logo icon instead of text — cleaner look that fits within the card",
+      "Fixed: Bookings page Guide and Import buttons now match heights with identical styling",
       "Fixed: Active/Former Members tab column header hover highlights now fill the full height of the header bar — no more gaps on top/bottom when hovering",
       "Fixed: Sort icons now stay contained within their column's highlighted area — no more overlapping into adjacent headers",
       "Fixed: Column widths rebalanced so narrower columns (Visits, Joined, Last Visit) have enough room for both the label text and sort icon",

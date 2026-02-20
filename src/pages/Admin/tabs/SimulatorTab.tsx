@@ -37,6 +37,7 @@ import ManualBookingModal from './simulator/MemberSearchPopover';
 import CalendarGrid from './simulator/CalendarGrid';
 import BookingRequestsPanel from './simulator/BookingRequestsPanel';
 import GuideBookings from '../../../components/guides/GuideBookings';
+import { TrackmanIcon } from '../../../components/icons/TrackmanIcon';
 
 const SimulatorTab: React.FC = () => {
     const navigate = useNavigate();
@@ -959,11 +960,10 @@ const SimulatorTab: React.FC = () => {
                         <GuideBookings />
                         <button
                             onClick={() => navigateToTab('trackman')}
-                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary dark:text-white bg-primary/10 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-white/20 rounded-lg transition-colors shadow-sm"
+                            className="p-2 rounded-xl bg-white/60 dark:bg-white/10 backdrop-blur-sm border border-primary/10 dark:border-white/20 hover:bg-white/80 dark:hover:bg-white/15 transition-colors tactile-btn"
                             title="Import bookings from Trackman CSV"
                         >
-                            <span className="material-symbols-outlined text-sm">upload_file</span>
-                            <span>Import</span>
+                            <TrackmanIcon size={24} />
                         </button>
                     </div>
                 </div>
