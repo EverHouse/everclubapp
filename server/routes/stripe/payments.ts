@@ -2482,7 +2482,7 @@ router.get('/api/payments/future-bookings-with-fees', isStaffOrAdmin, async (req
         br.end_time,
         br.session_id,
         br.status,
-        br.player_count,
+        br.declared_player_count as player_count,
         r.name as resource_name,
         r.type as resource_type,
         u.tier,
@@ -2499,7 +2499,7 @@ router.get('/api/payments/future-bookings-with-fees', isStaffOrAdmin, async (req
         (SELECT COUNT(*) FROM stripe_payment_intents spi WHERE spi.booking_id = br.id AND spi.status NOT IN ('succeeded', 'canceled')) as pending_intent_count,
         (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND bp.participant_type = 'guest') as guest_count
       FROM booking_requests br
-      LEFT JOIN resources r ON r.id = br.bay_id
+      LEFT JOIN resources r ON r.id = br.resource_id
       LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
       WHERE br.status IN ('approved', 'confirmed')
       AND br.request_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date

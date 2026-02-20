@@ -384,9 +384,9 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
 
     const bookingResult = await db.execute(sql`
       SELECT br.session_id, br.user_email as owner_email, r.name as resource_name,
-             br.resource_id, br.booking_date, br.start_time, br.end_time,
+             br.resource_id, br.request_date as booking_date, br.start_time, br.end_time,
              br.declared_player_count,
-             COALESCE(br.owner_name, u.first_name || ' ' || u.last_name) as owner_name
+             COALESCE(br.user_name, u.first_name || ' ' || u.last_name) as owner_name
       FROM booking_requests br
       LEFT JOIN resources r ON br.resource_id = r.id
       LEFT JOIN users u ON LOWER(br.user_email) = LOWER(u.email)
