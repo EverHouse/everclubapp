@@ -55,6 +55,30 @@ export function useBookingActions() {
   ): Promise<CheckInResult> => {
     const { status = 'attended', source, skipPaymentCheck } = options;
 
+    await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
+    await queryClient.cancelQueries({ queryKey: simulatorKeys.all });
+    const previousBookings = queryClient.getQueriesData({ queryKey: bookingsKeys.all });
+    const previousSimulator = queryClient.getQueriesData({ queryKey: simulatorKeys.all });
+
+    queryClient.setQueriesData(
+      { queryKey: bookingsKeys.all },
+      (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((b: Record<string, unknown>) =>
+          String(b.id) === String(bookingId) ? { ...b, status } : b
+        );
+      }
+    );
+    queryClient.setQueriesData(
+      { queryKey: simulatorKeys.all },
+      (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((b: Record<string, unknown>) =>
+          String(b.id) === String(bookingId) ? { ...b, status } : b
+        );
+      }
+    );
+
     try {
       const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
         method: 'PUT',
@@ -64,6 +88,8 @@ export function useBookingActions() {
       });
 
       if (res.status === 402) {
+        previousBookings.forEach(([key, data]) => queryClient.setQueryData(key, data));
+        previousSimulator.forEach(([key, data]) => queryClient.setQueryData(key, data));
         const errorData = await res.json();
         return {
           success: false,
@@ -75,6 +101,8 @@ export function useBookingActions() {
       }
 
       if (res.status === 400) {
+        previousBookings.forEach(([key, data]) => queryClient.setQueryData(key, data));
+        previousSimulator.forEach(([key, data]) => queryClient.setQueryData(key, data));
         const errorData = await res.json();
         if (errorData.requiresSync && !skipPaymentCheck) {
           const retryRes = await fetch(`/api/bookings/${bookingId}/checkin`, {
@@ -94,6 +122,8 @@ export function useBookingActions() {
       }
 
       if (!res.ok) {
+        previousBookings.forEach(([key, data]) => queryClient.setQueryData(key, data));
+        previousSimulator.forEach(([key, data]) => queryClient.setQueryData(key, data));
         const err = await res.json().catch(() => ({}));
         return { success: false, error: err.error || 'Failed to update status' };
       }
@@ -101,6 +131,8 @@ export function useBookingActions() {
       invalidateBookingQueries(queryClient);
       return { success: true };
     } catch (err: unknown) {
+      previousBookings.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      previousSimulator.forEach(([key, data]) => queryClient.setQueryData(key, data));
       return { success: false, error: (err instanceof Error ? err.message : String(err)) || 'Network error during check-in' };
     }
   }, [queryClient]);
@@ -192,6 +224,30 @@ export function useBookingActions() {
   ): Promise<{ success: boolean; error?: string }> => {
     const { source, cancelledBy } = options;
 
+    await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
+    await queryClient.cancelQueries({ queryKey: simulatorKeys.all });
+    const previousBookings = queryClient.getQueriesData({ queryKey: bookingsKeys.all });
+    const previousSimulator = queryClient.getQueriesData({ queryKey: simulatorKeys.all });
+
+    queryClient.setQueriesData(
+      { queryKey: bookingsKeys.all },
+      (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((b: Record<string, unknown>) =>
+          String(b.id) === String(bookingId) ? { ...b, status: 'cancelled' } : b
+        );
+      }
+    );
+    queryClient.setQueriesData(
+      { queryKey: simulatorKeys.all },
+      (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((b: Record<string, unknown>) =>
+          String(b.id) === String(bookingId) ? { ...b, status: 'cancelled' } : b
+        );
+      }
+    );
+
     try {
       const res = await fetch(`/api/bookings/${bookingId}`, {
         method: 'PUT',
@@ -201,6 +257,8 @@ export function useBookingActions() {
       });
 
       if (!res.ok) {
+        previousBookings.forEach(([key, data]) => queryClient.setQueryData(key, data));
+        previousSimulator.forEach(([key, data]) => queryClient.setQueryData(key, data));
         const err = await res.json().catch(() => ({}));
         return { success: false, error: err.error || 'Failed to cancel booking' };
       }
@@ -208,6 +266,8 @@ export function useBookingActions() {
       invalidateBookingQueries(queryClient);
       return { success: true };
     } catch (err: unknown) {
+      previousBookings.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      previousSimulator.forEach(([key, data]) => queryClient.setQueryData(key, data));
       return { success: false, error: (err instanceof Error ? err.message : String(err)) || 'Network error cancelling booking' };
     }
   }, [queryClient]);

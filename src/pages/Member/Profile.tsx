@@ -249,13 +249,24 @@ const Profile: React.FC = () => {
         `/api/members/me/preferences?user_email=${encodeURIComponent(user!.email)}`,
         data
       ),
-    onSuccess: () => {
-      showToast('Preferences updated', 'success');
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ['memberPreferences', user?.email] });
+      const previous = queryClient.getQueryData<PreferencesData>(['memberPreferences', user?.email]);
+      queryClient.setQueryData<PreferencesData>(['memberPreferences', user?.email], (old) => {
+        if (!old) return old;
+        return { ...old, ...data };
+      });
+      return { previous };
+    },
+    onError: (_err: unknown, _data: unknown, context: { previous?: PreferencesData } | undefined) => {
+      if (context?.previous) queryClient.setQueryData(['memberPreferences', user?.email], context.previous);
+      showToast('Failed to update preferences', 'error');
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['memberPreferences', user?.email] });
     },
-    onError: () => {
-      showToast('Failed to update preferences', 'error');
-      queryClient.invalidateQueries({ queryKey: ['memberPreferences', user?.email] });
+    onSuccess: () => {
+      showToast('Preferences updated', 'success');
     },
   });
 
@@ -309,13 +320,24 @@ const Profile: React.FC = () => {
         `/api/members/${encodeURIComponent(user!.email)}/sms-preferences`,
         data
       ),
-    onSuccess: () => {
-      showToast('SMS preferences updated', 'success');
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ['memberPreferences', user?.email] });
+      const previous = queryClient.getQueryData<PreferencesData>(['memberPreferences', user?.email]);
+      queryClient.setQueryData<PreferencesData>(['memberPreferences', user?.email], (old) => {
+        if (!old) return old;
+        return { ...old, ...data };
+      });
+      return { previous };
+    },
+    onError: (_err: unknown, _data: unknown, context: { previous?: PreferencesData } | undefined) => {
+      if (context?.previous) queryClient.setQueryData(['memberPreferences', user?.email], context.previous);
+      showToast('Failed to update SMS preferences', 'error');
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['memberPreferences', user?.email] });
     },
-    onError: () => {
-      showToast('Failed to update SMS preferences', 'error');
-      queryClient.invalidateQueries({ queryKey: ['memberPreferences', user?.email] });
+    onSuccess: () => {
+      showToast('SMS preferences updated', 'success');
     },
   });
 

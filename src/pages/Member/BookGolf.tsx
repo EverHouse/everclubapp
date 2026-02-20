@@ -354,7 +354,24 @@ const BookGolf: React.FC = () => {
   const cancelBookingMutation = useMutation({
     mutationFn: async ({ bookingId, actingAsEmail }: { bookingId: number; actingAsEmail?: string }) => 
       putWithCredentials<{ success: boolean; status?: string }>(`/api/bookings/${bookingId}/member-cancel`, { acting_as_email: actingAsEmail }),
-    onSuccess: () => {
+    onMutate: async ({ bookingId }) => {
+      await queryClient.cancelQueries({ queryKey: bookGolfKeys.all });
+      const previousData = queryClient.getQueriesData({ queryKey: bookGolfKeys.all });
+      queryClient.setQueriesData(
+        { queryKey: bookGolfKeys.all },
+        (old: unknown) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((b: Record<string, unknown>) =>
+            b.id === bookingId ? { ...b, status: 'cancelled' } : b
+          );
+        }
+      );
+      return { previousData };
+    },
+    onError: (_err: unknown, _vars: unknown, context: { previousData?: [unknown, unknown][] } | undefined) => {
+      context?.previousData?.forEach(([key, data]) => queryClient.setQueryData(key as string[], data));
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: bookGolfKeys.all });
     },
   });

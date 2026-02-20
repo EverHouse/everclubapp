@@ -204,12 +204,23 @@ const BlocksTab: React.FC = () => {
 
     const deleteClosureReasonMutation = useMutation({
         mutationFn: (id: number) => deleteWithCredentials(`/api/closure-reasons/${id}`),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['closureReasons'] });
-            showToast('Closure reason deleted', 'success');
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: ['closureReasons'] });
+            const previous = queryClient.getQueryData<ClosureReason[]>(['closureReasons']);
+            queryClient.setQueryData<ClosureReason[]>(['closureReasons'], (old = []) =>
+                old.filter(r => r.id !== id)
+            );
+            return { previous };
         },
-        onError: (error: any) => {
-            showToast(error.message || 'Failed to delete reason', 'error');
+        onError: (_err: unknown, _id: unknown, context: { previous?: ClosureReason[] } | undefined) => {
+            if (context?.previous) queryClient.setQueryData(['closureReasons'], context.previous);
+            showToast('Failed to delete reason', 'error');
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['closureReasons'] });
+        },
+        onSuccess: () => {
+            showToast('Closure reason deleted', 'success');
         }
     });
 
@@ -251,12 +262,23 @@ const BlocksTab: React.FC = () => {
 
     const deleteNoticeTypeMutation = useMutation({
         mutationFn: (id: number) => deleteWithCredentials(`/api/notice-types/${id}`),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['noticeTypes'] });
-            showToast('Notice type deleted', 'success');
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: ['noticeTypes'] });
+            const previous = queryClient.getQueryData<NoticeType[]>(['noticeTypes']);
+            queryClient.setQueryData<NoticeType[]>(['noticeTypes'], (old = []) =>
+                old.filter(t => t.id !== id)
+            );
+            return { previous };
         },
-        onError: (error: any) => {
-            showToast(error.message || 'Failed to delete notice type', 'error');
+        onError: (_err: unknown, _id: unknown, context: { previous?: NoticeType[] } | undefined) => {
+            if (context?.previous) queryClient.setQueryData(['noticeTypes'], context.previous);
+            showToast('Failed to delete notice type', 'error');
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['noticeTypes'] });
+        },
+        onSuccess: () => {
+            showToast('Notice type deleted', 'success');
         }
     });
 
@@ -356,12 +378,23 @@ const BlocksTab: React.FC = () => {
 
     const deleteClosureMutation = useMutation({
         mutationFn: (closureId: number) => deleteWithCredentials(`/api/closures/${closureId}`),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['closures'] });
-            showToast('Notice deleted', 'success');
+        onMutate: async (closureId) => {
+            await queryClient.cancelQueries({ queryKey: ['closures'] });
+            const previous = queryClient.getQueryData<BlocksClosure[]>(['closures']);
+            queryClient.setQueryData<BlocksClosure[]>(['closures'], (old = []) =>
+                old.filter(c => c.id !== closureId)
+            );
+            return { previous };
         },
-        onError: (error: any) => {
-            showToast(error.message || 'Failed to delete notice', 'error');
+        onError: (_err: unknown, _id: unknown, context: { previous?: BlocksClosure[] } | undefined) => {
+            if (context?.previous) queryClient.setQueryData(['closures'], context.previous);
+            showToast('Failed to delete notice', 'error');
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['closures'] });
+        },
+        onSuccess: () => {
+            showToast('Notice deleted', 'success');
         }
     });
 

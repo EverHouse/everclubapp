@@ -100,14 +100,25 @@ const TeamTab: React.FC = () => {
   // Mutation for removing a team member
   const removeTeamMemberMutation = useMutation({
     mutationFn: (memberId: number) => deleteWithCredentials(`/api/staff-users/${memberId}`),
-    onSuccess: () => {
+    onMutate: async (memberId) => {
+      await queryClient.cancelQueries({ queryKey: ['staff-users'] });
+      const previous = queryClient.getQueryData<TeamMember[]>(['staff-users']);
+      queryClient.setQueryData<TeamMember[]>(['staff-users'], (old = []) =>
+        old.filter(m => m.id !== memberId)
+      );
+      return { previous };
+    },
+    onError: (_err: unknown, _id: unknown, context: { previous?: TeamMember[] } | undefined) => {
+      if (context?.previous) queryClient.setQueryData(['staff-users'], context.previous);
+      setError('Failed to remove team member');
+      setTimeout(() => setError(null), 3000);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['staff-users'] });
+    },
+    onSuccess: () => {
       setSuccess('Team member removed');
       setTimeout(() => setSuccess(null), 3000);
-    },
-    onError: (error: Error) => {
-      setError(error.message || 'Failed to remove team member');
-      setTimeout(() => setError(null), 3000);
     },
   });
 
@@ -127,15 +138,26 @@ const TeamTab: React.FC = () => {
           role: member.role,
         }),
       }),
-    onSuccess: () => {
+    onMutate: async (member) => {
+      await queryClient.cancelQueries({ queryKey: ['staff-users'] });
+      const previous = queryClient.getQueryData<TeamMember[]>(['staff-users']);
+      queryClient.setQueryData<TeamMember[]>(['staff-users'], (old = []) =>
+        old.map(m => m.id === member.id ? { ...m, ...member } : m)
+      );
+      return { previous };
+    },
+    onError: (_err: unknown, _member: unknown, context: { previous?: TeamMember[] } | undefined) => {
+      if (context?.previous) queryClient.setQueryData(['staff-users'], context.previous);
+      setError('Failed to update team member');
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['staff-users'] });
+    },
+    onSuccess: () => {
       setIsEditing(false);
       setSelectedMember(null);
       setSuccess('Team member updated');
       setTimeout(() => setSuccess(null), 3000);
-    },
-    onError: (error: Error) => {
-      setError(error.message || 'Failed to update team member');
     },
   });
 

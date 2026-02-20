@@ -369,7 +369,7 @@ const DataIntegrityTab: React.FC = () => {
       console.log('[DataIntegrity] Real-time update received:', action);
       
       if (action === 'data_changed' || action === 'issue_resolved') {
-        runIntegrityMutation.mutate();
+        queryClient.invalidateQueries({ queryKey: ['data-integrity', 'cached'] });
         queryClient.invalidateQueries({ queryKey: ['data-integrity', 'history'] });
         queryClient.invalidateQueries({ queryKey: ['data-integrity', 'audit-log'] });
       }
@@ -388,11 +388,25 @@ const DataIntegrityTab: React.FC = () => {
         duration: params.duration,
         reason: params.reason,
       }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       showToast('Issue ignored successfully', 'success');
       closeIgnoreModal();
       queryClient.invalidateQueries({ queryKey: ['data-integrity', 'ignores'] });
-      runIntegrityMutation.mutate();
+      queryClient.setQueryData(['data-integrity', 'cached'], (old: CachedResultsResponse | undefined) => {
+        if (!old?.hasCached) return old;
+        return {
+          ...old,
+          results: old.results.map((check) => ({
+            ...check,
+            issues: Array.isArray(check.issues)
+              ? check.issues.filter((d) => d.context?.issueKey !== variables.issueKey && (d as unknown as Record<string, unknown>).issueKey !== variables.issueKey)
+              : check.issues,
+            issueCount: Array.isArray(check.issues)
+              ? check.issues.filter((d) => d.context?.issueKey !== variables.issueKey && (d as unknown as Record<string, unknown>).issueKey !== variables.issueKey).length
+              : check.issueCount,
+          })).filter((check) => check.issueCount > 0),
+        };
+      });
     },
     onError: (err: Error) => {
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to ignore issue', 'error');
@@ -405,7 +419,7 @@ const DataIntegrityTab: React.FC = () => {
     onSuccess: () => {
       showToast('Issue un-ignored successfully', 'success');
       queryClient.invalidateQueries({ queryKey: ['data-integrity', 'ignores'] });
-      runIntegrityMutation.mutate();
+      queryClient.invalidateQueries({ queryKey: ['data-integrity', 'cached'] });
     },
     onError: (err: Error) => {
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to un-ignore issue', 'error');
@@ -419,11 +433,26 @@ const DataIntegrityTab: React.FC = () => {
         duration: params.duration,
         reason: params.reason,
       }),
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       showToast(`${data.total} issues excluded successfully`, 'success');
       closeBulkIgnoreModal();
       queryClient.invalidateQueries({ queryKey: ['data-integrity', 'ignores'] });
-      runIntegrityMutation.mutate();
+      const ignoredKeys = new Set(variables.issueKeys);
+      queryClient.setQueryData(['data-integrity', 'cached'], (old: CachedResultsResponse | undefined) => {
+        if (!old?.hasCached) return old;
+        return {
+          ...old,
+          results: old.results.map((check) => ({
+            ...check,
+            issues: Array.isArray(check.issues)
+              ? check.issues.filter((d) => !ignoredKeys.has((d as unknown as Record<string, unknown>).issueKey as string))
+              : check.issues,
+            issueCount: Array.isArray(check.issues)
+              ? check.issues.filter((d) => !ignoredKeys.has((d as unknown as Record<string, unknown>).issueKey as string)).length
+              : check.issueCount,
+          })).filter((check) => check.issueCount > 0),
+        };
+      });
     },
     onError: (err: Error) => {
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to exclude issues', 'error');
@@ -440,7 +469,24 @@ const DataIntegrityTab: React.FC = () => {
         return next;
       });
       showToast(data.message || 'Successfully pushed to external system', 'success');
-      runIntegrityMutation.mutate();
+      queryClient.setQueryData(['data-integrity', 'cached'], (old: CachedResultsResponse | undefined) => {
+        if (!old?.hasCached) return old;
+        return {
+          ...old,
+          results: old.results.map((check) => ({
+            ...check,
+            issues: Array.isArray(check.issues)
+              ? check.issues.filter((d) => (d as unknown as Record<string, unknown>).issueKey !== variables.issueKey)
+              : check.issues,
+            issueCount: Array.isArray(check.issues)
+              ? check.issues.filter((d) => (d as unknown as Record<string, unknown>).issueKey !== variables.issueKey).length
+              : check.issueCount,
+          })).filter((check) => check.issueCount > 0),
+        };
+      });
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['data-integrity', 'cached'] });
+      }, 2000);
     },
     onError: (err: Error, variables) => {
       setSyncingIssues(prev => {
@@ -462,7 +508,24 @@ const DataIntegrityTab: React.FC = () => {
         return next;
       });
       showToast(data.message || 'Successfully pulled from external system', 'success');
-      runIntegrityMutation.mutate();
+      queryClient.setQueryData(['data-integrity', 'cached'], (old: CachedResultsResponse | undefined) => {
+        if (!old?.hasCached) return old;
+        return {
+          ...old,
+          results: old.results.map((check) => ({
+            ...check,
+            issues: Array.isArray(check.issues)
+              ? check.issues.filter((d) => (d as unknown as Record<string, unknown>).issueKey !== variables.issueKey)
+              : check.issues,
+            issueCount: Array.isArray(check.issues)
+              ? check.issues.filter((d) => (d as unknown as Record<string, unknown>).issueKey !== variables.issueKey).length
+              : check.issueCount,
+          })).filter((check) => check.issueCount > 0),
+        };
+      });
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['data-integrity', 'cached'] });
+      }, 2000);
     },
     onError: (err: Error, variables) => {
       setSyncingIssues(prev => {
@@ -506,7 +569,24 @@ const DataIntegrityTab: React.FC = () => {
         return next;
       });
       showToast('Booking cancelled successfully', 'success');
-      runIntegrityMutation.mutate();
+      queryClient.setQueryData(['data-integrity', 'cached'], (old: CachedResultsResponse | undefined) => {
+        if (!old?.hasCached) return old;
+        return {
+          ...old,
+          results: old.results.map((check) => ({
+            ...check,
+            issues: Array.isArray(check.issues)
+              ? check.issues.filter((d) => (d as unknown as Record<string, unknown>).bookingId !== bookingId && (d as unknown as Record<string, unknown>).id !== bookingId)
+              : check.issues,
+            issueCount: Array.isArray(check.issues)
+              ? check.issues.filter((d) => (d as unknown as Record<string, unknown>).bookingId !== bookingId && (d as unknown as Record<string, unknown>).id !== bookingId).length
+              : check.issueCount,
+          })).filter((check) => check.issueCount > 0),
+        };
+      });
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['data-integrity', 'cached'] });
+      }, 2000);
     },
     onError: (err: Error, bookingId) => {
       setCancellingBookings(prev => {

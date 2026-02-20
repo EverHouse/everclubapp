@@ -92,11 +92,11 @@ const MemberEvents: React.FC = () => {
     },
     onSuccess: () => {
       showToast('You are on the list!', 'success');
-      queryClient.invalidateQueries({ queryKey: ['user-rsvps', user?.email] });
     },
     onSettled: (_data, _error, variables) => {
       setLoadingRsvp(null);
       clearOptimisticAction(variables.eventId);
+      queryClient.invalidateQueries({ queryKey: ['user-rsvps', user?.email] });
     }
   });
 
@@ -121,11 +121,11 @@ const MemberEvents: React.FC = () => {
     },
     onSuccess: () => {
       showToast('RSVP cancelled', 'success');
-      queryClient.invalidateQueries({ queryKey: ['user-rsvps', user?.email] });
     },
     onSettled: (_data, _error, variables) => {
       setLoadingRsvp(null);
       clearOptimisticAction(variables.eventId);
+      queryClient.invalidateQueries({ queryKey: ['user-rsvps', user?.email] });
     }
   });
 

@@ -423,6 +423,8 @@ const SimulatorTab: React.FC = () => {
             checkinInProgressRef.current.add(bookingId);
         }
         
+        await queryClient.cancelQueries({ queryKey: simulatorKeys.allRequests() });
+        await queryClient.cancelQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
         const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
         const previousApproved = queryClient.getQueryData(simulatorKeys.approvedBookings(startDate, endDate));
         
@@ -500,6 +502,8 @@ const SimulatorTab: React.FC = () => {
         
         setActionInProgress(prev => ({ ...prev, [bookingKey]: 'cancelling' }));
         
+        await queryClient.cancelQueries({ queryKey: simulatorKeys.allRequests() });
+        await queryClient.cancelQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
         const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
         const previousApproved = queryClient.getQueryData(simulatorKeys.approvedBookings(startDate, endDate));
         
@@ -774,6 +778,7 @@ const SimulatorTab: React.FC = () => {
         
         setActionInProgress(prev => ({ ...prev, [bookingKey]: 'approving' }));
         
+        await queryClient.cancelQueries({ queryKey: simulatorKeys.allRequests() });
         const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
         
         queryClient.setQueryData(simulatorKeys.allRequests(), (old: BookingRequest[] | undefined) => 
@@ -849,6 +854,7 @@ const SimulatorTab: React.FC = () => {
         
         setActionInProgress(prev => ({ ...prev, [bookingKey]: 'declining' }));
         
+        await queryClient.cancelQueries({ queryKey: simulatorKeys.allRequests() });
         const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
         
         queryClient.setQueryData(simulatorKeys.allRequests(), (old: BookingRequest[] | undefined) => 
