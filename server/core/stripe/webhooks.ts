@@ -1185,13 +1185,14 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: S
     const fallbackResult = await client.query(
       `SELECT bp.id, bp.cached_fee_cents FROM booking_participants bp
        WHERE bp.session_id = (SELECT session_id FROM booking_requests WHERE id = $1)
-       AND bp.payment_status = 'pending' AND bp.cached_fee_cents > 0`,
+       AND bp.payment_status = 'pending' AND bp.cached_fee_cents > 0
+       AND bp.stripe_payment_intent_id IS NULL`,
       [bookingId]
     );
 
     if (fallbackResult.rows.length > 0) {
       const fallbackTotal = fallbackResult.rows.reduce((sum: number, r: { cached_fee_cents: number }) => sum + r.cached_fee_cents, 0);
-      const tolerance = Math.max(fallbackTotal * 0.05, 100);
+      const tolerance = 50;
 
       if (Math.abs(fallbackTotal - amount) <= tolerance) {
         for (const row of fallbackResult.rows) {

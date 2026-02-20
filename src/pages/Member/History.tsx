@@ -40,6 +40,7 @@ interface UnifiedPurchase {
   quantity?: number;
   hostedInvoiceUrl?: string | null;
   stripeInvoiceId?: string;
+  stripePaymentIntentId?: string | null;
 }
 
 const History: React.FC = () => {
@@ -390,6 +391,26 @@ const History: React.FC = () => {
                                         View
                                         <span className="material-symbols-outlined text-xs">open_in_new</span>
                                       </a>
+                                    )}
+                                    {!purchase.hostedInvoiceUrl && purchase.stripePaymentIntentId && (
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          try {
+                                            const resp = await fetchWithCredentials<{ receiptUrl: string }>(
+                                              `/api/my-billing/receipt/${purchase.stripePaymentIntentId}`
+                                            );
+                                            if (resp.receiptUrl) {
+                                              window.open(resp.receiptUrl, '_blank', 'noopener,noreferrer');
+                                            }
+                                          } catch (e) {
+                                          }
+                                        }}
+                                        className={`tactile-btn text-xs flex items-center gap-0.5 justify-end mt-1 ${isDark ? 'text-accent hover:text-accent/80' : 'text-brand-green hover:text-brand-green/80'}`}
+                                      >
+                                        View
+                                        <span className="material-symbols-outlined text-xs">open_in_new</span>
+                                      </button>
                                     )}
                                   </div>
                                 </div>

@@ -68,11 +68,21 @@ export class PaymentStatusService {
             const pendingResult = await client.query(
               `SELECT id, cached_fee_cents FROM booking_participants
                WHERE session_id = $1 AND payment_status = 'pending' AND cached_fee_cents > 0
+               AND stripe_payment_intent_id IS NULL
                FOR UPDATE`,
               [resolvedSessionId]
             );
 
             if (pendingResult.rows.length > 0) {
+              const totalPendingCents = pendingResult.rows.reduce((sum: number, row: { cached_fee_cents: number }) => sum + (row.cached_fee_cents || 0), 0);
+              const tolerance = 50;
+              
+              if (Math.abs(totalPendingCents - piRow.amount_cents) > tolerance) {
+                logger.warn(`[PaymentStatusService] No-snapshot fallback: amount mismatch for booking ${piRow.booking_id} (pending=${totalPendingCents}, paid=${piRow.amount_cents}) - skipping update`);
+                await client.query('COMMIT');
+                return { success: true, participantsUpdated: 0, snapshotsUpdated: 0 };
+              }
+
               const pendingIds = pendingResult.rows.map((r: { id: number }) => r.id);
               await client.query(
                 `UPDATE booking_participants

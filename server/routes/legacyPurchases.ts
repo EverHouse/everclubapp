@@ -42,6 +42,9 @@ interface UnifiedPurchase {
   status: string;
   source: string;
   quantity?: number;
+  hostedInvoiceUrl?: string | null;
+  stripeInvoiceId?: string;
+  stripePaymentIntentId?: string | null;
 }
 
 const router = Router();
@@ -301,6 +304,7 @@ async function getUnifiedPurchasesForEmail(email: string): Promise<UnifiedPurcha
       date: safeToISOString(record.created_at as any),
       status: 'paid',
       source: 'Stripe',
+      stripePaymentIntentId: record.stripe_payment_intent_id as string,
     }));
   }
   

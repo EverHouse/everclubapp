@@ -971,4 +971,54 @@ router.get('/api/my/billing/cancellation-status', requireAuth, async (req, res) 
   }
 });
 
+router.get('/api/my-billing/receipt/:paymentIntentId', requireAuth, async (req, res) => {
+  try {
+    const { paymentIntentId } = req.params;
+    const sessionEmail = req.session.user.email;
+    
+    if (!paymentIntentId || !paymentIntentId.startsWith('pi_')) {
+      return res.status(400).json({ error: 'Invalid payment intent ID' });
+    }
+    
+    const userResult = await pool.query(
+      `SELECT stripe_customer_id FROM users WHERE LOWER(email) = $1`,
+      [sessionEmail.toLowerCase()]
+    );
+    
+    const user = userResult.rows[0];
+    if (!user || !user.stripe_customer_id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const piResult = await pool.query(
+      `SELECT stripe_customer_id, user_id FROM stripe_payment_intents WHERE stripe_payment_intent_id = $1`,
+      [paymentIntentId]
+    );
+    
+    const paymentIntent = piResult.rows[0];
+    if (!paymentIntent) {
+      return res.status(404).json({ error: 'Payment intent not found' });
+    }
+    
+    const belongsToUser = paymentIntent.stripe_customer_id === user.stripe_customer_id ||
+                         paymentIntent.user_id === user.id;
+    
+    if (!belongsToUser) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const stripe = await getStripeClient();
+    const charges = await stripe.charges.list({ payment_intent: paymentIntentId, limit: 1 });
+    
+    if (charges.data.length > 0 && charges.data[0].receipt_url) {
+      return res.json({ receiptUrl: charges.data[0].receipt_url });
+    }
+    
+    res.status(404).json({ error: 'Receipt not available' });
+  } catch (error: unknown) {
+    logger.error('[MyBilling] Receipt fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    res.status(500).json({ error: 'Failed to fetch receipt' });
+  }
+});
+
 export default router;
