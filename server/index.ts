@@ -826,22 +826,35 @@ async function initializeApp() {
       logger.error('[Startup] WebSocket initialization failed:', { error: err as Error });
     }
 
-    db.execute(sql`
-      UPDATE users SET archived_at = NULL, archived_by = NULL, updated_at = NOW()
-      WHERE archived_by = 'system-cleanup'
-        AND archived_at IS NOT NULL
-        AND (
-          role IN ('admin', 'staff', 'golf_instructor')
-          OR EXISTS (SELECT 1 FROM staff_users su WHERE LOWER(su.email) = LOWER(users.email) AND su.is_active = true)
-        )
-      RETURNING email, role
-    `).then(result => {
-      if (result.rows.length > 0) {
-        logger.info('[Startup] Restored incorrectly archived staff accounts', { extra: { restored: result.rows.map((r: any) => r.email) } });
+    (async () => {
+      const maxRetries = 3;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const result = await db.execute(sql`
+            UPDATE users SET archived_at = NULL, archived_by = NULL, updated_at = NOW()
+            WHERE archived_by = 'system-cleanup'
+              AND archived_at IS NOT NULL
+              AND (
+                role IN ('admin', 'staff', 'golf_instructor')
+                OR EXISTS (SELECT 1 FROM staff_users su WHERE LOWER(su.email) = LOWER(users.email) AND su.is_active = true)
+              )
+            RETURNING email, role
+          `);
+          if (result.rows.length > 0) {
+            logger.info('[Startup] Restored incorrectly archived staff accounts', { extra: { restored: result.rows.map((r: any) => r.email) } });
+          }
+          break;
+        } catch (err) {
+          const isTimeout = String((err as Error).message || '').includes('timeout');
+          if (attempt < maxRetries && isTimeout) {
+            logger.warn(`[Startup] Archived staff check attempt ${attempt}/${maxRetries} timed out, retrying in ${attempt * 5}s...`);
+            await new Promise(r => setTimeout(r, attempt * 5000));
+          } else {
+            logger.error('[Startup] Failed to check archived staff accounts:', { error: err as Error });
+          }
+        }
       }
-    }).catch(err => {
-      logger.error('[Startup] Failed to check archived staff accounts:', { error: err as Error });
-    });
+    })();
 
     runStartupTasks()
       .then(() => {
