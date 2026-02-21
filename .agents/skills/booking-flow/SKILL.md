@@ -10,7 +10,7 @@ How a booking moves through its lifecycle from member request to completion.
 ## Lifecycle Stages
 
 ```
-Request → Guest Pass Hold → Staff Approval → Session Creation → Trackman Link → Check-in → Completion
+Request → Guest Pass Hold → Staff Approval → Session Creation → Invoice Draft → Trackman Link → Check-in → Completion
 ```
 
 ### 1. Request (status: `pending`)
@@ -71,6 +71,7 @@ Staff approves via `PUT /api/booking-requests/:id` with `status: 'approved'`. Th
    h. Link session: `UPDATE booking_requests SET session_id`.
    i. Call `recalculateSessionFees(sessionId, 'approval')` → returns `{ totalCents, overageCents, guestCents }`.
    j. If `totalCents > 0`, create a prepayment intent via `createPrepaymentIntent()`.
+   k. If simulator booking with fees > 0, create draft Stripe invoice via `createDraftInvoiceForBooking()`. Stores `stripe_invoice_id` on `booking_requests`. Non-blocking — invoice failure does not block approval.
 3. Post-transaction:
    - Link and notify participants via `linkAndNotifyParticipants()`.
    - Notify member: push notification, WebSocket update, email.
@@ -104,9 +105,10 @@ Staff approves via `PUT /api/booking-requests/:id` with `status: 'approved'`. Th
 
 Trackman webhooks and CSV imports link external bookings to app bookings:
 
-- **Webhook auto-approve**: `tryAutoApproveBooking()` matches pending bookings by email + date + time (±10 minute tolerance). On match, sets `status='approved'`, links `trackman_booking_id`, and calls `ensureSessionForBooking()`.
+- **Webhook auto-approve**: `tryAutoApproveBooking()` matches pending bookings by email + date + time (±10 minute tolerance). On match, sets `status='approved'`, links `trackman_booking_id`, and calls `ensureSessionForBooking()`. After session creation and fee calculation, creates a draft Stripe invoice via `createDraftInvoiceForBooking()` (non-blocking, simulator bookings only).
 - **Webhook create**: `createBookingForMember()` tries to match existing `[PENDING_TRACKMAN_SYNC]` bookings first, then creates new booking records. Uses `was_auto_linked=true` flag.
-- **Duration updates**: If Trackman reports different duration, update `booking_requests` and `booking_sessions` times, then call `recalculateSessionFees()` for delta billing.
+- **Duration updates**: If Trackman reports different duration, update `booking_requests` and `booking_sessions` times, then call `recalculateSessionFees()` for delta billing, then sync the draft invoice via `syncBookingInvoice()` to update line items.
+- **Bay changes**: If Trackman reports a different `resource_id`, update both `booking_requests.resource_id` and `booking_sessions.resource_id`, then broadcast availability for old and new bays.
 
 See `references/trackman-sync.md` for full details.
 
@@ -128,6 +130,7 @@ Two cancellation paths:
 3. Update `booking_requests.status = 'cancelled'`.
 4. Release guest pass holds via `releaseGuestPassHold(bookingId)`.
 5. Cancel all pending Stripe payment intents linked to the booking (`status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`).
+5a. Void any draft/open Stripe invoice via `voidBookingInvoice(bookingId)` (non-blocking).
 6. Delete Google Calendar event via `deleteCalendarEvent(calendarEventId)`.
 7. Publish `booking_cancelled` event with `cleanupNotifications: true` (deletes related notifications).
 8. Broadcast availability update.
@@ -139,6 +142,7 @@ Two cancellation paths:
 3. Update status to `'cancelled'`, append `'[Cancelled via Trackman webhook]'` to staff notes.
 4. Clear pending fees: set `booking_participants.cached_fee_cents = 0`, `payment_status = 'waived'` for the session's pending participants.
 5. Cancel pending Stripe payment intents (same as member flow).
+5a. Void any draft/open Stripe invoice via `voidBookingInvoice(bookingId)` (non-blocking).
 6. Refund already-paid participant fees: for each participant with `payment_status='paid'`, call `stripe.refunds.create()`, update participant and payment records to `'refunded'`.
 7. Refund guest passes via `refundGuestPassesForCancelledBooking()`.
 8. Notify staff and member. If `wasPendingCancellation`, send member a confirmation push notification.
@@ -150,8 +154,10 @@ Two cancellation paths:
 Three-step flow (all staff-only):
 
 1. **Start** (`POST /api/admin/booking/:id/reschedule/start`): Set `is_relocating=true`. This flag prevents Trackman webhook cancellation from interfering.
-2. **Confirm** (`POST /api/admin/booking/:id/reschedule/confirm`): Validate new time slot (conflicts, closures, blocks). Update booking and session times, link new `trackman_booking_id`. Store original values in `original_resource_id`, `original_start_time`, etc. Recalculate fees. Send reschedule email to member.
+2. **Confirm** (`POST /api/admin/booking/:id/reschedule/confirm`): Validate new time slot (conflicts, closures, blocks). Update booking and session times, link new `trackman_booking_id`. Store original values in `original_resource_id`, `original_start_time`, etc. Recalculate fees. Sync invoice line items via `syncBookingInvoice()` after fee recalculation. Send reschedule email to member.
 3. **Cancel** (`POST /api/admin/booking/:id/reschedule/cancel`): Clear `is_relocating` flag, abort the reschedule.
+
+**Note:** Reschedule UI is currently hidden across SimulatorTab, BookingActions, and PaymentSection. Backend routes are preserved for future use.
 
 ## Conflict Detection Detail
 
@@ -221,6 +227,10 @@ Resource type?
 
 11. **Post-commit notifications**: Booking creation sends the HTTP response BEFORE executing post-commit operations (staff notifications, event publishing, availability broadcast). This ensures the client gets a success response even if notifications fail.
 
+12. **One invoice per booking**: Each simulator booking has at most one Stripe invoice (`booking_requests.stripe_invoice_id`). Draft created at approval, updated on roster changes, finalized at payment. Conference rooms are excluded (they use a separate prepayment flow). The invoice lifecycle is managed by `bookingInvoiceService.ts`.
+
+13. **Roster lock after paid invoice**: Once a booking's Stripe invoice is paid, roster edits (add/remove participant, change player count) are blocked via `enforceRosterLock()`. Staff can override with a reason (logged via audit). The lock is fail-open: if the Stripe API check fails, edits proceed.
+
 ## Booking Event System
 
 `bookingEvents` provides a pub/sub system via `publish()`:
@@ -257,6 +267,8 @@ See `references/trackman-sync.md` for reconciliation details.
 - `server/core/bookingService/sessionManager.ts` — Session creation, participant linking, usage ledger recording, and guest pass deduction.
 - `server/core/bookingService/conflictDetection.ts` — Booking conflict detection (owner and participant conflicts).
 - `server/core/bookingService/availabilityGuard.ts` — Availability validation (closures, blocks, session overlaps).
+- `server/core/billing/bookingInvoiceService.ts` — Draft invoice creation, line item sync, finalization, voiding, paid-status check. Key exports: `createDraftInvoiceForBooking`, `syncBookingInvoice`, `finalizeAndPayInvoice`, `finalizeInvoicePaidOutOfBand`, `voidBookingInvoice`, `isBookingInvoicePaid`.
+- `server/core/bookingService/rosterService.ts` — Roster changes with `enforceRosterLock()` guard. Exports: `addParticipant`, `removeParticipant`, `updateDeclaredPlayerCount`, `applyRosterBatch`.
 
 **Related Skills:**
 - Refer to `booking-import-standards` skill for CSV parsing rules, roster protection, and import data integrity rules.

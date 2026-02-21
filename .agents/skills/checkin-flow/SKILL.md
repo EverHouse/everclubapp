@@ -40,6 +40,14 @@ PATCH /api/bookings/:id/payments
   ├─ Send notifications (fee waived email, member notification)
        │
        ▼
+Invoice Settlement (automatic, non-blocking)
+  ├─ settleBookingInvoiceAfterCheckin(bookingId, sessionId)
+  ├─ Conference rooms excluded (different prepayment flow)
+  ├─ If NOT all participants settled (some still pending) → sync invoice line items
+  ├─ If all settled AND any paid with fees > $0 → finalize invoice as paid OOB
+  ├─ If all settled AND all waived (no paid fees) → void the invoice
+       │
+       ▼
 POST /api/bookings/:id/checkin
   ├─ Verify no unpaid participants with outstanding fees
   ├─ Set booking status to 'checked_in'
@@ -91,6 +99,10 @@ CheckInConfirmationModal shows result
 
 7. **Cancelled/declined bookings always have $0 fees.** `computeFeeBreakdown` checks the booking status and returns zero totals for cancelled, declined, or cancellation_pending bookings.
 
+8. **Invoice settlement at check-in.** After each payment action (confirm, waive, guest pass, bulk confirm/waive), `settleBookingInvoiceAfterCheckin()` runs as a non-blocking background task. It first checks if all participants are settled (paid or waived). If NOT all settled yet, it syncs the invoice line items to reflect the current state. Once all participants are settled: if any participant has `payment_status = 'paid'` with `cached_fee_cents > 0`, the draft invoice is finalized as "paid out of band" via `finalizeInvoicePaidOutOfBand()`; if all are waived (no paid fees), the invoice is voided. Conference rooms are excluded.
+
+9. **Cash payment route.** `POST /api/stripe/staff/mark-booking-paid` allows staff to mark a booking as paid via cash. This sets all pending participants to `payment_status = 'paid'` and triggers invoice settlement.
+
 ## Billing Verification at Check-In
 
 The unified fee service (`computeFeeBreakdown`) calculates fees per participant:
@@ -135,6 +147,7 @@ The CheckinBillingModal supports multiple payment methods:
 - **Online Stripe payment**: Show `StripePaymentForm` for card entry.
 - **Waive with reason**: Mark as `waived`, require a text reason, send fee-waived email.
 - **Use guest pass**: Consume from owner's monthly allocation.
+- **Mark as paid (cash)**: Staff calls `POST /api/stripe/staff/mark-booking-paid` to mark all pending fees as paid via cash, triggering invoice finalization as paid out-of-band.
 
 ## Overdue Payments
 
@@ -171,6 +184,7 @@ Booking authorization for members is handled separately by `isAuthorizedForMembe
 | Unified booking sheet (FE) | `src/components/staff-command-center/modals/UnifiedBookingSheet.tsx` |
 | Booking logic hook (FE) | `src/components/staff-command-center/modals/useUnifiedBookingLogic.ts` |
 | QR scanner modal (FE) | `src/components/staff-command-center/modals/QrScannerModal.tsx` |
+| Booking invoice service | `server/core/billing/bookingInvoiceService.ts` |
 | Booking actions hook (FE) | `src/hooks/useBookingActions.ts` |
 | Staff Command Center (FE) | `src/components/staff-command-center/StaffCommandCenter.tsx` |
 

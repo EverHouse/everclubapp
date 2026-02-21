@@ -7,7 +7,7 @@ description: Fee calculation system — computeFeeBreakdown, guest fees, overage
 
 ## Overview
 
-The Ever Club app calculates session fees through a **unified fee service** (`server/core/billing/unifiedFeeService.ts`). Every booking session produces a `FeeBreakdown` containing per-participant line items with overage charges and guest fees. The central entry point is `computeFeeBreakdown()`, which accepts either a live session/booking ID or raw parameters for preview mode.
+The Ever Club app calculates session fees through a **unified fee service** (`server/core/billing/unifiedFeeService.ts`). Every booking session produces a `FeeBreakdown` containing per-participant line items with overage charges and guest fees. The central entry point is `computeFeeBreakdown()`, which accepts either a live session/booking ID or raw parameters for preview mode. When fees change due to roster updates, the booking's Stripe invoice is automatically synced via `syncBookingInvoice()` from `bookingInvoiceService.ts`.
 
 Fees break down into two categories:
 - **Overage fees** — charged to members who exceed their daily included minutes for the resource type (simulator or conference room).
@@ -103,6 +103,18 @@ When `computeFeeBreakdown` determines fees > $0, the approval flow can trigger `
 
 **Metadata stored on payment:** `bookingId`, `sessionId`, `overageCents`, `guestCents`, `prepaymentType = 'booking_approval'`.
 
+### Booking Invoice Sync
+
+When roster changes trigger fee recalculation (via `recalculateSessionFees()`), the booking's draft Stripe invoice is automatically synced by `syncBookingInvoice()`. This ensures the invoice line items always reflect the current participant fees. The sync:
+
+- Reads `cached_fee_cents` from `booking_participants` for the session.
+- Builds `BookingFeeLineItem[]` with per-participant overage and guest fee breakdowns.
+- Calls `updateDraftInvoiceLineItems()` to replace all invoice line items.
+- If total fees drop to $0, deletes the draft invoice and clears `stripe_invoice_id`.
+- Guards: skips if invoice is already `paid`, `open`, `void`, or `uncollectible` (logs warning and notifies staff for paid/open invoices).
+
+Conference room bookings are excluded from invoice sync (they use a separate prepayment flow without the booking approval lifecycle).
+
 ## Conference Room vs Simulator Differences
 
 The fee engine handles two resource types with distinct rules:
@@ -137,6 +149,7 @@ When `feeCalculator.ts` resolves fees, it checks in order: cached → ledger →
 4. **Cancelled bookings = $0** — statuses `cancelled`, `declined`, `cancellation_pending` short-circuit to zero.
 5. **Effective player count ≥ 1** — prevents division by zero in per-participant minutes.
 6. **Simulator vs conference room** — separate daily allowances and separate usage tracking per resource type.
+7. **One invoice per booking** — each simulator booking has at most one Stripe invoice. Draft created at approval, updated on roster/fee changes, finalized at payment. Managed by `bookingInvoiceService.ts`. Conference rooms excluded.
 
 ## Daily Allowance / Included Minutes
 
@@ -211,3 +224,4 @@ Monitoring service that runs periodically to detect payment cards expiring withi
 | `server/core/bookingService/usageCalculator.ts` | `getDailyUsageFromLedger()`, `calculateOverageFee()`, `computeUsageAllocation()` |
 | `server/core/stripe/products.ts` | `ensureSimulatorOverageProduct()`, `ensureGuestPassProduct()`, tier sync |
 | `shared/models/billing.ts` | `FeeBreakdown`, `FeeComputeParams`, `FeeLineItem` type definitions |
+| `server/core/billing/bookingInvoiceService.ts` | `createDraftInvoiceForBooking()`, `syncBookingInvoice()`, `finalizeAndPayInvoice()`, `voidBookingInvoice()`, `isBookingInvoicePaid()` |

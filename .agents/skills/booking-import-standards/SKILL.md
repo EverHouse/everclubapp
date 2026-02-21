@@ -26,6 +26,8 @@ Follow these rules whenever touching booking, import, billing, or cancellation c
 - `server/core/calendar/sync/conference-room.ts` — Conference room calendar sync, auto-session creation
 - `server/core/visitors/autoMatchService.ts` — Visitor auto-match, session linking
 - `server/schedulers/stuckCancellationScheduler.ts` — Safety net for stuck cancellations
+- `server/core/billing/bookingInvoiceService.ts` — Invoice lifecycle: draft, sync, finalize, void
+- `server/core/bookingService/rosterService.ts` — Roster changes with invoice-paid lock guard
 
 ---
 
@@ -269,6 +271,25 @@ This is why Rule 10 (parsing guest tags) is critical: filling guest slots with a
 
 ---
 
+## Section 4a: Invoice Lifecycle
+
+### Rule 15b — One Stripe invoice per simulator booking
+
+Each simulator booking has at most one Stripe invoice, tracked by `booking_requests.stripe_invoice_id`. The invoice lifecycle:
+
+1. **Draft created at approval**: When a simulator booking is approved (staff or Trackman auto-approve) with fees > 0, `createDraftInvoiceForBooking()` creates a draft Stripe invoice with itemized line items (one per participant fee).
+2. **Updated on roster changes**: When participants are added/removed or player count changes, `syncBookingInvoice()` updates the draft invoice line items. If fees drop to $0, the draft invoice is deleted.
+3. **Finalized at payment**: At check-in or member payment, the invoice is finalized and marked paid via `finalizeAndPayInvoice()` or `finalizeInvoicePaidOutOfBand()`.
+4. **Voided on cancellation**: When a booking is cancelled, `voidBookingInvoice()` voids the draft/open invoice.
+
+**Conference room bookings are excluded** — they use a separate prepayment flow and do not create booking invoices.
+
+### Rule 15c — Roster lock after paid invoice
+
+Once a booking's Stripe invoice is paid, roster edits are blocked by `enforceRosterLock()` in `rosterService.ts`. This prevents changes that would invalidate a paid invoice. Staff can override with `forceOverride: true` and a required `overrideReason` (logged via audit). The lock is fail-open: if the Stripe API check fails, edits proceed to avoid blocking staff.
+
+---
+
 ## Section 5: Unified Player Management
 
 ### Rule 20 — Single-Sheet Roster Management
@@ -338,3 +359,7 @@ When adding any new booking-related code, verify:
 - [ ] For CSV import: Does it attempt placeholder merge before creating new? (Rule 12)
 - [ ] For CSV import: Does it check for private event block conversion? (Rule 14a)
 - [ ] For staff UI: Does roster editing go through the Unified Booking Sheet? (Rule 20)
+- [ ] For simulator bookings: Does approval create a draft invoice? (Rule 15b)
+- [ ] For cancellation: Does it void the booking invoice? (Rule 15b)
+- [ ] For roster changes: Does it check roster lock via `enforceRosterLock()`? (Rule 15c)
+- [ ] Does the invoice sync after fee recalculation? (Rule 15b)
