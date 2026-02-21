@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.1.0",
+    date: "2026-02-21",
+    title: "Race Conditions, Billing Math & Data Integrity Fixes",
+    isMajor: true,
+    changes: [
+      "Fixed: Concurrent booking requests could double-book the same bay — added advisory lock to serialize requests per resource per day",
+      "Fixed: Reconciliation math charged $200+ for a single $25 guest — switched from time-based formula to flat guest fee pricing",
+      "Fixed: Guests with app profiles were force-upgraded to 'member' billing during approval, bypassing guest passes — billing type now preserved as intended",
+      "Fixed: Cross-midnight sessions (e.g., 11PM–1AM) were saved as 60 minutes instead of actual duration — midnight wrap math corrected",
+      "Fixed: Resolved walk-in bookings permanently lingered in the 'Unmatched' admin queue — approve and check-in now clear the unmatched flag",
+      "Fixed: Nightly tier auto-fix could silently upgrade Visitors to VIP via shared HubSpot IDs — shared ID matches now flagged for manual staff review instead of auto-applied",
+    ]
+  },
+  {
     version: "8.0.0",
     date: "2026-02-21",
     title: "Security, Transaction Safety & Operational Fixes",

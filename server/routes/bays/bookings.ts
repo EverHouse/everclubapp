@@ -493,6 +493,13 @@ router.post('/api/booking-requests', async (req, res) => {
         resourceType = resourceResult.rows[0]?.type || 'simulator';
       }
       
+      if (resource_id) {
+        await client.query(
+          `SELECT pg_advisory_xact_lock(hashtext($1 || '::' || $2))`,
+          [String(resource_id), request_date]
+        );
+      }
+
       if (!isStaffRequest || isViewAsMode) {
         await client.query(
           `SELECT pg_advisory_xact_lock(hashtext($1))`,

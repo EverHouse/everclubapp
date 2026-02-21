@@ -66,6 +66,13 @@ We use a **Liquid Glass UI** system.
 - **Member Lifecycle & Check-In**: Tiers, QR/NFC check-in, onboarding.
 
 ## Recent Changes
+- **Feb 21, 2026**: v8.1.0 — Race Conditions, Billing Math & Data Integrity Fixes (6 bugs):
+  1. Advisory lock prevents concurrent double-booking of same bay.
+  2. Reconciliation math uses flat guest fees instead of absurd time-based formula.
+  3. Guests with app profiles no longer force-upgraded to member billing.
+  4. Cross-midnight sessions now calculate correct duration instead of defaulting to 60 min.
+  5. Resolved walk-in bookings cleared from Unmatched queue on approve/check-in.
+  6. Shared HubSpot ID tier matches flagged for manual review instead of auto-applied.
 - **Feb 21, 2026**: v8.0.0 — Security, Transaction Safety & Operational Fixes (6 bugs):
   1. Staff notes filtered from member-facing API responses (data leak fix).
   2. Fee calculation errors no longer silently swallowed during approval (free golf exploit fix).

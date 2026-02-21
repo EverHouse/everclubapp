@@ -259,6 +259,7 @@ export async function approveBooking(params: ApproveBookingParams) {
         reviewedAt: new Date(),
         resourceId: assignedBayId,
         calendarEventId: calendarEventId,
+        isUnmatched: false,
         ...(trackman_booking_id !== undefined ? { trackmanBookingId: trackman_booking_id || null } : {}),
         ...(trackman_external_id !== undefined ? { trackmanExternalId: trackman_external_id || null } : {}),
         updatedAt: new Date()
@@ -345,9 +346,8 @@ export async function approveBooking(params: ApproveBookingParams) {
                 .limit(1);
               if (memberResult.length > 0) {
                 resolvedUserId = memberResult[0].id;
-                isMember = true;
                 if (!resolvedName) resolvedName = memberResult[0].firstName || rpEmailNormalized;
-                logger.info('[Booking Approval] Converted guest to member', { extra: { rpEmailNormalized } });
+                logger.info('[Booking Approval] Linked guest user profile for roster tracking (billing type preserved)', { extra: { rpEmailNormalized, billingType: rp.type } });
               }
             }
 
@@ -1455,6 +1455,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
   const result = await db.update(bookingRequests)
     .set({
       status: newStatus,
+      isUnmatched: false,
       updatedAt: new Date()
     })
     .where(and(

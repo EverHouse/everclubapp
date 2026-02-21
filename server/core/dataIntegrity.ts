@@ -2998,26 +2998,17 @@ export async function autoFixMissingTiers(): Promise<{
         SELECT DISTINCT ON (u1.id)
           u1.id as id_to_fix,
           u1.email as email_to_fix,
-          COALESCE(
-            primary_user.tier,
-            alt_user.tier
-          ) as tier_to_copy
+          primary_user.tier as tier_to_copy
         FROM users u1
-        LEFT JOIN user_linked_emails ule ON LOWER(ule.linked_email) = LOWER(u1.email)
-        LEFT JOIN users primary_user ON LOWER(primary_user.email) = LOWER(ule.primary_email) 
+        JOIN user_linked_emails ule ON LOWER(ule.linked_email) = LOWER(u1.email)
+        JOIN users primary_user ON LOWER(primary_user.email) = LOWER(ule.primary_email) 
           AND primary_user.tier IS NOT NULL
-          AND (u1.hubspot_id IS NULL OR primary_user.hubspot_id IS NULL OR primary_user.hubspot_id = u1.hubspot_id)
-        LEFT JOIN users alt_user ON u1.hubspot_id IS NOT NULL 
-          AND alt_user.hubspot_id = u1.hubspot_id 
-          AND alt_user.email != u1.email 
-          AND alt_user.tier IS NOT NULL
         WHERE u1.role = 'member' 
           AND u1.membership_status = 'active' 
           AND u1.tier IS NULL
-          AND (primary_user.tier IS NOT NULL OR alt_user.tier IS NOT NULL)
           AND u1.email NOT LIKE '%test%'
           AND u1.email NOT LIKE '%example.com'
-        ORDER BY u1.id, primary_user.tier IS NOT NULL DESC, alt_user.updated_at DESC NULLS LAST
+        ORDER BY u1.id, primary_user.updated_at DESC NULLS LAST
       )
       UPDATE users u
       SET tier = tf.tier_to_copy, updated_at = NOW()
@@ -3029,7 +3020,31 @@ export async function autoFixMissingTiers(): Promise<{
     fixedFromAlternateEmail = (fixResult as { rowCount?: number }).rowCount || 0;
     
     if (fixedFromAlternateEmail > 0) {
-      logger.info(`[AutoFix] Fixed ${fixedFromAlternateEmail} members missing tier by copying from alternate email`);
+      logger.info(`[AutoFix] Fixed ${fixedFromAlternateEmail} members missing tier by copying from verified linked email`);
+    }
+
+    const hubspotTierCandidates = await db.execute(sql`
+      SELECT DISTINCT ON (u1.id)
+        u1.id, u1.email as user_email, u1.hubspot_id,
+        alt_user.email as alt_email, alt_user.tier as suggested_tier
+      FROM users u1
+      JOIN users alt_user ON u1.hubspot_id IS NOT NULL 
+        AND alt_user.hubspot_id = u1.hubspot_id 
+        AND alt_user.email != u1.email 
+        AND alt_user.tier IS NOT NULL
+      WHERE u1.role = 'member' 
+        AND u1.membership_status = 'active' 
+        AND u1.tier IS NULL
+        AND u1.email NOT LIKE '%test%'
+        AND u1.email NOT LIKE '%example.com'
+      ORDER BY u1.id, alt_user.updated_at DESC NULLS LAST
+    `);
+
+    if (hubspotTierCandidates.rows.length > 0) {
+      const candidates = hubspotTierCandidates.rows as Record<string, unknown>[];
+      logger.warn(`[AutoFix] ${candidates.length} members have potential tier from shared HubSpot ID — flagged for manual review (not auto-applied)`, {
+        extra: { candidates: candidates.map(c => ({ email: c.user_email, altEmail: c.alt_email, suggestedTier: c.suggested_tier, hubspotId: c.hubspot_id })) }
+      });
     }
     
     const remainingResult = await db.execute(sql`

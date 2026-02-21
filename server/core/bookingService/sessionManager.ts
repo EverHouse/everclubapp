@@ -202,7 +202,10 @@ export async function ensureSessionForBooking(params: {
       try {
         const [startH, startM] = params.startTime.split(':').map(Number);
         const [endH, endM] = params.endTime.split(':').map(Number);
-        slotDuration = (endH * 60 + endM) - (startH * 60 + startM);
+        let endMinutes = endH * 60 + endM;
+        const startMinutes = startH * 60 + startM;
+        if (endMinutes <= startMinutes) endMinutes += 1440;
+        slotDuration = endMinutes - startMinutes;
         if (slotDuration <= 0) slotDuration = 60;
       } catch {}
 

@@ -64,19 +64,15 @@ async function getTierOverageRate(tier: string | null): Promise<number> {
 }
 
 function calculatePotentialFeeAdjustment(
-  durationMinutes: number,
+  _durationMinutes: number,
   declaredCount: number,
   actualCount: number,
-  overageRatePer30Min: number = DEFAULT_OVERAGE_RATE_PER_30_MIN
+  _overageRatePer30Min: number = DEFAULT_OVERAGE_RATE_PER_30_MIN
 ): number {
   if (actualCount <= declaredCount) return 0;
   
   const additionalPlayers = actualCount - declaredCount;
-  const minutesPerPlayer = Math.floor(durationMinutes / actualCount);
-  const additionalMinutes = minutesPerPlayer * additionalPlayers;
-  
-  const thirtyMinBlocks = Math.ceil(additionalMinutes / 30);
-  return thirtyMinBlocks * overageRatePer30Min;
+  return additionalPlayers * (PRICING.GUEST_FEE_CENTS / 100);
 }
 
 export async function findAttendanceDiscrepancies(
