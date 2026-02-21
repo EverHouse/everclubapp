@@ -209,7 +209,7 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
         );
         
         const userResult = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${booking.owner_email})`);
-        const userId = userResult.rows[0]?.id || null;
+        const userId = (userResult.rows[0]?.id as string) || null;
 
         const sessionResult = await ensureSessionForBooking({
           bookingId,

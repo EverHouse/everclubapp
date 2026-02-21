@@ -691,7 +691,7 @@ export async function finalizeInvoicePaidOutOfBand(invoiceId: string): Promise<{
       openInvoice = invoice;
     }
 
-    const rawPi = openInvoice.payment_intent;
+    const rawPi = (openInvoice as unknown as { payment_intent: string | Stripe.PaymentIntent | null }).payment_intent;
     const piId = typeof rawPi === 'string' ? rawPi : rawPi?.id;
 
     if (piId) {

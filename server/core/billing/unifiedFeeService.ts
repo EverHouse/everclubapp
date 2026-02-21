@@ -214,6 +214,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
     email?: string;
     displayName: string;
     participantType: 'owner' | 'member' | 'guest';
+    usedGuestPass?: boolean;
   }>;
   let sessionId: number | undefined;
   let currentBookingId: number | undefined;

@@ -199,11 +199,9 @@ export async function updateDraftInvoiceLineItems(params: {
     return { invoiceId, totalCents: invoice.amount_due };
   }
 
-  const existingLines = invoice.lines?.data || [];
-  for (const line of existingLines) {
-    if (line.invoice_item && typeof line.invoice_item === 'string') {
-      await stripe.invoiceItems.del(line.invoice_item);
-    }
+  const invoiceItems = await stripe.invoiceItems.list({ invoice: invoiceId, limit: 100 });
+  for (const item of invoiceItems.data) {
+    await stripe.invoiceItems.del(item.id);
   }
 
   const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id || '';

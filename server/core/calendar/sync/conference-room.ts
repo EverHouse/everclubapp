@@ -393,7 +393,8 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
 
               broadcastAvailabilityUpdate({
                 resourceId: booking.resourceId || conferenceRoomId,
-                date: bookingDate
+                date: bookingDate,
+                action: 'cancelled'
               });
 
               cancelled++;
