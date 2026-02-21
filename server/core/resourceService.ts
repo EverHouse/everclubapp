@@ -1,7 +1,7 @@
 import { eq, and, or, sql, desc, asc, ne } from 'drizzle-orm';
 import { db } from '../db';
 import { pool } from './db';
-import { resources, users, facilityClosures, notifications, bookingRequests, bookingParticipants, bookingMembers, bookingGuests, staffUsers, availabilityBlocks, trackmanUnmatchedBookings, userLinkedEmails } from '../../shared/schema';
+import { resources, users, facilityClosures, notifications, bookingRequests, bookingParticipants, bookingMembers, staffUsers, availabilityBlocks, trackmanUnmatchedBookings, userLinkedEmails } from '../../shared/schema';
 import { isAuthorizedForMemberBooking } from './bookingAuth';
 import { createCalendarEventOnCalendar, getCalendarIdByName, deleteCalendarEvent, CALENDAR_CONFIG } from './calendar/index';
 import { logger } from './logger';
@@ -1047,21 +1047,6 @@ export async function linkTrackmanToMember(
       `);
     }
     
-    await tx.delete(bookingGuests).where(eq(bookingGuests.bookingId, booking.id));
-    
-    let slotNumber = 2;
-    for (const player of additionalPlayers) {
-      if (player.type === 'guest_placeholder') {
-        await tx.insert(bookingGuests).values({
-          bookingId: booking.id,
-          guestName: player.guest_name || 'Guest (info pending)',
-          slotNumber,
-          trackmanBookingId: trackmanBookingId
-        });
-      }
-      slotNumber++;
-    }
-    
     const sessionId = existingBooking?.sessionId || null;
     return { booking, created, sessionId };
   });
@@ -1472,7 +1457,6 @@ export async function markBookingAsEvent(params: {
     }
     
     if (regularBookingIds.length > 0) {
-      await tx.delete(bookingGuests).where(sql`booking_id IN (${sql.join(regularBookingIds.map(id => sql`${id}`), sql`, `)})`);
       await tx.delete(bookingRequests).where(sql`id IN (${sql.join(regularBookingIds.map(id => sql`${id}`), sql`, `)})`);
     }
     
@@ -1558,21 +1542,6 @@ export async function assignWithPlayers(
       })
       .where(eq(bookingRequests.id, bookingId))
       .returning();
-    
-    await tx.delete(bookingGuests).where(eq(bookingGuests.bookingId, bookingId));
-    
-    let slotNumber = 2;
-    for (const player of additionalPlayers) {
-      if (player.type === 'guest_placeholder') {
-        await tx.insert(bookingGuests).values({
-          bookingId: bookingId,
-          guestName: player.guest_name || 'Guest (info pending)',
-          slotNumber,
-          trackmanBookingId: existingBooking.trackmanBookingId
-        });
-      }
-      slotNumber++;
-    }
     
     return { booking: updated, sessionId: existingBooking.sessionId };
   });

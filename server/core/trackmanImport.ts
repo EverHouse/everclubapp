@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
 import { pool } from './db';
-import { users, bookingRequests, trackmanUnmatchedBookings, trackmanImportRuns, notifications, bookingMembers, bookingGuests, bookingSessions, bookingParticipants, usageLedger, guests as guestsTable, availabilityBlocks, facilityClosures } from '../../shared/schema';
+import { users, bookingRequests, trackmanUnmatchedBookings, trackmanImportRuns, notifications, bookingMembers, bookingSessions, bookingParticipants, usageLedger, guests as guestsTable, availabilityBlocks, facilityClosures } from '../../shared/schema';
 import { eq, or, ilike, sql, and } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -1560,10 +1560,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             // Cancel pending payment intents
             await cancelPendingPaymentIntentsForBooking(booking.id);
             
-            // Delete associated booking_guests records
-            await db.delete(bookingGuests)
-              .where(eq(bookingGuests.bookingId, booking.id));
-            
             process.stderr.write(`[Trackman Import] Cancelled booking #${booking.id} (Trackman ID: ${row.bookingId}, date: ${bookingDate}) - status was ${booking.status}\n`);
             cancelledBookings++;
           } else {
@@ -2624,8 +2620,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             const guests = parsedPlayers.filter(p => p.type === 'guest');
             
             let memberSlot = 2;
-            let guestSlot = 1;
-            
             // Create slots for additional members from notes (skip if same as primary)
             // Resolve owner email using trackman mapping for comparison
             const ownerResolvedEmail = resolveEmail(matchedEmail, membersByEmail, trackmanEmailMapping);
@@ -2762,15 +2756,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 process.stderr.write(`[Trackman Import] Skipping booking_guests entry for "${guest.name}" - matches owner name "${row.userName || matchedEmail}"\n`);
                 continue;
               }
-              
-              await db.insert(bookingGuests).values({
-                bookingId: bookingId,
-                guestName: guest.name,
-                guestEmail: guest.email,
-                slotNumber: guestSlot,
-                trackmanBookingId: row.bookingId
-              });
-              guestSlot++;
               
               // Guest pass logic: only try to use a guest pass if the guest has identifying info
               // (first name, last name, or email). Guests with no info at all always get a fee charged.
@@ -3367,7 +3352,6 @@ async function insertBookingIfNotExists(
     // Create guest entries if notes have G: format (skip if guest name matches owner name)
     const guests = parsedPlayers.filter(p => p.type === 'guest');
     const ownerNameNormalized = (booking.userName || memberEmail).toLowerCase().trim();
-    let guestSlotNumber = 1;
     for (let i = 0; i < guests.length; i++) {
       const guestNameNormalized = (guests[i].name || '').toLowerCase().trim();
       
@@ -3380,15 +3364,6 @@ async function insertBookingIfNotExists(
         process.stderr.write(`[Trackman Import] Skipping booking_guests entry for "${guests[i].name}" - matches owner name "${booking.userName || memberEmail}"\n`);
         continue;
       }
-      
-      await db.insert(bookingGuests).values({
-        bookingId: bookingId,
-        guestName: guests[i].name,
-        guestEmail: guests[i].email,
-        slotNumber: guestSlotNumber,
-        trackmanBookingId: booking.trackmanBookingId
-      });
-      guestSlotNumber++;
       
       // Guest pass logic: only try to use a guest pass if the guest has identifying info
       // (first name, last name, or email). Guests with no info at all always get a fee charged.

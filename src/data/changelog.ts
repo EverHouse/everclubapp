@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.92.0",
+    date: "2026-02-21",
+    title: "Legacy System Cleanup",
+    changes: [
+      "Removed: Dead invite expiry scheduler — system auto-accepts all participants, scheduler was running every 5 minutes doing nothing",
+      "Removed: All writes to legacy booking_members table across 10+ files — booking_participants is the sole roster source of truth",
+      "Removed: All writes to legacy booking_guests table across 7 files — guest data now lives in booking_participants",
+      "Improved: invite_status column now defaults to 'accepted' at the database level — removed redundant hardcoded values from every participant insert",
+      "Cleaned: Removed orphaned invite_status='cancelled' update from resource deletion flow",
+    ]
+  },
+  {
     version: "7.91.1",
     date: "2026-02-21",
     title: "Training Guide & CSV Import Fixes",

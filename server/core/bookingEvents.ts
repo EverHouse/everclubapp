@@ -304,12 +304,6 @@ export async function linkAndNotifyParticipants(
       .where(eq(bookingMembers.bookingId, bookingId));
     let nextSlot = (highestSlotResult[0]?.maxSlot || 1) + 1;
     
-    const highestGuestSlotResult = await db.select({ maxSlot: sql<number>`COALESCE(MAX(${bookingGuests.slotNumber}), 0)` })
-      .from(bookingGuests)
-      .where(eq(bookingGuests.bookingId, bookingId));
-    let nextGuestSlot = (highestGuestSlotResult[0]?.maxSlot || 0) + 1;
-    
-    const trackmanId = options?.trackmanBookingId || booking.trackmanBookingId;
     const linkedBy = options?.linkedBy || 'auto_link';
     const bayName = options?.bayName || 'Bay';
     const bookingDateStr = typeof booking.requestDate === 'string' 
@@ -359,13 +353,6 @@ export async function linkAndNotifyParticipants(
       } else if (participant.type === 'guest') {
         if (existingGuestEmails.has(email)) continue;
         
-        await db.insert(bookingGuests).values({
-          bookingId: bookingId,
-          guestEmail: email,
-          guestName: null,
-          slotNumber: nextGuestSlot++,
-          trackmanBookingId: trackmanId
-        });
         existingGuestEmails.add(email);
         result.linkedGuests++;
       }
