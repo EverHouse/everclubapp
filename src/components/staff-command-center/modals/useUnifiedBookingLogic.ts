@@ -860,10 +860,15 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     if (!bookingId || !rosterData || !savedCardInfo?.hasSavedCard) return;
     setInlinePaymentAction('charge-card');
     try {
+      const allParticipantIds = [
+        ...rosterData.members.map(m => m.id),
+        ...rosterData.guests.map(g => g.id),
+      ];
       const result = await chargeCardOnFile({
         memberEmail: ownerEmail || fetchedContext?.ownerEmail || rosterData.members?.find(m => m.isPrimary)?.userEmail || '',
         bookingId,
-        sessionId: rosterData.sessionId
+        sessionId: rosterData.sessionId,
+        participantIds: allParticipantIds,
       });
       if (result.success) {
         showToast(result.message || 'Card charged — confirming payment...', 'success');

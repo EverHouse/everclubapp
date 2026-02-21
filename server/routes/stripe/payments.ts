@@ -1110,7 +1110,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
     const foundIds = new Set((participantResult.rows as unknown as DbParticipantRow[]).map((r) => r.id));
     const missingIds = participantIds.filter((id: number) => !foundIds.has(id));
     if (missingIds.length > 0) {
-      return res.status(400).json({ error: `Some participant IDs not found or already paid: ${missingIds.join(', ')}` });
+      logger.info('[Stripe] Some participant IDs already paid or not found, skipping', { extra: { missingIds, providedIds: participantIds } });
     }
 
     // Verify all participants are from the same booking if bookingId provided
