@@ -18,6 +18,7 @@ import { isStaffOrAdmin } from '../../core/middleware';
 import { getCalendarIdByName, deleteCalendarEvent } from '../../core/calendar/index';
 import { getGuestPassesRemaining } from '../guestPasses';
 import { computeFeeBreakdown, getEffectivePlayerCount, applyFeeBreakdownToParticipants } from '../../core/billing/unifiedFeeService';
+import { voidBookingInvoice } from '../../core/billing/bookingInvoiceService';
 import { PRICING } from '../../core/billing/pricingConfig';
 import { createGuestPassHold, releaseGuestPassHold } from '../../core/billing/guestPassHoldService';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
@@ -1192,6 +1193,12 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       .returning();
     
     await releaseGuestPassHold(bookingId);
+    
+    voidBookingInvoice(bookingId).catch((err: unknown) => {
+      logger.error('[Member Cancel] Failed to void/refund booking invoice (non-blocking)', {
+        extra: { bookingId, error: getErrorMessage(err) }
+      });
+    });
     
     logFromRequest(req, 'cancel_booking', 'booking', id, undefined, {
       member_email: existing.userEmail

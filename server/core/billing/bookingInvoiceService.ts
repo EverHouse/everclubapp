@@ -507,16 +507,44 @@ export async function voidBookingInvoice(bookingId: number): Promise<{
         extra: { bookingId, invoiceId, status: invoice.status }
       });
     } else if (invoice.status === 'paid') {
-      logger.warn('[BookingInvoice] Cannot void paid invoice', {
-        extra: { bookingId, invoiceId }
-      });
-      notifyAllStaff(
-        'Paid Invoice — Refund May Be Needed',
-        `Attempted to void invoice ${invoiceId} for booking #${bookingId}, but it is already paid. A refund may be needed.`,
-        'warning',
-        { relatedId: bookingId, relatedType: 'booking' }
-      ).catch(() => {});
-      return { success: false, error: 'Invoice already paid' };
+      const paymentIntentId = typeof invoice.payment_intent === 'string'
+        ? invoice.payment_intent
+        : invoice.payment_intent?.id;
+      if (paymentIntentId) {
+        try {
+          const refund = await stripe.refunds.create({
+            payment_intent: paymentIntentId,
+            reason: 'requested_by_customer'
+          }, {
+            idempotencyKey: `refund_void_invoice_${bookingId}_${invoiceId}`
+          });
+          logger.info('[BookingInvoice] Refunded paid invoice for cancelled booking', {
+            extra: { bookingId, invoiceId, refundId: refund.id, amountCents: refund.amount }
+          });
+        } catch (refundErr: unknown) {
+          logger.error('[BookingInvoice] Failed to refund paid invoice', {
+            extra: { bookingId, invoiceId, error: getErrorMessage(refundErr) }
+          });
+          notifyAllStaff(
+            'Invoice Refund Failed',
+            `Failed to automatically refund paid invoice ${invoiceId} for booking #${bookingId}. Please refund manually in Stripe.`,
+            'warning',
+            { relatedId: bookingId, relatedType: 'booking' }
+          ).catch(() => {});
+          return { success: false, error: 'Failed to refund paid invoice' };
+        }
+      } else {
+        logger.warn('[BookingInvoice] Paid invoice has no payment intent, cannot auto-refund', {
+          extra: { bookingId, invoiceId }
+        });
+        notifyAllStaff(
+          'Paid Invoice — Manual Refund Needed',
+          `Cancelled booking #${bookingId} has a paid invoice (${invoiceId}) with no payment intent attached. Please refund manually in Stripe.`,
+          'warning',
+          { relatedId: bookingId, relatedType: 'booking' }
+        ).catch(() => {});
+        return { success: false, error: 'Invoice has no payment intent for refund' };
+      }
     }
 
     await pool.query(

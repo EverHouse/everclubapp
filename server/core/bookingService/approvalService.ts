@@ -1119,6 +1119,14 @@ export async function cancelBooking(params: CancelBookingParams) {
     return { updated: updatedRow, bookingData: existing, pushInfo, overageRefundResult, isConferenceRoom, isPendingCancel: false, alreadyPending: false };
   });
 
+  if (!isPendingCancel) {
+    voidBookingInvoice(bookingId).catch((err: unknown) => {
+      logger.error('[Staff Cancel] Failed to void/refund booking invoice (non-blocking)', {
+        extra: { bookingId, error: getErrorMessage(err) }
+      });
+    });
+  }
+
   return { updated, bookingData, pushInfo, overageRefundResult, isConferenceRoom: isConfRoom, isPendingCancel, alreadyPending };
 }
 
@@ -1957,6 +1965,13 @@ export async function completeCancellation(params: CompleteCancellationParams) {
   } catch (err: unknown) {
     errors.push(`Failed to release guest pass holds: ${getErrorMessage(err)}`);
     logger.error('[Complete Cancellation] Failed to release guest pass holds', { extra: { err } });
+  }
+
+  try {
+    await voidBookingInvoice(bookingId);
+  } catch (err: unknown) {
+    errors.push(`Failed to void/refund booking invoice: ${getErrorMessage(err)}`);
+    logger.error('[Complete Cancellation] Failed to void/refund booking invoice', { extra: { bookingId, error: getErrorMessage(err) } });
   }
 
   const errorNote = errors.length > 0

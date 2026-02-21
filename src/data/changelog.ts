@@ -24,6 +24,8 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: CSV import now creates fresh bookings when cancelled bookings still exist in Trackman — clears old Trackman ID from cancelled record and creates new booking with correct owner/participants from CSV data",
       "Fixed: CSV import payment status check no longer crashes on 'refunded' enum value — was causing all bookings to be treated as frozen",
       "Fixed: Post-import fee cleanup query corrected (booking_participants has no booking_id column)",
+      "Fixed: Booking cancellation now automatically voids/refunds the Stripe invoice — draft invoices are deleted, open invoices are voided, paid invoices are refunded",
+      "Fixed: All three cancellation paths (member cancel, staff cancel, Trackman cancel) now handle invoice cleanup consistently",
     ]
   },
   {
