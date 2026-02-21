@@ -65,6 +65,11 @@ We use a **Liquid Glass UI** system.
 - **Database & Data Integrity**: PostgreSQL, Supabase Realtime, Drizzle ORM.
 - **Member Lifecycle & Check-In**: Tiers, QR/NFC check-in, onboarding.
 
+## Recent Changes
+- **Feb 21, 2026**: Dependency & dead code cleanup — Removed unused npm packages (`@modelcontextprotocol/sdk`). Moved 11 dev-only packages to devDependencies (`@vitest/ui`, `drizzle-kit`, `postcss`, `tailwindcss`, `@tailwindcss/postcss`, `vite-plugin-compression`, `vitest`, 4x `@types/*`). Deleted 3 dead code files: `server/routes/mcp.ts` (empty), `server/utils/calendarSync.ts` (superseded), `server/utils/stringUtils.ts` (superseded by emailNormalization.ts).
+- **Feb 21, 2026**: Project root cleanup — Removed 30+ dead/outdated files. See changelog for full list.
+- **Feb 21, 2026**: Ghost column fix (v7.95.0) + CI guard. See changelog for details.
+
 ## External Dependencies
 - **Stripe**: Terminal, subscriptions, webhooks for billing authority.
 - **HubSpot**: Two-way sync, form submissions.

@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.96.0",
+    date: "2026-02-21",
+    title: "Dependency & Dead Code Cleanup",
+    changes: [
+      "Removed: @modelcontextprotocol/sdk unused npm package",
+      "Moved: 11 dev-only packages to devDependencies (vitest, @vitest/ui, drizzle-kit, postcss, tailwindcss, @tailwindcss/postcss, vite-plugin-compression, @types/cookie, @types/multer, @types/react-virtualized-auto-sizer, @types/react-window, @types/ws)",
+      "Deleted: server/routes/mcp.ts (empty dead file)",
+      "Deleted: server/utils/calendarSync.ts (superseded by server/core/calendar/sync/)",
+      "Deleted: server/utils/stringUtils.ts (superseded by server/core/utils/emailNormalization.ts)",
+    ]
+  },
+  {
     version: "7.95.0",
     date: "2026-02-21",
     title: "Fix Ghost Column References in SQL Queries",
