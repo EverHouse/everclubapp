@@ -128,7 +128,7 @@ When adding new booking queries, always ask: "Does this query need to handle can
 
 ### Rule 8a — `trackman_booking_id` is THE key for all Trackman matching
 
-The `trackman_booking_id` field (stored as VARCHAR on `booking_requests`, `booking_sessions`, `booking_members`, `booking_guests`) is the **stable unique identifier** from Trackman. Use it for:
+The `trackman_booking_id` field (stored as VARCHAR on `booking_requests`, `booking_sessions`) is the **stable unique identifier** from Trackman. Use it for:
 - CSV import deduplication: `ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO NOTHING`
 - Webhook matching: `tryAutoApproveBooking()` matches by `trackman_booking_id`
 - Session creation: `ensureSessionForBooking()` first checks `booking_sessions.trackman_booking_id`
@@ -184,13 +184,15 @@ M: member@email.com | Member Name Guests pay separately G: Chris G: Alex G: Dalt
 ```
 The parser (`parseNotesForPlayers()`) MUST scan for `G: Name` patterns anywhere in the line, not just at line start (`^G:`). The regex uses a negative lookahead to stop name capture before the next `G:`, `M:`, `NO`, `Used`, or `additional` keyword.
 
-### Rule 10a — Imported bookings must IMMEDIATELY populate booking_players
+### Rule 10a — Imported bookings must IMMEDIATELY populate booking_participants
 
-When a Trackman CSV import identifies a member (via Notes parsing), immediately populate the `booking_members` and `booking_participants` tables:
+When a Trackman CSV import identifies a member (via Notes parsing), immediately populate the `booking_participants` table:
 
-1. **Owner at Slot 1**: Insert a `booking_members` record with `slot_number: 1`, `is_primary: true`, and the member's email.
-2. **Guests at Slots 2-4**: For each parsed guest tag, insert a `booking_members` record at the next available slot with `is_primary: false` and the guest name. Also insert into `booking_guests` with the guest name.
-3. **Session participants**: Call `createTrackmanSessionAndParticipants()` which creates `booking_participants` records (the table the roster UI reads from).
+1. **Owner at Slot 1**: Create a `booking_participants` record with `slot_number: 1`, `participant_type: 'owner'`, and the member's email.
+2. **Guests at Slots 2-4**: For each parsed guest tag, create a `booking_participants` record at the next available slot with `participant_type: 'guest'` and the guest name.
+3. **Session participants**: Call `createTrackmanSessionAndParticipants()` which creates the `booking_participants` records (the table the roster UI reads from).
+
+Legacy tables `booking_members` and `booking_guests` no longer receive writes (v7.92.0). `booking_participants` is the sole source of truth for rosters.
 
 This ensures the roster is fully populated immediately after import — no empty "Search" slots when guest names were provided in the CSV data.
 
@@ -210,7 +212,6 @@ Query rules:
 - Only match unlinked: `trackman_booking_id IS NULL`
 - Exclude terminal statuses: `status NOT IN ('cancelled', 'declined', 'cancellation_pending')`
 - **Deterministic**: If multiple candidates match, SKIP the merge and log for manual resolution. Never auto-merge when ambiguous.
-- After merge: create `booking_members` slots (primary + guest slots based on player count)
 - After merge: call `ensureSessionForBooking()` (Rule 1)
 
 ### Rule 13 — Force Approved on new CSV bookings
@@ -317,7 +318,7 @@ Sub-components:
 - **Mode A (Assign Players):** Unlinked bookings — "Assign & Confirm" button
 - **Mode B (Manage Players):** Existing bookings — pre-fills roster from `/api/admin/booking/:id/members`, "Save Changes" button
 
-When importing CSV data or processing webhooks, the backend still populates `booking_members` and `booking_guests` tables directly (Rules 10a, 12). But all **staff-facing UI** for viewing and editing rosters goes through the Unified Booking Sheet.
+The backend populates `booking_participants` directly. Legacy tables `booking_members` and `booking_guests` no longer receive writes (v7.92.0). All **staff-facing UI** for viewing and editing rosters goes through the Unified Booking Sheet.
 
 ---
 
@@ -354,7 +355,7 @@ When adding any new booking-related code, verify:
 - [ ] Does it use `computeFeeBreakdown()` for fees? (Rule 15)
 - [ ] Does it check `roster_version` for participant changes? (Rule 18)
 - [ ] For CSV import: Does it parse `M|email|firstname|lastname` and `G|...|firstname|lastname` from Notes (including INLINE G: tags)? (Rules 9-10)
-- [ ] For CSV import: Does it immediately populate booking_members AND booking_participants? (Rule 10a)
+- [ ] For CSV import: Does it immediately populate booking_participants? (Rule 10a)
 - [ ] For CSV import: Does it force `approved` status for member-linked bookings? (Rule 13)
 - [ ] For CSV import: Does it attempt placeholder merge before creating new? (Rule 12)
 - [ ] For CSV import: Does it check for private event block conversion? (Rule 14a)

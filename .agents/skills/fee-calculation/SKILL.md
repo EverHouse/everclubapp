@@ -137,7 +137,7 @@ The `isConferenceRoom` flag on `FeeComputeParams` (or derived from `resources.ty
 Calculated fees are cached at two levels to avoid redundant computation:
 
 1. **`booking_participants.cached_fee_cents`** — per-participant cached total fee. Set by `applyFeeBreakdownToParticipants()` or `calculateAndCacheParticipantFees()`. Cleared by `invalidateCachedFees()` or `clearCachedFees()` when roster changes occur.
-2. **`booking_requests.overage_fee_cents` and `overage_minutes`** — session-level totals synced by `recalculateSessionFees()` for legacy dashboard compatibility (Pay Now button).
+2. **`booking_requests.overage_fee_cents` and `overage_minutes`** — session-level totals synced by `recalculateSessionFees()` for legacy dashboard compatibility (Pay Now button). (Legacy — scheduled for removal when overage payment UI migrates to invoice flow)
 
 When `feeCalculator.ts` resolves fees, it checks in order: cached → ledger → calculated. This means a participant whose fee was already cached will not trigger a recalculation unless the cache is explicitly cleared.
 
