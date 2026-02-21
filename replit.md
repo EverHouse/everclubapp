@@ -66,6 +66,11 @@ We use a **Liquid Glass UI** system.
 - **Member Lifecycle & Check-In**: Tiers, QR/NFC check-in, onboarding.
 
 ## Recent Changes
+- **Feb 21, 2026**: v8.6.0 — Booking Validation & Error Visibility Hardening:
+  1. Reschedule conflict detection replaced inline SQL with centralized `checkBookingConflict()` — consistent validation and advisory lock protection against concurrent reschedules.
+  2. Added `attended` status to booking conflict detection — checked-in bays can no longer be double-booked during reschedule or new booking creation.
+  3. Invoice settlement errors at check-in now logged as ERROR level instead of silently swallowed — billing failures visible for manual review.
+  4. WebSocket broadcast errors during reschedule now logged as warnings instead of silently swallowed.
 - **Feb 21, 2026**: v8.5.0 — Duplicate Check-In Notification Fix:
   1. Fixed 4+ duplicate "Checked In" notifications per check-in — added 60-second dedup check in staffCheckin confirm_all path.
   2. Consolidated "Check-In Complete" and "Checked In" into single "Checked In" notification — global dedup in notifyMember() prevents duplicates.

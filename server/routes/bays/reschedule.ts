@@ -10,7 +10,7 @@ import { getStripeClient } from '../../core/stripe/client';
 import { broadcastAvailabilityUpdate } from '../../core/websocket';
 import { sendPushNotification } from '../push';
 import { formatTime12Hour } from '../../utils/dateUtils';
-import { checkClosureConflict, checkAvailabilityBlockConflict } from '../../core/bookingValidation';
+import { checkBookingConflict, checkClosureConflict, checkAvailabilityBlockConflict } from '../../core/bookingValidation';
 import { sendBookingRescheduleEmail } from '../../emails/bookingEmails';
 import { syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
 
@@ -116,18 +116,8 @@ router.post('/api/admin/booking/:id/reschedule/confirm', isStaffOrAdmin, async (
       return res.status(400).json({ error: 'Booking is not in reschedule mode. Please start the reschedule first.' });
     }
 
-    const conflictResult = await db.execute(sql`SELECT id FROM booking_requests
-       WHERE resource_id = ${resource_id}
-         AND request_date = ${request_date}
-         AND status IN ('approved', 'confirmed', 'attended')
-         AND id != ${bookingId}
-         AND (
-           (start_time <= ${start_time} AND end_time > ${start_time})
-           OR (start_time < ${end_time} AND end_time >= ${end_time})
-           OR (start_time >= ${start_time} AND end_time <= ${end_time})
-         )`);
-
-    if (conflictResult.rows.length > 0) {
+    const bookingConflictCheck = await checkBookingConflict(resource_id, request_date, start_time, end_time, bookingId);
+    if (bookingConflictCheck.hasConflict) {
       return res.status(409).json({ error: 'Time slot conflicts with existing booking' });
     }
 
@@ -283,7 +273,10 @@ router.post('/api/admin/booking/:id/reschedule/confirm', isStaffOrAdmin, async (
           action: 'updated'
         });
       }
-    } catch {
+    } catch (broadcastErr: unknown) {
+      logger.warn('[Reschedule] WebSocket broadcast failed (non-blocking)', {
+        extra: { bookingId, error: (broadcastErr as Error).message }
+      });
     }
 
     if (booking.user_email) {

@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.6.0",
+    date: "2026-02-21",
+    title: "Booking Validation & Error Visibility Hardening",
+    changes: [
+      "Fixed: Reschedule conflict detection used inline SQL instead of centralized validation — replaced with checkBookingConflict() for consistent behavior and advisory lock protection against concurrent reschedules",
+      "Fixed: Booking conflict detection did not check 'attended' status bookings — checked-in bays could be double-booked against during reschedule or new booking creation",
+      "Fixed: Invoice settlement errors at check-in were silently swallowed (.catch(() => {})) — billing failures now logged as ERROR level for staff visibility and manual review",
+      "Fixed: WebSocket broadcast errors during reschedule were silently swallowed (empty catch {}) — now logged as warnings for debugging",
+    ]
+  },
+  {
     version: "8.5.0",
     date: "2026-02-21",
     title: "Duplicate Check-In Notification Fix",

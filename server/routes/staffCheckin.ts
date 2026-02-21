@@ -619,7 +619,11 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
         }
       }
 
-      settleBookingInvoiceAfterCheckin(bookingId, sessionId).catch(() => {});
+      settleBookingInvoiceAfterCheckin(bookingId, sessionId).catch((err: unknown) => {
+        logger.error('[StaffCheckin] Invoice settlement failed after check-in — requires manual review', {
+          extra: { bookingId, sessionId, error: (err as Error).message }
+        });
+      });
 
       return res.json({ 
         success: true, 
@@ -927,7 +931,11 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
         reason: reason || null
       });
 
-      settleBookingInvoiceAfterCheckin(bookingId, sessionId).catch(() => {});
+      settleBookingInvoiceAfterCheckin(bookingId, sessionId).catch((err: unknown) => {
+        logger.error('[StaffCheckin] Invoice settlement failed after check-in — requires manual review', {
+          extra: { bookingId, sessionId, error: (err as Error).message }
+        });
+      });
 
       return res.json({ 
         success: true, 

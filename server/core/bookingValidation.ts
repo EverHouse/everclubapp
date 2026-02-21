@@ -105,7 +105,8 @@ export async function checkBookingConflict(
       or(
         eq(bookingRequests.status, 'confirmed'),
         eq(bookingRequests.status, 'approved'),
-        eq(bookingRequests.status, 'pending_approval')
+        eq(bookingRequests.status, 'pending_approval'),
+        eq(bookingRequests.status, 'attended')
       ),
       and(
         sql`${bookingRequests.startTime} < ${endTime}`,
