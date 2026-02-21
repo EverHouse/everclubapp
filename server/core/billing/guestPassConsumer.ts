@@ -1,5 +1,6 @@
 import { pool } from '../db';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { syncBookingInvoice } from './bookingInvoiceService';
 
 import { logger } from '../logger';
 export interface GuestPassConsumptionResult {
@@ -172,20 +173,21 @@ export async function consumeGuestPassForParticipant(
     
     await client.query('COMMIT');
     
+    let resolvedBookingId: number | null = null;
     try {
       const bookingResult = await pool.query(
         `SELECT id FROM booking_requests WHERE session_id = $1 LIMIT 1`,
         [sessionId]
       );
       if (bookingResult.rows.length > 0) {
-        const bookingId = bookingResult.rows[0].id;
+        resolvedBookingId = bookingResult.rows[0].id;
         await pool.query(
           `DELETE FROM guest_pass_holds 
            WHERE booking_id = $1 AND LOWER(member_email) = $2 AND passes_held <= 1;
            UPDATE guest_pass_holds 
            SET passes_held = passes_held - 1
            WHERE booking_id = $1 AND LOWER(member_email) = $2 AND passes_held > 1`,
-          [bookingId, ownerEmailLower]
+          [resolvedBookingId, ownerEmailLower]
         );
       }
     } catch (holdErr: unknown) {
@@ -194,6 +196,12 @@ export async function consumeGuestPassForParticipant(
     
     logger.info(`[GuestPassConsumer] Pass consumed for ${guestName} by ${ownerEmailLower}, ${passesRemaining} remaining`);
     
+    if (resolvedBookingId) {
+      syncBookingInvoice(resolvedBookingId, sessionId).catch(err => {
+        logger.warn('[GuestPassConsumer] Non-blocking: draft invoice sync failed after pass consumption', { extra: { error: getErrorMessage(err), bookingId: resolvedBookingId, sessionId } });
+      });
+    }
+
     return {
       success: true,
       passesRemaining,
@@ -336,6 +344,24 @@ export async function refundGuestPassForParticipant(
     const remaining = passResult.rows[0]?.remaining ?? 0;
     logger.info(`[GuestPassConsumer] Pass refunded for ${guestName}, ${ownerEmailLower} now has ${remaining} remaining`);
     
+    try {
+      const sessionResult = await pool.query(
+        `SELECT bs.id as session_id, br.id as booking_id 
+         FROM booking_participants bp 
+         JOIN booking_sessions bs ON bp.session_id = bs.id
+         JOIN booking_requests br ON br.session_id = bs.id
+         WHERE bp.id = $1 LIMIT 1`,
+        [participantId]
+      );
+      if (sessionResult.rows[0]) {
+        syncBookingInvoice(sessionResult.rows[0].booking_id, sessionResult.rows[0].session_id).catch(err => {
+          logger.warn('[GuestPassConsumer] Non-blocking: draft invoice sync failed after pass refund', { extra: { error: getErrorMessage(err) } });
+        });
+      }
+    } catch (syncErr) {
+      logger.warn('[GuestPassConsumer] Non-blocking: failed to sync invoice after pass refund');
+    }
+
     return {
       success: true,
       passesRemaining: remaining

@@ -33,15 +33,13 @@ import { PRICING } from '../billing/pricingConfig';
 import { createPrepaymentIntent } from '../billing/prepaymentService';
 import { findConflictingBookings } from './conflictDetection';
 import { notifyMember } from '../notificationService';
-import { getStripeClient } from '../stripe/client';
 import { getOrCreateStripeCustomer } from '../stripe/customers';
 import { createBalanceAwarePayment } from '../stripe/payments';
 import { useGuestPass, refundGuestPass, ensureGuestPassRecord } from '../../routes/guestPasses';
 import { getErrorMessage } from '../../utils/errorUtils';
 import type { FeeBreakdown } from '../../../shared/models/billing';
 import type { BookingParticipant } from '../../../shared/models/scheduling';
-import { updateDraftInvoiceLineItems } from '../billing/bookingInvoiceService';
-import type { BookingFeeLineItem } from '../stripe/invoices';
+import { syncBookingInvoice } from '../billing/bookingInvoiceService';
 
 export interface BookingWithSession {
   booking_id: number;
@@ -1271,7 +1269,7 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
           }
         });
 
-        syncDraftInvoiceAfterRosterChange(bookingId, sessionId).catch(err => {
+        syncBookingInvoice(bookingId, sessionId).catch(err => {
           logger.warn('[rosterService] Non-blocking: draft invoice sync failed after roster change', { extra: { error: getErrorMessage(err), bookingId, sessionId } });
         });
 
@@ -1530,7 +1528,7 @@ export async function removeParticipant(params: RemoveParticipantParams): Promis
           }
         });
 
-        syncDraftInvoiceAfterRosterChange(bookingId, booking.session_id!).catch(err => {
+        syncBookingInvoice(bookingId, booking.session_id!).catch(err => {
           logger.warn('[rosterService] Non-blocking: draft invoice sync failed after roster change', { extra: { error: getErrorMessage(err), bookingId, sessionId: booking.session_id } });
         });
       } catch (recalcError: unknown) {
@@ -1648,7 +1646,7 @@ export async function updateDeclaredPlayerCount(params: UpdatePlayerCountParams)
         try {
           await recalculateSessionFees(booking.session_id, 'roster_update');
 
-          syncDraftInvoiceAfterRosterChange(bookingId, booking.session_id).catch(err => {
+          syncBookingInvoice(bookingId, booking.session_id).catch(err => {
             logger.warn('[rosterService] Non-blocking: draft invoice sync failed after roster change', { extra: { error: getErrorMessage(err), bookingId, sessionId: booking.session_id } });
           });
         } catch (feeError: unknown) {
@@ -2120,7 +2118,7 @@ export async function applyRosterBatch(params: BatchRosterUpdateParams): Promise
       const recalcResult = await recalculateSessionFees(sessionId, 'roster_update');
       feesRecalculated = true;
 
-      syncDraftInvoiceAfterRosterChange(bookingId, sessionId).catch(err => {
+      syncBookingInvoice(bookingId, sessionId).catch(err => {
         logger.warn('[rosterService] Non-blocking: draft invoice sync failed after roster change', { extra: { error: getErrorMessage(err), bookingId, sessionId } });
       });
 
@@ -2208,59 +2206,3 @@ export async function applyRosterBatch(params: BatchRosterUpdateParams): Promise
   };
 }
 
-async function syncDraftInvoiceAfterRosterChange(bookingId: number, sessionId: number): Promise<void> {
-  try {
-    const invoiceResult = await pool.query(
-      `SELECT stripe_invoice_id FROM booking_requests WHERE id = $1 LIMIT 1`,
-      [bookingId]
-    );
-    const stripeInvoiceId = invoiceResult.rows[0]?.stripe_invoice_id;
-    if (!stripeInvoiceId) return;
-
-    const stripe = await getStripeClient();
-    const invoice = await stripe.invoices.retrieve(stripeInvoiceId);
-    if (invoice.status !== 'draft') return;
-
-    const participantResult = await pool.query(
-      `SELECT id, display_name, participant_type, cached_fee_cents
-       FROM booking_participants
-       WHERE session_id = $1 AND cached_fee_cents > 0`,
-      [sessionId]
-    );
-
-    const feeLineItems: BookingFeeLineItem[] = participantResult.rows.map((row: { id: number; display_name: string; participant_type: string; cached_fee_cents: number }) => {
-      const totalCents = row.cached_fee_cents;
-      const isGuest = row.participant_type === 'guest';
-      return {
-        participantId: row.id,
-        displayName: row.display_name || 'Unknown',
-        participantType: row.participant_type as 'owner' | 'member' | 'guest',
-        overageCents: isGuest ? 0 : totalCents,
-        guestCents: isGuest ? totalCents : 0,
-        totalCents,
-      };
-    });
-
-    const totalFees = feeLineItems.reduce((sum, li) => sum + li.totalCents, 0);
-
-    if (totalFees > 0) {
-      await updateDraftInvoiceLineItems({ bookingId, sessionId, feeLineItems });
-      logger.info('[rosterService] Draft invoice synced after roster change', {
-        extra: { bookingId, sessionId, invoiceId: stripeInvoiceId, totalFees, lineItems: feeLineItems.length }
-      });
-    } else {
-      await stripe.invoices.del(stripeInvoiceId);
-      await pool.query(
-        `UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = $1`,
-        [bookingId]
-      );
-      logger.info('[rosterService] Deleted draft invoice (fees now 0) after roster change', {
-        extra: { bookingId, sessionId, invoiceId: stripeInvoiceId }
-      });
-    }
-  } catch (err: unknown) {
-    logger.warn('[rosterService] Non-blocking: syncDraftInvoiceAfterRosterChange failed', {
-      extra: { error: getErrorMessage(err), bookingId, sessionId }
-    });
-  }
-}

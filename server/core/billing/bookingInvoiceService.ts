@@ -524,6 +524,63 @@ export async function voidBookingInvoice(bookingId: number): Promise<{
   }
 }
 
+export async function syncBookingInvoice(bookingId: number, sessionId: number): Promise<void> {
+  try {
+    const invoiceResult = await pool.query(
+      `SELECT stripe_invoice_id FROM booking_requests WHERE id = $1 LIMIT 1`,
+      [bookingId]
+    );
+    const stripeInvoiceId = invoiceResult.rows[0]?.stripe_invoice_id;
+    if (!stripeInvoiceId) return;
+
+    const stripe = await getStripeClient();
+    const invoice = await stripe.invoices.retrieve(stripeInvoiceId);
+    if (invoice.status !== 'draft') return;
+
+    const participantResult = await pool.query(
+      `SELECT id, display_name, participant_type, cached_fee_cents
+       FROM booking_participants
+       WHERE session_id = $1 AND cached_fee_cents > 0`,
+      [sessionId]
+    );
+
+    const feeLineItems: BookingFeeLineItem[] = participantResult.rows.map((row: { id: number; display_name: string; participant_type: string; cached_fee_cents: number }) => {
+      const totalCents = row.cached_fee_cents;
+      const isGuest = row.participant_type === 'guest';
+      return {
+        participantId: row.id,
+        displayName: row.display_name || 'Unknown',
+        participantType: row.participant_type as 'owner' | 'member' | 'guest',
+        overageCents: isGuest ? 0 : totalCents,
+        guestCents: isGuest ? totalCents : 0,
+        totalCents,
+      };
+    });
+
+    const totalFees = feeLineItems.reduce((sum, li) => sum + li.totalCents, 0);
+
+    if (totalFees > 0) {
+      await updateDraftInvoiceLineItems({ bookingId, sessionId, feeLineItems });
+      logger.info('[BookingInvoice] Draft invoice synced', {
+        extra: { bookingId, sessionId, invoiceId: stripeInvoiceId, totalFees, lineItems: feeLineItems.length }
+      });
+    } else {
+      await stripe.invoices.del(stripeInvoiceId);
+      await pool.query(
+        `UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = $1`,
+        [bookingId]
+      );
+      logger.info('[BookingInvoice] Deleted draft invoice (fees now 0)', {
+        extra: { bookingId, sessionId, invoiceId: stripeInvoiceId }
+      });
+    }
+  } catch (err: unknown) {
+    logger.warn('[BookingInvoice] Non-blocking: syncBookingInvoice failed', {
+      extra: { error: getErrorMessage(err), bookingId, sessionId }
+    });
+  }
+}
+
 function extractPaymentIntentId(invoice: Stripe.Invoice): string | null {
   const rawPi = (invoice as unknown as { payment_intent: string | Stripe.PaymentIntent | null }).payment_intent;
   if (typeof rawPi === 'string') return rawPi;
