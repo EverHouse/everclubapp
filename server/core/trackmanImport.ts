@@ -3060,7 +3060,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         )
         AND NOT EXISTS (
           SELECT 1 FROM stripe_payment_intents spi 
-          JOIN booking_sessions bs2 ON bs2.booking_request_id = spi.booking_id
+          JOIN booking_requests br2 ON br2.id = spi.booking_id
+          JOIN booking_sessions bs2 ON bs2.trackman_booking_id = br2.trackman_booking_id
           WHERE bs2.id = bp.session_id AND spi.status = 'succeeded'
         )
     `);
@@ -4068,7 +4069,9 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
         WHERE id = $1
       `, [booking.id]);
 
-      await pool.query(`DELETE FROM booking_participants WHERE booking_id = $1`, [booking.id]);
+      await pool.query(`DELETE FROM booking_participants WHERE session_id IN (
+        SELECT id FROM booking_sessions WHERE trackman_booking_id = $1
+      )`, [booking.trackman_booking_id]);
 
       // Clean up financial artifacts: usage_ledger entries
       await pool.query(`DELETE FROM usage_ledger WHERE booking_id = $1`, [booking.id]);

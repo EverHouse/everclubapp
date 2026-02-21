@@ -21,6 +21,8 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Stripe payment participant query — bs.booking_id replaced with proper booking_requests JOIN for booking_id",
       "Fixed: Stripe webhook refund audit log — bs.booking_id replaced with booking_requests JOIN",
       "Fixed: Trackman admin lesson cleanup — booking_sessions and booking_participants deletion now uses trackman_booking_id and session_id respectively",
+      "Fixed: Trackman import post-import waiver query — bs2.booking_request_id replaced with proper booking_requests JOIN",
+      "Fixed: Trackman import cleanup — booking_participants deletion now uses session_id subquery instead of non-existent booking_id",
     ]
   },
   {
