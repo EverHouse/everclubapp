@@ -23,6 +23,7 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Trackman admin lesson cleanup — booking_sessions and booking_participants deletion now uses trackman_booking_id and session_id respectively",
       "Fixed: Trackman import post-import waiver query — bs2.booking_request_id replaced with proper booking_requests JOIN",
       "Fixed: Trackman import cleanup — booking_participants deletion now uses session_id subquery instead of non-existent booking_id",
+      "Added: Ghost column CI guard — build now auto-checks for references to non-existent columns on booking_sessions and booking_participants",
     ]
   },
   {
