@@ -160,9 +160,6 @@ export function PaymentActionFooter({
   bookingContext,
   bookingStatus,
 }: PaymentActionFooterProps) {
-  const { showToast } = useToast();
-  const [showCancelConfirm, setShowCancelConfirm] = React.useState(false);
-  const [cancellingPayment, setCancellingPayment] = React.useState(false);
   const [checkingIn, setCheckingIn] = React.useState(false);
   const [checkedIn, setCheckedIn] = React.useState(false);
 
@@ -209,62 +206,121 @@ export function PaymentActionFooter({
     </div>
   );
 
-  const renderVoidConfirmation = () => {
-    if (!showCancelConfirm) return null;
-    return (
-      <div className="mt-2 p-2 rounded-lg border border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-900/10 space-y-2">
-        <p className="text-xs text-red-600 dark:text-red-400 font-medium text-center">Are you sure? This will cancel all outstanding payment intents.</p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setShowCancelConfirm(false)}
-            disabled={cancellingPayment}
-            className="tactile-btn flex-1 py-1.5 px-3 rounded-lg border border-gray-300 dark:border-white/20 text-primary/70 dark:text-white/70 text-sm disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={async () => {
-              if (!bookingId) return;
-              setCancellingPayment(true);
-              try {
-                const res = await fetch(`/api/bookings/${bookingId}/payments`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  credentials: 'include',
-                  body: JSON.stringify({ action: 'cancel_all' })
-                });
-                const data = await res.json();
-                if (res.ok && data.success) {
-                  const msg = data.failedCount > 0
-                    ? `${data.cancelledCount} cancelled, ${data.failedCount} failed — check Stripe dashboard`
-                    : (data.message || 'Payments cancelled');
-                  showToast(msg, data.failedCount > 0 ? 'warning' : 'success');
-                  handleInlineStripeSuccess();
-                } else {
-                  showToast(data.error || 'Failed to cancel payments', 'error');
-                }
-              } catch (err: unknown) {
-                showToast('Failed to cancel payments', 'error');
-              } finally {
-                setCancellingPayment(false);
-                setShowCancelConfirm(false);
-              }
-            }}
-            disabled={cancellingPayment}
-            className="tactile-btn flex-1 py-1.5 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium disabled:opacity-50"
-          >
-            {cancellingPayment ? 'Cancelling...' : 'Confirm Void'}
-          </button>
+  return (
+    <div className="px-4 py-3 backdrop-blur-xl bg-white/80 dark:bg-[#1a1d15]/80">
+      {processingPayment ? (
+        <div className="flex items-center justify-center gap-2 py-3">
+          <span className="material-symbols-outlined animate-spin text-lg text-green-600 dark:text-green-400">progress_activity</span>
+          <span className="text-sm font-medium text-primary/70 dark:text-white/70">Confirming payment...</span>
         </div>
-      </div>
-    );
+      ) : (
+        <div>
+          {fs && !fs.allPaid && fs.grandTotal > 0 && !showInlinePayment ? (
+            <button
+              type="button"
+              onClick={() => setShowInlinePayment(true)}
+              className="tactile-btn w-full py-2.5 px-4 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined text-sm">payments</span>
+              Collect ${fs.grandTotal.toFixed(2)}
+            </button>
+          ) : checkedIn ? (
+            <button type="button" disabled className="tactile-btn w-full py-2.5 px-4 rounded-lg bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-300 text-sm font-semibold cursor-default flex items-center justify-center gap-2">
+              <span className="material-symbols-outlined text-sm">check_circle</span>
+              Checked In
+            </button>
+          ) : bookingStatus !== 'attended' && bookingStatus !== 'cancelled' && onCheckIn && !showInlinePayment ? (
+            <button
+              type="button"
+              onClick={handleCheckIn}
+              disabled={checkingIn}
+              className="tactile-btn w-full py-2.5 px-4 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-sm">{checkingIn ? 'progress_activity' : 'how_to_reg'}</span>
+              {checkingIn ? 'Checking In...' : 'Check In'}
+            </button>
+          ) : !showInlinePayment ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/20 text-primary dark:text-white text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+            >
+              Close
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={closePaymentOptions}
+              className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/20 text-primary dark:text-white text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined text-sm">arrow_back</span>
+              Back
+            </button>
+          )}
+          {!showInlinePayment && renderSecondaryActions()}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function InlinePaymentBody({
+  bookingId,
+  rosterData,
+  fetchedContext,
+  ownerName,
+  ownerEmail,
+  bayName,
+  bookingDate,
+  showInlinePayment,
+  setShowInlinePayment,
+  inlinePaymentAction,
+  setInlinePaymentAction,
+  savedCardInfo,
+  showWaiverInput,
+  setShowWaiverInput,
+  waiverReason,
+  setWaiverReason,
+  handleInlineStripeSuccess,
+  handleChargeCardOnFile,
+  handleWaiveFees,
+}: {
+  bookingId?: number;
+  rosterData: ManageModeRosterData | null;
+  fetchedContext: FetchedContext | null;
+  ownerName?: string;
+  ownerEmail?: string;
+  bayName?: string;
+  bookingDate?: string;
+  showInlinePayment: boolean;
+  setShowInlinePayment: (show: boolean) => void;
+  inlinePaymentAction: string | null;
+  setInlinePaymentAction: (action: string | null) => void;
+  savedCardInfo: { hasSavedCard: boolean; cardLast4?: string; cardBrand?: string } | null;
+  showWaiverInput: boolean;
+  setShowWaiverInput: (show: boolean) => void;
+  waiverReason: string;
+  setWaiverReason: (reason: string) => void;
+  handleInlineStripeSuccess: () => void;
+  handleChargeCardOnFile: () => void;
+  handleWaiveFees: () => void;
+}) {
+  const { showToast } = useToast();
+  const [showCancelConfirm, setShowCancelConfirm] = React.useState(false);
+  const [cancellingPayment, setCancellingPayment] = React.useState(false);
+
+  const fs = rosterData?.financialSummary;
+
+  if (!showInlinePayment || !fs || !bookingId) return null;
+
+  const closePaymentOptions = () => {
+    setShowInlinePayment(false);
+    setInlinePaymentAction(null);
+    setShowWaiverInput(false);
+    setWaiverReason('');
   };
 
   const renderPaymentOptions = () => {
-    if (!bookingId) return null;
-
     if (inlinePaymentAction === 'stripe') {
       const resolvedUserId = rosterData?.ownerId || fetchedContext?.ownerUserId || '';
       const resolvedUserEmail = ownerEmail || fetchedContext?.ownerEmail || rosterData?.members?.find(m => m.isPrimary)?.userEmail || '';
@@ -417,7 +473,6 @@ export function PaymentActionFooter({
         <button
           type="button"
           onClick={async () => {
-            if (!bookingId) return;
             setInlinePaymentAction('mark-paid');
             try {
               const res = await fetch(`/api/bookings/${bookingId}/payments`, {
@@ -499,66 +554,75 @@ export function PaymentActionFooter({
     );
   };
 
+  const renderVoidConfirmation = () => {
+    if (!showCancelConfirm) return null;
+    return (
+      <div className="mt-2 p-2 rounded-lg border border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-900/10 space-y-2">
+        <p className="text-xs text-red-600 dark:text-red-400 font-medium text-center">Are you sure? This will cancel all outstanding payment intents.</p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setShowCancelConfirm(false)}
+            disabled={cancellingPayment}
+            className="tactile-btn flex-1 py-1.5 px-3 rounded-lg border border-gray-300 dark:border-white/20 text-primary/70 dark:text-white/70 text-sm disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              setCancellingPayment(true);
+              try {
+                const res = await fetch(`/api/bookings/${bookingId}/payments`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({ action: 'cancel_all' })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                  const msg = data.failedCount > 0
+                    ? `${data.cancelledCount} cancelled, ${data.failedCount} failed — check Stripe dashboard`
+                    : (data.message || 'Payments cancelled');
+                  showToast(msg, data.failedCount > 0 ? 'warning' : 'success');
+                  handleInlineStripeSuccess();
+                } else {
+                  showToast(data.error || 'Failed to cancel payments', 'error');
+                }
+              } catch (err: unknown) {
+                showToast('Failed to cancel payments', 'error');
+              } finally {
+                setCancellingPayment(false);
+                setShowCancelConfirm(false);
+              }
+            }}
+            disabled={cancellingPayment}
+            className="tactile-btn flex-1 py-1.5 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium disabled:opacity-50"
+          >
+            {cancellingPayment ? 'Cancelling...' : 'Confirm Void'}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="px-4 py-3 backdrop-blur-xl bg-white/80 dark:bg-[#1a1d15]/80">
-      {processingPayment ? (
-        <div className="flex items-center justify-center gap-2 py-3">
-          <span className="material-symbols-outlined animate-spin text-lg text-green-600 dark:text-green-400">progress_activity</span>
-          <span className="text-sm font-medium text-primary/70 dark:text-white/70">Confirming payment...</span>
-        </div>
-      ) : showInlinePayment ? (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-medium text-primary dark:text-white">Collect ${fs?.grandTotal?.toFixed(2)}</span>
-            <button
-              type="button"
-              onClick={closePaymentOptions}
-              className="tactile-btn p-1 rounded-full text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-            >
-              <span className="material-symbols-outlined text-sm">close</span>
-            </button>
-          </div>
-          {renderPaymentOptions()}
-          {renderVoidConfirmation()}
-        </div>
-      ) : (
-        <div>
-          {fs && !fs.allPaid && fs.grandTotal > 0 ? (
-            <button
-              type="button"
-              onClick={() => setShowInlinePayment(true)}
-              className="tactile-btn w-full py-2.5 px-4 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2"
-            >
-              <span className="material-symbols-outlined text-sm">payments</span>
-              Collect ${fs.grandTotal.toFixed(2)}
-            </button>
-          ) : checkedIn ? (
-            <button type="button" disabled className="tactile-btn w-full py-2.5 px-4 rounded-lg bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-300 text-sm font-semibold cursor-default flex items-center justify-center gap-2">
-              <span className="material-symbols-outlined text-sm">check_circle</span>
-              Checked In
-            </button>
-          ) : bookingStatus !== 'attended' && bookingStatus !== 'cancelled' && onCheckIn ? (
-            <button
-              type="button"
-              onClick={handleCheckIn}
-              disabled={checkingIn}
-              className="tactile-btn w-full py-2.5 px-4 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <span className="material-symbols-outlined text-sm">{checkingIn ? 'progress_activity' : 'how_to_reg'}</span>
-              {checkingIn ? 'Checking In...' : 'Check In'}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onClose}
-              className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/20 text-primary dark:text-white text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-            >
-              Close
-            </button>
-          )}
-          {renderSecondaryActions()}
-        </div>
-      )}
+    <div className="p-3 rounded-xl border border-blue-200 dark:border-blue-500/20 bg-blue-50/50 dark:bg-blue-900/10 space-y-2">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-sm font-medium text-primary dark:text-white flex items-center gap-1.5">
+          <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-lg">payments</span>
+          Collect ${fs?.grandTotal?.toFixed(2)}
+        </span>
+        <button
+          type="button"
+          onClick={closePaymentOptions}
+          className="tactile-btn p-1 rounded-full text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+        >
+          <span className="material-symbols-outlined text-sm">close</span>
+        </button>
+      </div>
+      {renderPaymentOptions()}
+      {renderVoidConfirmation()}
     </div>
   );
 }

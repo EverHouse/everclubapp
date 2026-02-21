@@ -1,6 +1,6 @@
 import { SlideUpDrawer } from '../../SlideUpDrawer';
 import { SheetHeader } from './SheetHeader';
-import { PaymentSummaryBody, PaymentActionFooter } from './PaymentSection';
+import { PaymentSummaryBody, PaymentActionFooter, InlinePaymentBody } from './PaymentSection';
 import { AssignModeSlots } from './AssignModeSlots';
 import { ManageModeRoster } from './ManageModeRoster';
 import { AssignModeFooter, AssignModeSecondaryActions } from './AssignModeFooter';
@@ -251,6 +251,28 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                   paymentSuccess={logic.paymentSuccess}
                 />
               </ErrorBoundary>
+
+              <InlinePaymentBody
+                bookingId={bookingId}
+                rosterData={logic.rosterData}
+                fetchedContext={logic.fetchedContext}
+                ownerName={ownerName}
+                ownerEmail={ownerEmail}
+                bayName={bayName}
+                bookingDate={bookingDate}
+                showInlinePayment={logic.showInlinePayment}
+                setShowInlinePayment={logic.setShowInlinePayment}
+                inlinePaymentAction={logic.inlinePaymentAction}
+                setInlinePaymentAction={logic.setInlinePaymentAction}
+                savedCardInfo={logic.savedCardInfo}
+                showWaiverInput={logic.showWaiverInput}
+                setShowWaiverInput={logic.setShowWaiverInput}
+                waiverReason={logic.waiverReason}
+                setWaiverReason={logic.setWaiverReason}
+                handleInlineStripeSuccess={logic.handleInlineStripeSuccess}
+                handleChargeCardOnFile={logic.handleInlineChargeSavedCard}
+                handleWaiveFees={logic.handleInlineWaiveAll}
+              />
 
             </>
           )}
