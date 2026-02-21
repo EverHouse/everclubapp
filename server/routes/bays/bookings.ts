@@ -344,7 +344,10 @@ router.get('/api/booking-requests', async (req, res) => {
       });
     }
     
-    const enrichedResult = result.map((booking) => {
+    const enrichedResult = result.map((booking: Record<string, unknown>) => {
+      if (!isStaffRequest) {
+        delete booking.staff_notes;
+      }
       const memberCounts = (booking.session_id ? memberCountsMap.get(booking.session_id) : undefined) || { total: 0, filled: 0 };
       const actualGuestCount = (booking.session_id ? guestCountsMap.get(booking.session_id) : undefined) || 0;
       

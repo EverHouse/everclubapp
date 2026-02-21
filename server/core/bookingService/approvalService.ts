@@ -418,7 +418,6 @@ export async function approveBooking(params: ApproveBookingParams) {
 
     let breakdown: { totals: { totalCents: number; overageCents: number; guestCents: number } } | null = null;
     if (createdSessionId && createdParticipantIds.length > 0) {
-      try {
         breakdown = await recalculateSessionFees(createdSessionId, 'approval');
         logger.info('[Booking Approval] Applied unified fees for session : $, overage: $', { extra: { createdSessionId, breakdownTotalsTotalCents_100_ToFixed_2: (breakdown.totals.totalCents/100).toFixed(2), breakdownTotalsOverageCents_100_ToFixed_2: (breakdown.totals.overageCents/100).toFixed(2) } });
 
@@ -455,9 +454,6 @@ export async function approveBooking(params: ApproveBookingParams) {
             logger.error('[Booking Approval] Failed to create prepayment intent', { extra: { prepayError } });
           }
         }
-      } catch (feeError: unknown) {
-        logger.error('[Booking Approval] Failed to compute/apply fees', { extra: { feeError } });
-      }
     }
 
     const resourceTypeName = isConferenceRoom ? 'conference room' : 'simulator';
@@ -1274,7 +1270,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
   }
 
   const hasSession = existing.session_id !== null;
-  const allowedStatuses = ['approved', 'confirmed'];
+  const allowedStatuses = ['approved', 'confirmed', 'attended', 'no_show'];
   if (hasSession && (currentStatus === 'cancelled' || currentStatus === 'cancellation_pending')) {
     allowedStatuses.push('cancelled', 'cancellation_pending');
   }
@@ -1369,6 +1365,21 @@ export async function checkinBooking(params: CheckinBookingParams) {
           id: p.participant_id,
           name: p.display_name,
           amount
+        });
+      }
+    }
+
+    if (totalOutstanding > 0) {
+      const prepaidResult = await pool.query(`
+        SELECT COALESCE(SUM(amount_cents), 0)::numeric / 100.0 as prepaid_total
+        FROM conference_prepayments
+        WHERE booking_id = $1 AND status IN ('succeeded', 'completed')
+      `, [bookingId]);
+      const prepaidTotal = parseFloat(prepaidResult.rows[0]?.prepaid_total || '0');
+      if (prepaidTotal > 0) {
+        totalOutstanding = Math.max(0, totalOutstanding - prepaidTotal);
+        logger.info('[Check-in Guard] Deducted conference prepayment from outstanding balance', {
+          extra: { bookingId, prepaidTotal, remainingOutstanding: totalOutstanding }
         });
       }
     }
@@ -1546,188 +1557,202 @@ export async function devConfirmBooking(params: DevConfirmParams) {
     return { error: `Booking is already ${booking.status}`, statusCode: 400 };
   }
 
-  let sessionId = booking.session_id;
-  let totalFeeCents = 0;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  if (!sessionId && booking.resource_id) {
-    const sessionResult = await ensureSessionForBooking({
-      bookingId,
-      resourceId: booking.resource_id,
-      sessionDate: booking.request_date,
-      startTime: booking.start_time,
-      endTime: booking.end_time,
-      ownerEmail: booking.user_email || booking.owner_email || '',
-      ownerName: booking.user_name,
-      ownerUserId: booking.user_id?.toString() || undefined,
-      source: 'staff_manual',
-      createdBy: 'dev_confirm'
-    });
-    sessionId = sessionResult.sessionId || null;
+    let sessionId = booking.session_id;
+    let totalFeeCents = 0;
 
-    if (!sessionId) {
-      logger.error('[Dev Confirm] Session creation failed — cannot approve without billing session', {
-        extra: { bookingId, resourceId: booking.resource_id }
+    if (!sessionId && booking.resource_id) {
+      const sessionResult = await ensureSessionForBooking({
+        bookingId,
+        resourceId: booking.resource_id,
+        sessionDate: booking.request_date,
+        startTime: booking.start_time,
+        endTime: booking.end_time,
+        ownerEmail: booking.user_email || booking.owner_email || '',
+        ownerName: booking.user_name,
+        ownerUserId: booking.user_id?.toString() || undefined,
+        source: 'staff_manual',
+        createdBy: 'dev_confirm'
       });
-      return { error: 'Failed to create billing session. Cannot approve booking without billing.', statusCode: 500 };
-    }
+      sessionId = sessionResult.sessionId || null;
 
-    if (sessionId) {
-      const requestParticipants = booking.request_participants as Array<{
-        email?: string;
-        type: 'member' | 'guest';
-        userId?: string;
-        name?: string;
-      }> | null;
+      if (!sessionId) {
+        logger.error('[Dev Confirm] Session creation failed — cannot approve without billing session', {
+          extra: { bookingId, resourceId: booking.resource_id }
+        });
+        await client.query('ROLLBACK');
+        return { error: 'Failed to create billing session. Cannot approve booking without billing.', statusCode: 500 };
+      }
 
-      let participantsCreated = 0;
-      let slotNumber = 2;
-      if (requestParticipants && Array.isArray(requestParticipants)) {
-        for (const rp of requestParticipants) {
-          if (!rp || typeof rp !== 'object') continue;
+      if (sessionId) {
+        const requestParticipants = booking.request_participants as Array<{
+          email?: string;
+          type: 'member' | 'guest';
+          userId?: string;
+          name?: string;
+        }> | null;
 
-          let resolvedUserId = rp.userId || null;
-          let resolvedName = rp.name || '';
-          let participantType = rp.type === 'member' ? 'member' : 'guest';
+        let participantsCreated = 0;
+        let slotNumber = 2;
+        if (requestParticipants && Array.isArray(requestParticipants)) {
+          for (const rp of requestParticipants) {
+            if (!rp || typeof rp !== 'object') continue;
 
-          if (resolvedUserId && !resolvedName) {
-            const userResult = await pool.query(
-              `SELECT name, first_name, last_name, email FROM users WHERE id = $1`,
-              [resolvedUserId]
-            );
-            if (userResult.rows.length > 0) {
-              const u = userResult.rows[0];
-              resolvedName = u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || 'Member';
-            }
-          }
+            let resolvedUserId = rp.userId || null;
+            let resolvedName = rp.name || '';
+            let participantType = rp.type === 'member' ? 'member' : 'guest';
 
-          if (!resolvedUserId && rp.email) {
-            const userResult = await pool.query(
-              `SELECT id, name, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)`,
-              [rp.email]
-            );
-            if (userResult.rows.length > 0) {
-              resolvedUserId = userResult.rows[0].id;
-              participantType = 'member';
-              if (!resolvedName) {
+            if (resolvedUserId && !resolvedName) {
+              const userResult = await client.query(
+                `SELECT name, first_name, last_name, email FROM users WHERE id = $1`,
+                [resolvedUserId]
+              );
+              if (userResult.rows.length > 0) {
                 const u = userResult.rows[0];
-                resolvedName = u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim();
+                resolvedName = u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || 'Member';
               }
             }
-          }
 
-          if (!resolvedName) {
-            resolvedName = rp.name || rp.email || (participantType === 'guest' ? 'Guest' : 'Member');
-          }
+            if (!resolvedUserId && rp.email) {
+              const userResult = await client.query(
+                `SELECT id, name, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)`,
+                [rp.email]
+              );
+              if (userResult.rows.length > 0) {
+                resolvedUserId = userResult.rows[0].id;
+                participantType = 'member';
+                if (!resolvedName) {
+                  const u = userResult.rows[0];
+                  resolvedName = u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim();
+                }
+              }
+            }
 
-          try {
-            await pool.query(
-              `INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, created_at)
-               VALUES ($1, $2, $3, $4, NOW())
-               ON CONFLICT (session_id, user_id) DO NOTHING`,
-              [sessionId, resolvedUserId, participantType, resolvedName]
-            );
-            participantsCreated++;
-          } catch (partErr: unknown) {
-            logger.error('[Dev Confirm] Failed to create participant', { extra: { partErr } });
-          }
+            if (!resolvedName) {
+              resolvedName = rp.name || rp.email || (participantType === 'guest' ? 'Guest' : 'Member');
+            }
 
+            try {
+              await client.query(
+                `INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, created_at)
+                 VALUES ($1, $2, $3, $4, NOW())
+                 ON CONFLICT (session_id, user_id) DO NOTHING`,
+                [sessionId, resolvedUserId, participantType, resolvedName]
+              );
+              participantsCreated++;
+            } catch (partErr: unknown) {
+              logger.error('[Dev Confirm] Failed to create participant', { extra: { partErr } });
+            }
+
+          }
         }
-      }
 
-      try {
-        const feeResult = await recalculateSessionFees(sessionId, 'approval');
-        if (feeResult?.totalSessionFee) {
-          totalFeeCents = feeResult.totalSessionFee;
+        try {
+          const feeResult = await recalculateSessionFees(sessionId, 'approval');
+          if (feeResult?.totalSessionFee) {
+            totalFeeCents = feeResult.totalSessionFee;
+          }
+        } catch (feeError: unknown) {
+          logger.warn('[Dev Confirm] Failed to calculate fees', { extra: { feeError } });
         }
-      } catch (feeError: unknown) {
-        logger.warn('[Dev Confirm] Failed to calculate fees', { extra: { feeError } });
       }
     }
-  }
 
-  await pool.query(
-    `UPDATE booking_requests 
-     SET status = 'approved', 
-         session_id = COALESCE(session_id, $2),
-         notes = COALESCE(notes, '') || E'\n[Dev confirmed]',
-         updated_at = NOW()
-     WHERE id = $1`,
-    [bookingId, sessionId]
-  );
+    await client.query(
+      `UPDATE booking_requests 
+       SET status = 'approved', 
+           session_id = COALESCE(session_id, $2),
+           notes = COALESCE(notes, '') || E'\n[Dev confirmed]',
+           updated_at = NOW()
+       WHERE id = $1`,
+      [bookingId, sessionId]
+    );
 
-  const dateStr = typeof booking.request_date === 'string'
-    ? booking.request_date
-    : booking.request_date.toISOString().split('T')[0];
-  const timeStr = typeof booking.start_time === 'string'
-    ? booking.start_time.substring(0, 5)
-    : booking.start_time;
+    const dateStr = typeof booking.request_date === 'string'
+      ? booking.request_date
+      : booking.request_date.toISOString().split('T')[0];
+    const timeStr = typeof booking.start_time === 'string'
+      ? booking.start_time.substring(0, 5)
+      : booking.start_time;
 
-  await pool.query(
-    `INSERT INTO notifications (user_email, title, message, type, related_type, created_at)
-     VALUES ($1, $2, $3, $4, $5, NOW())`,
-    [
-      booking.user_email,
-      'Booking Confirmed',
-      `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.`,
-      'booking',
-      'booking'
-    ]
-  );
+    await client.query(
+      `INSERT INTO notifications (user_email, title, message, type, related_type, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())`,
+      [
+        booking.user_email,
+        'Booking Confirmed',
+        `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.`,
+        'booking',
+        'booking'
+      ]
+    );
 
-  sendNotificationToUser(booking.user_email, {
-    type: 'notification',
-    title: 'Booking Confirmed',
-    message: `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.`,
-    data: { bookingId: bookingId.toString(), eventType: 'booking_confirmed' }
-  }, { action: 'booking_confirmed', bookingId, triggerSource: 'approval.ts' });
-
-  if (booking.user_email) {
-    try {
-      const participantsResult = await pool.query(
-        `SELECT u.email as user_email, u.first_name, u.last_name 
-         FROM booking_participants bp
-         JOIN booking_sessions bs ON bp.session_id = bs.id
-         JOIN booking_requests br2 ON br2.session_id = bs.id
-         LEFT JOIN users u ON bp.user_id = u.id
-         WHERE br2.id = $1 
-           AND bp.participant_type != 'owner'
-           AND u.email IS NOT NULL 
-           AND u.email != ''
-           AND LOWER(u.email) != LOWER($2)`,
-        [bookingId, booking.user_email]
-      );
-
-      const ownerName = booking.user_name || booking.user_email?.split('@')[0] || 'A member';
-      const formattedDate = formatDateDisplayWithDay(dateStr);
-      const formattedTime = formatTime12Hour(timeStr);
-
-      for (const participant of participantsResult.rows) {
-        const participantEmail = participant.user_email?.toLowerCase();
-        if (!participantEmail) continue;
-
-        const notificationMsg = `${ownerName} has added you to their simulator booking on ${formattedDate} at ${formattedTime}.`;
-
-        await pool.query(
-          `INSERT INTO notifications (user_email, title, message, type, related_type, related_id, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
-          [participantEmail, 'Added to Booking', notificationMsg, 'booking', 'booking', bookingId]
+    if (booking.user_email) {
+      try {
+        const participantsResult = await client.query(
+          `SELECT u.email as user_email, u.first_name, u.last_name 
+           FROM booking_participants bp
+           JOIN booking_sessions bs ON bp.session_id = bs.id
+           JOIN booking_requests br2 ON br2.session_id = bs.id
+           LEFT JOIN users u ON bp.user_id = u.id
+           WHERE br2.id = $1 
+             AND bp.participant_type != 'owner'
+             AND u.email IS NOT NULL 
+             AND u.email != ''
+             AND LOWER(u.email) != LOWER($2)`,
+          [bookingId, booking.user_email]
         );
 
-        sendNotificationToUser(participantEmail, {
-          type: 'notification',
-          title: 'Added to Booking',
-          message: notificationMsg,
-          data: { bookingId: bookingId.toString(), eventType: 'booking_participant_added' }
-        }, { action: 'booking_participant_added', bookingId, triggerSource: 'approval.ts' });
+        const ownerName = booking.user_name || booking.user_email?.split('@')[0] || 'A member';
+        const formattedDate = formatDateDisplayWithDay(dateStr);
+        const formattedTime = formatTime12Hour(timeStr);
 
-        logger.info('[Dev Confirm] Sent Added to Booking notification', { extra: { participantEmail, bookingId } });
+        for (const participant of participantsResult.rows) {
+          const participantEmail = participant.user_email?.toLowerCase();
+          if (!participantEmail) continue;
+
+          const notificationMsg = `${ownerName} has added you to their simulator booking on ${formattedDate} at ${formattedTime}.`;
+
+          await client.query(
+            `INSERT INTO notifications (user_email, title, message, type, related_type, related_id, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+            [participantEmail, 'Added to Booking', notificationMsg, 'booking', 'booking', bookingId]
+          );
+
+          sendNotificationToUser(participantEmail, {
+            type: 'notification',
+            title: 'Added to Booking',
+            message: notificationMsg,
+            data: { bookingId: bookingId.toString(), eventType: 'booking_participant_added' }
+          }, { action: 'booking_participant_added', bookingId, triggerSource: 'approval.ts' });
+
+          logger.info('[Dev Confirm] Sent Added to Booking notification', { extra: { participantEmail, bookingId } });
+        }
+      } catch (notifyErr: unknown) {
+        logger.error('[Dev Confirm] Failed to notify participants (non-blocking)', { extra: { notifyErr } });
       }
-    } catch (notifyErr: unknown) {
-      logger.error('[Dev Confirm] Failed to notify participants (non-blocking)', { extra: { notifyErr } });
     }
-  }
 
-  return { success: true, bookingId, sessionId, totalFeeCents, booking, dateStr, timeStr };
+    await client.query('COMMIT');
+
+    sendNotificationToUser(booking.user_email, {
+      type: 'notification',
+      title: 'Booking Confirmed',
+      message: `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.`,
+      data: { bookingId: bookingId.toString(), eventType: 'booking_confirmed' }
+    }, { action: 'booking_confirmed', bookingId, triggerSource: 'approval.ts' });
+
+    return { success: true, bookingId, sessionId, totalFeeCents, booking, dateStr, timeStr };
+  } catch (txError: unknown) {
+    await client.query('ROLLBACK');
+    logger.error('[Dev Confirm] Transaction failed, rolling back', { extra: { txError, bookingId } });
+    throw txError;
+  } finally {
+    client.release();
+  }
 }
 
 interface CompleteCancellationParams {

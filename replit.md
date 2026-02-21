@@ -66,6 +66,13 @@ We use a **Liquid Glass UI** system.
 - **Member Lifecycle & Check-In**: Tiers, QR/NFC check-in, onboarding.
 
 ## Recent Changes
+- **Feb 21, 2026**: v8.0.0 — Security, Transaction Safety & Operational Fixes (6 bugs):
+  1. Staff notes filtered from member-facing API responses (data leak fix).
+  2. Fee calculation errors no longer silently swallowed during approval (free golf exploit fix).
+  3. Staff can now correct check-in mistakes by toggling attended/no_show.
+  4. Conference room prepayments deducted from check-in balance guard (double-charge fix).
+  5. devConfirmBooking wrapped in database transaction (ghost session fix).
+  6. HubSpot batch sync falls back to individual pushes on failure (data loss fix).
 - **Feb 21, 2026**: v7.99.0 — Booking Safety & Payment Integrity Fixes (11 bugs):
   1. Conference room prepayments now properly refunded on cancellation (succeeded charges get refund, not cancel).
   2. Trackman participant linking now inserts participants into DB before sending notifications.

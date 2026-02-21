@@ -2568,8 +2568,20 @@ export async function bulkPushToHubSpot(dryRun: boolean = true): Promise<{
             hubspot.crm.contacts.batchApi.update({ inputs: updateBatch })
           );
           totalSynced += updateBatch.length;
-        } catch (error: unknown) {
-          errors.push(`Batch update error: ${getErrorMessage(error)}`);
+        } catch (batchError: unknown) {
+          logger.warn('[bulkPushToHubSpot] Batch update failed, falling back to individual pushes', {
+            extra: { batchSize: updateBatch.length, batchError: getErrorMessage(batchError) }
+          });
+          for (const individual of updateBatch) {
+            try {
+              await retryableHubSpotRequest(() =>
+                hubspot.crm.contacts.batchApi.update({ inputs: [individual] })
+              );
+              totalSynced += 1;
+            } catch (individualError: unknown) {
+              errors.push(`Individual sync failed for contact ${individual.id}: ${getErrorMessage(individualError)}`);
+            }
+          }
         }
       }
     }

@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.0.0",
+    date: "2026-02-21",
+    title: "Security, Transaction Safety & Operational Fixes",
+    isMajor: true,
+    changes: [
+      "Security: Staff notes are now filtered from member-facing booking API responses — previously visible in browser network traffic",
+      "Fixed: Fee calculation errors during booking approval were silently swallowed, allowing $0 bookings — errors now properly abort the approval",
+      "Fixed: Staff could not correct accidental check-ins — attended and no-show statuses are now correctable without getting locked",
+      "Fixed: Conference room check-in forced double payment — prepayments are now deducted from outstanding balance before triggering the payment guard",
+      "Fixed: Dev-confirm executed database changes without a transaction — partial failures could leave ghost participants or stuck statuses",
+      "Fixed: HubSpot bulk sync lost entire batches of 100 when one contact had a validation error — now falls back to individual pushes",
+    ]
+  },
+  {
     version: "7.99.0",
     date: "2026-02-21",
     title: "Booking Safety & Payment Integrity Fixes",
