@@ -201,8 +201,8 @@ export async function ensureSessionForBooking(params: {
       } catch {}
 
       await q.query(
-        `INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, invite_status, invited_at)
-         VALUES ($1, $2, 'owner', $3, $4, 'accepted', NOW())`,
+        `INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, invited_at)
+         VALUES ($1, $2, 'owner', $3, $4, NOW())`,
         [sessionId, params.ownerUserId || null, ownerDisplayName || params.ownerEmail, slotDuration]
       );
     }
@@ -309,7 +309,6 @@ export async function linkParticipants(
       displayName: p.displayName,
       slotDuration: p.slotDuration,
       trackmanPlayerRowId: p.trackmanPlayerRowId,
-      inviteStatus: 'accepted',
       invitedAt: new Date(),
     }));
     

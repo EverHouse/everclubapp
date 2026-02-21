@@ -1560,10 +1560,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             // Cancel pending payment intents
             await cancelPendingPaymentIntentsForBooking(booking.id);
             
-            // Delete associated booking_members records
-            await db.delete(bookingMembers)
-              .where(eq(bookingMembers.bookingId, booking.id));
-            
             // Delete associated booking_guests records
             await db.delete(bookingGuests)
               .where(eq(bookingGuests.bookingId, booking.id));
@@ -2010,78 +2006,18 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               const guestIndex = slot - 2;
               const guestInfo = guestIndex >= 0 ? guestPlayers[guestIndex] : null;
               
-              await db.insert(bookingMembers).values({
-                bookingId: existing.id,
-                userEmail: isPrimary && matchedEmail ? matchedEmail : null,
-                slotNumber: slot,
-                isPrimary: isPrimary,
-                trackmanBookingId: row.bookingId,
-                linkedAt: isPrimary && matchedEmail ? new Date() : null,
-                linkedBy: isPrimary && matchedEmail ? 'trackman_import' : null
-              });
-              
               if (!isPrimary && guestInfo?.name) {
-                const dupCheck = await pool.query(
-                  `SELECT id FROM booking_guests WHERE booking_id = $1 AND (
-                    (guest_name IS NOT NULL AND LOWER(TRIM(guest_name)) = LOWER(TRIM($2)))
-                    OR (guest_email IS NOT NULL AND $3 IS NOT NULL AND LOWER(TRIM(guest_email)) = LOWER(TRIM($3)))
-                  )`,
-                  [existing.id, guestInfo.name, guestInfo.email || null]
-                );
-                if (dupCheck.rows.length === 0) {
-                  await pool.query(
-                    `INSERT INTO booking_guests (booking_id, guest_name, slot_number, trackman_booking_id)
-                     VALUES ($1, $2, $3, $4)
-                     ON CONFLICT DO NOTHING`,
-                    [existing.id, guestInfo.name, slot, row.bookingId]
-                  );
-                }
               }
             }
             
             process.stderr.write(`[Trackman Import] Created ${slotsToCreate.length} player slots (${slotsToCreate.join(',')}) for booking #${existing.id} (target: ${targetPlayerCount})\n`);
           }
           
-          // BACKFILL: Populate empty existing booking_members with owner email and guest names
-          const emptySlot1 = existingMembers.find(m => m.slotNumber === 1 && !m.userEmail);
-          if (emptySlot1 && matchedEmail) {
-            await pool.query(
-              `UPDATE booking_members SET user_email = $1, linked_at = NOW(), linked_by = 'trackman_import'
-               WHERE id = $2`,
-              [matchedEmail, emptySlot1.id]
-            );
-            process.stderr.write(`[Trackman Import] Backfilled slot 1 email for booking #${existing.id}: ${matchedEmail}\n`);
-          }
           
           const emptyGuestSlots = existingMembers
             .filter(m => m.slotNumber > 1 && !m.userEmail)
             .sort((a, b) => a.slotNumber - b.slotNumber);
           
-          if (emptyGuestSlots.length > 0 && guestPlayers.length > 0) {
-            for (let gi = 0; gi < Math.min(emptyGuestSlots.length, guestPlayers.length); gi++) {
-              const slot = emptyGuestSlots[gi];
-              const guest = guestPlayers[gi];
-              
-              if (guest.name) {
-                const existingGuest = await pool.query(
-                  `SELECT id FROM booking_guests WHERE booking_id = $1 AND (
-                    slot_number = $2
-                    OR (guest_name IS NOT NULL AND LOWER(TRIM(guest_name)) = LOWER(TRIM($3)))
-                    OR (guest_email IS NOT NULL AND $4 IS NOT NULL AND LOWER(TRIM(guest_email)) = LOWER(TRIM($4)))
-                  )`,
-                  [existing.id, slot.slotNumber, guest.name, guest.email || null]
-                );
-                if (existingGuest.rows.length === 0) {
-                  await pool.query(
-                    `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number, trackman_booking_id)
-                     VALUES ($1, $2, $3, $4, $5)`,
-                    [existing.id, guest.name, guest.email || null, slot.slotNumber, row.bookingId]
-                  );
-                  process.stderr.write(`[Trackman Import] Backfilled guest slot ${slot.slotNumber} for booking #${existing.id}: ${guest.name}\n`);
-                }
-              }
-            }
-          }
         }
         
         // BACKFILL: Create session and participants for WEBHOOK-ORIGINATED bookings if missing
@@ -2219,52 +2155,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           
           process.stderr.write(`[Trackman Import] MERGED: CSV row ${row.bookingId} into placeholder booking #${placeholder.id} (was: "${placeholder.user_name}", now: "${row.userName}"${matchedEmail ? `, linked to ${matchedEmail}` : ''})\n`);
           
-          // Create booking_members and booking_guests for merged booking
-          if (matchedEmail) {
-            try {
-              const existingMembers = await pool.query(
-                `SELECT id FROM booking_members WHERE booking_id = $1`,
-                [placeholder.id]
-              );
-              
-              if (existingMembers.rows.length === 0) {
-                const mergeParsedPlayers = parseNotesForPlayers(row.notes);
-                const mergeGuestPlayers = mergeParsedPlayers.filter(p => p.type === 'guest');
-                
-                await pool.query(
-                  `INSERT INTO booking_members (booking_id, user_email, slot_number, is_primary, trackman_booking_id, linked_at, linked_by)
-                   VALUES ($1, $2, 1, true, $3, NOW(), 'trackman_import')`,
-                  [placeholder.id, matchedEmail, row.bookingId]
-                );
-                
-                for (let slot = 2; slot <= row.playerCount; slot++) {
-                  const guestIndex = slot - 2;
-                  const guestInfo = guestIndex < mergeGuestPlayers.length ? mergeGuestPlayers[guestIndex] : null;
-                  
-                  await pool.query(
-                    `INSERT INTO booking_members (booking_id, slot_number, is_primary, trackman_booking_id)
-                     VALUES ($1, $2, false, $3)`,
-                    [placeholder.id, slot, row.bookingId]
-                  );
-                  
-                  if (guestInfo?.name) {
-                    await pool.query(
-                      `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number, trackman_booking_id)
-                       VALUES ($1, $2, $3, $4, $5)
-                       ON CONFLICT DO NOTHING`,
-                      [placeholder.id, guestInfo.name, guestInfo.email || null, slot, row.bookingId]
-                    );
-                  }
-                }
-                
-                if (mergeGuestPlayers.length > 0) {
-                  process.stderr.write(`[Trackman Import] Created ${row.playerCount} member slots with ${mergeGuestPlayers.length} guest names for merged booking #${placeholder.id}\n`);
-                }
-              }
-            } catch (memberErr: unknown) {
-              process.stderr.write(`[Trackman Import] Failed to create booking_members for merged booking #${placeholder.id}: ${getErrorMessage(memberErr)}\n`);
-            }
-          }
           
           if (matchedEmail && parsedBayId) {
             try {
@@ -2371,66 +2261,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 // Create player slots for this linked booking
                 // Use request's declared player count as source of truth
                 const targetPlayerCount = requestPlayerCount > 0 ? requestPlayerCount : row.playerCount;
-                
-                if (targetPlayerCount >= 1) {
-                  // Check if booking_members already exist (preserve existing participants)
-                  const existingMembers = await db.select({ 
-                    id: bookingMembers.id,
-                    slotNumber: bookingMembers.slotNumber,
-                    userEmail: bookingMembers.userEmail
-                  })
-                    .from(bookingMembers)
-                    .where(eq(bookingMembers.bookingId, existing.id));
-                  
-                  // Build set of existing slot numbers to preserve them
-                  const existingSlotNumbers = new Set(existingMembers.map(m => m.slotNumber));
-                  
-                  // Only create missing slots (don't duplicate)
-                  for (let slot = 1; slot <= targetPlayerCount; slot++) {
-                    if (!existingSlotNumbers.has(slot)) {
-                      const isPrimary = slot === 1;
-                      await db.insert(bookingMembers).values({
-                        bookingId: existing.id,
-                        userEmail: isPrimary ? matchedEmail : null,
-                        slotNumber: slot,
-                        isPrimary: isPrimary,
-                        trackmanBookingId: row.bookingId,
-                        linkedAt: isPrimary ? new Date() : null,
-                        linkedBy: isPrimary ? 'trackman_import' : null
-                      });
-                    }
-                  }
-                  
-                  if (existingMembers.length > 0) {
-                    process.stderr.write(`[Trackman Import] Preserved ${existingMembers.length} existing booking_members for booking #${existing.id}\n`);
-                  }
-                  
-                  const linkedParsedPlayersForGuests = parseNotesForPlayers(row.notes);
-                  const linkedGuestPlayers = linkedParsedPlayersForGuests.filter(p => p.type === 'guest');
-                  
-                  for (let gi = 0; gi < linkedGuestPlayers.length; gi++) {
-                    const guest = linkedGuestPlayers[gi];
-                    const guestSlotNumber = gi + 2;
-                    if (guestSlotNumber <= targetPlayerCount && guest.name) {
-                      const existingGuest = await pool.query(
-                        `SELECT id FROM booking_guests WHERE booking_id = $1 AND (
-                          slot_number = $2
-                          OR (guest_name IS NOT NULL AND LOWER(TRIM(guest_name)) = LOWER(TRIM($3)))
-                          OR (guest_email IS NOT NULL AND $4 IS NOT NULL AND LOWER(TRIM(guest_email)) = LOWER(TRIM($4)))
-                        )`,
-                        [existing.id, guestSlotNumber, guest.name, guest.email || null]
-                      );
-                      if (existingGuest.rows.length === 0) {
-                        await pool.query(
-                          `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number, trackman_booking_id)
-                           VALUES ($1, $2, $3, $4, $5)`,
-                          [existing.id, guest.name, guest.email || null, guestSlotNumber, row.bookingId]
-                        );
-                        process.stderr.write(`[Trackman Import] Created booking_guest slot ${guestSlotNumber} for linked booking #${existing.id}: ${guest.name}\n`);
-                      }
-                    }
-                  }
-                }
                 
                 process.stderr.write(`[Trackman Import] Auto-linked Trackman ID ${row.bookingId} to existing app booking #${existing.id} (${matchedEmail}) - exact time match\n`);
                 if (!existing.sessionId && parsedBayId) {
@@ -2587,64 +2417,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               // Use request's declared player count as source of truth
               const targetPlayerCount = requestPlayerCount > 0 ? requestPlayerCount : row.playerCount;
               
-              if (targetPlayerCount >= 1) {
-                const existingMembers = await db.select({ 
-                  id: bookingMembers.id,
-                  slotNumber: bookingMembers.slotNumber
-                })
-                  .from(bookingMembers)
-                  .where(eq(bookingMembers.bookingId, existing.id));
-                
-                // Build set of existing slot numbers to preserve them
-                const existingSlotNumbers = new Set(existingMembers.map(m => m.slotNumber));
-                
-                // Only create missing slots (don't duplicate)
-                for (let slot = 1; slot <= targetPlayerCount; slot++) {
-                  if (!existingSlotNumbers.has(slot)) {
-                    const isPrimary = slot === 1;
-                    await db.insert(bookingMembers).values({
-                      bookingId: existing.id,
-                      userEmail: isPrimary ? matchedEmail : null,
-                      slotNumber: slot,
-                      isPrimary: isPrimary,
-                      trackmanBookingId: row.bookingId,
-                      linkedAt: isPrimary ? new Date() : null,
-                      linkedBy: isPrimary ? 'trackman_import' : null
-                    });
-                  }
-                }
-                
-                if (existingMembers.length > 0) {
-                  process.stderr.write(`[Trackman Import] Preserved ${existingMembers.length} existing booking_members for booking #${existing.id} (tolerance match)\n`);
-                }
-                
-                const toleranceParsedPlayersForGuests = parseNotesForPlayers(row.notes);
-                const toleranceGuestPlayers = toleranceParsedPlayersForGuests.filter(p => p.type === 'guest');
-                
-                for (let gi = 0; gi < toleranceGuestPlayers.length; gi++) {
-                  const guest = toleranceGuestPlayers[gi];
-                  const guestSlotNumber = gi + 2;
-                  if (guestSlotNumber <= targetPlayerCount && guest.name) {
-                    const existingGuest = await pool.query(
-                      `SELECT id FROM booking_guests WHERE booking_id = $1 AND (
-                        slot_number = $2
-                        OR (guest_name IS NOT NULL AND LOWER(TRIM(guest_name)) = LOWER(TRIM($3)))
-                        OR (guest_email IS NOT NULL AND $4 IS NOT NULL AND LOWER(TRIM(guest_email)) = LOWER(TRIM($4)))
-                      )`,
-                      [existing.id, guestSlotNumber, guest.name, guest.email || null]
-                    );
-                    if (existingGuest.rows.length === 0) {
-                      await pool.query(
-                        `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number, trackman_booking_id)
-                         VALUES ($1, $2, $3, $4, $5)`,
-                        [existing.id, guest.name, guest.email || null, guestSlotNumber, row.bookingId]
-                      );
-                      process.stderr.write(`[Trackman Import] Created booking_guest slot ${guestSlotNumber} for tolerance-matched booking #${existing.id}: ${guest.name}\n`);
-                    }
-                  }
-                }
-              }
-              
               process.stderr.write(`[Trackman Import] Auto-linked Trackman ID ${row.bookingId} to existing app booking #${existing.id} (${matchedEmail}) - time tolerance match (${existing.startTime} vs ${startTime})\n`);
               if (!existing.sessionId && parsedBayId) {
                 try {
@@ -2751,47 +2523,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 );
 
                 if (existingMembers.rows.length === 0) {
-                  const ghostParsedPlayers = parseNotesForPlayers(row.notes);
-                  const ghostGuestPlayers = ghostParsedPlayers.filter(p => p.type === 'guest');
-
-                  await pool.query(
-                    `INSERT INTO booking_members (booking_id, user_email, slot_number, is_primary, trackman_booking_id, linked_at, linked_by)
-                     VALUES ($1, $2, 1, true, $3, NOW(), 'trackman_import')`,
-                    [existingGhost.id, matchedEmail, row.bookingId]
-                  );
-
-                  for (let slot = 2; slot <= row.playerCount; slot++) {
-                    const guestIndex = slot - 2;
-                    const guestInfo = guestIndex < ghostGuestPlayers.length ? ghostGuestPlayers[guestIndex] : null;
-
-                    await pool.query(
-                      `INSERT INTO booking_members (booking_id, slot_number, is_primary, trackman_booking_id)
-                       VALUES ($1, $2, false, $3)`,
-                      [existingGhost.id, slot, row.bookingId]
-                    );
-
-                    if (guestInfo?.name) {
-                      const ghostDupCheck = await pool.query(
-                        `SELECT id FROM booking_guests WHERE booking_id = $1 AND (
-                          (guest_name IS NOT NULL AND LOWER(TRIM(guest_name)) = LOWER(TRIM($2)))
-                          OR (guest_email IS NOT NULL AND $3 IS NOT NULL AND LOWER(TRIM(guest_email)) = LOWER(TRIM($3)))
-                        )`,
-                        [existingGhost.id, guestInfo.name, guestInfo.email || null]
-                      );
-                      if (ghostDupCheck.rows.length === 0) {
-                        await pool.query(
-                          `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number, trackman_booking_id)
-                           VALUES ($1, $2, $3, $4, $5)
-                           ON CONFLICT DO NOTHING`,
-                          [existingGhost.id, guestInfo.name, guestInfo.email || null, slot, row.bookingId]
-                        );
-                      }
-                    }
-                  }
-
-                  if (ghostGuestPlayers.length > 0) {
-                    process.stderr.write(`[Trackman Import] Created ${row.playerCount} member slots with ${ghostGuestPlayers.length} guest names for updated ghost booking #${existingGhost.id}\n`);
-                  }
                 }
               } catch (memberErr: unknown) {
                 process.stderr.write(`[Trackman Import] Failed to create booking_members for ghost booking #${existingGhost.id}: ${getErrorMessage(memberErr)}\n`);
@@ -2883,22 +2614,9 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             lastTrackmanSyncAt: new Date(),
           }).returning({ id: bookingRequests.id });
 
-          // Create booking_members entries based on player count
           if (insertResult[0] && row.playerCount >= 1) {
             const bookingId = insertResult[0].id;
             
-            // Slot 1 is always the primary booker (matched member)
-            await db.insert(bookingMembers).values({
-              bookingId: bookingId,
-              userEmail: matchedEmail,
-              slotNumber: 1,
-              isPrimary: true,
-              trackmanBookingId: row.bookingId,
-              linkedAt: new Date(),
-              linkedBy: 'trackman_import'
-            });
-            
-            // Track which members from notes we've processed
             const memberEmails = parsedPlayers
               .filter(p => p.type === 'member' && p.email)
               .map(p => p.email!.toLowerCase());
@@ -2999,16 +2717,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               }
               
               if (memberSlot <= row.playerCount) {
-                await db.insert(bookingMembers).values({
-                  bookingId: bookingId,
-                  userEmail: resolvedMemberEmail || memberEmail, // Use resolved email if matched, otherwise placeholder
-                  slotNumber: memberSlot,
-                  isPrimary: false,
-                  trackmanBookingId: row.bookingId,
-                  linkedAt: new Date(),
-                  linkedBy: 'trackman_import'
-                });
-                
                 // Send notification to linked member for future bookings
                 if (resolvedMemberEmail && normalizedStatus === 'approved' && isUpcoming) {
                   const linkedMessage = `You've been added to a simulator booking on ${formatNotificationDateTime(bookingDate, startTime)}.`;
@@ -3079,26 +2787,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               }
             }
             
-            // Create empty member slots for remaining player count (if any)
-            // memberSlot starts at 2 and increments for each additional member found in notes
-            // guests.length counts guests found in notes
-            // We need empty slots from current memberSlot up to playerCount (excluding guest slots)
-            const filledMemberSlots = memberSlot - 1; // Slots 1 through (memberSlot-1) are filled
-            const guestCount = guests.length;
-            const totalFilled = filledMemberSlots + guestCount;
-            
-            // Create empty slots for remaining players if playerCount > totalFilled
-            if (row.playerCount > totalFilled) {
-              for (let slot = memberSlot; slot <= row.playerCount - guestCount; slot++) {
-                await db.insert(bookingMembers).values({
-                  bookingId: bookingId,
-                  userEmail: null, // Empty slot to be filled later
-                  slotNumber: slot,
-                  isPrimary: false,
-                  trackmanBookingId: row.bookingId
-                });
-              }
-            }
             
             if (parsedBayId) {
               try {
@@ -3675,32 +3363,7 @@ async function insertBookingIfNotExists(
 
   const bookingId = insertResult[0]?.id;
 
-  // Create booking_members entries based on player count
   if (bookingId && (booking.playerCount || 1) >= 1) {
-    
-    // Slot 1 is always the primary booker
-    await db.insert(bookingMembers).values({
-      bookingId: bookingId,
-      userEmail: memberEmail,
-      slotNumber: 1,
-      isPrimary: true,
-      trackmanBookingId: booking.trackmanBookingId,
-      linkedAt: new Date(),
-      linkedBy: resolvedBy || 'trackman_resolve'
-    });
-    
-    // Create empty slots for remaining players (to be filled later)
-    const playerCount = booking.playerCount || 1;
-    for (let slot = 2; slot <= playerCount; slot++) {
-      await db.insert(bookingMembers).values({
-        bookingId: bookingId,
-        userEmail: null, // Empty slot to be filled later
-        slotNumber: slot,
-        isPrimary: false,
-        trackmanBookingId: booking.trackmanBookingId
-      });
-    }
-    
     // Create guest entries if notes have G: format (skip if guest name matches owner name)
     const guests = parsedPlayers.filter(p => p.type === 'guest');
     const ownerNameNormalized = (booking.userName || memberEmail).toLowerCase().trim();
@@ -4487,9 +4150,6 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
         WHERE id = $1
       `, [booking.id]);
 
-      // Clean up booking participants, members, and guests
-      await pool.query(`DELETE FROM booking_members WHERE booking_id = $1`, [booking.id]);
-      await pool.query(`DELETE FROM booking_guests WHERE booking_id = $1`, [booking.id]);
       await pool.query(`DELETE FROM booking_participants WHERE booking_id = $1`, [booking.id]);
 
       // Clean up financial artifacts: usage_ledger entries

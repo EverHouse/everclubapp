@@ -331,15 +331,6 @@ export async function linkAndNotifyParticipants(
           .from(users)
           .where(sql`LOWER(${users.email}) = ${email}`);
         
-        await db.insert(bookingMembers).values({
-          bookingId: bookingId,
-          userEmail: email,
-          slotNumber: nextSlot++,
-          isPrimary: false,
-          trackmanBookingId: trackmanId,
-          linkedAt: new Date(),
-          linkedBy: linkedBy
-        });
         existingEmails.add(email);
         result.linkedMembers++;
         

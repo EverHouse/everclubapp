@@ -561,20 +561,6 @@ async function populateBookingMembers(bookingId: number, updated: BookingUpdateR
         if (participantEmail && participantEmail === ownerEmailLower) continue;
         if (rp.userId && ownerUserId && rp.userId === ownerUserId) continue;
 
-        if (participantEmail) {
-          try {
-            await db.insert(bookingMembers).values({
-              bookingId,
-              userEmail: participantEmail,
-              slotNumber: slotNumber,
-              isPrimary: false,
-              createdAt: new Date()
-            }).onConflictDoNothing();
-            logger.info('[Booking Approval] Added participant to booking_members for booking (slot )', { extra: { participantEmail, id: bookingId, slotNumber } });
-          } catch (memberError: unknown) {
-            logger.error('[Booking Approval] Failed to add participant to booking_members:', { extra: { memberError } });
-          }
-        }
       }
     }
   } catch (err: unknown) {
@@ -1671,8 +1657,8 @@ export async function devConfirmBooking(params: DevConfirmParams) {
 
           try {
             await pool.query(
-              `INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, invite_status, created_at)
-               VALUES ($1, $2, $3, $4, 'accepted', NOW())
+              `INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, created_at)
+               VALUES ($1, $2, $3, $4, NOW())
                ON CONFLICT DO NOTHING`,
               [sessionId, resolvedUserId, participantType, resolvedName]
             );
@@ -1681,22 +1667,6 @@ export async function devConfirmBooking(params: DevConfirmParams) {
             logger.error('[Dev Confirm] Failed to create participant', { extra: { partErr } });
           }
 
-          const participantEmail = rp.email?.toLowerCase()?.trim() || '';
-          if (participantEmail && participantEmail !== booking.user_email?.toLowerCase()) {
-            try {
-              await db.insert(bookingMembers).values({
-                bookingId,
-                userEmail: participantEmail,
-                slotNumber: slotNumber,
-                isPrimary: false,
-                createdAt: new Date()
-              }).onConflictDoNothing();
-              slotNumber++;
-              logger.info('[Dev Confirm] Added participant to booking_members for booking', { extra: { participantEmail, bookingId } });
-            } catch (memberError: unknown) {
-              logger.error('[Dev Confirm] Failed to add participant to booking_members:', { extra: { memberError } });
-            }
-          }
         }
       }
 

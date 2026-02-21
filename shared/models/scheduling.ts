@@ -321,7 +321,7 @@ export const bookingParticipants = pgTable("booking_participants", {
   slotDuration: integer("slot_duration"),
   paymentStatus: participantPaymentStatusEnum("payment_status").default("pending"),
   trackmanPlayerRowId: varchar("trackman_player_row_id"),
-  inviteStatus: varchar("invite_status").default("pending"),
+  inviteStatus: varchar("invite_status").default("accepted"),
   invitedAt: timestamp("invited_at"),
   respondedAt: timestamp("responded_at"),
   inviteExpiresAt: timestamp("invite_expires_at"),

@@ -618,9 +618,6 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     await db.execute(sql`DELETE FROM booking_requests WHERE LOWER(user_email) = ${normalizedEmail} OR user_id = ${userId}`);
     deletionLog.push('booking_requests');
 
-    await db.execute(sql`DELETE FROM booking_members WHERE LOWER(user_email) = ${normalizedEmail}`);
-    deletionLog.push('booking_members');
-
     await db.execute(sql`UPDATE booking_sessions SET created_by = NULL WHERE LOWER(created_by) = ${normalizedEmail}`);
     deletionLog.push('booking_sessions (created_by unlinked)');
     
@@ -668,9 +665,6 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     
     await db.execute(sql`DELETE FROM legacy_purchases WHERE LOWER(member_email) = ${normalizedEmail}`);
     deletionLog.push('legacy_purchases');
-    
-    await db.execute(sql`DELETE FROM booking_guests WHERE LOWER(guest_email) = ${normalizedEmail}`);
-    deletionLog.push('booking_guests');
     
     await db.execute(sql`DELETE FROM group_members WHERE LOWER(member_email) = ${normalizedEmail}`);
     deletionLog.push('group_members');
@@ -829,13 +823,6 @@ router.post('/api/members/:email/anonymize', isStaffOrAdmin, async (req, res) =>
     await db.execute(sql`
       UPDATE booking_requests 
       SET user_name = 'Deleted Member', 
-          user_email = ${anonymizedEmail}
-      WHERE LOWER(user_email) = ${normalizedEmail}
-    `);
-    
-    await db.execute(sql`
-      UPDATE booking_members 
-      SET user_name = 'Deleted Member',
           user_email = ${anonymizedEmail}
       WHERE LOWER(user_email) = ${normalizedEmail}
     `);

@@ -1139,49 +1139,7 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
       }
     }
 
-    if (type === 'guest' && guest) {
-      const guestSlotResult = await client.query(
-        `SELECT COALESCE(MAX(slot_number), 0) + 1 as next_slot FROM booking_guests WHERE booking_id = $1`,
-        [bookingId]
-      );
-      const nextGuestSlot = guestSlotResult.rows[0]?.next_slot || 1;
-
-      await client.query(
-        `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number, created_at)
-         VALUES ($1, $2, $3, $4, NOW())
-         ON CONFLICT DO NOTHING`,
-        [bookingId, guest.name.trim(), guest.email?.trim() || null, nextGuestSlot]
-      );
-
-      logger.info('[rosterService] Guest synced to booking_guests for staff view', {
-        extra: { bookingId, guestName: guest.name, slotNumber: nextGuestSlot }
-      });
-    }
-
     if (type === 'member' && memberInfo) {
-      const slotResult = await client.query(
-        `SELECT COALESCE(MAX(slot_number), 0) + 1 as next_slot FROM booking_members WHERE booking_id = $1`,
-        [bookingId]
-      );
-      const nextSlot = slotResult.rows[0]?.next_slot || 2;
-
-      const existingMemberRow = await client.query(
-        `SELECT id FROM booking_members WHERE booking_id = $1 AND LOWER(user_email) = LOWER($2)`,
-        [bookingId, memberInfo.email]
-      );
-
-      if (existingMemberRow.rows.length === 0) {
-        await client.query(
-          `INSERT INTO booking_members (booking_id, user_email, slot_number, is_primary, linked_at, linked_by, created_at)
-           VALUES ($1, $2, $3, false, NOW(), $4, NOW())`,
-          [bookingId, memberInfo.email.toLowerCase(), nextSlot, userEmail]
-        );
-      }
-
-      logger.info('[rosterService] Member linked to booking_members', {
-        extra: { bookingId, memberEmail: memberInfo.email, slotNumber: nextSlot }
-      });
-
       try {
         const formattedDate = booking.request_date || 'upcoming date';
         const formattedTime = booking.start_time ? booking.start_time.substring(0, 5) : '';
@@ -1228,13 +1186,6 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
             `DELETE FROM booking_participants WHERE id = $1`,
             [guestToRemove.id]
           );
-
-          if (guestToRemove.display_name) {
-            await client.query(
-              `DELETE FROM booking_guests WHERE booking_id = $1 AND LOWER(guest_name) = LOWER($2)`,
-              [bookingId, guestToRemove.display_name]
-            );
-          }
 
           if (guestToRemove.used_guest_pass === true) {
             const refundResult = await refundGuestPass(
@@ -1496,38 +1447,6 @@ export async function removeParticipant(params: RemoveParticipantParams): Promis
       [participantId]
     );
 
-    if (participant.participantType === 'guest') {
-      const guestName = participant.displayName;
-      if (guestName) {
-        await client.query(
-          `DELETE FROM booking_guests WHERE booking_id = $1 AND LOWER(guest_name) = LOWER($2)`,
-          [bookingId, guestName]
-        );
-        logger.info('[rosterService] Guest removed from booking_guests for staff view', {
-          extra: { bookingId, guestName }
-        });
-      }
-    }
-
-    if (participant.participantType === 'member' && participant.userId) {
-      const memberResult = await client.query(
-        `SELECT email FROM users WHERE id = $1 OR LOWER(email) = LOWER($1) LIMIT 1`,
-        [participant.userId]
-      );
-
-      if (memberResult.rows.length > 0) {
-        const memberEmail = memberResult.rows[0].email.toLowerCase();
-        await client.query(
-          `DELETE FROM booking_members WHERE booking_id = $1 AND LOWER(user_email) = LOWER($2)`,
-          [bookingId, memberEmail]
-        );
-
-        logger.info('[rosterService] Member removed from booking_members', {
-          extra: { bookingId, memberEmail }
-        });
-      }
-    }
-
     logger.info('[rosterService] Participant removed', {
       extra: {
         bookingId,
@@ -1627,46 +1546,7 @@ export async function updateDeclaredPlayerCount(params: UpdatePlayerCountParams)
       WHERE id = $2
     `, [playerCount, bookingId]);
 
-    // Step 3 & 4: Only modify booking_members for legacy bookings without sessions
-    if (!booking.session_id) {
-      // Step 3: INSERT new booking_member slots (if increasing count)
-      if (playerCount > previousCount) {
-        const slotResult = await client.query(
-          `SELECT COALESCE(MAX(slot_number), 0) as max_slot, COUNT(*) as count FROM booking_members WHERE booking_id = $1`,
-          [bookingId]
-        );
-        const maxSlot = parseInt(slotResult.rows[0].max_slot) || 0;
-        const currentMemberCount = parseInt(slotResult.rows[0].count) || 0;
-        const slotsToCreate = playerCount - currentMemberCount;
-
-        if (slotsToCreate > 0) {
-          await client.query(`
-            INSERT INTO booking_members (booking_id, slot_number, user_email, is_primary, created_at)
-            SELECT $1, slot_num, NULL, false, NOW()
-            FROM generate_series($2, $3) AS slot_num
-            ON CONFLICT (booking_id, slot_number) DO NOTHING
-          `, [bookingId, maxSlot + 1, maxSlot + slotsToCreate]);
-          logger.info('[rosterService] Created empty booking member slots', {
-            extra: { bookingId, slotsCreated: slotsToCreate, previousCount, newCount: playerCount }
-          });
-        }
-      } else if (playerCount < previousCount) {
-        // Step 4: DELETE empty slots (if decreasing count)
-        const deleted = await client.query(`
-          DELETE FROM booking_members 
-          WHERE booking_id = $1 
-            AND slot_number > $2 
-            AND is_primary = false 
-            AND (user_email IS NULL OR user_email = '')
-        `, [bookingId, playerCount]);
-        if (deleted.rowCount && deleted.rowCount > 0) {
-          logger.info('[rosterService] Cleaned up empty slots after player count decrease', {
-            extra: { bookingId, slotsRemoved: deleted.rowCount, previousCount, newCount: playerCount }
-          });
-        }
-      }
-    } else {
-      // Skip legacy booking_members sync for session-based booking
+    if (booking.session_id) {
       logger.info('[rosterService] Skipping legacy booking_members sync for session-based booking', {
         extra: { bookingId, sessionId: booking.session_id, playerCount }
       });
@@ -1839,33 +1719,6 @@ export async function applyRosterBatch(params: BatchRosterUpdateParams): Promise
               [pc, bookingId]
             );
 
-            if (pc > previousCount) {
-              const slotResult = await client.query(
-                `SELECT COALESCE(MAX(slot_number), 0) as max_slot, COUNT(*) as count FROM booking_members WHERE booking_id = $1`,
-                [bookingId]
-              );
-              const maxSlot = parseInt(slotResult.rows[0].max_slot) || 0;
-              const currentMemberCount = parseInt(slotResult.rows[0].count) || 0;
-              const slotsToCreate = pc - currentMemberCount;
-
-              if (slotsToCreate > 0) {
-                await client.query(`
-                  INSERT INTO booking_members (booking_id, slot_number, user_email, is_primary, created_at)
-                  SELECT $1, slot_num, NULL, false, NOW()
-                  FROM generate_series($2, $3) AS slot_num
-                  ON CONFLICT (booking_id, slot_number) DO NOTHING
-                `, [bookingId, maxSlot + 1, maxSlot + slotsToCreate]);
-              }
-            } else if (pc < previousCount) {
-              await client.query(`
-                DELETE FROM booking_members 
-                WHERE booking_id = $1 
-                  AND slot_number > $2 
-                  AND is_primary = false 
-                  AND (user_email IS NULL OR user_email = '')
-              `, [bookingId, pc]);
-            }
-
             logger.info('[rosterService:batch] Player count updated', {
               extra: { bookingId, previousCount, newCount: pc }
             });
@@ -1912,21 +1765,6 @@ export async function applyRosterBatch(params: BatchRosterUpdateParams): Promise
               `DELETE FROM booking_participants WHERE id = $1`,
               [op.participantId]
             );
-
-            if (participant.participant_type === 'member' && participant.user_id) {
-              const memberResult = await client.query(
-                `SELECT email FROM users WHERE id = $1 OR LOWER(email) = LOWER($1) LIMIT 1`,
-                [participant.user_id]
-              );
-
-              if (memberResult.rows.length > 0) {
-                const memberEmail = memberResult.rows[0].email.toLowerCase();
-                await client.query(
-                  `DELETE FROM booking_members WHERE booking_id = $1 AND LOWER(user_email) = LOWER($2)`,
-                  [bookingId, memberEmail]
-                );
-              }
-            }
 
             logger.info('[rosterService:batch] Participant removed', {
               extra: { bookingId, participantId: op.participantId, participantType: participant.participant_type }
@@ -2035,25 +1873,6 @@ export async function applyRosterBatch(params: BatchRosterUpdateParams): Promise
 
             const displayName = [memberInfo.firstName, memberInfo.lastName].filter(Boolean).join(' ') || memberInfo.email;
             await linkParticipants(sessionId!, [{ userId: memberInfo.id, participantType: 'member', displayName }]);
-
-            const slotResult = await client.query(
-              `SELECT COALESCE(MAX(slot_number), 0) + 1 as next_slot FROM booking_members WHERE booking_id = $1`,
-              [bookingId]
-            );
-            const nextSlot = slotResult.rows[0]?.next_slot || 2;
-
-            const existingMemberRow = await client.query(
-              `SELECT id FROM booking_members WHERE booking_id = $1 AND LOWER(user_email) = LOWER($2)`,
-              [bookingId, memberInfo.email]
-            );
-
-            if (existingMemberRow.rows.length === 0) {
-              await client.query(
-                `INSERT INTO booking_members (booking_id, user_email, slot_number, is_primary, linked_at, linked_by, created_at)
-                 VALUES ($1, $2, $3, false, NOW(), $4, NOW())`,
-                [bookingId, memberInfo.email.toLowerCase(), nextSlot, staffEmail]
-              );
-            }
 
             logger.info('[rosterService:batch] Member added', {
               extra: { bookingId, memberEmail: memberInfo.email }

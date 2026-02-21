@@ -375,11 +375,6 @@ export async function executeMerge(
     );
     recordsMerged.bookings = bookingsResult.rowCount || 0;
     
-    await client.query(
-      `UPDATE booking_members SET user_email = $1 WHERE LOWER(user_email) = $2`,
-      [primaryEmail, secondaryEmail]
-    );
-    
     // Visits are tracked via booking_requests status - no separate table to update
     // Just count how many attended bookings were transferred
     const attendedResult = await client.query(

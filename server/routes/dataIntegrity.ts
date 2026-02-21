@@ -558,22 +558,10 @@ router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, async (r
             [userId]
           );
           
-          // Delete booking guests where this user is the guest
-          await client.query(
-            'DELETE FROM booking_guests WHERE LOWER(guest_email) = LOWER($1)',
-            [userEmail]
-          );
-          
           // Delete related bookings for this placeholder user (by email and user_id)
           await client.query(
             'DELETE FROM booking_requests WHERE LOWER(user_email) = LOWER($1) OR user_id = $2',
             [userEmail, userId]
-          );
-          
-          // Delete booking members entries
-          await client.query(
-            'DELETE FROM booking_members WHERE LOWER(user_email) = LOWER($1)',
-            [userEmail]
           );
           
           // Delete event RSVPs

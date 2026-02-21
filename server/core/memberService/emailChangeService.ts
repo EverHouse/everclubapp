@@ -91,9 +91,6 @@ export async function cascadeEmailChange(
     rowCount = await updateTable('booking_requests', 'user_email');
     if (rowCount > 0) tablesUpdated.push({ tableName: 'booking_requests', rowsAffected: rowCount });
 
-    rowCount = await updateTable('booking_members', 'user_email');
-    if (rowCount > 0) tablesUpdated.push({ tableName: 'booking_members', rowsAffected: rowCount });
-
     rowCount = await updateTable('billing_audit_log', 'member_email');
     if (rowCount > 0) tablesUpdated.push({ tableName: 'billing_audit_log', rowsAffected: rowCount });
 

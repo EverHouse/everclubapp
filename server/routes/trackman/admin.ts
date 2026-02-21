@@ -1252,14 +1252,6 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
       }
     }
     
-    // 4. CRITICAL FIX: Update booking_members (primary slot)
-    await client.query(
-      `UPDATE booking_members 
-       SET user_email = $1
-       WHERE booking_id = $2 AND is_primary = true`,
-      [newMemberEmail.toLowerCase(), id]
-    );
-    
     // Handle placeholder email mapping
     if (placeholderEmail) {
       await client.query(
@@ -1853,25 +1845,6 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
          WHERE bm.booking_id = ${id}
          ORDER BY bm.slot_number`);
 
-      if (Number(membersResult.rows.length) < Number(targetPlayerCount) && Number(targetPlayerCount) > 0) {
-        const existingSlotNumbers = new Set(membersResult.rows.map((r: DbRow) => r.slot_number));
-
-        for (let i = 1; Number(i) <= Number(targetPlayerCount); i++) {
-          if (!existingSlotNumbers.has(i)) {
-            const isPrimary = i === 1;
-            const userEmail = (i === 1 && !isUnmatchedOwner) ? ownerEmail : null;
-            await db.execute(sql`INSERT INTO booking_members (booking_id, slot_number, is_primary, user_email, created_at)
-               VALUES (${id}, ${i}, ${isPrimary}, ${userEmail}, NOW())
-               ON CONFLICT (booking_id, slot_number) DO NOTHING`);
-          }
-        }
-
-        membersResult = await db.execute(sql`SELECT bm.*, u.first_name, u.last_name, u.email as member_email, u.tier as user_tier, u.membership_status
-           FROM booking_members bm
-           LEFT JOIN users u ON LOWER(bm.user_email) = LOWER(u.email)
-           WHERE bm.booking_id = ${id}
-           ORDER BY bm.slot_number`);
-      }
 
       const guestsResult = await db.execute(sql`SELECT * FROM booking_guests WHERE booking_id = ${id} ORDER BY slot_number`);
 
@@ -2428,17 +2401,6 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
       return res.status(404).json({ error: 'Booking not found' });
     }
     
-    const existingGuests = await db.execute(sql`SELECT MAX(slot_number) as max_slot FROM booking_guests WHERE booking_id = ${bookingId}`);
-    const nextSlotNumber = Number(((existingGuests.rows[0] as DbRow)?.max_slot || 0)) + 1;
-    
-    const insertResult = await db.execute(sql`INSERT INTO booking_guests (booking_id, guest_name, guest_email, guest_phone, slot_number, created_at)
-       VALUES (${bookingId}, ${guestName.trim()}, ${guestEmail?.trim() || null}, ${guestPhone?.trim() || null}, ${nextSlotNumber}, NOW())
-       RETURNING *`);
-    
-    if (slotId) {
-      await db.execute(sql`DELETE FROM booking_members WHERE id = ${slotId} AND booking_id = ${bookingId}`);
-    }
-    
     const booking = bookingResult.rows[0] as DbRow;
     const ownerEmail = booking.user_email;
     const sessionId = booking.session_id ? parseInt(booking.session_id as string) : null;
@@ -2496,7 +2458,6 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
     
     res.json({
       success: true,
-      guest: insertResult.rows[0],
       guestPassesRemaining
     });
   } catch (error: unknown) {
@@ -2531,8 +2492,6 @@ router.delete('/api/admin/booking/:id/guests/:guestId', isStaffOrAdmin, async (r
       guestFound = true;
       const guestRecord = guestBookingResult.rows[0] as DbRow;
       guestDisplayName = (guestRecord.guest_name as string) || guestDisplayName;
-
-      await db.execute(sql`DELETE FROM booking_guests WHERE id = ${guestId}`);
 
       if (sessionId) {
         const participantResult = await db.execute(sql`SELECT id, used_guest_pass FROM booking_participants 
@@ -2626,10 +2585,6 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
       return res.status(400).json({ error: 'Slot is already linked to a different member' });
     }
     
-    await db.execute(sql`UPDATE booking_members 
-       SET user_email = ${memberEmail.toLowerCase()}, linked_at = NOW(), linked_by = ${linkedBy} 
-       WHERE id = ${slotId}`);
-    
     const bookingResult = await db.execute(sql`SELECT request_date, start_time, end_time, status, session_id FROM booking_requests WHERE id = ${bookingId}`);
     
     if ((bookingResult.rows[0] as DbRow)?.session_id) {
@@ -2669,8 +2624,8 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
           }
         }
         
-        await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, invite_status, slot_duration)
-           VALUES (${sessionId}, ${userId}, 'member', ${displayName}, 'pending', 'confirmed', ${slotDuration})`);
+        await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
+           VALUES (${sessionId}, ${userId}, 'member', ${displayName}, 'pending', ${slotDuration})`);
       }
       
       if (req.body.deferFeeRecalc !== true) {
@@ -2738,10 +2693,6 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/unlink', isStaffOrAdmi
     }
     
     const memberEmail = slot.user_email;
-    
-    await db.execute(sql`UPDATE booking_members 
-       SET user_email = NULL, linked_at = NULL, linked_by = NULL 
-       WHERE id = ${slotId}`);
     
     const bookingResult = await db.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${bookingId}`);
     
@@ -2913,14 +2864,6 @@ router.delete('/api/admin/trackman/reset-data', isStaffOrAdmin, async (req, res)
       WHERE session_id IN (
         SELECT id FROM booking_sessions 
         WHERE source = 'trackman_import' OR trackman_booking_id IS NOT NULL
-      )
-    `);
-    
-    await client.query(`
-      DELETE FROM booking_members 
-      WHERE booking_id IN (
-        SELECT id FROM booking_requests 
-        WHERE trackman_booking_id IS NOT NULL
       )
     `);
     
@@ -3405,10 +3348,6 @@ router.post('/api/admin/trackman/cleanup-duplicates', isStaffOrAdmin, async (req
         `DELETE FROM booking_fee_snapshots WHERE booking_id = ANY($1)`,
         [idsToDelete]
       );
-      await client.query(
-        `DELETE FROM booking_members WHERE booking_id = ANY($1)`,
-        [idsToDelete]
-      );
       // Delete the duplicate booking requests
       await client.query(
         `DELETE FROM booking_requests WHERE id = ANY($1)`,
@@ -3579,8 +3518,6 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
               updated_at = NOW()
           WHERE id = ${booking.id}`);
 
-        await db.execute(sql`DELETE FROM booking_members WHERE booking_id = ${booking.id}`);
-        await db.execute(sql`DELETE FROM booking_guests WHERE booking_id = ${booking.id}`);
         await db.execute(sql`DELETE FROM booking_participants WHERE booking_id = ${booking.id}`);
 
         await db.execute(sql`DELETE FROM usage_ledger WHERE booking_id = ${booking.id}`);

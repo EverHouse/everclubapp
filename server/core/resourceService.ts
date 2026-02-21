@@ -105,25 +105,8 @@ export async function handleCancellationCascade(
         }
       }
 
-      await client.query(
-        `UPDATE booking_participants SET invite_status = 'cancelled' WHERE session_id = $1`,
-        [sessionId]
-      );
-      
-      logger.info('[cancellation-cascade] Updated participant invite statuses', {
+      logger.info('[cancellation-cascade] Participants found for cascade', {
         extra: { bookingId, sessionId, count: participants.length }
-      });
-    }
-
-    const deleteResult = await client.query(
-      `DELETE FROM booking_members WHERE booking_id = $1 RETURNING id`,
-      [bookingId]
-    );
-    result.bookingMembersRemoved = deleteResult.rows.length;
-    
-    if (deleteResult.rows.length > 0) {
-      logger.info('[cancellation-cascade] Removed booking members', {
-        extra: { bookingId, count: deleteResult.rows.length }
       });
     }
 
@@ -1064,32 +1047,11 @@ export async function linkTrackmanToMember(
       `);
     }
     
-    await tx.delete(bookingMembers).where(eq(bookingMembers.bookingId, booking.id));
     await tx.delete(bookingGuests).where(eq(bookingGuests.bookingId, booking.id));
-    
-    await tx.insert(bookingMembers).values({
-      bookingId: booking.id,
-      userEmail: ownerEmail.toLowerCase(),
-      slotNumber: 1,
-      isPrimary: true,
-      trackmanBookingId: trackmanBookingId,
-      linkedAt: new Date(),
-      linkedBy: staffEmail
-    });
     
     let slotNumber = 2;
     for (const player of additionalPlayers) {
-      if (player.type === 'member') {
-        await tx.insert(bookingMembers).values({
-          bookingId: booking.id,
-          userEmail: player.email?.toLowerCase(),
-          slotNumber,
-          isPrimary: false,
-          trackmanBookingId: trackmanBookingId,
-          linkedAt: new Date(),
-          linkedBy: staffEmail
-        });
-      } else if (player.type === 'guest_placeholder') {
+      if (player.type === 'guest_placeholder') {
         await tx.insert(bookingGuests).values({
           bookingId: booking.id,
           guestName: player.guest_name || 'Guest (info pending)',
@@ -1510,7 +1472,6 @@ export async function markBookingAsEvent(params: {
     }
     
     if (regularBookingIds.length > 0) {
-      await tx.delete(bookingMembers).where(sql`booking_id IN (${sql.join(regularBookingIds.map(id => sql`${id}`), sql`, `)})`);
       await tx.delete(bookingGuests).where(sql`booking_id IN (${sql.join(regularBookingIds.map(id => sql`${id}`), sql`, `)})`);
       await tx.delete(bookingRequests).where(sql`id IN (${sql.join(regularBookingIds.map(id => sql`${id}`), sql`, `)})`);
     }
@@ -1598,32 +1559,11 @@ export async function assignWithPlayers(
       .where(eq(bookingRequests.id, bookingId))
       .returning();
     
-    await tx.delete(bookingMembers).where(eq(bookingMembers.bookingId, bookingId));
     await tx.delete(bookingGuests).where(eq(bookingGuests.bookingId, bookingId));
-    
-    await tx.insert(bookingMembers).values({
-      bookingId: bookingId,
-      userEmail: owner.email.toLowerCase(),
-      slotNumber: 1,
-      isPrimary: true,
-      trackmanBookingId: existingBooking.trackmanBookingId,
-      linkedAt: new Date(),
-      linkedBy: staffEmail
-    });
     
     let slotNumber = 2;
     for (const player of additionalPlayers) {
-      if (player.type === 'member') {
-        await tx.insert(bookingMembers).values({
-          bookingId: bookingId,
-          userEmail: player.email?.toLowerCase(),
-          slotNumber,
-          isPrimary: false,
-          trackmanBookingId: existingBooking.trackmanBookingId,
-          linkedAt: new Date(),
-          linkedBy: staffEmail
-        });
-      } else if (player.type === 'guest_placeholder') {
+      if (player.type === 'guest_placeholder') {
         await tx.insert(bookingGuests).values({
           bookingId: bookingId,
           guestName: player.guest_name || 'Guest (info pending)',
@@ -2030,9 +1970,6 @@ export async function deleteBooking(bookingId: number, archivedBy: string, hardD
         await client.query(`DELETE FROM booking_participants WHERE session_id = $1`, [booking.sessionId]);
         await client.query(`DELETE FROM booking_sessions WHERE id = $1`, [booking.sessionId]);
       }
-      
-      await client.query(`DELETE FROM booking_members WHERE booking_id = $1`, [bookingId]);
-      await client.query(`DELETE FROM booking_guests WHERE booking_id = $1`, [bookingId]);
       
       if (booking.trackmanBookingId) {
         await client.query(

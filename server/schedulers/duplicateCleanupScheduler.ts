@@ -44,10 +44,6 @@ async function cleanupDuplicateTrackmanBookings(): Promise<{ deletedCount: numbe
       [idsToDelete]
     );
     await client.query(
-      `DELETE FROM booking_members WHERE booking_id = ANY($1)`,
-      [idsToDelete]
-    );
-    await client.query(
       `DELETE FROM booking_requests WHERE id = ANY($1)`,
       [idsToDelete]
     );
