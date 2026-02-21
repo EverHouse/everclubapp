@@ -612,7 +612,11 @@ export async function recreateDraftInvoiceFromBooking(bookingId: number): Promis
 export async function syncBookingInvoice(bookingId: number, sessionId: number): Promise<void> {
   try {
     const invoiceResult = await pool.query(
-      `SELECT stripe_invoice_id, user_email, trackman_booking_id, status FROM booking_requests WHERE id = $1 LIMIT 1`,
+      `SELECT br.stripe_invoice_id, br.user_email, br.trackman_booking_id, br.status, br.resource_id,
+              COALESCE(r.type, 'simulator') as resource_type
+       FROM booking_requests br
+       LEFT JOIN resources r ON br.resource_id = r.id
+       WHERE br.id = $1 LIMIT 1`,
       [bookingId]
     );
     const booking = invoiceResult.rows[0];
@@ -621,6 +625,11 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
 
     if (!stripeInvoiceId) {
       if (booking.status !== 'approved') return;
+
+      if (booking.resource_type === 'conference_room') {
+        logger.info('[BookingInvoice] syncBookingInvoice: skipping conference room booking', { extra: { bookingId } });
+        return;
+      }
 
       const participantResult = await pool.query(
         `SELECT id, display_name, participant_type, cached_fee_cents
@@ -632,19 +641,15 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
       const totalFees = participantResult.rows.reduce((sum: number, r: { cached_fee_cents: number }) => sum + r.cached_fee_cents, 0);
       if (totalFees <= 0) return;
 
-      const { getOrCreateStripeCustomer } = await import('../stripe/customers');
       const userResult = await pool.query(
-        `SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+        `SELECT stripe_customer_id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
         [booking.user_email]
       );
-      const user = userResult.rows[0];
-      if (!user) {
-        logger.warn('[BookingInvoice] syncBookingInvoice: no user found, cannot create draft invoice', { extra: { bookingId, email: booking.user_email } });
+      const stripeCustomerId = userResult.rows[0]?.stripe_customer_id;
+      if (!stripeCustomerId) {
+        logger.warn('[BookingInvoice] syncBookingInvoice: no stripe_customer_id for user, cannot create draft invoice', { extra: { bookingId, email: booking.user_email } });
         return;
       }
-
-      const memberName = [user.first_name, user.last_name].filter(Boolean).join(' ') || booking.user_email;
-      const { customerId } = await getOrCreateStripeCustomer(user.id, booking.user_email, memberName);
 
       const feeLineItems: BookingFeeLineItem[] = participantResult.rows.map((row: { id: number; display_name: string; participant_type: string; cached_fee_cents: number }) => {
         const totalCents = row.cached_fee_cents;
@@ -660,7 +665,7 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
       });
 
       const draftResult = await createDraftInvoiceForBooking({
-        customerId,
+        customerId: stripeCustomerId,
         bookingId,
         sessionId,
         trackmanBookingId: booking.trackman_booking_id || null,
