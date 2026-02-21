@@ -16,7 +16,7 @@ import { logFromRequest, logMemberAction } from '../../core/auditLog';
 import { getCalendarNameForBayAsync, isStaffOrAdminCheck } from './helpers';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { getCalendarIdByName, deleteCalendarEvent } from '../../core/calendar/index';
-import { getGuestPassesRemaining } from '../guestPasses';
+import { getGuestPassesRemaining, refundGuestPass } from '../guestPasses';
 import { computeFeeBreakdown, getEffectivePlayerCount, applyFeeBreakdownToParticipants } from '../../core/billing/unifiedFeeService';
 import { voidBookingInvoice } from '../../core/billing/bookingInvoiceService';
 import { PRICING } from '../../core/billing/pricingConfig';
@@ -54,11 +54,6 @@ interface BookingInsertRow {
   requestParticipants: SanitizedParticipant[];
   createdAt: Date | null;
   updatedAt: Date | null;
-}
-
-interface SessionQueryResult {
-  rows: Array<{ session_id: number }>;
-  rowCount: number;
 }
 
 const router = Router();
@@ -1056,7 +1051,8 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       calendarEventId: bookingRequests.calendarEventId,
       resourceId: bookingRequests.resourceId,
       trackmanBookingId: bookingRequests.trackmanBookingId,
-      staffNotes: bookingRequests.staffNotes
+      staffNotes: bookingRequests.staffNotes,
+      sessionId: bookingRequests.sessionId
     })
       .from(bookingRequests)
       .where(eq(bookingRequests.id, bookingId));
@@ -1199,6 +1195,26 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     
     await releaseGuestPassHold(bookingId);
     
+    if (existing.sessionId) {
+      try {
+        const guestParticipants = await pool.query(
+          `SELECT display_name FROM booking_participants
+           WHERE session_id = $1 AND participant_type = 'guest' AND used_guest_pass = true`,
+          [existing.sessionId]
+        );
+        for (const guest of guestParticipants.rows) {
+          try {
+            await refundGuestPass(existing.userEmail, guest.display_name || undefined, false);
+            logger.info('[Member Cancel] Refunded guest pass for participant', { extra: { bookingId, guestName: guest.display_name, ownerEmail: existing.userEmail } });
+          } catch (refundErr: unknown) {
+            logger.error('[Member Cancel] Failed to refund guest pass (non-blocking)', { extra: { bookingId, guestName: guest.display_name, error: getErrorMessage(refundErr) } });
+          }
+        }
+      } catch (guestPassErr: unknown) {
+        logger.error('[Member Cancel] Failed to query guest participants for pass refund (non-blocking)', { extra: { bookingId, error: getErrorMessage(guestPassErr) } });
+      }
+    }
+    
     voidBookingInvoice(bookingId).catch((err: unknown) => {
       logger.error('[Member Cancel] Failed to void/refund booking invoice (non-blocking)', {
         extra: { bookingId, error: getErrorMessage(err) }
@@ -1212,18 +1228,6 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     let refundedAmountCents = 0;
     let refundType: 'none' | 'overage' | 'guest_fees' | 'both' = 'none';
     let refundSkippedDueToLateCancel = false;
-    
-    let sessionResult: SessionQueryResult | null = null;
-    try {
-      sessionResult = await pool.query(
-        `SELECT bs.id as session_id FROM booking_sessions bs 
-         JOIN booking_requests br ON bs.trackman_booking_id = br.trackman_booking_id
-         WHERE br.id = $1`,
-        [bookingId]
-      );
-    } catch (sessionErr: unknown) {
-      logger.error('[Member Cancel] Failed to fetch session (non-blocking)', { extra: { sessionErr } });
-    }
     
     // Cancel pending payment intents from stripe_payment_intents table
     try {
@@ -1251,7 +1255,7 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     // Skip refunds if within 1 hour of booking start time (late cancellation policy)
     if (!shouldSkipRefund) {
       try {
-        if (sessionResult?.rows[0]?.session_id) {
+        if (existing.sessionId) {
           const paidParticipants = await pool.query(
             `SELECT id, stripe_payment_intent_id, cached_fee_cents, display_name
              FROM booking_participants 
@@ -1260,7 +1264,7 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
              AND stripe_payment_intent_id IS NOT NULL 
              AND stripe_payment_intent_id != ''
              AND stripe_payment_intent_id NOT LIKE 'balance-%'`,
-            [sessionResult.rows[0].session_id]
+            [existing.sessionId]
           );
           
           if (paidParticipants.rows.length > 0) {
@@ -1299,15 +1303,15 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     
     // Clear pending fees for cancelled booking
     try {
-      if (sessionResult?.rows[0]?.session_id) {
+      if (existing.sessionId) {
         await pool.query(
           `UPDATE booking_participants 
            SET cached_fee_cents = 0, payment_status = 'waived'
            WHERE session_id = $1 
            AND payment_status = 'pending'`,
-          [sessionResult.rows[0].session_id]
+          [existing.sessionId]
         );
-        logger.info('[Member Cancel] Cleared pending fees for session', { extra: { sessionResultRows_0_Session_id: sessionResult.rows[0].session_id } });
+        logger.info('[Member Cancel] Cleared pending fees for session', { extra: { sessionId: existing.sessionId } });
       }
     } catch (feeCleanupErr: unknown) {
       logger.error('[Member Cancel] Failed to clear pending fees (non-blocking)', { extra: { feeCleanupErr } });

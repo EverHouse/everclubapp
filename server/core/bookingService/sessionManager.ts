@@ -143,10 +143,16 @@ export async function ensureSessionForBooking(params: {
          WHERE resource_id = $1 AND session_date = $2
          AND tsrange(
            (session_date + start_time)::timestamp,
-           (session_date + end_time)::timestamp, '[)'
+           CASE WHEN end_time < start_time
+             THEN (session_date + end_time + INTERVAL '1 day')::timestamp
+             ELSE (session_date + end_time)::timestamp
+           END, '[)'
          ) && tsrange(
            ($2::date + $3::time)::timestamp,
-           ($2::date + $4::time)::timestamp, '[)'
+           CASE WHEN $4::time < $3::time
+             THEN ($2::date + $4::time + INTERVAL '1 day')::timestamp
+             ELSE ($2::date + $4::time)::timestamp
+           END, '[)'
          )
          LIMIT 1`,
         [params.resourceId, params.sessionDate, params.startTime, params.endTime]
@@ -358,14 +364,18 @@ export async function recordUsage(
     
     // If tier not provided, look it up - use transaction context for consistency
     if (!tierAtBooking && input.memberId) {
-      const userResult = await dbCtx
-        .select({ email: users.email })
-        .from(users)
-        .where(eq(users.id, input.memberId))
-        .limit(1);
-      
-      if (userResult[0]?.email) {
-        tierAtBooking = await getMemberTierByEmail(userResult[0].email) || undefined;
+      if (input.memberId.includes('@')) {
+        tierAtBooking = await getMemberTierByEmail(input.memberId) || undefined;
+      } else {
+        const userResult = await dbCtx
+          .select({ email: users.email })
+          .from(users)
+          .where(eq(users.id, input.memberId))
+          .limit(1);
+        
+        if (userResult[0]?.email) {
+          tierAtBooking = await getMemberTierByEmail(userResult[0].email) || undefined;
+        }
       }
     }
     
@@ -681,11 +691,17 @@ export async function findOverlappingSession(
         AND session_date = $2 
         AND tsrange(
           (session_date + start_time)::timestamp,
-          (session_date + end_time)::timestamp,
+          CASE WHEN end_time < start_time
+            THEN (session_date + end_time + INTERVAL '1 day')::timestamp
+            ELSE (session_date + end_time)::timestamp
+          END,
           '[)'
         ) && tsrange(
           ($2::date + $3::time)::timestamp,
-          ($2::date + $4::time)::timestamp,
+          CASE WHEN $4::time < $3::time
+            THEN ($2::date + $4::time + INTERVAL '1 day')::timestamp
+            ELSE ($2::date + $4::time)::timestamp
+          END,
           '[)'
         )
       ORDER BY start_time
