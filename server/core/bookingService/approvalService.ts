@@ -4,7 +4,7 @@ import { eq, and, or, gt, lt, lte, gte, ne, sql, isNull, isNotNull } from 'drizz
 import { sendPushNotification } from '../../routes/push';
 import { formatNotificationDateTime, formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
 import { logger } from '../logger';
-import { notifyAllStaff } from '../notificationService';
+import { notifyAllStaff, notifyMember } from '../notificationService';
 import { checkClosureConflict, checkAvailabilityBlockConflict } from '../bookingValidation';
 import { bookingEvents } from '../bookingEvents';
 import { sendNotificationToUser, broadcastAvailabilityUpdate, broadcastMemberStatsUpdated, broadcastBillingUpdate } from '../websocket';
@@ -1513,20 +1513,15 @@ export async function checkinBooking(params: CheckinBookingParams) {
     const formattedDate = formatDateDisplayWithDay(dateStr);
     const formattedTime = formatTime12Hour(booking.startTime);
 
-    await db.insert(notifications).values({
+    await notifyMember({
       userEmail: booking.userEmail,
-      title: 'Check-In Complete',
+      title: 'Checked In',
       message: `Thanks for visiting! Your session on ${formattedDate} at ${formattedTime} has been checked in.`,
       type: 'booking',
-      relatedType: 'booking'
+      relatedId: bookingId,
+      relatedType: 'booking',
+      url: '/sims'
     });
-
-    sendNotificationToUser(booking.userEmail, {
-      type: 'notification',
-      title: 'Check-In Complete',
-      message: `Thanks for visiting! Your session on ${formattedDate} at ${formattedTime} has been checked in.`,
-      data: { bookingId, eventType: 'booking_attended' }
-    }, { action: 'booking_attended', bookingId, triggerSource: 'approval.ts' });
   }
 
   if (newStatus === 'no_show' && booking.userEmail) {

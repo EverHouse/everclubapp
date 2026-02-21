@@ -66,6 +66,10 @@ We use a **Liquid Glass UI** system.
 - **Member Lifecycle & Check-In**: Tiers, QR/NFC check-in, onboarding.
 
 ## Recent Changes
+- **Feb 21, 2026**: v8.5.0 — Duplicate Check-In Notification Fix:
+  1. Fixed 4+ duplicate "Checked In" notifications per check-in — added 60-second dedup check in staffCheckin confirm_all path.
+  2. Consolidated "Check-In Complete" and "Checked In" into single "Checked In" notification — global dedup in notifyMember() prevents duplicates.
+  3. Global notification dedup safety net: notifyMember() checks for existing notification with same title/userEmail/relatedId within 60s before inserting.
 - **Feb 21, 2026**: v8.4.0 — Duplicate Payment Prevention & Invoice Settlement Safety:
   1. Terminal payment detection in `finalizeAndPayInvoice` — verifies via Stripe API if existing PI is card_present before settling invoice OOB, preventing double-charge when staff clicks "Collect" after terminal payment.
   2. Invoice finalization race condition fixed — `auto_advance: false` set before finalization in `finalizeInvoicePaidOutOfBand` to prevent Stripe auto-charging.

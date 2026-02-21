@@ -870,15 +870,26 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
           snapshotClient.release();
         }
 
-        await notifyMember({
-          userEmail: booking.owner_email,
-          title: 'Checked In',
-          message: `You've been checked in for your booking at ${booking.resource_name || 'the facility'}`,
-          type: 'booking',
-          relatedId: bookingId,
-          relatedType: 'booking',
-          url: '/sims'
-        });
+        const recentCheckinNotif = await pool.query(
+          `SELECT id FROM notifications 
+           WHERE user_email = $1 AND title = 'Checked In' AND related_id = $2 AND related_type = 'booking'
+           AND created_at > NOW() - INTERVAL '60 seconds'
+           LIMIT 1`,
+          [booking.owner_email, bookingId]
+        );
+        if (recentCheckinNotif.rows.length === 0) {
+          await notifyMember({
+            userEmail: booking.owner_email,
+            title: 'Checked In',
+            message: `You've been checked in for your booking at ${booking.resource_name || 'the facility'}`,
+            type: 'booking',
+            relatedId: bookingId,
+            relatedType: 'booking',
+            url: '/sims'
+          });
+        } else {
+          logger.info('[StaffCheckin] Skipped duplicate Checked In notification for booking', { extra: { bookingId, ownerEmail: booking.owner_email } });
+        }
       }
 
       if (action === 'waive_all' && pendingParticipants.rows.length > 0) {

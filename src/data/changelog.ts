@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.5.0",
+    date: "2026-02-21",
+    title: "Duplicate Check-In Notification Fix",
+    changes: [
+      "Fixed: Members received 4+ duplicate 'Checked In' notifications from a single check-in — added deduplication at both the check-in handler and notification service level",
+      "Fixed: Members received both 'Checked In' and 'Check-In Complete' notifications — consolidated to single 'Checked In' notification with 60-second dedup window",
+      "Improved: Global notification deduplication safety net prevents any duplicate notification with same title and booking within 60 seconds",
+    ]
+  },
+  {
     version: "8.4.0",
     date: "2026-02-21",
     title: "Duplicate Payment Prevention & Invoice Settlement Safety",

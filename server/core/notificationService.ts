@@ -1,4 +1,4 @@
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, and, sql } from 'drizzle-orm';
 import { getErrorMessage, getErrorStatusCode } from '../utils/errorUtils';
 import webpush from 'web-push';
 import { db } from '../db';
@@ -361,6 +361,34 @@ export async function notifyMember(
   
   const { sendPush = true, sendWebSocket = true, sendEmail = false, emailSubject, emailHtml } = options;
   const deliveryResults: DeliveryResult[] = [];
+  
+  if (payload.relatedId && payload.relatedType) {
+    try {
+      const [dupCheck] = await db.select({ id: notifications.id })
+        .from(notifications)
+        .where(and(
+          eq(notifications.userEmail, payload.userEmail),
+          eq(notifications.title, payload.title),
+          eq(notifications.relatedId, payload.relatedId),
+          eq(notifications.relatedType, payload.relatedType),
+          sql`${notifications.createdAt} > NOW() - INTERVAL '60 seconds'`
+        ))
+        .limit(1);
+      
+      if (dupCheck) {
+        logger.warn(`[Notification] Duplicate suppressed: "${payload.title}" for ${payload.userEmail} (relatedId=${payload.relatedId})`, {
+          extra: { event: 'notification.duplicate_suppressed', type: payload.type, existingId: dupCheck.id }
+        });
+        return {
+          notificationId: undefined,
+          deliveryResults: [{ channel: 'database', success: true, details: { skipped: 'duplicate', existingId: dupCheck.id } }],
+          allSucceeded: true
+        };
+      }
+    } catch (dupErr: unknown) {
+      logger.warn('[Notification] Duplicate check failed, proceeding with insert', { extra: { error: getErrorMessage(dupErr) } });
+    }
+  }
   
   const dbResult = await insertNotificationToDatabase(payload);
   deliveryResults.push({
