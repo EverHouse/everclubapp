@@ -21,7 +21,7 @@ import { computeFeeBreakdown, getEffectivePlayerCount, applyFeeBreakdownToPartic
 import { voidBookingInvoice } from '../../core/billing/bookingInvoiceService';
 import { PRICING } from '../../core/billing/pricingConfig';
 import { createGuestPassHold, releaseGuestPassHold } from '../../core/billing/guestPassHoldService';
-import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
+import { ensureSessionForBooking, createSessionWithUsageTracking } from '../../core/bookingService/sessionManager';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { normalizeToISODate } from '../../utils/dateNormalize';
 
@@ -833,17 +833,67 @@ router.post('/api/booking-requests', async (req, res) => {
     // Ensure session exists for auto-confirmed conference room bookings
     // ensureSessionForBooking handles retries and writes staff_notes on failure internally
     if (resourceType === 'conference_room' && row.resourceId) {
-      await ensureSessionForBooking({
-        bookingId: row.id,
-        resourceId: row.resourceId,
-        sessionDate: request_date,
-        startTime: start_time,
-        endTime: row.endTime || end_time,
-        ownerEmail: user_email.toLowerCase(),
-        ownerName: user_name || undefined,
-        source: 'member_request',
-        createdBy: 'conference_room_auto_confirm'
-      });
+      try {
+        const confEndTime = row.endTime || end_time;
+        const [startH, startM] = start_time.split(':').map(Number);
+        const [endH, endM] = confEndTime.split(':').map(Number);
+        const confDurationMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+
+        const participants = [{
+          participantType: 'owner' as const,
+          displayName: user_name || user_email,
+          userId: undefined,
+          guestId: undefined
+        }];
+
+        const result = await createSessionWithUsageTracking({
+          bookingId: row.id,
+          resourceId: row.resourceId,
+          sessionDate: request_date,
+          startTime: start_time,
+          endTime: confEndTime,
+          ownerEmail: user_email.toLowerCase(),
+          durationMinutes: confDurationMinutes > 0 ? confDurationMinutes : duration_minutes,
+          declaredPlayerCount: 1,
+          participants
+        }, 'member_request');
+
+        if (!result.success) {
+          logger.warn('[ConferenceRoom] Usage tracking returned failure, falling back to session-only', {
+            extra: { bookingId: row.id, error: result.error }
+          });
+          await ensureSessionForBooking({
+            bookingId: row.id,
+            resourceId: row.resourceId,
+            sessionDate: request_date,
+            startTime: start_time,
+            endTime: row.endTime || end_time,
+            ownerEmail: user_email.toLowerCase(),
+            ownerName: user_name || undefined,
+            source: 'member_request',
+            createdBy: 'conference_room_auto_confirm'
+          });
+        }
+      } catch (confError) {
+        logger.error('[ConferenceRoom] Failed to create session with usage tracking, falling back', {
+          error: confError instanceof Error ? confError : new Error(String(confError))
+        });
+        await ensureSessionForBooking({
+          bookingId: row.id,
+          resourceId: row.resourceId,
+          sessionDate: request_date,
+          startTime: start_time,
+          endTime: row.endTime || end_time,
+          ownerEmail: user_email.toLowerCase(),
+          ownerName: user_name || undefined,
+          source: 'member_request',
+          createdBy: 'conference_room_auto_confirm'
+        }).catch(fallbackErr => {
+          logger.error('[ConferenceRoom] Fallback ensureSession also failed', {
+            error: fallbackErr instanceof Error ? fallbackErr : new Error(String(fallbackErr))
+          });
+        });
+      }
     }
 
     let resourceName = 'Bay';
@@ -1179,9 +1229,10 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     const hoursUntilStart = (bookingStart.getTime() - nowPacific.getTime()) / (1000 * 60 * 60);
     const shouldSkipRefund = hoursUntilStart < 1;
     
-    let staffNotes = '';
+    let staffNotes = existing.staffNotes || '';
     if (existing.trackmanBookingId) {
-      staffNotes = '[Cancelled in app - needs Trackman cancellation]';
+      const cancelNote = '[Cancelled in app - needs Trackman cancellation]';
+      staffNotes = staffNotes ? `${staffNotes}\n${cancelNote}` : cancelNote;
     }
     
     const [updated] = await db.update(bookingRequests)

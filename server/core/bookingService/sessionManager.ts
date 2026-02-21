@@ -293,11 +293,7 @@ export async function linkParticipants(
       
       // Skip if displayName matches owner (catches name-only duplicates)
       const participantName = p.displayName?.toLowerCase().trim();
-      if (ownerDisplayName && participantName && (
-        participantName === ownerDisplayName ||
-        ownerDisplayName.includes(participantName) ||
-        participantName.includes(ownerDisplayName)
-      )) {
+      if (ownerDisplayName && participantName && participantName === ownerDisplayName) {
         logger.warn('[linkParticipants] Skipping duplicate owner (by name)', {
           extra: { sessionId, ownerName: ownerDisplayName, duplicateName: participantName }
         });
@@ -879,36 +875,43 @@ export async function createSessionWithUsageTracking(
       }
       
       // Record usage ledger entries within the same transaction
-      let ledgerEntriesCreated = 0;
-      
+      // IMPORTANT: Aggregate fees per member to avoid idempotency guard blocking valid entries
+      const feesByMember = new Map<string, {
+        minutesCharged: number;
+        overageFee: number;
+        guestFee: number;
+        tierName?: string;
+      }>();
+
       for (const billing of billingResult.billingBreakdown) {
         if (billing.participantType === 'guest') {
-          // Guest fees are assigned to the host, but with minutesCharged=0 
-          // to avoid double-counting in host's daily usage
           if (billing.guestFee > 0) {
-            await recordUsage(session.id, {
-              memberId: request.ownerEmail,
-              minutesCharged: 0,
-              overageFee: 0,
-              guestFee: billing.guestFee,
-              tierAtBooking: ownerTier || undefined,
-              paymentMethod: 'unpaid'
-            }, source, tx);
-            ledgerEntriesCreated++;
+            const key = request.ownerEmail;
+            const existing = feesByMember.get(key) || { minutesCharged: 0, overageFee: 0, guestFee: 0, tierName: ownerTier || undefined };
+            existing.guestFee += billing.guestFee;
+            feesByMember.set(key, existing);
           }
         } else {
-          // Record member/owner usage with their calculated overage fee
           const memberEmail = billing.email || billing.userId || '';
-          await recordUsage(session.id, {
-            memberId: memberEmail,
-            minutesCharged: billing.minutesAllocated,
-            overageFee: billing.overageFee,
-            guestFee: 0,
-            tierAtBooking: billing.tierName || undefined,
-            paymentMethod: 'unpaid'
-          }, source, tx);
-          ledgerEntriesCreated++;
+          const key = memberEmail;
+          const existing = feesByMember.get(key) || { minutesCharged: 0, overageFee: 0, guestFee: 0, tierName: billing.tierName || undefined };
+          existing.minutesCharged += billing.minutesAllocated;
+          existing.overageFee += billing.overageFee;
+          feesByMember.set(key, existing);
         }
+      }
+
+      let ledgerEntriesCreated = 0;
+      for (const [memberId, fees] of feesByMember) {
+        await recordUsage(session.id, {
+          memberId,
+          minutesCharged: fees.minutesCharged,
+          overageFee: fees.overageFee,
+          guestFee: fees.guestFee,
+          tierAtBooking: fees.tierName,
+          paymentMethod: 'unpaid'
+        }, source, tx);
+        ledgerEntriesCreated++;
       }
       
       // Step 5c: Deduct guest passes INSIDE the transaction for atomicity

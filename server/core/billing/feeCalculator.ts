@@ -36,7 +36,7 @@ export async function calculateAndCacheParticipantFees(
         bp.user_id,
         bp.payment_status,
         bp.cached_fee_cents,
-        COALESCE(ul.overage_fee, 0) + COALESCE(ul.guest_fee, 0) as ledger_fee,
+        CASE WHEN bp.participant_type != 'guest' THEN COALESCE(ul.overage_fee, 0) + COALESCE(ul.guest_fee, 0) ELSE 0 END as ledger_fee,
         mt.guest_fee_cents as tier_guest_fee_cents
        FROM booking_participants bp
        LEFT JOIN users u ON u.id = bp.user_id
@@ -47,7 +47,7 @@ export async function calculateAndCacheParticipantFees(
          AND (
            ul.member_id = bp.user_id 
            OR LOWER(ul.member_id) = LOWER(u.email)
-           OR (bp.user_id IS NULL AND LOWER(ul.member_id) = LOWER(br.user_email))
+           OR (bp.user_id IS NULL AND bp.participant_type != 'guest' AND LOWER(ul.member_id) = LOWER(br.user_email))
          )
        WHERE bp.session_id = $1 AND bp.id = ANY($2::int[])`,
       [sessionId, participantIds]

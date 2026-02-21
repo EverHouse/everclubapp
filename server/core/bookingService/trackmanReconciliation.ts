@@ -129,12 +129,8 @@ export async function findAttendanceDiscrepancies(
         COUNT(*) FILTER (WHERE reconciliation_status = 'reviewed') as reviewed,
         COUNT(*) FILTER (WHERE reconciliation_status = 'adjusted') as adjusted
        FROM booking_requests br
-       WHERE br.status = 'attended'
-         AND br.trackman_booking_id IS NOT NULL
-         AND br.trackman_player_count IS NOT NULL
-         AND br.declared_player_count IS NOT NULL
-         AND br.trackman_player_count != br.declared_player_count`,
-      []
+       WHERE ${whereConditions}`,
+      params
     );
     
     const limitParam = paramIndex;
