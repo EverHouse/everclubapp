@@ -86,7 +86,14 @@ The following conventions were comprehensively audited and enforced across the e
 - **`checkinBooking()` payment confirmation moved after atomic status update** — prevents payment confirmations from persisting when the booking status has been changed by another concurrent request.
 
 ## Recent Changes
-- **Feb 22, 2026**: Fixed 6 critical high-impact bugs:
+- **Feb 22, 2026 (Batch 2)**: Fixed 6 additional critical bugs:
+  - Cash payment ledger gap: `mark-booking-paid` route now updates `usage_ledger.payment_method` so fee recalculation doesn't resurrect settled debts.
+  - Cross-midnight booking false positives: Removed dead cross-midnight overlap clause from booking creation (cross-midnight bookings already rejected at input validation).
+  - Tier corruption on invoice renewal: Changed `handleInvoicePaymentSucceeded` to SELECT `name` instead of `slug` from `membership_tiers`, preventing lowercase tier values in `users.tier`.
+  - Terminal refund auto-suspend: Replaced automatic membership suspension on terminal payment refund with staff review notification + audit log. Members are no longer locked out during routine refund/re-charge corrections.
+  - Guest array truncation exploit: Booking creation now rejects >3 participants with 400 error instead of silently slicing, preventing unbilled ghost guests.
+  - Payment retry flag race: `handlePaymentMethodAttached` now only clears `requires_card_update` after successful payment confirm, not before. Failed retries preserve the "update your card" banner.
+- **Feb 22, 2026 (Batch 1)**: Fixed 6 critical high-impact bugs:
   - Refund idempotency exploit: Added ledger reversal dedup check in `POST /api/payments/refund` to prevent double-click creating duplicate negative credits.
   - Empty slot ghost fees: Empty slots in `unifiedFeeService.ts` no longer charge `GUEST_FEE_CENTS`; they only affect owner overage calculations.
   - Admin lockout protection: Added last-admin guard to both `PUT /api/admin-users/:id` and `PUT /api/staff-users/:id` routes.
