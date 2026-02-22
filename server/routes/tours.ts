@@ -778,7 +778,7 @@ export async function syncToursFromCalendar(): Promise<{ synced: number; created
           created++;
           
           const tourDateObj = new Date(tourDate);
-          const formattedDate = tourDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+          const formattedDate = tourDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' });
           await notifyAllStaff(
             'New Tour Scheduled',
             `${guestName} scheduled a tour for ${formattedDate}`,
@@ -1030,7 +1030,7 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
           
           if (!isCancelled) {
             const tourDateObj = new Date(tourDate);
-            const formattedDate = tourDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+            const formattedDate = tourDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' });
             await notifyAllStaff(
               'New Tour Scheduled',
               `${guestName || 'Guest'} scheduled a tour for ${formattedDate}`,
@@ -1305,7 +1305,7 @@ router.post('/api/tours/schedule', async (req, res) => {
     }
 
     const tourDateObj = new Date(date);
-    const formattedDate = tourDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+    const formattedDate = tourDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' });
 
     await notifyAllStaff(
       'New Tour Scheduled',
