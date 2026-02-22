@@ -168,7 +168,7 @@ async function createSupabaseToken(user: { id: string, email: string, role: stri
         last_name: user.lastName,
         app_role: user.role,
       }
-    }).catch(() => {});
+    }).catch((err) => { logger.warn('[Auth] Non-critical Supabase user creation failed:', err); });
     
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
@@ -994,7 +994,7 @@ router.post('/api/auth/verify-otp', async (req, res) => {
     });
     
     // Track first login for onboarding (async, non-blocking)
-    db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${member.email}) AND first_login_at IS NULL`).catch(() => {});
+    db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${member.email}) AND first_login_at IS NULL`).catch((err) => logger.warn('[Auth] Non-critical first_login_at update failed:', err));
 
     // Send welcome email on first login (async, non-blocking)
     (async () => {
@@ -1219,7 +1219,7 @@ router.post('/api/auth/password-login', async (req, res) => {
     });
     
     // Track first login for onboarding (async, non-blocking)
-    db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${member.email}) AND first_login_at IS NULL`).catch(() => {});
+    db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${member.email}) AND first_login_at IS NULL`).catch((err) => logger.warn('[Auth] Non-critical first_login_at update failed:', err));
 
     req.session.save((err) => {
       if (err) {
@@ -1326,7 +1326,7 @@ router.post('/api/auth/dev-login', async (req, res) => {
     const supabaseToken = await createSupabaseToken({ ...member, email: member.email as string });
     
     // Track first login for onboarding (async, non-blocking)
-    db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${member.email}) AND first_login_at IS NULL`).catch(() => {});
+    db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${member.email}) AND first_login_at IS NULL`).catch((err) => logger.warn('[Auth] Non-critical first_login_at update failed:', err));
 
     req.session.save((err) => {
       if (err) {

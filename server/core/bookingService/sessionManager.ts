@@ -207,7 +207,7 @@ export async function ensureSessionForBooking(params: {
         if (endMinutes <= startMinutes) endMinutes += 1440;
         slotDuration = endMinutes - startMinutes;
         if (slotDuration <= 0) slotDuration = 60;
-      } catch {}
+      } catch (err) { logger.warn('[Booking] Non-critical slot duration calculation failed:', err); }
 
       await q.query(
         `INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, invited_at)

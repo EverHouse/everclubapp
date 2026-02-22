@@ -1,18 +1,19 @@
-import { pool } from './db';
+import { db } from '../db';
+import { sql } from 'drizzle-orm';
 
 export async function getAllActiveBayIds(): Promise<number[]> {
-  const result = await pool.query("SELECT id FROM resources WHERE type = 'simulator'");
-  return result.rows.map((r: Record<string, unknown>) => r.id as number);
+  const result = await db.execute(sql`SELECT id FROM resources WHERE type = 'simulator'`);
+  return (result.rows as Array<Record<string, unknown>>).map((r) => r.id as number);
 }
 
 export async function getAllResourceIds(): Promise<number[]> {
-  const result = await pool.query('SELECT id FROM resources');
-  return result.rows.map((r: Record<string, unknown>) => r.id as number);
+  const result = await db.execute(sql`SELECT id FROM resources`);
+  return (result.rows as Array<Record<string, unknown>>).map((r) => r.id as number);
 }
 
 export async function getConferenceRoomId(): Promise<number | null> {
-  const result = await pool.query("SELECT id FROM resources WHERE LOWER(name) LIKE '%conference%' LIMIT 1");
-  return result.rows.length > 0 ? result.rows[0].id : null;
+  const result = await db.execute(sql`SELECT id FROM resources WHERE LOWER(name) LIKE '%conference%' LIMIT 1`);
+  return result.rows.length > 0 ? (result.rows[0] as Record<string, unknown>).id as number : null;
 }
 
 export async function parseAffectedAreas(affectedAreas: string): Promise<number[]> {
@@ -76,6 +77,7 @@ export async function parseAffectedAreas(affectedAreas: string): Promise<number[
       if (idSet.size > 0) return Array.from(idSet);
     }
   } catch {
+    // Intentional: JSON.parse fallback — input may be comma-separated or plain text
   }
   
   if (affectedAreas.includes(',')) {

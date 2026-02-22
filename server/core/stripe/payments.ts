@@ -194,6 +194,8 @@ export async function createInvoiceWithLineItems(params: CreatePOSInvoiceParams)
 
   const cartTotal = cartItems.reduce((sum, item) => sum + (item.priceCents * item.quantity), 0);
 
+  const checkoutNonce = crypto.randomBytes(8).toString('hex');
+  const invoiceIdempotencyKey = `invoice_pos_${customerId}_${checkoutNonce}`;
   const invoice = await stripe.invoices.create({
     customer: customerId,
     auto_advance: false,
@@ -204,10 +206,13 @@ export async function createInvoiceWithLineItems(params: CreatePOSInvoiceParams)
       source: 'pos',
     },
     pending_invoice_items_behavior: 'exclude',
+  }, {
+    idempotencyKey: invoiceIdempotencyKey
   });
 
   try {
-    for (const item of cartItems) {
+    for (let idx = 0; idx < cartItems.length; idx++) {
+      const item = cartItems[idx];
       await stripe.invoiceItems.create({
         customer: customerId,
         invoice: invoice.id,
@@ -217,6 +222,8 @@ export async function createInvoiceWithLineItems(params: CreatePOSInvoiceParams)
         metadata: {
           productId: item.productId,
         },
+      }, {
+        idempotencyKey: `invitem_pos_${invoice.id}_${item.productId}_${idx}`
       });
     }
 
@@ -606,6 +613,8 @@ export async function chargeWithBalance(params: {
         ...(bookingId ? { bookingId: bookingId.toString() } : {}),
         ...(sessionId ? { sessionId: sessionId.toString() } : {}),
       },
+    }, {
+      idempotencyKey: `invoice_charge_${stripeCustomerId}_${purpose}_${bookingId || 'none'}_${amountCents}`
     });
 
     // Create invoice item attached to this specific invoice
@@ -615,6 +624,8 @@ export async function chargeWithBalance(params: {
       amount: amountCents,
       currency: 'usd',
       description,
+    }, {
+      idempotencyKey: `invitem_charge_${invoice.id}_${purpose}`
     });
 
     // Finalize - this applies customer balance credits automatically

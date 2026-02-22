@@ -206,8 +206,8 @@ export function startIntegrityScheduler(): void {
   setInterval(checkAndRunIntegrityCheck, 30 * 60 * 1000);
   setInterval(runPeriodicAutoFix, 4 * 60 * 60 * 1000);
   setInterval(cleanupAbandonedPendingUsers, 6 * 60 * 60 * 1000);
-  setTimeout(() => cleanupAbandonedPendingUsers().catch(() => {}), 60 * 1000);
-  runPeriodicAutoFix().catch(() => {});
+  setTimeout(() => cleanupAbandonedPendingUsers().catch((err) => { logger.warn('[Scheduler] Non-critical cleanup failed:', err); }), 60 * 1000);
+  runPeriodicAutoFix().catch((err) => { logger.warn('[Scheduler] Non-critical auto-fix failed:', err); });
   logger.info('[Startup] Daily integrity check scheduler enabled (runs at midnight Pacific)');
   logger.info('[Startup] Periodic auto-fix scheduler enabled (runs every 4 hours)');
 }

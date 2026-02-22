@@ -66,6 +66,11 @@ We use a **Liquid Glass UI** system.
 - **Member Lifecycle & Check-In**: Tiers, QR/NFC check-in, onboarding.
 
 ## Recent Changes
+- **Feb 22, 2026**: v8.7.0 — Code Quality & Financial Safety Hardening:
+  1. Replaced 27 silent error-swallowing patterns (.catch(() => {}) and empty catch {}) with proper logging across 14 server files — billing, booking, and Stripe errors now visible for debugging.
+  2. Added Stripe idempotency keys to all .create() calls (invoices, payment intents, invoice items, refunds, products, prices) — prevents double-charges and duplicate resources on network retries.
+  3. Added audit logging for day pass purchases and conference room prepayments — all financial staff actions now have a traceable audit trail.
+  4. Migrated affectedAreas.ts from raw pool.query to Drizzle ORM sql template literals for database safety consistency.
 - **Feb 21, 2026**: v8.6.0 — Booking Validation & Error Visibility Hardening:
   1. Reschedule conflict detection replaced inline SQL with centralized `checkBookingConflict()` — consistent validation and advisory lock protection against concurrent reschedules.
   2. Added `attended` status to booking conflict detection — checked-in bays can no longer be double-booked during reschedule or new booking creation.

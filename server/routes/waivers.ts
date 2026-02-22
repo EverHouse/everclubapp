@@ -88,7 +88,7 @@ router.post('/api/waivers/sign', isAuthenticated, async (req, res) => {
       WHERE LOWER(email) = ${sessionUser.email.toLowerCase()} 
       AND onboarding_completed_at IS NULL 
       AND first_name IS NOT NULL AND last_name IS NOT NULL AND phone IS NOT NULL
-      AND first_booking_at IS NOT NULL AND app_installed_at IS NOT NULL`).catch(() => {});
+      AND first_booking_at IS NOT NULL AND app_installed_at IS NOT NULL`).catch((err) => logger.warn('[Waivers] Non-critical onboarding update failed:', err));
 
     res.json({
       success: true,

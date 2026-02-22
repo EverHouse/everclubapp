@@ -289,7 +289,7 @@ router.post('/api/hubspot/push-members-to-hubspot', isStaffOrAdmin, async (req, 
               try {
                 await db.execute(sql`UPDATE users SET hubspot_id = ${result.contactId}, updated_at = NOW() WHERE id = ${member.id} AND (hubspot_id IS NULL OR hubspot_id = '')`);
                 hubspotIdsBackfilled++;
-              } catch {}
+              } catch (err) { logger.warn('[HubSpot] Non-critical HubSpot ID backfill failed:', err); }
             }
           } catch (error: unknown) {
             errors++;

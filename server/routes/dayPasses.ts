@@ -12,6 +12,7 @@ import { checkoutRateLimiter } from '../middleware/rateLimiting';
 import { isStaffOrAdmin } from '../core/middleware';
 import { getSessionUser } from '../types/session';
 import { getErrorMessage } from '../utils/errorUtils';
+import { logFromRequest } from '../core/auditLog';
 
 const router = Router();
 
@@ -118,6 +119,8 @@ router.post('/api/day-passes/checkout', checkoutRateLimiter, async (req: Request
     });
 
     logger.info('[DayPasses] Created Checkout Session for : $', { extra: { sessionId: session.id, productSlug, productPriceCents_0_100_ToFixed_2: ((product.priceCents || 0) / 100).toFixed(2) } });
+
+    try { logFromRequest(req, { action: 'create_day_pass', resourceType: 'day_pass', resourceId: session.id, details: { email, productSlug, amountCents: product.priceCents, sessionId: session.id } }); } catch (auditErr) { logger.warn('[Audit] Failed to log create_day_pass:', auditErr); }
 
     res.json({
       sessionId: session.id,
@@ -256,6 +259,8 @@ router.post('/api/day-passes/confirm', async (req: Request, res: Response) => {
 
     logger.info('[DayPasses] Recorded purchase for : $ from', { extra: { purchaseId: purchase.id, productSlug, amountPaid_100_ToFixed_2: (amountPaid / 100).toFixed(2), email } });
 
+    try { logFromRequest(req, { action: 'confirm_day_pass_payment', resourceType: 'day_pass', resourceId: String(purchase.id), details: { email, productSlug, amountCents: amountPaid, paymentIntentId: resolvedPaymentIntentId } }); } catch (auditErr) { logger.warn('[Audit] Failed to log confirm_day_pass_payment:', auditErr); }
+
     res.json({
       success: true,
       purchaseId: purchase.id,
@@ -336,6 +341,8 @@ router.post('/api/day-passes/staff-checkout', isStaffOrAdmin, async (req: Reques
     });
 
     logger.info('[DayPasses] Staff checkout initiated for : $ by', { extra: { productSlug, productPriceCents_100_ToFixed_2: (product.priceCents / 100).toFixed(2), staffEmail } });
+
+    try { logFromRequest(req, { action: 'create_day_pass', resourceType: 'day_pass', resourceId: result.paymentIntentId, details: { email, productSlug, amountCents: product.priceCents, staffEmail, staffInitiated: true, paymentIntentId: result.paymentIntentId } }); } catch (auditErr) { logger.warn('[Audit] Failed to log create_day_pass:', auditErr); }
 
     res.json({
       clientSecret: result.clientSecret,
@@ -444,6 +451,8 @@ router.post('/api/day-passes/staff-checkout/confirm', isStaffOrAdmin, async (req
     }
 
     logger.info('[DayPasses] Staff checkout confirmed: for : $ by', { extra: { purchaseId: purchase.id, productSlug, paymentIntentAmount_100_ToFixed_2: (paymentIntent.amount / 100).toFixed(2), staffEmail } });
+
+    try { logFromRequest(req, { action: 'confirm_day_pass_payment', resourceType: 'day_pass', resourceId: String(purchase.id), details: { email, productSlug, amountCents: paymentIntent.amount, staffEmail, staffInitiated: true, paymentIntentId } }); } catch (auditErr) { logger.warn('[Audit] Failed to log confirm_day_pass_payment:', auditErr); }
 
     res.json({
       success: true,

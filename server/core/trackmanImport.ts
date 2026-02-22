@@ -58,7 +58,7 @@ async function cancelPendingPaymentIntentsForBooking(bookingId: number): Promise
       }
     }
   } catch (e: unknown) {
-    // Non-blocking
+    logger.warn('[Trackman Import] Non-critical cleanup failed:', e);
   }
 }
 
@@ -2669,7 +2669,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                     title: 'Added to Booking',
                     body: linkedMessage,
                     tag: `booking-linked-${bookingId}`
-                  }).catch(() => {});
+                  }).catch((err) => { logger.warn('[Trackman Import] Non-critical push notification failed:', err); });
                 }
                 
                 // Increment lifetime visits for linked members on attended bookings

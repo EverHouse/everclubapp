@@ -507,7 +507,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
               (user.last_name || '') as string,
               (user.phone as string) || undefined
             ).catch((err: unknown) => logger.error('[Visitors] HubSpot sync failed for linked visitor', { error: err instanceof Error ? err : new Error(String(err)) }));
-          }).catch(() => {});
+          }).catch((err) => { logger.warn('[Visitors] Non-critical HubSpot import failed:', err); });
         }
 
         const staffEmail = getSessionUser(req)?.email || 'admin';
@@ -591,7 +591,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
           lastName || '',
           phone || undefined
         ).catch((err: unknown) => logger.error('[Visitors] HubSpot sync failed for new visitor', { error: err instanceof Error ? err : new Error(String(err)) }));
-      }).catch(() => {});
+      }).catch((err) => { logger.warn('[Visitors] Non-critical HubSpot import failed:', err); });
     }
 
     const staffEmail = getSessionUser(req)?.email || 'admin';

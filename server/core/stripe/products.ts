@@ -213,7 +213,9 @@ export async function syncHubSpotProductToStripe(hubspotProduct: HubSpotProduct)
             interval_count: recurringConfig.intervalCount,
           };
         }
-        const newPrice = await stripe.prices.create(pricePayload);
+        const newPrice = await stripe.prices.create(pricePayload, {
+          idempotencyKey: `price_hubspot_${hubspotProduct.id}_${priceCents}_update`
+        });
         newPriceId = newPrice.id;
       }
       
@@ -265,6 +267,8 @@ export async function syncHubSpotProductToStripe(hubspotProduct: HubSpotProduct)
           hubspot_product_id: hubspotProduct.id,
           hubspot_sku: hubspotProduct.sku || '',
         },
+      }, {
+        idempotencyKey: `product_hubspot_${hubspotProduct.id}`
       });
     }
     
@@ -287,7 +291,9 @@ export async function syncHubSpotProductToStripe(hubspotProduct: HubSpotProduct)
         interval_count: recurringConfigCreate.intervalCount,
       };
     }
-    const stripePrice = await stripe.prices.create(pricePayloadCreate);
+    const stripePrice = await stripe.prices.create(pricePayloadCreate, {
+      idempotencyKey: `price_hubspot_${hubspotProduct.id}_${priceCents}`
+    });
     
     await db.insert(stripeProducts).values({
       hubspotProductId: hubspotProduct.id,
@@ -535,7 +541,9 @@ export async function syncMembershipTiersToStripe(): Promise<{
               if (!isOneTime) {
                 priceParams.recurring = { interval: billingInterval };
               }
-              const newPrice = await stripe.prices.create(priceParams);
+              const newPrice = await stripe.prices.create(priceParams, {
+                idempotencyKey: `price_tier_${tier.id}_${tier.priceCents}_update`
+              });
               stripePriceId = newPrice.id;
               logger.info(`[Tier Sync] Created new price for ${tier.name} (price changed)`);
             }
@@ -549,7 +557,9 @@ export async function syncMembershipTiersToStripe(): Promise<{
             if (!isOneTime) {
               priceParams.recurring = { interval: billingInterval };
             }
-            const newPrice = await stripe.prices.create(priceParams);
+            const newPrice = await stripe.prices.create(priceParams, {
+              idempotencyKey: `price_tier_${tier.id}_${tier.priceCents}_new`
+            });
             stripePriceId = newPrice.id;
           }
 
@@ -591,7 +601,9 @@ export async function syncMembershipTiersToStripe(): Promise<{
             stripeProduct = await stripe.products.update(existingStripeProduct.id, createParams);
             logger.info(`[Tier Sync] Reusing existing Stripe product ${stripeProduct.id} for ${tier.name}`);
           } else {
-            stripeProduct = await stripe.products.create(createParams);
+            stripeProduct = await stripe.products.create(createParams, {
+              idempotencyKey: `product_tier_${tier.id}_${tier.slug}`
+            });
           }
           stripeProductId = stripeProduct.id;
 
@@ -605,7 +617,9 @@ export async function syncMembershipTiersToStripe(): Promise<{
           if (!isOneTime) {
             priceParams.recurring = { interval: billingInterval };
           }
-          const stripePrice = await stripe.prices.create(priceParams);
+          const stripePrice = await stripe.prices.create(priceParams, {
+            idempotencyKey: `price_tier_${tier.id}_${tier.priceCents}_create`
+          });
           stripePriceId = stripePrice.id;
 
           await db.update(membershipTiers)
@@ -876,6 +890,8 @@ export async function ensureSimulatorOverageProduct(): Promise<{
           fee_type: 'simulator_overage',
           app_category: 'fee',
         },
+      }, {
+        idempotencyKey: `product_overage_${OVERAGE_SLUG}`
       });
       stripeProductId = product.id;
       logger.info(`[Overage Product] Created Stripe product: ${stripeProductId}`);
@@ -893,6 +909,8 @@ export async function ensureSimulatorOverageProduct(): Promise<{
           product_type: 'one_time',
           app_category: 'fee',
         },
+      }, {
+        idempotencyKey: `price_overage_${OVERAGE_SLUG}_${OVERAGE_PRICE_CENTS}`
       });
       stripePriceId = price.id;
       logger.info(`[Overage Product] Created Stripe price: ${stripePriceId}`);
@@ -993,6 +1011,8 @@ export async function ensureGuestPassProduct(): Promise<{
           fee_type: 'guest_pass',
           app_category: 'fee',
         },
+      }, {
+        idempotencyKey: `product_guest_pass_${GUEST_PASS_SLUG}`
       });
       stripeProductId = product.id;
       logger.info(`[Guest Pass Product] Created Stripe product: ${stripeProductId}`);
@@ -1009,6 +1029,8 @@ export async function ensureGuestPassProduct(): Promise<{
           product_type: 'one_time',
           app_category: 'fee',
         },
+      }, {
+        idempotencyKey: `price_guest_pass_${GUEST_PASS_SLUG}_${GUEST_PASS_PRICE_CENTS}`
       });
       stripePriceId = price.id;
       logger.info(`[Guest Pass Product] Created Stripe price: ${stripePriceId}`);
@@ -1108,6 +1130,8 @@ export async function ensureDayPassCoworkingProduct(): Promise<{
           fee_type: 'day_pass_coworking',
           app_category: 'fee',
         },
+      }, {
+        idempotencyKey: `product_daypass_${COWORKING_SLUG}`
       });
       stripeProductId = product.id;
       logger.info(`[Day Pass Coworking Product] Created Stripe product: ${stripeProductId}`);
@@ -1124,6 +1148,8 @@ export async function ensureDayPassCoworkingProduct(): Promise<{
           product_type: 'one_time',
           app_category: 'fee',
         },
+      }, {
+        idempotencyKey: `price_daypass_${COWORKING_SLUG}_${COWORKING_PRICE_CENTS}`
       });
       stripePriceId = price.id;
       logger.info(`[Day Pass Coworking Product] Created Stripe price: ${stripePriceId}`);
@@ -1213,6 +1239,8 @@ export async function ensureDayPassGolfSimProduct(): Promise<{
           fee_type: 'day_pass_golf_sim',
           app_category: 'fee',
         },
+      }, {
+        idempotencyKey: `product_daypass_${GOLF_SIM_SLUG}`
       });
       stripeProductId = product.id;
       logger.info(`[Day Pass Golf Sim Product] Created Stripe product: ${stripeProductId}`);
@@ -1229,6 +1257,8 @@ export async function ensureDayPassGolfSimProduct(): Promise<{
           product_type: 'one_time',
           app_category: 'fee',
         },
+      }, {
+        idempotencyKey: `price_daypass_${GOLF_SIM_SLUG}_${GOLF_SIM_PRICE_CENTS}`
       });
       stripePriceId = price.id;
       logger.info(`[Day Pass Golf Sim Product] Created Stripe price: ${stripePriceId}`);
@@ -1324,6 +1354,8 @@ export async function ensureCorporateVolumePricingProduct(): Promise<{
         name: CORPORATE_PRICING_NAME,
         description: 'Configuration product for corporate volume pricing tiers. Edit metadata to change pricing.',
         metadata,
+      }, {
+        idempotencyKey: `product_corporate_${CORPORATE_PRICING_SLUG}`
       });
       stripeProductId = product.id;
       
@@ -1516,6 +1548,8 @@ export async function syncTierFeaturesToStripe(): Promise<{
               lookup_key: feature.lookupKey,
               name: feature.name,
               metadata: feature.metadata || {},
+            }, {
+              idempotencyKey: `feature_${feature.lookupKey}`
             });
             existingFeatures.set(feature.lookupKey, created.id);
             featuresCreated++;
@@ -1654,6 +1688,8 @@ export async function syncCafeItemsToStripe(): Promise<{
               name: item.name,
               description: item.description || undefined,
               metadata,
+            }, {
+              idempotencyKey: `product_cafe_${item.id}`
             });
             stripeProductId = newProduct.id;
             logger.info(`[Cafe Sync] Created product for ${item.name}: ${stripeProductId}`);
@@ -1684,6 +1720,8 @@ export async function syncCafeItemsToStripe(): Promise<{
             metadata: {
               cafe_item_id: item.id.toString(),
             },
+          }, {
+            idempotencyKey: `price_cafe_${item.id}_${priceCents}`
           });
           stripePriceId = newPrice.id;
           logger.info(`[Cafe Sync] Created price for ${item.name}: ${stripePriceId}`);

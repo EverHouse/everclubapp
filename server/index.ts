@@ -56,11 +56,11 @@ async function gracefulShutdown(signal: string) {
     try {
       const { stopSchedulers } = await import('./schedulers');
       stopSchedulers();
-    } catch {}
+    } catch (err) { logger.warn('[Shutdown] Failed to stop schedulers:', err); }
     try {
       const { closeWebSocketServer } = await import('./core/websocket');
       closeWebSocketServer();
-    } catch {}
+    } catch (err) { logger.warn('[Shutdown] Failed to close WebSocket server:', err); }
 
     if (httpServer) {
       await new Promise<void>((resolve) => {
@@ -72,7 +72,7 @@ async function gracefulShutdown(signal: string) {
     try {
       const { pool } = await import('./core/db');
       await pool.end();
-    } catch {}
+    } catch (err) { logger.warn('[Shutdown] Failed to close database pool:', err); }
 
     clearTimeout(shutdownTimeout);
     logger.info('[Shutdown] Complete');

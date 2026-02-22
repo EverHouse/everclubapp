@@ -1,4 +1,5 @@
 import { CLUB_TIMEZONE, getTodayPacific } from './dateUtils';
+import { logger } from '../core/logger';
 
 const MONTH_MAP: Record<string, number> = {
   jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
@@ -67,7 +68,7 @@ export function normalizeToISODate(input: string | undefined | null): string {
       const d = parsed.getDate();
       return `${y}-${pad(m)}-${pad(d)}`;
     }
-  } catch {}
+  } catch (err) { logger.warn('[DateNormalize] Date parsing fallback failed:', err); }
 
   return getTodayPacific();
 }

@@ -868,7 +868,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
             logger.info('[StaffCheckin] Fee snapshot already exists for session , skipping', { extra: { sessionId } });
           }
         } catch (snapshotErr: unknown) {
-          await snapshotClient.query('ROLLBACK').catch(() => {});
+          await snapshotClient.query('ROLLBACK').catch((rollbackErr) => { logger.warn('[Booking] Snapshot ROLLBACK failed:', rollbackErr); });
           logger.error('[StaffCheckin] Failed to create fee snapshot', { extra: { snapshotErr } });
         } finally {
           snapshotClient.release();
@@ -1107,7 +1107,7 @@ router.post('/api/booking-participants/:id/mark-waiver-reviewed', isStaffOrAdmin
 
     res.json({ success: true, participant: { id: participantId, displayName: display_name, waiverReviewedAt: new Date() } });
   } catch (error: unknown) {
-    try { await client.query('ROLLBACK'); } catch {}
+    try { await client.query('ROLLBACK'); } catch (rollbackErr) { logger.warn('[DB] Rollback failed:', rollbackErr); }
     logAndRespond(req, res, 500, 'Failed to mark waiver as reviewed', error);
   } finally {
     client.release();
@@ -1175,7 +1175,7 @@ router.post('/api/bookings/:bookingId/mark-all-waivers-reviewed', isStaffOrAdmin
 
     res.json({ success: true, updatedCount: result.rows.length });
   } catch (error: unknown) {
-    try { await client.query('ROLLBACK'); } catch {}
+    try { await client.query('ROLLBACK'); } catch (rollbackErr) { logger.warn('[DB] Rollback failed:', rollbackErr); }
     logAndRespond(req, res, 500, 'Failed to mark waivers as reviewed', error);
   } finally {
     client.release();
@@ -1241,7 +1241,7 @@ router.post('/api/bookings/bulk-review-all-waivers', isStaffOrAdmin, async (req:
 
     res.json({ success: true, updatedCount });
   } catch (error: unknown) {
-    try { await client.query('ROLLBACK'); } catch {}
+    try { await client.query('ROLLBACK'); } catch (rollbackErr) { logger.warn('[DB] Rollback failed:', rollbackErr); }
     logAndRespond(req, res, 500, 'Failed to bulk review waivers', error);
   } finally {
     client.release();

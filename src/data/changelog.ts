@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.7.0",
+    date: "2026-02-22",
+    title: "Code Quality & Financial Safety Hardening",
+    changes: [
+      "Fixed: 27 silent error-swallowing patterns (.catch(() => {}) and empty catch {}) replaced with proper logging across 14 server files — billing, booking, and Stripe errors now visible for debugging",
+      "Fixed: Stripe API create calls (invoices, payment intents, invoice items, refunds, products, prices) now include idempotency keys — prevents double-charges and duplicate resources on network retries",
+      "Added: Audit logging for day pass purchases and conference room prepayments — all financial staff actions now have a traceable audit trail",
+      "Improved: Migrated affectedAreas.ts from raw pool.query to Drizzle ORM sql template literals for database safety consistency",
+    ]
+  },
+  {
     version: "8.6.0",
     date: "2026-02-21",
     title: "Booking Validation & Error Visibility Hardening",

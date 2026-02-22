@@ -265,7 +265,11 @@ export type AuditAction =
   | 'contact_synced'
   | 'mindbody_import'
   | 'email_change'
-  | 'subscription_sync';
+  | 'subscription_sync'
+  | 'create_day_pass'
+  | 'confirm_day_pass_payment'
+  | 'create_conference_prepayment'
+  | 'confirm_conference_prepayment';
 
 export type ActorType = 'staff' | 'member' | 'system';
 

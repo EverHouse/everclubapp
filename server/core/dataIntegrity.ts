@@ -2657,7 +2657,7 @@ export async function syncPull(params: SyncPullParams): Promise<{ success: boole
     `);
     
     if (userEmail) {
-      syncCustomerMetadataToStripe(String(userEmail)).catch(() => {});
+      syncCustomerMetadataToStripe(String(userEmail)).catch((err) => { logger.error('[Integrity] Stripe metadata sync failed:', err); });
     }
     
     return { 

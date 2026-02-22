@@ -93,6 +93,8 @@ async function addLineItemsToInvoice(
           feeType: 'overage',
           participantType: li.participantType,
         },
+      }, {
+        idempotencyKey: `invitem_overage_${invoiceId}_${li.participantId || 'unknown'}`
       });
     }
 
@@ -108,6 +110,8 @@ async function addLineItemsToInvoice(
           feeType: 'guest',
           participantType: li.participantType,
         },
+      }, {
+        idempotencyKey: `invitem_guest_${invoiceId}_${li.participantId || 'unknown'}`
       });
     }
   }
@@ -157,6 +161,8 @@ export async function createDraftInvoiceForBooking(
     description,
     metadata: invoiceMetadata,
     pending_invoice_items_behavior: 'exclude',
+  }, {
+    idempotencyKey: `invoice_booking_${bookingId}`
   });
 
   await addLineItemsToInvoice(stripe, invoice.id, customerId, feeLineItems);
