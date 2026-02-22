@@ -2142,21 +2142,30 @@ async function checkInvoiceBookingReconciliation(): Promise<IntegrityCheckResult
     }
 
     const missingInvoicesResult = await db.execute(sql`
-      SELECT id, user_email, request_date, status
-      FROM booking_requests
-      WHERE status = 'attended'
-        AND stripe_invoice_id IS NULL
-        AND request_date > CURRENT_DATE - INTERVAL '90 days'
+      SELECT br.id, br.user_email, br.request_date, br.status,
+             SUM(COALESCE(bp.cached_fee_cents, 0)) as total_unpaid_cents
+      FROM booking_requests br
+      JOIN booking_sessions bs ON bs.id = br.session_id
+      JOIN booking_participants bp ON bp.session_id = bs.id
+      WHERE br.status = 'attended'
+        AND br.stripe_invoice_id IS NULL
+        AND br.request_date > CURRENT_DATE - INTERVAL '30 days'
+        AND br.user_email NOT LIKE '%@trackman.local'
+        AND bp.payment_status = 'pending'
+        AND COALESCE(bp.cached_fee_cents, 0) > 0
+      GROUP BY br.id, br.user_email, br.request_date, br.status
+      HAVING SUM(COALESCE(bp.cached_fee_cents, 0)) > 0
     `);
 
     for (const row of missingInvoicesResult.rows as Record<string, unknown>[]) {
+      const totalUnpaid = Number(row.total_unpaid_cents) / 100;
       issues.push({
         category: 'billing_issue',
         severity: 'warning',
         table: 'booking_requests',
         recordId: row.id as string | number,
-        description: `Attended booking #${row.id} for ${row.user_email} on ${row.request_date} has no Stripe invoice. Member used service but wasn't billed.`,
-        suggestion: 'Member attended but no invoice was created. Review billing.',
+        description: `Attended booking #${row.id} for ${row.user_email} on ${row.request_date} has $${totalUnpaid.toFixed(2)} in unpaid fees but no Stripe invoice.`,
+        suggestion: 'Participants owe fees but no invoice was created. Create an invoice or review billing.',
         context: {
           memberEmail: (row.user_email as string) || undefined,
           bookingDate: (row.request_date as string) || undefined,
@@ -2350,12 +2359,16 @@ async function checkStalePendingBookings(): Promise<IntegrityCheckResult> {
       SELECT br.id, br.user_email, br.request_date, br.start_time, br.status, br.resource_id
       FROM booking_requests br
       WHERE br.status IN ('pending', 'approved')
-        AND (br.request_date + br.start_time::time) < (NOW() AT TIME ZONE 'America/Los_Angeles')
-        AND br.request_date >= CURRENT_DATE - INTERVAL '30 days'
+        AND (br.request_date + br.start_time::time) < ((NOW() AT TIME ZONE 'America/Los_Angeles') - INTERVAL '24 hours')
+        AND br.request_date >= CURRENT_DATE - INTERVAL '7 days'
+        AND br.user_email NOT LIKE '%@trackman.local'
       ORDER BY br.request_date DESC
     `);
 
-    for (const row of staleResult.rows as Record<string, unknown>[]) {
+    const totalStale = staleResult.rows.length;
+    const maxDetailedIssues = 25;
+
+    for (const row of (staleResult.rows as Record<string, unknown>[]).slice(0, maxDetailedIssues)) {
       issues.push({
         category: 'booking_issue',
         severity: 'warning',
@@ -2372,6 +2385,25 @@ async function checkStalePendingBookings(): Promise<IntegrityCheckResult> {
         }
       });
     }
+
+    if (totalStale > maxDetailedIssues) {
+      issues.push({
+        category: 'booking_issue',
+        severity: 'info',
+        table: 'booking_requests',
+        recordId: 'stale_summary',
+        description: `${totalStale - maxDetailedIssues} additional stale bookings not shown. Total: ${totalStale} bookings in pending/approved status past their start time in the last 7 days.`,
+        suggestion: 'Consider bulk-cancelling old approved bookings or implementing auto-no-show after 24 hours.'
+      });
+    }
+
+    return {
+      checkName: 'Stale Pending Bookings',
+      status: issues.length === 0 ? 'pass' : 'warning',
+      issueCount: totalStale,
+      issues,
+      lastRun: new Date()
+    };
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Error checking stale pending bookings:', { extra: { detail: getErrorMessage(error) } });
     return {
@@ -2389,14 +2421,6 @@ async function checkStalePendingBookings(): Promise<IntegrityCheckResult> {
       lastRun: new Date()
     };
   }
-
-  return {
-    checkName: 'Stale Pending Bookings',
-    status: issues.length === 0 ? 'pass' : 'warning',
-    issueCount: issues.length,
-    issues,
-    lastRun: new Date()
-  };
 }
 
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<IntegrityCheckResult[]> {
