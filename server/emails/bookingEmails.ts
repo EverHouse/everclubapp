@@ -28,7 +28,7 @@ export function getBookingConfirmationHtml(data: BookingConfirmationData): strin
   });
   
   const formattedTime = data.time.length === 5 
-    ? new Date(`2000-01-01T${data.time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    ? new Date(`2000-01-01T${data.time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Los_Angeles' })
     : data.time;
   
   return `
@@ -160,7 +160,7 @@ export function getBookingRescheduleHtml(data: BookingRescheduleData): string {
 
   const formatTime = (t: string) =>
     t.length === 5
-      ? new Date(`2000-01-01T${t}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      ? new Date(`2000-01-01T${t}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Los_Angeles' })
       : t;
 
   const formattedStart = formatTime(data.startTime);
