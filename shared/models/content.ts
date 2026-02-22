@@ -97,7 +97,7 @@ export const wellnessClasses = pgTable("wellness_classes", {
 // Wellness enrollments table - class registrations
 export const wellnessEnrollments = pgTable("wellness_enrollments", {
   id: serial("id").primaryKey(),
-  classId: integer("class_id"),
+  classId: integer("class_id").references(() => wellnessClasses.id, { onDelete: 'cascade' }),
   userEmail: varchar("user_email").notNull(),
   status: varchar("status").default("confirmed"),
   isWaitlisted: boolean("is_waitlisted").default(false),

@@ -53,9 +53,9 @@ We use a **Liquid Glass UI** system.
 - **React & Framework**: React 19, Vite, state management (Zustand/TanStack).
 
 ### Core Domain
-- **Booking & Scheduling**: "Request & Hold" model, unified participants, calendar sync.
+- **Booking & Scheduling**: "Request & Hold" model, unified participants, calendar sync. Auto no-show scheduler (every 2h) marks approved/confirmed bookings as `no_show` 24h after end time.
 - **Fees & Billing**: Unified fee service, dynamic pricing, prepayment, guest fees. "One invoice per booking" architecture.
-- **Database & Data Integrity**: PostgreSQL, Supabase Realtime, Drizzle ORM.
+- **Database & Data Integrity**: PostgreSQL, Supabase Realtime, Drizzle ORM. CASCADE constraints on `wellness_enrollments.class_id` and `booking_participants.session_id`.
 - **Member Lifecycle & Check-In**: Tiers, QR/NFC check-in, onboarding.
 
 ## External Dependencies

@@ -274,7 +274,7 @@ export const usageLedger = pgTable("usage_ledger", {
 // Booking participants table - unified table for all participants (replaces booking_members/booking_guests)
 export const bookingParticipants = pgTable("booking_participants", {
   id: serial("id").primaryKey(),
-  sessionId: integer("session_id").notNull(),
+  sessionId: integer("session_id").notNull().references(() => bookingSessions.id, { onDelete: 'cascade' }),
   userId: varchar("user_id"),
   guestId: integer("guest_id"),
   participantType: participantTypeEnum("participant_type").notNull(),

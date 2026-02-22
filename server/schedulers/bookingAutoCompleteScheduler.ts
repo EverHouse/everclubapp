@@ -21,10 +21,10 @@ async function autoCompletePastBookings(): Promise<void> {
 
     logger.info(`[Booking Auto-Complete] Running auto-complete check at ${todayStr} ${currentTimePacific}`);
 
-    const completedBookings = await queryWithRetry<AutoCompletedBookingResult>(
+    const markedBookings = await queryWithRetry<AutoCompletedBookingResult>(
       `UPDATE booking_requests 
-       SET status = 'completed',
-           staff_notes = COALESCE(staff_notes || E'\n', '') || '[Auto-completed: booking time passed without check-in]',
+       SET status = 'no_show',
+           staff_notes = COALESCE(staff_notes || E'\n', '') || '[Auto no-show: booking time passed without check-in]',
            updated_at = NOW(),
            reviewed_at = NOW(),
            reviewed_by = 'system-auto-complete'
@@ -38,34 +38,35 @@ async function autoCompletePastBookings(): Promise<void> {
       [todayStr, currentTimePacific]
     );
 
-    const completedCount = completedBookings.rows.length;
+    const markedCount = markedBookings.rows.length;
 
-    if (completedCount === 0) {
+    if (markedCount === 0) {
       logger.info('[Booking Auto-Complete] No past approved/confirmed bookings found');
+      schedulerTracker.recordRun('Booking Auto-Complete', true);
       return;
     }
 
-    for (const booking of completedBookings.rows) {
+    for (const booking of markedBookings.rows) {
       logger.info(
-        `[Booking Auto-Complete] Completed request #${booking.id}: ` +
+        `[Booking Auto-Complete] Marked no-show request #${booking.id}: ` +
         `${booking.userName || booking.userEmail} for ${booking.requestDate} ${booking.startTime}`
       );
     }
 
-    logger.info(`[Booking Auto-Complete] Auto-completed ${completedCount} past booking(s)`);
+    logger.info(`[Booking Auto-Complete] Marked ${markedCount} past booking(s) as no-show`);
     schedulerTracker.recordRun('Booking Auto-Complete', true);
 
-    if (completedCount >= 2) {
-      const summary = completedBookings.rows
+    if (markedCount >= 2) {
+      const summary = markedBookings.rows
         .slice(0, 5)
         .map(b => `• ${b.userName || b.userEmail} - ${b.requestDate} ${b.startTime}`)
         .join('\n');
 
-      const moreText = completedCount > 5 ? `\n...and ${completedCount - 5} more` : '';
+      const moreText = markedCount > 5 ? `\n...and ${markedCount - 5} more` : '';
 
       await notifyAllStaff(
-        'Bookings Auto-Completed',
-        `${completedCount} approved/confirmed booking(s) were auto-completed because their scheduled time passed without check-in:\n\n${summary}${moreText}`,
+        'Bookings Marked No-Show',
+        `${markedCount} approved/confirmed booking(s) were marked as no-show because their scheduled time passed without check-in:\n\n${summary}${moreText}`,
         'system',
         { sendPush: false }
       );
@@ -74,7 +75,6 @@ async function autoCompletePastBookings(): Promise<void> {
   } catch (error: unknown) {
     logger.error('[Booking Auto-Complete] Error auto-completing bookings:', { error: error as Error });
     schedulerTracker.recordRun('Booking Auto-Complete', false, String(error));
-    logger.error('Failed to auto-complete past bookings', { error: error as Error, extra: { context: 'booking_auto_complete_scheduler' } });
   }
 }
 
@@ -109,7 +109,7 @@ export function stopBookingAutoCompleteScheduler(): void {
   }
 }
 
-export async function runManualBookingAutoComplete(): Promise<{ completedCount: number }> {
+export async function runManualBookingAutoComplete(): Promise<{ markedCount: number }> {
   logger.info('[Booking Auto-Complete] Running manual auto-complete check...');
 
   const todayStr = getTodayPacific();
@@ -117,8 +117,8 @@ export async function runManualBookingAutoComplete(): Promise<{ completedCount: 
 
   const result = await queryWithRetry(
     `UPDATE booking_requests 
-     SET status = 'completed',
-         staff_notes = COALESCE(staff_notes || E'\n', '') || '[Auto-completed: booking time passed without check-in]',
+     SET status = 'no_show',
+         staff_notes = COALESCE(staff_notes || E'\n', '') || '[Auto no-show: booking time passed without check-in]',
          updated_at = NOW(),
          reviewed_at = NOW(),
          reviewed_by = 'system-auto-complete'
@@ -132,8 +132,8 @@ export async function runManualBookingAutoComplete(): Promise<{ completedCount: 
     [todayStr, currentTimePacific]
   );
 
-  const completedCount = result.rows.length;
-  logger.info(`[Booking Auto-Complete] Manual run completed ${completedCount} booking(s)`);
+  const markedCount = result.rows.length;
+  logger.info(`[Booking Auto-Complete] Manual run marked ${markedCount} booking(s) as no-show`);
 
-  return { completedCount };
+  return { markedCount };
 }
