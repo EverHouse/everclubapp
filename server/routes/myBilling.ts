@@ -556,7 +556,7 @@ router.get('/api/my-billing/account-balance', requireAuth, async (req, res) => {
 // Sync member to Stripe - create or find customer by email
 router.post('/api/member-billing/:email/sync-stripe', requireStaffAuth, async (req, res) => {
   try {
-    const targetEmail = decodeURIComponent(req.params.email as any);
+    const targetEmail = decodeURIComponent(req.params.email as any).trim().toLowerCase();
     
     const result = await db.execute(sql`SELECT id, email, first_name, last_name, stripe_customer_id, tier FROM users WHERE LOWER(email) = ${targetEmail.toLowerCase()}`);
     
@@ -585,7 +585,7 @@ router.post('/api/member-billing/:email/sync-stripe', requireStaffAuth, async (r
 // Sync customer metadata to Stripe
 router.post('/api/member-billing/:email/sync-metadata', requireStaffAuth, async (req, res) => {
   try {
-    const targetEmail = decodeURIComponent(req.params.email as any);
+    const targetEmail = decodeURIComponent(req.params.email as any).trim().toLowerCase();
     
     const result = await db.execute(sql`SELECT id, email, first_name, last_name, stripe_customer_id, tier FROM users WHERE LOWER(email) = ${targetEmail.toLowerCase()}`);
     
@@ -620,7 +620,7 @@ router.post('/api/member-billing/:email/sync-metadata', requireStaffAuth, async 
 // Sync tier from Stripe subscription - fetches active subscription and updates tier based on product name
 router.post('/api/member-billing/:email/sync-tier-from-stripe', requireStaffAuth, async (req, res) => {
   try {
-    const targetEmail = decodeURIComponent(req.params.email as any);
+    const targetEmail = decodeURIComponent(req.params.email as any).trim().toLowerCase();
     
     const result = await db.execute(sql`SELECT id, email, first_name, last_name, stripe_customer_id, tier FROM users WHERE LOWER(email) = ${targetEmail.toLowerCase()}`);
     
@@ -742,7 +742,7 @@ router.post('/api/member-billing/:email/sync-tier-from-stripe', requireStaffAuth
 // Backfill transaction cache for individual member
 router.post('/api/member-billing/:email/backfill-cache', requireStaffAuth, async (req, res) => {
   try {
-    const targetEmail = decodeURIComponent(req.params.email as any);
+    const targetEmail = decodeURIComponent(req.params.email as any).trim().toLowerCase();
     
     const result = await db.execute(sql`SELECT id, email, stripe_customer_id FROM users WHERE LOWER(email) = ${targetEmail.toLowerCase()}`);
     

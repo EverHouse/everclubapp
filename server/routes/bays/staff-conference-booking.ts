@@ -214,13 +214,19 @@ router.post('/api/staff/conference-room/booking', isStaffOrAdmin, async (req: Re
       return res.status(400).json({ error: 'Booking cannot extend past midnight' });
     }
 
-    const overlapCheck = await db.execute(sql`SELECT id FROM booking_requests 
+    const overlapCheck = await db.execute(sql`SELECT id, start_time, end_time FROM booking_requests 
        WHERE resource_id = ${resourceId} AND request_date = ${date} 
        AND status IN ('pending', 'approved', 'attended')
        AND (start_time < ${endTime} AND end_time > ${startTimeWithSeconds})`);
 
     if (overlapCheck.rows.length > 0) {
-      return res.status(409).json({ error: 'This time slot conflicts with an existing booking' });
+      const conflict = overlapCheck.rows[0] as any;
+      const conflictStart = conflict.start_time?.substring(0, 5);
+      const conflictEnd = conflict.end_time?.substring(0, 5);
+      const errorMsg = conflictStart && conflictEnd
+        ? `This time slot conflicts with an existing booking from ${formatTime12Hour(conflictStart)} to ${formatTime12Hour(conflictEnd)}. Please adjust your time or duration.`
+        : 'This time slot conflicts with an existing booking';
+      return res.status(409).json({ error: errorMsg });
     }
 
     const tierName = await getMemberTierByEmail(normalizedEmail);

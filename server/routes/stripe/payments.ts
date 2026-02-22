@@ -633,7 +633,7 @@ router.post('/api/stripe/cleanup-stale-intents', isStaffOrAdmin, async (req: Req
 
 router.get('/api/stripe/payments/:email', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const email = decodeURIComponent(req.params.email as string);
+    const email = decodeURIComponent(req.params.email as string).trim().toLowerCase();
 
     const { staffEmail } = getStaffInfo(req);
     logFromRequest(req, {
@@ -1048,7 +1048,8 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, async (req
 // Staff charge member's saved card directly (off-session)
 router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { memberEmail, bookingId, sessionId, participantIds } = req.body;
+    const { memberEmail: rawMemberEmail, bookingId, sessionId, participantIds } = req.body;
+    const memberEmail = rawMemberEmail?.trim()?.toLowerCase();
     const { staffEmail, staffName, sessionUser } = getStaffInfo(req);
 
     if (!memberEmail) {
@@ -1408,7 +1409,8 @@ router.post('/api/stripe/staff/mark-booking-paid', isStaffOrAdmin, async (req: R
 
 router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { memberEmail, memberName, amountCents, description, productId, cartItems } = req.body;
+    const { memberEmail: rawEmail, memberName, amountCents, description, productId, cartItems } = req.body;
+    const memberEmail = rawEmail?.trim()?.toLowerCase();
     const { staffEmail, staffName, sessionUser } = getStaffInfo(req);
 
     if (!memberEmail || !amountCents) {
@@ -1815,7 +1817,8 @@ router.post('/api/purchases/send-receipt', isStaffOrAdmin, async (req: Request, 
 
 router.post('/api/payments/adjust-guest-passes', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { memberId, memberEmail, memberName, adjustment, reason } = req.body;
+    const { memberId, memberEmail: rawEmail, memberName, adjustment, reason } = req.body;
+    const memberEmail = rawEmail?.trim()?.toLowerCase();
     const { staffEmail, staffName } = getStaffInfo(req);
 
     if (!memberEmail || typeof adjustment !== 'number' || !reason) {

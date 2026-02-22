@@ -133,7 +133,7 @@ router.get('/api/family-billing/groups', isStaffOrAdmin, async (req, res) => {
 
 router.get('/api/group-billing/group/:email', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = req.params.email as string;
+    const email = (req.params.email as string).trim().toLowerCase();
     const group = await getBillingGroupByMemberEmail(email);
     
     if (!group) {
@@ -149,7 +149,7 @@ router.get('/api/group-billing/group/:email', isStaffOrAdmin, async (req, res) =
 
 router.get('/api/family-billing/group/:email', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = req.params.email as string;
+    const email = (req.params.email as string).trim().toLowerCase();
     const group = await getBillingGroupByMemberEmail(email);
     
     if (!group) {
