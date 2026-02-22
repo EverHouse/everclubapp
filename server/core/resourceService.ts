@@ -1869,6 +1869,16 @@ export async function deleteBooking(bookingId: number, archivedBy: string, hardD
       resourceName
     );
     
+    // Void booking invoice
+    try {
+      const { voidBookingInvoice } = await import('./billing/bookingInvoiceService');
+      await voidBookingInvoice(bookingId);
+    } catch (voidErr: unknown) {
+      logger.warn('[DELETE /api/bookings] Failed to void booking invoice', {
+        extra: { bookingId, error: getErrorMessage(voidErr) }
+      });
+    }
+    
     logger.info('[DELETE /api/bookings] Soft delete complete', {
       extra: {
         bookingId,
@@ -2048,6 +2058,16 @@ export async function memberCancelBooking(bookingId: number, userEmail: string, 
     existing.startTime || '',
     resourceName
   );
+  
+  // Void booking invoice
+  try {
+    const { voidBookingInvoice } = await import('./billing/bookingInvoiceService');
+    await voidBookingInvoice(bookingId);
+  } catch (voidErr: unknown) {
+    logger.warn('[Member Cancel] Failed to void booking invoice', { 
+      extra: { bookingId, error: getErrorMessage(voidErr) }
+    });
+  }
   
   logger.info('[PUT /api/bookings/member-cancel] Cancellation cascade complete', {
     extra: {
@@ -2397,6 +2417,16 @@ export async function createManualBooking(params: {
       }
     } catch (cancelIntentsErr: unknown) {
       logger.warn('[Reschedule] Failed to cancel pending payment intents', { error: cancelIntentsErr as Error });
+    }
+    
+    // Void old booking invoice
+    try {
+      const { voidBookingInvoice } = await import('./billing/bookingInvoiceService');
+      await voidBookingInvoice(params.rescheduleFromId as number);
+    } catch (voidErr: unknown) {
+      logger.warn('[Reschedule] Failed to void old booking invoice', { 
+        extra: { bookingId: params.rescheduleFromId, error: getErrorMessage(voidErr) }
+      });
     }
     
     if (oldBookingRequest.calendarEventId && oldBookingRequest.resourceId) {

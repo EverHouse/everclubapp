@@ -2166,83 +2166,86 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
         return deferredActions;
       }
       
-      try {
-        const stripe = await getStripeClient();
-        
-        // Credit the customer's balance (negative amount = credit)
-        // Use session ID as idempotency key to prevent double-credit on retries
-        const transaction = await stripe.customers.createBalanceTransaction(
-          customerId,
-          {
-            amount: -amountCents,
-            currency: 'usd',
-            description: `Account balance top-up via checkout (${session.id})`
-          },
-          {
-            idempotencyKey: `add_funds_${session.id}`
+      const userResult = await client.query(
+        'SELECT first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)',
+        [memberEmail]
+      );
+      const memberName = userResult.rows[0]
+        ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || memberEmail
+        : memberEmail;
+
+      const deferredCustomerId = customerId;
+      const deferredAmountCents = amountCents;
+      const deferredAmountDollars = amountDollars;
+      const deferredMemberEmail = memberEmail;
+      const deferredMemberName = memberName;
+      const deferredSessionId = session.id;
+
+      deferredActions.push(async () => {
+        try {
+          const stripe = await getStripeClient();
+          
+          const transaction = await stripe.customers.createBalanceTransaction(
+            deferredCustomerId,
+            {
+              amount: -deferredAmountCents,
+              currency: 'usd',
+              description: `Account balance top-up via checkout (${deferredSessionId})`
+            },
+            {
+              idempotencyKey: `add_funds_${deferredSessionId}`
+            }
+          );
+          
+          const newBalanceDollars = Math.abs(transaction.ending_balance) / 100;
+          logger.info(`[Stripe Webhook] Successfully added $${deferredAmountDollars.toFixed(2)} to balance for ${deferredMemberEmail}. New balance: $${newBalanceDollars.toFixed(2)}`);
+          
+          await notifyMember({
+            userEmail: deferredMemberEmail,
+            title: 'Funds Added Successfully',
+            message: `$${deferredAmountDollars.toFixed(2)} has been added to your account balance. New balance: $${newBalanceDollars.toFixed(2)}`,
+            type: 'funds_added',
+          }, { sendPush: true });
+          
+          await notifyAllStaff(
+            'Member Added Funds',
+            `${deferredMemberName} (${deferredMemberEmail}) added $${deferredAmountDollars.toFixed(2)} to their account balance.`,
+            'funds_added',
+            { sendPush: true }
+          );
+          
+          await sendPaymentReceiptEmail(deferredMemberEmail, {
+            memberName: deferredMemberName,
+            amount: deferredAmountDollars,
+            description: 'Account Balance Top-Up',
+            date: new Date(),
+            transactionId: deferredSessionId
+          });
+          
+          logger.info(`[Stripe Webhook] All notifications sent for add_funds: ${deferredMemberEmail}`);
+          
+          broadcastBillingUpdate({
+            action: 'balance_updated',
+            memberEmail: deferredMemberEmail,
+            amountCents: deferredAmountCents,
+            newBalance: transaction.ending_balance
+          });
+          
+        } catch (balanceError: unknown) {
+          logger.error(`[Stripe Webhook] Failed to credit balance for ${deferredMemberEmail}:`, { extra: { detail: getErrorMessage(balanceError) } });
+          
+          try {
+            await notifyAllStaff(
+              'Payment Processing Error',
+              `Failed to add $${deferredAmountDollars.toFixed(2)} to balance for ${deferredMemberEmail}. Error: ${getErrorMessage(balanceError)}. Manual intervention required.`,
+              'payment_error',
+              { sendPush: true }
+            );
+          } catch (notifyErr: unknown) {
+            logger.error('[Stripe Webhook] Failed to notify staff of balance error:', { error: notifyErr });
           }
-        );
-        
-        const newBalanceDollars = Math.abs(transaction.ending_balance) / 100;
-        logger.info(`[Stripe Webhook] Successfully added $${amountDollars.toFixed(2)} to balance for ${memberEmail}. New balance: $${newBalanceDollars.toFixed(2)}`);
-        
-        // Get member name for notifications
-        const userResult = await client.query(
-          'SELECT first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)',
-          [memberEmail]
-        );
-        const memberName = userResult.rows[0]
-          ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || memberEmail
-          : memberEmail;
-        
-        // 1. Send in-app + push notification to member
-        await notifyMember({
-          userEmail: memberEmail,
-          title: 'Funds Added Successfully',
-          message: `$${amountDollars.toFixed(2)} has been added to your account balance. New balance: $${newBalanceDollars.toFixed(2)}`,
-          type: 'funds_added',
-        }, { sendPush: true });
-        
-        // 2. Send in-app + push notification to all staff
-        await notifyAllStaff(
-          'Member Added Funds',
-          `${memberName} (${memberEmail}) added $${amountDollars.toFixed(2)} to their account balance.`,
-          'funds_added',
-          { sendPush: true }
-        );
-        
-        // 3. Send email receipt to member
-        await sendPaymentReceiptEmail(memberEmail, {
-          memberName,
-          amount: amountDollars,
-          description: 'Account Balance Top-Up',
-          date: new Date(),
-          transactionId: session.id
-        });
-        
-        logger.info(`[Stripe Webhook] All notifications sent for add_funds: ${memberEmail}`);
-        
-        // Broadcast update for real-time UI updates
-        broadcastBillingUpdate({
-          action: 'balance_updated',
-          memberEmail: memberEmail,
-          amountCents,
-          newBalance: transaction.ending_balance
-        });
-        
-      } catch (balanceError: unknown) {
-        logger.error(`[Stripe Webhook] Failed to credit balance for ${memberEmail}:`, { extra: { detail: getErrorMessage(balanceError) } });
-        
-        // Notify staff of the failure so they can manually resolve
-        await notifyAllStaff(
-          'Payment Processing Error',
-          `Failed to add $${amountDollars.toFixed(2)} to balance for ${memberEmail}. Error: ${getErrorMessage(balanceError)}. Manual intervention required.`,
-          'payment_error',
-          { sendPush: true }
-        );
-        
-        throw balanceError; // Re-throw so Stripe will retry the webhook
-      }
+        }
+      });
       
       return deferredActions;
     }
@@ -2254,6 +2257,7 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
     if (companyName && userEmail) {
       logger.info(`[Stripe Webhook] Processing company sync for "${companyName}" (${userEmail})`);
       
+      // NOTE: Must stay in transaction - result (hubspotCompanyId) needed for DB writes to users and billing_groups
       try {
         const companyResult = await syncCompanyToHubSpot({
           companyName,
@@ -2263,13 +2267,11 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
         if (companyResult.success && companyResult.hubspotCompanyId) {
           logger.info(`[Stripe Webhook] Company synced to HubSpot: ${companyResult.hubspotCompanyId} (created: ${companyResult.created})`);
           
-          // Update user with hubspot company ID
           await client.query(
             `UPDATE users SET hubspot_company_id = $1, company_name = $2, updated_at = NOW() WHERE email = $3`,
             [companyResult.hubspotCompanyId, companyName, userEmail.toLowerCase()]
           );
           
-          // Update billing_group with hubspot company ID if it exists
           await client.query(
             `UPDATE billing_groups SET hubspot_company_id = $1, company_name = $2, updated_at = NOW() WHERE primary_email = $3`,
             [companyResult.hubspotCompanyId, companyName, userEmail.toLowerCase()]
@@ -2315,38 +2317,45 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
             const updatedEmail = updateResult.rows[0].email;
             logger.info(`[Stripe Webhook] Activation link checkout: activated user ${updatedEmail} with subscription ${subscriptionId}`);
 
-            // Also sync contact info to HubSpot
-            try {
-              const { findOrCreateHubSpotContact } = await import('../hubspot/members');
-              const userInfo = await client.query(
-                'SELECT first_name, last_name, phone FROM users WHERE id = $1',
-                [updateResult.rows[0].id]
-              );
-              if (userInfo.rows[0]) {
-                await findOrCreateHubSpotContact(
-                  updatedEmail,
-                  userInfo.rows[0].first_name || '',
-                  userInfo.rows[0].last_name || '',
-                  userInfo.rows[0].phone || undefined
-                );
-              }
-            } catch (contactErr: unknown) {
-              logger.error('[Stripe Webhook] HubSpot contact sync failed for activation link:', { error: contactErr });
-            }
+            const userInfo = await client.query(
+              'SELECT first_name, last_name, phone FROM users WHERE id = $1',
+              [updateResult.rows[0].id]
+            );
+            const deferredUpdatedEmail = updatedEmail;
+            const deferredTierNameMeta = tierNameMeta;
+            const deferredFirstName = userInfo.rows[0]?.first_name || '';
+            const deferredLastName = userInfo.rows[0]?.last_name || '';
+            const deferredPhone = userInfo.rows[0]?.phone || undefined;
 
-            try {
-              const { syncMemberToHubSpot } = await import('../hubspot/stages');
-              await syncMemberToHubSpot({
-                email: updatedEmail,
-                status: 'active',
-                billingProvider: 'stripe',
-                tier: tierNameMeta,
-                memberSince: new Date(),
-                billingGroupRole: 'Primary',
-              });
-            } catch (hubspotError: unknown) {
-              logger.error('[Stripe Webhook] HubSpot sync failed for activation link checkout:', { error: hubspotError });
-            }
+            deferredActions.push(async () => {
+              try {
+                const { findOrCreateHubSpotContact } = await import('../hubspot/members');
+                await findOrCreateHubSpotContact(
+                  deferredUpdatedEmail,
+                  deferredFirstName,
+                  deferredLastName,
+                  deferredPhone
+                );
+              } catch (contactErr: unknown) {
+                logger.error('[Stripe Webhook] HubSpot contact sync failed for activation link:', { error: contactErr });
+              }
+            });
+
+            deferredActions.push(async () => {
+              try {
+                const { syncMemberToHubSpot } = await import('../hubspot/stages');
+                await syncMemberToHubSpot({
+                  email: deferredUpdatedEmail,
+                  status: 'active',
+                  billingProvider: 'stripe',
+                  tier: deferredTierNameMeta,
+                  memberSince: new Date(),
+                  billingGroupRole: 'Primary',
+                });
+              } catch (hubspotError: unknown) {
+                logger.error('[Stripe Webhook] HubSpot sync failed for activation link checkout:', { error: hubspotError });
+              }
+            });
           } else {
             logger.error(`[Stripe Webhook] Activation link checkout: user not found for userId=${userId} email=${memberEmail}`);
           }
@@ -2387,14 +2396,16 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
           logger.info(`[Auto-Unarchive] User ${resolved.primaryEmail} unarchived after receiving Stripe customer ID`);
         }
         
-        // Sync to HubSpot for existing user update
-        try {
-          const { syncMemberToHubSpot } = await import('../hubspot/stages');
-          await syncMemberToHubSpot({ email: resolved.primaryEmail, status: 'active', billingProvider: 'stripe', memberSince: new Date(), billingGroupRole: 'Primary' });
-          logger.info(`[Stripe Webhook] Synced existing user ${resolved.primaryEmail} to HubSpot`);
-        } catch (hubspotError: unknown) {
-          logger.error('[Stripe Webhook] HubSpot sync failed for existing user:', { error: hubspotError });
-        }
+        const deferredResolvedEmail = resolved.primaryEmail;
+        deferredActions.push(async () => {
+          try {
+            const { syncMemberToHubSpot } = await import('../hubspot/stages');
+            await syncMemberToHubSpot({ email: deferredResolvedEmail, status: 'active', billingProvider: 'stripe', memberSince: new Date(), billingGroupRole: 'Primary' });
+            logger.info(`[Stripe Webhook] Synced existing user ${deferredResolvedEmail} to HubSpot`);
+          } catch (hubspotError: unknown) {
+            logger.error('[Stripe Webhook] HubSpot sync failed for existing user:', { error: hubspotError });
+          }
+        });
       } else {
         // Check if user already exists by exact email match
         const existingUser = await client.query(
@@ -2414,14 +2425,16 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
             logger.info(`[Auto-Unarchive] User ${email} unarchived after receiving Stripe customer ID`);
           }
           
-          // Sync to HubSpot for existing user update
-          try {
-            const { syncMemberToHubSpot } = await import('../hubspot/stages');
-            await syncMemberToHubSpot({ email, status: 'active', billingProvider: 'stripe', memberSince: new Date(), billingGroupRole: 'Primary' });
-            logger.info(`[Stripe Webhook] Synced existing user ${email} to HubSpot`);
-          } catch (hubspotError: unknown) {
-            logger.error('[Stripe Webhook] HubSpot sync failed for existing user:', { error: hubspotError });
-          }
+          const deferredDirectEmail = email;
+          deferredActions.push(async () => {
+            try {
+              const { syncMemberToHubSpot } = await import('../hubspot/stages');
+              await syncMemberToHubSpot({ email: deferredDirectEmail, status: 'active', billingProvider: 'stripe', memberSince: new Date(), billingGroupRole: 'Primary' });
+              logger.info(`[Stripe Webhook] Synced existing user ${deferredDirectEmail} to HubSpot`);
+            } catch (hubspotError: unknown) {
+              logger.error('[Stripe Webhook] HubSpot sync failed for existing user:', { error: hubspotError });
+            }
+          });
         } else {
         // Create new user
         logger.info(`[Stripe Webhook] Creating new user from staff invite: ${email}`);
@@ -2461,33 +2474,37 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
         }
       }
       
-      // Sync to HubSpot with proper tier name and billing provider
-      try {
-        const { findOrCreateHubSpotContact } = await import('../hubspot/members');
-        const { syncMemberToHubSpot } = await import('../hubspot/stages');
-        
-        const customerPhone: string | undefined = undefined;
-        
-        await findOrCreateHubSpotContact(
-          email,
-          firstName || '',
-          lastName || '',
-          customerPhone,
-          tierName || undefined
-        );
-        
-        await syncMemberToHubSpot({
-          email,
-          status: 'active',
-          billingProvider: 'stripe',
-          tier: tierName || undefined,
-          memberSince: new Date(),
-          billingGroupRole: 'Primary',
-        });
-        logger.info(`[Stripe Webhook] Synced ${email} to HubSpot: status=active, tier=${tierName}, billing=stripe, memberSince=now`);
-      } catch (hubspotError: unknown) {
-        logger.error('[Stripe Webhook] HubSpot sync failed for staff invite:', { error: hubspotError });
-      }
+      const deferredStaffEmail = email;
+      const deferredStaffFirstName = firstName || '';
+      const deferredStaffLastName = lastName || '';
+      const deferredStaffTierName = tierName || undefined;
+
+      deferredActions.push(async () => {
+        try {
+          const { findOrCreateHubSpotContact } = await import('../hubspot/members');
+          const { syncMemberToHubSpot } = await import('../hubspot/stages');
+          
+          await findOrCreateHubSpotContact(
+            deferredStaffEmail,
+            deferredStaffFirstName,
+            deferredStaffLastName,
+            undefined,
+            deferredStaffTierName
+          );
+          
+          await syncMemberToHubSpot({
+            email: deferredStaffEmail,
+            status: 'active',
+            billingProvider: 'stripe',
+            tier: deferredStaffTierName,
+            memberSince: new Date(),
+            billingGroupRole: 'Primary',
+          });
+          logger.info(`[Stripe Webhook] Synced ${deferredStaffEmail} to HubSpot: status=active, tier=${deferredStaffTierName}, billing=stripe, memberSince=now`);
+        } catch (hubspotError: unknown) {
+          logger.error('[Stripe Webhook] HubSpot sync failed for staff invite:', { error: hubspotError });
+        }
+      });
       
       try {
         await client.query(
@@ -2564,43 +2581,60 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
       purchasedAt: new Date().toISOString(),
     });
 
-    // Send email with QR code
-    try {
-      await sendPassWithQrEmail(email, {
-        passId: parseInt(result.purchaseId!, 10),
-        type: productSlug,
-        quantity: 1,
-        purchaseDate: new Date()
-      });
-      logger.info(`[Stripe Webhook] QR pass email sent to ${email}`);
-    } catch (emailError: unknown) {
-      logger.error('[Stripe Webhook] Failed to send QR pass email:', { error: emailError });
-    }
-
-    // Notify staff about day pass purchase
+    const deferredDayPassEmail = email;
+    const deferredProductSlug = productSlug;
+    const deferredPurchaseId = result.purchaseId;
+    const deferredFirstName = firstName;
+    const deferredLastName = lastName;
+    const deferredPhone = phone;
+    const deferredDayPassAmountCents = amountCents;
+    const deferredPaymentIntentId = paymentIntentId;
     const purchaserName = [firstName, lastName].filter(Boolean).join(' ') || email;
-    await notifyAllStaff(
-      'Day Pass Purchased',
-      `${purchaserName} (${email}) purchased a ${productSlug} day pass.`,
-      'day_pass',
-      { sendPush: false, sendWebSocket: true }
-    );
+    const deferredPurchaserName = purchaserName;
 
-    // Queue HubSpot sync for day pass (non-blocking)
-    try {
-      await queueDayPassSyncToHubSpot({
-        email,
-        firstName,
-        lastName,
-        phone,
-        productSlug,
-        amountCents,
-        paymentIntentId,
-        purchaseId: result.purchaseId
-      });
-    } catch (hubspotError: unknown) {
-      logger.error('[Stripe Webhook] Failed to queue HubSpot sync for day pass:', { error: hubspotError });
-    }
+    deferredActions.push(async () => {
+      try {
+        await sendPassWithQrEmail(deferredDayPassEmail, {
+          passId: parseInt(deferredPurchaseId!, 10),
+          type: deferredProductSlug,
+          quantity: 1,
+          purchaseDate: new Date()
+        });
+        logger.info(`[Stripe Webhook] QR pass email sent to ${deferredDayPassEmail}`);
+      } catch (emailError: unknown) {
+        logger.error('[Stripe Webhook] Failed to send QR pass email:', { error: emailError });
+      }
+    });
+
+    deferredActions.push(async () => {
+      try {
+        await notifyAllStaff(
+          'Day Pass Purchased',
+          `${deferredPurchaserName} (${deferredDayPassEmail}) purchased a ${deferredProductSlug} day pass.`,
+          'day_pass',
+          { sendPush: false, sendWebSocket: true }
+        );
+      } catch (notifyErr: unknown) {
+        logger.error('[Stripe Webhook] Failed to notify staff of day pass:', { error: notifyErr });
+      }
+    });
+
+    deferredActions.push(async () => {
+      try {
+        await queueDayPassSyncToHubSpot({
+          email: deferredDayPassEmail,
+          firstName: deferredFirstName,
+          lastName: deferredLastName,
+          phone: deferredPhone,
+          productSlug: deferredProductSlug,
+          amountCents: deferredDayPassAmountCents,
+          paymentIntentId: deferredPaymentIntentId,
+          purchaseId: deferredPurchaseId
+        });
+      } catch (hubspotError: unknown) {
+        logger.error('[Stripe Webhook] Failed to queue HubSpot sync for day pass:', { error: hubspotError });
+      }
+    });
   } catch (error: unknown) {
     logger.error('[Stripe Webhook] Error handling checkout session completed:', { error: error });
     throw error;
@@ -2645,6 +2679,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
     if (userResult.rows.length === 0) {
       logger.info(`[Stripe Webhook] No user found for Stripe customer ${customerId}, creating user from Stripe data`);
       
+      // NOTE: Must stay in transaction - result needed for DB writes (customerEmail, name used for user creation)
       const stripe = await getStripeClient();
       const customer = await Promise.race([
         stripe.customers.retrieve(customerId as string),
@@ -2779,67 +2814,80 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
         }
       }
       
-      try {
-        const { findOrCreateHubSpotContact } = await import('../hubspot/members');
-        const { syncMemberToHubSpot } = await import('../hubspot/stages');
-        const contactResult = await findOrCreateHubSpotContact(
-          customerEmail,
-          firstName,
-          lastName,
-          metadataPhone || undefined,
-          tierName || undefined
-        );
-        
-        if (contactResult?.contactId) {
-          await syncMemberToHubSpot({
-            email: customerEmail,
-            status: actualStatus,
-            billingProvider: 'stripe',
-            tier: tierName || undefined,
-            memberSince: new Date(),
-            stripeCustomerId: customerId as string,
-            stripePricingInterval: subscription.items?.data?.[0]?.price?.recurring?.interval || undefined,
-            billingGroupRole: 'Primary',
-          });
-          logger.info(`[Stripe Webhook] Synced ${customerEmail} to HubSpot contact: status=${actualStatus}, tier=${tierName}, billing=stripe`);
+      const deferredCustomerEmail = customerEmail;
+      const deferredFirstName = firstName;
+      const deferredLastName = lastName;
+      const deferredMetadataPhone = metadataPhone || undefined;
+      const deferredTierName = tierName;
+      const deferredActualStatus = actualStatus;
+      const deferredCustomerId = customerId as string;
+      const deferredPricingInterval = subscription.items?.data?.[0]?.price?.recurring?.interval || undefined;
+
+      deferredActions.push(async () => {
+        try {
+          const { findOrCreateHubSpotContact } = await import('../hubspot/members');
+          const { syncMemberToHubSpot } = await import('../hubspot/stages');
+          const contactResult = await findOrCreateHubSpotContact(
+            deferredCustomerEmail,
+            deferredFirstName,
+            deferredLastName,
+            deferredMetadataPhone,
+            deferredTierName || undefined
+          );
           
-          // Also sync deal line items for new Stripe subscription - Stripe-billed only
-          if (tierName) {
-            const hubspotResult = await handleTierChange(
-              customerEmail,
-              'None',
-              tierName,
-              'stripe-webhook',
-              'Stripe Subscription'
-            );
+          if (contactResult?.contactId) {
+            await syncMemberToHubSpot({
+              email: deferredCustomerEmail,
+              status: deferredActualStatus,
+              billingProvider: 'stripe',
+              tier: deferredTierName || undefined,
+              memberSince: new Date(),
+              stripeCustomerId: deferredCustomerId,
+              stripePricingInterval: deferredPricingInterval,
+              billingGroupRole: 'Primary',
+            });
+            logger.info(`[Stripe Webhook] Synced ${deferredCustomerEmail} to HubSpot contact: status=${deferredActualStatus}, tier=${deferredTierName}, billing=stripe`);
             
-            if (!hubspotResult.success && hubspotResult.error) {
-              logger.warn(`[Stripe Webhook] HubSpot deal sync failed for new member ${customerEmail}, queuing for retry`);
+            if (deferredTierName) {
+              const hubspotResult = await handleTierChange(
+                deferredCustomerEmail,
+                'None',
+                deferredTierName,
+                'stripe-webhook',
+                'Stripe Subscription'
+              );
+              
+              if (!hubspotResult.success && hubspotResult.error) {
+                logger.warn(`[Stripe Webhook] HubSpot deal sync failed for new member ${deferredCustomerEmail}, queuing for retry`);
+                await queueTierSync({
+                  email: deferredCustomerEmail,
+                  newTier: deferredTierName,
+                  oldTier: 'None',
+                  changedBy: 'stripe-webhook',
+                  changedByName: 'Stripe Subscription'
+                });
+              } else {
+                logger.info(`[Stripe Webhook] Created HubSpot deal line item for ${deferredCustomerEmail} tier=${deferredTierName}`);
+              }
+            }
+          }
+        } catch (hubspotError: unknown) {
+          logger.error('[Stripe Webhook] HubSpot sync failed for subscription user creation:', { extra: { detail: getErrorMessage(hubspotError) } });
+          if (deferredTierName) {
+            try {
               await queueTierSync({
-                email: customerEmail,
-                newTier: tierName,
+                email: deferredCustomerEmail,
+                newTier: deferredTierName,
                 oldTier: 'None',
                 changedBy: 'stripe-webhook',
                 changedByName: 'Stripe Subscription'
               });
-            } else {
-              logger.info(`[Stripe Webhook] Created HubSpot deal line item for ${customerEmail} tier=${tierName}`);
+            } catch (queueErr: unknown) {
+              logger.error('[Stripe Webhook] Failed to queue tier sync retry:', { error: queueErr });
             }
           }
         }
-      } catch (hubspotError: unknown) {
-        logger.error('[Stripe Webhook] HubSpot sync failed for subscription user creation:', { extra: { detail: getErrorMessage(hubspotError) } });
-        // Queue tier sync for retry if we have a tier
-        if (tierName) {
-          await queueTierSync({
-            email: customerEmail,
-            newTier: tierName,
-            oldTier: 'None',
-            changedBy: 'stripe-webhook',
-            changedByName: 'Stripe Subscription'
-          });
-        }
-      }
+      });
       
       email = customerEmail;
       first_name = firstName;
@@ -2893,19 +2941,35 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
 
     const memberName = `${first_name || ''} ${last_name || ''}`.trim() || email;
 
-    await notifyMember({
-      userEmail: email,
-      title: 'Subscription Started',
-      message: `Your ${planName} subscription has been activated. Welcome!`,
-      type: 'membership_renewed',
+    const deferredNotifyEmail = email;
+    const deferredNotifyMemberName = memberName;
+    const deferredPlanName = planName;
+
+    deferredActions.push(async () => {
+      try {
+        await notifyMember({
+          userEmail: deferredNotifyEmail,
+          title: 'Subscription Started',
+          message: `Your ${deferredPlanName} subscription has been activated. Welcome!`,
+          type: 'membership_renewed',
+        });
+      } catch (notifyErr: unknown) {
+        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: notifyErr });
+      }
     });
 
-    await notifyAllStaff(
-      '🎉 New Member Joined',
-      `${memberName} (${email}) has subscribed to ${planName}.`,
-      'new_member',
-      { sendPush: true, url: '/admin/members' }
-    );
+    deferredActions.push(async () => {
+      try {
+        await notifyAllStaff(
+          '🎉 New Member Joined',
+          `${deferredNotifyMemberName} (${deferredNotifyEmail}) has subscribed to ${deferredPlanName}.`,
+          'new_member',
+          { sendPush: true, url: '/admin/members' }
+        );
+      } catch (notifyErr: unknown) {
+        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: notifyErr });
+      }
+    });
 
     broadcastBillingUpdate({
       action: 'subscription_created',
@@ -2977,23 +3041,30 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
           if (updateResult.rowCount && updateResult.rowCount > 0) {
             logger.info(`[Stripe Webhook] User activation: ${email} tier updated to ${tierSlug}, membership_status conditionally set to ${(subscription.status === 'active' || subscription.status === 'trialing') ? 'active' : 'pending'} (subscription status: ${subscription.status})`);
             
-            // Sync membership status, tier, and billing provider to HubSpot for existing users
-            try {
-              const { syncMemberToHubSpot } = await import('../hubspot/stages');
-              await syncMemberToHubSpot({
-                email,
-                status: subscription.status,
-                billingProvider: 'stripe',
-                tier: tierName,
-                memberSince: new Date(),
-                stripeCustomerId: customerId as string,
-                stripePricingInterval: subscription.items?.data?.[0]?.price?.recurring?.interval || undefined,
-                billingGroupRole: 'Primary',
-              });
-              logger.info(`[Stripe Webhook] Synced existing user ${email} to HubSpot: tier=${tierName}, status=${subscription.status}, billing=stripe, memberSince=now`);
-            } catch (hubspotError: unknown) {
-              logger.error('[Stripe Webhook] HubSpot sync failed for existing user subscription:', { error: hubspotError });
-            }
+            const deferredActivationEmail = email;
+            const deferredActivationTierName = tierName;
+            const deferredActivationStatus = subscription.status;
+            const deferredActivationCustomerId = customerId as string;
+            const deferredActivationInterval = subscription.items?.data?.[0]?.price?.recurring?.interval || undefined;
+
+            deferredActions.push(async () => {
+              try {
+                const { syncMemberToHubSpot } = await import('../hubspot/stages');
+                await syncMemberToHubSpot({
+                  email: deferredActivationEmail,
+                  status: deferredActivationStatus,
+                  billingProvider: 'stripe',
+                  tier: deferredActivationTierName,
+                  memberSince: new Date(),
+                  stripeCustomerId: deferredActivationCustomerId,
+                  stripePricingInterval: deferredActivationInterval,
+                  billingGroupRole: 'Primary',
+                });
+                logger.info(`[Stripe Webhook] Synced existing user ${deferredActivationEmail} to HubSpot: tier=${deferredActivationTierName}, status=${deferredActivationStatus}, billing=stripe, memberSince=now`);
+              } catch (hubspotError: unknown) {
+                logger.error('[Stripe Webhook] HubSpot sync failed for existing user subscription:', { error: hubspotError });
+              }
+            });
             
             // Auto-create corporate billing group for volume pricing purchases
             const quantity = subscription.items?.data?.[0]?.quantity || 1;
@@ -3242,6 +3313,7 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
         newTierName = tierResult.rows[0].name;
       } else {
         // Fallback: try to match by product name
+        // NOTE: Must stay in transaction - result needed for DB writes (product name used for tier matching)
         const productId = subscription.items?.data?.[0]?.price?.product;
         if (productId) {
           try {
@@ -3279,49 +3351,60 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
         
         logger.info(`[Stripe Webhook] Tier updated via Stripe for ${email}: ${currentTier} -> ${newTierName} (matched by ${matchMethod})`);
         
-        // Sync tier change to HubSpot (contact properties + deal line items) - Stripe-billed only
-        try {
-          const hubspotResult = await handleTierChange(
-            email,
-            currentTier || 'None',
-            newTierName,
-            'stripe-webhook',
-            'Stripe Subscription'
-          );
-          
-          if (!hubspotResult.success && hubspotResult.error) {
-            logger.warn(`[Stripe Webhook] HubSpot tier sync failed for ${email}, queuing for retry: ${hubspotResult.error}`);
-            await queueTierSync({
-              email,
-              newTier: newTierName,
-              oldTier: currentTier || 'None',
-              changedBy: 'stripe-webhook',
-              changedByName: 'Stripe Subscription'
-            });
-          } else {
-            logger.info(`[Stripe Webhook] Synced ${email} tier=${newTierName} to HubSpot (deal line items updated)`);
+        const deferredTierEmail = email;
+        const deferredOldTier = currentTier || 'None';
+        const deferredNewTierName = newTierName;
+
+        deferredActions.push(async () => {
+          try {
+            const hubspotResult = await handleTierChange(
+              deferredTierEmail,
+              deferredOldTier,
+              deferredNewTierName,
+              'stripe-webhook',
+              'Stripe Subscription'
+            );
+            
+            if (!hubspotResult.success && hubspotResult.error) {
+              logger.warn(`[Stripe Webhook] HubSpot tier sync failed for ${deferredTierEmail}, queuing for retry: ${hubspotResult.error}`);
+              await queueTierSync({
+                email: deferredTierEmail,
+                newTier: deferredNewTierName,
+                oldTier: deferredOldTier,
+                changedBy: 'stripe-webhook',
+                changedByName: 'Stripe Subscription'
+              });
+            } else {
+              logger.info(`[Stripe Webhook] Synced ${deferredTierEmail} tier=${deferredNewTierName} to HubSpot (deal line items updated)`);
+            }
+          } catch (hubspotError: unknown) {
+            logger.error('[Stripe Webhook] HubSpot sync failed for tier change, queuing for retry:', { extra: { detail: getErrorMessage(hubspotError) } });
+            try {
+              await queueTierSync({
+                email: deferredTierEmail,
+                newTier: deferredNewTierName,
+                oldTier: deferredOldTier,
+                changedBy: 'stripe-webhook',
+                changedByName: 'Stripe Subscription'
+              });
+            } catch (queueErr: unknown) {
+              logger.error('[Stripe Webhook] Failed to queue tier sync retry:', { error: queueErr });
+            }
           }
-        } catch (hubspotError: unknown) {
-          logger.error('[Stripe Webhook] HubSpot sync failed for tier change, queuing for retry:', { extra: { detail: getErrorMessage(hubspotError) } });
-          await queueTierSync({
-            email,
-            newTier: newTierName,
-            oldTier: currentTier || 'None',
-            changedBy: 'stripe-webhook',
-            changedByName: 'Stripe Subscription'
-          });
-        }
+        });
         
-        try {
-          await notifyMember({
-            userEmail: email,
-            title: 'Membership Updated',
-            message: `Your membership has been changed to ${newTierName}.`,
-            type: 'system',
-          });
-        } catch (notifyErr: unknown) {
-          logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
-        }
+        deferredActions.push(async () => {
+          try {
+            await notifyMember({
+              userEmail: deferredTierEmail,
+              title: 'Membership Updated',
+              message: `Your membership has been changed to ${deferredNewTierName}.`,
+              type: 'system',
+            });
+          } catch (notifyErr: unknown) {
+            logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+          }
+        });
       }
     }
 
@@ -3337,16 +3420,22 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
 
       const reactivationStatuses = ['past_due', 'unpaid', 'suspended'];
       if (previousAttributes?.status && reactivationStatuses.includes(previousAttributes.status)) {
-        try {
-          await notifyAllStaff(
-            'Member Reactivated',
-            `${memberName} (${email}) membership has been reactivated (was ${previousAttributes.status}).`,
-            'member_status_change',
-            { sendPush: true, url: '/admin/members' }
-          );
-        } catch (notifyErr: unknown) {
-          logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
-        }
+        const deferredReactivationMemberName = memberName;
+        const deferredReactivationEmail = email;
+        const deferredPreviousStatus = previousAttributes.status;
+
+        deferredActions.push(async () => {
+          try {
+            await notifyAllStaff(
+              'Member Reactivated',
+              `${deferredReactivationMemberName} (${deferredReactivationEmail}) membership has been reactivated (was ${deferredPreviousStatus}).`,
+              'member_status_change',
+              { sendPush: true, url: '/admin/members' }
+            );
+          } catch (notifyErr: unknown) {
+            logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+          }
+        });
       }
       
       // Reactivate sub-members (family/corporate employees) if they were suspended/past_due
@@ -3378,15 +3467,21 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
           if (affectedCount > 0) {
             logger.info(`[Stripe Webhook] Reactivated ${affectedCount} sub-members for group ${group.group_name}`);
             
-            // Notify each sub-member
-            for (const row of subMembersResult.rows) {
-              await notifyMember({
-                userEmail: row.email,
-                title: 'Membership Restored',
-                message: 'Your membership access has been restored. Welcome back!',
-                type: 'system',
-              }, { sendPush: true });
-            }
+            const deferredReactivatedSubEmails = subMembersResult.rows.map((r: { email: string }) => r.email);
+            deferredActions.push(async () => {
+              try {
+                for (const subEmail of deferredReactivatedSubEmails) {
+                  await notifyMember({
+                    userEmail: subEmail,
+                    title: 'Membership Restored',
+                    message: 'Your membership access has been restored. Welcome back!',
+                    type: 'system',
+                  }, { sendPush: true });
+                }
+              } catch (notifyErr: unknown) {
+                logger.error('[Stripe Webhook] Sub-member reactivation notification failed (non-fatal):', { error: notifyErr });
+              }
+            });
             
             // Defer HubSpot sync for reactivated sub-members (runs after transaction commits)
             const reactivatedEmails = subMembersResult.rows.map((r: { email: string }) => r.email);
@@ -3407,14 +3502,16 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
         logger.error('[Stripe Webhook] Error reactivating sub-members:', { error: groupErr });
       }
       
-      // Sync status change to HubSpot
-      try {
-        const { syncMemberToHubSpot } = await import('../hubspot/stages');
-        await syncMemberToHubSpot({ email, status: 'active', billingProvider: 'stripe', billingGroupRole: 'Primary' });
-        logger.info(`[Stripe Webhook] Synced ${email} status=active to HubSpot`);
-      } catch (hubspotError: unknown) {
-        logger.error('[Stripe Webhook] HubSpot sync failed for status active:', { error: hubspotError });
-      }
+      const deferredActiveEmail = email;
+      deferredActions.push(async () => {
+        try {
+          const { syncMemberToHubSpot } = await import('../hubspot/stages');
+          await syncMemberToHubSpot({ email: deferredActiveEmail, status: 'active', billingProvider: 'stripe', billingGroupRole: 'Primary' });
+          logger.info(`[Stripe Webhook] Synced ${deferredActiveEmail} status=active to HubSpot`);
+        } catch (hubspotError: unknown) {
+          logger.error('[Stripe Webhook] HubSpot sync failed for status active:', { error: hubspotError });
+        }
+      });
     } else if (status === 'past_due') {
       await client.query(
         `UPDATE users SET membership_status = 'past_due', billing_provider = 'stripe', stripe_current_period_end = COALESCE($2, stripe_current_period_end), updated_at = NOW() WHERE id = $1`,
@@ -3424,29 +3521,36 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
       const statusActuallyChanged = previousAttributes?.status && previousAttributes.status !== 'past_due';
 
       if (statusActuallyChanged) {
-        try {
-          await notifyMember({
-            userEmail: email,
-            title: 'Membership Past Due',
-            message: 'Your membership payment is past due. Please update your payment method to avoid service interruption.',
-            type: 'membership_past_due',
-          }, { sendPush: true });
-        } catch (notifyErr: unknown) {
-          logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
-        }
+        const deferredPastDueEmail = email;
+        const deferredPastDueMemberName = memberName;
 
-        try {
-          await notifyAllStaff(
-            'Membership Past Due',
-            `${memberName} (${email}) subscription payment is past due.`,
-            'membership_past_due',
-            { sendPush: true, sendWebSocket: true }
-          );
-        } catch (notifyErr: unknown) {
-          logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
-        }
+        deferredActions.push(async () => {
+          try {
+            await notifyMember({
+              userEmail: deferredPastDueEmail,
+              title: 'Membership Past Due',
+              message: 'Your membership payment is past due. Please update your payment method to avoid service interruption.',
+              type: 'membership_past_due',
+            }, { sendPush: true });
+          } catch (notifyErr: unknown) {
+            logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+          }
+        });
 
-        logger.info(`[Stripe Webhook] Past due notification sent to ${email}`);
+        deferredActions.push(async () => {
+          try {
+            await notifyAllStaff(
+              'Membership Past Due',
+              `${deferredPastDueMemberName} (${deferredPastDueEmail}) subscription payment is past due.`,
+              'membership_past_due',
+              { sendPush: true, sendWebSocket: true }
+            );
+          } catch (notifyErr: unknown) {
+            logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+          }
+        });
+
+        logger.info(`[Stripe Webhook] Past due notification deferred for ${email}`);
       } else {
         logger.info(`[Stripe Webhook] Skipping past_due notification for ${email} — status was already past_due`);
       }
@@ -3480,15 +3584,21 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
           if (affectedCount > 0) {
             logger.info(`[Stripe Webhook] Set ${affectedCount} sub-members to past_due for group ${group.group_name}`);
             
-            // Notify each sub-member
-            for (const row of subMembersResult.rows) {
-              await notifyMember({
-                userEmail: row.email,
-                title: 'Membership Payment Issue',
-                message: 'Your membership access may be affected by a billing issue with your group account.',
-                type: 'membership_past_due',
-              }, { sendPush: true });
-            }
+            const deferredPastDueSubEmails = subMembersResult.rows.map((r: { email: string }) => r.email);
+            deferredActions.push(async () => {
+              try {
+                for (const subEmail of deferredPastDueSubEmails) {
+                  await notifyMember({
+                    userEmail: subEmail,
+                    title: 'Membership Payment Issue',
+                    message: 'Your membership access may be affected by a billing issue with your group account.',
+                    type: 'membership_past_due',
+                  }, { sendPush: true });
+                }
+              } catch (notifyErr: unknown) {
+                logger.error('[Stripe Webhook] Sub-member past_due notification failed (non-fatal):', { error: notifyErr });
+              }
+            });
             
             // Defer HubSpot sync for past_due sub-members (runs after transaction commits)
             const pastDueEmails = subMembersResult.rows.map((r: { email: string }) => r.email);
@@ -3509,14 +3619,16 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
         logger.error('[Stripe Webhook] Error propagating past_due to sub-members:', { error: groupErr });
       }
       
-      // Sync past_due status to HubSpot
-      try {
-        const { syncMemberToHubSpot } = await import('../hubspot/stages');
-        await syncMemberToHubSpot({ email, status: 'past_due', billingProvider: 'stripe', billingGroupRole: 'Primary' });
-        logger.info(`[Stripe Webhook] Synced ${email} status=past_due to HubSpot`);
-      } catch (hubspotError: unknown) {
-        logger.error('[Stripe Webhook] HubSpot sync failed for status past_due:', { error: hubspotError });
-      }
+      const deferredPastDueSyncEmail = email;
+      deferredActions.push(async () => {
+        try {
+          const { syncMemberToHubSpot } = await import('../hubspot/stages');
+          await syncMemberToHubSpot({ email: deferredPastDueSyncEmail, status: 'past_due', billingProvider: 'stripe', billingGroupRole: 'Primary' });
+          logger.info(`[Stripe Webhook] Synced ${deferredPastDueSyncEmail} status=past_due to HubSpot`);
+        } catch (hubspotError: unknown) {
+          logger.error('[Stripe Webhook] HubSpot sync failed for status past_due:', { error: hubspotError });
+        }
+      });
     } else if (status === 'canceled') {
       logger.info(`[Stripe Webhook] Subscription canceled for ${email} - handled by subscription.deleted webhook`);
     } else if (status === 'unpaid') {
@@ -3524,29 +3636,37 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
         `UPDATE users SET membership_status = 'suspended', billing_provider = 'stripe', stripe_current_period_end = COALESCE($2, stripe_current_period_end), updated_at = NOW() WHERE id = $1`,
         [userId, subscriptionPeriodEnd]
       );
-      try {
-        await notifyMember({
-          userEmail: email,
-          title: 'Membership Unpaid',
-          message: 'Your membership is unpaid. Please update your payment method to restore access.',
-          type: 'membership_past_due',
-        }, { sendPush: true });
-      } catch (notifyErr: unknown) {
-        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
-      }
 
-      try {
-        await notifyAllStaff(
-          'Membership Suspended - Unpaid',
-          `${memberName} (${email}) subscription is unpaid and has been suspended.`,
-          'membership_past_due',
-          { sendPush: true, sendWebSocket: true }
-        );
-      } catch (notifyErr: unknown) {
-        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
-      }
+      const deferredUnpaidEmail = email;
+      const deferredUnpaidMemberName = memberName;
 
-      logger.info(`[Stripe Webhook] Unpaid notification sent to ${email}`);
+      deferredActions.push(async () => {
+        try {
+          await notifyMember({
+            userEmail: deferredUnpaidEmail,
+            title: 'Membership Unpaid',
+            message: 'Your membership is unpaid. Please update your payment method to restore access.',
+            type: 'membership_past_due',
+          }, { sendPush: true });
+        } catch (notifyErr: unknown) {
+          logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+        }
+      });
+
+      deferredActions.push(async () => {
+        try {
+          await notifyAllStaff(
+            'Membership Suspended - Unpaid',
+            `${deferredUnpaidMemberName} (${deferredUnpaidEmail}) subscription is unpaid and has been suspended.`,
+            'membership_past_due',
+            { sendPush: true, sendWebSocket: true }
+          );
+        } catch (notifyErr: unknown) {
+          logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+        }
+      });
+
+      logger.info(`[Stripe Webhook] Unpaid notifications deferred for ${email}`);
       
       // Propagate suspension to sub-members (family/corporate employees)
       try {
@@ -3577,15 +3697,21 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
           if (affectedCount > 0) {
             logger.info(`[Stripe Webhook] Suspended ${affectedCount} sub-members for group ${group.group_name}`);
             
-            // Notify each sub-member
-            for (const row of subMembersResult.rows) {
-              await notifyMember({
-                userEmail: row.email,
-                title: 'Membership Suspended',
-                message: 'Your membership has been suspended due to an unpaid balance on your group account.',
-                type: 'membership_past_due',
-              }, { sendPush: true });
-            }
+            const deferredSuspendedSubEmails = subMembersResult.rows.map((r: { email: string }) => r.email);
+            deferredActions.push(async () => {
+              try {
+                for (const subEmail of deferredSuspendedSubEmails) {
+                  await notifyMember({
+                    userEmail: subEmail,
+                    title: 'Membership Suspended',
+                    message: 'Your membership has been suspended due to an unpaid balance on your group account.',
+                    type: 'membership_past_due',
+                  }, { sendPush: true });
+                }
+              } catch (notifyErr: unknown) {
+                logger.error('[Stripe Webhook] Sub-member suspension notification failed (non-fatal):', { error: notifyErr });
+              }
+            });
             
             // Defer HubSpot sync for suspended sub-members (runs after transaction commits)
             const suspendedEmails = subMembersResult.rows.map((r: { email: string }) => r.email);
@@ -3606,14 +3732,16 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
         logger.error('[Stripe Webhook] Error propagating suspension to sub-members:', { error: groupErr });
       }
       
-      // Sync suspended status to HubSpot
-      try {
-        const { syncMemberToHubSpot } = await import('../hubspot/stages');
-        await syncMemberToHubSpot({ email, status: 'suspended', billingProvider: 'stripe', billingGroupRole: 'Primary' });
-        logger.info(`[Stripe Webhook] Synced ${email} status=suspended to HubSpot`);
-      } catch (hubspotError: unknown) {
-        logger.error('[Stripe Webhook] HubSpot sync failed for status suspended:', { error: hubspotError });
-      }
+      const deferredSuspendedSyncEmail = email;
+      deferredActions.push(async () => {
+        try {
+          const { syncMemberToHubSpot } = await import('../hubspot/stages');
+          await syncMemberToHubSpot({ email: deferredSuspendedSyncEmail, status: 'suspended', billingProvider: 'stripe', billingGroupRole: 'Primary' });
+          logger.info(`[Stripe Webhook] Synced ${deferredSuspendedSyncEmail} status=suspended to HubSpot`);
+        } catch (hubspotError: unknown) {
+          logger.error('[Stripe Webhook] HubSpot sync failed for status suspended:', { error: hubspotError });
+        }
+      });
     }
 
     broadcastBillingUpdate({
@@ -3661,35 +3789,44 @@ async function handleSubscriptionPaused(client: PoolClient, subscription: Stripe
     );
     logger.info(`[Stripe Webhook] Subscription paused: ${email} membership_status set to frozen`);
 
-    try {
-      const { syncMemberToHubSpot } = await import('../hubspot/stages');
-      await syncMemberToHubSpot({ email, status: 'frozen', billingProvider: 'stripe', billingGroupRole: 'Primary' });
-      logger.info(`[Stripe Webhook] Synced ${email} status=frozen to HubSpot`);
-    } catch (hubspotError: unknown) {
-      logger.error('[Stripe Webhook] HubSpot sync failed for status frozen:', { extra: { detail: getErrorMessage(hubspotError) } });
-    }
+    const deferredEmail = email;
+    const deferredMemberName = memberName;
 
-    try {
-      await notifyMember({
-        userEmail: email,
-        title: 'Membership Paused',
-        message: 'Your membership has been paused. You can resume anytime to restore full access.',
-        type: 'system',
-      });
-    } catch (notifyErr: unknown) {
-      logger.error('[Stripe Webhook] Notification failed (non-fatal):', { extra: { detail: getErrorMessage(notifyErr) } });
-    }
+    deferredActions.push(async () => {
+      try {
+        const { syncMemberToHubSpot } = await import('../hubspot/stages');
+        await syncMemberToHubSpot({ email: deferredEmail, status: 'frozen', billingProvider: 'stripe', billingGroupRole: 'Primary' });
+        logger.info(`[Stripe Webhook] Synced ${deferredEmail} status=frozen to HubSpot`);
+      } catch (hubspotError: unknown) {
+        logger.error('[Stripe Webhook] HubSpot sync failed for status frozen:', { extra: { detail: getErrorMessage(hubspotError) } });
+      }
+    });
 
-    try {
-      await notifyAllStaff(
-        'Membership Paused',
-        `${memberName} (${email}) membership has been paused (frozen).`,
-        'member_status_change',
-        { sendPush: true, sendWebSocket: true }
-      );
-    } catch (notifyErr: unknown) {
-      logger.error('[Stripe Webhook] Notification failed (non-fatal):', { extra: { detail: getErrorMessage(notifyErr) } });
-    }
+    deferredActions.push(async () => {
+      try {
+        await notifyMember({
+          userEmail: deferredEmail,
+          title: 'Membership Paused',
+          message: 'Your membership has been paused. You can resume anytime to restore full access.',
+          type: 'system',
+        });
+      } catch (notifyErr: unknown) {
+        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { extra: { detail: getErrorMessage(notifyErr) } });
+      }
+    });
+
+    deferredActions.push(async () => {
+      try {
+        await notifyAllStaff(
+          'Membership Paused',
+          `${deferredMemberName} (${deferredEmail}) membership has been paused (frozen).`,
+          'member_status_change',
+          { sendPush: true, sendWebSocket: true }
+        );
+      } catch (notifyErr: unknown) {
+        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { extra: { detail: getErrorMessage(notifyErr) } });
+      }
+    });
 
     broadcastBillingUpdate({
       action: 'subscription_updated',
@@ -3754,35 +3891,44 @@ async function handleSubscriptionResumed(client: PoolClient, subscription: Strip
     );
     logger.info(`[Stripe Webhook] Subscription resumed: ${email} membership_status set to active`);
 
-    try {
-      const { syncMemberToHubSpot } = await import('../hubspot/stages');
-      await syncMemberToHubSpot({ email, status: 'active', billingProvider: 'stripe', billingGroupRole: 'Primary' });
-      logger.info(`[Stripe Webhook] Synced ${email} status=active to HubSpot`);
-    } catch (hubspotError: unknown) {
-      logger.error('[Stripe Webhook] HubSpot sync failed for status active:', { extra: { detail: getErrorMessage(hubspotError) } });
-    }
+    const deferredEmail = email;
+    const deferredMemberName = memberName;
 
-    try {
-      await notifyMember({
-        userEmail: email,
-        title: 'Membership Resumed',
-        message: 'Your membership has been resumed. Welcome back!',
-        type: 'membership_renewed',
-      });
-    } catch (notifyErr: unknown) {
-      logger.error('[Stripe Webhook] Notification failed (non-fatal):', { extra: { detail: getErrorMessage(notifyErr) } });
-    }
+    deferredActions.push(async () => {
+      try {
+        const { syncMemberToHubSpot } = await import('../hubspot/stages');
+        await syncMemberToHubSpot({ email: deferredEmail, status: 'active', billingProvider: 'stripe', billingGroupRole: 'Primary' });
+        logger.info(`[Stripe Webhook] Synced ${deferredEmail} status=active to HubSpot`);
+      } catch (hubspotError: unknown) {
+        logger.error('[Stripe Webhook] HubSpot sync failed for status active:', { extra: { detail: getErrorMessage(hubspotError) } });
+      }
+    });
 
-    try {
-      await notifyAllStaff(
-        'Membership Resumed',
-        `${memberName} (${email}) membership has been resumed.`,
-        'member_status_change',
-        { sendPush: true, sendWebSocket: true }
-      );
-    } catch (notifyErr: unknown) {
-      logger.error('[Stripe Webhook] Notification failed (non-fatal):', { extra: { detail: getErrorMessage(notifyErr) } });
-    }
+    deferredActions.push(async () => {
+      try {
+        await notifyMember({
+          userEmail: deferredEmail,
+          title: 'Membership Resumed',
+          message: 'Your membership has been resumed. Welcome back!',
+          type: 'membership_renewed',
+        });
+      } catch (notifyErr: unknown) {
+        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { extra: { detail: getErrorMessage(notifyErr) } });
+      }
+    });
+
+    deferredActions.push(async () => {
+      try {
+        await notifyAllStaff(
+          'Membership Resumed',
+          `${deferredMemberName} (${deferredEmail}) membership has been resumed.`,
+          'member_status_change',
+          { sendPush: true, sendWebSocket: true }
+        );
+      } catch (notifyErr: unknown) {
+        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { extra: { detail: getErrorMessage(notifyErr) } });
+      }
+    });
 
     broadcastBillingUpdate({
       action: 'subscription_updated',
@@ -3984,7 +4130,7 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: Strip
         const futureBookingsResult = await pool.query(
           `SELECT id, request_date, start_time, status FROM booking_requests 
            WHERE LOWER(user_email) = LOWER($1) 
-           AND status IN ('pending', 'pending_approval', 'approved', 'confirmed')
+           AND status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'cancellation_pending')
            AND request_date >= $2`,
           [email, todayStr]
         );

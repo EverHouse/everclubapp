@@ -12,6 +12,7 @@ import { getMemberTierByEmail } from './tierService';
 import { createSession, recordUsage, ParticipantInput } from './bookingService/sessionManager';
 import { calculateFullSessionBilling, FLAT_GUEST_FEE, Participant } from './bookingService/usageCalculator';
 import { recalculateSessionFees } from './billing/unifiedFeeService';
+import { voidBookingInvoice } from './billing/bookingInvoiceService';
 import { useGuestPass } from '../routes/guestPasses';
 import { cancelPaymentIntent } from './stripe';
 import { alertOnTrackmanImportIssues } from './dataAlerts';
@@ -1542,6 +1543,13 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             // Cancel pending payment intents
             await cancelPendingPaymentIntentsForBooking(booking.id);
             
+            // Void booking invoice
+            try {
+              await voidBookingInvoice(booking.id);
+            } catch (voidErr: unknown) {
+              process.stderr.write(`[Trackman Import] Failed to void invoice for booking #${booking.id}: ${getErrorMessage(voidErr)}\n`);
+            }
+            
             process.stderr.write(`[Trackman Import] Cancelled booking #${booking.id} (Trackman ID: ${row.bookingId}, date: ${bookingDate}) - status was ${booking.status}\n`);
             cancelledBookings++;
           } else {
@@ -2939,6 +2947,13 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         
         // Cancel pending payment intents
         await cancelPendingPaymentIntentsForBooking(booking.id);
+        
+        // Void booking invoice
+        try {
+          await voidBookingInvoice(booking.id);
+        } catch (voidErr: unknown) {
+          process.stderr.write(`[Trackman Import] Failed to void invoice for booking #${booking.id}: ${getErrorMessage(voidErr)}\n`);
+        }
         
         cancelledBookings++;
         process.stderr.write(`[Trackman Import] Cancelled booking ${booking.trackmanBookingId} (${booking.userName}) for ${bookingDateStr} - no longer in Trackman\n`);
