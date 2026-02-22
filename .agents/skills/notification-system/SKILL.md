@@ -44,10 +44,11 @@ notifyMember(payload: NotificationPayload, options?: {
 
 Execution order:
 1. Validate required fields (`userEmail`, `title`, `message`, `type`).
-2. Insert to `notifications` table (database channel — always runs first).
-3. If `sendWebSocket` is true, call `sendNotificationToUser()` from `websocket.ts`.
-4. If `sendPush` is true, call `deliverViaPush()` which looks up `push_subscriptions` by email.
-5. If `sendEmail` is true AND `emailSubject` + `emailHtml` are provided, call `deliverViaEmail()` via Resend.
+2. **Deduplication check (v8.5.0):** Before inserting, query `notifications` for an existing row with the same `title`, `user_email`, and `related_id` created within the last 60 seconds. If a duplicate is found, skip the insert and return early. This prevents multiple code paths (e.g., check-in handlers) from sending the same notification to a member.
+3. Insert to `notifications` table (database channel — always runs first).
+4. If `sendWebSocket` is true, call `sendNotificationToUser()` from `websocket.ts`.
+5. If `sendPush` is true, call `deliverViaPush()` which looks up `push_subscriptions` by email.
+6. If `sendEmail` is true AND `emailSubject` + `emailHtml` are provided, call `deliverViaEmail()` via Resend.
 
 Return a `NotificationResult` with `notificationId`, `deliveryResults[]`, and `allSucceeded`.
 
