@@ -52,6 +52,15 @@ The `booking_sessions` table has a `prevent_booking_session_overlap` trigger tha
 
 The backfill endpoint (`POST /api/admin/backfill-sessions` in `server/routes/trackman/admin.ts`) uses savepoints per-booking so individual failures do not abort the entire transaction. When `ensureSessionForBooking` returns `sessionId: 0` with an error, roll back to the savepoint, record the error, and continue to the next booking.
 
+### Rule 1c — Auto no-show prevents stale booking accumulation
+
+The auto-complete scheduler (`bookingAutoCompleteScheduler.ts`, every 2h) marks approved/confirmed bookings as `no_show` when 24h have passed since the booking end time. This prevents stale bookings from:
+- Appearing in conflict detection (OCCUPIED_STATUSES includes `approved` and `confirmed`)
+- Inflating active booking counts
+- Causing false overlap warnings during CSV import
+
+CASCADE constraints on `wellness_enrollments.class_id → wellness_classes.id` and `booking_participants.session_id → booking_sessions.id` ensure orphan records are automatically cleaned up when parent records are deleted.
+
 ### Rule 2 — All entry points covered
 
 Every code path that can create or approve a booking must call `ensureSessionForBooking()`:

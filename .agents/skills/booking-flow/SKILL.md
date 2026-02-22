@@ -10,7 +10,7 @@ How a booking moves through its lifecycle from member request to completion.
 ## Lifecycle Stages
 
 ```
-Request → Guest Pass Hold → Staff Approval → Session Creation → Invoice Draft → Trackman Link → Check-in → Completion
+Request → Guest Pass Hold → Staff Approval → Session Creation → Invoice Draft → Trackman Link → Check-in → Completion / Auto No-Show
 ```
 
 ### 1. Request (status: `pending`)
@@ -149,7 +149,16 @@ Two cancellation paths:
 9. Log audit entry via `logSystemAction({ action: 'booking_cancelled_webhook' })`.
 10. Broadcast availability update.
 
-### 8. Reschedule
+### 8. Auto No-Show (status: `no_show`)
+
+The auto-complete scheduler (`server/schedulers/bookingAutoCompleteScheduler.ts`) runs every 2 hours. It marks approved/confirmed bookings as `no_show` when 24 hours have passed since the booking's end time without a check-in. This prevents stale bookings from occupying active status indefinitely and removes them from conflict detection (which filters by `approved`, `confirmed`, `attended`).
+
+- Uses Pacific timezone via `getTodayPacific()` / `formatTimePacific()`
+- Excludes relocating bookings (`is_relocating IS NOT TRUE`)
+- Notifies staff when 2+ bookings are auto-marked
+- Manual trigger available via `runManualBookingAutoComplete()`
+
+### 9. Reschedule
 
 Three-step flow (all staff-only):
 
@@ -204,7 +213,7 @@ Resource type?
 
 1. **Session before roster**: A `booking_sessions` row must exist before any `booking_participants` can be linked. The session is the anchor for the participant roster and usage ledger.
 
-2. **Conflict detection scope**: `findConflictingBookings()` checks OCCUPIED_STATUSES = `['pending', 'pending_approval', 'approved', 'confirmed', 'checked_in', 'attended']`. It checks both owner bookings and participant bookings on the same date. The `attended` status was added in v8.6.0 to prevent double-booking against checked-in sessions.
+2. **Conflict detection scope**: `findConflictingBookings()` checks OCCUPIED_STATUSES = `['pending', 'pending_approval', 'approved', 'confirmed', 'checked_in', 'attended']`. It checks both owner bookings and participant bookings on the same date. The `attended` status was added in v8.6.0 to prevent double-booking against checked-in sessions. The auto-complete scheduler moves stale `approved`/`confirmed` bookings to `no_show` after 24h, removing them from conflict detection.
 
 3. **Availability guard layers**: `checkUnifiedAvailability()` runs three checks in order:
    - Facility closures (`facility_closures` table)

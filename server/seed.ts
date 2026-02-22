@@ -235,6 +235,7 @@ async function seed() {
         { title: 'Declining a Request', content: 'Tap "Decline" if you cannot accommodate the request. The member will be notified that their request was declined.' },
         { title: 'Calendar View', content: 'Switch to the Calendar view using the tabs at the top to see all approved bookings in a visual timeline. Red blocks indicate facility closures.' },
         { title: 'Rescheduling Bookings', content: 'From the calendar view, tap any booking to open details. Use the "Reschedule" option to move the booking to a new time. The old booking is automatically cancelled and the member is notified of the change.' },
+        { title: 'Automatic No-Shows', content: 'Bookings that are approved but never checked in are automatically marked as "No Show" after 24 hours. Staff are notified when this happens. This keeps the booking calendar clean and accurate.' },
       ])},
       { icon: 'directions_walk', title: 'Tours', description: 'View and manage scheduled facility tours', is_admin_only: false, sort_order: 3, steps: JSON.stringify([
         { title: 'Accessing Tours', content: 'Tap "Tours" in the bottom nav or the Tours card on the dashboard to view scheduled tours.' },

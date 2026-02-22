@@ -20,7 +20,7 @@ The monitoring system operates as a layered defense against data corruption, syn
 │               Alert & Notification Layer                  │
 │  dataAlerts.ts  •  errorAlerts.ts  •  monitoring.ts       │
 ├─────────────────────────────────────────────────────────┤
-│               Scheduler Engine (25+ tasks)                │
+│               Scheduler Engine (27+ tasks)                │
 │  server/schedulers/index.ts  •  schedulerTracker.ts       │
 ├─────────────────────────────────────────────────────────┤
 │               Database  •  External Services              │
@@ -109,7 +109,7 @@ Staff can trigger a manual integrity check from the admin dashboard. This calls 
 
 ### Scheduler Tracker
 
-`schedulerTracker.ts` maintains an in-memory registry of all 27 schedulers. Each scheduler calls `registerScheduler(name, intervalMs)` at startup and `recordRun(name, success, error?, durationMs?)` after each execution. The admin dashboard queries `/api/admin/monitoring/schedulers` to display:
+`schedulerTracker.ts` maintains an in-memory registry of all 28 schedulers. Each scheduler calls `registerScheduler(name, intervalMs)` at startup and `recordRun(name, success, error?, durationMs?)` after each execution. The admin dashboard queries `/api/admin/monitoring/schedulers` to display:
 
 - Task name, last run time, result (success/error/pending)
 - Run count, last duration, expected interval, next expected run
@@ -160,6 +160,7 @@ The system includes automated correction tasks:
 - **Stripe Reconciliation** (daily at 5am Pacific) — Compare Stripe subscriptions and daily payments against database records. Uses database lock for multi-instance safety.
 - **Fee Snapshot Reconciliation** (every 15min) — Reconcile fee snapshot records against actual billing data.
 - **Abandoned Pending Cleanup** (every 6h) — Delete users stuck in `pending` status >24h with no Stripe subscription, cascade-deleting related records in a transaction.
+- **Booking Auto-Complete** (every 2h) — Mark approved/confirmed bookings as no_show 24h after end time. Prevents stale bookings from remaining in active status.
 
 ## Dashboard Overview
 
@@ -194,6 +195,7 @@ The admin data integrity dashboard is accessible at `/admin/data-integrity` (sta
 | `job_queue` | Background job records queried by job queue monitor |
 | `hubspot_sync_queue` | HubSpot async operation queue queried by HubSpot queue monitor |
 | `session` | HTTP session table cleaned by session cleanup scheduler |
+| `booking_requests` | Source table for auto-complete scheduler (status updates to no_show) |
 
 ## Key Source Files
 

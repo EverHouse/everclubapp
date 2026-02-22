@@ -103,6 +103,8 @@ CheckInConfirmationModal shows result
 
 9. **Cash payment route.** `POST /api/stripe/staff/mark-booking-paid` allows staff to mark a booking as paid via cash. This sets all pending participants to `payment_status = 'paid'` and triggers invoice settlement.
 
+10. **Auto no-show for missed check-ins.** Approved/confirmed bookings that are not checked in within 24 hours after their end time are automatically marked as `no_show` by the auto-complete scheduler (`bookingAutoCompleteScheduler.ts`, runs every 2h). This prevents stale bookings from lingering in the system and ensures conflict detection stays accurate. The scheduler uses Pacific timezone and excludes relocating bookings.
+
 ## Billing Verification at Check-In
 
 The unified fee service (`computeFeeBreakdown`) calculates fees per participant:
