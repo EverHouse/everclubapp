@@ -86,6 +86,11 @@ The following conventions were comprehensively audited and enforced across the e
 - **`checkinBooking()` payment confirmation moved after atomic status update** — prevents payment confirmations from persisting when the booking status has been changed by another concurrent request.
 
 ## Recent Changes
+- **Feb 22, 2026 (Batch 3)**: Fixed 4 additional bugs (payment, POS, admin, performance):
+  - Free merchandise exploit: Non-booking purchases (merch, cafe) now use unique idempotency keys with timestamp; booking payments retain deterministic dedup keys.
+  - POS double-charge roulette: Replaced 5-minute rolling window idempotency key with `randomUUID()` — eliminates both free items and double-charges at window boundaries.
+  - Admin deletion block: Inactive admins can now be deleted when only 1 active admin remains — guard only fires if the target admin is actually active.
+  - DB connection exhaustion: Moved 4 Stripe API calls out of webhook transactions — replaced subscription.retrieve with DB query, removed phone fetch, deferred product lookup, added 5s timeout on customer retrieve.
 - **Feb 22, 2026 (Batch 2)**: Fixed 6 additional critical bugs:
   - Cash payment ledger gap: `mark-booking-paid` route now updates `usage_ledger.payment_method` so fee recalculation doesn't resurrect settled debts.
   - Cross-midnight booking false positives: Removed dead cross-midnight overlap clause from booking creation (cross-midnight bookings already rejected at input validation).
