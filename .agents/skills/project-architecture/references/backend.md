@@ -183,6 +183,21 @@ Only if all 3 fail does it INSERT a new session. When called inside a transactio
 | `safeDbTransaction()` | `server/core/safeDbOperation.ts` | Wrap multi-statement DB operations in a transaction with automatic rollback on failure. |
 
 **BANNED:** Empty `catch {}` blocks anywhere in server code. Every error must be either thrown, logged via `safeDbOperation`, or handled with a meaningful fallback.
+- Use `logger.debug` for expected/benign failures (JSON parse fallbacks, optional lookups).
+- Use `logger.warn` for operationally meaningful errors (DB rollback failures, sync errors).
+
+### Timezone Enforcement (Audit-Verified Feb 2026)
+- **ALL `toLocaleDateString()` calls must include `timeZone: 'America/Los_Angeles'`** in the options object. No exceptions — not even for staff-only notifications, internal logging, or tour scheduling.
+- **Never use `timeZone: 'UTC'`** for user-facing date formatting. The club operates in Pacific Time.
+- Prefer `dateUtils.ts` Pacific timezone helpers over raw `Date` operations.
+
+### Authentication Enforcement (Audit-Verified Feb 2026)
+- **All mutating API routes (POST/PUT/PATCH/DELETE) must have auth protection** — either `isAuthenticated`/`isStaff` middleware or inline `getSessionUser()` + 401 check.
+- **Exceptions**: login/auth endpoints, inbound webhooks (use signature verification), and intentionally public forms (tour booking, day pass checkout).
+
+### Stripe Webhook Safety (Audit-Verified Feb 2026)
+- **All webhook handlers that modify member status must include a `billing_provider` guard** — skip processing if the member's `billing_provider !== 'stripe'`.
+- This prevents Stripe webhooks from overwriting status for members billed through other systems (e.g., HubSpot-managed billing).
 
 ---
 

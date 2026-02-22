@@ -58,6 +58,31 @@ We use a **Liquid Glass UI** system.
 - **Database & Data Integrity**: PostgreSQL, Supabase Realtime, Drizzle ORM. CASCADE constraints on `wellness_enrollments.class_id` and `booking_participants.session_id`.
 - **Member Lifecycle & Check-In**: Tiers, QR/NFC check-in, onboarding.
 
+## Enforced Code Conventions (Audit-Verified Feb 2026)
+The following conventions were comprehensively audited and enforced across the entire server codebase. All violations have been fixed. Future code must maintain these standards:
+
+### Error Handling
+- **Empty catch blocks are BANNED.** Every `catch` must either re-throw, log via `logger.debug`/`logger.warn`, or use `safeDbOperation()`. 60 violations fixed across 33 files.
+- Use `logger.debug` for expected/benign failures (JSON parse fallbacks, optional lookups). Use `logger.warn` for operationally meaningful errors (DB rollback failures, sync errors).
+
+### Timezone
+- **ALL `toLocaleDateString()` calls must include `timeZone: 'America/Los_Angeles'`** in the options object. No exceptions — not even for staff-only notifications or internal logging. 32 violations fixed (including 3 that incorrectly used `timeZone: 'UTC'`).
+- Prefer `dateUtils.ts` Pacific timezone helpers over raw `Date` operations.
+
+### Authentication
+- **All mutating API routes (POST/PUT/PATCH/DELETE) must have auth protection** — either `isAuthenticated`/`isStaff` middleware or inline `getSessionUser()` + 401 check. 8 routes secured with middleware.
+- Exceptions: login/auth endpoints, inbound webhooks (use signature verification), and intentionally public forms (tour booking, day pass checkout).
+
+### Stripe Webhook Safety
+- **All webhook handlers that modify member status must include a `billing_provider` guard** — skip processing if the member's `billing_provider !== 'stripe'`. 6 handlers secured.
+- This prevents Stripe webhooks from overwriting status for members billed through other systems.
+
+### Database
+- 3 missing FK indexes added on `event_rsvps` and `wellness_enrollments` to prevent slow JOINs.
+
+## Recent Changes
+- **Feb 2026**: Deep architectural audit — fixed 60 empty catch blocks, 32 timezone violations, 8 unprotected routes, 6 webhook guard gaps, 3 missing DB indexes across 40+ files.
+
 ## External Dependencies
 - **Stripe**: Terminal, subscriptions, webhooks for billing authority.
 - **HubSpot**: Two-way sync, form submissions.
