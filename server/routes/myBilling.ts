@@ -35,7 +35,7 @@ router.get('/api/my/billing', requireAuth, async (req, res) => {
   try {
     const sessionUser = req.session.user;
     const isStaff = sessionUser.role === 'admin' || sessionUser.role === 'staff';
-    const targetEmail = (req.query.email && isStaff) ? String(req.query.email) : sessionUser.email;
+    const targetEmail = (req.query.email && isStaff) ? String(req.query.email).trim().toLowerCase() : sessionUser.email;
     const email = targetEmail;
     
     const result = await db.execute(sql`SELECT id, email, first_name, last_name, billing_provider, stripe_customer_id, hubspot_id, mindbody_client_id, tier, billing_migration_requested_at,
@@ -157,7 +157,7 @@ router.get('/api/my/billing/invoices', requireAuth, async (req, res) => {
   try {
     const sessionUser = req.session.user;
     const isStaff = sessionUser.role === 'admin' || sessionUser.role === 'staff';
-    const email = (req.query.email && isStaff) ? String(req.query.email) : sessionUser.email;
+    const email = (req.query.email && isStaff) ? String(req.query.email).trim().toLowerCase() : sessionUser.email;
     
     const result = await db.execute(sql`SELECT stripe_customer_id, billing_provider FROM users WHERE LOWER(email) = ${email.toLowerCase()}`);
     
@@ -514,12 +514,12 @@ router.get('/api/my-billing/account-balance', requireAuth, async (req, res) => {
     const sessionRole = req.session.user.role;
     
     // Support "View As" feature: staff can pass user_email param to view as another member
-    const requestedEmail = req.query.user_email as string | undefined;
+    const requestedEmail = (req.query.user_email as string | undefined)?.trim()?.toLowerCase();
     let targetEmail = sessionEmail;
     
-    if (requestedEmail && requestedEmail.toLowerCase() !== sessionEmail.toLowerCase()) {
+    if (requestedEmail && requestedEmail !== sessionEmail.toLowerCase()) {
       if (sessionRole === 'admin' || sessionRole === 'staff') {
-        targetEmail = decodeURIComponent(requestedEmail);
+        targetEmail = requestedEmail;
       }
     }
     

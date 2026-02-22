@@ -87,14 +87,13 @@ router.get("/api/legacy-purchases/my-purchases", async (req: Request, res: Respo
     }
     
     // Support "View As" feature: staff can pass user_email param to view as another member
-    const requestedEmail = req.query.user_email as string | undefined;
+    const requestedEmail = (req.query.user_email as string | undefined)?.trim()?.toLowerCase();
     let targetEmail = sessionEmail;
     
-    if (requestedEmail && requestedEmail.toLowerCase() !== sessionEmail.toLowerCase()) {
-      // Only staff/admin can view other members' purchases
+    if (requestedEmail && requestedEmail !== sessionEmail.toLowerCase()) {
       const userRole = sessionUser?.role;
       if (userRole === 'admin' || userRole === 'staff') {
-        targetEmail = decodeURIComponent(requestedEmail);
+        targetEmail = requestedEmail;
       }
     }
     
@@ -404,13 +403,13 @@ router.get("/api/my-unified-purchases", async (req: Request, res: Response) => {
     }
     
     // Support "View As" feature: staff can pass user_email param to view as another member
-    const requestedEmail = req.query.user_email as string | undefined;
+    const requestedEmail = (req.query.user_email as string | undefined)?.trim()?.toLowerCase();
     let targetEmail = sessionEmail;
     
-    if (requestedEmail && requestedEmail.toLowerCase() !== sessionEmail.toLowerCase()) {
+    if (requestedEmail && requestedEmail !== sessionEmail.toLowerCase()) {
       const userRole = sessionUser?.role;
       if (userRole === 'admin' || userRole === 'staff') {
-        targetEmail = decodeURIComponent(requestedEmail);
+        targetEmail = requestedEmail;
       }
     }
     

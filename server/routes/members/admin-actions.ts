@@ -1231,11 +1231,12 @@ router.post('/api/admin/member/change-email', isStaffOrAdmin, async (req, res) =
 
 router.get('/api/admin/member/change-email/preview', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.query;
+    const { email: rawQueryEmail } = req.query;
     
-    if (!email || typeof email !== 'string') {
+    if (!rawQueryEmail || typeof rawQueryEmail !== 'string') {
       return res.status(400).json({ error: 'Email is required' });
     }
+    const email = rawQueryEmail.trim().toLowerCase();
     
     const impact = await previewEmailChangeImpact(email);
     res.json(impact);

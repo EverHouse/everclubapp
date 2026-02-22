@@ -45,11 +45,12 @@ router.get('/api/staff/passes/unredeemed', isStaffOrAdmin, async (req: Request, 
 
 router.get('/api/staff/passes/search', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { email } = req.query;
+    const { email: rawPassEmail } = req.query;
 
-    if (!email || typeof email !== 'string') {
+    if (!rawPassEmail || typeof rawPassEmail !== 'string') {
       return res.status(400).json({ error: 'Email query parameter is required' });
     }
+    const email = rawPassEmail.trim().toLowerCase();
 
     const passes = await db
       .select({

@@ -60,7 +60,7 @@ router.get('/api/bookings/check-existing', async (req, res) => {
     const { user_email, date, resource_type } = req.query;
     
     const sessionUser = getSessionUser(req);
-    const effectiveEmail = (user_email as string)?.toLowerCase() || sessionUser?.email?.toLowerCase();
+    const effectiveEmail = (user_email as string)?.trim()?.toLowerCase() || sessionUser?.email?.toLowerCase();
     
     if (!effectiveEmail || !date) {
       return res.status(400).json({ error: 'Missing required parameters: user_email, date' });
@@ -107,7 +107,7 @@ router.get('/api/bookings', async (req, res) => {
     const { date, resource_id, status, user_email, include_all, include_archived } = req.query;
     
     const sessionEmail = sessionUser.email?.toLowerCase() || '';
-    const requestEmail = (user_email as string)?.toLowerCase();
+    const requestEmail = (user_email as string)?.trim()?.toLowerCase();
     
     let includeAll = include_all === 'true';
     let isStaffUser = false;

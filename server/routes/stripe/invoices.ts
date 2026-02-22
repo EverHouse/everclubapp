@@ -219,13 +219,13 @@ router.get('/api/my-invoices', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
     
-    const requestedEmail = req.query.user_email as string | undefined;
+    const requestedEmail = (req.query.user_email as string | undefined)?.trim()?.toLowerCase();
     let targetEmail = sessionEmail;
     
-    if (requestedEmail && requestedEmail.toLowerCase() !== sessionEmail.toLowerCase()) {
+    if (requestedEmail && requestedEmail !== sessionEmail.toLowerCase()) {
       const userRole = sessionUser?.role;
       if (userRole === 'admin' || userRole === 'staff') {
-        targetEmail = decodeURIComponent(requestedEmail);
+        targetEmail = requestedEmail;
         logFromRequest(req, {
           action: 'staff_view_member_billing',
           resourceType: 'invoices',

@@ -68,7 +68,7 @@ router.get('/api/booking-requests', async (req, res) => {
     }
     
     const sessionEmail = sessionUser.email?.toLowerCase() || '';
-    const requestedEmail = (user_email as string)?.toLowerCase();
+    const requestedEmail = (user_email as string)?.trim()?.toLowerCase();
     
     const isStaffRequest = include_all === 'true';
     
@@ -1753,7 +1753,7 @@ router.get('/api/fee-estimate', async (req, res) => {
     
     // Members can only check their own fees
     const ownerEmail = isStaff && req.query.email 
-      ? (req.query.email as string).toLowerCase() 
+      ? (req.query.email as string).trim().toLowerCase() 
       : sessionEmail;
     
     const estimate = await calculateFeeEstimate({

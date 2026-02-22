@@ -103,12 +103,12 @@ router.patch('/api/members/me/preferences', isAuthenticated, async (req, res) =>
       return res.status(400).json({ error: 'No preferences provided' });
     }
     
-    const requestedEmail = req.query.user_email as string | undefined;
+    const requestedEmail = (req.query.user_email as string | undefined)?.trim()?.toLowerCase();
     let targetEmail = sessionUser.email;
     
-    if (requestedEmail && requestedEmail.toLowerCase() !== sessionUser.email.toLowerCase()) {
+    if (requestedEmail && requestedEmail !== sessionUser.email.toLowerCase()) {
       if (sessionUser.role === 'admin' || sessionUser.role === 'staff') {
-        targetEmail = decodeURIComponent(requestedEmail);
+        targetEmail = requestedEmail;
       }
     }
     
@@ -157,12 +157,12 @@ router.get('/api/members/me/preferences', isAuthenticated, async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const requestedEmail = req.query.user_email as string | undefined;
+    const requestedEmail = (req.query.user_email as string | undefined)?.trim()?.toLowerCase();
     let targetEmail = sessionUser.email;
     
-    if (requestedEmail && requestedEmail.toLowerCase() !== sessionUser.email.toLowerCase()) {
+    if (requestedEmail && requestedEmail !== sessionUser.email.toLowerCase()) {
       if (sessionUser.role === 'admin' || sessionUser.role === 'staff') {
-        targetEmail = decodeURIComponent(requestedEmail);
+        targetEmail = requestedEmail;
       }
     }
     
@@ -196,12 +196,12 @@ router.get('/api/my-visits', isAuthenticated, async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const requestedEmail = req.query.user_email as string | undefined;
+    const requestedEmail = (req.query.user_email as string | undefined)?.trim()?.toLowerCase();
     let targetEmail = sessionUser.email.toLowerCase();
     
-    if (requestedEmail && requestedEmail.toLowerCase() !== sessionUser.email.toLowerCase()) {
+    if (requestedEmail && requestedEmail !== sessionUser.email.toLowerCase()) {
       if (sessionUser.role === 'admin' || sessionUser.role === 'staff') {
-        targetEmail = decodeURIComponent(requestedEmail).toLowerCase();
+        targetEmail = requestedEmail;
       }
     }
     

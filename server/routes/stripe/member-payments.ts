@@ -813,7 +813,7 @@ router.get('/api/member/balance', isAuthenticated, async (req: Request, res: Res
     // Allow staff and admins to view another member's balance (for View As mode)
     const canViewOthers = sessionUser.isStaff || sessionUser.role === 'admin';
     if (queryEmail && canViewOthers) {
-      memberEmail = queryEmail.toLowerCase();
+      memberEmail = queryEmail.trim().toLowerCase();
     }
 
     // Only show fees where there's a pending fee snapshot OR no snapshot at all (legacy)
