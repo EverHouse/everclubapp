@@ -71,7 +71,11 @@ export async function consumeGuestPassForParticipant(
         const updateResult = await tx.execute(sql`UPDATE guest_passes 
          SET passes_used = passes_used + 1
          WHERE LOWER(member_email) = ${ownerEmailLower}
+           AND passes_used < passes_total
          RETURNING passes_total - passes_used as remaining`);
+        if (updateResult.rows.length === 0) {
+          throw new Error(`NO_PASSES_REMAINING:No guest passes remaining for ${ownerEmailLower}. Race condition prevented over-consumption.`);
+        }
         passesRemaining = (updateResult.rows[0] as Record<string, unknown>)?.remaining as number ?? 0;
       }
       

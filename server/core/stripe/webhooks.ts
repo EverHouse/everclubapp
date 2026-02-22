@@ -3181,6 +3181,9 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
     const customerId = subscription.customer;
     const status = subscription.status;
     const currentPriceId = subscription.items?.data?.[0]?.price?.id;
+    if (subscription.items?.data?.length === 0) {
+      logger.warn('[Stripe Webhook] subscription.updated has empty items array, tier update skipped', { extra: { subscriptionId: subscription.id, customerId: String(customerId) } });
+    }
     const subscriptionPeriodEnd = (subscription as StripeSubscriptionWithPeriods).current_period_end 
       ? new Date((subscription as StripeSubscriptionWithPeriods).current_period_end * 1000) 
       : null;
@@ -3966,6 +3969,60 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: Strip
     }
 
     logger.info(`[Stripe Webhook] Updated ${email} membership_status to cancelled, tier cleared`);
+
+    deferredActions.push(async () => {
+      try {
+        const { getTodayPacific } = await import('../../utils/dateUtils');
+        const todayStr = getTodayPacific();
+        const futureBookingsResult = await pool.query(
+          `SELECT id, request_date, start_time, status FROM booking_requests 
+           WHERE LOWER(user_email) = LOWER($1) 
+           AND status IN ('pending', 'pending_approval', 'approved', 'confirmed')
+           AND request_date >= $2`,
+          [email, todayStr]
+        );
+
+        if (futureBookingsResult.rows.length > 0) {
+          const { BookingStateService } = await import('../bookingService/bookingStateService');
+          let cancelledCount = 0;
+          const errors: string[] = [];
+
+          for (const booking of futureBookingsResult.rows) {
+            try {
+              await BookingStateService.cancelBooking({
+                bookingId: booking.id,
+                source: 'system',
+                staffNotes: 'Auto-cancelled: membership subscription ended',
+              });
+              cancelledCount++;
+            } catch (cancelErr: unknown) {
+              errors.push(`Booking #${booking.id}: ${getErrorMessage(cancelErr)}`);
+            }
+          }
+
+          logger.info(`[Stripe Webhook] Auto-cancelled ${cancelledCount}/${futureBookingsResult.rows.length} future bookings for cancelled member ${email}`);
+
+          if (cancelledCount > 0) {
+            try {
+              await notifyAllStaff(
+                'Future Bookings Auto-Cancelled',
+                `${cancelledCount} future booking(s) for ${memberName} (${email}) were automatically cancelled due to membership cancellation.`,
+                'booking_cancelled',
+                { sendPush: true }
+              );
+            } catch (notifyErr: unknown) {
+              logger.warn('[Stripe Webhook] Failed to notify staff about auto-cancelled bookings:', { error: getErrorMessage(notifyErr) });
+            }
+          }
+
+          if (errors.length > 0) {
+            logger.error(`[Stripe Webhook] Failed to cancel ${errors.length} future bookings for ${email}:`, { extra: { errors } });
+          }
+        }
+      } catch (err: unknown) {
+        logger.error('[Stripe Webhook] Error auto-cancelling future bookings for cancelled member:', { error: getErrorMessage(err) });
+      }
+    });
 
     try {
       const { syncMemberToHubSpot } = await import('../hubspot/stages');

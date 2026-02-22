@@ -1271,6 +1271,25 @@ export async function checkinBooking(params: CheckinBookingParams) {
   const existing: Record<string, any> = existingResult[0];
   const currentStatus = existing.status;
 
+  if (newStatus === 'attended') {
+    const ownerStatusResult = await db.execute(sql`
+      SELECT membership_status, tier FROM users 
+      WHERE LOWER(email) = LOWER(${existing.user_email})
+      LIMIT 1
+    `);
+    const ownerStatus = (ownerStatusResult.rows[0] as Record<string, any>)?.membership_status;
+    const blockedStatuses = ['cancelled', 'suspended', 'terminated', 'inactive'];
+    if (ownerStatus && blockedStatuses.includes(ownerStatus) && !skipPaymentCheck) {
+      logger.warn('[Checkin] Attempting check-in for member with blocked status', { extra: { bookingId, ownerEmail: existing.user_email, membershipStatus: ownerStatus } });
+      return {
+        error: `Member status is "${ownerStatus}". Check-in blocked — membership is no longer active.`,
+        statusCode: 403,
+        membershipBlocked: true,
+        membershipStatus: ownerStatus
+      };
+    }
+  }
+
   if (currentStatus === newStatus) {
     return { success: true, message: `Already marked as ${newStatus}`, alreadyProcessed: true };
   }
@@ -1472,7 +1491,8 @@ export async function checkinBooking(params: CheckinBookingParams) {
     .returning();
 
   if (result.length === 0) {
-    return { error: 'Booking status changed before update', statusCode: 400 };
+    logger.warn('[Checkin] Booking status changed during check-in, possible race condition', { extra: { bookingId, expectedStatuses: allowedStatuses, newStatus } });
+    return { error: 'Booking status changed during check-in. Please refresh and try again.', statusCode: 409 };
   }
 
   if (confirmPayment && totalOutstanding > 0) {

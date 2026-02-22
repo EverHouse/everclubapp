@@ -86,6 +86,12 @@ The following conventions were comprehensively audited and enforced across the e
 - **`checkinBooking()` payment confirmation moved after atomic status update** — prevents payment confirmations from persisting when the booking status has been changed by another concurrent request.
 
 ## Recent Changes
+- **Feb 22, 2026 (Batch 4)**: Fixed 5 booking/billing lifecycle bugs:
+  - Auto-no-show vs check-in race: Scheduler now skips bookings with recent payment activity (10-min window), preventing no-show marking during active check-in. Check-in returns 409 if status changed underneath.
+  - Cancelled member orphaned bookings: `handleSubscriptionDeleted` now auto-cancels all future bookings (via deferred action) when membership is cancelled, with staff notification.
+  - Guest pass over-consumption: Added `WHERE passes_used < passes_total` guard to UPDATE in `consumeGuestPassForParticipant`, making over-consumption impossible even under concurrent access.
+  - Check-in membership validation: `checkinBooking` now blocks check-in for cancelled/suspended/terminated/inactive members with 403 error. Staff can override via `skipPaymentCheck`.
+  - Empty subscription items guard: `handleSubscriptionUpdated` logs warning when Stripe sends empty items array, preventing silent tier issues during plan transitions.
 - **Feb 22, 2026 (Batch 3)**: Fixed 4 additional bugs (payment, POS, admin, performance):
   - Free merchandise exploit: Non-booking purchases (merch, cafe) now use unique idempotency keys with timestamp; booking payments retain deterministic dedup keys.
   - POS double-charge roulette: Replaced 5-minute rolling window idempotency key with `randomUUID()` — eliminates both free items and double-charges at window boundaries.
