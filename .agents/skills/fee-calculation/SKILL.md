@@ -36,7 +36,7 @@ Accept a `FeeComputeParams` object (defined in `shared/models/billing.ts`) conta
 6. **Batch-fetch participant tiers, roles, and daily usage** — single queries for all participants to avoid N+1.
 7. **Build line items** — iterate participants and apply rules per type (see reference: `references/fee-breakdown.md`).
 8. **Owner absorbs non-member time** — empty slots and guest slot minutes are added to the owner's allocated minutes, then overage is recalculated.
-9. **Empty slot surcharges** — each unfilled declared slot generates a guest-fee line item charged at `PRICING.GUEST_FEE_CENTS`.
+9. **Empty slot absorption (v8.11.0)** — each unfilled declared slot's minutes are absorbed into the owner's allocated minutes (increasing potential overage), but no `GUEST_FEE_CENTS` is charged on the empty slot itself.
 10. **Return `FeeBreakdown`** — totals, participant line items, and metadata.
 
 ### Output
@@ -84,7 +84,7 @@ Charged per non-member participant at `PRICING.GUEST_FEE_CENTS` (flat rate, defa
 
 **Placeholder guests** matching `/^Guest \d+$/i` (e.g., "Guest 1", "Guest 2") are not considered "real named guests" and cannot consume guest passes, but still incur the flat guest fee.
 
-**Empty slot surcharges:** when `effectivePlayerCount > actualParticipantCount`, each unfilled slot generates an "Empty Slot" line item with `guestCents = PRICING.GUEST_FEE_CENTS`. This prevents fee avoidance by declaring more players than actually present.
+**Empty slot handling (v8.11.0):** when `effectivePlayerCount > actualParticipantCount`, empty slots do NOT charge `GUEST_FEE_CENTS` directly. Instead, the empty slot minutes are absorbed into the owner's allocated minutes (increasing potential overage). This prevents ghost fees on unfilled slots while still ensuring the owner bears the usage cost. Empty slot line items appear in the breakdown with `$0` guest fee and `overageCents` reflecting any incremental overage from the absorbed time.
 
 ### Prepayment
 

@@ -82,6 +82,9 @@ Use `safeDbOperation()` and `safeDbTransaction()` from `server/core/safeDbOperat
 ### 7. Database Migrations
 NEVER write migration files manually — use `npm run db:push`. Schema changes go in `shared/schema.ts`, then push.
 
+### 8. No External API Calls in DB Transactions (v8.12.0)
+HTTP calls to Stripe, HubSpot, or any external service must NOT be made inside `BEGIN`/`COMMIT` blocks. They hold connections while waiting for network responses. Use the deferred action pattern or DB-side checks instead. See `stripe-webhook-flow` skill for details.
+
 ---
 
 ## Unified Booking Sheet Architecture

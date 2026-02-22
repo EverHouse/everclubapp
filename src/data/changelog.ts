@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.12.0",
+    date: "2026-02-22",
+    title: "Payment Safety & Performance Hardening",
+    changes: [
+      "Fixed: Non-booking purchases (merchandise, cafe) could be obtained for free by purchasing the same item twice within 24 hours due to idempotency key collision — each purchase now generates a unique transaction key",
+      "Fixed: Point-of-sale saved card charges used a 5-minute rolling window that caused both free items (same window) and double-charges (window boundary) — replaced with unique per-transaction keys",
+      "Fixed: Inactive admin accounts could not be deleted when only 1 active admin remained — the safety guard now only blocks deletion of the last active admin, not inactive ones",
+      "Improved: 4 Stripe API calls removed from webhook database transactions to prevent connection pool exhaustion during high-traffic subscription renewal periods — subscription status check replaced with database query, phone fetch removed, product lookup deferred, customer retrieve given 5-second timeout",
+    ]
+  },
+  {
     version: "8.11.0",
     date: "2026-02-22",
     title: "Deep Architectural Audit — Error Handling, Timezone, Auth & Webhook Safety",

@@ -93,6 +93,18 @@ Critical operations (DB writes, status changes, booking payment updates) happen 
 
 Some operations use `queueJobInTransaction(client, jobType, payload, options)` to enqueue jobs that run asynchronously via the job queue system. These jobs are inserted within the transaction but executed later by a worker.
 
+### Transaction Safety: No External API Calls Inside Transactions (v8.12.0)
+
+**RULE: Never make HTTP calls (Stripe API, HubSpot, etc.) inside a BEGIN/COMMIT transaction block.**
+
+External API calls hold the database connection while waiting for a network response. During high-traffic periods (subscription renewal batches), this exhausts the connection pool and causes cascading failures.
+
+**Enforced patterns:**
+
+1. **Replace with DB query** — If checking Stripe resource status, query the local database instead. Example: `handleInvoicePaymentFailed` checks `users.membership_status` instead of calling `stripe.subscriptions.retrieve()`.
+2. **Move to deferred action** — Non-critical enrichment (phone fetch for HubSpot, product name lookups for tier matching) should be pushed to `deferredActions[]` and run after COMMIT.
+3. **Timeout wrapper** — If an external call is unavoidable inside a transaction (e.g., customer retrieve for new user creation), wrap it with `Promise.race()` and a 5-second timeout to prevent indefinite blocking.
+
 ## The "Stripe Wins" Rule
 
 When `billing_provider = 'stripe'`, Stripe is the authoritative source for `membership_status` and `tier`.
