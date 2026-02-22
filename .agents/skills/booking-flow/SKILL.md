@@ -154,7 +154,7 @@ Two cancellation paths:
 Three-step flow (all staff-only):
 
 1. **Start** (`POST /api/admin/booking/:id/reschedule/start`): Set `is_relocating=true`. This flag prevents Trackman webhook cancellation from interfering.
-2. **Confirm** (`POST /api/admin/booking/:id/reschedule/confirm`): Validate new time slot (conflicts, closures, blocks). Update booking and session times, link new `trackman_booking_id`. Store original values in `original_resource_id`, `original_start_time`, etc. Recalculate fees. Sync invoice line items via `syncBookingInvoice()` after fee recalculation. Send reschedule email to member.
+2. **Confirm** (`POST /api/admin/booking/:id/reschedule/confirm`): Validate new time slot via centralized `checkBookingConflict()` (closures, blocks, session overlaps, advisory lock). Update booking and session times, link new `trackman_booking_id`. Store original values in `original_resource_id`, `original_start_time`, etc. Recalculate fees. Sync invoice line items via `syncBookingInvoice()` after fee recalculation. Send reschedule email to member. WebSocket broadcast errors are logged as warnings (non-blocking).
 3. **Cancel** (`POST /api/admin/booking/:id/reschedule/cancel`): Clear `is_relocating` flag, abort the reschedule.
 
 **Note:** Reschedule UI is currently hidden across SimulatorTab, BookingActions, and PaymentSection. Backend routes are preserved for future use.
@@ -204,7 +204,7 @@ Resource type?
 
 1. **Session before roster**: A `booking_sessions` row must exist before any `booking_participants` can be linked. The session is the anchor for the participant roster and usage ledger.
 
-2. **Conflict detection scope**: `findConflictingBookings()` checks OCCUPIED_STATUSES = `['pending', 'pending_approval', 'approved', 'confirmed', 'checked_in']`. It checks both owner bookings and participant bookings on the same date.
+2. **Conflict detection scope**: `findConflictingBookings()` checks OCCUPIED_STATUSES = `['pending', 'pending_approval', 'approved', 'confirmed', 'checked_in', 'attended']`. It checks both owner bookings and participant bookings on the same date. The `attended` status was added in v8.6.0 to prevent double-booking against checked-in sessions.
 
 3. **Availability guard layers**: `checkUnifiedAvailability()` runs three checks in order:
    - Facility closures (`facility_closures` table)
@@ -266,6 +266,7 @@ See `references/trackman-sync.md` for reconciliation details.
 - `server/core/bookingService/tierRules.ts` — Tier validation rules, daily minute limits, Social tier guest restrictions, and `TierValidationResult` interface. See `references/server-flow.md#tier-validation-rules` for detailed documentation.
 - `server/core/bookingService/sessionManager.ts` — Session creation, participant linking, usage ledger recording, and guest pass deduction.
 - `server/core/bookingService/conflictDetection.ts` — Booking conflict detection (owner and participant conflicts).
+- `server/core/bookingValidation.ts` — Centralized booking conflict detection (`checkBookingConflict`). Used by reschedule confirm and booking creation for consistent conflict validation with advisory locks.
 - `server/core/bookingService/availabilityGuard.ts` — Availability validation (closures, blocks, session overlaps).
 - `server/core/billing/bookingInvoiceService.ts` — Draft invoice creation, line item sync, finalization, voiding, paid-status check. Key exports: `createDraftInvoiceForBooking`, `syncBookingInvoice`, `finalizeAndPayInvoice`, `finalizeInvoicePaidOutOfBand`, `voidBookingInvoice`, `isBookingInvoicePaid`.
 - `server/core/bookingService/rosterService.ts` — Roster changes with `enforceRosterLock()` guard. Exports: `addParticipant`, `removeParticipant`, `updateDeclaredPlayerCount`, `applyRosterBatch`.
