@@ -119,7 +119,7 @@ async function cancelAbandonedPaymentIntents(): Promise<{ cancelled: number; err
     const abandonedIntents = await client.query(
       `SELECT spi.id, spi.stripe_payment_intent_id, spi.booking_id
        FROM stripe_payment_intents spi
-       WHERE spi.status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')
+       WHERE spi.status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')
        AND spi.created_at < NOW() - INTERVAL '2 hours'
        ORDER BY spi.created_at ASC
        LIMIT 30`,

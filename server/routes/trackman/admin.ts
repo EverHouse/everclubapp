@@ -3492,7 +3492,7 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
         await db.execute(sql`DELETE FROM usage_ledger WHERE booking_id = ${booking.id}`);
 
         const pendingIntents = await db.execute(sql`SELECT stripe_payment_intent_id FROM stripe_payment_intents 
-          WHERE booking_id = ${booking.id} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`);
+          WHERE booking_id = ${booking.id} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')`);
         
         for (const intent of pendingIntents.rows as DbRow[]) {
           try {

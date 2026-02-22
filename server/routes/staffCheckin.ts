@@ -638,7 +638,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
       const spiResult = await db.execute(sql`
         SELECT stripe_payment_intent_id FROM stripe_payment_intents
         WHERE booking_id = ${bookingId}
-          AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')
+          AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')
       `);
       for (const row of spiResult.rows) {
         if (row.stripe_payment_intent_id) {

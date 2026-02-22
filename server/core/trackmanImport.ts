@@ -46,7 +46,7 @@ async function cancelPendingPaymentIntentsForBooking(bookingId: number): Promise
     const pendingIntents = await db.execute(
       sql`SELECT stripe_payment_intent_id 
        FROM stripe_payment_intents 
-       WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`
+       WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')`
     );
     for (const row of pendingIntents.rows) {
       try {
@@ -3981,7 +3981,7 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
 
       const pendingIntents = await db.execute(sql`
         SELECT stripe_payment_intent_id FROM stripe_payment_intents 
-        WHERE booking_id = ${booking.id} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')
+        WHERE booking_id = ${booking.id} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')
       `);
       
       for (const intent of pendingIntents.rows) {

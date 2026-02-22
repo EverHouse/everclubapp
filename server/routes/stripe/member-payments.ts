@@ -1408,7 +1408,7 @@ router.post('/api/member/bookings/:bookingId/cancel-payment', isAuthenticated, a
        WHERE spi.stripe_payment_intent_id = ${paymentIntentId} 
        AND spi.booking_id = ${bookingId}
        AND br.user_email = ${sessionUser.email.toLowerCase()}
-       AND spi.status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')
+       AND spi.status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')
     `);
 
     if (verification.rows.length === 0) {

@@ -1300,7 +1300,7 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     try {
       const pendingIntents = await db.execute(sql`SELECT stripe_payment_intent_id 
          FROM stripe_payment_intents 
-         WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`);
+         WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')`);
       if (pendingIntents.rows.length > 0) {
         for (const row of pendingIntents.rows) {
           try {

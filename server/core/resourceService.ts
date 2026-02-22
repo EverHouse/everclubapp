@@ -101,7 +101,7 @@ export async function handleCancellationCascade(
 
     const pendingIntentsResult = await tx.execute(sql`SELECT stripe_payment_intent_id 
        FROM stripe_payment_intents 
-       WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`);
+       WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')`);
 
     return { pendingIntents: pendingIntentsResult.rows as Array<Record<string, unknown>> };
   });
@@ -2382,7 +2382,7 @@ export async function createManualBooking(params: {
     try {
       const pendingIntents = await db.execute(sql`SELECT stripe_payment_intent_id 
          FROM stripe_payment_intents 
-         WHERE booking_id = ${params.rescheduleFromId} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`);
+         WHERE booking_id = ${params.rescheduleFromId} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')`);
       for (const row of (pendingIntents.rows as Array<Record<string, unknown>>)) {
         try {
           await cancelPaymentIntent(row.stripe_payment_intent_id as string);

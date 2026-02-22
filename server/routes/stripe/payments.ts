@@ -602,7 +602,7 @@ router.post('/api/stripe/cleanup-stale-intents', isStaffOrAdmin, async (req: Req
     const staleIntents = await db.execute(sql`SELECT spi.stripe_payment_intent_id, spi.id as local_id, br.status as booking_status
        FROM stripe_payment_intents spi
        LEFT JOIN booking_requests br ON spi.booking_id = br.id
-       WHERE spi.status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')
+       WHERE spi.status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')
        AND (br.status = 'cancelled' OR br.id IS NULL)`);
     
     const results: { id: string; success: boolean; error?: string }[] = [];

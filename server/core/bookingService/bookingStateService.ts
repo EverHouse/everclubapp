@@ -409,7 +409,7 @@ export class BookingStateService {
         .from(stripePaymentIntents)
         .where(and(
           eq(stripePaymentIntents.bookingId, bookingId),
-          sql`${stripePaymentIntents.status} IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`,
+          sql`${stripePaymentIntents.status} IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')`,
         ));
 
       for (const row of pendingIntents) {
@@ -630,7 +630,7 @@ export class BookingStateService {
             refundId: refund.id,
             amountCents: pi.amount,
           });
-        } else if (['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing'].includes(pi.status)) {
+        } else if (['requires_payment_method', 'requires_confirmation', 'requires_action', 'requires_capture', 'processing'].includes(pi.status)) {
           await stripe.paymentIntents.cancel(snapshotRefund.paymentIntentId);
           logger.info('[BookingStateService] Cancelled pending snapshot payment', { extra: { paymentIntentId: snapshotRefund.paymentIntentId } });
           await PaymentStatusService.markPaymentCancelled({ paymentIntentId: snapshotRefund.paymentIntentId });
@@ -649,7 +649,7 @@ export class BookingStateService {
         const stripe = await getStripeClient();
         const pi = await stripe.paymentIntents.retrieve(refundItem.paymentIntentId);
 
-        if (refundItem.type === 'cancel' || ['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing'].includes(pi.status)) {
+        if (refundItem.type === 'cancel' || ['requires_payment_method', 'requires_confirmation', 'requires_action', 'requires_capture', 'processing'].includes(pi.status)) {
           if (pi.status !== 'canceled') {
             await cancelPaymentIntent(refundItem.paymentIntentId);
             logger.info('[BookingStateService] Cancelled payment intent', { extra: { paymentIntentId: refundItem.paymentIntentId } });
