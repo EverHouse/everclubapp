@@ -87,7 +87,7 @@ The following conventions were comprehensively audited and enforced across the e
 
 ## Recent Changes
 - **Feb 22, 2026 (Batch 5)**: Fixed 7 payment/billing/UX bugs:
-  - Terminal payment cancellation: Added `requires_capture` to 3 cancellation status check arrays so POS card reader payments get properly voided on booking cancellation.
+  - Terminal payment cancellation: Added `requires_capture` to 16 cancellation status check arrays across 12 files so POS card reader payments get properly voided on booking cancellation, reschedule, member cancel, trackman cleanup, and all other cancellation paths.
   - Check-in split-brain: Wrapped participant payment status updates in `db.transaction()` to prevent partial updates during check-in confirmation.
   - Email whitespace: Added `.trim()` to memberEmail in quick-charge route and email param routes to prevent whitespace-induced duplicate billing profiles.
   - Feature wipe protection: `handleProductUpdated` webhook now skips `highlighted_features` update when `marketing_features` is empty/absent instead of overwriting with `[]`.
