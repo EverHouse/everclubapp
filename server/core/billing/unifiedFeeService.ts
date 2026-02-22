@@ -794,12 +794,11 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         participantType: 'guest',
         minutesAllocated: minutesPerParticipant,
         overageCents: 0,
-        guestCents: PRICING.GUEST_FEE_CENTS,
-        totalCents: PRICING.GUEST_FEE_CENTS,
+        guestCents: 0,
+        totalCents: 0,
         guestPassUsed: false
       };
 
-      totalGuestCents += PRICING.GUEST_FEE_CENTS;
       lineItems.push(emptyLineItem);
     }
   }

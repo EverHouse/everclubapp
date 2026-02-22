@@ -2344,6 +2344,12 @@ router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Re
     await db.transaction(async (tx) => {
       await tx.execute(sql`UPDATE stripe_payment_intents SET status = ${newStatus}, updated_at = NOW() WHERE stripe_payment_intent_id = ${paymentIntentId}`);
 
+      const existingReversal = await tx.execute(sql`SELECT id FROM usage_ledger WHERE session_id = ${payment.sessionId || 0} AND stripe_payment_intent_id = ${paymentIntentId} AND source = 'staff_manual' AND COALESCE(overage_fee, 0) < 0 LIMIT 1`);
+      if (existingReversal.rows.length > 0) {
+        logger.info('[Payments] Refund ledger reversal already exists (idempotency catch), skipping duplicate', { extra: { refundId: refund.id, paymentIntentId } });
+        return;
+      }
+
       if (payment.sessionId) {
         await tx.execute(sql`UPDATE booking_participants 
            SET payment_status = 'refunded', updated_at = NOW() 

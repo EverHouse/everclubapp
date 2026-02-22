@@ -133,6 +133,22 @@ router.put('/api/staff-users/:id', isAdmin, async (req, res) => {
     if (role !== undefined) updateData.role = role;
     if (is_active !== undefined) updateData.isActive = is_active;
     
+    if (is_active === false || (role !== undefined && role !== 'admin')) {
+      const currentUser = await db.select({ role: staffUsers.role, isActive: staffUsers.isActive })
+        .from(staffUsers)
+        .where(eq(staffUsers.id, parseInt(id as string)));
+      
+      if (currentUser.length > 0 && currentUser[0].role === 'admin' && currentUser[0].isActive) {
+        const adminCount = await db.select({ count: sql<number>`count(*)::int` })
+          .from(staffUsers)
+          .where(and(eq(staffUsers.isActive, true), eq(staffUsers.role, 'admin')));
+        
+        if (adminCount[0].count <= 1) {
+          return res.status(400).json({ error: 'Cannot deactivate or demote the last active admin' });
+        }
+      }
+    }
+
     const result = await db.update(staffUsers)
       .set(updateData)
       .where(eq(staffUsers.id, parseInt(id as string)))
@@ -274,6 +290,16 @@ router.put('/api/admin-users/:id', isAdmin, async (req, res) => {
     if (job_title !== undefined) updateData.jobTitle = job_title;
     if (is_active !== undefined) updateData.isActive = is_active;
     
+    if (is_active === false) {
+      const adminCount = await db.select({ count: sql<number>`count(*)::int` })
+        .from(staffUsers)
+        .where(and(eq(staffUsers.isActive, true), eq(staffUsers.role, 'admin')));
+      
+      if (adminCount[0].count <= 1) {
+        return res.status(400).json({ error: 'Cannot deactivate the last active admin' });
+      }
+    }
+
     const result = await db.update(staffUsers)
       .set(updateData)
       .where(and(eq(staffUsers.id, parseInt(id as string)), eq(staffUsers.role, 'admin')))

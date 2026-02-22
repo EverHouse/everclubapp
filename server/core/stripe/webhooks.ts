@@ -373,7 +373,6 @@ export async function processStripeWebhook(
 
     await executeDeferredActions(deferredActions);
 
-    cleanupOldProcessedEvents().catch((err: unknown) => logger.warn('[Stripe Webhook] Cleanup failed:', { error: getErrorMessage(err) }));
   } catch (handlerError: unknown) {
     await client.query('ROLLBACK');
     logger.error(`[Stripe Webhook] Handler failed for ${event.type} (${event.id}), rolled back:`, { error: handlerError });
@@ -1991,11 +1990,10 @@ async function handleInvoicePaymentFailed(client: PoolClient, invoice: InvoiceWi
   );
 
   if (gracePeriodResult.rowCount === 0) {
-    logger.info(`[Stripe Webhook] Grace period already active for ${email}, skipping duplicate notifications (attempt ${attemptCount})`);
-    return deferredActions;
+    logger.info(`[Stripe Webhook] Grace period already active for ${email}, skipping grace period setup but still notifying (attempt ${attemptCount})`);
+  } else {
+    logger.info(`[Stripe Webhook] Started grace period and set past_due status for ${email} (attempt ${attemptCount})`);
   }
-
-  logger.info(`[Stripe Webhook] Started grace period and set past_due status for ${email} (attempt ${attemptCount})`);
 
   const localEmail = email;
   const localMemberName = memberName;

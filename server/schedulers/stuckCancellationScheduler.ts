@@ -51,29 +51,23 @@ async function checkStuckCancellations(): Promise<void> {
 
     logger.info(`[Stuck Cancellations] ${newStuckBookings.length} new stuck cancellation(s) to alert`);
 
-    // Build summary notification for staff
-    const summary = newStuckBookings
-      .slice(0, 10)
-      .map((booking) => {
-        const memberName = booking.user_name || booking.user_email || 'Unknown';
-        const bookingDate = booking.request_date;
-        const bookingTime = booking.start_time?.substring(0, 5) || '';
-        const bayName = booking.resource_name || 'Simulator';
-        const hoursStuck = Math.round((Date.now() - new Date(booking.cancellation_pending_at).getTime()) / (1000 * 60 * 60));
-        
-        return `• ${memberName} - ${bookingDate} at ${bookingTime} (${bayName}) - ${hoursStuck}+ hours stuck`;
-      })
-      .join('\n');
+    // Send individual notifications per stuck booking so each one gets a relatedId for dedup
+    for (const booking of newStuckBookings) {
+      const memberName = booking.user_name || booking.user_email || 'Unknown';
+      const bookingDate = booking.request_date;
+      const bookingTime = booking.start_time?.substring(0, 5) || '';
+      const bayName = booking.resource_name || 'Simulator';
+      const hoursStuck = Math.round((Date.now() - new Date(booking.cancellation_pending_at).getTime()) / (1000 * 60 * 60));
 
-    const moreText = newStuckBookings.length > 10 ? `\n...and ${newStuckBookings.length - 10} more` : '';
-    const message = `${newStuckBookings.length} booking(s) stuck in cancellation pending for 4+ hours. Please resolve in Trackman or complete manually:\n\n${summary}${moreText}`;
+      const message = `${memberName} - ${bookingDate} at ${bookingTime} (${bayName}) has been stuck in cancellation pending for ${hoursStuck}+ hours. Please resolve in Trackman or complete manually.`;
 
-    await notifyAllStaff(
-      'URGENT: Stuck Cancellation Pending Bookings',
-      message,
-      'cancellation_stuck',
-      { sendPush: true }
-    );
+      await notifyAllStaff(
+        'URGENT: Stuck Cancellation Pending',
+        message,
+        'cancellation_stuck',
+        { sendPush: true, relatedId: booking.id, relatedType: 'booking_request' }
+      );
+    }
 
   } catch (error: unknown) {
     logger.error('[Stuck Cancellations] Scheduler error:', { error: error as Error });
