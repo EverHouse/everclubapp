@@ -86,6 +86,13 @@ The following conventions were comprehensively audited and enforced across the e
 - **`checkinBooking()` payment confirmation moved after atomic status update** — prevents payment confirmations from persisting when the booking status has been changed by another concurrent request.
 
 ## Recent Changes
+- **Feb 22, 2026**: Fixed 6 critical high-impact bugs:
+  - Refund idempotency exploit: Added ledger reversal dedup check in `POST /api/payments/refund` to prevent double-click creating duplicate negative credits.
+  - Empty slot ghost fees: Empty slots in `unifiedFeeService.ts` no longer charge `GUEST_FEE_CENTS`; they only affect owner overage calculations.
+  - Admin lockout protection: Added last-admin guard to both `PUT /api/admin-users/:id` and `PUT /api/staff-users/:id` routes.
+  - Stuck cancellation notification spam: Changed to per-booking notifications with `relatedId`/`relatedType` so dedup works correctly.
+  - Invoice retry blindness: `handleInvoicePaymentFailed` now sends notifications on every retry attempt, not just the first (grace period setup is still idempotent).
+  - Webhook cleanup DB thrashing: Removed per-event `cleanupOldProcessedEvents()` call from webhook handler; cleanup runs via dedicated scheduler.
 - **Feb 2026**: Deep architectural audit — fixed 60 empty catch blocks, 75+ timezone violations (server + frontend), 16 unprotected async routes, 6 webhook guard gaps, 3 missing DB indexes, 3 critical booking race conditions (double-approve, decline-after-approve, checkin payment ordering), enhanced placeholder account detection across 60+ files.
 
 ## External Dependencies
