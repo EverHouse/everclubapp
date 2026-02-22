@@ -1363,6 +1363,17 @@ router.post('/api/stripe/staff/mark-booking-paid', isStaffOrAdmin, async (req: R
          WHERE id IN (${sql.join(safeParticipantIds.map((id: number) => sql`${id}`), sql`, `)})`);
     }
 
+    if (sessionId) {
+      await db.execute(sql`UPDATE usage_ledger 
+         SET payment_method = ${paidVia || 'cash'}, updated_at = NOW()
+         WHERE session_id = ${sessionId}
+           AND payment_method IS DISTINCT FROM 'cash'
+           AND payment_method IS DISTINCT FROM 'waived'`);
+      logger.info('[Stripe] Updated usage_ledger payment_method for mark-booking-paid', {
+        extra: { sessionId, paidVia: paidVia || 'cash' }
+      });
+    }
+
     logFromRequest(req, 'mark_booking_paid', 'payment', oobResult.invoiceId || null, null, {
       bookingId,
       participantIds: JSON.stringify(participantIds),

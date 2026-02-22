@@ -726,32 +726,16 @@ async function handleChargeRefunded(client: PoolClient, charge: Stripe.Charge): 
         if (refundBillingProvider && refundBillingProvider !== '' && refundBillingProvider !== 'stripe') {
           logger.info(`[Stripe Webhook] Skipping charge.refunded for ${terminalPayment.user_email} — billing_provider is '${refundBillingProvider}', not 'stripe'`);
         } else {
-          await client.query(
-            `UPDATE users SET membership_status = 'suspended', billing_provider = 'stripe', updated_at = NOW() WHERE id = $1`,
-            [terminalPayment.user_id]
-          );
-          logger.info(`[Stripe Webhook] Suspended membership for user ${terminalPayment.user_id} due to Terminal payment refund`);
-        
-          await client.query(
-            `INSERT INTO notifications (user_email, title, message, type, related_type, created_at)
-             VALUES ($1, $2, $3, $4, $5, NOW())`,
-            [
-              terminalPayment.user_email.toLowerCase(), 
-              'Membership Suspended', 
-              'Your membership has been suspended due to a payment refund. Please contact staff for assistance.',
-              'billing',
-              'membership'
-            ]
-          );
-        
+          logger.info(`[Stripe Webhook] Terminal payment fully refunded for user ${terminalPayment.user_id} — flagging for admin review (not auto-suspending)`);
+
           deferredActions.push(async () => {
             await notifyAllStaff(
-              'Terminal Payment Refunded',
-              `A Terminal payment for ${terminalPayment.user_email} has been fully refunded. Membership has been suspended.`,
+              'Terminal Payment Refunded — Review Required',
+              `A Terminal payment of $${(terminalPayment.amount_cents / 100).toFixed(2)} for ${terminalPayment.user_email} has been fully refunded ($${(amount_refunded / 100).toFixed(2)}). Please review whether membership status should be changed.`,
               'terminal_refund',
               { sendPush: true }
             );
-          
+
             await logSystemAction({
               action: 'terminal_payment_refunded',
               resourceType: 'user',
@@ -763,7 +747,7 @@ async function handleChargeRefunded(client: PoolClient, charge: Stripe.Charge): 
                 stripe_subscription_id: terminalPayment.stripe_subscription_id,
                 amount_cents: terminalPayment.amount_cents,
                 refund_amount_cents: amount_refunded,
-                membership_action: 'suspended'
+                membership_action: 'flagged_for_review'
               }
             });
           });
@@ -1793,12 +1777,12 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: Invoic
   
   if (priceId) {
     const tierResult = await client.query(
-      'SELECT slug FROM membership_tiers WHERE stripe_price_id = $1 OR founding_price_id = $1',
+      'SELECT name FROM membership_tiers WHERE stripe_price_id = $1 OR founding_price_id = $1',
       [priceId]
     );
     if (tierResult.rows.length > 0) {
       restoreTierClause = ', tier = COALESCE(tier, $2)';
-      queryParams = [email, tierResult.rows[0].slug];
+      queryParams = [email, tierResult.rows[0].name];
     }
   }
   
@@ -4399,30 +4383,33 @@ async function handlePaymentMethodAttached(client: PoolClient, paymentMethod: St
 
     logger.info(`[Stripe Webhook] Payment method attached: ${paymentMethod.id} (${paymentMethod.type}) to customer ${customerId}`);
 
-    const clearResult = await client.query(
-      `UPDATE stripe_payment_intents 
-       SET requires_card_update = FALSE, updated_at = NOW()
+    const retryResult = await client.query(
+      `SELECT stripe_payment_intent_id FROM stripe_payment_intents 
        WHERE stripe_customer_id = $1 
          AND requires_card_update = TRUE 
-         AND status IN ('requires_payment_method', 'requires_action', 'failed')
-       RETURNING stripe_payment_intent_id`,
+         AND status IN ('requires_payment_method', 'requires_action', 'failed')`,
       [customerId]
     );
 
-    if (clearResult.rowCount && clearResult.rowCount > 0) {
-      logger.info(`[Stripe Webhook] Cleared requires_card_update on ${clearResult.rowCount} payment intents for customer ${customerId}`);
+    if (retryResult.rowCount && retryResult.rowCount > 0) {
+      logger.info(`[Stripe Webhook] Found ${retryResult.rowCount} payment intents to retry for customer ${customerId}`);
       
-      for (const row of clearResult.rows) {
+      for (const row of retryResult.rows) {
         deferredActions.push(async () => {
           try {
             const { getStripeClient } = await import('./client');
             const stripe = await getStripeClient();
             const pi = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id);
             if (pi.status === 'requires_payment_method') {
-              await stripe.paymentIntents.confirm(row.stripe_payment_intent_id, {
+              const confirmed = await stripe.paymentIntents.confirm(row.stripe_payment_intent_id, {
                 payment_method: paymentMethod.id,
               });
-              logger.info(`[Stripe Webhook] Auto-retried payment ${row.stripe_payment_intent_id} with new payment method`);
+              if (confirmed.status === 'succeeded' || confirmed.status === 'processing') {
+                await db.execute(sql`UPDATE stripe_payment_intents SET requires_card_update = FALSE, updated_at = NOW() WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
+                logger.info(`[Stripe Webhook] Auto-retried payment ${row.stripe_payment_intent_id} successfully, cleared requires_card_update`);
+              } else {
+                logger.warn(`[Stripe Webhook] Auto-retry of ${row.stripe_payment_intent_id} resulted in status: ${confirmed.status}, keeping requires_card_update flag`);
+              }
             }
           } catch (retryErr: unknown) {
             logger.error(`[Stripe Webhook] Failed to auto-retry payment ${row.stripe_payment_intent_id}:`, { error: retryErr });
@@ -4436,7 +4423,7 @@ async function handlePaymentMethodAttached(client: PoolClient, paymentMethod: St
       [customerId]
     );
 
-    if (memberResult.rows.length > 0 && clearResult.rowCount && clearResult.rowCount > 0) {
+    if (memberResult.rows.length > 0 && retryResult.rowCount && retryResult.rowCount > 0) {
       const member = memberResult.rows[0];
       deferredActions.push(async () => {
         try {

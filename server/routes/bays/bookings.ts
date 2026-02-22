@@ -565,10 +565,7 @@ router.post('/api/booking-requests', async (req, res) => {
            WHERE resource_id = $1 
            AND request_date = $2 
            AND status IN ('pending', 'approved', 'confirmed', 'attended')
-           AND (
-             (start_time < $4 AND end_time > $3) OR
-             (end_time < start_time AND (start_time < $4 OR end_time > $3))
-           )
+           AND start_time < $4 AND end_time > $3
            FOR UPDATE`,
           [resource_id, request_date, start_time, end_time]
         );
@@ -590,8 +587,11 @@ router.post('/api/booking-requests', async (req, res) => {
       
       let sanitizedParticipants: SanitizedParticipant[] = [];
       if (request_participants && Array.isArray(request_participants)) {
+        if (request_participants.length > 3) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Maximum of 3 guests allowed per booking' });
+        }
         sanitizedParticipants = request_participants
-          .slice(0, 3)
           .map((p: { email?: string; type?: string; userId?: string; name?: string }) => ({
             email: typeof p.email === 'string' ? p.email.toLowerCase().trim() : '',
             type: (p.type === 'member' ? 'member' : 'guest') as 'member' | 'guest',
