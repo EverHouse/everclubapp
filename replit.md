@@ -86,6 +86,13 @@ The following conventions were comprehensively audited and enforced across the e
 - **`checkinBooking()` payment confirmation moved after atomic status update** — prevents payment confirmations from persisting when the booking status has been changed by another concurrent request.
 
 ## Recent Changes
+- **Feb 22, 2026 (Transaction Safety Audit)**: Moved all third-party API calls out of database transactions across 2 files (6 violation groups):
+  - `approveBooking()`: Google Calendar API calls and Stripe prepayment (createPrepaymentIntent) now execute after transaction commits. Calendar event ID and participant payment status updated via follow-up DB writes.
+  - `cancelBooking()`: All Stripe refund/cancel calls (paymentIntents.retrieve, refunds.create, paymentIntents.cancel) and PaymentStatusService updates moved after transaction. Fixed ordering bug: participants now marked as 'refunded' only after successful Stripe refund (was previously marked before).
+  - `addGroupMember()`: Stripe subscriptionItems.create and getOrCreateFamilyCoupon moved after transaction with compensating DB rollback on failure.
+  - `addCorporateMember()`: stripe.subscriptions.retrieve and subscriptionItems.create/del/update moved after transaction with compensation.
+  - `removeCorporateMember()`: Same Stripe subscription item operations moved after transaction with compensation.
+  - `removeGroupMember()`: stripe.subscriptionItems.del moved after transaction with compensation.
 - **Feb 22, 2026 (Batch 4)**: Fixed 5 booking/billing lifecycle bugs:
   - Auto-no-show vs check-in race: Scheduler now skips bookings with recent payment activity (10-min window), preventing no-show marking during active check-in. Check-in returns 409 if status changed underneath.
   - Cancelled member orphaned bookings: `handleSubscriptionDeleted` now auto-cancels all future bookings (via deferred action) when membership is cancelled, with staff notification.

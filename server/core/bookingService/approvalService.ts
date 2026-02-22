@@ -169,7 +169,7 @@ interface ApproveBookingParams {
 export async function approveBooking(params: ApproveBookingParams) {
   const { bookingId, staff_notes, suggested_time, reviewed_by, resource_id, trackman_booking_id, trackman_external_id, pending_trackman_sync } = params;
 
-  const { updated, bayName, approvalMessage, isConferenceRoom } = await db.transaction(async (tx) => {
+  const { updated, bayName, approvalMessage, isConferenceRoom, calendarData, prepaymentData } = await db.transaction(async (tx) => {
     const [req_data] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
 
     if (!req_data) {
@@ -230,21 +230,7 @@ export async function approveBooking(params: ApproveBookingParams) {
     const isConferenceRoom = bayResult[0]?.type === 'conference_room';
 
     let calendarEventId: string | null = req_data.calendarEventId || null;
-    if (!calendarEventId) {
-      try {
-        const calendarName = await getCalendarNameForBayAsync(assignedBayId);
-        if (calendarName) {
-          const calendarId = await getCalendarIdByName(calendarName);
-          if (calendarId) {
-            const summary = `Booking: ${req_data.userName || req_data.userEmail}`;
-            const description = `Area: ${bayName}\nMember: ${req_data.userEmail}\nDuration: ${req_data.durationMinutes} minutes${req_data.notes ? '\nNotes: ' + req_data.notes : ''}`;
-            calendarEventId = await createCalendarEventOnCalendar(calendarId, summary, description, req_data.requestDate, req_data.startTime, req_data.endTime);
-          }
-        }
-      } catch (calError: unknown) {
-        logger.error('Calendar sync failed (non-blocking)', { extra: { calError } });
-      }
-    }
+    const calendarName = await getCalendarNameForBayAsync(assignedBayId);
 
     const finalStatus = isConferenceRoom ? 'attended' : 'approved';
 
@@ -424,45 +410,34 @@ export async function approveBooking(params: ApproveBookingParams) {
       }
     }
 
+    let prepaymentData: { sessionId: number; bookingId: number; userId: string | null; userEmail: string; userName: string; totalFeeCents: number; feeBreakdown: { overageCents: number; guestCents: number }; createdSessionId: number } | null = null;
     let breakdown: { totals: { totalCents: number; overageCents: number; guestCents: number } } | null = null;
     if (createdSessionId && createdParticipantIds.length > 0) {
         breakdown = await recalculateSessionFees(createdSessionId, 'approval');
         logger.info('[Booking Approval] Applied unified fees for session : $, overage: $', { extra: { createdSessionId, breakdownTotalsTotalCents_100_ToFixed_2: (breakdown.totals.totalCents/100).toFixed(2), breakdownTotalsOverageCents_100_ToFixed_2: (breakdown.totals.overageCents/100).toFixed(2) } });
 
         if (breakdown.totals.totalCents > 0) {
-          try {
-            let ownerUserId = updatedRow.userId;
-            if (!ownerUserId && updatedRow.userEmail) {
-              const userResult = await tx.select({ id: users.id })
-                .from(users)
-                .where(eq(users.email, updatedRow.userEmail.toLowerCase()))
-                .limit(1);
-              if (userResult.length > 0) {
-                ownerUserId = userResult[0].id;
-              }
+          let ownerUserId = updatedRow.userId;
+          if (!ownerUserId && updatedRow.userEmail) {
+            const userResult = await tx.select({ id: users.id })
+              .from(users)
+              .where(eq(users.email, updatedRow.userEmail.toLowerCase()))
+              .limit(1);
+            if (userResult.length > 0) {
+              ownerUserId = userResult[0].id;
             }
-
-            const prepayResult = await createPrepaymentIntent({
-              sessionId: createdSessionId,
-              bookingId: bookingId,
-              userId: ownerUserId || null,
-              userEmail: updatedRow.userEmail,
-              userName: updatedRow.userName || updatedRow.userEmail,
-              totalFeeCents: breakdown.totals.totalCents,
-              feeBreakdown: { overageCents: breakdown.totals.overageCents, guestCents: breakdown.totals.guestCents }
-            });
-            if (prepayResult?.paidInFull) {
-              await tx.update(bookingParticipants)
-                .set({ paymentStatus: 'paid' })
-                .where(and(
-                  eq(bookingParticipants.sessionId, createdSessionId),
-                  eq(bookingParticipants.paymentStatus, 'pending')
-                ));
-              logger.info('[Booking Approval] Prepayment fully covered by credit for session', { extra: { createdSessionId } });
-            }
-          } catch (prepayError: unknown) {
-            logger.error('[Booking Approval] Failed to create prepayment intent', { extra: { prepayError } });
           }
+
+          prepaymentData = {
+            sessionId: createdSessionId,
+            bookingId: bookingId,
+            userId: ownerUserId || null,
+            userEmail: updatedRow.userEmail,
+            userName: updatedRow.userName || updatedRow.userEmail,
+            totalFeeCents: breakdown.totals.totalCents,
+            feeBreakdown: { overageCents: breakdown.totals.overageCents, guestCents: breakdown.totals.guestCents },
+            createdSessionId: createdSessionId
+          };
         }
     }
 
@@ -489,8 +464,65 @@ export async function approveBooking(params: ApproveBookingParams) {
         eq(notifications.type, 'booking')
       ));
 
-    return { updated: updatedRow, bayName, approvalMessage, isConferenceRoom };
+    const calendarData = !calendarEventId && calendarName ? {
+      existingCalendarEventId: calendarEventId,
+      calendarName,
+      assignedBayId,
+      bayName,
+      requestDate: req_data.requestDate,
+      startTime: req_data.startTime,
+      endTime: req_data.endTime,
+      userEmail: req_data.userEmail,
+      userName: req_data.userName,
+      notes: req_data.notes,
+      durationMinutes: req_data.durationMinutes
+    } : null;
+
+    return { updated: updatedRow, bayName, approvalMessage, isConferenceRoom, calendarData, prepaymentData };
   });
+
+  if (calendarData && !calendarData.existingCalendarEventId) {
+    try {
+      const calendarId = await getCalendarIdByName(calendarData.calendarName);
+      if (calendarId) {
+        const summary = `Booking: ${calendarData.userName || calendarData.userEmail}`;
+        const description = `Area: ${calendarData.bayName}\nMember: ${calendarData.userEmail}\nDuration: ${calendarData.durationMinutes} minutes${calendarData.notes ? '\nNotes: ' + calendarData.notes : ''}`;
+        const newCalendarEventId = await createCalendarEventOnCalendar(calendarId, summary, description, calendarData.requestDate, calendarData.startTime, calendarData.endTime);
+        if (newCalendarEventId) {
+          await db.update(bookingRequests)
+            .set({ calendarEventId: newCalendarEventId })
+            .where(eq(bookingRequests.id, bookingId));
+        }
+      }
+    } catch (calError: unknown) {
+      logger.error('Calendar sync failed (non-blocking)', { extra: { calError } });
+    }
+  }
+
+  if (prepaymentData) {
+    try {
+      const prepayResult = await createPrepaymentIntent({
+        sessionId: prepaymentData.sessionId,
+        bookingId: prepaymentData.bookingId,
+        userId: prepaymentData.userId,
+        userEmail: prepaymentData.userEmail,
+        userName: prepaymentData.userName,
+        totalFeeCents: prepaymentData.totalFeeCents,
+        feeBreakdown: prepaymentData.feeBreakdown
+      });
+      if (prepayResult?.paidInFull) {
+        await db.update(bookingParticipants)
+          .set({ paymentStatus: 'paid' })
+          .where(and(
+            eq(bookingParticipants.sessionId, prepaymentData.createdSessionId),
+            eq(bookingParticipants.paymentStatus, 'pending')
+          ));
+        logger.info('[Booking Approval] Prepayment fully covered by credit for session', { extra: { createdSessionId: prepaymentData.createdSessionId } });
+      }
+    } catch (prepayError: unknown) {
+      logger.error('[Booking Approval] Failed to create prepayment intent', { extra: { prepayError } });
+    }
+  }
 
   sendPushNotification(updated.userEmail, {
     title: 'Booking Approved!',
@@ -757,7 +789,7 @@ interface CancelBookingParams {
 export async function cancelBooking(params: CancelBookingParams) {
   const { bookingId, staff_notes, cancelled_by } = params;
 
-  const { updated, bookingData, pushInfo, overageRefundResult, isConferenceRoom: isConfRoom, isPendingCancel, alreadyPending } = await db.transaction(async (tx) => {
+  const { updated, bookingData, pushInfo, overageRefundResult, isConferenceRoom: isConfRoom, isPendingCancel, alreadyPending, stripeCleanupData } = await db.transaction(async (tx) => {
     const [existing] = await tx.select({
       id: bookingRequests.id,
       calendarEventId: bookingRequests.calendarEventId,
@@ -786,7 +818,8 @@ export async function cancelBooking(params: CancelBookingParams) {
         overageRefundResult: {},
         isConferenceRoom: false,
         isPendingCancel: true,
-        alreadyPending: true
+        alreadyPending: true,
+        stripeCleanupData: { snapshotIntents: [] as Array<{ stripePaymentIntentId: string }>, orphanIntents: [] as Array<{ stripePaymentIntentId: string }>, paidParticipants: [] as Array<{ id: number; stripePaymentIntentId: string; cachedFeeCents: number; displayName: string }>, sessionId: null as number | null }
       };
     }
 
@@ -821,7 +854,8 @@ export async function cancelBooking(params: CancelBookingParams) {
         overageRefundResult: {},
         isConferenceRoom: false,
         isPendingCancel: true,
-        alreadyPending: false
+        alreadyPending: false,
+        stripeCleanupData: { snapshotIntents: [] as Array<{ stripePaymentIntentId: string }>, orphanIntents: [] as Array<{ stripePaymentIntentId: string }>, paidParticipants: [] as Array<{ id: number; stripePaymentIntentId: string; cachedFeeCents: number; displayName: string }>, sessionId: null as number | null }
       };
     }
 
@@ -833,9 +867,12 @@ export async function cancelBooking(params: CancelBookingParams) {
 
     const overageRefundResult: { cancelled?: boolean; refunded?: boolean; amount?: number; error?: string } = {};
 
-    try {
-      const stripe = await getStripeClient();
+    const snapshotIntents: Array<{ stripePaymentIntentId: string }> = [];
+    const orphanIntents: Array<{ stripePaymentIntentId: string }> = [];
+    let paidParticipantsForRefund: Array<{ id: number; stripePaymentIntentId: string; cachedFeeCents: number; displayName: string }> = [];
+    let cleanupSessionId: number | null = null;
 
+    try {
       const allSnapshots = await tx.execute(sql`
         SELECT id, stripe_payment_intent_id, status as snapshot_status, total_cents
          FROM booking_fee_snapshots 
@@ -843,39 +880,7 @@ export async function cancelBooking(params: CancelBookingParams) {
       `);
 
       for (const snapshot of allSnapshots.rows) {
-        try {
-          const pi = await stripe.paymentIntents.retrieve(snapshot.stripe_payment_intent_id);
-
-          if (pi.status === 'succeeded') {
-            const refund = await stripe.refunds.create({
-              payment_intent: snapshot.stripe_payment_intent_id,
-              reason: 'requested_by_customer'
-            }, {
-              idempotencyKey: `refund_staff_cancel_snapshot_${bookingId}_${snapshot.stripe_payment_intent_id}`
-            });
-            logger.info('[Staff Cancel] Refunded payment for booking : $, refund', { extra: { snapshotStripe_payment_intent_id: snapshot.stripe_payment_intent_id, bookingId, piAmount_100_ToFixed_2: (pi.amount / 100).toFixed(2), refundId: refund.id } });
-
-            await PaymentStatusService.markPaymentRefunded({
-              paymentIntentId: snapshot.stripe_payment_intent_id,
-              bookingId,
-              refundId: refund.id,
-              amountCents: pi.amount
-            });
-          } else if (['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing'].includes(pi.status)) {
-            await stripe.paymentIntents.cancel(snapshot.stripe_payment_intent_id);
-            logger.info('[Staff Cancel] Cancelled payment intent for booking', { extra: { snapshotStripe_payment_intent_id: snapshot.stripe_payment_intent_id, bookingId } });
-
-            await PaymentStatusService.markPaymentCancelled({
-              paymentIntentId: snapshot.stripe_payment_intent_id
-            });
-          } else if (pi.status === 'canceled') {
-            await PaymentStatusService.markPaymentCancelled({
-              paymentIntentId: snapshot.stripe_payment_intent_id
-            });
-          }
-        } catch (piErr: unknown) {
-          logger.error('[Staff Cancel] Failed to handle payment', { extra: { stripe_payment_intent_id: snapshot.stripe_payment_intent_id, error: getErrorMessage(piErr) } });
-        }
+        snapshotIntents.push({ stripePaymentIntentId: snapshot.stripe_payment_intent_id });
       }
 
       const otherIntents = await tx.execute(sql`
@@ -889,36 +894,11 @@ export async function cancelBooking(params: CancelBookingParams) {
       `);
 
       for (const row of otherIntents.rows) {
-        try {
-          const pi = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id);
-          if (pi.status === 'succeeded' && pi.latest_charge) {
-            await stripe.refunds.create({
-              charge: typeof pi.latest_charge === 'string' ? pi.latest_charge : (pi.latest_charge as Stripe.Charge).id,
-              reason: 'requested_by_customer'
-            }, {
-              idempotencyKey: `refund_staff_cancel_orphan_${bookingId}_${row.stripe_payment_intent_id}`
-            });
-            logger.info('[Staff Cancel] Refunded succeeded orphan payment intent', { 
-              extra: { paymentIntentId: row.stripe_payment_intent_id, bookingId, amount: (pi.amount / 100).toFixed(2) } 
-            });
-          } else if (pi.status !== 'canceled') {
-            await cancelPaymentIntent(row.stripe_payment_intent_id);
-            logger.info('[Staff Cancel] Cancelled orphan payment intent', { extra: { paymentIntentId: row.stripe_payment_intent_id, bookingId } });
-          }
-        } catch (cancelErr: unknown) {
-          logger.error('[Staff Cancel] Failed to handle orphan payment intent', { 
-            extra: { paymentIntentId: row.stripe_payment_intent_id, error: getErrorMessage(cancelErr) } 
-          });
-        }
+        orphanIntents.push({ stripePaymentIntentId: row.stripe_payment_intent_id });
       }
 
       if (existing.sessionId) {
-        await tx.update(bookingParticipants)
-          .set({ paymentStatus: 'refunded' })
-          .where(and(
-            eq(bookingParticipants.sessionId, existing.sessionId),
-            eq(bookingParticipants.paymentStatus, 'paid')
-          ));
+        cleanupSessionId = existing.sessionId;
 
         await tx.update(bookingParticipants)
           .set({ paymentStatus: 'waived' })
@@ -993,30 +973,14 @@ export async function cancelBooking(params: CancelBookingParams) {
           sql`${bookingParticipants.stripePaymentIntentId} NOT LIKE 'balance-%'`
         ));
 
-      if (paidParticipants.length > 0) {
-        const stripe = await getStripeClient();
-        for (const participant of paidParticipants) {
-          try {
-            const pi = await stripe.paymentIntents.retrieve(participant.stripePaymentIntentId!);
-            if (pi.status === 'succeeded' && pi.latest_charge) {
-              const refund = await stripe.refunds.create({
-                charge: pi.latest_charge as string,
-                reason: 'requested_by_customer',
-                metadata: {
-                  type: 'booking_cancelled_by_staff',
-                  bookingId: bookingId.toString(),
-                  participantId: participant.id.toString()
-                }
-              }, {
-                idempotencyKey: `refund_staff_cancel_participant_${bookingId}_${participant.stripePaymentIntentId}`
-              });
-              logger.info('[Staff Cancel] Refunded guest fee for : $, refund', { extra: { participantDisplay_name: participant.displayName, participantCached_fee_cents_100_ToFixed_2: ((participant.cachedFeeCents || 0) / 100).toFixed(2), refundId: refund.id } });
-            }
-          } catch (refundErr: unknown) {
-            logger.error('[Staff Cancel] Failed to refund participant', { extra: { id: participant.id, error: getErrorMessage(refundErr) } });
-          }
-        }
-      }
+      paidParticipantsForRefund = paidParticipants
+        .filter((p: { stripePaymentIntentId: string | null }) => p.stripePaymentIntentId)
+        .map((p: { id: number; stripePaymentIntentId: string | null; cachedFeeCents: number | null; displayName: string | null }) => ({
+          id: p.id,
+          stripePaymentIntentId: p.stripePaymentIntentId!,
+          cachedFeeCents: p.cachedFeeCents || 0,
+          displayName: p.displayName || ''
+        }));
 
       try {
         await tx.update(bookingParticipants)
@@ -1079,8 +1043,123 @@ export async function cancelBooking(params: CancelBookingParams) {
         eq(notifications.type, 'booking')
       ));
 
-    return { updated: updatedRow, bookingData: existing, pushInfo, overageRefundResult, isConferenceRoom, isPendingCancel: false, alreadyPending: false };
+    const stripeCleanupData = {
+      snapshotIntents,
+      orphanIntents,
+      paidParticipants: paidParticipantsForRefund,
+      sessionId: cleanupSessionId || sessionResult?.[0]?.sessionId || null
+    };
+
+    return { updated: updatedRow, bookingData: existing, pushInfo, overageRefundResult, isConferenceRoom, isPendingCancel: false, alreadyPending: false, stripeCleanupData };
   });
+
+  if (!isPendingCancel && stripeCleanupData) {
+    const hasStripeWork = stripeCleanupData.snapshotIntents.length > 0 ||
+                          stripeCleanupData.orphanIntents.length > 0 ||
+                          stripeCleanupData.paidParticipants.length > 0;
+    if (hasStripeWork) {
+      try {
+        const stripe = await getStripeClient();
+
+        for (const snapshot of stripeCleanupData.snapshotIntents) {
+          try {
+            const pi = await stripe.paymentIntents.retrieve(snapshot.stripePaymentIntentId);
+
+            if (pi.status === 'succeeded') {
+              const refund = await stripe.refunds.create({
+                payment_intent: snapshot.stripePaymentIntentId,
+                reason: 'requested_by_customer'
+              }, {
+                idempotencyKey: `refund_staff_cancel_snapshot_${bookingId}_${snapshot.stripePaymentIntentId}`
+              });
+              logger.info('[Staff Cancel] Refunded payment for booking : $, refund', { extra: { snapshotStripe_payment_intent_id: snapshot.stripePaymentIntentId, bookingId, piAmount_100_ToFixed_2: (pi.amount / 100).toFixed(2), refundId: refund.id } });
+
+              await PaymentStatusService.markPaymentRefunded({
+                paymentIntentId: snapshot.stripePaymentIntentId,
+                bookingId,
+                refundId: refund.id,
+                amountCents: pi.amount
+              });
+            } else if (['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing'].includes(pi.status)) {
+              await stripe.paymentIntents.cancel(snapshot.stripePaymentIntentId);
+              logger.info('[Staff Cancel] Cancelled payment intent for booking', { extra: { snapshotStripe_payment_intent_id: snapshot.stripePaymentIntentId, bookingId } });
+
+              await PaymentStatusService.markPaymentCancelled({
+                paymentIntentId: snapshot.stripePaymentIntentId
+              });
+            } else if (pi.status === 'canceled') {
+              await PaymentStatusService.markPaymentCancelled({
+                paymentIntentId: snapshot.stripePaymentIntentId
+              });
+            }
+          } catch (piErr: unknown) {
+            logger.error('[Staff Cancel] Failed to handle payment', { extra: { stripe_payment_intent_id: snapshot.stripePaymentIntentId, error: getErrorMessage(piErr) } });
+          }
+        }
+
+        for (const row of stripeCleanupData.orphanIntents) {
+          try {
+            const pi = await stripe.paymentIntents.retrieve(row.stripePaymentIntentId);
+            if (pi.status === 'succeeded' && pi.latest_charge) {
+              await stripe.refunds.create({
+                charge: typeof pi.latest_charge === 'string' ? pi.latest_charge : (pi.latest_charge as Stripe.Charge).id,
+                reason: 'requested_by_customer'
+              }, {
+                idempotencyKey: `refund_staff_cancel_orphan_${bookingId}_${row.stripePaymentIntentId}`
+              });
+              logger.info('[Staff Cancel] Refunded succeeded orphan payment intent', {
+                extra: { paymentIntentId: row.stripePaymentIntentId, bookingId, amount: (pi.amount / 100).toFixed(2) }
+              });
+            } else if (pi.status !== 'canceled') {
+              await cancelPaymentIntent(row.stripePaymentIntentId);
+              logger.info('[Staff Cancel] Cancelled orphan payment intent', { extra: { paymentIntentId: row.stripePaymentIntentId, bookingId } });
+            }
+          } catch (cancelErr: unknown) {
+            logger.error('[Staff Cancel] Failed to handle orphan payment intent', {
+              extra: { paymentIntentId: row.stripePaymentIntentId, error: getErrorMessage(cancelErr) }
+            });
+          }
+        }
+
+        for (const participant of stripeCleanupData.paidParticipants) {
+          try {
+            const pi = await stripe.paymentIntents.retrieve(participant.stripePaymentIntentId);
+            if (pi.status === 'succeeded' && pi.latest_charge) {
+              const refund = await stripe.refunds.create({
+                charge: pi.latest_charge as string,
+                reason: 'requested_by_customer',
+                metadata: {
+                  type: 'booking_cancelled_by_staff',
+                  bookingId: bookingId.toString(),
+                  participantId: participant.id.toString()
+                }
+              }, {
+                idempotencyKey: `refund_staff_cancel_participant_${bookingId}_${participant.stripePaymentIntentId}`
+              });
+              logger.info('[Staff Cancel] Refunded guest fee for : $, refund', { extra: { participantDisplay_name: participant.displayName, participantCached_fee_cents_100_ToFixed_2: ((participant.cachedFeeCents || 0) / 100).toFixed(2), refundId: refund.id } });
+            }
+          } catch (refundErr: unknown) {
+            logger.error('[Staff Cancel] Failed to refund participant', { extra: { id: participant.id, error: getErrorMessage(refundErr) } });
+          }
+        }
+
+        if (stripeCleanupData.sessionId) {
+          try {
+            await db.update(bookingParticipants)
+              .set({ paymentStatus: 'refunded' })
+              .where(and(
+                eq(bookingParticipants.sessionId, stripeCleanupData.sessionId),
+                eq(bookingParticipants.paymentStatus, 'paid')
+              ));
+          } catch (updateErr: unknown) {
+            logger.error('[Staff Cancel] Failed to mark participants as refunded after Stripe refunds', { extra: { error: getErrorMessage(updateErr) } });
+          }
+        }
+      } catch (stripeErr: unknown) {
+        logger.error('[Staff Cancel] Failed to handle payment intents (non-blocking)', { extra: { cancelIntentsErr: stripeErr } });
+      }
+    }
+  }
 
   if (!isPendingCancel) {
     voidBookingInvoice(bookingId).catch((err: unknown) => {
