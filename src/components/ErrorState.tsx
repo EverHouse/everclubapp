@@ -73,7 +73,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({
         )}
         {showSupport && (
           <a
-            href="mailto:support@everclub.app?subject=App Error Report"
+            href="sms:9495455855"
             className={`
               inline-flex items-center justify-center gap-2
               ${isCompact ? 'px-4 py-2 text-xs' : 'px-6 py-2 text-sm'}
@@ -81,8 +81,8 @@ const ErrorState: React.FC<ErrorStateProps> = ({
               transition-colors
             `}
           >
-            <span className="material-symbols-outlined text-sm">mail</span>
-            Contact Support
+            <span className="material-symbols-outlined text-sm">sms</span>
+            Text Us — (949) 545-5855
           </a>
         )}
       </div>

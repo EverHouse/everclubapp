@@ -113,14 +113,12 @@ class ErrorBoundary extends Component<Props, State> {
                 : "The app encountered an unexpected error."}
             </p>
             <div className="flex flex-col gap-3">
-              {!hitReloadLimit ? (
-                <button 
-                  onClick={this.handleReload}
-                  className="px-6 py-3 bg-brand-green text-white font-semibold rounded-full hover:bg-brand-green/90 transition-colors"
-                >
-                  Reload App
-                </button>
-              ) : null}
+              <button 
+                onClick={this.handleReload}
+                className="px-6 py-3 bg-brand-green text-white font-semibold rounded-full hover:bg-brand-green/90 transition-colors"
+              >
+                Reload App
+              </button>
               <button 
                 onClick={this.handleClearCache}
                 className="px-6 py-3 bg-white/10 text-white font-medium rounded-full hover:bg-white/20 transition-colors text-sm"
@@ -128,10 +126,10 @@ class ErrorBoundary extends Component<Props, State> {
                 Clear Cache & Reload
               </button>
               <a
-                href="mailto:support@everclub.app?subject=App Error Report"
+                href="sms:9495455855"
                 className="px-6 py-3 text-white/70 hover:text-white transition-colors text-sm underline"
               >
-                Contact Support
+                Text Us — (949) 545-5855
               </a>
             </div>
           </div>

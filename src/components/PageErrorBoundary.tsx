@@ -138,7 +138,6 @@ class PageErrorBoundary extends Component<Props, State> {
       const isNetworkError = this.state.error?.message?.toLowerCase().includes('fetch') ||
                               this.state.error?.message?.toLowerCase().includes('network') ||
                               this.state.error?.message?.toLowerCase().includes('load failed');
-      const canRetry = this.state.retryCount < 3;
       const reloadCount = getReloadCount();
       const hitReloadLimit = reloadCount >= MAX_AUTO_RELOADS;
 
@@ -165,10 +164,10 @@ class PageErrorBoundary extends Component<Props, State> {
                   Clear Cache & Refresh
                 </button>
                 <a
-                  href="mailto:support@everclub.app?subject=App Loading Issue"
+                  href="sms:9495455855"
                   className="px-5 py-2.5 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white/80 rounded-xl font-medium text-sm hover:bg-gray-200 dark:hover:bg-white/20 transition-colors text-center"
                 >
-                  Contact Support
+                  Text Us — (949) 545-5855
                 </a>
               </div>
             </div>
@@ -219,30 +218,24 @@ class PageErrorBoundary extends Component<Props, State> {
                 : 'Something went wrong loading this section.'}
             </p>
             <div className="flex flex-col gap-2">
-              {canRetry && (
-                <button
-                  onClick={this.handleRetry}
-                  className="px-5 py-2.5 bg-accent text-brand-green rounded-xl font-medium text-sm hover:opacity-90 transition-opacity"
-                >
-                  Try Again
-                </button>
-              )}
-              {!canRetry && (
-                <>
-                  <button
-                    onClick={this.handleHardReload}
-                    className="px-5 py-2.5 bg-accent text-brand-green rounded-xl font-medium text-sm hover:opacity-90 transition-opacity"
-                  >
-                    Refresh Page
-                  </button>
-                  <a
-                    href="mailto:support@everclub.app?subject=App Error Report"
-                    className="px-5 py-2.5 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white/80 rounded-xl font-medium text-sm hover:bg-gray-200 dark:hover:bg-white/20 transition-colors text-center"
-                  >
-                    Contact Support
-                  </a>
-                </>
-              )}
+              <button
+                onClick={this.handleRetry}
+                className="px-5 py-2.5 bg-accent text-brand-green rounded-xl font-medium text-sm hover:opacity-90 transition-opacity"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={this.handleHardReload}
+                className="px-5 py-2.5 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white/80 rounded-xl font-medium text-sm hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+              >
+                Reload Page
+              </button>
+              <a
+                href="sms:9495455855"
+                className="px-5 py-2.5 text-gray-500 dark:text-white/50 hover:text-gray-700 dark:hover:text-white/70 text-sm transition-colors"
+              >
+                Text Us — (949) 545-5855
+              </a>
             </div>
           </div>
         </div>

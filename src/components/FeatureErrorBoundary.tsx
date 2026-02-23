@@ -40,7 +40,7 @@ class FeatureErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
-      const canRetry = this.props.showRetry !== false && this.state.retryCount < 3;
+      const showRetry = this.props.showRetry !== false;
 
       return (
         <div className="flex items-center justify-center p-6 min-h-[120px]">
@@ -56,13 +56,23 @@ class FeatureErrorBoundary extends Component<Props, State> {
             <p className="text-xs text-gray-500 dark:text-white/60 mb-3">
               Something went wrong loading this section.
             </p>
-            {canRetry && (
-              <button
-                onClick={this.handleRetry}
-                className="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
-              >
-                Try Again
-              </button>
+            {showRetry && (
+              <div className="flex flex-col gap-2 items-center">
+                <button
+                  onClick={this.handleRetry}
+                  className="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+                >
+                  Try Again
+                </button>
+                {this.state.retryCount >= 1 && (
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="px-3 py-1.5 text-xs text-gray-500 dark:text-white/50 hover:text-gray-700 dark:hover:text-white/70 transition-colors"
+                  >
+                    Reload Page
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>
