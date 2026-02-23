@@ -1254,7 +1254,7 @@ router.post('/api/data-integrity/fix/recalculate-guest-passes', isAdmin, async (
         SELECT COUNT(*)
         FROM booking_participants bp
         JOIN booking_sessions bs ON bp.session_id = bs.id
-        JOIN booking_requests br ON bs.booking_request_id = br.id
+        JOIN booking_requests br ON br.session_id = bs.id
         WHERE bp.guest_pass_id = gp.id
           AND bp.used_guest_pass = true
           AND br.status NOT IN ('cancelled', 'rejected')
