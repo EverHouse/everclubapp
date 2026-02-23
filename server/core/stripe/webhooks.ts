@@ -2320,6 +2320,22 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
             const updatedEmail = updateResult.rows[0].email;
             logger.info(`[Stripe Webhook] Activation link checkout: activated user ${updatedEmail} with subscription ${subscriptionId}`);
 
+            const couponApplied = session.metadata?.couponApplied;
+            if (couponApplied) {
+              try {
+                const stripe = await getStripeClient();
+                const coupon = await stripe.coupons.retrieve(couponApplied);
+                const couponName = coupon.name || couponApplied;
+                await client.query(
+                  `UPDATE users SET discount_code = $1, updated_at = NOW() WHERE id = $2`,
+                  [couponName, updateResult.rows[0].id]
+                );
+                logger.info(`[Stripe Webhook] Set discount_code="${couponName}" for activated user ${updatedEmail}`);
+              } catch (couponErr: unknown) {
+                logger.warn('[Stripe Webhook] Failed to set discount_code from coupon:', { extra: { couponApplied, error: getErrorMessage(couponErr) } });
+              }
+            }
+
             const userInfo = await client.query(
               'SELECT first_name, last_name, phone FROM users WHERE id = $1',
               [updateResult.rows[0].id]

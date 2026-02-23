@@ -163,34 +163,6 @@ router.post('/api/stripe/sync-subscriptions', isStaffOrAdmin, sensitiveActionRat
   }
 });
 
-router.get('/api/stripe/coupons', isStaffOrAdmin, async (req: Request, res: Response) => {
-  try {
-    const stripe = (await import('../../core/stripe')).getStripeClient();
-    const stripeClient = await stripe;
-    
-    const coupons = await stripeClient.coupons.list({
-      limit: 50
-    });
-    
-    const activeCoupons = coupons.data
-      .filter(c => c.valid)
-      .map(c => ({
-        id: c.id,
-        name: c.name || c.id,
-        percentOff: c.percent_off,
-        amountOff: c.amount_off,
-        currency: c.currency,
-        duration: c.duration,
-        durationInMonths: c.duration_in_months
-      }));
-    
-    res.json({ coupons: activeCoupons });
-  } catch (error: unknown) {
-    logger.error('[Stripe] Error listing coupons', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to load coupons' });
-  }
-});
-
 router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { memberEmail: rawMemberEmail, tierName, couponId } = req.body;
@@ -293,6 +265,19 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async
       );
     }
     
+    if (couponId) {
+      try {
+        const stripeClient = await getStripeClient();
+        const coupon = await stripeClient.coupons.retrieve(couponId);
+        const couponName = coupon.name || couponId;
+        await db.execute(
+          sql`UPDATE users SET discount_code = ${couponName}, updated_at = NOW() WHERE id = ${member.id}`
+        );
+      } catch (couponErr: unknown) {
+        logger.warn('[Stripe] Failed to set discount_code from coupon', { extra: { couponId, error: getErrorMessage(couponErr) } });
+      }
+    }
+
     await logFromRequest(req, {
       action: 'subscription_created',
       resourceType: 'member',
@@ -528,6 +513,19 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
       });
     }
     
+    if (couponId) {
+      try {
+        const stripeClient = await getStripeClient();
+        const coupon = await stripeClient.coupons.retrieve(couponId);
+        const couponName = coupon.name || couponId;
+        await db.execute(
+          sql`UPDATE users SET discount_code = ${couponName}, updated_at = NOW() WHERE id = ${userId}`
+        );
+      } catch (couponErr: unknown) {
+        logger.warn('[Stripe] Failed to set discount_code from coupon', { extra: { couponId, error: getErrorMessage(couponErr) } });
+      }
+    }
+
     await logFromRequest(req, {
       action: 'new_member_subscription_created',
       resourceType: 'member',
@@ -878,6 +876,9 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, as
     
     if (couponId) {
       sessionParams.discounts = [{ coupon: couponId }];
+      if (sessionParams.metadata) {
+        sessionParams.metadata.couponApplied = couponId;
+      }
     }
     
     const checkoutSession = await stripe.checkout.sessions.create(sessionParams);
