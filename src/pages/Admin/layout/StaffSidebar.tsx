@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { TabType, tabToPath } from './types';
 import { useNavigationLoading } from '../../../contexts/NavigationLoadingContext';
-import { getLatestVersion } from '../../../data/changelog';
+import { getLatestVersion } from '../../../data/changelog-version';
 import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../../../lib/prefetch';
 
 interface NavItem {

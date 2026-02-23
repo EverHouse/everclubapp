@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 import ModalShell from '../../ModalShell';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 
@@ -113,7 +112,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
   const [isScanning, setIsScanning] = useState(false);
   const [scannerError, setScannerError] = useState<string | null>(null);
   const [cameraPermission, setCameraPermission] = useState<'idle' | 'pending' | 'granted' | 'denied'>('idle');
-  const qrScannerRef = useRef<Html5Qrcode | null>(null);
+  const qrScannerRef = useRef<any>(null);
   const hasScannedRef = useRef(false);
   
   const [unredeemedPasses, setUnredeemedPasses] = useState<UnredeemedPass[]>([]);
@@ -187,6 +186,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
   const stopScanner = useCallback(async () => {
     if (qrScannerRef.current) {
       try {
+        const { Html5QrcodeScannerState } = await import('html5-qrcode');
         const state = qrScannerRef.current.getState();
         if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
           await qrScannerRef.current.stop();
@@ -240,6 +240,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
       hasScannedRef.current = false;
 
       try {
+        const { Html5Qrcode } = await import('html5-qrcode');
         const cameras = await Html5Qrcode.getCameras();
         if (!cameras || cameras.length === 0) {
           setScannerError('No cameras found.');

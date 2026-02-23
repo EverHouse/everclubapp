@@ -19,7 +19,7 @@ import { playSound } from '../../utils/sounds';
 
 import { useCommandCenterData } from './hooks/useCommandCenterData';
 import { formatLastSynced, formatTodayDate } from './helpers';
-import { getLatestVersion } from '../../data/changelog';
+import { getLatestVersion } from '../../data/changelog-version';
 import { BookingQueuesSection } from './sections/BookingQueuesSection';
 import { TodayScheduleSection } from './sections/TodayScheduleSection';
 import { ResourcesSection, NoticeBoardWidget } from './sections/ResourcesSection';

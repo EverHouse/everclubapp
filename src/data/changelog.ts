@@ -6,11 +6,6 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export function getLatestVersion(): { version: string; date: string } {
-  const latest = changelog[0];
-  return { version: latest.version, date: latest.date };
-}
-
 export const changelog: ChangelogEntry[] = [
   {
     version: "8.12.0",
