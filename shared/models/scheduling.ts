@@ -298,9 +298,6 @@ export const bookingParticipants = pgTable("booking_participants", {
   index("booking_participants_session_idx").on(table.sessionId),
   index("booking_participants_user_idx").on(table.userId),
   index("booking_participants_guest_idx").on(table.guestId),
-  uniqueIndex("booking_participants_session_user_unique_idx")
-    .on(table.sessionId, table.userId)
-    .where(sql`user_id IS NOT NULL`),
 ]);
 
 export type BookingSession = typeof bookingSessions.$inferSelect;
