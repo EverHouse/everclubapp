@@ -258,7 +258,7 @@ async function initializeApp() {
       "img-src 'self' data: blob: https:",
       "connect-src 'self' https://api.stripe.com https://accounts.google.com wss: ws:",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "frame-src https://js.stripe.com https://hooks.stripe.com https://accounts.google.com",
+      "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://accounts.google.com https://www.google.com https://my.matterport.com",
       "frame-ancestors 'self'",
       "worker-src 'self'",
       isProduction ? "upgrade-insecure-requests" : "",
