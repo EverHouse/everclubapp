@@ -107,7 +107,7 @@ External API calls hold the database connection while waiting for a network resp
 
 ### Documented In-Transaction Exceptions (v8.12.0)
 
-Four legitimate Stripe/external API calls have been audited and approved to stay inside transactions because their results are required for immediate DB writes:
+Five legitimate Stripe/external API calls have been audited and approved to stay inside transactions because their results are required for immediate DB writes:
 
 1. **`stripe.customers.retrieve()` in `handleSubscriptionCreated`** — When creating a new user from a subscription event (no matching user exists), the customer email and name are required to populate the user record. This call is unavoidable.
 
@@ -116,6 +116,8 @@ Four legitimate Stripe/external API calls have been audited and approved to stay
 3. **`stripe.paymentMethods.list()` in `handlePaymentMethodDetached`** — Determines the count of remaining payment methods on the customer. If zero, `requires_card_update` must be set to `true` on the user record in the same transaction.
 
 4. **`syncCompanyToHubSpot()` in `handleCheckoutSessionCompleted`** — Syncs a new company to HubSpot and returns `hubspotCompanyId`. This ID must be written to both `users.hubspot_company_id` and `billing_groups.hubspot_company_id` in the same transaction.
+
+5. **`stripe.prices.retrieve()` in `guestPassConsumer.ts`** — Fetches the guest pass Stripe price to determine `cached_fee_cents` for the booking participant record. The fee amount must be written to `booking_participants.cached_fee_cents` in the same transaction to maintain consistency.
 
 ### Timeout Wrapper Pattern
 
