@@ -990,6 +990,9 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
         WHERE br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
           AND br.request_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date - INTERVAL '30 days'
           AND br.session_id IS NOT NULL
+          AND br.is_unmatched IS NOT TRUE
+          AND br.user_email NOT LIKE '%unmatched%'
+          AND br.user_email NOT LIKE '%@trackman.import%'
           AND NOT EXISTS (
             SELECT 1 FROM booking_fee_snapshots bfs 
             WHERE bfs.session_id = br.session_id AND bfs.status IN ('completed', 'paid')

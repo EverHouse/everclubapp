@@ -4461,7 +4461,7 @@ async function handleCustomerUpdated(client: PoolClient, customer: Stripe.Custom
     }
 
     const result = await client.query(
-      `SELECT id, email, first_name, last_name, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
+      `SELECT id, email, first_name, last_name, archived_at, membership_status, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
       [stripeCustomerId]
     );
 
@@ -4474,12 +4474,31 @@ async function handleCustomerUpdated(client: PoolClient, customer: Stripe.Custom
     const currentEmail = user.email?.toLowerCase();
     const updates: string[] = [];
 
-    if (currentEmail && currentEmail.includes('.merged.')) {
-      logger.info(`[Stripe Webhook] customer.updated: skipping merged/archived user for Stripe customer ${stripeCustomerId} (email: ${currentEmail})`);
+    if ((currentEmail && currentEmail.includes('.merged.')) || user.archived_at || user.membership_status === 'merged') {
+      await client.query('UPDATE users SET stripe_customer_id = NULL, stripe_subscription_id = NULL WHERE id = $1', [user.id]);
+      logger.info(`[Stripe Webhook] customer.updated: cleared stripe_customer_id from archived/merged user ${currentEmail} (${stripeCustomerId})`);
       return deferredActions;
     }
 
     if (currentEmail && stripeEmail !== currentEmail) {
+      const activeMatch = await client.query(
+        `SELECT id, email FROM users WHERE LOWER(email) = $1 AND archived_at IS NULL AND membership_status NOT IN ('merged', 'terminated') AND stripe_customer_id IS NULL LIMIT 2`,
+        [stripeEmail]
+      );
+      if (activeMatch.rows.length === 1) {
+        const correctUser = activeMatch.rows[0];
+        await client.query('UPDATE users SET stripe_customer_id = NULL, stripe_subscription_id = NULL WHERE id = $1', [user.id]);
+        await client.query(
+          `UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2 AND stripe_customer_id IS NULL`,
+          [stripeCustomerId, correctUser.id]
+        );
+        logger.info(`[Stripe Webhook] customer.updated: auto-reassigned stripe_customer_id ${stripeCustomerId} from ${currentEmail} to ${correctUser.email} (active user matches Stripe email)`);
+        updates.push(`auto_reassigned_to_${correctUser.email}`);
+        return deferredActions;
+      } else if (activeMatch.rows.length > 1) {
+        logger.warn(`[Stripe Webhook] customer.updated: multiple active users match Stripe email ${stripeEmail} — skipping auto-reassignment, sending mismatch alert`);
+      }
+
       logger.warn(`[Stripe Webhook] customer.updated: email changed in Stripe for customer ${stripeCustomerId}: ${currentEmail} → ${stripeEmail}. NOT auto-syncing email (requires manual verification).`);
       
       deferredActions.push(async () => {
