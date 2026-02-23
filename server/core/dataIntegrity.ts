@@ -1226,7 +1226,7 @@ async function checkStuckTransitionalMembers(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
   
   const stuckMembersResult = await db.execute(sql`
-    SELECT id, email, first_name, last_name, tier, membership_status, stripe_subscription_id, updated_at
+    SELECT id, email, first_name, last_name, tier, membership_status, stripe_subscription_id, stripe_customer_id, updated_at
     FROM users 
     WHERE stripe_subscription_id IS NOT NULL
       AND membership_status IN ('pending', 'non-member')
@@ -1238,8 +1238,51 @@ async function checkStuckTransitionalMembers(): Promise<IntegrityCheckResult> {
   `);
   const stuckMembers = stuckMembersResult.rows as Record<string, unknown>[];
   
+  let stripe: Stripe | undefined;
+  try {
+    stripe = await getStripeClient();
+  } catch {
+    logger.debug('[DataIntegrity] Could not connect to Stripe for stuck member check');
+  }
+
   for (const member of stuckMembers) {
     const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'Unknown';
+    const subId = member.stripe_subscription_id as string;
+
+    if (stripe && subId) {
+      try {
+        const sub = await stripe.subscriptions.retrieve(subId);
+        const deadStatuses = ['incomplete_expired', 'canceled'];
+        if (deadStatuses.includes(sub.status)) {
+          await db.execute(sql`
+            UPDATE users 
+            SET stripe_subscription_id = NULL, 
+                membership_status = 'non-member',
+                updated_at = NOW()
+            WHERE id = ${member.id as string}
+              AND stripe_subscription_id = ${subId}
+          `);
+          logger.info(`[DataIntegrity] Auto-cleaned dead subscription for "${memberName}" <${member.email}> (Stripe status: ${sub.status})`);
+          continue;
+        }
+      } catch (err: unknown) {
+        const errMsg = getErrorMessage(err);
+        if (errMsg.includes('No such subscription') || errMsg.includes('resource_missing')) {
+          await db.execute(sql`
+            UPDATE users 
+            SET stripe_subscription_id = NULL, 
+                membership_status = 'non-member',
+                updated_at = NOW()
+            WHERE id = ${member.id as string}
+              AND stripe_subscription_id = ${subId}
+          `);
+          logger.info(`[DataIntegrity] Auto-cleaned missing subscription for "${memberName}" <${member.email}> (subscription not found in Stripe)`);
+          continue;
+        }
+        logger.debug(`[DataIntegrity] Could not verify subscription for "${memberName}": ${errMsg}`);
+      }
+    }
+
     const hoursStuck = Math.round((Date.now() - new Date(member.updated_at as string).getTime()) / (1000 * 60 * 60));
     
     issues.push({
