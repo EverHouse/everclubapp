@@ -2259,10 +2259,13 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
       
       // NOTE: Must stay in transaction - result (hubspotCompanyId) needed for DB writes to users and billing_groups
       try {
-        const companyResult = await syncCompanyToHubSpot({
-          companyName,
-          userEmail
-        });
+        const companyResult = await Promise.race([
+          syncCompanyToHubSpot({
+            companyName,
+            userEmail
+          }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('HubSpot company sync timed out after 5s')), 5000))
+        ]);
 
         if (companyResult.success && companyResult.hubspotCompanyId) {
           logger.info(`[Stripe Webhook] Company synced to HubSpot: ${companyResult.hubspotCompanyId} (created: ${companyResult.created})`);
@@ -3318,7 +3321,10 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
         if (productId) {
           try {
             const stripe = await getStripeClient();
-            const product = await stripe.products.retrieve(productId as string);
+            const product = await Promise.race([
+              stripe.products.retrieve(productId as string),
+              new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Stripe product retrieve timed out after 5s')), 5000))
+            ]) as Stripe.Product;
             const productName = product.name?.toLowerCase() || '';
             
             const tierKeywords = ['vip', 'premium', 'corporate', 'core', 'social'];
@@ -4825,10 +4831,14 @@ export async function handlePaymentMethodDetached(client: PoolClient, paymentMet
 
     const user = userResult.rows[0];
 
+    // NOTE: Must stay in transaction - result needed for DB write (requires_card_update flag)
     let hasRemainingMethods = true;
     try {
       const stripe = await getStripeClient();
-      const methods = await stripe.paymentMethods.list({ customer: customerId, limit: 1 });
+      const methods = await Promise.race([
+        stripe.paymentMethods.list({ customer: customerId, limit: 1 }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Stripe paymentMethods.list timed out after 5s')), 5000))
+      ]) as Stripe.ApiList<Stripe.PaymentMethod>;
       hasRemainingMethods = methods.data.length > 0;
     } catch (stripeErr: unknown) {
       logger.error('[Stripe Webhook] Failed to check remaining payment methods:', { error: getErrorMessage(stripeErr) });
