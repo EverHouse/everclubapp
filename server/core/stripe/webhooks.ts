@@ -4014,35 +4014,40 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: Strip
 
       logger.info(`[Stripe Webhook] Trial ended for ${email} - membership paused (account preserved, booking blocked)`);
 
-      try {
-        const { syncMemberToHubSpot } = await import('../hubspot/stages');
-        await syncMemberToHubSpot({ email, status: 'paused', billingProvider: 'stripe', billingGroupRole: 'Primary' });
-        logger.info(`[Stripe Webhook] Synced ${email} status=paused to HubSpot`);
-      } catch (hubspotError: unknown) {
-        logger.error('[Stripe Webhook] HubSpot sync failed for status paused:', { error: hubspotError });
-      }
+      const deferredEmail = email;
+      const deferredMemberName = memberName;
 
-      try {
-        await notifyMember({
-          userEmail: email,
-          title: 'Trial Ended',
-          message: 'Your free trial has ended. Your account is still here - renew anytime to pick up where you left off!',
-          type: 'membership_failed',
-        });
-      } catch (notifyErr: unknown) {
-        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
-      }
+      deferredActions.push(async () => {
+        try {
+          const { syncMemberToHubSpot } = await import('../hubspot/stages');
+          await syncMemberToHubSpot({ email: deferredEmail, status: 'paused', billingProvider: 'stripe', billingGroupRole: 'Primary' });
+          logger.info(`[Stripe Webhook] Synced ${deferredEmail} status=paused to HubSpot`);
+        } catch (hubspotError: unknown) {
+          logger.error('[Stripe Webhook] HubSpot sync failed for status paused:', { error: hubspotError });
+        }
 
-      try {
-        await notifyAllStaff(
-          'Trial Expired',
-          `${memberName} (${email}) trial has ended. Membership paused (account preserved).`,
-          'trial_expired',
-          { sendPush: true, sendWebSocket: true }
-        );
-      } catch (notifyErr: unknown) {
-        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
-      }
+        try {
+          await notifyMember({
+            userEmail: deferredEmail,
+            title: 'Trial Ended',
+            message: 'Your free trial has ended. Your account is still here - renew anytime to pick up where you left off!',
+            type: 'membership_failed',
+          });
+        } catch (notifyErr: unknown) {
+          logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+        }
+
+        try {
+          await notifyAllStaff(
+            'Trial Expired',
+            `${deferredMemberName} (${deferredEmail}) trial has ended. Membership paused (account preserved).`,
+            'trial_expired',
+            { sendPush: true, sendWebSocket: true }
+          );
+        } catch (notifyErr: unknown) {
+          logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+        }
+      });
 
       broadcastBillingUpdate({
         action: 'subscription_updated',
@@ -4079,17 +4084,23 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: Strip
         logger.warn(`[Stripe Webhook] ORPHAN BILLING WARNING: Primary member ${memberName} (${email}) ` +
           `subscription cancelled with ${orphanedEmails.length} group members deactivated: ${orphanedEmails.join(', ')}`);
 
-        try {
-          await notifyAllStaff(
-            'Orphan Billing Alert',
-            `Primary member ${memberName} (${email}) subscription was cancelled. ` +
-              `${orphanedEmails.length} group member(s) have been automatically deactivated: ${orphanedEmails.join(', ')}.`,
-            'billing_alert',
-            { sendPush: true }
-          );
-        } catch (notifyErr: unknown) {
-          logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
-        }
+        const deferredOrphanMemberName = memberName;
+        const deferredOrphanEmail = email;
+        const deferredOrphanedEmails = [...orphanedEmails];
+
+        deferredActions.push(async () => {
+          try {
+            await notifyAllStaff(
+              'Orphan Billing Alert',
+              `Primary member ${deferredOrphanMemberName} (${deferredOrphanEmail}) subscription was cancelled. ` +
+                `${deferredOrphanedEmails.length} group member(s) have been automatically deactivated: ${deferredOrphanedEmails.join(', ')}.`,
+              'billing_alert',
+              { sendPush: true }
+            );
+          } catch (notifyErr: unknown) {
+            logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+          }
+        });
       }
 
       // Deactivate the billing group itself
@@ -4177,46 +4188,51 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: Strip
       }
     });
 
-    try {
-      const { syncMemberToHubSpot } = await import('../hubspot/stages');
-      await syncMemberToHubSpot({ email, status: 'cancelled', billingProvider: 'stripe', billingGroupRole: 'Primary' });
-      logger.info(`[Stripe Webhook] Synced ${email} status=cancelled to HubSpot`);
-    } catch (hubspotError: unknown) {
-      logger.error('[Stripe Webhook] HubSpot sync failed for status cancelled:', { error: hubspotError });
-    }
-    
-    try {
-      const cancellationResult = await handleMembershipCancellation(email, 'stripe-webhook', 'Stripe Subscription');
-      if (cancellationResult.success) {
-        logger.info(`[Stripe Webhook] HubSpot cancellation processed: ${cancellationResult.lineItemsRemoved} line items removed, deal moved to lost: ${cancellationResult.dealMovedToLost}`);
-      } else {
-        logger.error(`[Stripe Webhook] HubSpot cancellation failed: ${cancellationResult.error}`);
+    const deferredCancelEmail = email;
+    const deferredCancelMemberName = memberName;
+
+    deferredActions.push(async () => {
+      try {
+        const { syncMemberToHubSpot } = await import('../hubspot/stages');
+        await syncMemberToHubSpot({ email: deferredCancelEmail, status: 'cancelled', billingProvider: 'stripe', billingGroupRole: 'Primary' });
+        logger.info(`[Stripe Webhook] Synced ${deferredCancelEmail} status=cancelled to HubSpot`);
+      } catch (hubspotError: unknown) {
+        logger.error('[Stripe Webhook] HubSpot sync failed for status cancelled:', { error: hubspotError });
       }
-    } catch (cancellationError: unknown) {
-      logger.error('[Stripe Webhook] HubSpot cancellation handling failed:', { error: cancellationError });
-    }
 
-    try {
-      await notifyMember({
-        userEmail: email,
-        title: 'Membership Cancelled',
-        message: 'Your membership has been cancelled. We hope to see you again soon.',
-        type: 'membership_cancelled',
-      });
-    } catch (notifyErr: unknown) {
-      logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
-    }
+      try {
+        const cancellationResult = await handleMembershipCancellation(deferredCancelEmail, 'stripe-webhook', 'Stripe Subscription');
+        if (cancellationResult.success) {
+          logger.info(`[Stripe Webhook] HubSpot cancellation processed: ${cancellationResult.lineItemsRemoved} line items removed, deal moved to lost: ${cancellationResult.dealMovedToLost}`);
+        } else {
+          logger.error(`[Stripe Webhook] HubSpot cancellation failed: ${cancellationResult.error}`);
+        }
+      } catch (cancellationError: unknown) {
+        logger.error('[Stripe Webhook] HubSpot cancellation handling failed:', { error: cancellationError });
+      }
 
-    try {
-      await notifyAllStaff(
-        'Membership Cancelled',
-        `${memberName} (${email}) has cancelled their membership.`,
-        'membership_cancelled',
-        { sendPush: true, sendWebSocket: true }
-      );
-    } catch (notifyErr: unknown) {
-      logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
-    }
+      try {
+        await notifyMember({
+          userEmail: deferredCancelEmail,
+          title: 'Membership Cancelled',
+          message: 'Your membership has been cancelled. We hope to see you again soon.',
+          type: 'membership_cancelled',
+        });
+      } catch (notifyErr: unknown) {
+        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+      }
+
+      try {
+        await notifyAllStaff(
+          'Membership Cancelled',
+          `${deferredCancelMemberName} (${deferredCancelEmail}) has cancelled their membership.`,
+          'membership_cancelled',
+          { sendPush: true, sendWebSocket: true }
+        );
+      } catch (notifyErr: unknown) {
+        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+      }
+    });
 
     broadcastBillingUpdate({
       action: 'subscription_cancelled',
