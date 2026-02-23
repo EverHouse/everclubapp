@@ -370,7 +370,31 @@ async function initializeApp() {
 
   app.get('/robots.txt', (req, res) => {
     res.type('text/plain');
-    res.send('User-agent: *\nDisallow: /\n');
+    res.send([
+      'User-agent: *',
+      'Allow: /$',
+      'Allow: /membership',
+      'Allow: /contact',
+      'Allow: /gallery',
+      'Allow: /whats-on',
+      'Allow: /private-hire',
+      'Allow: /menu',
+      'Allow: /faq',
+      'Allow: /about',
+      'Allow: /tour',
+      'Allow: /day-pass',
+      'Allow: /privacy',
+      'Allow: /terms',
+      'Disallow: /admin',
+      'Disallow: /api',
+      'Disallow: /checkout',
+      'Disallow: /login',
+      'Disallow: /auth',
+      'Disallow: /reset-password',
+      'Disallow: /nfc-checkin',
+      'Disallow: /_health',
+      'Disallow: /healthz',
+    ].join('\n') + '\n');
   });
 
   if (isProduction) {
