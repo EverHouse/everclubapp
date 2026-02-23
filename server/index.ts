@@ -253,13 +253,14 @@ async function initializeApp() {
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     res.setHeader('Content-Security-Policy', [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://accounts.google.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://api.stripe.com wss: ws:",
+      "connect-src 'self' https://api.stripe.com https://accounts.google.com wss: ws:",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "frame-src https://js.stripe.com https://hooks.stripe.com",
+      "frame-src https://js.stripe.com https://hooks.stripe.com https://accounts.google.com",
       "frame-ancestors 'self'",
+      "worker-src 'self'",
       isProduction ? "upgrade-insecure-requests" : "",
     ].filter(Boolean).join('; '));
     if (isProduction) {
