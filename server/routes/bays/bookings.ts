@@ -23,6 +23,7 @@ import { PRICING } from '../../core/billing/pricingConfig';
 import { createGuestPassHold, releaseGuestPassHold } from '../../core/billing/guestPassHoldService';
 import { ensureSessionForBooking, createSessionWithUsageTracking } from '../../core/bookingService/sessionManager';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { cancelPendingPaymentIntentsForBooking } from '../../core/billing/paymentIntentCleanup';
 import { normalizeToISODate } from '../../utils/dateNormalize';
 
 interface SanitizedParticipant {
@@ -1254,15 +1255,6 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       staffNotes = staffNotes ? `${staffNotes}\n${cancelNote}` : cancelNote;
     }
     
-    const [updated] = await db.update(bookingRequests)
-      .set({
-        status: 'cancelled',
-        staffNotes: staffNotes || undefined,
-        updatedAt: new Date()
-      })
-      .where(eq(bookingRequests.id, bookingId))
-      .returning();
-    
     await releaseGuestPassHold(bookingId);
     
     if (existing.sessionId) {
@@ -1282,41 +1274,24 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       }
     }
     
-    voidBookingInvoice(bookingId).catch((err: unknown) => {
+    try {
+      await voidBookingInvoice(bookingId);
+    } catch (err: unknown) {
       logger.error('[Member Cancel] Failed to void/refund booking invoice (non-blocking)', {
         extra: { bookingId, error: getErrorMessage(err) }
       });
-    });
+    }
     
-    logFromRequest(req, 'cancel_booking', 'booking', id, undefined, {
-      member_email: existing.userEmail
-    });
+    try {
+      await cancelPendingPaymentIntentsForBooking(bookingId);
+    } catch (cancelIntentsErr: unknown) {
+      logger.error('[Member Cancel] Failed to cancel pending payment intents (non-blocking)', { extra: { cancelIntentsErr } });
+    }
     
     let refundedAmountCents = 0;
     let refundType: 'none' | 'overage' | 'guest_fees' | 'both' = 'none';
     let refundSkippedDueToLateCancel = false;
     
-    // Cancel pending payment intents from stripe_payment_intents table
-    try {
-      const pendingIntents = await db.execute(sql`SELECT stripe_payment_intent_id 
-         FROM stripe_payment_intents 
-         WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')`);
-      if (pendingIntents.rows.length > 0) {
-        for (const row of pendingIntents.rows) {
-          try {
-            await cancelPaymentIntent(row.stripe_payment_intent_id);
-            logger.info('[Member Cancel] Cancelled payment intent for booking', { extra: { rowStripe_payment_intent_id: row.stripe_payment_intent_id, bookingId } });
-          } catch (cancelErr: unknown) {
-            logger.error('[Member Cancel] Failed to cancel payment intent', { extra: { stripe_payment_intent_id: row.stripe_payment_intent_id, error: getErrorMessage(cancelErr) } });
-          }
-        }
-      }
-    } catch (cancelIntentsErr: unknown) {
-      logger.error('[Member Cancel] Failed to cancel pending payment intents (non-blocking)', { extra: { cancelIntentsErr } });
-    }
-    
-    // Refund participant payments (guest fees paid via Stripe)
-    // Skip refunds if within 1 hour of booking start time (late cancellation policy)
     if (!shouldSkipRefund) {
       try {
         if (existing.sessionId) {
@@ -1362,7 +1337,6 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       refundSkippedDueToLateCancel = true;
     }
     
-    // Clear pending fees for cancelled booking
     try {
       if (existing.sessionId) {
         await db.execute(sql`UPDATE booking_participants 
@@ -1374,6 +1348,19 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     } catch (feeCleanupErr: unknown) {
       logger.error('[Member Cancel] Failed to clear pending fees (non-blocking)', { extra: { feeCleanupErr } });
     }
+    
+    const [updated] = await db.update(bookingRequests)
+      .set({
+        status: 'cancelled',
+        staffNotes: staffNotes || undefined,
+        updatedAt: new Date()
+      })
+      .where(eq(bookingRequests.id, bookingId))
+      .returning();
+    
+    logFromRequest(req, 'cancel_booking', 'booking', id, undefined, {
+      member_email: existing.userEmail
+    });
     
     if (wasApproved) {
       const memberName = existing.userName || existing.userEmail;

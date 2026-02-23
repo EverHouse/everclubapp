@@ -9,13 +9,14 @@ import { sendPushNotification } from '../routes/push';
 import { getHubSpotClient } from './integrations';
 import { bookingEvents } from './bookingEvents';
 import { getMemberTierByEmail } from './tierService';
-import { createSession, recordUsage, ParticipantInput } from './bookingService/sessionManager';
+import { ensureSessionForBooking, createSession, recordUsage, ParticipantInput } from './bookingService/sessionManager';
 import { calculateFullSessionBilling, FLAT_GUEST_FEE, Participant } from './bookingService/usageCalculator';
 import { recalculateSessionFees } from './billing/unifiedFeeService';
 import { voidBookingInvoice } from './billing/bookingInvoiceService';
 import { toTextArrayLiteral } from '../utils/sqlArrayLiteral';
 import { useGuestPass } from '../routes/guestPasses';
 import { cancelPaymentIntent } from './stripe';
+import { cancelPendingPaymentIntentsForBooking } from './billing/paymentIntentCleanup';
 import { alertOnTrackmanImportIssues } from './dataAlerts';
 import { staffUsers } from '../../shared/schema';
 
@@ -40,26 +41,6 @@ export async function getGolfInstructorEmails(): Promise<string[]> {
     logger.error('[Trackman] Error fetching golf instructor emails:', { error: err });
     // Fallback to empty array - caller should handle gracefully
     return [];
-  }
-}
-
-async function cancelPendingPaymentIntentsForBooking(bookingId: number): Promise<void> {
-  try {
-    const pendingIntents = await db.execute(
-      sql`SELECT stripe_payment_intent_id 
-       FROM stripe_payment_intents 
-       WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')`
-    );
-    for (const row of pendingIntents.rows) {
-      try {
-        await cancelPaymentIntent(row.stripe_payment_intent_id as string);
-        process.stderr.write(`[Trackman Import] Cancelled payment intent ${row.stripe_payment_intent_id}\n`);
-      } catch (cancelErr: unknown) {
-        process.stderr.write(`[Trackman Import] Failed to cancel payment intent ${row.stripe_payment_intent_id}: ${getErrorMessage(cancelErr)}\n`);
-      }
-    }
-  } catch (e: unknown) {
-    logger.warn('[Trackman Import] Non-critical cleanup failed:', e);
   }
 }
 
@@ -996,19 +977,51 @@ async function createTrackmanSessionAndParticipants(input: SessionCreationInput)
       });
     }
     
-    // Use sessionManager.createSession to create session and participants
-    const { session, participants } = await createSession(
-      {
-        resourceId: input.resourceId,
-        sessionDate: input.sessionDate,
-        startTime: input.startTime,
-        endTime: input.endTime,
-        trackmanBookingId: input.trackmanBookingId,
-        createdBy: 'trackman_import'
-      },
-      participantInputs,
-      'trackman_import'
-    );
+    const sessionResult = await ensureSessionForBooking({
+      bookingId: input.bookingId,
+      resourceId: input.resourceId,
+      sessionDate: input.sessionDate,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      ownerEmail: input.ownerEmail,
+      ownerName: input.ownerName,
+      ownerUserId: ownerUserId || undefined,
+      trackmanBookingId: input.trackmanBookingId,
+      source: 'trackman_import',
+      createdBy: 'trackman_import'
+    });
+
+    if (sessionResult.error) {
+      throw new Error(`ensureSessionForBooking failed: ${sessionResult.error}`);
+    }
+
+    const sessionId = sessionResult.sessionId;
+
+    const nonOwnerParticipants = participantInputs.filter(p => p.participantType !== 'owner');
+    let participants: { id: number; participantType: string; userId?: string | null; guestId?: number | null; displayName?: string }[] = [];
+
+    const existingParticipants = await db.execute(sql`SELECT id, participant_type, user_id, guest_id, display_name FROM booking_participants WHERE session_id = ${sessionId}`);
+    participants = existingParticipants.rows.map(r => ({ id: r.id as number, participantType: r.participant_type as string, userId: r.user_id as string | null, guestId: r.guest_id as number | null, displayName: r.display_name as string }));
+
+    for (const p of nonOwnerParticipants) {
+      const alreadyExists = participants.some(ep =>
+        (p.userId && ep.userId === p.userId) ||
+        (p.guestId && ep.guestId === p.guestId)
+      );
+      if (!alreadyExists) {
+        const [newP] = await db.insert(bookingParticipants).values({
+          sessionId,
+          userId: p.userId || null,
+          guestId: p.guestId || null,
+          participantType: p.participantType as any,
+          displayName: p.displayName || 'Unknown',
+          slotDuration: p.slotDuration || null
+        }).returning();
+        participants.push({ id: newP.id, participantType: newP.participantType, userId: newP.userId, guestId: newP.guestId, displayName: newP.displayName || undefined });
+      }
+    }
+
+    const session = { id: sessionId };
 
     // Link the booking_request to the session
     await db.update(bookingRequests)
