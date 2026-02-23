@@ -44,6 +44,11 @@ The Ever Club Members App is a private members club application designed for gol
 - **Stripe Webhook Safety**: Webhook handlers modifying member status must include a `billing_provider` guard to prevent overwrites from other systems.
 - **Booking Race Condition Guards**: `approveBooking()`, `declineBooking()`, and `checkinBooking()` implement status guards and optimistic locking to prevent race conditions and ensure data integrity.
 
+## Recent Changes
+- **2026-02-23**: Fixed `logger.debug` missing method in `server/core/logger.ts` (was causing 230+ runtime errors across 28 files)
+- **2026-02-23**: Fixed day pass purchase insert failures — `stripe_customer_id` column made nullable to support guest checkouts without a Stripe customer. Unsafe `as string` casts replaced with safe extraction in `webhooks.ts` and `dayPasses.ts`.
+- **2026-02-23**: Fixed audit log insert failures for system actions — all `logSystemAction()` calls in `webhooks.ts` were using wrong field names (`entityType`/`entityId` instead of `resourceType`/`resourceId`), causing NOT NULL constraint violations on `resource_type`.
+
 ## External Dependencies
 - **Stripe**: For terminal payments, subscriptions, and webhooks (billing authority).
 - **HubSpot**: For two-way data synchronization and form submissions.

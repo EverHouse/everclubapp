@@ -163,7 +163,7 @@ router.post('/api/day-passes/confirm', async (req: Request, res: Response) => {
       }
 
       metadata = session.metadata || {};
-      customerId = session.customer as string;
+      customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id || null;
       amountPaid = session.amount_total || 0;
       
       if (session.payment_intent && typeof session.payment_intent === 'object') {
@@ -182,7 +182,7 @@ router.post('/api/day-passes/confirm', async (req: Request, res: Response) => {
       }
 
       metadata = paymentIntent.metadata || {};
-      customerId = paymentIntent.customer as string;
+      customerId = typeof paymentIntent.customer === 'string' ? paymentIntent.customer : paymentIntent.customer?.id || null;
       resolvedPaymentIntentId = paymentIntentId;
       amountPaid = paymentIntent.amount;
     }
@@ -438,7 +438,7 @@ router.post('/api/day-passes/staff-checkout/confirm', isStaffOrAdmin, async (req
         amountCents: paymentIntent.amount,
         quantity: 1,
         stripePaymentIntentId: paymentIntentId,
-        stripeCustomerId: paymentIntent.customer as string,
+        stripeCustomerId: typeof paymentIntent.customer === 'string' ? paymentIntent.customer : paymentIntent.customer?.id || null,
         purchaserEmail: email,
         purchaserFirstName: firstName,
         purchaserLastName: lastName,
@@ -481,7 +481,7 @@ export async function recordDayPassPurchaseFromWebhook(data: {
   phone?: string;
   amountCents: number;
   paymentIntentId: string;
-  customerId: string;
+  customerId: string | null;
 }): Promise<{ success: boolean; purchaseId?: string; userId?: string; quantity?: number; remainingUses?: number; error?: string }> {
   try {
     const existingPurchase = await db.select()

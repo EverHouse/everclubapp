@@ -2552,7 +2552,7 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
       return deferredActions;
     }
 
-    const customerId = session.customer as string;
+    const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id || null;
 
     // Record the day pass purchase
     const result = await recordDayPassPurchaseFromWebhook({
@@ -4703,8 +4703,8 @@ export async function handleCustomerCreated(client: PoolClient, customer: Stripe
         try {
           await logSystemAction({
             action: 'stripe_customer_linked',
-            entityType: 'user',
-            entityId: user.id,
+            resourceType: 'user',
+            resourceId: user.id,
             details: { stripeCustomerId: customer.id, email: user.email },
           });
         } catch (err: unknown) {
@@ -4730,8 +4730,8 @@ export async function handleCustomerCreated(client: PoolClient, customer: Stripe
         try {
           await logSystemAction({
             action: 'stripe_customer_linked',
-            entityType: 'user',
-            entityId: user.id,
+            resourceType: 'user',
+            resourceId: user.id,
             details: { stripeCustomerId: customer.id, existingCustomerId: user.stripe_customer_id, duplicate: true, email: user.email },
           });
         } catch (err: unknown) {
@@ -4791,8 +4791,8 @@ export async function handleCustomerDeleted(client: PoolClient, customer: Stripe
       try {
         await logSystemAction({
           action: 'stripe_customer_deleted',
-          entityType: 'user',
-          entityId: user.id,
+          resourceType: 'user',
+          resourceId: user.id,
           details: { stripeCustomerId: customerId, email: user.email, displayName: user.display_name },
         });
       } catch (err: unknown) {
@@ -5003,8 +5003,8 @@ export async function handlePaymentMethodAutoUpdated(client: PoolClient, payment
       try {
         await logSystemAction({
           action: 'payment_method_auto_updated',
-          entityType: 'user',
-          entityId: user.id,
+          resourceType: 'user',
+          resourceId: user.id,
           details: { paymentMethodId: paymentMethod.id, stripeCustomerId: customerId, email: user.email },
         });
       } catch (err: unknown) {
@@ -5081,8 +5081,8 @@ export async function handleChargeDisputeUpdated(client: PoolClient, dispute: St
       try {
         await logSystemAction({
           action: 'charge_dispute_updated',
-          entityType: 'dispute',
-          entityId: id,
+          resourceType: 'dispute',
+          resourceId: id,
           details: {
             status,
             statusDescription,
@@ -5164,8 +5164,8 @@ async function handleCheckoutSessionExpired(client: PoolClient, session: Stripe.
       try {
         await logSystemAction({
           action: 'checkout_session_expired',
-          entityType: 'checkout_session',
-          entityId: session.id,
+          resourceType: 'checkout_session',
+          resourceId: session.id,
           details: {
             email: displayEmail,
             purpose,
@@ -5241,8 +5241,8 @@ async function handleCheckoutSessionAsyncPaymentFailed(client: PoolClient, sessi
       try {
         await logSystemAction({
           action: 'checkout_async_payment_failed',
-          entityType: 'checkout_session',
-          entityId: session.id,
+          resourceType: 'checkout_session',
+          resourceId: session.id,
           details: {
             email: displayEmail,
             purpose,
@@ -5337,8 +5337,8 @@ async function handleCheckoutSessionAsyncPaymentSucceeded(client: PoolClient, se
       try {
         await logSystemAction({
           action: 'checkout_async_payment_succeeded',
-          entityType: 'checkout_session',
-          entityId: session.id,
+          resourceType: 'checkout_session',
+          resourceId: session.id,
           details: {
             email: displayEmail,
             purpose,
@@ -5430,8 +5430,8 @@ async function handleInvoicePaymentActionRequired(client: PoolClient, invoice: I
       try {
         await logSystemAction({
           action: 'invoice_payment_action_required',
-          entityType: 'invoice',
-          entityId: invoice.id,
+          resourceType: 'invoice',
+          resourceId: invoice.id,
           details: {
             email: displayEmail,
             customerId,
@@ -5512,8 +5512,8 @@ async function handleInvoiceOverdue(client: PoolClient, invoice: InvoiceWithLega
       try {
         await logSystemAction({
           action: 'invoice_overdue',
-          entityType: 'invoice',
-          entityId: invoice.id,
+          resourceType: 'invoice',
+          resourceId: invoice.id,
           details: {
             email: userEmail,
             amount: amountDue / 100,
@@ -5580,8 +5580,8 @@ async function handleSetupIntentSucceeded(client: PoolClient, setupIntent: Strip
       try {
         await logSystemAction({
           action: 'setup_intent_succeeded',
-          entityType: 'setup_intent',
-          entityId: setupIntent.id,
+          resourceType: 'setup_intent',
+          resourceId: setupIntent.id,
           details: {
             email: user.email,
             customerId,
@@ -5653,8 +5653,8 @@ async function handleSetupIntentFailed(client: PoolClient, setupIntent: Stripe.S
       try {
         await logSystemAction({
           action: 'setup_intent_failed',
-          entityType: 'setup_intent',
-          entityId: setupIntent.id,
+          resourceType: 'setup_intent',
+          resourceId: setupIntent.id,
           details: {
             email: displayEmail,
             customerId,

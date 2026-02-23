@@ -84,7 +84,7 @@ export const dayPassPurchases = pgTable(
     remainingUses: integer("remaining_uses").default(1),
     status: varchar("status").default("active"),
     stripePaymentIntentId: varchar("stripe_payment_intent_id").notNull(),
-    stripeCustomerId: varchar("stripe_customer_id").notNull(),
+    stripeCustomerId: varchar("stripe_customer_id"),
     hubspotDealId: varchar("hubspot_deal_id"),
     purchaserEmail: varchar("purchaser_email").notNull(),
     purchaserFirstName: varchar("purchaser_first_name"),
