@@ -51,9 +51,10 @@ export async function queueJob(
   options: QueueJobOptions = {}
 ): Promise<number> {
   const { priority = 0, maxRetries = 3, scheduledFor = new Date(), webhookEventId } = options;
+  const scheduledForIso = scheduledFor.toISOString();
   
   const result = await db.execute(sql`INSERT INTO job_queue (job_type, payload, priority, max_retries, scheduled_for, webhook_event_id)
-     VALUES (${jobType}, ${JSON.stringify(payload)}, ${priority}, ${maxRetries}, ${scheduledFor}, ${webhookEventId})
+     VALUES (${jobType}, ${JSON.stringify(payload)}, ${priority}, ${maxRetries}, ${scheduledForIso}::timestamptz, ${webhookEventId})
      RETURNING id`);
   
   return (result.rows[0] as Record<string, unknown>).id as number;
@@ -84,7 +85,8 @@ export async function queueJobs(
   
   const valuesSql = jobs.map(job => {
     const { priority = 0, maxRetries = 3, scheduledFor = new Date(), webhookEventId } = job.options || {};
-    return sql`(${job.jobType}, ${JSON.stringify(job.payload)}, ${priority}, ${maxRetries}, ${scheduledFor}, ${webhookEventId})`;
+    const scheduledForIso = scheduledFor.toISOString();
+    return sql`(${job.jobType}, ${JSON.stringify(job.payload)}, ${priority}, ${maxRetries}, ${scheduledForIso}::timestamptz, ${webhookEventId})`;
   });
   
   const result = await db.execute(sql`INSERT INTO job_queue (job_type, payload, priority, max_retries, scheduled_for, webhook_event_id)
@@ -95,16 +97,16 @@ export async function queueJobs(
 }
 
 async function claimJobs(): Promise<Array<{ id: number; jobType: string; payload: Record<string, unknown>; retryCount: number; maxRetries: number }>> {
-  const now = new Date();
-  const lockExpiry = new Date(now.getTime() - LOCK_TIMEOUT_MS);
+  const nowIso = new Date().toISOString();
+  const lockExpiryIso = new Date(Date.now() - LOCK_TIMEOUT_MS).toISOString();
   
   const result = await db.execute(sql`UPDATE job_queue
-     SET locked_at = ${now}, locked_by = ${WORKER_ID}
+     SET locked_at = ${nowIso}::timestamptz, locked_by = ${WORKER_ID}
      WHERE id IN (
        SELECT id FROM job_queue
        WHERE status = 'pending'
-         AND scheduled_for <= ${now}
-         AND (locked_at IS NULL OR locked_at < ${lockExpiry})
+         AND scheduled_for <= ${nowIso}::timestamptz
+         AND (locked_at IS NULL OR locked_at < ${lockExpiryIso}::timestamptz)
        ORDER BY priority DESC, scheduled_for ASC
        LIMIT ${BATCH_SIZE}
        FOR UPDATE SKIP LOCKED
@@ -129,8 +131,8 @@ async function markJobFailed(jobId: number, error: string, retryCount: number, m
     await db.execute(sql`UPDATE job_queue SET status = 'failed', last_error = ${error}, retry_count = retry_count + 1, locked_at = NULL, locked_by = NULL WHERE id = ${jobId}`);
   } else {
     const backoffMs = Math.min(1000 * Math.pow(2, retryCount), 60000);
-    const nextScheduled = new Date(Date.now() + backoffMs);
-    await db.execute(sql`UPDATE job_queue SET last_error = ${error}, retry_count = retry_count + 1, scheduled_for = ${nextScheduled}, locked_at = NULL, locked_by = NULL WHERE id = ${jobId}`);
+    const nextScheduledIso = new Date(Date.now() + backoffMs).toISOString();
+    await db.execute(sql`UPDATE job_queue SET last_error = ${error}, retry_count = retry_count + 1, scheduled_for = ${nextScheduledIso}::timestamptz, locked_at = NULL, locked_by = NULL WHERE id = ${jobId}`);
   }
 }
 

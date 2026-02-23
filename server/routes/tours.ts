@@ -272,13 +272,36 @@ router.post('/api/tours/book', async (req, res) => {
 router.patch('/api/tours/:id/confirm', async (req, res) => {
   try {
     const { id } = req.params;
-    
+    const { email } = req.body;
+
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email is required to confirm a tour' });
+    }
+
+    const tourId = parseInt(id);
+    if (isNaN(tourId)) {
+      return res.status(400).json({ error: 'Invalid tour ID' });
+    }
+
+    const [existing] = await db.select({ id: tours.id, guestEmail: tours.guestEmail, status: tours.status })
+      .from(tours)
+      .where(eq(tours.id, tourId))
+      .limit(1);
+
+    if (!existing || existing.status !== 'pending') {
+      return res.status(404).json({ error: 'Tour not found' });
+    }
+
+    if (existing.guestEmail?.toLowerCase() !== email.trim().toLowerCase()) {
+      return res.status(403).json({ error: 'Email does not match the tour booking' });
+    }
+
     const [updated] = await db.update(tours)
       .set({
         status: 'scheduled',
         updatedAt: new Date(),
       })
-      .where(and(eq(tours.id, parseInt(id)), eq(tours.status, 'pending')))
+      .where(and(eq(tours.id, tourId), eq(tours.status, 'pending')))
       .returning();
     
     if (!updated) {

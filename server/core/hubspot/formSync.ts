@@ -17,10 +17,14 @@ const HUBSPOT_FORMS: Record<string, string> = {
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 let formSyncAccessDeniedLogged = false;
 let formSyncAccessDeniedUntil = 0;
+let formSyncAuthFailureLogged = false;
+let formSyncAuthFailureUntil = 0;
 
 export function resetFormSyncAccessDeniedFlag(): void {
   formSyncAccessDeniedLogged = false;
   formSyncAccessDeniedUntil = 0;
+  formSyncAuthFailureLogged = false;
+  formSyncAuthFailureUntil = 0;
 }
 
 interface HubSpotSubmissionValue {
@@ -125,6 +129,10 @@ export async function syncHubSpotFormSubmissions(): Promise<{
     return result;
   }
 
+  if (Date.now() < formSyncAuthFailureUntil) {
+    return result;
+  }
+
   try {
     let accessToken: string;
     let authSource: string;
@@ -137,9 +145,13 @@ export async function syncHubSpotFormSubmissions(): Promise<{
         accessToken = await getHubSpotAccessToken() as string;
         authSource = 'connector';
       } catch (err: unknown) {
-        const msg = `Failed to get HubSpot access token: ${getErrorMessage(err)}`;
-        logger.error(`[HubSpot FormSync] ${msg}`);
-        result.errors.push(msg);
+        formSyncAuthFailureUntil = Date.now() + 60 * 60 * 1000;
+        if (!formSyncAuthFailureLogged) {
+          const msg = `Failed to get HubSpot access token: ${getErrorMessage(err)}. Suppressing retries for 1 hour. Set HUBSPOT_PRIVATE_APP_TOKEN or configure HubSpot connector.`;
+          logger.warn(`[HubSpot FormSync] ${msg}`);
+          result.errors.push(msg);
+          formSyncAuthFailureLogged = true;
+        }
         return result;
       }
     }

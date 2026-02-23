@@ -1923,7 +1923,7 @@ async function handleInvoicePaymentFailed(client: PoolClient, invoice: InvoiceWi
     ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
     : email;
 
-  const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : (invoice.subscription as Stripe.Subscription).id;
+  const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
   const subStatusCheck = await client.query(
     `SELECT membership_status FROM users WHERE LOWER(email) = LOWER($1) AND stripe_subscription_id = $2`,
     [email, subscriptionId]
@@ -2144,7 +2144,7 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
   try {
     // Handle add_funds checkout - credit customer balance
     if (session.metadata?.purpose === 'add_funds') {
-      const customerId = session.customer as string;
+      const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id || null;
       const amountCents = parseInt(session.metadata.amountCents || '0', 10);
       const memberEmail = session.metadata.memberEmail;
       const amountDollars = amountCents / 100;
@@ -2293,8 +2293,8 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
     if (session.metadata?.source === 'activation_link') {
       const userId = session.metadata?.userId;
       const memberEmail = session.metadata?.memberEmail?.toLowerCase();
-      const customerId = session.customer as string;
-      const subscriptionId = session.subscription as string;
+      const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id || null;
+      const subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id || null;
       const tierSlugMeta = session.metadata?.tierSlug;
       const tierNameMeta = session.metadata?.tier;
 
@@ -2377,7 +2377,7 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
       const lastName = session.metadata?.lastName;
       const tierId = session.metadata?.tierId ? parseInt(session.metadata.tierId, 10) : null;
       const tierName = session.metadata?.tierName;
-      const customerId = session.customer as string;
+      const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id || null;
       
       if (!email || !customerId) {
         logger.error(`[Stripe Webhook] Missing email or customer ID for staff invite: ${session.id}`);
@@ -2648,7 +2648,7 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
 async function handleSubscriptionCreated(client: PoolClient, subscription: Stripe.Subscription): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   try {
-    const customerId = subscription.customer;
+    const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id;
     const priceId = subscription.items?.data?.[0]?.price?.id;
     const planName = subscription.items?.data?.[0]?.price?.nickname || 
                      subscription.items?.data?.[0]?.plan?.nickname || 
@@ -2685,7 +2685,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
       // NOTE: Must stay in transaction - result needed for DB writes (customerEmail, name used for user creation)
       const stripe = await getStripeClient();
       const customer = await Promise.race([
-        stripe.customers.retrieve(customerId as string),
+        stripe.customers.retrieve(String(customerId)),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Stripe customer retrieve timed out after 5s')), 5000))
       ]) as Stripe.Customer | Stripe.DeletedCustomer;
       
@@ -2823,7 +2823,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
       const deferredMetadataPhone = metadataPhone || undefined;
       const deferredTierName = tierName;
       const deferredActualStatus = actualStatus;
-      const deferredCustomerId = customerId as string;
+      const deferredCustomerId = String(customerId);
       const deferredPricingInterval = subscription.items?.data?.[0]?.price?.recurring?.interval || undefined;
 
       deferredActions.push(async () => {
@@ -3047,7 +3047,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
             const deferredActivationEmail = email;
             const deferredActivationTierName = tierName;
             const deferredActivationStatus = subscription.status;
-            const deferredActivationCustomerId = customerId as string;
+            const deferredActivationCustomerId = String(customerId);
             const deferredActivationInterval = subscription.items?.data?.[0]?.price?.recurring?.interval || undefined;
 
             deferredActions.push(async () => {
@@ -3081,7 +3081,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
                   primaryEmail: email,
                   companyName: companyName,
                   quantity: quantity,
-                  stripeCustomerId: customerId as string,
+                  stripeCustomerId: String(customerId),
                   stripeSubscriptionId: subscription.id,
                 });
                 if (groupResult.success) {
@@ -3117,7 +3117,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
       const productId = subscription.items?.data?.[0]?.price?.product;
       if (productId) {
         const deferredEmail = email;
-        const deferredProductId = productId as string;
+        const deferredProductId = typeof productId === 'string' ? productId : productId.id;
         const deferredSubscriptionPeriodEnd = subscriptionPeriodEnd;
         const deferredSubscriptionStatus = subscription.status;
         deferredActions.push(async () => {
@@ -3252,7 +3252,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
 async function handleSubscriptionUpdated(client: PoolClient, subscription: Stripe.Subscription, previousAttributes?: SubscriptionPreviousAttributes): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   try {
-    const customerId = subscription.customer;
+    const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id;
     const status = subscription.status;
     const currentPriceId = subscription.items?.data?.[0]?.price?.id;
     if (subscription.items?.data?.length === 0) {
@@ -3322,7 +3322,7 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
           try {
             const stripe = await getStripeClient();
             const product = await Promise.race([
-              stripe.products.retrieve(productId as string),
+              stripe.products.retrieve(typeof productId === 'string' ? productId : productId.id),
               new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Stripe product retrieve timed out after 5s')), 5000))
             ]) as Stripe.Product;
             const productName = product.name?.toLowerCase() || '';
@@ -3768,7 +3768,7 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
 async function handleSubscriptionPaused(client: PoolClient, subscription: Stripe.Subscription): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   try {
-    const customerId = subscription.customer;
+    const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id;
 
     const userResult = await client.query(
       'SELECT id, email, first_name, last_name, billing_provider FROM users WHERE stripe_customer_id = $1',
@@ -3867,7 +3867,7 @@ async function handleSubscriptionPaused(client: PoolClient, subscription: Stripe
 async function handleSubscriptionResumed(client: PoolClient, subscription: Stripe.Subscription): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   try {
-    const customerId = subscription.customer;
+    const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id;
     const subscriptionPeriodEnd = (subscription as StripeSubscriptionWithPeriods).current_period_end
       ? new Date((subscription as StripeSubscriptionWithPeriods).current_period_end * 1000)
       : null;
@@ -3969,7 +3969,7 @@ async function handleSubscriptionResumed(client: PoolClient, subscription: Strip
 async function handleSubscriptionDeleted(client: PoolClient, subscription: Stripe.Subscription): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   try {
-    const customerId = subscription.customer;
+    const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id;
     const subscriptionId = subscription.id;
 
     // CRITICAL: Handle group billing cancellation via centralized function
@@ -4753,7 +4753,7 @@ export async function handleCustomerDeleted(client: PoolClient, customer: Stripe
 
   try {
     const customerId = customer.id;
-    logger.info(`[Stripe Webhook] customer.deleted ${customerId} (deleted flag: ${(customer as any).deleted})`);
+    logger.info(`[Stripe Webhook] customer.deleted ${customerId} (deleted flag: ${'deleted' in customer ? true : false})`);
 
     const userResult = await client.query(
       `SELECT id, email, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,

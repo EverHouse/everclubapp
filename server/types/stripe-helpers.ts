@@ -12,6 +12,18 @@ export function isExpandedPrice(price: string | Stripe.Price): price is Stripe.P
   return typeof price !== 'string';
 }
 
+export function getCustomerId(customer: string | Stripe.Customer | Stripe.DeletedCustomer | null | undefined): string | null {
+  if (!customer) return null;
+  if (typeof customer === 'string') return customer;
+  return customer.id;
+}
+
+export function getPaymentIntentId(pi: string | Stripe.PaymentIntent | null | undefined): string | null {
+  if (!pi) return null;
+  if (typeof pi === 'string') return pi;
+  return pi.id;
+}
+
 export interface SubscriptionPendingUpdate {
   billing_cycle_anchor?: number;
   expires_at?: number;

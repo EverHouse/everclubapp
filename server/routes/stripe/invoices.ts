@@ -118,10 +118,8 @@ router.post('/api/stripe/invoices/:invoiceId/finalize', isStaffOrAdmin, async (r
     }
     
     try {
-      if ((result.invoice as any)?.customer) {
-        const customerId = typeof (result.invoice as any).customer === 'string' 
-          ? (result.invoice as any).customer 
-          : (result.invoice as any).customer.id;
+      if (result.invoice?.customerId) {
+        const customerId = result.invoice.customerId;
         const memberLookup = await db.execute(
           sql`SELECT email FROM users WHERE stripe_customer_id = ${customerId}`
         );
@@ -172,11 +170,7 @@ router.post('/api/stripe/invoices/:invoiceId/void', isStaffOrAdmin, async (req: 
     const { invoiceId } = req.params;
     
     const invoiceResult = await getInvoice(invoiceId as string);
-    const customerId = (invoiceResult.invoice as any)?.customer 
-      ? (typeof (invoiceResult.invoice as any).customer === 'string' 
-          ? (invoiceResult.invoice as any).customer 
-          : (invoiceResult.invoice as any).customer.id)
-      : null;
+    const customerId = invoiceResult.invoice?.customerId || null;
     
     const result = await voidInvoice(invoiceId as string);
     

@@ -596,14 +596,19 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
           const paymentMethodId = paymentIntent.payment_method;
           
           if (paymentMethodId && typeof paymentMethodId === 'string') {
-            await stripe.customers.update(paymentIntent.customer as string, {
-              invoice_settings: { default_payment_method: paymentMethodId }
-            });
+            const piCustomerId = typeof paymentIntent.customer === 'string' ? paymentIntent.customer : paymentIntent.customer?.id;
+            if (!piCustomerId) {
+              logger.warn('[Stripe Subscriptions] No customer ID on payment intent', { extra: { paymentIntentId } });
+            } else {
+              await stripe.customers.update(piCustomerId, {
+                invoice_settings: { default_payment_method: paymentMethodId }
+              });
+            }
           }
 
-          const invoicePiId = typeof (invoice as any).payment_intent === 'string'
-            ? (invoice as any).payment_intent
-            : (invoice as any).payment_intent?.id;
+          const invoicePiId = typeof invoice.payment_intent === 'string'
+            ? invoice.payment_intent
+            : (typeof invoice.payment_intent === 'object' && invoice.payment_intent !== null) ? (invoice.payment_intent as Stripe.PaymentIntent).id : null;
           if (invoicePiId && invoicePiId !== paymentIntentId) {
             try {
               await stripe.paymentIntents.cancel(invoicePiId);
@@ -648,14 +653,19 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
         logger.info('[Stripe Subscriptions] Activated member', { extra: { userEmail } });
       }
     } else if (paymentIntent.customer) {
-      const custResult = await db.select({ id: users.id, email: users.email, tier: users.tier }).from(users).where(eq(users.stripeCustomerId, paymentIntent.customer as string));
-      
-      if (custResult.length > 0) {
-        userEmail = custResult[0].email;
-        tierName = custResult[0].tier;
+      const piCustId = typeof paymentIntent.customer === 'string' ? paymentIntent.customer : paymentIntent.customer?.id;
+      if (!piCustId) {
+        logger.warn('[Stripe Subscriptions] No customer on payment intent for lookup', { extra: { paymentIntentId } });
+      } else {
+        const custResult = await db.select({ id: users.id, email: users.email, tier: users.tier }).from(users).where(eq(users.stripeCustomerId, piCustId));
         
-        await db.update(users).set({ membershipStatus: 'active', billingProvider: 'stripe', updatedAt: new Date() }).where(eq(users.stripeCustomerId, paymentIntent.customer as string));
-        logger.info('[Stripe Subscriptions] Activated member via customer ID', { extra: { userEmail } });
+        if (custResult.length > 0) {
+          userEmail = custResult[0].email;
+          tierName = custResult[0].tier;
+          
+          await db.update(users).set({ membershipStatus: 'active', billingProvider: 'stripe', updatedAt: new Date() }).where(eq(users.stripeCustomerId, piCustId));
+          logger.info('[Stripe Subscriptions] Activated member via customer ID', { extra: { userEmail } });
+        }
       }
     }
     
@@ -683,7 +693,7 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
           message: `Your ${tierName} membership has been activated.`,
           data: { subscriptionId: subId, tier: tierName }
         });
-        (broadcastUpdate as any)(userEmail as string, 'subscription_created');
+        broadcastUpdate({ memberEmail: userEmail, action: 'subscription_created' });
       } catch (notifyError) {
         logger.error('[Stripe Subscriptions] Notification failed', { extra: { notifyError } });
       }
@@ -692,7 +702,7 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
     await logFromRequest(req, {
       action: 'inline_payment_confirmed',
       resourceType: 'member',
-      resourceId: userId || paymentIntent.customer as string,
+      resourceId: userId || (typeof paymentIntent.customer === 'string' ? paymentIntent.customer : paymentIntent.customer?.id) || '',
       resourceName: userEmail,
       details: {
         paymentIntentId,

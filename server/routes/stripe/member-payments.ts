@@ -273,7 +273,7 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
     });
   } catch (error: unknown) {
     logger.error('[Stripe] Error creating member payment intent', { error: error instanceof Error ? error : new Error(String(error)) });
-    await alertOnExternalServiceError('Stripe', error as Error, 'create member payment intent');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'create member payment intent');
     res.status(500).json({ 
       error: 'Payment processing failed. Please try again.',
       retryable: true
@@ -405,7 +405,7 @@ router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, async (
     res.json({ success: true });
   } catch (error: unknown) {
     logger.error('[Stripe] Error confirming member payment', { error: error instanceof Error ? error : new Error(String(error)) });
-    await alertOnExternalServiceError('Stripe', error as Error, 'confirm member payment');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'confirm member payment');
     res.status(500).json({ 
       error: 'Payment confirmation failed. Please try again.',
       retryable: true
@@ -502,7 +502,7 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
     });
   } catch (error: unknown) {
     logger.error('[Stripe] Error creating invoice payment intent', { error: error instanceof Error ? error : new Error(String(error)) });
-    await alertOnExternalServiceError('Stripe', error as Error, 'create invoice payment intent');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'create invoice payment intent');
     res.status(500).json({ 
       error: 'Payment initialization failed. Please try again.',
       retryable: true
@@ -549,9 +549,9 @@ router.post('/api/member/invoices/:invoiceId/confirm', isAuthenticated, async (r
 
     try {
       const invoice = await stripe.invoices.retrieve(invoiceId);
-      const invoicePiId = typeof (invoice as any).payment_intent === 'string'
-        ? (invoice as any).payment_intent
-        : (invoice as any).payment_intent?.id;
+      const invoicePiId = typeof invoice.payment_intent === 'string'
+        ? invoice.payment_intent
+        : (typeof invoice.payment_intent === 'object' && invoice.payment_intent !== null) ? (invoice.payment_intent as Stripe.PaymentIntent).id : null;
       if (invoicePiId && invoicePiId !== paymentIntentId) {
         try {
           await stripe.paymentIntents.cancel(invoicePiId);
@@ -600,7 +600,7 @@ router.post('/api/member/invoices/:invoiceId/confirm', isAuthenticated, async (r
     res.json({ success: true });
   } catch (error: unknown) {
     logger.error('[Stripe] Error confirming invoice payment', { error: error instanceof Error ? error : new Error(String(error)) });
-    await alertOnExternalServiceError('Stripe', error as Error, 'confirm invoice payment');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'confirm invoice payment');
     res.status(500).json({ 
       error: 'Payment confirmation failed. Please try again.',
       retryable: true
@@ -713,7 +713,7 @@ router.post('/api/member/guest-passes/purchase', isAuthenticated, async (req: Re
     });
   } catch (error: unknown) {
     logger.error('[Stripe] Error creating guest pass payment intent', { error: error instanceof Error ? error : new Error(String(error)) });
-    await alertOnExternalServiceError('Stripe', error as Error, 'create guest pass payment intent');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'create guest pass payment intent');
     res.status(500).json({ 
       error: 'Payment initialization failed. Please try again.',
       retryable: true
@@ -794,7 +794,7 @@ router.post('/api/member/guest-passes/confirm', isAuthenticated, async (req: Req
     res.json({ success: true, passesAdded: quantity });
   } catch (error: unknown) {
     logger.error('[Stripe] Error confirming guest pass purchase', { error: error instanceof Error ? error : new Error(String(error)) });
-    await alertOnExternalServiceError('Stripe', error as Error, 'confirm guest pass purchase');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'confirm guest pass purchase');
     res.status(500).json({ 
       error: 'Payment confirmation failed. Please try again.',
       retryable: true
@@ -1348,7 +1348,7 @@ router.post('/api/member/balance/pay', isAuthenticated, async (req: Request, res
     });
   } catch (error: unknown) {
     logger.error('[Member Balance] Error creating payment', { error: error instanceof Error ? error : new Error(String(error)) });
-    await alertOnExternalServiceError('Stripe', error as Error, 'create balance payment');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'create balance payment');
     res.status(500).json({ 
       error: 'Payment processing failed. Please try again.',
       retryable: true
@@ -1381,7 +1381,7 @@ router.post('/api/member/balance/confirm', isAuthenticated, async (req: Request,
     res.json({ success: true });
   } catch (error: unknown) {
     logger.error('[Member Balance] Error confirming payment', { error: error instanceof Error ? error : new Error(String(error)) });
-    await alertOnExternalServiceError('Stripe', error as Error, 'confirm balance payment');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'confirm balance payment');
     res.status(500).json({ 
       error: 'Payment confirmation failed. Please try again.',
       retryable: true

@@ -752,8 +752,8 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
           try {
             const subscription = await stripe.subscriptions.retrieve(member.stripe_subscription_id);
             const mappedStatus = statusMap[subscription.status] || subscription.status;
-            const periodEnd = (subscription as any).current_period_end
-              ? new Date((subscription as any).current_period_end * 1000)
+            const periodEnd = subscription.current_period_end
+              ? new Date(subscription.current_period_end * 1000)
               : null;
             const resolvedTier = await resolveTierFromSubscription(subscription);
             const changes: string[] = [];
@@ -830,8 +830,8 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
             if (subscriptions.data.length > 0) {
               const sub = subscriptions.data[0];
               const mappedStatus = statusMap[sub.status] || sub.status;
-              const periodEnd = (sub as any).current_period_end
-                ? new Date((sub as any).current_period_end * 1000)
+              const periodEnd = sub.current_period_end
+                ? new Date(sub.current_period_end * 1000)
                 : null;
               const resolvedTier = await resolveTierFromSubscription(sub);
 

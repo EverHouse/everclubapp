@@ -48,6 +48,7 @@ The Ever Club Members App is a private members club application designed for gol
 - **2026-02-23**: Fixed `logger.debug` missing method in `server/core/logger.ts` (was causing 230+ runtime errors across 28 files)
 - **2026-02-23**: Fixed day pass purchase insert failures — `stripe_customer_id` column made nullable to support guest checkouts without a Stripe customer. Unsafe `as string` casts replaced with safe extraction in `webhooks.ts` and `dayPasses.ts`.
 - **2026-02-23**: Fixed audit log insert failures for system actions — all `logSystemAction()` calls in `webhooks.ts` were using wrong field names (`entityType`/`entityId` instead of `resourceType`/`resourceId`), causing NOT NULL constraint violations on `resource_type`.
+- **2026-02-23**: Full app audit — fixed ~20 unsafe Stripe type casts across webhooks/routes, created reusable `getCustomerId()`/`getPaymentIntentId()` helpers in `server/types/stripe-helpers.ts`. Fixed unauthenticated tour confirm endpoint. Fixed job queue Date serialization (ISO strings + `::timestamptz`). Fixed HubSpot FormSync 401 error spam. Fixed `broadcastBillingUpdate` wrong call signature. Fixed `InvoiceResult` missing `customerId` (invoice notifications weren't sending). Production booking expiry will self-fix on next deploy (constraint already correct in code).
 
 ## External Dependencies
 - **Stripe**: For terminal payments, subscriptions, and webhooks (billing authority).

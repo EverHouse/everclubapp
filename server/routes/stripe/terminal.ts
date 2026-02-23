@@ -235,7 +235,7 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
           finalDescription = `#${displayId} - ${finalDescription}`;
         }
       } catch (lookupErr: unknown) {
-        logger.warn('[Terminal] Could not look up booking for description prefix', { extra: { lookupErr_as_Error_message: (lookupErr as Error).message } });
+        logger.warn('[Terminal] Could not look up booking for description prefix', { extra: { lookupErr: getErrorMessage(lookupErr) } });
       }
     }
 
@@ -614,7 +614,7 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
       return res.status(400).json({ error: 'Invoice has no amount due' });
     }
     
-    const customerId = subscription.customer as string;
+    const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id || '';
     try {
       const existingPIs = await stripe.paymentIntents.list({
         customer: customerId,
@@ -639,7 +639,7 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
       logger.error('[Terminal] Error listing existing PIs:', { extra: { error: getErrorMessage(listErr) } });
     }
 
-    const invoicePI = (invoice as any).payment_intent as Stripe.PaymentIntent;
+    const invoicePI = (typeof invoice.payment_intent === 'object' && invoice.payment_intent !== null) ? invoice.payment_intent as Stripe.PaymentIntent : null;
     let paymentIntent: Stripe.PaymentIntent;
     
     if (invoicePI && invoicePI.id) {
@@ -851,14 +851,14 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
       }
     }
     
-    const customerId = subscription.customer as string;
+    const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id || '';
     
     if (piMetadata.requiresInvoiceReconciliation === 'true' && latestInvoice && latestInvoice.status !== 'paid') {
       try {
         if (latestInvoice.status === 'open') {
-          const invoicePiId = typeof (latestInvoice as any).payment_intent === 'string'
-            ? (latestInvoice as any).payment_intent
-            : (latestInvoice as any).payment_intent?.id;
+          const invoicePiId = typeof latestInvoice.payment_intent === 'string'
+            ? latestInvoice.payment_intent
+            : (typeof latestInvoice.payment_intent === 'object' && latestInvoice.payment_intent !== null) ? (latestInvoice.payment_intent as Stripe.PaymentIntent).id : null;
           if (invoicePiId) {
             try {
               await stripe.paymentIntents.cancel(invoicePiId);

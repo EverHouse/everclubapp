@@ -23,6 +23,7 @@ export interface CreateInvoiceParams {
 export interface InvoiceResult {
   id: string;
   status: string;
+  customerId: string | null;
   amountDue: number;
   amountPaid: number;
   currency: string;
@@ -346,6 +347,7 @@ function mapInvoice(invoice: Stripe.Invoice): InvoiceResult {
   return {
     id: invoice.id,
     status: invoice.status || 'draft',
+    customerId: typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id || null,
     amountDue: invoice.amount_due,
     amountPaid: invoice.amount_paid,
     currency: invoice.currency,
