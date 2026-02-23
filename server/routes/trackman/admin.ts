@@ -3489,8 +3489,8 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
       if (!dryRun) {
         if (!blockAlreadyExists) {
           const closureResult = await db.execute(sql`INSERT INTO facility_closures 
-              (resource_id, start_date, end_date, start_time, end_time, reason, notice_type, is_active, created_by)
-            VALUES (${booking.resource_id}, ${bookingDate}, ${bookingDate}, ${booking.start_time}, ${endTime}, ${`Lesson (Converted): ${booking.user_name} [TM:${booking.trackman_booking_id || booking.id}]`}, 'private_event', true, ${'system_cleanup'})
+              (resource_id, start_date, end_date, start_time, end_time, reason, notice_type, visibility, is_active, created_by)
+            VALUES (${booking.resource_id}, ${bookingDate}, ${bookingDate}, ${booking.start_time}, ${endTime}, ${`Lesson (Converted): ${booking.user_name} [TM:${booking.trackman_booking_id || booking.id}]`}, 'private_event', 'Staff Only', true, ${'system_cleanup'})
             RETURNING id`);
 
           await db.execute(sql`INSERT INTO availability_blocks 
@@ -3565,8 +3565,8 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
 
           if (existingBlock.rows.length === 0) {
             const closureResult = await db.execute(sql`INSERT INTO facility_closures 
-                (resource_id, start_date, end_date, start_time, end_time, reason, notice_type, is_active, created_by)
-              VALUES (${resourceId}, ${bookingDate}, ${bookingDate}, ${item.start_time}, ${item.end_time || item.start_time}, ${`Lesson: ${item.user_name} [TM:${item.trackman_booking_id || item.id}]`}, 'private_event', true, ${'system_cleanup'})
+                (resource_id, start_date, end_date, start_time, end_time, reason, notice_type, visibility, is_active, created_by)
+              VALUES (${resourceId}, ${bookingDate}, ${bookingDate}, ${item.start_time}, ${item.end_time || item.start_time}, ${`Lesson: ${item.user_name} [TM:${item.trackman_booking_id || item.id}]`}, 'private_event', 'Staff Only', true, ${'system_cleanup'})
               RETURNING id`);
 
             await db.execute(sql`INSERT INTO availability_blocks 
