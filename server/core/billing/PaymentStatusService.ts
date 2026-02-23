@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { logPaymentAudit } from '../auditLog';
 
+import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { logger } from '../logger';
 export interface PaymentStatusUpdate {
   paymentIntentId: string;
@@ -79,7 +80,7 @@ export class PaymentStatusService {
                 await tx.execute(
                   sql`UPDATE booking_participants
                    SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = ${paymentIntentId}, cached_fee_cents = 0
-                   WHERE id = ANY(${pendingIds}::int[])`
+                   WHERE id = ANY(${toIntArrayLiteral(pendingIds)}::int[])`
                 );
 
                 for (const row of pendingResult.rows) {
@@ -132,7 +133,7 @@ export class PaymentStatusService {
             await tx.execute(
               sql`UPDATE booking_participants 
                SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = ${paymentIntentId}, cached_fee_cents = 0 
-               WHERE id = ANY(${participantIds}::int[]) AND payment_status = 'pending'`
+               WHERE id = ANY(${toIntArrayLiteral(participantIds)}::int[]) AND payment_status = 'pending'`
             );
             participantsUpdated = participantIds.length;
             
@@ -204,7 +205,7 @@ export class PaymentStatusService {
               await tx.execute(
                 sql`UPDATE booking_participants 
                  SET payment_status = 'refunded'
-                 WHERE id = ANY(${participantIds}::int[])`
+                 WHERE id = ANY(${toIntArrayLiteral(participantIds)}::int[])`
               );
               
               for (const fee of participantFees) {

@@ -227,8 +227,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       const isNetworkError = this.state.error?.message?.toLowerCase().includes('fetch') ||
                               this.state.error?.message?.toLowerCase().includes('network') ||
                               this.state.error?.message?.toLowerCase().includes('load failed');
-      const canRetry = this.state.retryCount < 3;
-
       return (
         <div className="flex items-center justify-center h-screen bg-[#141414] text-white p-6">
           <div className="glass-card rounded-2xl p-8 max-w-md text-center">
@@ -244,22 +242,24 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                 : 'We\'re sorry for the inconvenience.'}
             </p>
             <div className="flex flex-col gap-3">
-              {canRetry && (
-                <button
-                  onClick={this.handleRetry}
-                  className="px-6 py-3 bg-accent rounded-xl font-semibold hover:opacity-90 transition-opacity text-brand-green"
-                >
-                  Try Again
-                </button>
-              )}
+              <button
+                onClick={this.handleRetry}
+                className="px-6 py-3 bg-accent rounded-xl font-semibold hover:opacity-90 transition-opacity text-brand-green"
+              >
+                Try Again
+              </button>
               <button
                 onClick={this.handleReload}
-                className={`px-6 py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity ${
-                  canRetry ? 'bg-white/10 text-white' : 'bg-accent text-brand-green'
-                }`}
+                className="px-6 py-3 bg-white/10 text-white rounded-xl font-semibold hover:opacity-90 transition-opacity"
               >
                 Reload Page
               </button>
+              <a
+                href="sms:9495455855"
+                className="px-6 py-3 text-white/70 hover:text-white transition-colors text-sm underline"
+              >
+                Text Us — (949) 545-5855
+              </a>
             </div>
           </div>
         </div>

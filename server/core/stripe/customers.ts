@@ -5,6 +5,7 @@ import { getStripeClient } from './client';
 import { alertOnExternalServiceError } from '../errorAlerts';
 import { getErrorMessage, getErrorCode, isStripeError } from '../../utils/errorUtils';
 
+import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { logger } from '../logger';
 const PLACEHOLDER_EMAIL_PATTERNS = [
   '@visitors.evenhouse.club',
@@ -198,10 +199,10 @@ export async function getOrCreateStripeCustomer(
             CASE WHEN LOWER(u.email) = ${email.toLowerCase()} THEN 0 ELSE 1 END as priority
      FROM users u 
      WHERE u.stripe_customer_id IS NOT NULL 
-       AND (LOWER(u.email) = ANY(${uniqueEmails}) 
+       AND (LOWER(u.email) = ANY(${toTextArrayLiteral(uniqueEmails)}::text[]) 
             OR EXISTS (SELECT 1 FROM user_linked_emails ule 
                        WHERE LOWER(ule.primary_email) = LOWER(u.email) 
-                       AND LOWER(ule.linked_email) = ANY(${uniqueEmails})))
+                       AND LOWER(ule.linked_email) = ANY(${toTextArrayLiteral(uniqueEmails)}::text[])))
      ORDER BY priority ASC, u.created_at DESC
      LIMIT 1`);
   

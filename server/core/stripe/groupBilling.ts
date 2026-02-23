@@ -9,6 +9,7 @@ import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { normalizeTierName } from '../../utils/tierUtils';
 import { findOrCreateHubSpotContact } from '../hubspot/members';
 
+import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { logger } from '../logger';
 export interface BillingGroupWithMembers {
   id: number;
@@ -185,7 +186,7 @@ export async function getBillingGroupByPrimaryEmail(primaryEmail: string): Promi
   const memberEmails = members.map(m => m.memberEmail.toLowerCase());
   const allMemberUsers = memberEmails.length > 0
     ? await db.execute(
-        sql`SELECT email, first_name, last_name FROM users WHERE LOWER(email) = ANY(${memberEmails})`
+        sql`SELECT email, first_name, last_name FROM users WHERE LOWER(email) = ANY(${toTextArrayLiteral(memberEmails)}::text[])`
       )
     : { rows: [] };
   const memberUserMap = new Map(
@@ -1636,7 +1637,7 @@ export async function handlePrimarySubscriptionCancelled(subscriptionId: string)
            last_tier = tier,
            tier = NULL,
            updated_at = NOW()
-         WHERE LOWER(email) = ANY(${emailsToDeactivate}::text[])`
+         WHERE LOWER(email) = ANY(${toTextArrayLiteral(emailsToDeactivate)}::text[])`
       );
       
       // Sync cancelled sub-members to HubSpot

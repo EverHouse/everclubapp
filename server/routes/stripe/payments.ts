@@ -39,6 +39,7 @@ import { broadcastBillingUpdate, sendNotificationToUser } from '../../core/webso
 import { alertOnExternalServiceError } from '../../core/errorAlerts';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { normalizeTierName } from '../../utils/tierUtils';
+import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { getBookingInvoiceId, finalizeAndPayInvoice, createDraftInvoiceForBooking, finalizeInvoicePaidOutOfBand, recreateDraftInvoiceFromBooking } from '../../core/billing/bookingInvoiceService';
 
 interface DbMemberRow {
@@ -343,7 +344,8 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
     if (isBookingPayment) {
       const { customerId: stripeCustomerId } = await getOrCreateStripeCustomer(resolvedUserId, email, memberName || email.split('@')[0]);
 
-      const participantDetails = await db.execute(sql`SELECT id, display_name, participant_type FROM booking_participants WHERE id = ANY(${serverFees.map(f => f.id)}::int[])`);
+      const participantIdsLiteral = toIntArrayLiteral(serverFees.map(f => f.id));
+      const participantDetails = await db.execute(sql`SELECT id, display_name, participant_type FROM booking_participants WHERE id = ANY(${participantIdsLiteral}::int[])`);
 
       const feeLineItems: BookingFeeLineItem[] = [];
       for (const detail of participantDetails.rows) {

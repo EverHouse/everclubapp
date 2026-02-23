@@ -19,6 +19,7 @@ import { updateHubSpotContactVisitCount } from '../core/memberSync';
 import { ensureSessionForBooking } from '../core/bookingService/sessionManager';
 import { sendFirstVisitConfirmationEmail } from '../emails/firstVisitEmail';
 import { getErrorMessage } from '../utils/errorUtils';
+import { toIntArrayLiteral, toTextArrayLiteral } from '../utils/sqlArrayLiteral';
 import { processWalkInCheckin } from '../core/walkInCheckinService';
 import { finalizeInvoicePaidOutOfBand, voidBookingInvoice, syncBookingInvoice, getBookingInvoiceId } from '../core/billing/bookingInvoiceService';
 
@@ -269,7 +270,7 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
         
         if (orphanedIds.length > 0) {
           await db.execute(sql`
-            DELETE FROM booking_participants WHERE id = ANY(${orphanedIds}::int[])
+            DELETE FROM booking_participants WHERE id = ANY(${toIntArrayLiteral(orphanedIds)}::int[])
           `);
           
           logger.info('[Checkin Context Sync] Cleaned up orphaned participants for booking', { extra: { length: orphanedIds.length, bookingId, orphanedNames } });
@@ -681,7 +682,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
         const intentArray = Array.from(intentIds);
         await db.execute(sql`
           UPDATE stripe_payment_intents SET status = 'cancelled', updated_at = NOW()
-          WHERE stripe_payment_intent_id = ANY(${intentArray}::text[])
+          WHERE stripe_payment_intent_id = ANY(${toTextArrayLiteral(intentArray)}::text[])
         `);
       }
 
@@ -783,7 +784,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
       const pendingIds = pendingParticipants.rows.map(p => p.id);
       const previousStatuses = pendingParticipants.rows.map(p => p.payment_status);
       if (pendingIds.length > 0) {
-        await db.execute(sql`UPDATE booking_participants SET payment_status = ${newStatus} WHERE id = ANY(${pendingIds}::int[])`);
+        await db.execute(sql`UPDATE booking_participants SET payment_status = ${newStatus} WHERE id = ANY(${toIntArrayLiteral(pendingIds)}::int[])`);
 
         const auditAction = action === 'confirm_all' ? 'payment_confirmed' : 'payment_waived';
         for (let i = 0; i < pendingIds.length; i++) {
@@ -891,7 +892,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
         try {
           const totalWaivedResult = await db.execute(sql`SELECT COALESCE(SUM(COALESCE(cached_fee_cents, 0)), 0) as total_cents
              FROM booking_participants
-             WHERE id = ANY(${pendingParticipants.rows.map(p => p.id)}::int[])`);
+             WHERE id = ANY(${toIntArrayLiteral(pendingParticipants.rows.map(p => p.id))}::int[])`);
           const totalWaived = (parseInt(totalWaivedResult.rows[0]?.total_cents) || 0) / 100;
           const ownerName = await getMemberDisplayName(booking.owner_email);
           
@@ -1196,7 +1197,7 @@ router.post('/api/bookings/bulk-review-all-waivers', isStaffOrAdmin, async (req:
         const bookingLookup = await tx.execute(
           sql`SELECT br.session_id, br.id as booking_id 
            FROM booking_requests br 
-           WHERE br.session_id = ANY(${sessionIds}::int[])`
+           WHERE br.session_id = ANY(${toIntArrayLiteral(sessionIds)}::int[])`
         );
         const sessionToBooking = new Map(bookingLookup.rows.map(r => [r.session_id, r.booking_id]));
 
@@ -1578,7 +1579,7 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
       if (matchingGuest.rowCount && matchingGuest.rowCount > 0) {
         // Remove the guest entry since this person is actually a member
         const guestIds = matchingGuest.rows.map(r => r.id);
-        await db.execute(sql`DELETE FROM booking_participants WHERE id = ANY(${guestIds}::int[])`);
+        await db.execute(sql`DELETE FROM booking_participants WHERE id = ANY(${toIntArrayLiteral(guestIds)}::int[])`);
         logger.info('[Staff Add Member] Removed duplicate guest entries for member in session', { extra: { guestIdsLength: guestIds.length, memberEmail: member.email, sessionId } });
       }
       

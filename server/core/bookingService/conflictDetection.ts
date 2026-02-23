@@ -2,6 +2,7 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { logger } from '../logger';
 import { ACTIVE_BOOKING_STATUSES } from '../../../shared/constants/statuses';
+import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 
 const OCCUPIED_STATUSES = [...ACTIVE_BOOKING_STATUSES, 'checked_in'];
 
@@ -90,7 +91,7 @@ export async function findConflictingBookings(
       LEFT JOIN resources r ON br.resource_id = r.id
       WHERE LOWER(br.user_email) = LOWER(${normalizedEmail})
         AND br.request_date = ${date}
-        AND br.status = ANY(${OCCUPIED_STATUSES})
+        AND br.status = ANY(${toTextArrayLiteral(OCCUPIED_STATUSES)}::text[])
         ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
     `);
     
@@ -127,7 +128,7 @@ export async function findConflictingBookings(
         WHERE bp.user_id = ${memberId}
           AND bs.session_date = ${date}
           AND bp.invite_status = 'accepted'
-          AND br.status = ANY(${OCCUPIED_STATUSES})
+          AND br.status = ANY(${toTextArrayLiteral(OCCUPIED_STATUSES)}::text[])
           ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
       `);
       
@@ -167,7 +168,7 @@ export async function findConflictingBookings(
       WHERE LOWER(u.email) = LOWER(${normalizedEmail})
         AND bp.invite_status = 'accepted'
         AND br.request_date = ${date}
-        AND br.status = ANY(${OCCUPIED_STATUSES})
+        AND br.status = ANY(${toTextArrayLiteral(OCCUPIED_STATUSES)}::text[])
         ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
     `);
     

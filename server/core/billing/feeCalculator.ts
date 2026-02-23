@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { PRICING } from './pricingConfig';
 import { getErrorMessage } from '../../utils/errorUtils';
 
+import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { logger } from '../logger';
 export interface ParticipantFee {
   participantId: number;
@@ -43,7 +44,7 @@ export async function calculateAndCacheParticipantFees(
              OR LOWER(ul.member_id) = LOWER(u.email)
              OR (bp.user_id IS NULL AND bp.participant_type != 'guest' AND LOWER(ul.member_id) = LOWER(br.user_email))
            )
-         WHERE bp.session_id = ${sessionId} AND bp.id = ANY(${participantIds}::int[])`
+         WHERE bp.session_id = ${sessionId} AND bp.id = ANY(${toIntArrayLiteral(participantIds)}::int[])`
       );
       
       const fees: ParticipantFee[] = [];
@@ -120,7 +121,7 @@ export async function clearCachedFees(participantIds: number[]): Promise<void> {
   
   try {
     await db.execute(
-      sql`UPDATE booking_participants SET cached_fee_cents = 0 WHERE id = ANY(${participantIds}::int[])`
+      sql`UPDATE booking_participants SET cached_fee_cents = 0 WHERE id = ANY(${toIntArrayLiteral(participantIds)}::int[])`
     );
   } catch (error: unknown) {
     logger.error('[FeeCalculator] Error clearing cached fees:', { error: error });

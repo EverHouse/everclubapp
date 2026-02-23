@@ -6,6 +6,7 @@ import { getCalendarBusyTimes, getCalendarIdByName, CALENDAR_CONFIG } from '../c
 import { getTodayPacific, getPacificDateParts } from '../utils/dateUtils';
 import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
+import { toIntArrayLiteral, toTextArrayLiteral } from '../utils/sqlArrayLiteral';
 
 const router = Router();
 
@@ -131,23 +132,25 @@ router.post('/api/availability/batch', async (req, res) => {
     const currentMinutes = isToday ? pacificParts.hour * 60 + pacificParts.minute : 0;
     
     // Fetch all data in parallel with optimized queries
+    const resourceIdsLiteral = toIntArrayLiteral(resource_ids);
+    const resourceIdsTextLiteral = toTextArrayLiteral(resource_ids.map(String));
     const [resourcesResult, bookedResult, blockedResult, unmatchedResult, webhookCacheResult] = await Promise.all([
-      db.execute(sql`SELECT id, type FROM resources WHERE id = ANY(${resource_ids})`),
+      db.execute(sql`SELECT id, type FROM resources WHERE id = ANY(${resourceIdsLiteral}::int[])`),
       ignoreId
         ? db.execute(sql`SELECT resource_id, start_time, end_time FROM booking_requests 
-             WHERE resource_id = ANY(${resource_ids}) AND request_date = ${date} AND status IN ('approved', 'confirmed') AND id != ${ignoreId}`)
+             WHERE resource_id = ANY(${resourceIdsLiteral}::int[]) AND request_date = ${date} AND status IN ('approved', 'confirmed') AND id != ${ignoreId}`)
         : db.execute(sql`SELECT resource_id, start_time, end_time FROM booking_requests 
-             WHERE resource_id = ANY(${resource_ids}) AND request_date = ${date} AND status IN ('approved', 'confirmed')`),
+             WHERE resource_id = ANY(${resourceIdsLiteral}::int[]) AND request_date = ${date} AND status IN ('approved', 'confirmed')`),
       db.execute(sql`SELECT resource_id, start_time, end_time FROM availability_blocks 
-         WHERE resource_id = ANY(${resource_ids}) AND block_date = ${date}`),
+         WHERE resource_id = ANY(${resourceIdsLiteral}::int[]) AND block_date = ${date}`),
       db.execute(sql`SELECT tub.bay_number, tub.start_time, tub.end_time FROM trackman_unmatched_bookings tub
-         WHERE tub.bay_number = ANY(${resource_ids.map(String)}::text[]) AND tub.booking_date = ${date} AND tub.resolved_at IS NULL
+         WHERE tub.bay_number = ANY(${resourceIdsTextLiteral}::text[]) AND tub.booking_date = ${date} AND tub.resolved_at IS NULL
            AND NOT EXISTS (
              SELECT 1 FROM booking_requests br 
              WHERE br.trackman_booking_id = tub.trackman_booking_id::text
            )`).catch(() => ({ rows: [] })),
       db.execute(sql`SELECT resource_id, start_time, end_time FROM trackman_bay_slots 
-         WHERE resource_id = ANY(${resource_ids}) AND slot_date = ${date} AND status = 'booked'`).catch(() => ({ rows: [] }))
+         WHERE resource_id = ANY(${resourceIdsLiteral}::int[]) AND slot_date = ${date} AND status = 'booked'`).catch(() => ({ rows: [] }))
     ]);
     
     // Build resource type map

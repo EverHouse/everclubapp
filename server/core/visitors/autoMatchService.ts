@@ -5,6 +5,7 @@ import { updateVisitorType, VisitorType } from './typeService';
 import { getMemberTierByEmail } from '../tierService';
 import { recordUsage, ensureSessionForBooking } from '../bookingService/sessionManager';
 
+import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { logger } from '../logger';
 export interface BookingTypeInfo {
   keyword: string | null;
@@ -230,7 +231,7 @@ export async function matchBookingToPurchase(
       LEFT JOIN users u ON LOWER(u.email) = LOWER(lp.member_email) 
         OR u.mindbody_client_id = lp.mindbody_client_id
       WHERE DATE(lp.sale_date) = ${dateStr}
-        AND lp.item_category = ANY(${categories})
+        AND lp.item_category = ANY(${toTextArrayLiteral(categories)}::text[])
         AND lp.linked_booking_session_id IS NULL
         AND lp.linked_at IS NULL
         AND lp.sale_date::time BETWEEN ${minTime}::time AND ${maxTime}::time

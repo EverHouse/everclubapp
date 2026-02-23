@@ -10,6 +10,7 @@ import { getCalendarIdByName, discoverCalendarIds } from '../cache';
 import { createCalendarEventOnCalendar } from '../google-client';
 import { alertOnSyncFailure } from '../../dataAlerts';
 
+import { toIntArrayLiteral } from '../../../utils/sqlArrayLiteral';
 import { logger } from '../../logger';
 export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boolean }): Promise<{ synced: number; created: number; updated: number; deleted: number; pushedToCalendar: number; error?: string }> {
   try {
@@ -284,7 +285,8 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
       .map((dbClass: Record<string, unknown>) => dbClass.id as number);
     let deleted = 0;
     if (idsToDeactivate.length > 0) {
-      await db.execute(sql`UPDATE wellness_classes SET is_active = false WHERE id = ANY(${idsToDeactivate})`);
+      const idsToDeactivateLiteral = toIntArrayLiteral(idsToDeactivate);
+      await db.execute(sql`UPDATE wellness_classes SET is_active = false WHERE id = ANY(${idsToDeactivateLiteral}::int[])`);
       deleted = idsToDeactivate.length;
     }
     

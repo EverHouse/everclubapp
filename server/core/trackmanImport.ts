@@ -13,6 +13,7 @@ import { createSession, recordUsage, ParticipantInput } from './bookingService/s
 import { calculateFullSessionBilling, FLAT_GUEST_FEE, Participant } from './bookingService/usageCalculator';
 import { recalculateSessionFees } from './billing/unifiedFeeService';
 import { voidBookingInvoice } from './billing/bookingInvoiceService';
+import { toTextArrayLiteral } from '../utils/sqlArrayLiteral';
 import { useGuestPass } from '../routes/guestPasses';
 import { cancelPaymentIntent } from './stripe';
 import { alertOnTrackmanImportIssues } from './dataAlerts';
@@ -3922,7 +3923,7 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
     WHERE br.status NOT IN ('cancelled', 'cancellation_pending')
       AND br.archived_at IS NULL
       AND (
-        LOWER(br.user_email) = ANY(${INSTRUCTOR_EMAILS})
+        LOWER(br.user_email) = ANY(${toTextArrayLiteral(INSTRUCTOR_EMAILS)}::text[])
         OR LOWER(br.user_name) LIKE '%lesson%'
         OR LOWER(br.notes) LIKE '%lesson%'
       )

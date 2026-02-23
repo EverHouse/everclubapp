@@ -1,5 +1,6 @@
 import { db } from '../../db';
 import { getErrorCode, getErrorMessage } from '../../utils/errorUtils';
+import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { pool } from '../db';
 import type { PoolClient } from 'pg';
 import { 
@@ -1101,7 +1102,7 @@ export async function createSessionWithUsageTracking(
           await tx.execute(sql`
             UPDATE booking_participants 
             SET used_guest_pass = true, payment_status = 'paid'
-            WHERE id = ANY(${guestParticipantIds}::int[])
+            WHERE id = ANY(${toIntArrayLiteral(guestParticipantIds)}::int[])
           `);
           
           logger.info('[createSessionWithUsageTracking] Marked guest participants with used_guest_pass=true', {

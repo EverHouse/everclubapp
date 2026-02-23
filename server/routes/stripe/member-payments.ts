@@ -20,6 +20,7 @@ import { GUEST_FEE_CENTS } from './helpers';
 import { sendNotificationToUser, broadcastBillingUpdate } from '../../core/websocket';
 import { alertOnExternalServiceError } from '../../core/errorAlerts';
 import { getErrorCode, getErrorMessage } from '../../utils/errorUtils';
+import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { getBookingInvoiceId, finalizeAndPayInvoice, createDraftInvoiceForBooking } from '../../core/billing/bookingInvoiceService';
 
 const router = Router();
@@ -371,7 +372,7 @@ router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, async (
           await tx.execute(sql`
             UPDATE booking_participants 
              SET payment_status = 'paid', paid_at = NOW(), updated_at = NOW(), stripe_payment_intent_id = ${paymentIntentId}, cached_fee_cents = 0
-             WHERE id = ANY(${participantIds}::int[])
+             WHERE id = ANY(${toIntArrayLiteral(participantIds)}::int[])
           `);
         }
 
@@ -1318,7 +1319,7 @@ router.post('/api/member/balance/pay', isAuthenticated, async (req: Request, res
       await db.execute(sql`
         UPDATE booking_participants 
          SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = ${balancePaymentRef}, cached_fee_cents = 0
-         WHERE id = ANY(${participantIds}::int[])
+         WHERE id = ANY(${toIntArrayLiteral(participantIds)}::int[])
       `);
       
       await db.execute(sql`

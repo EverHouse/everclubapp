@@ -6,7 +6,7 @@ import { MemberService, isEmail, normalizeEmail, isUUID } from '../memberService
 import { FeeBreakdown, FeeComputeParams, FeeLineItem } from '../../../shared/models/billing';
 import { logger } from '../logger';
 import { PRICING } from './pricingConfig';
-import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
+import { toIntArrayLiteral, toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 
 type SqlQueryParam = string | number | boolean | null | Date | string[];
 
@@ -870,7 +870,7 @@ export async function invalidateCachedFees(
     await db.execute(
       sql`UPDATE booking_participants 
        SET cached_fee_cents = 0 
-       WHERE id = ANY(${participantIds}::int[])`
+       WHERE id = ANY(${toIntArrayLiteral(participantIds)}::int[])`
     );
     
     logger.info('[UnifiedFeeService] Invalidated cached fees', {

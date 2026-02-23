@@ -5,6 +5,7 @@ import { CALENDAR_CONFIG } from '../config';
 import { getCalendarIdByName } from '../cache';
 import { getPacificMidnightUTC } from '../../../utils/dateUtils';
 
+import { toIntArrayLiteral } from '../../../utils/sqlArrayLiteral';
 import { logger } from '../../logger';
 function stripHtmlTags(html: string): string {
   if (!html) return '';
@@ -192,7 +193,7 @@ async function createAvailabilityBlocks(
   let blocksCreated = 0;
   
   const validResourcesResult = await db.execute(
-    sql`SELECT id FROM resources WHERE id = ANY(${resourceIds})`
+    sql`SELECT id FROM resources WHERE id = ANY(${toIntArrayLiteral(resourceIds)}::int[])`
   );
   const validResourceIds = new Set((validResourcesResult.rows as Array<Record<string, unknown>>).map((r: Record<string, unknown>) => r.id as number));
   const filteredIds = resourceIds.filter(id => validResourceIds.has(id));
