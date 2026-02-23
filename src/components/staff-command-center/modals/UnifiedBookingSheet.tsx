@@ -167,7 +167,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                 rosterData={logic.rosterData}
               />
 
-              {!logic.isConferenceRoom && (
+              {!logic.isConferenceRoom && logic.rosterData?.validation && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <h4 className="font-medium text-primary dark:text-white">Player Slots</h4>

@@ -72,7 +72,8 @@ router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
         resourceName: resources.name,
         firstName: users.firstName,
         lastName: users.lastName,
-        email: users.email
+        email: users.email,
+        declaredPlayerCount: bookingRequests.declaredPlayerCount
       })
         .from(bookingRequests)
         .leftJoin(resources, eq(resources.id, bookingRequests.resourceId))
@@ -122,6 +123,31 @@ router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
         .limit(15)
     ]);
     
+    const todayBookingIds = todaysBookingsData.map(b => b.id);
+    let filledCountsMap = new Map<number, number>();
+    if (todayBookingIds.length > 0) {
+      try {
+        const filledResult = await db.execute(sql`
+          SELECT br.id as booking_id,
+            COALESCE((SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id), 0) as filled_count
+          FROM booking_requests br
+          WHERE br.id = ANY(ARRAY[${sql.join(todayBookingIds.map(id => sql`${id}`), sql`, `)}]::int[])
+          AND br.session_id IS NOT NULL
+        `);
+        for (const row of filledResult.rows) {
+          filledCountsMap.set(Number(row.booking_id), parseInt(String(row.filled_count)) || 0);
+        }
+      } catch (err) {
+        logger.debug('[Command Center] Failed to query filled player counts', { error: err instanceof Error ? err.message : err });
+      }
+    }
+
+    const enrichedTodaysBookings = todaysBookingsData.map(b => ({
+      ...b,
+      declared_player_count: b.declaredPlayerCount,
+      filled_player_count: filledCountsMap.get(b.id) ?? (b.declaredPlayerCount ? 1 : 0)
+    }));
+
     // Financials queries with error handling for missing columns/tables
     let financials = { todayRevenueCents: 0, overduePaymentsCount: 0, failedPaymentsCount: 0 };
     try {
@@ -142,7 +168,7 @@ router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
         pendingTours: pendingToursData.length
       },
       pendingRequests: pendingRequestsData,
-      todaysBookings: todaysBookingsData,
+      todaysBookings: enrichedTodaysBookings,
       pendingToursList: pendingToursData,
       recentActivity: recentActivityData,
       financials,
@@ -310,7 +336,8 @@ router.get('/api/admin/todays-bookings', isStaffOrAdmin, async (req, res) => {
       resourceName: resources.name,
       firstName: users.firstName,
       lastName: users.lastName,
-      email: users.email
+      email: users.email,
+      declaredPlayerCount: bookingRequests.declaredPlayerCount
     })
       .from(bookingRequests)
       .leftJoin(resources, eq(resources.id, bookingRequests.resourceId))
@@ -322,9 +349,34 @@ router.get('/api/admin/todays-bookings', isStaffOrAdmin, async (req, res) => {
       ))
       .orderBy(asc(bookingRequests.startTime));
     
+    const todayIds = bookingsData.map(b => b.id);
+    let filledMap = new Map<number, number>();
+    if (todayIds.length > 0) {
+      try {
+        const filledResult = await db.execute(sql`
+          SELECT br.id as booking_id,
+            COALESCE((SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id), 0) as filled_count
+          FROM booking_requests br
+          WHERE br.id = ANY(ARRAY[${sql.join(todayIds.map(id => sql`${id}`), sql`, `)}]::int[])
+          AND br.session_id IS NOT NULL
+        `);
+        for (const row of filledResult.rows) {
+          filledMap.set(Number(row.booking_id), parseInt(String(row.filled_count)) || 0);
+        }
+      } catch (err) {
+        logger.debug('[Todays Bookings] Failed to query filled player counts', { error: err instanceof Error ? err.message : err });
+      }
+    }
+
+    const enrichedBookings = bookingsData.map(b => ({
+      ...b,
+      declared_player_count: b.declaredPlayerCount,
+      filled_player_count: filledMap.get(b.id) ?? (b.declaredPlayerCount ? 1 : 0)
+    }));
+    
     res.json({
-      bookings: bookingsData,
-      count: bookingsData.length,
+      bookings: enrichedBookings,
+      count: enrichedBookings.length,
       date: today,
       timestamp: new Date().toISOString()
     });

@@ -74,7 +74,6 @@ export function ManageModeRoster({
       }
     }
   }
-
   const renderManageModeSlot = (member: BookingMember, index: number) => {
     const isOwner = member.isPrimary;
     const isUnlinking = unlinkingSlotId === member.id;
