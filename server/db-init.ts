@@ -200,6 +200,26 @@ export async function seedDefaultNoticeTypes() {
 export async function ensureDatabaseConstraints() {
   try {
     await db.execute(sql`
+      DELETE FROM booking_participants
+      WHERE NOT EXISTS (
+        SELECT 1 FROM booking_sessions WHERE booking_sessions.id = booking_participants.session_id
+      );
+    `);
+
+    await db.execute(sql`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'booking_participants_session_id_fk'
+        ) THEN
+          ALTER TABLE booking_participants ADD CONSTRAINT booking_participants_session_id_fk
+            FOREIGN KEY (session_id) REFERENCES booking_sessions(id) ON DELETE CASCADE;
+        END IF;
+      END $$;
+    `);
+
+    await db.execute(sql`
       DO $$ 
       BEGIN
         IF EXISTS (
