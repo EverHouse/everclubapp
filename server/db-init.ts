@@ -383,7 +383,7 @@ export async function ensureDatabaseConstraints() {
               'outstanding_balance', 'fee_waived',
               'membership_renewed', 'membership_failed', 'membership_past_due',
               'membership_cancelled', 'membership_terminated', 'membership_cancellation',
-              'billing_alert', 'billing_migration',
+              'billing', 'billing_alert', 'billing_migration',
               'day_pass', 'new_member', 'member_status_change',
               'card_expiring', 'staff_note', 'account_deletion',
               'terminal_refund', 'terminal_dispute', 'terminal_dispute_closed',

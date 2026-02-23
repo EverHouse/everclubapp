@@ -269,7 +269,8 @@ export type AuditAction =
   | 'create_day_pass'
   | 'confirm_day_pass_payment'
   | 'create_conference_prepayment'
-  | 'confirm_conference_prepayment';
+  | 'confirm_conference_prepayment'
+  | 'checkout_session_expired';
 
 export type ActorType = 'staff' | 'member' | 'system';
 

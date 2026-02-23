@@ -61,6 +61,7 @@ export type NotificationType =
   | 'membership_past_due'
   | 'membership_cancelled'
   | 'membership_terminated'
+  | 'billing'
   | 'billing_alert'
   | 'billing_migration'
   | 'day_pass'

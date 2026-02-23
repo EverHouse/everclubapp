@@ -5164,7 +5164,7 @@ async function handleCheckoutSessionExpired(client: PoolClient, session: Stripe.
       try {
         await logSystemAction({
           action: 'checkout_session_expired',
-          resourceType: 'checkout_session',
+          resourceType: 'checkout',
           resourceId: session.id,
           details: {
             email: displayEmail,

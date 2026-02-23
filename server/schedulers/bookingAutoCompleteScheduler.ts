@@ -39,7 +39,7 @@ async function autoCompletePastBookings(): Promise<void> {
            SELECT DISTINCT br.id FROM booking_requests br
            JOIN booking_sessions bs ON br.session_id = bs.id
            JOIN booking_participants bp ON bp.session_id = bs.id
-           WHERE bp.updated_at > NOW() - INTERVAL '10 minutes'
+           WHERE bs.updated_at > NOW() - INTERVAL '10 minutes'
            AND bp.payment_status IN ('paid', 'waived')
          )
        RETURNING id, user_email AS "userEmail", user_name AS "userName", request_date AS "requestDate", start_time AS "startTime", resource_id AS "resourceId"`,
@@ -141,7 +141,7 @@ export async function runManualBookingAutoComplete(): Promise<{ markedCount: num
          SELECT DISTINCT br.id FROM booking_requests br
          JOIN booking_sessions bs ON br.session_id = bs.id
          JOIN booking_participants bp ON bp.session_id = bs.id
-         WHERE bp.updated_at > NOW() - INTERVAL '10 minutes'
+         WHERE bs.updated_at > NOW() - INTERVAL '10 minutes'
          AND bp.payment_status IN ('paid', 'waived')
        )
      RETURNING id`,
