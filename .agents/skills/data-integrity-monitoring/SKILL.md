@@ -68,6 +68,50 @@ Each of the 29 integrity checks has an assigned severity in `severityMap`:
 | `payment_failure` | Payment Issue | Always sent (bypasses transient filter) |
 | `security_alert` | Security Notice | Always sent (bypasses transient filter) |
 
+### Error Alert Email Enhancements (v8.12.0)
+
+Alert emails now include enhancements to improve clarity and debuggability for both staff and developers:
+
+**Plain-Language Translation**
+
+The `translateErrorToPlainLanguage(message: string, path?: string)` function converts raw error strings into human-readable summaries for non-technical staff. It uses `getFriendlyAreaName(path)` internally to detect the affected area and provides clear explanations:
+- `ECONNREFUSED` → "The database server couldn't be reached"
+- `ETIMEDOUT` → "The request took too long and was cancelled"
+- Stripe-specific errors → "Card declined", "Insufficient funds", etc.
+- Timeout errors → "Service was slow to respond"
+- Generic errors → Extracts meaningful context from the error message
+
+**Specific Error Summaries**
+
+Each alert email includes a brief one-line error summary extracted from the raw error message (first meaningful line, capped at 200 characters). This summary appears in both the email subject line and body, providing immediate context without requiring staff to open technical details.
+
+**Subject Line Specificity**
+
+Subject lines now use caller-provided titles rather than generic text. Format: `⚠️ [Area Label] Specific Title`
+- Example: `⚠️ Stripe Payments Payment failed 3x — card update needed`
+- Example: `⚠️ Calendar Sync Google Calendar couldn't sync events for 2 hours`
+- Allows email clients to thread related alerts and makes scanning inboxes more efficient
+
+**Area Detection**
+
+The `getFriendlyAreaName(path?: string)` function maps error context paths to user-friendly labels for the subject line:
+- "Stripe Payments" — payment processing, subscription, invoice errors
+- "Calendar Sync" — Google Calendar sync failures
+- "Booking System" — booking creation/modification failures
+- "HubSpot Sync" — HubSpot contact/deal update errors
+- "Member Management" — member profile, tier change, email update errors
+- "Database" — query failures, connection errors
+- "Email Service" — Resend email delivery failures
+- "External Service" — other third-party API failures
+
+**Technical Details Section**
+
+Alert emails now include an expandable HTML `<details>` section with the full stack trace and raw error message, HTML-escaped to prevent injection. This section is collapsed by default to keep the email body clean while providing developers complete debugging information when needed.
+
+**Daily Cap Persistence**
+
+The daily email cap (3 email alerts per 24-hour period) is now stored in the `system_settings` table (key: `alert_rate_limits`), persisting across server restarts. This prevents alert storms during rapid restart cycles and provides consistent rate limiting regardless of deployment topology.
+
 ### Monitoring Core Severities (In-Memory + DB)
 
 `monitoring.ts` logs alerts with `critical | warning | info` to both an in-memory ring buffer (100 entries) and the `system_alerts` database table.
@@ -79,7 +123,7 @@ The system uses multiple mechanisms to prevent alert storms:
 1. **Startup grace period** — Suppress all email alerts for 5 minutes after server start (`errorAlerts.ts`).
 2. **Transient error filtering** — Skip alerts for ECONNRESET, ETIMEDOUT, 429, 502, 503, and similar patterns. Payment and security alerts bypass this filter.
 3. **Per-key cooldown** — 4-hour cooldown between identical alert types (`errorAlerts.ts`). 30-minute cooldown for data alerts (`dataAlerts.ts`). 4-hour cooldown for integrity alerts specifically.
-4. **Daily cap** — Maximum 3 email alerts per 24-hour period, tracked in `app_settings` table for persistence across restarts.
+4. **Daily cap** — Maximum 3 email alerts per 24-hour period, tracked in `system_settings` table (key: `alert_rate_limits`) for persistence across restarts.
 5. **Fingerprint deduplication** — Integrity alerts compare a fingerprint of current issues against the last-sent fingerprint. Suppress re-notification if issues have not changed and cooldown has not expired.
 
 ## How Checks Run
@@ -188,8 +232,7 @@ The admin data integrity dashboard is accessible at `/admin/data-integrity` (sta
 | `integrity_audit_log` | Record all resolve/ignore/reopen actions with attribution |
 | `integrity_ignores` | Time-bounded ignore rules with reason and expiry |
 | `system_alerts` | Persistent alert log written by `monitoring.ts` |
-| `system_settings` | Database locks for multi-instance scheduler safety |
-| `app_settings` | Persist error alert rate-limit state across restarts |
+| `system_settings` | Database locks for multi-instance scheduler safety; also persists error alert rate-limit state (key: `alert_rate_limits`) |
 | `notifications` | System-type notifications used for in-app staff alerts and alert history |
 | `trackman_webhook_events` | Webhook event log queried by webhook monitor |
 | `job_queue` | Background job records queried by job queue monitor |

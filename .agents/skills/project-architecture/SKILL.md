@@ -83,7 +83,7 @@ Use `safeDbOperation()` and `safeDbTransaction()` from `server/core/safeDbOperat
 NEVER write migration files manually — use `npm run db:push`. Schema changes go in `shared/schema.ts`, then push.
 
 ### 8. No External API Calls in DB Transactions (v8.12.0)
-HTTP calls to Stripe, HubSpot, or any external service must NOT be made inside `BEGIN`/`COMMIT` blocks. They hold connections while waiting for network responses. Use the deferred action pattern or DB-side checks instead. See `stripe-webhook-flow` skill for details.
+HTTP calls to Stripe, HubSpot, or any external service must NOT be made inside `BEGIN`/`COMMIT` blocks. They hold connections while waiting for network responses. Use the deferred action pattern (`deferredActions.push(async () => { ... })`) or DB-side checks instead. Exceptions: 4 Stripe/HubSpot calls that must stay in-transaction (customer retrieve, product retrieve, payment methods list, company sync) are wrapped with 5-second `Promise.race()` timeouts and marked with `// NOTE: Must stay in transaction` comments. See `stripe-webhook-flow` skill for the full pattern.
 
 ---
 

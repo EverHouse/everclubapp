@@ -105,6 +105,44 @@ External API calls hold the database connection while waiting for a network resp
 2. **Move to deferred action** — Non-critical enrichment (phone fetch for HubSpot, product name lookups for tier matching) should be pushed to `deferredActions[]` and run after COMMIT.
 3. **Timeout wrapper** — If an external call is unavoidable inside a transaction (e.g., customer retrieve for new user creation), wrap it with `Promise.race()` and a 5-second timeout to prevent indefinite blocking.
 
+### Documented In-Transaction Exceptions (v8.12.0)
+
+Four legitimate Stripe/external API calls have been audited and approved to stay inside transactions because their results are required for immediate DB writes:
+
+1. **`stripe.customers.retrieve()` in `handleSubscriptionCreated`** — When creating a new user from a subscription event (no matching user exists), the customer email and name are required to populate the user record. This call is unavoidable.
+
+2. **`stripe.products.retrieve()` in `handleSubscriptionUpdated`** — When tier matching via `price_id` fails (product may have been deleted), the product name is fetched as a fallback to attempt legacy name-based matching. Required before DB writes to `users.tier`.
+
+3. **`stripe.paymentMethods.list()` in `handlePaymentMethodDetached`** — Determines the count of remaining payment methods on the customer. If zero, `requires_card_update` must be set to `true` on the user record in the same transaction.
+
+4. **`syncCompanyToHubSpot()` in `handleCheckoutSessionCompleted`** — Syncs a new company to HubSpot and returns `hubspotCompanyId`. This ID must be written to both `users.hubspot_company_id` and `billing_groups.hubspot_company_id` in the same transaction.
+
+### Timeout Wrapper Pattern
+
+Every in-transaction exception MUST be wrapped with `Promise.race()` and a 5-second timeout to prevent indefinite network blocking:
+
+```typescript
+// NOTE: Must stay in transaction - result needed for DB writes (reason why)
+const result = await Promise.race([
+  stripe.someApi.call(params),
+  new Promise<never>((_, reject) => 
+    setTimeout(() => reject(new Error('Description timed out after 5s')), 5000)
+  )
+]) as ExpectedType;
+```
+
+Every documented exception MUST have BOTH:
+- A `// NOTE: Must stay in transaction - result needed for DB writes (reason)` comment explaining why the call cannot be deferred
+- A 5-second `Promise.race()` timeout wrapper to prevent connection pool exhaustion during high-traffic periods
+
+### broadcastBillingUpdate
+
+`broadcastBillingUpdate()` is a **local WebSocket broadcast** (not an external HTTP call to an external service). It pushes real-time updates to connected staff/admin clients.
+
+Because it does **NOT** make external API calls, it does **NOT** need to be deferred and can safely be called inside or outside transactions. It is lightweight and non-blocking.
+
+Note: `broadcastBillingUpdate()` calls are sometimes placed in deferred actions for organizational clarity (to group side effects together), but this is optional — they can be called inline within a transaction without risk of connection pool exhaustion.
+
 ## The "Stripe Wins" Rule
 
 When `billing_provider = 'stripe'`, Stripe is the authoritative source for `membership_status` and `tier`.
