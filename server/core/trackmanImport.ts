@@ -1462,6 +1462,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             try {
               // Create Facility Closure (container)
               const [closure] = await db.insert(facilityClosures).values({
+                title: `Lesson: ${row.userName || 'Private Instruction'}`,
                 resourceId,
                 startDate: bookingDate,
                 endDate: bookingDate,
@@ -1469,6 +1470,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 endTime: endTime || startTime,
                 reason: `Lesson: ${row.userName || 'Private Instruction'}`,
                 noticeType: 'private_event',
+                visibility: 'Staff Only',
                 isActive: true,
                 createdBy: 'trackman_import'
               } as any).returning();
@@ -3708,8 +3710,8 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
             
             const closureResult = await db.execute(sql`
               INSERT INTO facility_closures 
-                (title, start_date, end_date, start_time, end_time, reason, notice_type, is_active, created_by)
-              VALUES (${closureTitle}, ${bookingDate}, ${bookingDate}, ${startTime}, ${endTime}, ${closureReason}, 'private_event', true, ${performedBy})
+                (title, start_date, end_date, start_time, end_time, reason, notice_type, visibility, is_active, created_by)
+              VALUES (${closureTitle}, ${bookingDate}, ${bookingDate}, ${startTime}, ${endTime}, ${closureReason}, 'private_event', 'Staff Only', true, ${performedBy})
               RETURNING id
             `);
             
@@ -3980,8 +3982,8 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
         
         const closureResult = await db.execute(sql`
           INSERT INTO facility_closures 
-            (title, start_date, end_date, start_time, end_time, reason, notice_type, is_active, created_by)
-          VALUES (${closureTitle}, ${bookingDate}, ${bookingDate}, ${booking.start_time}, ${endTime}, ${closureReason}, 'private_event', true, 'system_cleanup')
+            (title, start_date, end_date, start_time, end_time, reason, notice_type, visibility, is_active, created_by)
+          VALUES (${closureTitle}, ${bookingDate}, ${bookingDate}, ${booking.start_time}, ${endTime}, ${closureReason}, 'private_event', 'Staff Only', true, 'system_cleanup')
           RETURNING id
         `);
 
@@ -4094,8 +4096,8 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
         
         const closureResult = await db.execute(sql`
           INSERT INTO facility_closures 
-            (title, start_date, end_date, start_time, end_time, reason, notice_type, is_active, created_by)
-          VALUES (${closureTitle}, ${bookingDate}, ${bookingDate}, ${item.startTime}, ${item.endTime || item.startTime}, ${closureReason}, 'private_event', true, 'system_cleanup')
+            (title, start_date, end_date, start_time, end_time, reason, notice_type, visibility, is_active, created_by)
+          VALUES (${closureTitle}, ${bookingDate}, ${bookingDate}, ${item.startTime}, ${item.endTime || item.startTime}, ${closureReason}, 'private_event', 'Staff Only', true, 'system_cleanup')
           RETURNING id
         `);
 

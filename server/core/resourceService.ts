@@ -840,6 +840,7 @@ export async function convertToInstructorBlock(
     endTime: bookingData.endTime || bookingData.startTime,
     reason: `Lesson: ${ownerName}`,
     noticeType: 'private_event',
+    visibility: 'Staff Only',
     isActive: true,
     createdBy: staffEmail
   } as typeof facilityClosures.$inferInsert).returning();
@@ -1338,6 +1339,7 @@ export async function markBookingAsEvent(params: {
         endDate: bookingDate,
         endTime: endTime,
         affectedAreas: JSON.stringify(resourceIds.map(id => `bay_${id}`)),
+        visibility: 'Private',
         isActive: true,
         createdBy: params.staffEmail
       }).returning();

@@ -893,8 +893,8 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
               const bookingDetails = await db.execute(sql`SELECT request_date, start_time, end_time, resource_id FROM booking_requests WHERE id = ${booking.id}`);
               if (bookingDetails.rows.length > 0) {
                 const bd = bookingDetails.rows[0] as DbRow;
-                await db.execute(sql`INSERT INTO facility_closures (title, affected_areas, start_date, end_date, is_active, created_by)
-                   VALUES (${`Lesson: ${member.first_name} ${member.last_name}`}, ${'simulators'}, ${bd.request_date}, ${bd.request_date}, true, ${staffEmail})
+                await db.execute(sql`INSERT INTO facility_closures (title, affected_areas, start_date, end_date, start_time, end_time, notice_type, visibility, is_active, created_by)
+                   VALUES (${`Lesson: ${member.first_name} ${member.last_name}`}, ${'simulators'}, ${bd.request_date}, ${bd.request_date}, ${bd.start_time}, ${bd.end_time}, 'private_event', 'Staff Only', true, ${staffEmail})
                    ON CONFLICT DO NOTHING
                    RETURNING id`);
                 await db.execute(sql`INSERT INTO availability_blocks (resource_id, block_date, start_time, end_time, block_type, notes, created_by)
