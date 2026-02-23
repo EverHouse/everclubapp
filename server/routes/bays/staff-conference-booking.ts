@@ -13,6 +13,9 @@ import { formatTime12Hour, formatDateDisplayWithDay, getTodayPacific, getPacific
 import { getCalendarIdByName, getCalendarBusyTimes } from '../../core/calendar';
 import { CALENDAR_CONFIG } from '../../core/calendar/config';
 import { broadcastAvailabilityUpdate } from '../../core/websocket';
+import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
+import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
+import { syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
 
 const router = Router();
 
@@ -275,15 +278,6 @@ router.post('/api/staff/conference-room/booking', isStaffOrAdmin, async (req: Re
 
       bookingId = insertResult.rows[0].id;
 
-      if (overageCents > 0) {
-        await client.query(
-          `INSERT INTO conference_prepayments 
-           (member_email, booking_date, start_time, duration_minutes, amount_cents, payment_type, status, booking_id, created_at)
-           VALUES ($1, $2, $3, $4, $5, 'staff_created', 'pending', $6, NOW())`,
-          [normalizedEmail, date, startTimeWithSeconds, durationMinutes, overageCents, bookingId]
-        );
-      }
-
       const formattedDate = formatDateDisplayWithDay(date);
       const formattedTime = formatTime12Hour(startTime);
 
@@ -318,6 +312,32 @@ router.post('/api/staff/conference-room/booking', isStaffOrAdmin, async (req: Re
         date,
         action: 'booked'
       });
+
+      // Create session and invoice for conference room (post-commit, non-blocking for response)
+      try {
+        const sessionResult = await ensureSessionForBooking({
+          bookingId,
+          resourceId: resourceId as number,
+          sessionDate: date,
+          startTime: startTimeWithSeconds,
+          endTime,
+          ownerEmail: normalizedEmail,
+          ownerName: hostName || undefined,
+          source: 'staff_manual',
+          createdBy: staffEmail
+        });
+        if (sessionResult.sessionId) {
+          await recalculateSessionFees(sessionResult.sessionId, 'staff_booking');
+          await syncBookingInvoice(bookingId, sessionResult.sessionId);
+          logger.info('[StaffConferenceBooking] Session and invoice created', {
+            extra: { bookingId, sessionId: sessionResult.sessionId }
+          });
+        }
+      } catch (sessionErr: unknown) {
+        logger.warn('[StaffConferenceBooking] Non-blocking: Failed to create session/invoice', {
+          extra: { bookingId, error: (sessionErr as Error).message }
+        });
+      }
 
       logger.info('[StaffConferenceBooking] Created booking', {
         extra: { bookingId, hostEmail: normalizedEmail, date, startTime, durationMinutes, overageCents }

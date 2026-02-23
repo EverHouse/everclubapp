@@ -17,8 +17,8 @@ import { getCalendarNameForBayAsync, isStaffOrAdminCheck } from './helpers';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { getCalendarIdByName, deleteCalendarEvent } from '../../core/calendar/index';
 import { getGuestPassesRemaining, refundGuestPass } from '../guestPasses';
-import { computeFeeBreakdown, getEffectivePlayerCount, applyFeeBreakdownToParticipants } from '../../core/billing/unifiedFeeService';
-import { voidBookingInvoice } from '../../core/billing/bookingInvoiceService';
+import { computeFeeBreakdown, getEffectivePlayerCount, applyFeeBreakdownToParticipants, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
+import { voidBookingInvoice, syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
 import { PRICING } from '../../core/billing/pricingConfig';
 import { createGuestPassHold, releaseGuestPassHold } from '../../core/billing/guestPassHoldService';
 import { ensureSessionForBooking, createSessionWithUsageTracking } from '../../core/bookingService/sessionManager';
@@ -428,8 +428,7 @@ router.post('/api/booking-requests', async (req, res) => {
     const { 
       user_email, user_name, resource_id, resource_preference, request_date, start_time, 
       duration_minutes, notes, user_tier, declared_player_count, member_notes,
-      guardian_name, guardian_relationship, guardian_phone, guardian_consent, request_participants,
-      conference_prepayment_id
+      guardian_name, guardian_relationship, guardian_phone, guardian_consent, request_participants
     } = req.body;
     
     if (!user_email || !request_date || !start_time || !duration_minutes) {
@@ -686,68 +685,6 @@ router.post('/api/booking-requests', async (req, res) => {
       // Conference rooms auto-confirm (no staff approval needed), simulators stay pending
       const isConferenceRoom = resourceType === 'conference_room';
       let initialStatus: 'pending' | 'confirmed' = isConferenceRoom ? 'confirmed' : 'pending';
-      let linkedPrepaymentId: number | null = null;
-      
-      // For conference rooms with overage fees, validate prepayment before confirming
-      if (isConferenceRoom) {
-        // Calculate overage fees for conference room
-        const { getMemberTierByEmail, getTierLimits, getDailyBookedMinutes } = await import('../../core/tierService');
-        const { calculateOverageCents } = await import('../../core/billing/pricingConfig');
-        
-        const tierName = await getMemberTierByEmail(user_email.toLowerCase());
-        if (tierName) {
-          const tierLimits = await getTierLimits(tierName);
-          const dailyAllowance = tierLimits.daily_conf_room_minutes || 0;
-          const usedToday = await getDailyBookedMinutes(user_email.toLowerCase(), request_date, 'conference_room');
-          const remainingAllowance = Math.max(0, dailyAllowance - usedToday);
-          const overageMinutes = Math.max(0, duration_minutes - remainingAllowance);
-          const totalCents = calculateOverageCents(overageMinutes);
-          
-          if (totalCents > 0) {
-            // Overage fees apply - require prepayment
-            if (!conference_prepayment_id) {
-              await client.query('ROLLBACK');
-              return res.status(402).json({ 
-                error: 'Payment required for conference room overage fees',
-                overageMinutes,
-                totalCents,
-                feeDollars: (totalCents / 100).toFixed(2)
-              });
-            }
-            
-            // Validate the prepayment was successful and matches expected amount
-            const prepaymentCheck = await client.query(
-              `SELECT id, status, amount_cents, duration_minutes FROM conference_prepayments 
-               WHERE id = $1 AND member_email = $2 AND booking_date = $3`,
-              [conference_prepayment_id, user_email.toLowerCase(), request_date]
-            );
-            
-            if (prepaymentCheck.rows.length === 0) {
-              await client.query('ROLLBACK');
-              return res.status(400).json({ error: 'Prepayment not found' });
-            }
-            
-            const prepayment = prepaymentCheck.rows[0];
-            // Accept both 'succeeded' (credit payment) and 'completed' (card payment after confirm)
-            if (prepayment.status !== 'succeeded' && prepayment.status !== 'completed') {
-              await client.query('ROLLBACK');
-              return res.status(402).json({ error: 'Prepayment not completed. Please complete payment first.' });
-            }
-            
-            // Verify prepayment amount matches expected fee
-            if (prepayment.amount_cents < totalCents) {
-              await client.query('ROLLBACK');
-              return res.status(402).json({ 
-                error: 'Prepayment amount insufficient for this booking duration',
-                prepaidCents: prepayment.amount_cents,
-                requiredCents: totalCents
-              });
-            }
-            
-            linkedPrepaymentId = prepayment.id;
-          }
-        }
-      }
       
       const insertResult = await client.query(
         `INSERT INTO booking_requests (
@@ -791,29 +728,6 @@ router.post('/api/booking-requests', async (req, res) => {
         if (!holdResult.success) {
           throw new Error(`Guest pass hold failed: ${holdResult.error || 'Insufficient guest passes available'}`);
         }
-      }
-      
-      // Link prepayment to booking if conference room with overage fees
-      if (linkedPrepaymentId) {
-        // Update conference_prepayments with booking_id and get payment references
-        const prepaymentUpdate = await client.query(
-          `UPDATE conference_prepayments SET booking_id = $1 WHERE id = $2 
-           RETURNING credit_reference_id, payment_intent_id`,
-          [insertResult.rows[0].id, linkedPrepaymentId]
-        );
-        
-        // Also update stripe_payment_intents so cancellation cascade can find it for refunds
-        // credit_reference_id is used for credit payments (balance-xxx), payment_intent_id for card payments (pi_xxx)
-        const stripeRef = prepaymentUpdate.rows[0]?.credit_reference_id || prepaymentUpdate.rows[0]?.payment_intent_id;
-        if (stripeRef) {
-          await client.query(
-            `UPDATE stripe_payment_intents SET booking_id = $1, updated_at = NOW() 
-             WHERE stripe_payment_intent_id = $2`,
-            [insertResult.rows[0].id, stripeRef]
-          );
-        }
-        
-        logger.info('[Booking] Linked prepayment to conference room booking', { extra: { linkedPrepaymentId, insertResultRows_0_Id: insertResult.rows[0].id } });
       }
       
       await client.query('COMMIT');
@@ -911,6 +825,23 @@ router.post('/api/booking-requests', async (req, res) => {
           logger.error('[ConferenceRoom] Fallback ensureSession also failed', {
             error: fallbackErr instanceof Error ? fallbackErr : new Error(String(fallbackErr))
           });
+        });
+      }
+
+      // Create invoice for conference room fees (auto-applies Stripe customer credit balance)
+      try {
+        const sessionResult = await db.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${row.id} LIMIT 1`);
+        const confSessionId = sessionResult.rows[0]?.session_id as number | null;
+        if (confSessionId) {
+          await recalculateSessionFees(confSessionId, 'booking_creation');
+          await syncBookingInvoice(row.id, confSessionId);
+          logger.info('[ConferenceRoom] Invoice sync triggered after session creation', {
+            extra: { bookingId: row.id, sessionId: confSessionId }
+          });
+        }
+      } catch (invoiceErr: unknown) {
+        logger.warn('[ConferenceRoom] Non-blocking: Failed to create invoice after booking', {
+          extra: { bookingId: row.id, error: (invoiceErr as Error).message }
         });
       }
     }

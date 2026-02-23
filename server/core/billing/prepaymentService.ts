@@ -97,13 +97,6 @@ export async function createPrepaymentIntent(
     );
     const resourceType = resourceTypeResult.rows[0]?.resource_type || 'simulator';
 
-    if (resourceType === 'conference_room') {
-      logger.info('[Prepayment] Skipping - conference room bookings do not use invoices', { 
-        extra: { bookingId, resourceType } 
-      });
-      return null;
-    }
-
     const trackmanResult = await db.execute(
       sql`SELECT trackman_booking_id FROM booking_requests WHERE id = ${bookingId} LIMIT 1`
     );

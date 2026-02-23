@@ -54,11 +54,6 @@ async function settleBookingInvoiceAfterCheckin(bookingId: number, sessionId: nu
   settlementInFlight.add(bookingId);
 
   try {
-    const resourceResult = await db.execute(
-      sql`SELECT r.type FROM resources r JOIN booking_requests br ON br.resource_id = r.id WHERE br.id = ${bookingId}`
-    );
-    if (resourceResult.rows[0]?.type === 'conference_room') return;
-    
     const invoiceId = await getBookingInvoiceId(bookingId);
     if (!invoiceId) return;
     
