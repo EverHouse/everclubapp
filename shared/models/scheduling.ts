@@ -5,7 +5,7 @@ import { users } from "./auth-session";
 export const bookingSourceEnum = pgEnum("booking_source", ["member_request", "staff_manual", "trackman_import", "trackman_webhook"]);
 export const paymentMethodEnum = pgEnum("payment_method", ["guest_pass", "credit_card", "unpaid", "waived"]);
 export const participantTypeEnum = pgEnum("participant_type", ["owner", "member", "guest"]);
-export const participantPaymentStatusEnum = pgEnum("participant_payment_status", ["pending", "paid", "waived"]);
+export const participantPaymentStatusEnum = pgEnum("participant_payment_status", ["pending", "paid", "waived", "refunded"]);
 
 // Resources table - bookable resources
 export const resources = pgTable("resources", {
