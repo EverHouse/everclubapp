@@ -31,6 +31,14 @@ function isTransientError(message: string): boolean {
   return TRANSIENT_ERROR_PATTERNS.some(pattern => pattern.test(message));
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function isInStartupGracePeriod(): boolean {
   return (Date.now() - serverStartTime) < STARTUP_GRACE_PERIOD_MS;
 }
@@ -153,6 +161,14 @@ function getFriendlyAreaName(path?: string): string {
   if (path.includes('Stripe') || path.includes('stripe')) return 'Stripe Payments';
   if (path.includes('HubSpot') || path.includes('hubspot')) return 'HubSpot (member data)';
   if (path.includes('Google') || path.includes('google')) return 'Google Calendar';
+  if (path.includes('/payment') || path.includes('/invoice') || path.includes('/terminal')) return 'Payments & Billing';
+  if (path.includes('/subscription')) return 'Subscriptions';
+  if (path.includes('/guest')) return 'Guest Passes';
+  if (path.includes('/group') || path.includes('/billing-group')) return 'Group Billing';
+  if (path.includes('/fee') || path.includes('/pricing')) return 'Fee Calculation';
+  if (path.includes('/check-in') || path.includes('/checkin')) return 'Check-In System';
+  if (path.includes('/schedule') || path.includes('/scheduler')) return 'Scheduler';
+  if (path.includes('/settings') || path.includes('/config')) return 'System Settings';
   
   return 'the app';
 }
@@ -160,11 +176,18 @@ function getFriendlyAreaName(path?: string): string {
 function translateErrorToPlainLanguage(message: string, path?: string): string {
   const area = getFriendlyAreaName(path);
   
+  const briefError = message
+    .split('\n')[0]
+    .replace(/at\s+\S+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, 120);
+  
   if (message.includes('Cannot destructure') || message.includes('undefined')) {
-    return `Something went wrong in ${area}. A member tried to use a feature but the app didn't receive all the information it needed. This might have caused their action to fail.`;
+    return `Something went wrong in ${area}. The app received incomplete data while processing a request. This might have caused a member's action to fail.`;
   }
   if (message.includes('timeout') || message.includes('Timeout')) {
-    return `${area} took too long to respond. This could be a temporary slowdown. If members report issues, they can try again.`;
+    return `${area} took too long to respond. The operation timed out, which may have interrupted a member's action.`;
   }
   if (message.includes('connection') || message.includes('ECONNREFUSED')) {
     return `The app had trouble connecting to ${area}. This might affect some features temporarily.`;
@@ -173,19 +196,25 @@ function translateErrorToPlainLanguage(message: string, path?: string): string {
     return `A login or access issue occurred in ${area}. A member may have been logged out unexpectedly.`;
   }
   if (message.includes('403') || message.includes('Forbidden')) {
-    return `Someone tried to access something in ${area} they don't have permission for. This might be a normal access attempt or could indicate a configuration issue.`;
+    return `An access permission issue occurred in ${area}. Someone tried to access something they don't have permission for.`;
   }
   if (message.includes('404') || message.includes('Not found')) {
-    return `Something was requested in ${area} that doesn't exist. This could be a deleted item or a broken link.`;
+    return `A missing resource was requested in ${area}. This could be a deleted item or a broken link.`;
   }
   if (message.includes('database') || message.includes('SQL') || message.includes('query')) {
-    return `There was a database issue in ${area}. Some data might not have saved correctly.`;
+    return `There was a database issue in ${area}. A data operation failed, which may have prevented a member's action from completing.`;
   }
   if (message.includes('rate limit') || message.includes('too many')) {
-    return `${area} received too many requests too quickly. The system is protecting itself from overload.`;
+    return `${area} received too many requests. The system is temporarily throttling to prevent overload.`;
+  }
+  if (message.includes('duplicate') || message.includes('unique') || message.includes('constraint')) {
+    return `A duplicate record was detected in ${area}. The system prevented a duplicate entry from being created.`;
+  }
+  if (message.includes('null') || message.includes('required')) {
+    return `Required information was missing in ${area}. A member's request couldn't be completed because some fields were empty.`;
   }
   
-  return `An issue occurred in ${area}. The app encountered an unexpected situation while processing a request.`;
+  return `An issue occurred in ${area}. ${briefError ? `The error reported: "${briefError}".` : 'The app encountered an unexpected situation while processing a request.'}`;
 }
 
 interface AlertOptions {
@@ -282,7 +311,7 @@ export async function sendErrorAlert(options: AlertOptions): Promise<boolean> {
     await client.emails.send({
       from: fromEmail || 'Ever Club <noreply@everclub.app>',
       to: ALERT_EMAIL,
-      subject: `${friendlyType}: ${area}`,
+      subject: `${friendlyType}: ${title !== 'Server Error' ? title : area}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -317,6 +346,17 @@ export async function sendErrorAlert(options: AlertOptions): Promise<boolean> {
             <div style="background: #f0fdf4; border-radius: 8px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #22c55e;">
               <h2 style="margin: 0 0 12px 0; color: #166534; font-size: 16px; font-weight: 600;">What to do</h2>
               <p style="margin: 0; color: #15803d; line-height: 1.6; font-size: 15px;">${suggestedAction}</p>
+            </div>
+            
+            <div style="margin-bottom: 24px;">
+              <h2 style="margin: 0 0 12px 0; color: #6b7280; font-size: 14px; font-weight: 600;">Technical Details</h2>
+              <div style="background: #f3f4f6; border-radius: 6px; padding: 16px; font-family: 'SF Mono', Menlo, monospace; font-size: 12px; color: #6b7280; line-height: 1.5; word-break: break-all;">
+                ${title !== friendlyType ? `<p style="margin: 0 0 6px 0;"><strong>Error:</strong> ${escapeHtml(title)}</p>` : ''}
+                <p style="margin: 0 0 6px 0;"><strong>Message:</strong> ${escapeHtml(message.substring(0, 500))}</p>
+                ${details?.path ? `<p style="margin: 0 0 6px 0;"><strong>Path:</strong> ${details.method || 'GET'} ${escapeHtml(details.path)}</p>` : ''}
+                ${details?.dbErrorCode ? `<p style="margin: 0 0 6px 0;"><strong>DB Error:</strong> ${escapeHtml(details.dbErrorCode)}${details.dbErrorTable ? ` on table "${escapeHtml(details.dbErrorTable)}"` : ''}${details.dbErrorConstraint ? ` (constraint: ${escapeHtml(details.dbErrorConstraint)})` : ''}</p>` : ''}
+                ${requestId ? `<p style="margin: 0;"><strong>Request ID:</strong> ${escapeHtml(requestId)}</p>` : ''}
+              </div>
             </div>
             
             <div style="text-align: center; padding-top: 16px; border-top: 1px solid #e5e7eb;">
