@@ -1380,6 +1380,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
     // Process calls in batches
     const BATCH_SIZE = 10;
     const callLimit = pLimit(BATCH_SIZE);
+    let hubspotCallAssocFailCount = 0;
     
     for (let i = 0; i < allCalls.length; i += BATCH_SIZE) {
       const batch = allCalls.slice(i, i + BATCH_SIZE);
@@ -1425,7 +1426,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
                   }
                 }
               } catch (err) {
-                logger.debug('HubSpot deal associations not available', { error: err });
+                hubspotCallAssocFailCount++;
               }
               
               if (!memberEmail) {
@@ -1491,6 +1492,11 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
       }
     }
     
+    // Log call association failures once instead of per-call
+    if (hubspotCallAssocFailCount > 0) {
+      logger.debug(`HubSpot call associations unavailable for ${hubspotCallAssocFailCount} calls (expected if HubSpot plan doesn't support call associations)`);
+    }
+    
     // Also fetch SMS/communications if available (HubSpot Communications object)
     try {
       let allComms: Record<string, unknown>[] = [];
@@ -1543,6 +1549,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
       }
       
       // Process SMS communications
+      let hubspotCommAssocFailCount = 0;
       for (const comm of allComms) {
         try {
           const commId = comm.id as string;
@@ -1579,7 +1586,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
               }
             }
           } catch (err) {
-            logger.debug('HubSpot communication associations not available', { error: err });
+            hubspotCommAssocFailCount++;
           }
           
           if (!memberEmail) continue;
@@ -1608,6 +1615,11 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
           errors++;
           if (!isProduction) logger.error('[CommLogs] Error processing SMS:', { error: err });
         }
+      }
+      
+      // Log communication association failures once instead of per-communication
+      if (hubspotCommAssocFailCount > 0) {
+        logger.debug(`HubSpot communication associations unavailable for ${hubspotCommAssocFailCount} communications (expected if HubSpot plan doesn't support communication associations)`);
       }
       
     } catch (err: unknown) {

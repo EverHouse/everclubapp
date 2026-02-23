@@ -251,6 +251,17 @@ async function initializeApp() {
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    res.setHeader('Content-Security-Policy', [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "connect-src 'self' https://api.stripe.com wss: ws:",
+      "font-src 'self' data:",
+      "frame-src https://js.stripe.com https://hooks.stripe.com",
+      "frame-ancestors 'self'",
+      isProduction ? "upgrade-insecure-requests" : "",
+    ].filter(Boolean).join('; '));
     if (isProduction) {
       res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }
@@ -355,6 +366,11 @@ async function initializeApp() {
         ...(isAuthenticated && { error: getErrorMessage(error) })
       });
     }
+  });
+
+  app.get('/robots.txt', (req, res) => {
+    res.type('text/plain');
+    res.send('User-agent: *\nDisallow: /\n');
   });
 
   if (isProduction) {
