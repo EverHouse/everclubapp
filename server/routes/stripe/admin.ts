@@ -594,11 +594,12 @@ router.post('/api/public/day-pass/checkout', checkoutRateLimiter, async (req: Re
       success_url: `${domain}/day-pass/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${domain}/day-pass`,
       metadata: {
-        productType: tier.slug as string,
-        tierName: tier.name as string,
-        email: email,
-        firstName: sanitizedFirstName,
-        lastName: sanitizedLastName,
+        purpose: 'day_pass',
+        product_slug: tier.slug as string,
+        purchaser_email: email,
+        purchaser_first_name: sanitizedFirstName,
+        purchaser_last_name: sanitizedLastName,
+        purchaser_phone: '',
         source: 'public_purchase',
       },
     });

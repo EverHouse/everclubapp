@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.25.2",
+    date: "2026-02-24",
+    title: "Day Pass — Visitor Name Capture Fix",
+    changes: [
+      "Fixed: Day pass checkout now properly captures purchaser first and last names — visitors will no longer appear as 'Unknown' in the directory",
+      "Fixed: Both public and internal day pass checkout endpoints now send consistent metadata to the payment processor, ensuring names are saved correctly",
+    ]
+  },
+  {
     version: "8.25.1",
     date: "2026-02-24",
     title: "Staff Portal — Bottom Nav Glass Fix",

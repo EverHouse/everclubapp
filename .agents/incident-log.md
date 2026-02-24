@@ -189,3 +189,9 @@ This file tracks every instance where the agent failed to follow explicit instru
 **What Happened:** Agent proceeded with performance audit and implementation across 3 subagents without loading ANY skills first. Should have loaded: `performance`, `sql-optimization-patterns`, `project-architecture`, `postgres-drizzle`, `stripe-integration`, `clean-code`, and `remembering-conversations`. Read the SKILL.md files for `performance` and `sql-optimization-patterns` briefly but did not follow the mandatory protocol of loading all relevant skills before work, did not search conversation memory, and jumped straight to implementation.
 **Estimated Wasted Usage:** ~3 messages (audit and implementation started without proper skill context — though work was largely correct, it risked missing patterns documented in skills)
 **Corrective Action:** Must load ALL relevant skills before any work begins, even for audits and reviews. The replit.md rules are clear: "This applies to ALL task types, not just code changes."
+
+## Incident #28 — 2026-02-24
+**Rule Violated:** MANDATORY skill loading before ALL work — including debugging and investigation
+**What Happened:** Agent spent 3 messages investigating the day pass name capture bug (reading webhooks.ts, dayPasses.ts, stripe/admin.ts, BuyDayPass.tsx, matchingService.ts) without loading any skills first. Should have loaded: `stripe-webhook-flow`, `stripe-integration`, `project-architecture`, `systematic-debugging`, `remembering-conversations`. The user had to explicitly call this out ("why the fuck are you still not loading any relevant skills?").
+**Estimated Wasted Usage:** ~2 messages (investigation was productive but violated mandatory protocol, risking missed patterns documented in skills)
+**Corrective Action:** Skills must be loaded FIRST — before even reading code. No exceptions, no excuses.
