@@ -1,13 +1,33 @@
 # Ever Club Members App
 
+## ⛔ MANDATORY — READ BEFORE EVERY TASK ⛔
+
+**SKILL-LOADING IS NON-NEGOTIABLE.** Before touching ANY code, you MUST:
+1. Identify which skills are relevant to the task (check the skill list in your system prompt)
+2. Read the full SKILL.md file for each relevant skill (e.g., `.agents/skills/booking-flow/SKILL.md`)
+3. Follow the architectural rules in those skills as the single source of truth
+4. If you skip this step, you WILL introduce bugs that violate established patterns
+
+Common skill mappings:
+- Booking changes → `booking-flow`, `booking-import-standards`, `checkin-flow`
+- Payment/billing → `fee-calculation`, `stripe-webhook-flow`, `stripe-integration`
+- Database/schema → `postgres-drizzle`, `project-architecture`
+- Frontend/UI → `react-dev`, `frontend-design`, `ui-ux-pro-max`
+- HubSpot → `hubspot-sync`, `hubspot-integration`
+- Notifications → `notification-system`
+- Data integrity → `data-integrity-monitoring`
+- Guest passes → `guest-pass-system`
+- Member status → `member-lifecycle`
+- Scheduled jobs → `scheduler-jobs`
+
+**CHANGELOG IS NON-NEGOTIABLE.** Every session that produces user-facing changes MUST end with an update to `src/data/changelog.ts` and `src/data/changelog-version.ts`. Group related changes into versioned entries (bump minor version per logical feature/fix group). Never leave a session without updating the changelog — members see this in-app.
+
 ## Overview
 The Ever Club Members App is a private members club application designed for golf and wellness centers. Its core purpose is to streamline the management of golf simulator bookings, wellness service appointments, and club events. The project aims to create a central digital hub for private members clubs, providing comprehensive tools for membership management, facility booking, and community building, ultimately enhancing member satisfaction and operational efficiency.
 
 ## User Preferences
-- **Skill-Driven Development**: We have an extensive library of custom skills installed. Before answering questions, debugging, or modifying any system, you MUST identify and load the relevant skill (e.g., booking-flow, stripe-webhook-flow, fee-calculation, react-dev). Rely on your skills as the single source of truth for architectural rules.
 - **Communication Style**: The founder is non-technical. Always explain changes in plain English, focusing on the business/member impact. Avoid unnecessary technical jargon.
 - **Development Approach**: Prefer iterative development. Ask before making major architectural changes. Write functional, clean code (utilize your clean-code skill).
-- **Changelog Updates**: Every session that produces user-facing changes MUST end with an update to `src/data/changelog.ts` and `src/data/changelog-version.ts`. Group related changes into versioned entries (bump minor version per logical feature/fix group). Never leave a session without updating the changelog — members see this in-app.
 
 ## System Architecture
 
