@@ -20,6 +20,13 @@ The Ever Club Members App is a private members club application for golf and wel
 7. **Stale asset interceptor** — Fixed middleware in `server/index.ts` that sent HTML with `Content-Type: text/html` for missing JS assets; now sends valid JavaScript with `Content-Type: application/javascript` to prevent white screen of death.
 8. **Late-arriving failed invoice guard** — `handleInvoicePaymentFailed` now checks if the invoice's subscription ID matches the user's current subscription before applying `past_due` status, preventing old subscription invoices from downgrading active members.
 
+### Day Pass Financial Reporting Fixes (2026-02-24)
+1. **Wrong table reference** — Financials query referenced non-existent `day_passes` table; corrected to `day_pass_purchases` with proper column names.
+2. **Double-counting prevention** — Day pass payments appeared twice in transactions (once from `stripe_transaction_cache` via `payment_intent.succeeded`, once from `day_pass_purchases`). Added NOT IN exclusion so `day_pass_purchases` is the single source for day pass transactions.
+3. **Transaction cache resilience** — `handleCheckoutSessionCompleted` now calls `upsertTransactionCache()` for day passes, ensuring cache population even if `payment_intent.succeeded` webhook fails.
+4. **Unique constraint** — Added partial unique index `day_pass_purchases_stripe_pi_unique` on `stripe_payment_intent_id` to prevent duplicate records.
+5. **Backfill** — Manually backfilled missing Isabela Palma day pass purchase from Stripe data.
+
 ### Production-Readiness Audit Fixes (2026-02-24)
 1. **Unauthenticated upload endpoint** — Added `isAuthenticated` middleware to `POST /api/uploads/request-url` to prevent anonymous file upload URL generation.
 2. **Rate limiting on public endpoints** — Added `checkoutRateLimiter` to `POST /api/tours/book`, `POST /api/tours/schedule`, `POST /api/day-passes/confirm`, and strict rate limiting (10 req/15min) to `POST /api/client-error`.
