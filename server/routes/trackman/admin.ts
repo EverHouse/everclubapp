@@ -748,7 +748,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
           }
           
           await recordUsage(sessionId as number, {
-            memberId: member.id as string,
+            memberId: (member.email as string).toLowerCase(),
             minutesCharged: Number(booking.duration_minutes) || 60,
           });
         }
@@ -786,12 +786,13 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
              SET user_id = ${member.id}, display_name = ${memberFullName}
              WHERE session_id = ${sessionId} AND participant_type = 'owner'`);
           
-          // Recalculate fees for the session now that we have an owner
           try {
             await recalculateSessionFees(sessionId as number, 'checkin');
             logger.info('[Trackman Resolve] Recalculated fees for session', { extra: { sessionId } });
+            const { syncBookingInvoice } = await import('../../core/billing/bookingInvoiceService');
+            await syncBookingInvoice(booking.id as number, sessionId as number);
           } catch (feeErr: unknown) {
-            logger.warn('[Trackman Resolve] Failed to recalculate fees for session', { extra: { sessionId, feeErr } });
+            logger.warn('[Trackman Resolve] Failed to recalculate/sync fees for session', { extra: { sessionId, feeErr } });
           }
           
           const todayPacific = getTodayPacific();
@@ -805,16 +806,16 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
           
           if (existingUsage.rows.length === 0) {
             await recordUsage(sessionId as number, {
-              memberId: member.id as string,
+              memberId: (member.email as string).toLowerCase(),
               minutesCharged: Number(booking.duration_minutes) || 60,
             });
-            logger.info('[Trackman Resolve] Created session and usage ledger for member , booking #', { extra: { memberEmail: member.email, bookingId: booking.id } });
+            logger.info('[Trackman Resolve] Created session and usage ledger for member, booking #', { extra: { memberEmail: member.email, bookingId: booking.id } });
           } else {
-            // OWNERSHIP CORRECTION: If existing usage belongs to a different member, update it
             const existingMemberId = (existingUsage.rows[0] as DbRow).member_id;
-            if (existingMemberId !== member.id) {
-              await db.execute(sql`UPDATE usage_ledger SET member_id = ${member.id} WHERE session_id = ${sessionId} AND (guest_fee IS NULL OR guest_fee = 0) AND source = 'trackman_import'`);
-              logger.info('[Trackman Resolve] Corrected usage ownership: -> for session', { extra: { existingMemberId, memberId: member.id, sessionId } });
+            const memberEmailLower = (member.email as string).toLowerCase();
+            if (existingMemberId !== memberEmailLower) {
+              await db.execute(sql`UPDATE usage_ledger SET member_id = ${memberEmailLower} WHERE session_id = ${sessionId} AND (guest_fee IS NULL OR guest_fee = 0) AND source = 'trackman_import'`);
+              logger.info('[Trackman Resolve] Corrected usage ownership for session', { extra: { existingMemberId, newMemberId: memberEmailLower, sessionId } });
             } else {
               logger.info('[Trackman Resolve] Session already has correct usage ledger, skipping', { extra: { sessionId } });
             }

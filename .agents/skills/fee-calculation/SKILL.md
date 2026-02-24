@@ -149,9 +149,10 @@ When `feeCalculator.ts` resolves fees, it checks in order: cached → ledger →
 - Staff direct-add during check-in (`server/routes/staffCheckin.ts`)
 - Trackman admin reassign (`server/routes/trackman/admin.ts` — `PUT /api/admin/booking/:id/reassign`)
 - Trackman admin link member (`server/routes/trackman/admin.ts` — `PUT /api/admin/booking/:bookingId/members/:slotId/link`)
+- Trackman admin resolve unmatched (`server/routes/trackman/admin.ts` — `PUT /api/admin/trackman/unmatched/:id/resolve`)
 - Check-in payment actions (`PATCH /api/bookings/:id/payments`) — uses `settleBookingInvoiceAfterCheckin()` instead
 
-**Audit finding (Feb 2026):** The reassign endpoint was missing `syncBookingInvoice()` after `recalculateSessionFees()`, causing Stripe invoices to retain stale overage charges after reassignment. Fixed by adding the sync call.
+**Audit findings (Feb 2026):** The reassign and resolve endpoints were both missing `syncBookingInvoice()` after `recalculateSessionFees()`, causing Stripe invoices to retain stale overage charges. Fixed by adding the sync call to both endpoints.
 
 The `usedGuestPass` field on a booking participant record is an input to guest pass logic: when `used_guest_pass = TRUE`, `computeFeeBreakdown` treats that participant's guest fee as already waived and does not attempt to consume another guest pass.
 

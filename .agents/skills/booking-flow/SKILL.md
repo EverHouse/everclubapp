@@ -304,6 +304,18 @@ Frontend was sending `staff.user_id || staff.id` as `member_id` when assigning b
 
 **Rule:** Never use `staff_users.id` as a substitute for `users.id`. They are different tables with different ID spaces. Always use `staff.user_id` (which references `users.id`) or resolve from email.
 
+#### Resolve Endpoint Usage Ledger and Invoice Sync (Feb 2026)
+
+`PUT /api/admin/trackman/unmatched/:id/resolve` had two bugs:
+
+1. **`usage_ledger.member_id` stored integer user ID instead of email.** `recordUsage()` was called with `member.id` (integer primary key from `users` table) instead of `member.email`. This violated invariant 10 (usage_ledger stores emails) and caused fee calculations to miss the resolved member's prior usage, producing incorrect overage charges.
+
+2. **Missing `syncBookingInvoice()` after `recalculateSessionFees()`.** The resolve endpoint recalculated fees but never synced the Stripe draft invoice, leaving stale line items (e.g., $50 overage from the unmatched state) on the invoice even after the member was resolved with $0 fees.
+
+**Fix:** Changed all three `recordUsage` calls (visitor path line 751, member path lines 808 and 816) to use `(member.email as string).toLowerCase()`. Added `syncBookingInvoice(booking.id, sessionId)` immediately after `recalculateSessionFees()`.
+
+**Rule:** When writing to `usage_ledger.member_id`, ALWAYS use the member's email address (lowercased), never the integer user ID. This applies to `recordUsage()` calls and direct `UPDATE usage_ledger` statements.
+
 #### Trackman Webhook SQL Safety
 
 Trackman webhook handlers (`webhook-billing.ts`, `webhook-validation.ts`) had production SQL errors caused by `undefined` values in Drizzle `sql` template literals creating empty placeholders. Fixed by coalescing all optional values with `?? null`.
