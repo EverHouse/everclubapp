@@ -889,6 +889,17 @@ export async function linkTrackmanToMember(
   guestCount: number,
   staffEmail: string
 ) {
+  let resolvedOwnerId = ownerId ? String(ownerId) : null;
+  if (!resolvedOwnerId && ownerEmail) {
+    const [userRow] = await db.select({ id: users.id })
+      .from(users)
+      .where(sql`LOWER(${users.email}) = ${ownerEmail.toLowerCase()}`)
+      .limit(1);
+    if (userRow) {
+      resolvedOwnerId = userRow.id;
+    }
+  }
+
   const result = await db.transaction(async (tx) => {
     const [existingBooking] = await tx.select()
       .from(bookingRequests)
@@ -904,7 +915,7 @@ export async function linkTrackmanToMember(
         .set({
           userEmail: ownerEmail.toLowerCase(),
           userName: ownerName,
-          userId: ownerId ? String(ownerId) : null,
+          userId: resolvedOwnerId,
           isUnmatched: false,
           status: 'approved',
           declaredPlayerCount: totalPlayerCount,
@@ -965,7 +976,7 @@ export async function linkTrackmanToMember(
         .values({
           userEmail: ownerEmail.toLowerCase(),
           userName: ownerName,
-          userId: ownerId ? String(ownerId) : null,
+          userId: resolvedOwnerId,
           resourceId,
           requestDate,
           startTime,
@@ -1441,6 +1452,17 @@ export async function assignWithPlayers(
 ) {
   const totalPlayerCount = 1 + additionalPlayers.filter(p => p.type === 'member' || p.type === 'guest_placeholder').length;
   const guestCount = additionalPlayers.filter(p => p.type === 'guest_placeholder').length;
+
+  let resolvedOwnerId = owner.member_id || null;
+  if (!resolvedOwnerId && owner.email) {
+    const [userRow] = await db.select({ id: users.id })
+      .from(users)
+      .where(sql`LOWER(${users.email}) = ${owner.email.toLowerCase()}`)
+      .limit(1);
+    if (userRow) {
+      resolvedOwnerId = userRow.id;
+    }
+  }
   
   const result = await db.transaction(async (tx) => {
     const [existingBooking] = await tx.select()
@@ -1457,7 +1479,7 @@ export async function assignWithPlayers(
       .set({
         userEmail: owner.email.toLowerCase(),
         userName: owner.name,
-        userId: owner.member_id || null,
+        userId: resolvedOwnerId,
         isUnmatched: false,
         status: 'approved',
         declaredPlayerCount: totalPlayerCount,

@@ -36,6 +36,10 @@ The Ever Club Members App is a private members club application for golf and wel
 2. **Link member to owner slot** — `PUT /api/admin/booking/:bookingId/members/:slotId/link` now detects owner-type slots with NULL `user_id` and updates them in-place instead of failing. Also cleans up duplicate member-type participants.
 3. **Auto-fix backfill** — `autoFixMissingTiers()` in `dataIntegrity.ts` now backfills NULL `user_id` on owner participants by joining `booking_requests.user_email → users.id` (90-day window, runs every 4 hours).
 
+### Staff Assignment FK Violation Fix (2026-02-24)
+1. **Invalid member_id from staff_users** — Frontend was sending `staff.user_id || staff.id` as `member_id` when assigning bookings to staff. If a staff member lacks a `users` record, `user_id` is null and `staff.id` (from `staff_users`) is NOT a valid `users.id` UUID, causing a foreign key violation on `booking_requests.user_id`. Fixed frontend to send `staff.user_id || null`.
+2. **Backend email-based resolution** — Both `linkTrackmanToMember()` and `assignWithPlayers()` in `resourceService.ts` now resolve `user_id` from the owner's email via the `users` table when no valid `member_id` is provided, preventing null fallback from causing downstream issues.
+
 ### Previously Fixed (prior sessions)
 - **SQL OR cross-linking** in activation_link checkout — replaced with id-first lookup + IS NULL guard.
 - **Multi-day facility closures** — intermediate days now correctly treated as fully closed.
