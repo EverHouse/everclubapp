@@ -7,6 +7,7 @@ export function getStatusColor(status: string, isDark: boolean): string {
     case 'confirmed':
       return isDark ? 'bg-green-500/20 text-green-300' : 'bg-green-500/20 text-green-700';
     case 'attended':
+    case 'checked_in':
       return isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-500/20 text-blue-700';
     case 'declined':
       return isDark ? 'bg-red-500/20 text-red-300' : 'bg-red-500/20 text-red-700';
@@ -31,6 +32,7 @@ export function getStatusBadge(status: string): string {
     case 'approved':
     case 'confirmed':
     case 'attended':
+    case 'checked_in':
       return 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300';
     case 'no_show':
     case 'declined':
@@ -87,6 +89,8 @@ export function formatStatusLabel(status: string): string {
       return 'Pending Approval';
     case 'no_show':
       return 'No Show';
+    case 'checked_in':
+      return 'Checked In';
     case 'cancellation_pending':
       return 'Cancellation Pending';
     case 'in_progress':

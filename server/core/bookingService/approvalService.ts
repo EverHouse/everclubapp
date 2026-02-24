@@ -1420,7 +1420,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
   }
 
   const hasSession = existing.session_id !== null;
-  const allowedStatuses = ['approved', 'confirmed', 'attended', 'no_show'];
+  const allowedStatuses = ['approved', 'confirmed', 'attended', 'no_show', 'checked_in'];
   if (hasSession && (currentStatus === 'cancelled' || currentStatus === 'cancellation_pending')) {
     allowedStatuses.push('cancelled', 'cancellation_pending');
   }
