@@ -31,6 +31,11 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
       if (!validation.valid) {
         return res.status(validation.statusCode!).json({ error: validation.error });
       }
+      if (validation.unlinkedFromBookingId) {
+        logger.info('[Approval] Trackman ID re-linked from same-member booking', {
+          extra: { trackmanBookingId: trackman_booking_id, fromBookingId: validation.unlinkedFromBookingId, toBookingId: bookingId }
+        });
+      }
     }
 
     if (status === 'approved') {

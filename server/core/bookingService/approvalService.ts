@@ -119,7 +119,7 @@ export function formatBookingRow(row: BookingRow) {
   };
 }
 
-export async function validateTrackmanId(trackmanBookingId: string, bookingId: number): Promise<{ valid: boolean; error?: string; statusCode?: number }> {
+export async function validateTrackmanId(trackmanBookingId: string, bookingId: number): Promise<{ valid: boolean; error?: string; statusCode?: number; unlinkedFromBookingId?: number }> {
   if (!/^\d+$/.test(trackmanBookingId)) {
     return {
       valid: false,
@@ -128,7 +128,7 @@ export async function validateTrackmanId(trackmanBookingId: string, bookingId: n
     };
   }
 
-  const [duplicate] = await db.select({ id: bookingRequests.id, status: bookingRequests.status })
+  const [duplicate] = await db.select({ id: bookingRequests.id, status: bookingRequests.status, userEmail: bookingRequests.userEmail })
     .from(bookingRequests)
     .where(and(
       eq(bookingRequests.trackmanBookingId, trackmanBookingId),
@@ -143,6 +143,21 @@ export async function validateTrackmanId(trackmanBookingId: string, bookingId: n
         .set({ trackmanBookingId: null })
         .where(eq(bookingRequests.id, duplicate.id));
     } else {
+      const [currentBooking] = await db.select({ userEmail: bookingRequests.userEmail })
+        .from(bookingRequests)
+        .where(eq(bookingRequests.id, bookingId))
+        .limit(1);
+
+      const sameEmail = currentBooking?.userEmail && duplicate.userEmail &&
+        currentBooking.userEmail.toLowerCase() === duplicate.userEmail.toLowerCase();
+
+      if (sameEmail) {
+        await db.update(bookingRequests)
+          .set({ trackmanBookingId: null })
+          .where(eq(bookingRequests.id, duplicate.id));
+        return { valid: true, unlinkedFromBookingId: duplicate.id as number };
+      }
+
       return {
         valid: false,
         statusCode: 409,

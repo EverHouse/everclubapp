@@ -56,7 +56,7 @@ export async function tryAutoApproveBooking(
            OR
            (br.start_time >= br.end_time AND (${startTime}::time < br.end_time OR ${startTime}::time >= br.start_time))
          )
-         AND br.status = 'pending'
+         AND br.status IN ('pending', 'pending_approval')
          AND br.trackman_booking_id IS NULL
        ORDER BY ABS(EXTRACT(EPOCH FROM (br.start_time::time - ${startTime}::time))), br.created_at DESC
        LIMIT 1`);

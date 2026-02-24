@@ -19,6 +19,8 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Creation-time overlap check now includes all active booking statuses (pending_approval and cancellation_pending were previously missing), closing a safety-net gap where conflicting requests could bypass the hard block",
       "Fixed: Staff manual booking overlap check aligned to the same six active statuses",
       "Fixed: Availability cache key now includes user identity, preventing stale self-exclusion data when admins use 'view as' to switch between members",
+      "Fixed: Trackman webhook now matches pending_approval bookings (not just pending), preventing webhook from creating a duplicate booking when the original request was awaiting approval",
+      "Fixed: Pasting a Trackman Booking ID that's already linked to another booking for the same member now automatically re-links it instead of showing an error — handles the case where a webhook auto-created a separate booking but the original pending request still needs linking",
     ]
   },
   {

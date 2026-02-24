@@ -39,14 +39,17 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
     }
 
     if (trackman_id) {
-      const [duplicate] = await db.select({ id: bookingRequests.id, status: bookingRequests.status })
+      const [duplicate] = await db.select({ id: bookingRequests.id, status: bookingRequests.status, userEmail: bookingRequests.userEmail })
         .from(bookingRequests)
         .where(eq(bookingRequests.trackmanBookingId, trackman_id))
         .limit(1);
       
       if (duplicate) {
         const terminalStatuses = ['cancelled', 'cancellation_pending', 'declined', 'no_show'];
-        if (terminalStatuses.includes(duplicate.status || '')) {
+        const sameEmail = user_email && duplicate.userEmail &&
+          user_email.toLowerCase() === duplicate.userEmail.toLowerCase();
+
+        if (terminalStatuses.includes(duplicate.status || '') || sameEmail) {
           await db.update(bookingRequests)
             .set({ trackmanBookingId: null })
             .where(eq(bookingRequests.id, duplicate.id));
