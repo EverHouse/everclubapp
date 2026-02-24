@@ -109,13 +109,18 @@ httpServer = http.createServer((req, res) => {
     return;
   }
 
+  if (req.url?.startsWith('/api/')) {
+    res.writeHead(503, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ready: false, reason: 'starting_up' }));
+    return;
+  }
+
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('OK');
 });
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   logger.info(`[Startup] HTTP server listening on port ${PORT} - health check ready`);
-  isReady = true;
 
   initializeApp().catch((err) => {
     logger.error('[Startup] Express initialization failed:', { error: err as Error });
@@ -912,6 +917,7 @@ async function initializeApp() {
   }
 
   expressApp = app;
+  isReady = true;
   logger.info('[Startup] Express app fully initialized and accepting requests');
 
   if (isProduction) {
@@ -966,7 +972,7 @@ async function initializeApp() {
           }
         }
       }
-    })();
+    })().catch(err => logger.error('[Startup] Unhandled error in archived staff check:', { error: err as Error }));
 
     (async () => {
       try {
@@ -981,7 +987,7 @@ async function initializeApp() {
       } catch (err) {
         logger.warn('[Startup] Failed to cleanup merged user Stripe IDs:', { error: err as Error });
       }
-    })();
+    })().catch(err => logger.error('[Startup] Unhandled error in Stripe ID cleanup:', { error: err as Error }));
 
     runStartupTasks()
       .then(() => {
