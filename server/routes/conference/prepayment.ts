@@ -96,8 +96,10 @@ router.post('/api/member/conference/prepay/estimate', isAuthenticated, async (re
   }
 });
 
+// DEPRECATED: Conference rooms now use invoice-based flow. This endpoint is kept for grandfathered in-flight bookings.
 router.post('/api/member/conference/prepay/create-intent', isAuthenticated, async (req: Request, res: Response) => {
   try {
+    logger.warn('[ConferencePrepayment] DEPRECATED: create-intent endpoint called - conference rooms now use invoice flow');
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -371,6 +373,7 @@ router.post('/api/member/conference/prepay/create-intent', isAuthenticated, asyn
   }
 });
 
+// DEPRECATED: Conference rooms now use invoice-based flow. Kept for grandfathered in-flight bookings.
 router.post('/api/member/conference/prepay/:id/confirm', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
@@ -444,6 +447,7 @@ router.post('/api/member/conference/prepay/:id/confirm', isAuthenticated, async 
   }
 });
 
+// DEPRECATED: Conference rooms now use invoice-based flow. Kept for grandfathered in-flight bookings.
 router.get('/api/member/conference/prepay/:id', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);

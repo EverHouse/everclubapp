@@ -21,7 +21,6 @@ import { GuardianConsentForm, type GuardianConsentData } from '../../components/
 import { AnimatedPage } from '../../components/motion';
 import { TabTransition } from '../../components/motion/TabTransition';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { StripePaymentWithSecret } from '../../components/stripe/StripePaymentForm';
 import {
   type APIResource,
   type APISlot,
@@ -83,16 +82,8 @@ const BookGolf: React.FC = () => {
   const [showGuardianConsent, setShowGuardianConsent] = useState(false);
   const [guardianConsentData, setGuardianConsentData] = useState<GuardianConsentData | null>(null);
   
-  const [conferencePrepaymentId, setConferencePrepaymentId] = useState<number | null>(null);
   const [conferencePaymentRequired, setConferencePaymentRequired] = useState(false);
   const [conferenceOverageFee, setConferenceOverageFee] = useState(0);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  
-  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
-  const [stripePrepaymentId, setStripePrepaymentId] = useState<number | null>(null);
-  const [stripePaymentIntentId, setStripePaymentIntentId] = useState<string | null>(null);
-  const [showStripeModal, setShowStripeModal] = useState(false);
-  const [stripeAmount, setStripeAmount] = useState(0);
   
   const timeSlotsRef = useRef<HTMLDivElement>(null);
   const baySelectionRef = useRef<HTMLDivElement>(null);
@@ -343,7 +334,6 @@ const BookGolf: React.FC = () => {
       guardian_relationship?: string;
       guardian_phone?: string;
       guardian_consent?: boolean;
-      conference_prepayment_id?: number;
     }) => postWithCredentials<{ id: number }>('/api/booking-requests', bookingData),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: bookGolfKeys.all });
@@ -463,9 +453,7 @@ const BookGolf: React.FC = () => {
     });
   }, [playerCount]);
 
-  // Reset conference prepayment state when slot, resource, date, or duration changes
   useEffect(() => {
-    setConferencePrepaymentId(null);
     setConferencePaymentRequired(false);
     setConferenceOverageFee(0);
   }, [selectedSlot, selectedResource, selectedDateObj, duration]);
@@ -507,69 +495,6 @@ const BookGolf: React.FC = () => {
 
     fetchPrepaymentEstimate();
   }, [activeTab, selectedSlot, selectedResource, selectedDateObj, duration, effectiveUser?.email]);
-
-  // Handle conference room prepayment
-  const handleConferencePrepayment = async (useCredit: boolean) => {
-    if (!effectiveUser?.email || !selectedDateObj || !selectedSlot) return;
-
-    setIsProcessingPayment(true);
-    setBookingError(null);
-
-    try {
-      const response = await postWithCredentials<{
-        success?: boolean;
-        prepaymentId?: number;
-        creditApplied?: boolean;
-        paymentRequired?: boolean;
-        clientSecret?: string;
-        paymentIntentId?: string;
-        totalCents?: number;
-        error?: string;
-      }>('/api/member/conference/prepay/create-intent', {
-        memberEmail: effectiveUser.email,
-        date: selectedDateObj.date,
-        startTime: selectedSlot.startTime24,
-        durationMinutes: duration,
-        useCredit
-      });
-
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
-      // Handle card payment needed
-      if (response.clientSecret && response.paymentIntentId && response.prepaymentId) {
-        setStripeClientSecret(response.clientSecret);
-        setStripePaymentIntentId(response.paymentIntentId);
-        setStripePrepaymentId(response.prepaymentId);
-        setStripeAmount(response.totalCents || 0);
-        setShowStripeModal(true);
-        setIsProcessingPayment(false);
-        return;
-      }
-
-      if (response.prepaymentId) {
-        setConferencePrepaymentId(response.prepaymentId);
-        setConferencePaymentRequired(false);
-        haptic.success();
-        playSound('success');
-        showToast('Payment successful!', 'success');
-      } else if (response.paymentRequired === false) {
-        setConferencePaymentRequired(false);
-        setConferenceOverageFee(0);
-      } else {
-        throw new Error('Payment failed. Please try again.');
-      }
-    } catch (err: unknown) {
-      haptic.error();
-      const errorMessage = (err instanceof Error ? err.message : String(err)) || 'Payment failed. Please try again.';
-      showToast(errorMessage, 'error');
-      setBookingError(errorMessage);
-    } finally {
-      setIsProcessingPayment(false);
-    }
-  };
-
 
 
   // Auto-scroll to time slots when duration is selected by user (not on initial load)
@@ -797,9 +722,6 @@ const BookGolf: React.FC = () => {
           guardian_relationship: consent.guardianRelationship,
           guardian_phone: consent.guardianPhone,
           guardian_consent: consent.acknowledged
-        } : {}),
-        ...(activeTab === 'conference' && conferencePrepaymentId ? {
-          conference_prepayment_id: conferencePrepaymentId
         } : {})
       });
       
@@ -863,44 +785,6 @@ const BookGolf: React.FC = () => {
     await submitBooking();
   };
 
-  const handleStripePaymentSuccess = async (paymentIntentId?: string) => {
-    if (!stripePrepaymentId || !stripePaymentIntentId) {
-      showToast('Payment processing error', 'error');
-      return;
-    }
-
-    try {
-      const confirmResponse = await postWithCredentials<{
-        success?: boolean;
-        error?: string;
-      }>(`/api/member/conference/prepay/${stripePrepaymentId}/confirm`, {
-        paymentIntentId: stripePaymentIntentId
-      });
-
-      if (confirmResponse.error) {
-        throw new Error(confirmResponse.error);
-      }
-
-      if (confirmResponse.success) {
-        setConferencePrepaymentId(stripePrepaymentId);
-        setShowStripeModal(false);
-        setStripeClientSecret(null);
-        setStripePaymentIntentId(null);
-        setStripePrepaymentId(null);
-        setConferencePaymentRequired(false);
-        haptic.success();
-        playSound('success');
-        showToast('Payment successful!', 'success');
-      } else {
-        throw new Error('Failed to confirm payment');
-      }
-    } catch (err: unknown) {
-      haptic.error();
-      const errorMessage = (err instanceof Error ? err.message : String(err)) || 'Failed to confirm payment';
-      showToast(errorMessage, 'error');
-      setBookingError(errorMessage);
-    }
-  };
   
   const handleGuardianConsentSubmit = (data: GuardianConsentData) => {
     setGuardianConsentData(data);
@@ -914,8 +798,7 @@ const BookGolf: React.FC = () => {
     selectedSlot && 
     selectedResource && 
     !isBooking && 
-    (activeTab !== 'simulator' || !isAtDailyLimit) &&
-    (activeTab !== 'conference' || !conferencePaymentRequired || conferencePrepaymentId)
+    (activeTab !== 'simulator' || !isAtDailyLimit)
   );
 
 
@@ -1473,82 +1356,21 @@ const BookGolf: React.FC = () => {
         </>
       )}
 
-      {activeTab === 'conference' && selectedSlot && selectedResource && conferencePaymentRequired && !conferencePrepaymentId && (
-        <div ref={requestButtonRef} className="fixed bottom-24 left-0 right-0 z-20 px-4 sm:px-6 flex flex-col items-center w-full max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto animate-in slide-in-from-bottom-4 duration-normal gap-2">
-          <div className={`w-full px-3 sm:px-4 py-4 rounded-xl backdrop-blur-md border ${isDark ? 'bg-black/70 border-amber-500/30' : 'bg-white/90 border-amber-200 shadow-lg'}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <span className={`material-symbols-outlined text-lg ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>payments</span>
-              <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Prepayment Required</span>
-            </div>
-            <div className={`mb-4 p-3 rounded-lg ${isDark ? 'bg-amber-500/10' : 'bg-amber-50'}`}>
-              <div className="flex justify-between items-center mb-1">
-                <span className={`text-sm ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Overage Fee</span>
-                <span className={`text-lg font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-                  ${(conferenceOverageFee / 100).toFixed(2)}
-                </span>
-              </div>
-              <p className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
-                This booking exceeds your daily allowance
-              </p>
-            </div>
-            {bookingError && (
-              <div className={`mb-3 p-2 rounded-lg text-sm ${isDark ? 'bg-red-500/20 text-red-300' : 'bg-red-50 text-red-600'}`}>
-                {bookingError}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleConferencePrepayment(false)}
-                disabled={isProcessingPayment}
-                className={`flex-1 py-3 px-3 rounded-xl font-bold text-sm transition-all duration-fast active:scale-[0.98] flex items-center justify-center gap-2 ${
-                  isProcessingPayment 
-                    ? 'opacity-50 cursor-not-allowed' 
-                    : ''
-                } ${isDark ? 'bg-white/10 text-white hover:bg-white/20 border border-white/20' : 'bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20'}`}
-              >
-                {isProcessingPayment ? (
-                  <WalkingGolferSpinner size="sm" />
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-lg">credit_card</span>
-                    <span>Pay with Card</span>
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => handleConferencePrepayment(true)}
-                disabled={isProcessingPayment}
-                className={`flex-1 py-3 px-3 rounded-xl font-bold text-sm transition-all duration-fast active:scale-[0.98] flex items-center justify-center gap-2 ${
-                  isProcessingPayment 
-                    ? 'opacity-50 cursor-not-allowed' 
-                    : ''
-                } bg-accent text-primary hover:bg-accent/90`}
-              >
-                {isProcessingPayment ? (
-                  <WalkingGolferSpinner size="sm" />
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-lg">account_balance_wallet</span>
-                    <span>Use Credit</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {canBook && (
         <div ref={requestButtonRef} className="fixed bottom-24 left-0 right-0 z-20 px-4 sm:px-6 flex flex-col items-center w-full max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto animate-in slide-in-from-bottom-4 duration-normal gap-2">
-          {activeTab === 'conference' && conferencePrepaymentId && (
-            <div className={`w-full px-3 sm:px-4 py-2 rounded-xl backdrop-blur-md border flex items-center justify-between ${isDark ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-emerald-50 border-emerald-200'}`}>
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-lg text-emerald-500">check_circle</span>
-                <span className={`text-sm font-medium ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>Payment Complete</span>
+          {activeTab === 'conference' && conferencePaymentRequired && conferenceOverageFee > 0 && (
+            <div className={`w-full px-3 sm:px-4 py-3 rounded-xl backdrop-blur-md border flex items-start gap-3 ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
+              <span className={`material-symbols-outlined text-lg flex-shrink-0 mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>info</span>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-sm font-bold ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
+                    Overage Fee: ${(conferenceOverageFee / 100).toFixed(2)}
+                  </span>
+                </div>
+                <p className={`text-xs ${isDark ? 'text-white/60' : 'text-primary/60'}`}>
+                  This booking exceeds your daily allowance. The overage fee will be added to your account invoice.
+                </p>
               </div>
-              <span className={`text-sm font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                ${(conferenceOverageFee / 100).toFixed(2)} paid
-              </span>
             </div>
           )}
           <FeeBreakdownCard
@@ -1651,33 +1473,6 @@ const BookGolf: React.FC = () => {
         />
       </ModalShell>
 
-      <ModalShell 
-        isOpen={showStripeModal} 
-        onClose={() => {
-          setShowStripeModal(false);
-          setStripeClientSecret(null);
-          setStripePaymentIntentId(null);
-          setStripePrepaymentId(null);
-        }}
-        title="Complete Payment"
-      >
-        {stripeClientSecret && (
-          <div className="p-6">
-            <StripePaymentWithSecret
-              clientSecret={stripeClientSecret}
-              amount={stripeAmount / 100}
-              description="Conference room prepayment"
-              onSuccess={handleStripePaymentSuccess}
-              onCancel={() => {
-                setShowStripeModal(false);
-                setStripeClientSecret(null);
-                setStripePaymentIntentId(null);
-                setStripePrepaymentId(null);
-              }}
-            />
-          </div>
-        )}
-      </ModalShell>
     </SwipeablePage>
     </AnimatedPage>
   );
