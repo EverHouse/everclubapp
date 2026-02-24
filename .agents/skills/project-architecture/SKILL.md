@@ -102,7 +102,9 @@ router.post('/api/resource', async (req, res) => {
 })
 ```
 
-Both patterns provide equivalent security. Pattern A is preferred for new routes. Pattern B is used in roster.ts, bays/bookings.ts, and some other files. Do NOT treat Pattern B routes as "missing auth" — they have inline auth checks.
+Both patterns provide equivalent **authentication** (identity verification). However, Pattern B only verifies the user is logged in — it does NOT enforce role-based authorization. Routes requiring staff/admin access MUST use `isStaffOrAdmin` or `isAdmin` middleware. Inline `getSessionUser()` is only acceptable for member-authenticated endpoints where any logged-in user may access the route.
+
+Pattern A is preferred for new routes. Pattern B is used in roster.ts, bays/bookings.ts, and some other files. Do NOT treat Pattern B routes as "missing authentication" — they verify identity. But always verify they do not need role-based authorization that only middleware provides.
 
 **Intentionally public routes** (no auth required):
 - `POST /api/auth/*` — login/registration flows

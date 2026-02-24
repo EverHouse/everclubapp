@@ -9,6 +9,8 @@ All mutating routes (POST/PUT/PATCH/DELETE) must be protected. Two equivalent pa
 1. **Middleware** (`isAuthenticated`, `isStaffOrAdmin`, `isAdmin`) — preferred for new routes
 2. **Inline check** (`getSessionUser(req)` + 401 return) — used in roster.ts, bays/bookings.ts
 
+**Important:** Inline checks only verify identity (authentication), not role/permissions (authorization). They are acceptable only for member-facing routes where any logged-in user can access. Routes requiring staff or admin access must use `isStaffOrAdmin` or `isAdmin` middleware.
+
 **Intentionally public mutating routes:**
 - Auth endpoints (`/api/auth/*`)
 - Webhook endpoints (`/api/webhooks/*`) — verified by payload signature
