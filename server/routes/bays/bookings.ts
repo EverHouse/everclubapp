@@ -18,7 +18,7 @@ import { isStaffOrAdmin } from '../../core/middleware';
 import { getCalendarIdByName, deleteCalendarEvent } from '../../core/calendar/index';
 import { getGuestPassesRemaining, refundGuestPass } from '../guestPasses';
 import { computeFeeBreakdown, getEffectivePlayerCount, applyFeeBreakdownToParticipants, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
-import { voidBookingInvoice, syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
+import { voidBookingInvoice, syncBookingInvoice, finalizeAndPayInvoice } from '../../core/billing/bookingInvoiceService';
 import { PRICING } from '../../core/billing/pricingConfig';
 import { createGuestPassHold, releaseGuestPassHold } from '../../core/billing/guestPassHoldService';
 import { ensureSessionForBooking, createSessionWithUsageTracking } from '../../core/bookingService/sessionManager';
@@ -835,9 +835,19 @@ router.post('/api/booking-requests', async (req, res) => {
         if (confSessionId) {
           await recalculateSessionFees(confSessionId, 'booking_creation');
           await syncBookingInvoice(row.id, confSessionId);
-          logger.info('[ConferenceRoom] Invoice sync triggered after session creation', {
-            extra: { bookingId: row.id, sessionId: confSessionId }
-          });
+          
+          // Auto-finalize and pay using Stripe credit balance
+          try {
+            const payResult = await finalizeAndPayInvoice({ bookingId: row.id });
+            logger.info('[ConferenceRoom] Invoice finalized and payment attempted', {
+              extra: { bookingId: row.id, sessionId: confSessionId, paidInFull: payResult.paidInFull, status: payResult.status }
+            });
+            (row as any)._invoicePayResult = payResult;
+          } catch (payErr: unknown) {
+            logger.warn('[ConferenceRoom] Invoice finalize/pay failed (will be collected at check-in)', {
+              extra: { bookingId: row.id, error: (payErr as Error).message }
+            });
+          }
         }
       } catch (invoiceErr: unknown) {
         logger.warn('[ConferenceRoom] Non-blocking: Failed to create invoice after booking', {
@@ -904,7 +914,15 @@ router.post('/api/booking-requests', async (req, res) => {
       created_at: row.createdAt,
       updated_at: row.updatedAt,
       calendar_event_id: (row as any).calendarEventId,
-      reschedule_booking_id: row.rescheduleBookingId
+      reschedule_booking_id: row.rescheduleBookingId,
+      ...((row as any)._invoicePayResult ? {
+        invoicePayment: {
+          paidInFull: (row as any)._invoicePayResult.paidInFull,
+          status: (row as any)._invoicePayResult.status,
+          clientSecret: (row as any)._invoicePayResult.clientSecret || null,
+          amountFromBalance: (row as any)._invoicePayResult.amountFromBalance || 0,
+        }
+      } : {})
     });
     
     // Track first booking for onboarding (async, non-blocking)

@@ -334,7 +334,7 @@ const BookGolf: React.FC = () => {
       guardian_relationship?: string;
       guardian_phone?: string;
       guardian_consent?: boolean;
-    }) => postWithCredentials<{ id: number }>('/api/booking-requests', bookingData),
+    }) => postWithCredentials<{ id: number; invoicePayment?: { paidInFull: boolean; status: string; clientSecret: string | null; amountFromBalance: number } }>('/api/booking-requests', bookingData),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: bookGolfKeys.all });
     },
@@ -705,7 +705,7 @@ const BookGolf: React.FC = () => {
 
       // Use full playerCount since all guest slots are charged the guest fee rate
       // (unless member with Core+ fills slot or guest pass is used)
-      await createBookingMutation.mutateAsync({
+      const bookingResult = await createBookingMutation.mutateAsync({
         user_email: effectiveUser.email,
         user_name: effectiveUser.name,
         user_tier: effectiveUser.tier,
@@ -739,7 +739,18 @@ const BookGolf: React.FC = () => {
       
       haptic.success();
       playSound('bookingConfirmed');
-      showToast('Booking request sent! Staff will review shortly.', 'success', 4000);
+      
+      if (activeTab === 'conference' && bookingResult.invoicePayment) {
+        if (bookingResult.invoicePayment.paidInFull) {
+          showToast('Conference room booked and paid!', 'success', 4000);
+        } else {
+          showToast('Conference room booked! Overage fee will be collected at check-in.', 'success', 4000);
+        }
+      } else if (activeTab === 'conference') {
+        showToast('Conference room booked!', 'success', 4000);
+      } else {
+        showToast('Booking request sent! Staff will review shortly.', 'success', 4000);
+      }
       setShowConfirmation(true);
       setTimeout(() => {
         setShowConfirmation(false);
@@ -1360,7 +1371,7 @@ const BookGolf: React.FC = () => {
         <div ref={requestButtonRef} className="fixed bottom-24 left-0 right-0 z-20 px-4 sm:px-6 flex flex-col items-center w-full max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto animate-in slide-in-from-bottom-4 duration-normal gap-2">
           {activeTab === 'conference' && conferencePaymentRequired && conferenceOverageFee > 0 && (
             <div className={`w-full px-3 sm:px-4 py-3 rounded-xl backdrop-blur-md border flex items-start gap-3 ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
-              <span className={`material-symbols-outlined text-lg flex-shrink-0 mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>info</span>
+              <span className={`material-symbols-outlined text-lg flex-shrink-0 mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>payments</span>
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className={`text-sm font-bold ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
@@ -1368,7 +1379,7 @@ const BookGolf: React.FC = () => {
                   </span>
                 </div>
                 <p className={`text-xs ${isDark ? 'text-white/60' : 'text-primary/60'}`}>
-                  This booking exceeds your daily allowance. The overage fee will be added to your account invoice.
+                  This booking exceeds your daily allowance. Your account credit will be charged automatically when you book.
                 </p>
               </div>
             </div>
@@ -1396,7 +1407,17 @@ const BookGolf: React.FC = () => {
             {isBooking ? (
               <>
                 <WalkingGolferSpinner size="sm" />
-                <span>Booking...</span>
+                <span>{activeTab === 'conference' ? 'Booking...' : 'Booking...'}</span>
+              </>
+            ) : activeTab === 'conference' && conferencePaymentRequired ? (
+              <>
+                <span className="material-symbols-outlined text-xl">payments</span>
+                <span>Book & Pay ${(conferenceOverageFee / 100).toFixed(2)}</span>
+              </>
+            ) : activeTab === 'conference' ? (
+              <>
+                <span>Book Conference Room</span>
+                <span className="material-symbols-outlined text-xl">arrow_forward</span>
               </>
             ) : (
               <>
@@ -1411,10 +1432,10 @@ const BookGolf: React.FC = () => {
       {showConfirmation && (
         <div className="fixed bottom-32 left-0 right-0 z-[60] flex justify-center pointer-events-none">
           <div className={`backdrop-blur-md px-6 py-3 rounded-full shadow-2xl text-sm font-bold flex items-center gap-3 animate-pop-in w-max max-w-[90%] border pointer-events-auto ${isDark ? 'bg-black/80 text-white border-white/25' : 'bg-white/95 text-primary border-black/10'}`}>
-            <span className="material-symbols-outlined text-xl text-green-500">schedule_send</span>
+            <span className="material-symbols-outlined text-xl text-green-500">{activeTab === 'conference' ? 'check_circle' : 'schedule_send'}</span>
             <div>
-              <p>Request sent!</p>
-              <p className="text-[10px] font-normal opacity-80 mt-0.5">Staff will review shortly.</p>
+              <p>{activeTab === 'conference' ? 'Booked!' : 'Request sent!'}</p>
+              <p className="text-[10px] font-normal opacity-80 mt-0.5">{activeTab === 'conference' ? 'Conference room confirmed.' : 'Staff will review shortly.'}</p>
             </div>
           </div>
         </div>

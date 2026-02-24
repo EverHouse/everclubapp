@@ -15,7 +15,7 @@ import { CALENDAR_CONFIG } from '../../core/calendar/config';
 import { broadcastAvailabilityUpdate } from '../../core/websocket';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
-import { syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
+import { syncBookingInvoice, finalizeAndPayInvoice } from '../../core/billing/bookingInvoiceService';
 
 const router = Router();
 
@@ -329,6 +329,19 @@ router.post('/api/staff/conference-room/booking', isStaffOrAdmin, async (req: Re
         if (sessionResult.sessionId) {
           await recalculateSessionFees(sessionResult.sessionId, 'staff_booking');
           await syncBookingInvoice(bookingId, sessionResult.sessionId);
+          
+          // Auto-finalize and pay using Stripe credit balance
+          try {
+            const payResult = await finalizeAndPayInvoice({ bookingId });
+            logger.info('[StaffConferenceBooking] Invoice finalized and payment attempted', {
+              extra: { bookingId, sessionId: sessionResult.sessionId, paidInFull: payResult.paidInFull, status: payResult.status }
+            });
+          } catch (payErr: unknown) {
+            logger.warn('[StaffConferenceBooking] Invoice finalize/pay failed (will be collected at check-in)', {
+              extra: { bookingId, error: (payErr as Error).message }
+            });
+          }
+          
           logger.info('[StaffConferenceBooking] Session and invoice created', {
             extra: { bookingId, sessionId: sessionResult.sessionId }
           });

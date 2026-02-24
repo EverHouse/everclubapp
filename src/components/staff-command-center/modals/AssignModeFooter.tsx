@@ -40,7 +40,7 @@ export function AssignModeFooter({
 }: AssignModeFooterProps) {
   return (
     <div className="p-4 space-y-2">
-      {!isConferenceRoom && feeEstimate && feeEstimate.totalCents > 0 && (
+      {feeEstimate && feeEstimate.totalCents > 0 && (
         <div className="mb-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -61,7 +61,7 @@ export function AssignModeFooter({
           </div>
         </div>
       )}
-      {!isConferenceRoom && isCalculatingFees && (
+      {isCalculatingFees && (
         <div className="mb-3 p-3 rounded-lg bg-gray-50 dark:bg-white/5 flex items-center justify-center gap-2 text-sm text-primary/50 dark:text-white/50">
           <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
           Calculating fees...

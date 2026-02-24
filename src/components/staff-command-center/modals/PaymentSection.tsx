@@ -17,7 +17,6 @@ export function PaymentSummaryBody({
   renderTierBadge,
   paymentSuccess,
 }: PaymentSummaryBodyProps) {
-  if (isConferenceRoom) return null;
   const fs = rosterData?.financialSummary;
   if (!fs) return null;
 
