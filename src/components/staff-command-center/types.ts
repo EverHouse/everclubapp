@@ -10,6 +10,7 @@ export interface BookingRequest {
   status: string;
   source?: string;
   resource_name?: string;
+  resource_type?: string;
   member_notes?: string | null;
   notes?: string | null;
   has_unpaid_fees?: boolean;

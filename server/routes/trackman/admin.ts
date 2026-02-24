@@ -1293,6 +1293,12 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
       } catch (feeErr: unknown) {
         logger.warn('[Reassign] Fee recalculation failed', { extra: { sessionId, feeErr } });
       }
+      try {
+        const { syncBookingInvoice } = await import('../../core/billing/bookingInvoiceService');
+        await syncBookingInvoice(parseInt(id as string), sessionId as number);
+      } catch (invoiceErr: unknown) {
+        logger.warn('[Reassign] Invoice sync failed after fee recalculation', { extra: { sessionId, bookingId: id, invoiceErr } });
+      }
     }
 
     await logFromRequest(req, {
@@ -2604,9 +2610,9 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
     }
     
     const bookingResult = await db.execute(sql`SELECT request_date, start_time, end_time, status, session_id FROM booking_requests WHERE id = ${bookingId}`);
+    const sessionId = (bookingResult.rows[0] as DbRow)?.session_id;
     
-    if ((bookingResult.rows[0] as DbRow)?.session_id) {
-      const sessionId = (bookingResult.rows[0] as DbRow).session_id;
+    if (sessionId) {
       const booking = bookingResult.rows[0] as DbRow;
       
       const slotDuration = booking.start_time && booking.end_time

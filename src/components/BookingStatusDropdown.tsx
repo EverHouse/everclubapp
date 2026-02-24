@@ -1,4 +1,5 @@
-import { useState, type MouseEvent } from 'react';
+import { useState, useRef, useEffect, type MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 
 interface BookingStatusDropdownProps {
   currentStatus: 'check_in' | 'attended' | 'no_show';
@@ -22,9 +23,6 @@ export function BookingStatusDropdown({
   const [isOpen, setIsOpen] = useState(false);
 
   const isSm = size === 'sm';
-  const menuPosition = menuDirection === 'up'
-    ? 'left-0 bottom-full mb-1'
-    : 'right-0 top-full mt-1';
   const minWidth = isSm ? 'min-w-[140px]' : 'min-w-[160px]';
   const itemTextSize = isSm ? 'text-xs' : 'text-sm';
   const iconSize = isSm ? 'w-5 h-5' : 'w-6 h-6';
@@ -116,16 +114,41 @@ export function BookingStatusDropdown({
     );
   };
 
+  const buttonRef = useRef<HTMLDivElement>(null);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      if (menuDirection === 'up') {
+        setMenuStyle({
+          position: 'fixed',
+          left: rect.left,
+          bottom: window.innerHeight - rect.top + 4,
+          zIndex: 9999,
+        });
+      } else {
+        setMenuStyle({
+          position: 'fixed',
+          left: Math.min(rect.left, window.innerWidth - 180),
+          top: rect.bottom + 4,
+          zIndex: 9999,
+        });
+      }
+    }
+  }, [isOpen, menuDirection]);
+
   return (
-    <div className={`relative ${className}`}>
+    <div ref={buttonRef} className={`relative ${className}`}>
       {renderButton()}
-      {isOpen && !disabled && !loading && (
+      {isOpen && !disabled && !loading && createPortal(
         <>
           <div
-            className="fixed inset-0 z-40"
+            className="fixed inset-0"
+            style={{ zIndex: 9998 }}
             onClick={handleBackdropClick}
           />
-          <div className={`absolute ${menuPosition} z-50 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-primary/10 dark:border-white/20 py-1 ${minWidth} animate-pop-in`}>
+          <div style={menuStyle} className={`bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-primary/10 dark:border-white/20 py-1 ${minWidth} animate-pop-in`}>
             <button
               type="button"
               onClick={(e) => handleItemClick(e, 'attended')}
@@ -153,7 +176,8 @@ export function BookingStatusDropdown({
               )}
             </button>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );
