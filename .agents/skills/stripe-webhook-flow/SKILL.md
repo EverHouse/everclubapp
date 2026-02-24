@@ -70,6 +70,20 @@ Special case: if `subscription.created` arrives AFTER `subscription.deleted` for
 
 However, `subscription.created` is allowed through for all other out-of-order scenarios because subscription creation should never be silently dropped.
 
+### Subscription ID Match Guard (Invoice Failures)
+
+`handleInvoicePaymentFailed` includes a subscription ID match guard to prevent late-arriving failed invoices from old subscriptions from downgrading active members:
+
+```
+1. Extract subscription ID from invoice
+2. Query user's current stripe_subscription_id
+3. If user has a different current subscription → SKIP (stale invoice from old sub)
+4. If user is already cancelled/inactive → SKIP
+5. Only proceed with grace period if subscription IDs match
+```
+
+This prevents the scenario where a member cancels Subscription A, starts Subscription B, and a retried failed invoice from Subscription A sets them to `past_due` despite actively paying on Subscription B.
+
 ### 4. Transaction Boundary and Dispatch
 
 All handler work runs inside a single PostgreSQL transaction (`BEGIN` / `COMMIT`). If any handler throws, the transaction is rolled back and the error propagates to Stripe (which will retry).
@@ -88,6 +102,10 @@ Every handler returns `DeferredAction[]` — an array of async closures. These r
 - HubSpot syncs (`syncMemberToHubSpot`, `handleTierChange`)
 
 Deferred actions run AFTER the transaction commits via `executeDeferredActions()`. Each action is wrapped in try/catch — a deferred action failure is logged but never rolls back the committed transaction.
+
+### Webhook Dedup Table Cleanup
+
+After deferred actions execute, `cleanupOldProcessedEvents()` is called probabilistically (5% of webhooks) to delete `webhook_processed_events` rows older than 7 days. This fire-and-forget call prevents unbounded table growth without impacting webhook latency. Errors are logged but never propagated.
 
 Critical operations (DB writes, status changes, booking payment updates) happen INSIDE the transaction. Non-critical operations (notifications, emails, syncs) are deferred.
 
@@ -168,6 +186,7 @@ This guard appears in:
 - `handleSubscriptionCreated` (existing user path) — skips if billing_provider is not stripe
 - `handleInvoicePaymentSucceeded` — skips grace period clearing
 - `handleInvoicePaymentFailed` — skips grace period start
+- `handleInvoicePaymentFailed` — skips grace period if billing_provider is not stripe, AND skips if invoice's subscription doesn't match user's current subscription
 
 ### Why It Prevents Loops
 
@@ -296,6 +315,16 @@ Product/price webhooks keep the local catalog in sync with Stripe:
 3. **`source === 'activation_link'`** — Activate pending user: set `membership_status = 'active'`, `billing_provider = 'stripe'`, attach `stripe_customer_id` and `stripe_subscription_id`. Sync contact and deal to HubSpot.
 4. **`source === 'staff_invite'`** — Resolve user via `resolveUserByEmail` (handles linked emails). If user exists, update Stripe customer ID and activate. If not, check `sync_exclusions` (permanently deleted users), then create new user. Auto-unarchive if archived. Sync to HubSpot. Mark `form_submissions` as converted.
 5. **`purpose === 'day_pass'`** — Record day pass via `recordDayPassPurchaseFromWebhook`, send QR code email via `sendPassWithQrEmail`, notify staff, broadcast day pass update, queue HubSpot sync via `queueDayPassSyncToHubSpot`
+
+### Async Payment Handlers
+
+`handleCheckoutSessionAsyncPaymentSucceeded` handles delayed payment methods (ACH, Klarna, Affirm). For day pass purchases, it must:
+
+1. Extract the same metadata fields as the synchronous handler (`product_slug`, `email`, `first_name`, `last_name`, `phone`)
+2. Call `recordDayPassPurchaseFromWebhook()` with the correct object payload (NOT positional args)
+3. **Throw** on failure so Stripe retries the webhook — never silently swallow errors for financial operations
+
+**Rule**: Async payment handlers must maintain **payload parity** with their synchronous counterparts. Any change to the synchronous handler's payload construction must be mirrored in the async handler.
 
 ## Linked Email Resolution
 

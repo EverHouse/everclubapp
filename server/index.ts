@@ -463,9 +463,15 @@ async function initializeApp() {
         const filePath = path.join(__dirname, '../dist/assets', req.path);
         if (!fs.existsSync(filePath)) {
           logger.info(`[Stale Asset] 404 for /assets${req.path} - sending reload response`);
-          res.status(200).setHeader('Content-Type', 'text/html').send(
-            '<!DOCTYPE html><html><head><script>window.location.reload()</script></head><body></body></html>'
-          );
+          if (req.path.endsWith('.css') || req.path.endsWith('.css.br')) {
+            res.status(200).setHeader('Content-Type', 'text/css').send(
+              '/* stale asset - page will reload */ body { display: none !important; }'
+            );
+          } else {
+            res.status(200).setHeader('Content-Type', 'application/javascript').send(
+              'window.location.reload(true);'
+            );
+          }
           return;
         }
       }

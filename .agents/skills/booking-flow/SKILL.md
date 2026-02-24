@@ -172,6 +172,8 @@ Three-step flow (all staff-only):
 
 `timePeriodsOverlap()` handles cross-midnight by adding 1440 minutes to any end time < start time. However, cross-midnight bookings cannot be created through normal flows (club closes at 10 PM).
 
+`hasTimeOverlap(start1, end1, start2, end2)` in `bookingValidation.ts` handles overnight wrap-around closures (where `start2 > end2`, e.g., 22:00–06:00). When detected, it splits the range into two sub-ranges: `[start2, 1440)` (night portion) and `[0, end2)` (morning portion), checking overlap against each. This ensures facility closures spanning midnight correctly block bookings in both the late-night and early-morning windows.
+
 `checkUnifiedAvailability(resourceId, date, startTime, endTime, excludeSessionId?)` runs three layered checks:
 
 1. `checkClosureConflict()` — facility-wide closures from `facility_closures` table.
@@ -212,6 +214,8 @@ Resource type?
    - Facility closures (`facility_closures` table)
    - Availability blocks (`availability_blocks` table)
    - Existing sessions (`booking_sessions` table with time overlap)
+
+3a. **Overnight closure detection**: `hasTimeOverlap()` supports wrap-around time ranges where `startMinutes > endMinutes` (e.g., 22:00 to 06:00). The range is split into `[start, 1440)` and `[0, end)` for overlap checks. This is critical for closures that span midnight.
 
 4. **Guest pass atomicity**: Guest pass deduction happens INSIDE the session creation transaction. If session creation fails, guest passes are not deducted. Two paths: hold-then-convert (booking request flow) vs direct deduction (staff/Trackman flow).
 

@@ -1937,13 +1937,27 @@ async function handleInvoicePaymentFailed(client: PoolClient, invoice: InvoiceWi
     : email;
 
   const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
-  const subStatusCheck = await client.query(
-    `SELECT membership_status FROM users WHERE LOWER(email) = LOWER($1) AND stripe_subscription_id = $2`,
-    [email, subscriptionId]
+  
+  // Guard: Only apply past_due penalty if invoice's subscription matches user's current subscription
+  // This prevents late-arriving failed invoices from old/cancelled subscriptions from downgrading
+  // active members who have since started a new subscription
+  const subMatchCheck = await client.query(
+    `SELECT membership_status, stripe_subscription_id FROM users WHERE LOWER(email) = LOWER($1)`,
+    [email]
   );
-  if (subStatusCheck.rows.length > 0 && ['cancelled', 'inactive'].includes(subStatusCheck.rows[0].membership_status)) {
-    logger.info(`[Stripe Webhook] Skipping grace period for ${email} — membership already ${subStatusCheck.rows[0].membership_status} (subscription ${subscriptionId})`);
-    return deferredActions;
+  if (subMatchCheck.rows.length > 0) {
+    const userSubId = subMatchCheck.rows[0].stripe_subscription_id;
+    const userStatus = subMatchCheck.rows[0].membership_status;
+    
+    if (['cancelled', 'inactive'].includes(userStatus)) {
+      logger.info(`[Stripe Webhook] Skipping grace period for ${email} — membership already ${userStatus} (subscription ${subscriptionId})`);
+      return deferredActions;
+    }
+    
+    if (userSubId && userSubId !== subscriptionId) {
+      logger.info(`[Stripe Webhook] Skipping grace period for ${email} — invoice subscription ${subscriptionId} does not match current subscription ${userSubId} (stale invoice from old subscription)`);
+      return deferredActions;
+    }
   }
 
   const userStatusCheck = await client.query(
@@ -5427,11 +5441,31 @@ async function handleCheckoutSessionAsyncPaymentSucceeded(client: PoolClient, se
     logger.info(`[Stripe Webhook] Checkout session async payment succeeded: ${session.id}, email: ${displayEmail}, purpose: ${purpose}, amount: $${(amountTotal / 100).toFixed(2)}`);
 
     if (purpose === 'day_pass') {
-      try {
-        await recordDayPassPurchaseFromWebhook(client, session);
-        logger.info(`[Stripe Webhook] Recorded day pass purchase from async payment for ${displayEmail}`);
-      } catch (err: unknown) {
-        logger.error('[Stripe Webhook] Failed to record day pass from async payment:', { error: getErrorMessage(err) });
+      const productSlug = metadata.product_slug;
+      const dayPassEmail = userEmail || session.customer_email?.toLowerCase() || metadata.email;
+      const firstName = metadata.first_name || '';
+      const lastName = metadata.last_name || '';
+      const phone = metadata.phone || '';
+      const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
+
+      if (!productSlug || !dayPassEmail || !paymentIntentId) {
+        logger.error(`[Stripe Webhook] Missing required data for async day pass: productSlug=${productSlug}, email=${dayPassEmail}, paymentIntentId=${paymentIntentId}`);
+      } else {
+        const result = await recordDayPassPurchaseFromWebhook({
+          productSlug,
+          email: dayPassEmail,
+          firstName,
+          lastName,
+          phone,
+          amountCents: amountTotal,
+          paymentIntentId,
+          customerId
+        });
+
+        if (!result.success) {
+          throw new Error(`Failed to record async day pass: ${result.error}`);
+        }
+        logger.info(`[Stripe Webhook] Recorded day pass purchase from async payment for ${dayPassEmail}: ${result.purchaseId}`);
       }
     } else {
       logger.info(`[Stripe Webhook] Async payment succeeded for non-day-pass purpose '${purpose}' — subscription handler likely already activated membership`);

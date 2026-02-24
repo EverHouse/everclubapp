@@ -8,6 +8,23 @@ The Ever Club Members App is a private members club application for golf and wel
 - **Communication Style**: The founder is non-technical. Always explain changes in plain English, focusing on the business/member impact. Avoid unnecessary technical jargon.
 - **Development Approach**: Prefer iterative development. Ask before making major architectural changes. Write functional, clean code (utilize your clean-code skill).
 
+## Recent Changes (2026-02-24)
+
+### Bug Fixes — Stripe Webhook Safety (8 fixes)
+1. **Overnight closure validation** — `hasTimeOverlap()` in `bookingValidation.ts` now handles wrap-around closures (e.g., 22:00–06:00) by splitting into two ranges across midnight.
+2. **Earlier-today booking cancellation** — `handleSubscriptionDeleted` no longer cancels bookings that already started today; only future/unstarted bookings are auto-cancelled on membership end.
+3. **Webhook dedup table cleanup** — `cleanupOldProcessedEvents()` is now called probabilistically (5%) after each webhook to prevent unbounded `webhook_processed_events` growth.
+4. **Out-of-order partial refund protection** — `handleChargeRefunded` uses `GREATEST(COALESCE(refund_amount_cents, 0), $2)` to prevent lower cumulative refund amounts from overwriting higher ones.
+5. **Booking fee fallback row locking** — Added `FOR UPDATE` to the booking_participants fallback query in `handlePaymentIntentSucceeded` to prevent concurrent webhook retries from racing.
+6. **Async day pass financial loss** — Fixed `handleCheckoutSessionAsyncPaymentSucceeded` which was calling `recordDayPassPurchaseFromWebhook(client, session)` with wrong arguments; now passes correct object payload and throws on failure so Stripe retries.
+7. **Stale asset interceptor** — Fixed middleware in `server/index.ts` that sent HTML with `Content-Type: text/html` for missing JS assets; now sends valid JavaScript with `Content-Type: application/javascript` to prevent white screen of death.
+8. **Late-arriving failed invoice guard** — `handleInvoicePaymentFailed` now checks if the invoice's subscription ID matches the user's current subscription before applying `past_due` status, preventing old subscription invoices from downgrading active members.
+
+### Previously Fixed (prior sessions)
+- **SQL OR cross-linking** in activation_link checkout — replaced with id-first lookup + IS NULL guard.
+- **Multi-day facility closures** — intermediate days now correctly treated as fully closed.
+- **Stripe webhook security** — removed auto-reassignment in `handleCustomerUpdated`, added `stripe_customer_id` conflict check, case-insensitive email matching.
+
 ## System Architecture
 
 ### Core Architecture & Data Flow
@@ -36,6 +53,8 @@ The Ever Club Members App is a private members club application for golf and wel
 - **Error Handling**: Empty catch blocks are prohibited; all `catch` blocks must re-throw, log via `logger.debug`/`logger.warn`, or use `safeDbOperation()`.
 - **Authentication**: All mutating API routes (POST/PUT/PATCH/DELETE) must be protected by authentication.
 - **Stripe Webhook Safety**: Webhook handlers modifying member status must include a `billing_provider` guard to prevent data overwrites from other systems.
+- **Stripe Subscription ID Matching**: Invoice payment failure handlers must verify the invoice's `subscription_id` matches the user's current `stripe_subscription_id` before applying status downgrades, preventing stale invoices from affecting members on new subscriptions.
+- **Async Webhook Payload Parity**: All async payment handlers (`checkout.session.async_payment_succeeded`) must construct identical payloads to their synchronous counterparts and throw errors on failure (not swallow them) to ensure Stripe retries.
 - **Booking Race Condition Guards**: `approveBooking()`, `declineBooking()`, and `checkinBooking()` implement status guards and optimistic locking to prevent race conditions and ensure data integrity.
 - **Real-time Updates**: Implements WebSocket broadcasting for booking and invoice changes, ensuring staff and members receive real-time updates.
 
