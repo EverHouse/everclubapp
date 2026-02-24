@@ -2161,68 +2161,6 @@ export async function memberCancelBooking(bookingId: number, userEmail: string, 
   };
 }
 
-export async function checkinBooking(bookingId: number, staffEmail: string | undefined) {
-  const unpaidCheck = await db.execute(sql`
-    SELECT bp.id, bp.display_name, bp.payment_status,
-           COALESCE(bp.overage_fee_cents, 0) + COALESCE(bp.guest_fee_cents, 0) as total_fee_cents
-    FROM booking_participants bp
-    JOIN booking_sessions bs ON bp.session_id = bs.id
-    JOIN booking_requests br ON br.session_id = bs.id
-    WHERE br.id = ${bookingId} 
-      AND bp.payment_status NOT IN ('paid', 'waived')
-      AND (COALESCE(bp.overage_fee_cents, 0) + COALESCE(bp.guest_fee_cents, 0)) > 0
-  `);
-  
-  if ((unpaidCheck.rows as Array<Record<string, unknown>>).length > 0) {
-    const unpaidNames = (unpaidCheck.rows as Array<Record<string, unknown>>).map((r: Record<string, unknown>) => r.display_name).join(', ');
-    throw {
-      statusCode: 402,
-      error: 'OUTSTANDING_BALANCE',
-      message: `Cannot check in - outstanding fees for: ${unpaidNames}. Please collect payment first.`,
-      unpaidParticipants: (unpaidCheck.rows as Array<Record<string, unknown>>).map((r: Record<string, unknown>) => ({
-        id: r.id,
-        name: r.display_name,
-        status: r.payment_status,
-        feeCents: r.total_fee_cents
-      }))
-    };
-  }
-  
-  const result = await db.update(bookingRequests)
-    .set({ status: 'checked_in' })
-    .where(eq(bookingRequests.id, bookingId))
-    .returning();
-  
-  if (result.length === 0) {
-    throw { statusCode: 404, error: 'Booking not found' };
-  }
-  
-  const booking = result[0];
-  
-  bookingEvents.publish('booking_checked_in', {
-    bookingId,
-    memberEmail: booking.userEmail || '',
-    bookingDate: booking.requestDate,
-    startTime: booking.startTime || '',
-    endTime: booking.endTime || '',
-    resourceId: booking.resourceId || undefined,
-    status: 'checked_in',
-    actionBy: 'staff',
-    staffEmail: staffEmail
-  }, { 
-    notifyMember: true, 
-    notifyStaff: true,
-    cleanupNotifications: true,
-    memberNotification: {
-      title: 'Checked In',
-      message: 'You have been checked in for your booking',
-      type: 'booking_checked_in'
-    }
-  }).catch(err => logger.error('Booking event publish failed', { extra: { error: err } }));
-  
-  return booking;
-}
-
 export async function createManualBooking(params: {
   memberEmail: string;
   resourceId: number;

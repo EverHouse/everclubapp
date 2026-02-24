@@ -28,7 +28,6 @@ import {
   getCascadePreview,
   deleteBooking,
   memberCancelBooking,
-  checkinBooking,
   createManualBooking,
   isStaffOrAdminEmail,
 } from '../core/resourceService';
@@ -619,27 +618,6 @@ router.put('/api/bookings/:id/member-cancel', isAuthenticated, async (req, res) 
       return res.status(getErrorStatusCode(error)).json({ error: err.error });
     }
     logAndRespond(req, res, 500, 'Failed to cancel booking', error, 'BOOKING_CANCEL_ERROR');
-  }
-});
-
-router.post('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const bookingId = parseInt(id as string);
-    const staffEmail = getSessionUser(req)?.email;
-    
-    const booking = await checkinBooking(bookingId, staffEmail);
-    res.json({ success: true, booking });
-  } catch (error: unknown) {
-    if (getErrorStatusCode(error)) {
-      const err = error as ServiceError;
-      return res.status(getErrorStatusCode(error)).json({ 
-        error: err.error,
-        ...(err.message && { message: err.message }),
-        ...(err.unpaidParticipants && { unpaidParticipants: err.unpaidParticipants }),
-      });
-    }
-    logAndRespond(req, res, 500, 'Failed to check in', error, 'CHECKIN_ERROR');
   }
 });
 
