@@ -2624,6 +2624,10 @@ html.dark .border-accessible {
   opacity: 0;
 }
 
+.accordion-content > * {
+  overflow: hidden;
+}
+
 .accordion-content[data-open="true"],
 .accordion-content.is-open {
   grid-template-rows: 1fr;
