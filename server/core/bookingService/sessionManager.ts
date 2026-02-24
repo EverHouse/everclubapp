@@ -185,16 +185,23 @@ export async function ensureSessionForBooking(params: {
 
     if (existingOwner.rows.length === 0) {
       let ownerDisplayName = params.ownerName;
-      if (!ownerDisplayName || ownerDisplayName.includes('@')) {
+      let resolvedUserId: string | null = params.ownerUserId || null;
+
+      if (!resolvedUserId || !ownerDisplayName || ownerDisplayName.includes('@')) {
         const nameResult = await q.query(
-          `SELECT first_name, last_name FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+          `SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
           [params.ownerEmail]
         );
         if (nameResult.rows.length > 0) {
-          const { first_name, last_name } = nameResult.rows[0];
-          const fullName = [first_name, last_name].filter(Boolean).join(' ');
-          if (fullName) {
-            ownerDisplayName = fullName;
+          const { id, first_name, last_name } = nameResult.rows[0];
+          if (!resolvedUserId) {
+            resolvedUserId = id || null;
+          }
+          if (!ownerDisplayName || ownerDisplayName.includes('@')) {
+            const fullName = [first_name, last_name].filter(Boolean).join(' ');
+            if (fullName) {
+              ownerDisplayName = fullName;
+            }
           }
         }
       }
@@ -213,7 +220,7 @@ export async function ensureSessionForBooking(params: {
       await q.query(
         `INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, invited_at)
          VALUES ($1, $2, 'owner', $3, $4, NOW())`,
-        [sessionId, params.ownerUserId || null, ownerDisplayName || params.ownerEmail, slotDuration]
+        [sessionId, resolvedUserId, ownerDisplayName || params.ownerEmail, slotDuration]
       );
     }
 

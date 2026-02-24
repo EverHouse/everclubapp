@@ -31,6 +31,11 @@ The Ever Club Members App is a private members club application for golf and wel
 8. **Unbounded query safety** — Added LIMIT guards to `syncAllCustomerMetadata`, `GET /api/admin/inquiries`, and `GET /api/admin/bug-reports`.
 9. **Alert cooldown pruning** — Added `pruneExpiredCooldowns()` to `dataAlerts.ts` to prevent unbounded Map growth.
 
+### Trackman Auto-Link Owner Bug (2026-02-24)
+1. **Missing owner user_id** — `ensureSessionForBooking()` now resolves the owner's `user_id` from the `users` table via email when callers don't pass `ownerUserId`. Previously, Trackman auto-link paths (e.g., `tryMatchByBayDateTime`) created owner participants with NULL `user_id`, making slots appear empty in the roster UI.
+2. **Link member to owner slot** — `PUT /api/admin/booking/:bookingId/members/:slotId/link` now detects owner-type slots with NULL `user_id` and updates them in-place instead of failing. Also cleans up duplicate member-type participants.
+3. **Auto-fix backfill** — `autoFixMissingTiers()` in `dataIntegrity.ts` now backfills NULL `user_id` on owner participants by joining `booking_requests.user_email → users.id` (90-day window, runs every 4 hours).
+
 ### Previously Fixed (prior sessions)
 - **SQL OR cross-linking** in activation_link checkout — replaced with id-first lookup + IS NULL guard.
 - **Multi-day facility closures** — intermediate days now correctly treated as fully closed.

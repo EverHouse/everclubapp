@@ -3507,6 +3507,21 @@ export async function autoFixMissingTiers(): Promise<{
       const details = (staffSyncResult.rows as Record<string, unknown>[]).map(r => `${r.email} -> role=${r.new_role}, tier=VIP, status=active`).join(', ');
       logger.info(`[AutoFix] Synced staff role for ${syncedStaffRoles} users: ${details}`);
     }
+
+    const ownerUserIdFix = await db.execute(sql`
+      UPDATE booking_participants bp
+      SET user_id = u.id
+      FROM booking_requests br
+      JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
+      WHERE bp.session_id = br.session_id
+        AND bp.participant_type = 'owner'
+        AND bp.user_id IS NULL
+        AND br.request_date >= CURRENT_DATE - INTERVAL '90 days'
+      RETURNING bp.id, br.user_email
+    `);
+    if (ownerUserIdFix.rows.length > 0) {
+      logger.info(`[AutoFix] Fixed ${ownerUserIdFix.rows.length} owner participants with missing user_id`);
+    }
     
     return { fixedBillingProvider, fixedFromAlternateEmail, remainingWithoutTier, normalizedStatusCase, syncedStaffRoles };
   } catch (error: unknown) {

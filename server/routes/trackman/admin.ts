@@ -2612,6 +2612,69 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
       const userId = (memberInfo.rows[0] as DbRow).id;
       const displayName = `${(memberInfo.rows[0] as DbRow).first_name || ''} ${(memberInfo.rows[0] as DbRow).last_name || ''}`.trim() || memberEmail;
       
+      const targetSlot = await db.execute(sql`SELECT id, participant_type, user_id FROM booking_participants WHERE id = ${slotId} AND session_id = ${sessionId}`);
+      if (targetSlot.rowCount && targetSlot.rowCount > 0) {
+        const slot = (targetSlot.rows[0] as DbRow);
+        if (slot.participant_type === 'owner' && !slot.user_id) {
+          await db.execute(sql`UPDATE booking_participants SET user_id = ${userId}, display_name = ${displayName} WHERE id = ${slotId}`);
+          
+          await db.execute(sql`DELETE FROM booking_participants WHERE session_id = ${sessionId} AND user_id = ${userId} AND id != ${slotId}`);
+          
+          if (req.body.deferFeeRecalc !== true) {
+            try {
+              await recalculateSessionFees(sessionId as number, 'roster_update');
+            } catch (feeErr: unknown) {
+              logger.warn('[Link Member] Failed to recalculate fees for session', { extra: { sessionId, feeErr } });
+            }
+          }
+
+          logger.info('[Link Member] Linked member to existing owner slot', { extra: { slotId, userId, displayName, sessionId } });
+
+          if (bookingResult.rows[0]) {
+            const bookingForNotif = bookingResult.rows[0] as DbRow;
+            const bookingDate = bookingForNotif.request_date;
+            const now = new Date();
+            const bookingDateTime = new Date(`${bookingDate}T${bookingForNotif.start_time}`);
+            
+            if (bookingDateTime > now && bookingForNotif.status === 'approved') {
+              const notificationMessage = `You've been added to a simulator booking on ${new Date(bookingDate as string).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' })}.`;
+              
+              await db.execute(sql`INSERT INTO notifications (user_email, title, message, type, related_id, related_type)
+                 VALUES (${memberEmail.toLowerCase()}, ${'Added to Booking'}, ${notificationMessage}, ${'booking_approved'}, ${bookingId}, ${'booking_request'})`);
+              
+              sendPushNotification(memberEmail.toLowerCase(), {
+                title: 'Added to Booking',
+                body: notificationMessage,
+                tag: `booking-linked-${bookingId}`
+              }).catch((err) => {
+                logger.error('[trackman-admin] Failed to send push notification on owner slot link', {
+                  error: err instanceof Error ? err : new Error(String(err))
+                });
+              });
+            }
+          }
+
+          logFromRequest(req, 'link_member_to_booking', 'booking', String(bookingId), memberEmail.toLowerCase(), {
+            slotId,
+            memberEmail: memberEmail.toLowerCase(),
+            linkedBy,
+            ownerSlotLinked: true
+          });
+
+          broadcastBookingRosterUpdate({
+            bookingId: parseInt(bookingId),
+            sessionId: sessionId as number,
+            action: 'participant_added',
+            memberEmail: memberEmail.toLowerCase(),
+          });
+
+          return res.json({ 
+            success: true, 
+            message: `Member ${memberEmail} linked to owner slot` 
+          });
+        }
+      }
+
       const existingParticipant = await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sessionId} AND user_id = ${userId}`);
       
       if (existingParticipant.rowCount === 0) {
