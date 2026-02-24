@@ -19,7 +19,7 @@ import { getCalendarNameForBayAsync } from '../../routes/bays/helpers';
 import { getCalendarIdByName, createCalendarEventOnCalendar, deleteCalendarEvent } from '../calendar/index';
 import { releaseGuestPassHold } from '../billing/guestPassHoldService';
 import { createPrepaymentIntent } from '../billing/prepaymentService';
-import { voidBookingInvoice } from '../billing/bookingInvoiceService';
+import { voidBookingInvoice, finalizeAndPayInvoice } from '../billing/bookingInvoiceService';
 import { getErrorMessage, getErrorStatusCode } from '../../utils/errorUtils';
 import { logPaymentAudit } from '../auditLog';
 
@@ -521,6 +521,23 @@ export async function approveBooking(params: ApproveBookingParams) {
       }
     } catch (prepayError: unknown) {
       logger.error('[Booking Approval] Failed to create prepayment intent', { extra: { prepayError } });
+    }
+  }
+
+  if (isConferenceRoom && prepaymentData && prepaymentData.bookingId) {
+    try {
+      const invoiceResult = await finalizeAndPayInvoice({ bookingId: prepaymentData.bookingId });
+      if (invoiceResult?.paidInFull) {
+        await db.update(bookingParticipants)
+          .set({ paymentStatus: 'paid' })
+          .where(and(
+            eq(bookingParticipants.sessionId, prepaymentData.createdSessionId),
+            eq(bookingParticipants.paymentStatus, 'pending')
+          ));
+        logger.info('[Booking Approval] Conference room invoice finalized and paid for booking', { extra: { bookingId: prepaymentData.bookingId, invoiceId: invoiceResult.invoiceId } });
+      }
+    } catch (invoiceError: unknown) {
+      logger.error('[Booking Approval] Failed to finalize conference room invoice (non-blocking)', { extra: { bookingId: prepaymentData.bookingId, invoiceError: getErrorMessage(invoiceError) } });
     }
   }
 
