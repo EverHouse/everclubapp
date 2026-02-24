@@ -373,6 +373,12 @@ export async function processStripeWebhook(
 
     await executeDeferredActions(deferredActions);
 
+    if (Math.random() < 0.05) {
+      cleanupOldProcessedEvents().catch(err => 
+        logger.warn('[Stripe Webhook] Background cleanup failed:', { error: err })
+      );
+    }
+
   } catch (handlerError: unknown) {
     await client.query('ROLLBACK');
     logger.error(`[Stripe Webhook] Handler failed for ${event.type} (${event.id}), rolled back:`, { error: handlerError });
@@ -510,6 +516,12 @@ export async function replayStripeEvent(
     logger.info(`[Stripe Webhook Replay] Event ${event.id} committed successfully`);
 
     await executeDeferredActions(deferredActions);
+
+    if (Math.random() < 0.05) {
+      cleanupOldProcessedEvents().catch(err => 
+        logger.warn('[Stripe Webhook] Background cleanup failed:', { error: err })
+      );
+    }
 
     return { success: true, eventType: event.type, message: `Successfully replayed event ${event.id} (${event.type})` };
   } catch (handlerError: unknown) {
@@ -706,7 +718,7 @@ async function handleChargeRefunded(client: PoolClient, charge: Stripe.Charge): 
   if (paymentIntentId) {
     const terminalPaymentResult = await client.query(
       `UPDATE terminal_payments 
-       SET status = $1, refunded_at = NOW(), refund_amount_cents = $2, updated_at = NOW()
+       SET status = $1, refunded_at = NOW(), refund_amount_cents = GREATEST(COALESCE(refund_amount_cents, 0), $2), updated_at = NOW()
        WHERE stripe_payment_intent_id = $3 AND status IN ('succeeded', 'partially_refunded')
        RETURNING id, user_id, user_email, stripe_subscription_id, amount_cents`,
       [status, amount_refunded, paymentIntentId]
@@ -1159,7 +1171,8 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: S
     const dbResult = await client.query(
       `SELECT bp.id, bp.payment_status, bp.cached_fee_cents
        FROM booking_participants bp
-       WHERE bp.id = ANY($1::int[])`,
+       WHERE bp.id = ANY($1::int[])
+       FOR UPDATE`,
       [participantIds]
     );
     
@@ -4230,14 +4243,15 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: Strip
 
     deferredActions.push(async () => {
       try {
-        const { getTodayPacific } = await import('../../utils/dateUtils');
+        const { getTodayPacific, formatTimePacific } = await import('../../utils/dateUtils');
         const todayStr = getTodayPacific();
+        const nowTimePacific = formatTimePacific(new Date());
         const futureBookingsResult = await pool.query(
           `SELECT id, request_date, start_time, status FROM booking_requests 
            WHERE LOWER(user_email) = LOWER($1) 
            AND status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'cancellation_pending')
-           AND request_date >= $2`,
-          [email, todayStr]
+           AND (request_date > $2 OR (request_date = $2 AND start_time > $3))`,
+          [email, todayStr, nowTimePacific]
         );
 
         if (futureBookingsResult.rows.length > 0) {

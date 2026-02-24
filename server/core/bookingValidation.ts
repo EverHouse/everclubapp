@@ -24,6 +24,10 @@ export function parseTimeToMinutes(time: string | null | undefined): number {
 }
 
 export function hasTimeOverlap(start1: number, end1: number, start2: number, end2: number): boolean {
+  if (start2 > end2) {
+    // Overnight wrap-around: split into [start2, 1440) and [0, end2)
+    return (start1 < 1440 && end1 > start2) || (start1 < end2 && end1 > 0);
+  }
   return start1 < end2 && end1 > start2;
 }
 
