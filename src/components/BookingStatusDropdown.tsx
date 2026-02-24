@@ -125,14 +125,14 @@ export function BookingStatusDropdown({
         position: 'fixed',
         left: rect.left,
         bottom: window.innerHeight - rect.top + 4,
-        zIndex: 9999,
+        zIndex: 10050,
       });
     } else {
       setMenuStyle({
         position: 'fixed',
         left: Math.min(rect.left, window.innerWidth - 180),
         top: rect.bottom + 4,
-        zIndex: 9999,
+        zIndex: 10050,
       });
     }
   };
@@ -165,7 +165,7 @@ export function BookingStatusDropdown({
         <>
           <div
             className="fixed inset-0"
-            style={{ zIndex: 9998 }}
+            style={{ zIndex: 10049 }}
             onClick={handleBackdropClick}
           />
           <div style={menuStyle} className={`bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-primary/10 dark:border-white/20 py-1 ${minWidth} animate-pop-in`}>
