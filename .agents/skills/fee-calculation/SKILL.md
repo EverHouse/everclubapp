@@ -143,6 +143,16 @@ When `feeCalculator.ts` resolves fees, it checks in order: cached → ledger →
 
 `recalculateSessionFees()` orchestrates a two-step recalculation pipeline: compute (via `computeFeeBreakdown`) → apply to participants (via `applyFeeBreakdownToParticipants`). It does NOT sync to `booking_requests` columns or update the Stripe invoice directly. Invoice sync is the caller's responsibility via `syncBookingInvoice()`.
 
+**Known callers that MUST also call `syncBookingInvoice()`:**
+- Booking approval (`server/routes/bays/approval.ts`) — creates invoice at approval time
+- Roster changes: add/remove participant, update player count (`server/routes/roster.ts`)
+- Staff direct-add during check-in (`server/routes/staffCheckin.ts`)
+- Trackman admin reassign (`server/routes/trackman/admin.ts` — `PUT /api/admin/booking/:id/reassign`)
+- Trackman admin link member (`server/routes/trackman/admin.ts` — `PUT /api/admin/booking/:bookingId/members/:slotId/link`)
+- Check-in payment actions (`PATCH /api/bookings/:id/payments`) — uses `settleBookingInvoiceAfterCheckin()` instead
+
+**Audit finding (Feb 2026):** The reassign endpoint was missing `syncBookingInvoice()` after `recalculateSessionFees()`, causing Stripe invoices to retain stale overage charges after reassignment. Fixed by adding the sync call.
+
 The `usedGuestPass` field on a booking participant record is an input to guest pass logic: when `used_guest_pass = TRUE`, `computeFeeBreakdown` treats that participant's guest fee as already waived and does not attempt to consume another guest pass.
 
 ## Key Invariants

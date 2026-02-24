@@ -306,7 +306,7 @@ This is why Rule 10 (parsing guest tags) is critical: filling guest slots with a
 Each simulator booking has at most one Stripe invoice, tracked by `booking_requests.stripe_invoice_id`. The invoice lifecycle:
 
 1. **Draft created at approval**: When a simulator booking is approved (staff or Trackman auto-approve) with fees > 0, `createDraftInvoiceForBooking()` creates a draft Stripe invoice with itemized line items (one per participant fee).
-2. **Updated on roster changes**: When participants are added/removed or player count changes, `syncBookingInvoice()` updates the draft invoice line items. If fees drop to $0, the draft invoice is deleted.
+2. **Updated on roster changes**: When participants are added/removed or player count changes, `syncBookingInvoice()` updates the draft invoice line items. If fees drop to $0, the draft invoice is deleted. This includes Trackman admin reassignment (`PUT /api/admin/booking/:id/reassign`) — after `recalculateSessionFees()`, `syncBookingInvoice()` must be called to propagate the new fee totals to the Stripe invoice.
 3. **Finalized at payment**: At check-in or member payment, the invoice is finalized and marked paid via `finalizeAndPayInvoice()` or `finalizeInvoicePaidOutOfBand()`.
 4. **Voided on cancellation**: When a booking is cancelled, `voidBookingInvoice()` voids the draft/open invoice.
 

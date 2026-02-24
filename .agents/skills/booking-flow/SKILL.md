@@ -282,6 +282,22 @@ See `references/trackman-sync.md` for reconciliation details.
 
 **Rule:** All session creation paths must ensure the owner participant has a valid `user_id`. If the caller doesn't provide `ownerUserId`, resolve it from the `users` table by email.
 
+#### Link Member sessionId Scoping (Feb 2026)
+
+`PUT /api/admin/booking/:bookingId/members/:slotId/link` declared `sessionId` with `const` inside the `if (session_id)` block. After the block closed, the notification and `broadcastBookingRosterUpdate()` code at the bottom of the handler referenced `sessionId` outside its scope, causing a `ReferenceError`. The DB write (participant INSERT) succeeded, so the member appeared after a page refresh, but the catch block returned HTTP 500 with "Failed to link member to slot."
+
+**Fix:** Moved `sessionId` declaration to the outer function scope (`const sessionId = bookingResult.rows[0]?.session_id`) before the `if` block. This ensures `sessionId` is accessible throughout the handler for notifications, audit logging, and WebSocket broadcast.
+
+**Rule:** Always declare variables at the scope where ALL consumers can access them. Block-scoped `const`/`let` inside `if` blocks are invisible to code after the closing brace.
+
+#### Reassign Endpoint Invoice Sync (Feb 2026)
+
+`PUT /api/admin/booking/:id/reassign` called `recalculateSessionFees()` after reassigning a booking to a new member, but did NOT call `syncBookingInvoice()`. The fee service correctly computed $0 fees (new member has allowance), but the Stripe draft invoice retained the original overage charge from the old member. This caused members like Kenneth Lee to see a $50 overage charge even after reassignment.
+
+**Fix:** Added `syncBookingInvoice(bookingId, sessionId)` immediately after `recalculateSessionFees()` in the reassign endpoint. The invoice now reflects the recalculated $0 fees.
+
+**Rule:** Every caller of `recalculateSessionFees()` that modifies the billing context (roster change, reassignment, participant add/remove) MUST also call `syncBookingInvoice()` afterward. `recalculateSessionFees()` only updates `booking_participants.cached_fee_cents` — it does NOT touch the Stripe invoice. See fee-calculation skill for the full list of callers.
+
 #### Staff Assignment FK Violation
 
 Frontend was sending `staff.user_id || staff.id` as `member_id` when assigning bookings to staff. If a staff member lacks a `users` record, `user_id` is null and `staff.id` (from `staff_users` table) is NOT a valid `users.id` UUID, causing a foreign key violation on `booking_requests.user_id`. Fixed: frontend sends `staff.user_id || null`, and backend resolves `user_id` from the owner's email via the `users` table when no valid `member_id` is provided.

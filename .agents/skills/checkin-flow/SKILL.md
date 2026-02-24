@@ -169,6 +169,18 @@ All check-in endpoints require `isStaffOrAdmin` middleware. The booking check-in
 
 Booking authorization for members is handled separately by `isAuthorizedForMemberBooking` in `server/core/bookingAuth.ts`, which checks the tier's `can_book_simulators` permission.
 
+## UI: BookingStatusDropdown Portal Rendering
+
+The `BookingStatusDropdown` component (`src/components/BookingStatusDropdown.tsx`) renders its dropdown menu via `createPortal(…, document.body)` to escape CSS stacking contexts. The Command Center booking cards use `backdrop-filter` (glassmorphic styling), which creates new stacking contexts that trap `position: fixed` elements — even with `z-index: 9999`, the menu would render behind sibling cards and the calendar grid.
+
+**Key implementation details:**
+- The dropdown menu and backdrop overlay are portaled to `document.body`.
+- `getBoundingClientRect()` positions the menu relative to the trigger button.
+- The backdrop uses `style={{ zIndex: 9998 }}` and the menu uses `style` with `zIndex: 9999`.
+- `menuDirection` prop controls whether the menu opens upward or downward.
+
+**Rule:** Any dropdown or popover rendered inside a container with `backdrop-filter`, `transform`, `filter`, `perspective`, or `will-change` MUST use a React portal to `document.body`. These CSS properties create new stacking contexts that prevent fixed-position children from layering above sibling elements.
+
 ## Key Files
 
 | Area | File |
