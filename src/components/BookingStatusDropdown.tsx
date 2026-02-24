@@ -120,17 +120,20 @@ export function BookingStatusDropdown({
   const computeMenuStyle = () => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
     if (menuDirection === 'up') {
       setMenuStyle({
         position: 'fixed',
-        left: rect.left,
+        left: centerX,
+        transform: 'translateX(-50%)',
         bottom: window.innerHeight - rect.top + 4,
         zIndex: 10050,
       });
     } else {
       setMenuStyle({
         position: 'fixed',
-        left: Math.min(rect.left, window.innerWidth - 180),
+        left: centerX,
+        transform: 'translateX(-50%)',
         top: rect.bottom + 4,
         zIndex: 10050,
       });
