@@ -1476,8 +1476,8 @@ const SimulatorTab: React.FC = () => {
                   showToast((err instanceof Error ? err.message : String(err)) || 'Failed to cancel booking', 'error');
                 }
               }}
-              onCheckIn={async (bookingId) => {
-                const result = await checkInWithToast(bookingId);
+              onCheckIn={async (bookingId, targetStatus) => {
+                const result = await checkInWithToast(bookingId, { status: targetStatus || 'attended' });
                 if (result.success) {
                   handleRefresh();
                 }

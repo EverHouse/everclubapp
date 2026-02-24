@@ -9,6 +9,7 @@ import GuideBookings from '../../../../components/guides/GuideBookings';
 import { TrackmanIcon } from '../../../../components/icons/TrackmanIcon';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useFeeEstimate } from '../../../../hooks/queries/useBookingsQueries';
+import { BookingStatusDropdown } from '../../../../components/BookingStatusDropdown';
 
 function BookingFeeButton({ bookingId, dbOwed, hasUnpaidFees, setBookingSheet, fallback }: {
     bookingId: number;
@@ -590,26 +591,32 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     Assign Member
                                                                 </button>
                                                             ) : !isConferenceRoom && isToday && booking.status === 'attended' ? (
-                                                                <span className="flex-1 py-2.5 bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2">
-                                                                    <span aria-hidden="true" className="material-symbols-outlined text-lg">check_circle</span>
-                                                                    Checked In
-                                                                </span>
-                                                            ) : !isConferenceRoom && isToday && (booking.fee_snapshot_paid || (!booking.has_unpaid_fees && (booking.total_owed || 0) <= 0)) ? (
-                                                                <button
-                                                                    onClick={async (e) => {
-                                                                        e.stopPropagation();
-                                                                        e.preventDefault();
-                                                                        const btn = e.currentTarget;
-                                                                        if (btn.disabled) return;
-                                                                        btn.disabled = true;
-                                                                        await updateBookingStatusOptimistic(booking, 'attended');
-                                                                        btn.disabled = false;
+                                                                <BookingStatusDropdown
+                                                                    currentStatus="attended"
+                                                                    onStatusChange={async (status) => {
+                                                                        await updateBookingStatusOptimistic(booking, status);
                                                                     }}
-                                                                    className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-fast disabled:opacity-50"
-                                                                >
-                                                                    <span aria-hidden="true" className="material-symbols-outlined text-lg">how_to_reg</span>
-                                                                    Check In
-                                                                </button>
+                                                                    size="sm"
+                                                                    menuDirection="down"
+                                                                />
+                                                            ) : !isConferenceRoom && isToday && booking.status === 'no_show' ? (
+                                                                <BookingStatusDropdown
+                                                                    currentStatus="no_show"
+                                                                    onStatusChange={async (status) => {
+                                                                        await updateBookingStatusOptimistic(booking, status);
+                                                                    }}
+                                                                    size="sm"
+                                                                    menuDirection="down"
+                                                                />
+                                                            ) : !isConferenceRoom && isToday && (booking.fee_snapshot_paid || (!booking.has_unpaid_fees && (booking.total_owed || 0) <= 0)) ? (
+                                                                <BookingStatusDropdown
+                                                                    currentStatus="check_in"
+                                                                    onStatusChange={async (status) => {
+                                                                        await updateBookingStatusOptimistic(booking, status);
+                                                                    }}
+                                                                    size="sm"
+                                                                    menuDirection="down"
+                                                                />
                                                             ) : !isConferenceRoom && isToday ? (
                                                                 <BookingFeeButton
                                                                     bookingId={typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id as number}
@@ -617,21 +624,14 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     hasUnpaidFees={booking.has_unpaid_fees === true}
                                                                     setBookingSheet={setBookingSheet}
                                                                     fallback={
-                                                                        <button
-                                                                            onClick={async (e) => {
-                                                                                e.stopPropagation();
-                                                                                e.preventDefault();
-                                                                                const btn = e.currentTarget;
-                                                                                if (btn.disabled) return;
-                                                                                btn.disabled = true;
-                                                                                await updateBookingStatusOptimistic(booking, 'attended');
-                                                                                btn.disabled = false;
+                                                                        <BookingStatusDropdown
+                                                                            currentStatus="check_in"
+                                                                            onStatusChange={async (status) => {
+                                                                                await updateBookingStatusOptimistic(booking, status);
                                                                             }}
-                                                                            className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-fast disabled:opacity-50"
-                                                                        >
-                                                                            <span aria-hidden="true" className="material-symbols-outlined text-lg">how_to_reg</span>
-                                                                            Check In
-                                                                        </button>
+                                                                            size="sm"
+                                                                            menuDirection="down"
+                                                                        />
                                                                     }
                                                                 />
                                                             ) : !isConferenceRoom && booking.declared_player_count > 0 && booking.declared_player_count > (booking.filled_player_count || 0) ? (
