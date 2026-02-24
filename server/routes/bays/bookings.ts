@@ -565,7 +565,7 @@ router.post('/api/booking-requests', bookingRateLimiter, async (req, res) => {
           `SELECT id, start_time, end_time FROM booking_requests 
            WHERE resource_id = $1 
            AND request_date = $2 
-           AND status IN ('pending', 'approved', 'confirmed', 'attended')
+           AND status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'attended', 'cancellation_pending')
            AND start_time < $4 AND end_time > $3
            FOR UPDATE`,
           [resource_id, request_date, start_time, end_time]

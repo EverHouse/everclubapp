@@ -16,6 +16,9 @@ export const changelog: ChangelogEntry[] = [
       "New: Time slots where all bays are already requested appear as non-selectable with a 'Requested' label in the time picker",
       "New: Bay selection now shows requested bays below available bays with a 'Pending approval for another member' message",
       "Improved: Your own pending requests do not block you — you still see your own requested slots as normal",
+      "Fixed: Creation-time overlap check now includes all active booking statuses (pending_approval and cancellation_pending were previously missing), closing a safety-net gap where conflicting requests could bypass the hard block",
+      "Fixed: Staff manual booking overlap check aligned to the same six active statuses",
+      "Fixed: Availability cache key now includes user identity, preventing stale self-exclusion data when admins use 'view as' to switch between members",
     ]
   },
   {
