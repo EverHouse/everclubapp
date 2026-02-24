@@ -775,7 +775,7 @@ router.post('/api/booking-requests', async (req, res) => {
         const participants = [{
           participantType: 'owner' as const,
           displayName: user_name || user_email,
-          userId: undefined,
+          userId: sessionUser?.id || undefined,
           guestId: undefined
         }];
 
