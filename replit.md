@@ -47,6 +47,15 @@ The Ever Club Members App is a private members club application for golf and wel
 1. **Invalid member_id from staff_users** — Frontend was sending `staff.user_id || staff.id` as `member_id` when assigning bookings to staff. If a staff member lacks a `users` record, `user_id` is null and `staff.id` (from `staff_users`) is NOT a valid `users.id` UUID, causing a foreign key violation on `booking_requests.user_id`. Fixed frontend to send `staff.user_id || null`.
 2. **Backend email-based resolution** — Both `linkTrackmanToMember()` and `assignWithPlayers()` in `resourceService.ts` now resolve `user_id` from the owner's email via the `users` table when no valid `member_id` is provided, preventing null fallback from causing downstream issues.
 
+### Trackman Webhook & Booking Event Fixes (2026-02-24)
+1. **Trackman SQL syntax errors** — Fixed `undefined` values in Drizzle `sql` template literals producing empty SQL placeholders (`$7, , $8`) in `updateBaySlotCache()` and `logWebhookEvent()`. Applied `?? null` coalescing to all optional params.
+2. **Booking event publish crash** — `formatBookingDateTime()` crashed with `dateStr.split is not a function` when receiving a Date object from DB. Fixed to handle both `Date` and `string` types. Updated `BookingEventData.bookingDate` to `string | Date`.
+
+### Email Deliverability Fixes (2026-02-24)
+1. **Centralized sender name** — All emails now use "Ever Club" display name via `getResendClient()` returning formatted `from` address.
+2. **Self-hosted QR codes** — Replaced external QR API (`api.qrserver.com`) with server-side `qrcode` npm package generating inline base64 data URIs.
+3. **Pass type formatting** — Fixed hyphenated slugs (e.g., `day-pass-golf-sim` → `Day Pass - Golf Sim`).
+
 ### Previously Fixed (prior sessions)
 - **SQL OR cross-linking** in activation_link checkout — replaced with id-first lookup + IS NULL guard.
 - **Multi-day facility closures** — intermediate days now correctly treated as fully closed.

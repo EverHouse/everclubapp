@@ -26,7 +26,7 @@ export interface BookingEventData {
   resourceId?: number;
   resourceName?: string;
   resourceType?: string;
-  bookingDate: string;
+  bookingDate: string | Date;
   startTime: string;
   endTime?: string;
   durationMinutes?: number;
@@ -54,8 +54,9 @@ interface PublishOptions {
   };
 }
 
-function formatBookingDateTime(date: string, time: string): string {
-  const formattedDate = formatDateDisplayWithDay(date);
+function formatBookingDateTime(date: string | Date, time: string): string {
+  const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : String(date);
+  const formattedDate = formatDateDisplayWithDay(dateStr);
   const formattedTime = formatTime12Hour(time);
   return `${formattedDate} at ${formattedTime}`;
 }

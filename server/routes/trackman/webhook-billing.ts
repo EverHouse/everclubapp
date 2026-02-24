@@ -33,7 +33,7 @@ export async function updateBaySlotCache(
     
     await db.execute(sql`INSERT INTO trackman_bay_slots 
        (resource_id, slot_date, start_time, end_time, status, trackman_booking_id, customer_email, customer_name, player_count)
-       VALUES (${resourceId}, ${slotDate}, ${startTime}, ${endTime}, ${status}, ${trackmanBookingId}, ${customerEmail}, ${customerName}, ${playerCount || 1})
+       VALUES (${resourceId}, ${slotDate}, ${startTime}, ${endTime}, ${status}, ${trackmanBookingId}, ${customerEmail ?? null}, ${customerName ?? null}, ${playerCount || 1})
        ON CONFLICT (resource_id, slot_date, start_time, trackman_booking_id) 
        DO UPDATE SET 
          end_time = EXCLUDED.end_time,

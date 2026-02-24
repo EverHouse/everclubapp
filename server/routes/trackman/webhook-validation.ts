@@ -107,7 +107,7 @@ export async function logWebhookEvent(
     
     const result = await db.execute(sql`INSERT INTO trackman_webhook_events 
        (event_type, payload, trackman_booking_id, trackman_user_id, matched_booking_id, matched_user_id, processed_at, processing_error, dedup_key)
-       VALUES (${eventType}, ${JSON.stringify(redactedPayload)}, ${trackmanBookingId}, ${trackmanUserId}, ${matchedBookingId}, ${matchedUserId}, NOW(), ${error}, ${dedupKey})
+       VALUES (${eventType}, ${JSON.stringify(redactedPayload)}, ${trackmanBookingId ?? null}, ${trackmanUserId ?? null}, ${matchedBookingId ?? null}, ${matchedUserId ?? null}, NOW(), ${error ?? null}, ${dedupKey})
        RETURNING id`);
     return result.rows[0]?.id;
   } catch (e: unknown) {

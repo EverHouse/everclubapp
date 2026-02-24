@@ -218,6 +218,32 @@ The admin data integrity dashboard is accessible at `/admin/data-integrity` (sta
 6. **Audit log** — All resolve/ignore/reopen actions with who, when, and notes.
 7. **Monitoring tabs** — Scheduler status, webhook events, job queue, HubSpot queue, alert history (via `/api/admin/monitoring/*` routes).
 
+## Audit Findings (Feb 2026)
+
+### Auto-Fix Owner User ID Backfill
+
+`autoFixMissingTiers()` in `dataIntegrity.ts` now includes a backfill for owner participants with NULL `user_id`. It joins `booking_requests.user_email → users.id` to resolve missing user IDs on owner-type `booking_participants` within a 90-day window. Runs every 4 hours as part of the standard auto-fix cycle.
+
+### Alert Cooldown Pruning
+
+`pruneExpiredCooldowns()` was added to `dataAlerts.ts` to prevent unbounded Map growth in the in-memory cooldown tracker. Expired cooldown entries are removed during each alert check cycle.
+
+### Connection Pool Leak Fix
+
+The `Promise.race` timeout pattern in `feeSnapshotReconciliationScheduler.ts` was fixed to release database connections if the timeout wins the race. Previously, the connection could leak when the timeout fired before the query completed.
+
+### Webhook Dedup Table Cleanup
+
+`cleanupOldProcessedEvents()` is now called probabilistically (5% of webhooks) after each webhook to prevent unbounded `webhook_processed_events` table growth. Errors in cleanup are logged but never propagated.
+
+### Production Error Patterns Discovered
+
+The following production error patterns were discovered and fixed during the Feb 2026 audit:
+
+1. **Drizzle undefined SQL placeholders** — `undefined` values in `sql` template literals produce empty placeholders (`$7, , $8`). Fix: use `?? null` coalescing.
+2. **Date/string type mismatch** — Database date columns may return `Date` objects where string methods (`.split()`) are called. Fix: type-check with `instanceof Date`.
+3. **Stale asset MIME type** — Missing JS assets served with `Content-Type: text/html` cause white screen of death. Fix: serve valid JavaScript with correct MIME type.
+
 ## Reference Files
 
 - **[references/integrity-checks.md](references/integrity-checks.md)** — Complete list of all 29 integrity checks with detection logic, severity, and recommended actions. Also covers webhook, job queue, and HubSpot queue monitors.

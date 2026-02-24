@@ -266,6 +266,32 @@ After a booking is completed, `findAttendanceDiscrepancies()` compares `declared
 
 See `references/trackman-sync.md` for reconciliation details.
 
+### Audit Findings (Feb 2026)
+
+#### Date/String Type Safety in Booking Events
+
+`bookingEvents.publish()` receives `data.bookingDate` from database queries that may return a `Date` object instead of a string. The `formatBookingDateTime()` function now accepts `string | Date` and converts Date objects to ISO date strings before calling `formatDateDisplayWithDay()`. The `BookingEventData.bookingDate` type was updated to `string | Date`.
+
+**Rule:** When passing date values from database query results to formatting functions that expect strings, always handle both `Date` and `string` types. Database ORMs may return Date objects for date columns.
+
+#### Owner User ID Resolution (Trackman Auto-Link)
+
+`ensureSessionForBooking()` now resolves the owner's `user_id` from the `users` table via email when callers don't pass `ownerUserId`. Previously, Trackman auto-link paths (e.g., `tryMatchByBayDateTime`) created owner participants with NULL `user_id`, making slots appear empty in the roster UI.
+
+**Rule:** All session creation paths must ensure the owner participant has a valid `user_id`. If the caller doesn't provide `ownerUserId`, resolve it from the `users` table by email.
+
+#### Staff Assignment FK Violation
+
+Frontend was sending `staff.user_id || staff.id` as `member_id` when assigning bookings to staff. If a staff member lacks a `users` record, `user_id` is null and `staff.id` (from `staff_users` table) is NOT a valid `users.id` UUID, causing a foreign key violation on `booking_requests.user_id`. Fixed: frontend sends `staff.user_id || null`, and backend resolves `user_id` from the owner's email via the `users` table when no valid `member_id` is provided.
+
+**Rule:** Never use `staff_users.id` as a substitute for `users.id`. They are different tables with different ID spaces. Always use `staff.user_id` (which references `users.id`) or resolve from email.
+
+#### Trackman Webhook SQL Safety
+
+Trackman webhook handlers (`webhook-billing.ts`, `webhook-validation.ts`) had production SQL errors caused by `undefined` values in Drizzle `sql` template literals creating empty placeholders. Fixed by coalescing all optional values with `?? null`.
+
+**Rule:** Always use `${value ?? null}` in Drizzle `sql` template literals for optional parameters. See `stripe-webhook-flow` skill for the full pattern.
+
 ## References
 
 **Core Reference Docs:**

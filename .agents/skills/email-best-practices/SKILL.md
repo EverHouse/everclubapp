@@ -57,3 +57,33 @@ Follow this path: [Email Capture](./resources/email-capture.md) (collect consent
 
 **Production-ready sending?**
 Add reliability: [Sending Reliability](./resources/sending-reliability.md) (retry + idempotency) → [Webhooks & Events](./resources/webhooks-events.md) (track delivery) → [List Management](./resources/list-management.md) (handle bounces).
+
+## Ever Club Email Implementation (Feb 2026)
+
+### Centralized Sender Name
+
+All outgoing emails use `getResendClient()` from `server/utils/resend.ts`, which returns a pre-formatted `from` address: `"Ever Club <email@domain>"`. This ensures consistent sender display name across all email types (booking confirmations, pass emails, alerts, etc.).
+
+**Rule:** Never construct the `from` address inline. Always use the `from` value returned by `getResendClient()`. The function now returns a non-null string (changed from nullable).
+
+### Self-Hosted QR Codes
+
+QR codes in pass emails (day passes, guest passes) are generated server-side using the `qrcode` npm package as inline base64 data URIs. Previously, the app used an external API (`api.qrserver.com`) which triggered Resend's "host images on sending domain" deliverability warning.
+
+**Pattern:**
+```typescript
+import QRCode from 'qrcode';
+const qrDataUri = await QRCode.toDataURL(url, { width: 200, margin: 2 });
+// Use as <img src="${qrDataUri}" /> in email HTML
+```
+
+This change required making email template functions async (they return `Promise<string>` now).
+
+### Pass Type Display Formatting
+
+Pass type slugs (e.g., `day-pass-golf-sim`) are formatted for display using `formatPassType()`:
+1. Replace hyphens with spaces
+2. Capitalize each word
+3. Replace "Day Pass" prefix with "Day Pass - " separator
+
+Result: `day-pass-golf-sim` → `Day Pass - Golf Sim`

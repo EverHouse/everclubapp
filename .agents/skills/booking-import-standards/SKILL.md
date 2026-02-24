@@ -244,6 +244,21 @@ The 1-hour constraint prevents accidentally flipping legacy pending bookings fro
 
 Before creating an unmatched booking during CSV import, check if the time slot has been converted to a private event block via `isConvertedToPrivateEventBlock()`. This prevents creating duplicate unmatched bookings when re-importing CSV data after a booking was marked as a private event. The check looks for `availability_blocks` linked to `facility_closures` with `notice_type = 'private_event'` that overlap the booking's time range.
 
+### Rule 14b — Trackman webhook SQL null safety
+
+All Trackman webhook handlers that use Drizzle `sql` template literals with optional parameters MUST coalesce `undefined` to `null` using `?? null`. This prevents Drizzle from producing empty SQL placeholders.
+
+**Affected functions:**
+- `updateBaySlotCache()` in `webhook-billing.ts` — `customerEmail`, `customerName`
+- `logWebhookEvent()` in `webhook-validation.ts` — `trackmanUserId`, `matchedBookingId`, `matchedUserId`, `error`
+
+**Pattern:**
+```typescript
+sql`INSERT INTO table (col) VALUES (${optionalValue ?? null})`
+```
+
+This was a production bug discovered Feb 2026 — undefined optional params caused `VALUES ($1, $2, , $3)` syntax errors that silently failed Trackman webhook processing for all incoming bookings.
+
 ---
 
 ## Section 4: Billing & Fees

@@ -384,6 +384,53 @@ Handlers that do NOT need billing_provider guards (they operate on Stripe-specif
 - `handleChargeRefunded` — operates on charges, always from Stripe
 - `handleCheckoutSessionCompleted` — operates on checkout sessions, always from Stripe
 
+### Drizzle SQL Template Literal Safety (Feb 2026)
+
+**RULE: Always coalesce `undefined` to `null` in Drizzle `sql` template literals.**
+
+When optional parameters are `undefined`, Drizzle's `sql` tagged template literal produces empty SQL placeholders (e.g., `$7, , $8`) instead of NULL, causing query syntax errors. This was discovered in production via Trackman webhook handlers.
+
+**Fix pattern:**
+```typescript
+// BAD — undefined produces empty placeholder
+sql`INSERT INTO table (col) VALUES (${optionalValue})`
+
+// GOOD — coalesce to null
+sql`INSERT INTO table (col) VALUES (${optionalValue ?? null})`
+```
+
+**Affected files (fixed Feb 2026):**
+- `server/routes/trackman/webhook-billing.ts` — `updateBaySlotCache()`: `customerEmail`, `customerName` params
+- `server/routes/trackman/webhook-validation.ts` — `logWebhookEvent()`: `trackmanUserId`, `matchedBookingId`, `matchedUserId`, `error` params
+
+Apply this rule to ALL `sql` template literals where optional/nullable values are interpolated.
+
+### Day Pass Financial Integrity (Feb 2026)
+
+Three gaps were closed in day pass financial reporting:
+
+1. **Double-counting prevention**: The financials query (`server/routes/financials.ts`) now excludes `stripe_transaction_cache` entries whose `stripe_payment_intent_id` matches a `day_pass_purchases` record. `day_pass_purchases` is the single source of truth for day pass transactions.
+
+2. **Transaction cache resilience**: `handleCheckoutSessionCompleted` now calls `upsertTransactionCache()` for day pass purchases, ensuring the transaction cache is populated even if the `payment_intent.succeeded` webhook fails or arrives late.
+
+3. **Unique constraint**: Partial unique index `day_pass_purchases_stripe_pi_unique` on `stripe_payment_intent_id WHERE stripe_payment_intent_id IS NOT NULL` prevents duplicate day pass records from webhook retries.
+
+### Async Webhook Payload Parity (Feb 2026 — Expanded)
+
+`handleCheckoutSessionAsyncPaymentSucceeded` was calling `recordDayPassPurchaseFromWebhook(client, session)` with wrong arguments (positional instead of object payload). Fixed to pass the same object payload as the synchronous handler. This enforces the existing rule that async handlers must maintain **payload parity** with their synchronous counterparts.
+
+### Late-Arriving Invoice Guard (Feb 2026)
+
+`handleInvoicePaymentFailed` now verifies the invoice's `subscription` field matches the user's current `stripe_subscription_id` before applying `past_due` status. This prevents old subscription invoices from downgrading members who have already started a new subscription.
+
+### Out-of-Order Refund Protection (Feb 2026)
+
+`handleChargeRefunded` uses `GREATEST(COALESCE(refund_amount_cents, 0), $newAmount)` to prevent lower cumulative refund amounts from overwriting higher ones when webhooks arrive out of order.
+
+### Booking Fee Row Locking (Feb 2026)
+
+The `booking_participants` fallback query in `handlePaymentIntentSucceeded` now includes `FOR UPDATE` to prevent concurrent webhook retries from racing on the same booking fee record.
+
 ## Key References
 
 - `references/event-handling.md` — Complete event type → handler → downstream effects mapping
