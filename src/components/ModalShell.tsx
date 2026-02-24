@@ -158,6 +158,7 @@ export function ModalShell({
             
             <div 
               className={`modal-keyboard-aware ${overflowVisible ? 'overflow-visible' : 'overflow-y-auto overflow-x-hidden'} max-h-[85dvh]`}
+              data-scroll-lock-allow=""
               style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain' }}
             >
               {children}

@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.25.3",
+    date: "2026-02-24",
+    title: "Scroll Lock — Background Scroll Prevention",
+    changes: [
+      "Fixed: Page content behind modals and slide-up sheets no longer scrolls when the sheet is open, especially on iOS/mobile Safari",
+      "Improved: Scroll position is preserved when opening and closing modals — the page returns to exactly where you were",
+    ]
+  },
+  {
     version: "8.25.2",
     date: "2026-02-24",
     title: "Day Pass — Visitor Name Capture Fix",

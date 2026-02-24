@@ -216,6 +216,7 @@ export function SlideUpDrawer({
         <div 
           ref={contentRef}
           className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
+          data-scroll-lock-allow=""
           style={{ 
             WebkitOverflowScrolling: 'touch', 
             touchAction: 'pan-y',

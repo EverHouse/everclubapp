@@ -8,23 +8,61 @@ function generateLockId(): string {
   return `lock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
+function isScrollableElement(el: HTMLElement): boolean {
+  const style = window.getComputedStyle(el);
+  const overflowY = style.overflowY;
+  const hasScrollableOverflow =
+    overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay';
+  return hasScrollableOverflow && el.scrollHeight > el.clientHeight;
+}
+
+function preventTouchMove(e: TouchEvent) {
+  if (!(e.target instanceof HTMLElement)) {
+    e.preventDefault();
+    return;
+  }
+
+  let el: HTMLElement | null = e.target;
+  while (el && el !== document.body && el !== document.documentElement) {
+    if (el.hasAttribute('data-scroll-lock-allow')) return;
+
+    if (isScrollableElement(el)) return;
+
+    el = el.parentElement;
+  }
+
+  e.preventDefault();
+}
+
 function applyScrollLock() {
   if (lockCount === 1) {
     savedScrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${savedScrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
     document.documentElement.classList.add('overflow-hidden');
     document.body.classList.add('overflow-hidden');
     document.documentElement.style.overscrollBehavior = 'none';
     document.body.style.overscrollBehavior = 'none';
+    document.addEventListener('touchmove', preventTouchMove, { passive: false });
   }
 }
 
 function removeScrollLock() {
   if (lockCount === 0 && lockOwners.size === 0) {
     const scrollY = savedScrollY;
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
     document.documentElement.classList.remove('overflow-hidden');
     document.body.classList.remove('overflow-hidden');
     document.documentElement.style.overscrollBehavior = '';
     document.body.style.overscrollBehavior = '';
+    document.removeEventListener('touchmove', preventTouchMove);
     window.scrollTo(0, scrollY);
   }
 }
@@ -54,10 +92,16 @@ export function forceReleaseAllLocks(): void {
   lockOwners.clear();
   lockCount = 0;
   const scrollY = savedScrollY;
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.left = '';
+  document.body.style.right = '';
+  document.body.style.width = '';
   document.documentElement.classList.remove('overflow-hidden');
   document.body.classList.remove('overflow-hidden');
   document.documentElement.style.overscrollBehavior = '';
   document.body.style.overscrollBehavior = '';
+  document.removeEventListener('touchmove', preventTouchMove);
   window.scrollTo(0, scrollY);
 }
 
@@ -137,10 +181,16 @@ export function useScrollLockControl() {
 if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && lockCount === 0 && lockOwners.size === 0) {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
       document.documentElement.classList.remove('overflow-hidden');
       document.body.classList.remove('overflow-hidden');
       document.documentElement.style.overscrollBehavior = '';
       document.body.style.overscrollBehavior = '';
+      document.removeEventListener('touchmove', preventTouchMove);
     }
   });
 
