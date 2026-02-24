@@ -425,8 +425,8 @@ Overage fees are applied per-block (e.g., 30-minute block = one tier's overage r
 | `pending_approval` | Variant of pending (used in some flows) |
 | `approved` | Staff approved, session created |
 | `confirmed` | Auto-confirmed (conference rooms) |
-| `attended` | Checked in / completed |
-| `checked_in` | Marked as checked in by staff |
+| `attended` | Checked in by staff or auto-completed after 24h |
+| `checked_in` | Legacy status (backward compatible, mapped to attended) |
 | `declined` | Staff declined the request |
 | `cancelled` | Cancelled by member or system |
 | `cancellation_pending` | Member requested cancel, awaiting Trackman sync |

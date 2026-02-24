@@ -6,7 +6,7 @@
 |--------|------|---------|
 | GET | `/api/bookings/:id/staff-checkin-context` | Load billing context for a booking |
 | PATCH | `/api/bookings/:id/payments` | Confirm, waive, or consume guest pass for participants |
-| POST | `/api/bookings/:id/checkin` | Mark booking as checked_in (requires all fees settled) |
+| PUT | `/api/bookings/:id/checkin` | Mark booking as attended or no_show (requires all fees settled) |
 | POST | `/api/staff/qr-checkin` | Walk-in check-in via QR scan (no booking) |
 | POST | `/api/bookings/:id/staff-direct-add` | Add member or guest to roster during check-in |
 | GET | `/api/bookings/overdue-payments` | List bookings with unpaid fees from last 30 days |
@@ -70,10 +70,10 @@ Key rules:
    - First apply any account credit balance.
    - If fully covered by credit, return `paidInFull: true` with a balance transaction ID.
    - Otherwise, create a Stripe PaymentIntent for the remaining amount.
-5. The checkin endpoint (`POST /api/bookings/:id/checkin`) enforces settlement:
+5. The checkin endpoint (`PUT /api/bookings/:id/checkin`) enforces settlement:
    - Query participants with `payment_status NOT IN ('paid', 'waived')` and fees > 0.
    - Return HTTP 402 `OUTSTANDING_BALANCE` if any unpaid participants exist.
-   - Only set `status = 'checked_in'` when all fees are resolved.
+   - Set `status` to `targetStatus` ('attended' or 'no_show', defaults to 'attended') when all fees are resolved.
 
 ## Guest Pass Verification and Consumption
 

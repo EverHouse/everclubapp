@@ -12,7 +12,7 @@ All run automatically on timers. Registered in `index.ts`.
 | `inviteExpiryScheduler.ts` | Every 5 minutes | Expire stale invites |
 | `relocationCleanupScheduler.ts` | Every 5 minutes | Clean up relocation temp data |
 | `bookingExpiryScheduler.ts` | Every hour | Expire unconfirmed bookings |
-| `bookingAutoCompleteScheduler.ts` | Every 2 hours | Mark approved/confirmed bookings as no_show 24h after end time |
+| `bookingAutoCompleteScheduler.ts` | Every 2 hours | Mark approved/confirmed bookings as attended (auto checked-in) 24h after end time |
 | `communicationLogsScheduler.ts` | Every 30 minutes | Sync communication logs |
 | `dailyReminderScheduler.ts` | Daily 6pm Pacific | Send booking reminders |
 | `morningClosureScheduler.ts` | Daily 8am Pacific | Notify about closures |

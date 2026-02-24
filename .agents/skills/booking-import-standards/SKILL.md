@@ -52,12 +52,13 @@ The `booking_sessions` table has a `prevent_booking_session_overlap` trigger tha
 
 The backfill endpoint (`POST /api/admin/backfill-sessions` in `server/routes/trackman/admin.ts`) uses savepoints per-booking so individual failures do not abort the entire transaction. When `ensureSessionForBooking` returns `sessionId: 0` with an error, roll back to the savepoint, record the error, and continue to the next booking.
 
-### Rule 1c — Auto no-show prevents stale booking accumulation
+### Rule 1c — Auto-complete prevents stale booking accumulation
 
-The auto-complete scheduler (`bookingAutoCompleteScheduler.ts`, every 2h) marks approved/confirmed bookings as `no_show` when 24h have passed since the booking end time. This prevents stale bookings from:
+The auto-complete scheduler (`bookingAutoCompleteScheduler.ts`, every 2h) marks approved/confirmed bookings as `attended` (auto checked-in) when 24h have passed since the booking end time. This assumes most members attended and prevents stale bookings from:
 - Appearing in conflict detection (OCCUPIED_STATUSES includes `approved` and `confirmed`)
 - Inflating active booking counts
 - Causing false overlap warnings during CSV import
+Staff can manually correct to `no_show` via the BookingStatusDropdown if needed.
 
 CASCADE constraints on `wellness_enrollments.class_id → wellness_classes.id` and `booking_participants.session_id → booking_sessions.id` ensure orphan records are automatically cleaned up when parent records are deleted.
 
@@ -292,7 +293,7 @@ Each simulator booking has at most one Stripe invoice, tracked by `booking_reque
 3. **Finalized at payment**: At check-in or member payment, the invoice is finalized and marked paid via `finalizeAndPayInvoice()` or `finalizeInvoicePaidOutOfBand()`.
 4. **Voided on cancellation**: When a booking is cancelled, `voidBookingInvoice()` voids the draft/open invoice.
 
-**Conference room bookings are excluded** — they use a separate prepayment flow and do not create booking invoices.
+**Note:** As of v8.16.0 (2026-02-24), conference room bookings use the same invoice-based flow as simulators. Old `conference_prepayments` records are grandfathered at check-in.
 
 ### Rule 15c — Roster lock after paid invoice
 

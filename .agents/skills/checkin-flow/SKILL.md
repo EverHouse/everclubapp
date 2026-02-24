@@ -87,7 +87,7 @@ CheckInConfirmationModal shows result
 
 1. **Fees recalculate at check-in time.** When the checkin context is loaded, `computeFeeBreakdown` runs with `source: 'checkin'`. Before any payment action, `recalculateSessionFees` persists updated fees to `cached_fee_cents` on each participant.
 
-2. **Prepayment must be settled before check-in.** `POST /api/bookings/:id/checkin` queries for participants with `payment_status NOT IN ('paid', 'waived')` and outstanding fees > 0. If any exist, it returns HTTP 402 with `OUTSTANDING_BALANCE`.
+2. **Prepayment must be settled before check-in.** `PUT /api/bookings/:id/checkin` queries for participants with `payment_status NOT IN ('paid', 'waived')` and outstanding fees > 0. If any exist, it returns HTTP 402 with `OUTSTANDING_BALANCE`.
 
 3. **Guest passes consume atomically.** `consumeGuestPassForParticipant` runs in a database transaction: it checks availability, increments `passes_used` on `guest_passes`, sets participant `payment_status = 'waived'` and `used_guest_pass = TRUE`, creates a `legacy_purchases` record, sends a notification, and cleans up any guest pass holds.
 
