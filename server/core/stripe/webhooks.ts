@@ -2012,11 +2012,17 @@ async function handleInvoicePaymentFailed(client: PoolClient, invoice: InvoiceWi
   const localReason = reason;
   const localAttemptCount = attemptCount;
 
+  const actualStatusResult = await client.query(
+    'SELECT membership_status FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+    [email]
+  );
+  const actualStatus = actualStatusResult.rows[0]?.membership_status || 'past_due';
+
   deferredActions.push(async () => {
     try {
       const { syncMemberToHubSpot } = await import('../hubspot/stages');
-      await syncMemberToHubSpot({ email: localEmail, status: 'past_due', billingProvider: 'stripe', billingGroupRole: 'Primary' });
-      logger.info(`[Stripe Webhook] Synced ${localEmail} payment failure status to HubSpot`);
+      await syncMemberToHubSpot({ email: localEmail, status: actualStatus, billingProvider: 'stripe', billingGroupRole: 'Primary' });
+      logger.info(`[Stripe Webhook] Synced ${localEmail} payment failure status to HubSpot (actual status: ${actualStatus})`);
     } catch (hubspotError: unknown) {
       logger.error('[Stripe Webhook] HubSpot sync failed for payment failure:', { error: hubspotError });
     }

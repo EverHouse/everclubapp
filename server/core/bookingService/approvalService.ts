@@ -1047,6 +1047,8 @@ export async function cancelBooking(params: CancelBookingParams) {
       .from(bookingRequests)
       .where(eq(bookingRequests.id, bookingId));
 
+    let guestPassRefundData: Array<{ displayName: string | null; ownerEmail: string }> = [];
+
     if (sessionResult[0]?.sessionId) {
       const guestParticipants = await tx.select({ 
         id: bookingParticipants.id, 
@@ -1061,12 +1063,12 @@ export async function cancelBooking(params: CancelBookingParams) {
 
       for (const guest of guestParticipants) {
         if (guest.usedGuestPass) {
-          await refundGuestPass(existing.userEmail, guest.displayName || undefined, false);
+          guestPassRefundData.push({ displayName: guest.displayName, ownerEmail: existing.userEmail });
         }
       }
 
       if (guestParticipants.length > 0) {
-        logger.info('[bays] Refunded guest pass(es) for cancelled booking', { extra: { guestParticipantsLength: guestParticipants.length, bookingId } });
+        logger.info('[bays] Guest pass refunds queued for after transaction', { extra: { guestParticipantsLength: guestParticipants.length, refundCount: guestPassRefundData.length, bookingId } });
       }
 
       const paidParticipants = await tx.select({
@@ -1161,8 +1163,19 @@ export async function cancelBooking(params: CancelBookingParams) {
       sessionId: cleanupSessionId || sessionResult?.[0]?.sessionId || null
     };
 
-    return { updated: updatedRow, bookingData: existing, pushInfo, overageRefundResult, isConferenceRoom, isPendingCancel: false, alreadyPending: false, stripeCleanupData };
+    return { updated: updatedRow, bookingData: existing, pushInfo, overageRefundResult, isConferenceRoom, isPendingCancel: false, alreadyPending: false, stripeCleanupData, guestPassRefundData };
   });
+
+  if (guestPassRefundData && guestPassRefundData.length > 0) {
+    for (const refund of guestPassRefundData) {
+      try {
+        await refundGuestPass(refund.ownerEmail, refund.displayName || undefined, false);
+      } catch (refundErr: unknown) {
+        logger.error('[Staff Cancel] Failed to refund guest pass (non-blocking)', { extra: { ownerEmail: refund.ownerEmail, displayName: refund.displayName, error: getErrorMessage(refundErr) } });
+      }
+    }
+    logger.info('[Staff Cancel] Guest pass refunds completed', { extra: { count: guestPassRefundData.length, bookingId } });
+  }
 
   if (!isPendingCancel && stripeCleanupData) {
     const hasStripeWork = stripeCleanupData.snapshotIntents.length > 0 ||

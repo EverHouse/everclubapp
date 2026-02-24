@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.26.4",
+    date: "2026-02-24",
+    title: "Booking Cancellation & Webhook Stability Fixes",
+    changes: [
+      "Fixed: Cancelling a booking with guest passes could cause a database deadlock under load — guest pass refunds now run after the main booking update completes instead of inside the same database lock",
+      "Fixed: When Stripe retries a failed payment for a member who was already suspended, HubSpot now receives the member's actual current status instead of being incorrectly reverted to 'past due' — this prevents marketing emails from being sent to the wrong audience",
+    ]
+  },
+  {
     version: "8.26.3",
     date: "2026-02-24",
     title: "Background System Fixes — Revenue, HubSpot & Fee Safety",
