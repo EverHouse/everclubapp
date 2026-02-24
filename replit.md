@@ -42,6 +42,15 @@ Common skill mappings (quick reference — NOT exhaustive):
 
 **INCIDENT LOG:** If you fail to follow ANY of the above rules, you MUST immediately log it in `.agents/incident-log.md` with: what rule was violated, what happened, estimated wasted agent usage, and corrective action. This is how the founder tracks accountability.
 
+**PLAN BEFORE CODING IS NON-NEGOTIABLE.** For ANY task that involves code changes, you MUST:
+1. Load all relevant skills first (see above)
+2. Search conversation memory for past context on this topic
+3. Create a task list outlining exactly what you plan to do — this gives the user an approval step before any code is written
+4. WAIT for the user to approve the plan before making any code changes
+5. Never skip straight to coding. The user must see and approve the approach first.
+
+This applies to bug fixes, new features, refactors, and any other code-touching work. The only exceptions are trivial one-line fixes where the change is obvious and low-risk.
+
 ## ⛔ ANTI-PATTERNS — NEVER DO THESE ⛔
 
 These are the most expensive mistakes from the incident log (`.agents/incident-log.md`). Read the incident log at the start of every session to learn from past failures.
