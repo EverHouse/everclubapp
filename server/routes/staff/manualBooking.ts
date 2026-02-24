@@ -8,7 +8,7 @@ import {logAndRespond, logger } from '../../core/logger';
 import { formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
 import { db } from '../../db';
 import { resources, dayPassPurchases, passRedemptionLogs, bookingRequests } from '../../../shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { getSessionUser } from '../../types/session';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 
@@ -49,10 +49,36 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
         const sameEmail = user_email && duplicate.userEmail &&
           user_email.toLowerCase() === duplicate.userEmail.toLowerCase();
 
-        if (terminalStatuses.includes(duplicate.status || '') || sameEmail) {
+        if (terminalStatuses.includes(duplicate.status || '')) {
           await db.update(bookingRequests)
             .set({ trackmanBookingId: null })
             .where(eq(bookingRequests.id, duplicate.id));
+        } else if (sameEmail) {
+          const duplicateId = duplicate.id as number;
+          await db.update(bookingRequests)
+            .set({
+              trackmanBookingId: null,
+              status: 'declined',
+              staffNotes: sql`COALESCE(staff_notes, '') || ' [Auto-declined: Trackman ID re-linked via manual booking for the same member]'`,
+              reviewedBy: 'system_relink',
+              reviewedAt: sql`NOW()`,
+              updatedAt: sql`NOW()`
+            })
+            .where(eq(bookingRequests.id, duplicateId));
+
+          const orphanedSession = await db.execute(sql`
+            SELECT id FROM booking_sessions WHERE id = (
+              SELECT session_id FROM booking_requests WHERE id = ${duplicateId}
+            )
+          `).then(r => (r.rows as Array<Record<string, unknown>>)[0]);
+
+          if (orphanedSession?.id) {
+            await db.execute(sql`DELETE FROM booking_sessions WHERE id = ${orphanedSession.id}`);
+          }
+
+          logger.info('[ManualBooking] Declined orphaned same-member booking during Trackman re-link', {
+            extra: { declinedBookingId: duplicateId, trackmanId: trackman_id }
+          });
         } else {
           return res.status(409).json({ 
             error: `Trackman Booking ID ${trackman_id} is already linked to another booking (#${duplicate.id}). Each Trackman booking can only be linked once.` 

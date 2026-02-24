@@ -152,10 +152,62 @@ export async function validateTrackmanId(trackmanBookingId: string, bookingId: n
         currentBooking.userEmail.toLowerCase() === duplicate.userEmail.toLowerCase();
 
       if (sameEmail) {
+        const duplicateId = duplicate.id as number;
+
         await db.update(bookingRequests)
-          .set({ trackmanBookingId: null })
-          .where(eq(bookingRequests.id, duplicate.id));
-        return { valid: true, unlinkedFromBookingId: duplicate.id as number };
+          .set({
+            trackmanBookingId: null,
+            status: 'declined',
+            staffNotes: sql`COALESCE(staff_notes, '') || ' [Auto-declined: Trackman ID re-linked to booking #' || ${bookingId}::text || ' for the same member]'`,
+            reviewedBy: 'system_relink',
+            reviewedAt: sql`NOW()`,
+            updatedAt: sql`NOW()`
+          })
+          .where(eq(bookingRequests.id, duplicateId));
+
+        const [orphanedSession] = await db.execute(sql`
+          SELECT id FROM booking_sessions WHERE id = (
+            SELECT session_id FROM booking_requests WHERE id = ${duplicateId}
+          )
+        `).then(r => r.rows as Array<Record<string, unknown>>);
+
+        if (orphanedSession?.id) {
+          await db.execute(sql`DELETE FROM booking_sessions WHERE id = ${orphanedSession.id}`);
+          logger.info('[ValidateTrackmanId] Cleaned up orphaned session', {
+            extra: { sessionId: orphanedSession.id, declinedBookingId: duplicateId }
+          });
+        }
+
+        try {
+          const stripe = getStripeClient();
+          const invoices = await stripe.invoices.search({
+            query: `metadata["booking_id"]:"${duplicateId}"`,
+            limit: 5
+          });
+          for (const invoice of invoices.data) {
+            if (invoice.status === 'draft') {
+              await stripe.invoices.del(invoice.id);
+              logger.info('[ValidateTrackmanId] Deleted draft invoice for orphaned booking', {
+                extra: { invoiceId: invoice.id, declinedBookingId: duplicateId }
+              });
+            } else if (invoice.status === 'open') {
+              await stripe.invoices.voidInvoice(invoice.id);
+              logger.info('[ValidateTrackmanId] Voided open invoice for orphaned booking', {
+                extra: { invoiceId: invoice.id, declinedBookingId: duplicateId }
+              });
+            }
+          }
+        } catch (invoiceErr: unknown) {
+          logger.warn('[ValidateTrackmanId] Invoice cleanup failed for orphaned booking (non-blocking)', {
+            extra: { declinedBookingId: duplicateId, error: invoiceErr instanceof Error ? invoiceErr.message : String(invoiceErr) }
+          });
+        }
+
+        logger.info('[ValidateTrackmanId] Declined orphaned same-member booking', {
+          extra: { declinedBookingId: duplicateId, relinkToBookingId: bookingId, trackmanBookingId }
+        });
+
+        return { valid: true, unlinkedFromBookingId: duplicateId };
       }
 
       return {

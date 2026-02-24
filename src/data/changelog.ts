@@ -21,6 +21,7 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Availability cache key now includes user identity, preventing stale self-exclusion data when admins use 'view as' to switch between members",
       "Fixed: Trackman webhook now matches pending_approval bookings (not just pending), preventing webhook from creating a duplicate booking when the original request was awaiting approval",
       "Fixed: Pasting a Trackman Booking ID that's already linked to another booking for the same member now automatically re-links it instead of showing an error — handles the case where a webhook auto-created a separate booking but the original pending request still needs linking",
+      "Fixed: When a Trackman ID is re-linked to a different booking for the same member, the orphaned webhook-created booking is automatically declined with an audit note, its session is deleted, and any associated draft/open invoice is voided or deleted",
     ]
   },
   {
