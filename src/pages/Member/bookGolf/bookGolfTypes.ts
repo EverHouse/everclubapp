@@ -104,8 +104,8 @@ export type { PlayerSlot } from '../../../components/shared/PlayerSlotEditor';
 export const bookGolfKeys = {
   all: ['bookGolf'] as const,
   resources: (type: string) => [...bookGolfKeys.all, 'resources', type] as const,
-  availability: (resourceIds: number[], date: string, duration: number, ignoreId?: number) => 
-    [...bookGolfKeys.all, 'availability', resourceIds, date, duration, ignoreId] as const,
+  availability: (resourceIds: number[], date: string, duration: number, ignoreId?: number, userEmail?: string) => 
+    [...bookGolfKeys.all, 'availability', resourceIds, date, duration, ignoreId, userEmail] as const,
   guestPasses: (email: string, tier: string) => [...bookGolfKeys.all, 'guestPasses', email, tier] as const,
   myRequests: (email: string) => [...bookGolfKeys.all, 'myRequests', email] as const,
   closures: () => [...bookGolfKeys.all, 'closures'] as const,
