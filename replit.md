@@ -34,6 +34,8 @@ Common skill mappings:
 - Performance → `performance`, `sql-optimization-patterns`
 - Testing → `test-driven-development`, `e2e-testing-patterns`, `webapp-testing`
 
+**CONVERSATION MEMORY IS NON-NEGOTIABLE.** At the start of every session and whenever making architectural decisions, use the `remembering-conversations` skill to search past conversations for relevant context, past decisions, known gotchas, and previous approaches. This prevents repeating mistakes and re-inventing solutions that were already discussed. Load this skill FIRST — before planning, before coding, before proposing anything.
+
 **CHANGELOG IS NON-NEGOTIABLE.** Every session that produces user-facing changes MUST end with an update to `src/data/changelog.ts` and `src/data/changelog-version.ts`. Group related changes into versioned entries (bump minor version per logical feature/fix group). Never leave a session without updating the changelog — members see this in-app.
 
 **INCIDENT LOG:** If you fail to follow ANY of the above rules, you MUST immediately log it in `.agents/incident-log.md` with: what rule was violated, what happened, estimated wasted agent usage, and corrective action. This is how the founder tracks accountability.
