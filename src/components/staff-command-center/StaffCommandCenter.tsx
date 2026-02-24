@@ -856,7 +856,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                     setFabOpen(false); 
                     setQrScannerOpen(true);
                   }}
-                  className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/90 dark:bg-surface-dark/90 backdrop-blur-xl shadow-lg border border-gray-200 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-6"
+                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-6"
                   role="menuitem"
                 >
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">QR Scanner</span>
@@ -870,7 +870,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                     setFabOpen(false); 
                     setEventDrawerOpen(true);
                   }}
-                  className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/90 dark:bg-surface-dark/90 backdrop-blur-xl shadow-lg border border-gray-200 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-5"
+                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-5"
                   role="menuitem"
                 >
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">New Event</span>
@@ -884,7 +884,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                     setFabOpen(false); 
                     setWellnessDrawerOpen(true);
                   }}
-                  className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/90 dark:bg-surface-dark/90 backdrop-blur-xl shadow-lg border border-gray-200 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-4"
+                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-4"
                   role="menuitem"
                 >
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">New Wellness</span>
@@ -898,7 +898,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                     setFabOpen(false); 
                     setNoticeDrawerOpen(true);
                   }}
-                  className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/90 dark:bg-surface-dark/90 backdrop-blur-xl shadow-lg border border-gray-200 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-3"
+                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-3"
                   role="menuitem"
                 >
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">New Notice</span>
@@ -912,7 +912,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                     setFabOpen(false); 
                     setAnnouncementDrawerOpen(true);
                   }}
-                  className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/90 dark:bg-surface-dark/90 backdrop-blur-xl shadow-lg border border-gray-200 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-2"
+                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-2"
                   role="menuitem"
                 >
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">Announcement</span>
@@ -927,7 +927,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                     setNewUserDrawerMode('member');
                     setNewUserDrawerOpen(true);
                   }}
-                  className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/90 dark:bg-surface-dark/90 backdrop-blur-xl shadow-lg border border-gray-200 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-1"
+                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-1"
                   role="menuitem"
                 >
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">New User</span>

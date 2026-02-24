@@ -14,6 +14,7 @@ export const changelog: ChangelogEntry[] = [
     changes: [
       "Fixed: Staff portal bottom navigation now shows proper liquid glass transparency matching the member portal",
       "Fixed: Both staff and member bottom nav menus now correctly show a solid background when reduced transparency is enabled, and liquid glass when it is not",
+      "Fixed: Staff command center FAB menu items now use liquid glass styling instead of solid backgrounds, with proper solid fallback for reduced transparency",
     ]
   },
   {
