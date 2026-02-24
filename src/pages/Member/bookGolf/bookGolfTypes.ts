@@ -12,6 +12,7 @@ export interface APISlot {
   start_time: string;
   end_time: string;
   available: boolean;
+  requested?: boolean;
 }
 
 export interface TimeSlot {
@@ -23,6 +24,7 @@ export interface TimeSlot {
   label: string;
   available: boolean;
   availableResourceDbIds: number[];
+  requestedResourceDbIds: number[];
 }
 
 export interface Resource {

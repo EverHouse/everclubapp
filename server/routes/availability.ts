@@ -7,6 +7,7 @@ import { getTodayPacific, getPacificDateParts } from '../utils/dateUtils';
 import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
 import { toIntArrayLiteral, toTextArrayLiteral } from '../utils/sqlArrayLiteral';
+import { getSessionUser } from '../types/session';
 
 const router = Router();
 
@@ -17,6 +18,7 @@ interface APISlot {
   start_time: string;
   end_time: string;
   available: boolean;
+  requested?: boolean;
 }
 
 interface BatchAvailabilityRequest {
@@ -24,6 +26,7 @@ interface BatchAvailabilityRequest {
   date: string;
   duration: number;
   ignore_booking_id?: number;
+  user_email?: string;
 }
 
 // Get business hours by day of week
@@ -55,7 +58,8 @@ const generateSlotsForResource = (
   bookedSlots: { start_time: string; end_time: string }[],
   blockedSlots: { start_time: string; end_time: string }[],
   unmatchedSlots: { start_time: string; end_time: string }[],
-  calendarSlots: { start_time: string; end_time: string }[]
+  calendarSlots: { start_time: string; end_time: string }[],
+  pendingSlots: { start_time: string; end_time: string }[] = []
 ): APISlot[] => {
   const slots: APISlot[] = [];
   const slotIncrement = 15;
@@ -91,11 +95,23 @@ const generateSlotsForResource = (
       startTime < busy.end_time && endTime > busy.start_time
     );
     
-    slots.push({
+    const hasPendingConflict = pendingSlots.some((pending) =>
+      startTime < pending.end_time && endTime > pending.start_time
+    );
+    
+    const isUnavailable = hasBookingConflict || hasBlockConflict || hasUnmatchedConflict || hasCalendarConflict || hasPendingConflict;
+    
+    const slot: APISlot = {
       start_time: startTime,
       end_time: endTime,
-      available: !hasBookingConflict && !hasBlockConflict && !hasUnmatchedConflict && !hasCalendarConflict
-    });
+      available: !isUnavailable
+    };
+    
+    if (hasPendingConflict && !hasBookingConflict && !hasBlockConflict && !hasUnmatchedConflict && !hasCalendarConflict) {
+      slot.requested = true;
+    }
+    
+    slots.push(slot);
   }
   
   return slots;
@@ -104,7 +120,7 @@ const generateSlotsForResource = (
 // Batch availability endpoint - fetch multiple resources in a single request
 router.post('/api/availability/batch', async (req, res) => {
   try {
-    const { resource_ids, date, duration, ignore_booking_id } = req.body as BatchAvailabilityRequest;
+    const { resource_ids, date, duration, ignore_booking_id, user_email } = req.body as BatchAvailabilityRequest;
     
     if (!resource_ids || !Array.isArray(resource_ids) || resource_ids.length === 0 || !date) {
       return res.status(400).json({ error: 'resource_ids (array) and date are required' });
@@ -112,6 +128,9 @@ router.post('/api/availability/batch', async (req, res) => {
     
     const durationMinutes = duration || 60;
     const ignoreId = ignore_booking_id ? ignore_booking_id : null;
+    
+    const sessionUser = getSessionUser(req);
+    const requestingEmail = (user_email || sessionUser?.email || '').trim().toLowerCase();
     
     // Get day of week for business hours
     const requestedDate = new Date(date + 'T12:00:00');
@@ -134,7 +153,7 @@ router.post('/api/availability/batch', async (req, res) => {
     // Fetch all data in parallel with optimized queries
     const resourceIdsLiteral = toIntArrayLiteral(resource_ids);
     const resourceIdsTextLiteral = toTextArrayLiteral(resource_ids.map(String));
-    const [resourcesResult, bookedResult, blockedResult, unmatchedResult, webhookCacheResult] = await Promise.all([
+    const [resourcesResult, bookedResult, blockedResult, unmatchedResult, webhookCacheResult, pendingResult] = await Promise.all([
       db.execute(sql`SELECT id, type FROM resources WHERE id = ANY(${resourceIdsLiteral}::int[])`),
       ignoreId
         ? db.execute(sql`SELECT resource_id, start_time, end_time FROM booking_requests 
@@ -150,7 +169,17 @@ router.post('/api/availability/batch', async (req, res) => {
              WHERE br.trackman_booking_id = tub.trackman_booking_id::text
            )`).catch(() => ({ rows: [] })),
       db.execute(sql`SELECT resource_id, start_time, end_time FROM trackman_bay_slots 
-         WHERE resource_id = ANY(${resourceIdsLiteral}::int[]) AND slot_date = ${date} AND status = 'booked'`).catch(() => ({ rows: [] }))
+         WHERE resource_id = ANY(${resourceIdsLiteral}::int[]) AND slot_date = ${date} AND status = 'booked'`).catch(() => ({ rows: [] })),
+      requestingEmail
+        ? db.execute(sql`SELECT resource_id, start_time, end_time FROM booking_requests 
+             WHERE resource_id = ANY(${resourceIdsLiteral}::int[]) AND request_date = ${date} 
+             AND status IN ('pending', 'pending_approval', 'cancellation_pending')
+             AND LOWER(user_email) != ${requestingEmail}
+             AND resource_id IS NOT NULL`)
+        : db.execute(sql`SELECT resource_id, start_time, end_time FROM booking_requests 
+             WHERE resource_id = ANY(${resourceIdsLiteral}::int[]) AND request_date = ${date} 
+             AND status IN ('pending', 'pending_approval', 'cancellation_pending')
+             AND resource_id IS NOT NULL`)
     ]);
     
     // Build resource type map
@@ -186,6 +215,13 @@ router.post('/api/availability/batch', async (req, res) => {
     resource_ids.forEach(id => webhookCacheByResource.set(id, []));
     webhookCacheResult.rows.forEach((row: { resource_id: number; start_time: string; end_time: string }) => {
       webhookCacheByResource.get(row.resource_id)?.push({ start_time: row.start_time, end_time: row.end_time });
+    });
+    
+    // Group pending booking requests by resource (soft lock — blocks other members from requesting same slot)
+    const pendingByResource = new Map<number, { start_time: string; end_time: string }[]>();
+    resource_ids.forEach(id => pendingByResource.set(id, []));
+    pendingResult.rows.forEach((row: { resource_id: number; start_time: string; end_time: string }) => {
+      pendingByResource.get(row.resource_id)?.push({ start_time: row.start_time, end_time: row.end_time });
     });
     
     // Find conference room resources that need calendar lookups
@@ -234,7 +270,8 @@ router.post('/api/availability/batch', async (req, res) => {
         bookedByResource.get(resourceId) || [],
         blockedByResource.get(resourceId) || [],
         combinedUnmatchedSlots,
-        calendarByResource.get(resourceId) || []
+        calendarByResource.get(resourceId) || [],
+        pendingByResource.get(resourceId) || []
       );
       result[resourceId] = { slots };
     }
@@ -265,6 +302,9 @@ router.get('/api/availability', async (req, res) => {
     // When rescheduling, ignore the original booking so its slot shows as available
     const ignoreId = ignore_booking_id ? parseInt(ignore_booking_id as string) : null;
     
+    const sessionUser = getSessionUser(req);
+    const requestingEmail = (sessionUser?.email || '').trim().toLowerCase();
+    
     // Include both 'approved' and 'confirmed' statuses as active bookings that block availability
     const bookedSlots = ignoreId
       ? await db.execute(sql`SELECT start_time, end_time FROM booking_requests 
@@ -274,6 +314,18 @@ router.get('/api/availability', async (req, res) => {
     
     const blockedSlots = await db.execute(sql`SELECT start_time, end_time FROM availability_blocks 
        WHERE resource_id = ${resource_id} AND block_date = ${date}`);
+    
+    // Fetch pending bookings from other members (soft lock)
+    const pendingSlots = requestingEmail
+      ? await db.execute(sql`SELECT start_time, end_time FROM booking_requests 
+           WHERE resource_id = ${resource_id} AND request_date = ${date} 
+           AND status IN ('pending', 'pending_approval', 'cancellation_pending')
+           AND LOWER(user_email) != ${requestingEmail}
+           AND resource_id IS NOT NULL`)
+      : await db.execute(sql`SELECT start_time, end_time FROM booking_requests 
+           WHERE resource_id = ${resource_id} AND request_date = ${date} 
+           AND status IN ('pending', 'pending_approval', 'cancellation_pending')
+           AND resource_id IS NOT NULL`);
     
     // Also check unmatched Trackman bookings (unresolved imports occupy time slots)
     // Exclude entries that already exist in booking_requests to prevent double-counting
@@ -407,11 +459,24 @@ router.get('/api/availability', async (req, res) => {
         return (startTime < busy.end_time && endTime > busy.start_time);
       });
       
-      slots.push({
+      // Check pending bookings from other members (soft lock)
+      const hasPendingConflict = pendingSlots.rows.some((pending: Record<string, unknown>) => {
+        return (startTime < pending.end_time && endTime > pending.start_time);
+      });
+      
+      const isUnavailable = hasBookingConflict || hasBlockConflict || hasUnmatchedConflict || hasCalendarConflict || hasPendingConflict;
+      
+      const slot: APISlot = {
         start_time: startTime,
         end_time: endTime,
-        available: !hasBookingConflict && !hasBlockConflict && !hasUnmatchedConflict && !hasCalendarConflict
-      });
+        available: !isUnavailable
+      };
+      
+      if (hasPendingConflict && !hasBookingConflict && !hasBlockConflict && !hasUnmatchedConflict && !hasCalendarConflict) {
+        slot.requested = true;
+      }
+      
+      slots.push(slot);
     }
     
     res.json(slots);

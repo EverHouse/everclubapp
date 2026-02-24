@@ -172,22 +172,28 @@ const BookGolf: React.FC = () => {
         {
           resource_ids: resourceIds,
           date: selectedDateObj.date,
-          duration
+          duration,
+          user_email: effectiveUser?.email
         }
       );
       
-      const allSlots: Map<string, { slot: TimeSlot; resourceIds: number[] }> = new Map();
+      const allSlots: Map<string, { slot: TimeSlot; resourceIds: number[]; requestedIds: number[] }> = new Map();
       
       resources.forEach(resource => {
         const resourceData = batchResult[resource.dbId];
         if (!resourceData?.slots) return;
         
         resourceData.slots.forEach(slot => {
-          if (!slot.available) return;
+          if (!slot.available && !slot.requested) return;
           const key = slot.start_time;
           
           if (allSlots.has(key)) {
-            allSlots.get(key)!.resourceIds.push(resource.dbId);
+            const entry = allSlots.get(key)!;
+            if (slot.available) {
+              entry.resourceIds.push(resource.dbId);
+            } else if (slot.requested) {
+              entry.requestedIds.push(resource.dbId);
+            }
           } else {
             allSlots.set(key, { 
               slot: {
@@ -197,19 +203,24 @@ const BookGolf: React.FC = () => {
                 startTime24: slot.start_time,
                 endTime24: slot.end_time,
                 label: `${formatTime12Hour(slot.start_time)} – ${formatTime12Hour(slot.end_time)}`,
-                available: true,
-                availableResourceDbIds: []
+                available: slot.available,
+                availableResourceDbIds: [],
+                requestedResourceDbIds: []
               }, 
-              resourceIds: [resource.dbId] 
+              resourceIds: slot.available ? [resource.dbId] : [],
+              requestedIds: slot.requested ? [resource.dbId] : []
             });
           }
         });
       });
       
       return Array.from(allSlots.values())
-        .map(({ slot, resourceIds: resIds }) => ({
+        .filter(({ resourceIds: resIds, requestedIds }) => resIds.length > 0 || requestedIds.length > 0)
+        .map(({ slot, resourceIds: resIds, requestedIds }) => ({
           ...slot,
-          availableResourceDbIds: resIds
+          available: resIds.length > 0,
+          availableResourceDbIds: resIds,
+          requestedResourceDbIds: requestedIds
         }))
         .sort((a, b) => a.startTime24.localeCompare(b.startTime24));
     },
@@ -1282,7 +1293,25 @@ const BookGolf: React.FC = () => {
                       <div className={`grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 overflow-hidden transition-all duration-normal ease-out ${
                         isExpanded ? 'max-h-[500px] opacity-100 mt-2 pl-6' : 'max-h-0 opacity-0'
                       }`}>
-                        {hourGroup.slots.map((slot, slotIndex) => (
+                        {hourGroup.slots.map((slot, slotIndex) => {
+                          const isRequestedOnly = !slot.available && slot.requestedResourceDbIds.length > 0;
+                          if (isRequestedOnly) {
+                            return (
+                              <div
+                                key={slot.id}
+                                className={`p-3 rounded-xl border text-left opacity-50 cursor-not-allowed ${
+                                  isDark ? 'bg-white/5 border-amber-500/30' : 'bg-amber-50 border-amber-200'
+                                }`}
+                                style={{ '--stagger-index': slotIndex } as React.CSSProperties}
+                              >
+                                <div className={`font-bold text-sm ${isDark ? 'text-white/60' : 'text-primary/60'}`}>{slot.start}</div>
+                                <div className={`text-[10px] font-bold uppercase tracking-wide ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                                  Requested
+                                </div>
+                              </div>
+                            );
+                          }
+                          return (
                           <button
                             key={slot.id}
                             onClick={() => {
@@ -1303,7 +1332,8 @@ const BookGolf: React.FC = () => {
                               {slot.availableResourceDbIds.length} {activeTab === 'simulator' ? 'bays' : 'rooms'}
                             </div>
                           </button>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -1330,6 +1360,19 @@ const BookGolf: React.FC = () => {
                       selected={selectedResource?.id === resource.id}
                       onClick={() => { haptic.medium(); setSelectedResource(resource); }}
                       isDark={isDark}
+                    />
+                  </div>
+                ))}
+                {resources
+                  .filter(r => selectedSlot.requestedResourceDbIds.includes(r.dbId) && !selectedSlot.availableResourceDbIds.includes(r.dbId))
+                  .map((resource, index) => (
+                  <div key={`requested-${resource.id}`} className="animate-slide-up-stagger" style={{ '--stagger-index': getAvailableResourcesForSlot(selectedSlot).length + index, animationFillMode: 'both' } as React.CSSProperties}>
+                    <ResourceCard
+                      resource={resource}
+                      selected={false}
+                      onClick={() => {}}
+                      isDark={isDark}
+                      requested
                     />
                   </div>
                 ))}

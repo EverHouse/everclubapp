@@ -112,6 +112,8 @@ When any booking is cancelled (CSV import cancellation path, regular cancellatio
 
 Time slots remain occupied while a booking is in `cancellation_pending`. Availability queries must exclude both `approved` AND `cancellation_pending` slots to prevent double-booking.
 
+**Soft lock extension**: The member-facing availability endpoint (`server/routes/availability.ts`) also reserves slots for `pending` and `pending_approval` booking requests on specific bays. This "soft lock" prevents members from requesting a bay/time that another member has already requested but not yet been approved. The requesting member's own pending bookings are excluded from the lock. See booking-flow skill Key Invariant #15.
+
 ### Rule 7 — Status filtering: cancellation_pending everywhere
 
 Handle `cancellation_pending` status in every query that filters by booking status:
@@ -389,3 +391,4 @@ When adding any new booking-related code, verify:
 - [ ] For cancellation: Does it void the booking invoice? (Rule 15b)
 - [ ] For roster changes: Does it check roster lock via `enforceRosterLock()`? (Rule 15c)
 - [ ] Does the invoice sync after fee recalculation? (Rule 15b)
+- [ ] Does the availability endpoint account for pending booking requests on specific bays? (Rule 6, soft lock)

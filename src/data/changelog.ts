@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.26.0",
+    date: "2026-02-24",
+    title: "Booking Soft Lock — Prevent Double Requests",
+    changes: [
+      "New: When a member requests a specific bay and time slot, other members now see that slot as 'Requested' (amber indicator) instead of available — no more submitting a request only to have it declined because someone else already requested the same slot",
+      "New: Time slots where all bays are already requested appear as non-selectable with a 'Requested' label in the time picker",
+      "New: Bay selection now shows requested bays below available bays with a 'Pending approval for another member' message",
+      "Improved: Your own pending requests do not block you — you still see your own requested slots as normal",
+    ]
+  },
+  {
     version: "8.25.3",
     date: "2026-02-24",
     title: "Scroll Lock — Background Scroll Prevention",
