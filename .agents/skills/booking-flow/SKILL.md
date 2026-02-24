@@ -10,7 +10,7 @@ How a booking moves through its lifecycle from member request to completion.
 ## Lifecycle Stages
 
 ```
-Request → Guest Pass Hold → Staff Approval → Session Creation → Invoice Draft → Trackman Link → Check-in → Completion / Auto No-Show
+Request → Guest Pass Hold → Staff Approval → Session Creation → Invoice Draft → Trackman Link → Check-in → Completion / Auto Check-In
 ```
 
 ### 1. Request (status: `pending`)
@@ -114,7 +114,7 @@ See `references/trackman-sync.md` for full details.
 
 ### 6. Check-in (status: `attended` / `checked_in`)
 
-Staff marks booking as attended. Session must exist before check-in. If no session exists yet, the check-in flow calls `ensureSessionForBooking()` to create one.
+Staff marks booking as attended or no-show via the BookingStatusDropdown. The dropdown allows toggling between statuses after initial selection. Session must exist before check-in. If no session exists yet, the check-in flow calls `ensureSessionForBooking()` to create one.
 
 ### 7. Cancellation
 
@@ -149,13 +149,13 @@ Two cancellation paths:
 9. Log audit entry via `logSystemAction({ action: 'booking_cancelled_webhook' })`.
 10. Broadcast availability update.
 
-### 8. Auto No-Show (status: `no_show`)
+### 8. Auto Check-In (status: `attended`)
 
-The auto-complete scheduler (`server/schedulers/bookingAutoCompleteScheduler.ts`) runs every 2 hours. It marks approved/confirmed bookings as `no_show` when 24 hours have passed since the booking's end time without a check-in. This prevents stale bookings from occupying active status indefinitely and removes them from conflict detection (which filters by `approved`, `confirmed`, `attended`).
+The auto-complete scheduler (`server/schedulers/bookingAutoCompleteScheduler.ts`) runs every 2 hours. It marks approved/confirmed bookings as `attended` (auto checked-in) when 24 hours have passed since the booking's end time. This assumes most members attended their bookings and avoids noisy false no-show notifications. Staff can still manually mark a booking as `no_show` via the BookingStatusDropdown if needed.
 
 - Uses Pacific timezone via `getTodayPacific()` / `formatTimePacific()`
 - Excludes relocating bookings (`is_relocating IS NOT TRUE`)
-- Notifies staff when 2+ bookings are auto-marked
+- Notifies staff when 2+ bookings are auto checked-in
 - Manual trigger available via `runManualBookingAutoComplete()`
 
 ### 9. Reschedule
@@ -213,7 +213,7 @@ Resource type?
 
 1. **Session before roster**: A `booking_sessions` row must exist before any `booking_participants` can be linked. The session is the anchor for the participant roster and usage ledger.
 
-2. **Conflict detection scope**: `findConflictingBookings()` checks OCCUPIED_STATUSES = `['pending', 'pending_approval', 'approved', 'confirmed', 'checked_in', 'attended']`. It checks both owner bookings and participant bookings on the same date. The `attended` status was added in v8.6.0 to prevent double-booking against checked-in sessions. The auto-complete scheduler moves stale `approved`/`confirmed` bookings to `no_show` after 24h, removing them from conflict detection.
+2. **Conflict detection scope**: `findConflictingBookings()` checks OCCUPIED_STATUSES = `['pending', 'pending_approval', 'approved', 'confirmed', 'checked_in', 'attended']`. It checks both owner bookings and participant bookings on the same date. The `attended` status was added in v8.6.0 to prevent double-booking against checked-in sessions. The auto-complete scheduler moves stale `approved`/`confirmed` bookings to `attended` after 24h, removing them from conflict detection.
 
 3. **Availability guard layers**: `checkUnifiedAvailability()` runs three checks in order:
    - Facility closures (`facility_closures` table)

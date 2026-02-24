@@ -3,6 +3,7 @@ import { ManageModeRosterData, FetchedContext } from './bookingSheetTypes';
 import { StripePaymentForm } from '../../stripe/StripePaymentForm';
 import { TerminalPayment } from '../TerminalPayment';
 import { useToast } from '../../Toast';
+import { BookingStatusDropdown } from '../../BookingStatusDropdown';
 
 interface PaymentSummaryBodyProps {
   isConferenceRoom: boolean;
@@ -118,7 +119,7 @@ interface PaymentActionFooterProps {
   checkinMode?: boolean;
   savingChanges: boolean;
   handleManageModeSave: () => void;
-  onCheckIn?: (bookingId: number) => void | Promise<void>;
+  onCheckIn?: (bookingId: number, targetStatus?: 'attended' | 'no_show') => void | Promise<void>;
   onReschedule?: (booking: { id: number; requestDate: string; startTime: string; endTime: string; resourceId: number; resourceName?: string; userName?: string; userEmail?: string }) => void;
   onCancelBooking?: (bookingId: number) => void;
   bookingContext?: { requestDate?: string; startTime?: string; endTime?: string; resourceId?: number; resourceName?: string };
@@ -160,11 +161,11 @@ export function PaymentActionFooter({
   bookingStatus,
 }: PaymentActionFooterProps) {
   const [checkingIn, setCheckingIn] = React.useState(false);
-  const [checkedIn, setCheckedIn] = React.useState(false);
+  const [localStatus, setLocalStatus] = React.useState<'attended' | 'no_show' | null>(null);
 
   React.useEffect(() => {
     setCheckingIn(false);
-    setCheckedIn(false);
+    setLocalStatus(null);
   }, [bookingId]);
 
   const fs = rosterData?.financialSummary;
@@ -176,13 +177,13 @@ export function PaymentActionFooter({
     setWaiverReason('');
   };
 
-  const handleCheckIn = async () => {
+  const handleCheckIn = async (targetStatus?: 'attended' | 'no_show') => {
     if (!bookingId || !onCheckIn) return;
     setCheckingIn(true);
     try {
-      const result = onCheckIn(bookingId);
+      const result = onCheckIn(bookingId, targetStatus);
       if (result instanceof Promise) await result;
-      setCheckedIn(true);
+      setLocalStatus(targetStatus || 'attended');
     } catch (error) {
       console.error('Check-in failed:', error);
     } finally {
@@ -192,7 +193,7 @@ export function PaymentActionFooter({
 
   const renderSecondaryActions = () => (
     <div className="flex items-center justify-center gap-4 mt-2">
-      {onCancelBooking && bookingStatus !== 'cancelled' && bookingStatus !== 'cancellation_pending' && (
+      {onCancelBooking && bookingStatus !== 'cancelled' && bookingStatus !== 'cancellation_pending' && localStatus !== 'attended' && localStatus !== 'no_show' && bookingStatus !== 'attended' && bookingStatus !== 'no_show' && (
         <button
           type="button"
           onClick={() => bookingId && onCancelBooking(bookingId)}
@@ -223,21 +224,22 @@ export function PaymentActionFooter({
               <span className="material-symbols-outlined text-sm">payments</span>
               Collect ${fs.grandTotal.toFixed(2)}
             </button>
-          ) : checkedIn ? (
-            <button type="button" disabled className="tactile-btn w-full py-2.5 px-4 rounded-lg bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-300 text-sm font-semibold cursor-default flex items-center justify-center gap-2">
-              <span className="material-symbols-outlined text-sm">check_circle</span>
-              Checked In
-            </button>
-          ) : bookingStatus !== 'attended' && bookingStatus !== 'cancelled' && onCheckIn && !showInlinePayment ? (
-            <button
-              type="button"
-              onClick={handleCheckIn}
-              disabled={checkingIn}
-              className="tactile-btn w-full py-2.5 px-4 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <span className="material-symbols-outlined text-sm">{checkingIn ? 'progress_activity' : 'how_to_reg'}</span>
-              {checkingIn ? 'Checking In...' : 'Check In'}
-            </button>
+          ) : localStatus || bookingStatus === 'attended' || bookingStatus === 'no_show' ? (
+            <BookingStatusDropdown
+              currentStatus={(localStatus || bookingStatus) as 'attended' | 'no_show'}
+              onStatusChange={(status) => handleCheckIn(status)}
+              loading={checkingIn}
+              size="md"
+              menuDirection="up"
+            />
+          ) : bookingStatus !== 'cancelled' && onCheckIn && !showInlinePayment ? (
+            <BookingStatusDropdown
+              currentStatus="check_in"
+              onStatusChange={(status) => handleCheckIn(status)}
+              loading={checkingIn}
+              size="md"
+              menuDirection="up"
+            />
           ) : !showInlinePayment ? (
             <button
               type="button"

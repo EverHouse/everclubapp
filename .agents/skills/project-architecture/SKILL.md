@@ -106,6 +106,7 @@ The **Unified Booking Sheet** (`UnifiedBookingSheet.tsx` + `useUnifiedBookingLog
 - `PaymentSection.tsx` — Inline payment collection
 - `CheckinBillingModal.tsx` — Check-in billing flow
 - `CheckInConfirmationModal.tsx` — Check-in confirmation
+- `BookingStatusDropdown.tsx` — Shared check-in/no-show status dropdown
 
 **Features absorbed into this single component:**
 - Owner assignment (slot 1, required), player slot management (slots 2-4)
@@ -145,6 +146,7 @@ ALL booking actions (Check-in, Cancel, Pay/Charge) in the frontend are centraliz
 1. Raw `fetch()` calls to booking endpoints in UI components — use `useBookingActions()` instead
 2. Local `handleCheckIn` / `handleCancel` / `handlePay` functions in page components — call hook methods instead
 3. Duplicating query invalidation logic — `useBookingActions` already handles this
+4. Inline check-in buttons without the BookingStatusDropdown — always use `BookingStatusDropdown` from `src/components/BookingStatusDropdown.tsx` for any check-in UI surface
 
 **Allowed exceptions:**
 - Member-facing cancel in `Dashboard.tsx` / `BookGolf.tsx` (different UX, hits `/api/bookings/:id/member-cancel`)

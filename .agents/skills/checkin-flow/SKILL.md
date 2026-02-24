@@ -50,7 +50,7 @@ Invoice Settlement (automatic, non-blocking)
        ▼
 POST /api/bookings/:id/checkin
   ├─ Verify no unpaid participants with outstanding fees
-  ├─ Set booking status to 'checked_in'
+  ├─ Set booking status to targetStatus ('attended' or 'no_show', defaults to 'attended')
   ├─ Publish booking_checked_in event
   ├─ Notify member via WebSocket + notification
 ```
@@ -103,7 +103,7 @@ CheckInConfirmationModal shows result
 
 9. **Cash payment route.** `POST /api/stripe/staff/mark-booking-paid` allows staff to mark a booking as paid via cash. This sets all pending participants to `payment_status = 'paid'` and triggers invoice settlement.
 
-10. **Auto no-show for missed check-ins.** Approved/confirmed bookings that are not checked in within 24 hours after their end time are automatically marked as `no_show` by the auto-complete scheduler (`bookingAutoCompleteScheduler.ts`, runs every 2h). This prevents stale bookings from lingering in the system and ensures conflict detection stays accurate. The scheduler uses Pacific timezone and excludes relocating bookings.
+10. **Auto check-in for past bookings.** Approved/confirmed bookings that are not checked in within 24 hours after their end time are automatically marked as `attended` (auto checked-in) by the auto-complete scheduler (`bookingAutoCompleteScheduler.ts`, runs every 2h). This assumes most members attended and avoids noisy false no-show notifications. Staff can manually correct to `no_show` via the BookingStatusDropdown if needed. The scheduler uses Pacific timezone and excludes relocating bookings.
 
 ## Billing Verification at Check-In
 

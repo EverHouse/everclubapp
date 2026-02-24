@@ -10,7 +10,6 @@ import type { MemberProfile } from '../types/data';
 import MemberSearchInput, { SelectedMember } from './shared/MemberSearchInput';
 import { TIER_NAMES } from '../../shared/constants/tiers';
 import IdScannerModal from './staff-command-center/modals/IdScannerModal';
-import { useBookingActions } from '../hooks/useBookingActions';
 import { formatDatePacific } from './memberProfile/memberProfileTypes';
 import type { MemberHistory, GuestVisit, MemberNote, CommunicationLog, TabType, BookingHistoryItem } from './memberProfile/memberProfileTypes';
 
@@ -68,7 +67,6 @@ const VISITOR_TABS: TabType[] = ['billing', 'activity', 'communications', 'notes
 const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, member, isAdmin, onClose, onViewAs, onMemberDeleted, visitorMode = false }) => {
   const { effectiveTheme } = useTheme();
   const { setDrawerOpen } = useBottomNav();
-  const { checkInWithToast } = useBookingActions();
   const isDark = effectiveTheme === 'dark';
   
   useEffect(() => {
@@ -118,7 +116,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   const [newCommSubject, setNewCommSubject] = useState('');
   const [newCommBody, setNewCommBody] = useState('');
   const [isAddingComm, setIsAddingComm] = useState(false);
-  const [updatingBookingId, setUpdatingBookingId] = useState<number | string | null>(null);
+
   const [displayedTier, setDisplayedTier] = useState<string>('');
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [selectedMergeTarget, setSelectedMergeTarget] = useState<SelectedMember | null>(null);
@@ -360,28 +358,6 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
     }
   };
 
-  const handleUpdateBookingStatus = async (bookingId: number | string, newStatus: 'attended' | 'no_show' | 'cancelled') => {
-    setUpdatingBookingId(bookingId);
-    try {
-      const result = await checkInWithToast(bookingId, { status: newStatus });
-      if (result.success) {
-        setHistory(prev => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            bookingHistory: prev.bookingHistory.map((b: BookingHistoryItem) => 
-              b.id === bookingId ? { ...b, status: newStatus } : b
-            ),
-            bookingRequestsHistory: prev.bookingRequestsHistory.map((b: BookingHistoryItem) => 
-              b.id === bookingId ? { ...b, status: newStatus } : b
-            )
-          };
-        });
-      }
-    } finally {
-      setUpdatingBookingId(null);
-    }
-  };
 
   const handleAddNote = async () => {
     if (!member?.email || !newNoteContent.trim()) return;
