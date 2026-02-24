@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.26.1",
+    date: "2026-02-24",
+    title: "Future Bookings Fee Display Fix",
+    changes: [
+      "Fixed: Future Bookings in the payments section was incorrectly showing $25 fees for member and staff bookings that should have $0 — these bookings no longer appear in the fees list",
+      "Fixed: Fee calculation for future bookings now uses the authoritative per-participant cached fees instead of stale usage ledger data from Trackman imports",
+    ]
+  },
+  {
     version: "8.26.0",
     date: "2026-02-24",
     title: "Booking Soft Lock — Prevent Double Requests",
