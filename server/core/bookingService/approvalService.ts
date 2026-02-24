@@ -817,8 +817,15 @@ export async function declineBooking(params: DeclineBookingParams) {
         reviewedAt: new Date(),
         updatedAt: new Date()
       })
-      .where(eq(bookingRequests.id, bookingId))
+      .where(and(
+        eq(bookingRequests.id, bookingId),
+        or(eq(bookingRequests.status, 'pending'), eq(bookingRequests.status, 'pending_approval'))
+      ))
       .returning();
+
+    if (!updatedRow) {
+      throw { statusCode: 409, error: 'Booking was modified by another staff member. Please refresh.' };
+    }
 
     const declineMessage = suggested_time
       ? `Your ${resourceTypeName} booking request for ${formatDateDisplayWithDay(updatedRow.requestDate)} was declined. Suggested alternative: ${formatTime12Hour(suggested_time)}`
@@ -1019,14 +1026,22 @@ export async function cancelBooking(params: CancelBookingParams) {
         : trackmanNote;
     }
 
+    const cancellableStatuses = ['pending', 'pending_approval', 'approved', 'confirmed'];
     const [updatedRow] = await tx.update(bookingRequests)
       .set({
         status: 'cancelled',
         staffNotes: updatedStaffNotes || undefined,
         updatedAt: new Date()
       })
-      .where(eq(bookingRequests.id, bookingId))
+      .where(and(
+        eq(bookingRequests.id, bookingId),
+        or(...cancellableStatuses.map(s => eq(bookingRequests.status, s)))
+      ))
       .returning();
+
+    if (!updatedRow) {
+      throw { statusCode: 409, error: 'Booking was modified by another staff member. Please refresh.' };
+    }
 
     const sessionResult = await tx.select({ sessionId: bookingRequests.sessionId })
       .from(bookingRequests)
@@ -2004,6 +2019,31 @@ export async function completeCancellation(params: CompleteCancellationParams) {
 
   const errors: string[] = [];
 
+  const bookingDate = existing.requestDate;
+  const bookingTime = existing.startTime?.substring(0, 5) || '';
+
+  await db.transaction(async (tx) => {
+    await tx.update(bookingRequests)
+      .set({
+        status: 'cancelled',
+        staffNotes: sql`COALESCE(staff_notes, '') || ${'\n[Cancellation completed manually by ' + staffEmail + ']'}`,
+        updatedAt: new Date()
+      })
+      .where(and(
+        eq(bookingRequests.id, bookingId),
+        eq(bookingRequests.status, 'cancellation_pending')
+      ));
+
+    await tx.insert(notifications).values({
+      userEmail: existing.userEmail || '',
+      title: 'Booking Cancelled',
+      message: `Your booking on ${bookingDate} at ${bookingTime} has been cancelled and charges have been refunded.`,
+      type: 'booking_cancelled',
+      relatedId: bookingId,
+      relatedType: 'booking_request'
+    });
+  });
+
   try {
     const pendingIntents = await db.select({ stripePaymentIntentId: stripePaymentIntents.stripePaymentIntentId })
       .from(stripePaymentIntents)
@@ -2173,31 +2213,15 @@ export async function completeCancellation(params: CompleteCancellationParams) {
     logger.error('[Complete Cancellation] Failed to void/refund booking invoice', { extra: { bookingId, error: getErrorMessage(err) } });
   }
 
-  const errorNote = errors.length > 0
-    ? `\n[Cancellation completed with ${errors.length} error(s): ${errors.join('; ')}]`
-    : '';
-
-  const bookingDate = existing.requestDate;
-  const bookingTime = existing.startTime?.substring(0, 5) || '';
-
-  await db.transaction(async (tx) => {
-    await tx.update(bookingRequests)
+  if (errors.length > 0) {
+    const errorNote = `\n[Cancellation completed with ${errors.length} error(s): ${errors.join('; ')}]`;
+    await db.update(bookingRequests)
       .set({
-        status: 'cancelled',
-        staffNotes: sql`COALESCE(staff_notes, '') || ${'\n[Cancellation completed manually by ' + staffEmail + ']' + errorNote}`,
+        staffNotes: sql`COALESCE(staff_notes, '') || ${errorNote}`,
         updatedAt: new Date()
       })
       .where(eq(bookingRequests.id, bookingId));
-
-    await tx.insert(notifications).values({
-      userEmail: existing.userEmail || '',
-      title: 'Booking Cancelled',
-      message: `Your booking on ${bookingDate} at ${bookingTime} has been cancelled and charges have been refunded.`,
-      type: 'booking_cancelled',
-      relatedId: bookingId,
-      relatedType: 'booking_request'
-    });
-  });
+  }
 
   broadcastAvailabilityUpdate({
     resourceId: existing.resourceId || undefined,

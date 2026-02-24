@@ -1584,7 +1584,7 @@ async function handlePaymentIntentFailed(client: PoolClient, paymentIntent: Stri
 
   deferredActions.push(async () => {
     try {
-      const userResult = await db.execute(sql`SELECT first_name, last_name FROM users WHERE LOWER(email) = LOWER(${email})`);
+      const userResult = await db.execute(sql`SELECT first_name, last_name FROM users WHERE LOWER(email) = LOWER(${email}) LIMIT 1`);
       const memberName = userResult.rows[0] 
         ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
         : email;
@@ -1755,7 +1755,7 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: Invoic
   }
 
   const userResult = await client.query(
-    'SELECT id, first_name, last_name, billing_provider FROM users WHERE LOWER(email) = LOWER($1)',
+    'SELECT id, first_name, last_name, billing_provider FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
     [email]
   );
 
@@ -1929,7 +1929,7 @@ async function handleInvoicePaymentFailed(client: PoolClient, invoice: InvoiceWi
   }
 
   const userResult = await client.query(
-    'SELECT first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)',
+    'SELECT first_name, last_name FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
     [email]
   );
   const memberName = userResult.rows[0]
@@ -1942,7 +1942,7 @@ async function handleInvoicePaymentFailed(client: PoolClient, invoice: InvoiceWi
   // This prevents late-arriving failed invoices from old/cancelled subscriptions from downgrading
   // active members who have since started a new subscription
   const subMatchCheck = await client.query(
-    `SELECT membership_status, stripe_subscription_id FROM users WHERE LOWER(email) = LOWER($1)`,
+    `SELECT membership_status, stripe_subscription_id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
     [email]
   );
   if (subMatchCheck.rows.length > 0) {
@@ -1961,7 +1961,7 @@ async function handleInvoicePaymentFailed(client: PoolClient, invoice: InvoiceWi
   }
 
   const userStatusCheck = await client.query(
-    'SELECT membership_status, billing_provider FROM users WHERE LOWER(email) = LOWER($1)',
+    'SELECT membership_status, billing_provider FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
     [email]
   );
   const currentStatus = userStatusCheck.rows[0]?.membership_status;
@@ -2725,7 +2725,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
 
     // First try to find user by stripe_customer_id
     let userResult = await client.query(
-      'SELECT email, first_name, last_name, tier, membership_status, billing_provider FROM users WHERE stripe_customer_id = $1',
+      'SELECT email, first_name, last_name, tier, membership_status, billing_provider FROM users WHERE stripe_customer_id = $1 LIMIT 1',
       [customerId]
     );
     
@@ -2734,7 +2734,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
     if (userResult.rows.length === 0 && purchaserEmail) {
       logger.info(`[Stripe Webhook] No user found by customer ID, trying by email from metadata: ${purchaserEmail}`);
       userResult = await client.query(
-        'SELECT email, first_name, last_name, tier, membership_status, billing_provider FROM users WHERE LOWER(email) = LOWER($1)',
+        'SELECT email, first_name, last_name, tier, membership_status, billing_provider FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
         [purchaserEmail]
       );
     }
