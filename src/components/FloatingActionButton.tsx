@@ -13,11 +13,11 @@ interface FloatingActionButtonProps {
 }
 
 const colorClasses: Record<FABColor, string> = {
-  brand: 'bg-[#293515] dark:bg-[#CCB8E4] text-white dark:text-[#293515] backdrop-blur-xl border border-[#293515]/80 dark:border-[#CCB8E4]/80 shadow-lg',
-  amber: 'bg-amber-500/50 dark:bg-amber-400/50 text-white dark:text-gray-900 backdrop-blur-xl border border-white/30 dark:border-amber-300/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]',
-  green: 'bg-[#293515] dark:bg-[#CCB8E4] text-white dark:text-[#293515] backdrop-blur-xl border border-[#293515]/80 dark:border-[#CCB8E4]/80 shadow-lg',
-  purple: 'bg-[#CCB8E4]/50 dark:bg-[#CCB8E4]/50 text-[#293515] dark:text-[#293515] backdrop-blur-xl border border-white/40 dark:border-white/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]',
-  red: 'bg-red-600/50 dark:bg-red-500/50 text-white backdrop-blur-xl border border-white/30 dark:border-red-400/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]',
+  brand: 'fab-main-btn bg-[#293515] dark:bg-[#CCB8E4] text-white dark:text-[#293515] backdrop-blur-xl border border-[#293515]/80 dark:border-[#CCB8E4]/80 shadow-lg',
+  amber: 'fab-main-btn bg-amber-500/50 dark:bg-amber-400/50 text-white dark:text-gray-900 backdrop-blur-xl border border-white/30 dark:border-amber-300/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]',
+  green: 'fab-main-btn bg-[#293515] dark:bg-[#CCB8E4] text-white dark:text-[#293515] backdrop-blur-xl border border-[#293515]/80 dark:border-[#CCB8E4]/80 shadow-lg',
+  purple: 'fab-main-btn bg-[#CCB8E4]/50 dark:bg-[#CCB8E4]/50 text-[#293515] dark:text-[#293515] backdrop-blur-xl border border-white/40 dark:border-white/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]',
+  red: 'fab-main-btn bg-red-600/50 dark:bg-red-500/50 text-white backdrop-blur-xl border border-white/30 dark:border-red-400/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]',
 };
 
 const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({

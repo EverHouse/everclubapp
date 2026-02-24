@@ -943,7 +943,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
               aria-label={fabOpen ? 'Close quick actions menu' : 'Open quick actions menu'}
               aria-expanded={fabOpen}
               aria-haspopup="menu"
-              className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-normal hover:scale-110 active:scale-95 ${
+              className={`fab-main-btn w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-normal hover:scale-110 active:scale-95 ${
                 fabOpen 
                   ? 'bg-red-500/80 text-white backdrop-blur-xl rotate-45' 
                   : 'bg-primary/50 dark:bg-white/50 text-white dark:text-primary backdrop-blur-xl'
