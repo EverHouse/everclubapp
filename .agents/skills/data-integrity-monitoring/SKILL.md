@@ -204,7 +204,7 @@ The system includes automated correction tasks:
 - **Stripe Reconciliation** (daily at 5am Pacific) — Compare Stripe subscriptions and daily payments against database records. Uses database lock for multi-instance safety.
 - **Fee Snapshot Reconciliation** (every 15min) — Reconcile fee snapshot records against actual billing data.
 - **Abandoned Pending Cleanup** (every 6h) — Delete users stuck in `pending` status >24h with no Stripe subscription, cascade-deleting related records in a transaction.
-- **Booking Auto-Complete** (every 2h) — Mark approved/confirmed bookings as no_show 24h after end time. Prevents stale bookings from remaining in active status.
+- **Booking Auto-Complete** (every 2h) — Mark approved/confirmed bookings as attended (auto checked-in) 24h after end time. Assumes most members attended; staff can manually mark no_show via BookingStatusDropdown if needed.
 
 ## Dashboard Overview
 
@@ -238,7 +238,7 @@ The admin data integrity dashboard is accessible at `/admin/data-integrity` (sta
 | `job_queue` | Background job records queried by job queue monitor |
 | `hubspot_sync_queue` | HubSpot async operation queue queried by HubSpot queue monitor |
 | `session` | HTTP session table cleaned by session cleanup scheduler |
-| `booking_requests` | Source table for auto-complete scheduler (status updates to no_show) |
+| `booking_requests` | Source table for auto-complete scheduler (status updates to attended) |
 
 ## Key Source Files
 

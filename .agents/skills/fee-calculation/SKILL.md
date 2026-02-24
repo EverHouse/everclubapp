@@ -113,9 +113,9 @@ When roster changes trigger fee recalculation (via `recalculateSessionFees()`), 
 - If total fees drop to $0, deletes the draft invoice and clears `stripe_invoice_id`.
 - **$0→$X fee transition**: If no invoice exists yet (e.g., booking was approved with $0 fees) but current fees are > $0, `syncBookingInvoice` creates a new draft invoice on-the-fly using the stored `stripe_customer_id` from the users table. This handles the case where a booking starts with no guests/overage but gains fees through later roster edits.
 - Guards: skips if invoice is already `paid`, `open`, `void`, or `uncollectible` (logs warning and notifies staff for paid/open invoices).
-- Guards: skips non-approved bookings and conference room bookings (checked via `resources.type` JOIN).
+- Guards: skips non-approved bookings.
 
-Conference room bookings are excluded from invoice sync (they use a separate prepayment flow without the booking approval lifecycle).
+Note: As of v8.16.0 (2026-02-24), conference room bookings use the same invoice-based flow as simulators. Old `conference_prepayments` records are grandfathered at check-in.
 
 ## Conference Room vs Simulator Differences
 
@@ -153,7 +153,7 @@ The `usedGuestPass` field on a booking participant record is an input to guest p
 4. **Cancelled bookings = $0** — statuses `cancelled`, `declined`, `cancellation_pending` short-circuit to zero.
 5. **Effective player count ≥ 1** — prevents division by zero in per-participant minutes.
 6. **Simulator vs conference room** — separate daily allowances and separate usage tracking per resource type.
-7. **One invoice per booking** — each simulator booking has at most one Stripe invoice. Draft created at approval, updated on roster/fee changes, finalized at payment. Managed by `bookingInvoiceService.ts`. Conference rooms excluded.
+7. **One invoice per booking** — each booking (simulator or conference room) has at most one Stripe invoice. Draft created at approval, updated on roster/fee changes, finalized at payment. Managed by `bookingInvoiceService.ts`. Conference rooms were migrated to the same invoice flow in v8.16.0 (2026-02-24).
 
 ## Daily Allowance / Included Minutes
 

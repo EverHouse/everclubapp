@@ -9,7 +9,7 @@ description: Staff check-in flow for the Ever Club Members App. Covers check-in,
 
 The staff check-in flow is how front-desk staff verify billing, settle prepayments, and mark members as checked in for their bookings. There are two distinct paths:
 
-1. **Booking check-in** — Staff opens a scheduled booking, reviews per-participant fees, settles outstanding balances (confirm cash, charge card, waive, or consume guest pass), then marks the booking as `checked_in`.
+1. **Booking check-in** — Staff opens a scheduled booking, reviews per-participant fees, settles outstanding balances (confirm cash, charge card, waive, or consume guest pass), then marks the booking as `attended` (or `no_show` via the BookingStatusDropdown). All check-in flows use `PUT /api/bookings/:id/checkin` → `approvalService.checkinBooking()`.
 2. **QR walk-in check-in** — Staff scans a member's QR code. The system records a walk-in visit (`walk_in_visits` table), increments `lifetime_visits`, syncs to HubSpot, and sends a first-visit email for trialing members on their first visit. No booking or billing is involved.
 
 ## Check-In Flow (Booking Path)
@@ -42,7 +42,7 @@ PATCH /api/bookings/:id/payments
        ▼
 Invoice Settlement (automatic, non-blocking)
   ├─ settleBookingInvoiceAfterCheckin(bookingId, sessionId)
-  ├─ Conference rooms excluded (different prepayment flow)
+  ├─ Handles both simulator and conference room bookings (unified since v8.16.0)
   ├─ If NOT all participants settled (some still pending) → sync invoice line items
   ├─ If all settled AND any paid with fees > $0 → finalize invoice as paid OOB
   ├─ If all settled AND all waived (no paid fees) → void the invoice
@@ -51,7 +51,7 @@ Invoice Settlement (automatic, non-blocking)
 PUT /api/bookings/:id/checkin (server/routes/bays/approval.ts)
   ├─ Verify no unpaid participants with outstanding fees
   ├─ Set booking status to targetStatus ('attended' or 'no_show', defaults to 'attended')
-  ├─ Publish booking_checked_in event
+  ├─ Publish booking_checked_in event (event name kept for backward compat; status is 'attended' or 'no_show')
   ├─ Notify member via WebSocket + notification
 ```
 
@@ -99,7 +99,7 @@ CheckInConfirmationModal shows result
 
 7. **Cancelled/declined bookings always have $0 fees.** `computeFeeBreakdown` checks the booking status and returns zero totals for cancelled, declined, or cancellation_pending bookings.
 
-8. **Invoice settlement at check-in.** After each payment action (confirm, waive, guest pass, bulk confirm/waive), `settleBookingInvoiceAfterCheckin()` runs as a non-blocking background task. It first checks if all participants are settled (paid or waived). If NOT all settled yet, it syncs the invoice line items to reflect the current state. Once all participants are settled: if any participant has `payment_status = 'paid'` with `cached_fee_cents > 0`, the draft invoice is finalized as "paid out of band" via `finalizeInvoicePaidOutOfBand()`; if all are waived (no paid fees), the invoice is voided. Conference rooms are excluded. **Settlement failures are logged as ERROR level** (added v8.6.0) — if invoice finalization fails, the error is captured for manual staff review rather than silently swallowed.
+8. **Invoice settlement at check-in.** After each payment action (confirm, waive, guest pass, bulk confirm/waive), `settleBookingInvoiceAfterCheckin()` runs as a non-blocking background task. It first checks if all participants are settled (paid or waived). If NOT all settled yet, it syncs the invoice line items to reflect the current state. Once all participants are settled: if any participant has `payment_status = 'paid'` with `cached_fee_cents > 0`, the draft invoice is finalized as "paid out of band" via `finalizeInvoicePaidOutOfBand()`; if all are waived (no paid fees), the invoice is voided. Both simulator and conference room bookings are settled (unified since v8.16.0). Old `conference_prepayments` records are grandfathered. **Settlement failures are logged as ERROR level** (added v8.6.0) — if invoice finalization fails, the error is captured for manual staff review rather than silently swallowed.
 
 9. **Cash payment route.** `POST /api/stripe/staff/mark-booking-paid` allows staff to mark a booking as paid via cash. This sets all pending participants to `payment_status = 'paid'` and triggers invoice settlement.
 
