@@ -41,6 +41,14 @@ export async function isEmailCategoryEnabled(category: string): Promise<boolean>
   return getSettingBoolean(key, true);
 }
 
+export async function isPushEnabled(): Promise<boolean> {
+  return getSettingBoolean('push.enabled', true);
+}
+
+export async function isAutoApproveEnabled(type: 'conference_rooms' | 'trackman_imports'): Promise<boolean> {
+  return getSettingBoolean(`booking.auto_approve.${type}`, true);
+}
+
 export async function isSchedulerEnabled(schedulerName: string): Promise<boolean> {
   const normalizedName = schedulerName.replace(/\s+/g, '_');
   const key = `scheduler.${normalizedName}.enabled`;

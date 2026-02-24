@@ -61,6 +61,10 @@ const DEFAULT_SETTINGS: Record<string, { value: string; category: string }> = {
   'scheduler.Onboarding_Nudge.enabled': { value: 'true', category: 'scheduler' },
   'scheduler.Job_Queue_Processor.enabled': { value: 'true', category: 'scheduler' },
   'scheduler.Invite_Expiry.enabled': { value: 'true', category: 'scheduler' },
+
+  'push.enabled': { value: 'true', category: 'push' },
+  'booking.auto_approve.conference_rooms': { value: 'true', category: 'booking' },
+  'booking.auto_approve.trackman_imports': { value: 'true', category: 'booking' },
 };
 
 router.get('/api/settings', isAuthenticated, async (req, res) => {

@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.25.0",
+    date: "2026-02-24",
+    title: "Admin Controls — Complete Operations Dashboard",
+    changes: [
+      "Added: Push Notification Controls — master toggle to enable/disable push notifications with VAPID key status and subscription count",
+      "Added: Auto-Approve Configuration — toggle auto-approval for conference room bookings and Trackman imports independently",
+      "Added: Audit Log Viewer — searchable, filterable activity log showing all staff and system actions with expandable details",
+      "Added: Stripe Terminal Management — view registered card readers, check online status, and add simulated readers for testing",
+      "Added: Email Delivery Health — monitor email delivery rates, bounce counts, and spam complaints across 24h/7d/30d periods with recent event feed",
+    ]
+  },
+  {
     version: "8.24.0",
     date: "2026-02-24",
     title: "Admin Controls — Email & Scheduler Management",

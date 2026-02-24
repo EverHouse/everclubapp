@@ -28,6 +28,11 @@ import WebhookEventsPanel from './dataIntegrity/WebhookEventsPanel';
 import JobQueuePanel from './dataIntegrity/JobQueuePanel';
 import HubSpotQueuePanel from './dataIntegrity/HubSpotQueuePanel';
 import AlertHistoryPanel from './dataIntegrity/AlertHistoryPanel';
+import PushNotificationPanel from './dataIntegrity/PushNotificationPanel';
+import AutoApprovePanel from './dataIntegrity/AutoApprovePanel';
+import AuditLogPanel from './dataIntegrity/AuditLogPanel';
+import StripeTerminalPanel from './dataIntegrity/StripeTerminalPanel';
+import EmailHealthPanel from './dataIntegrity/EmailHealthPanel';
 import IgnoreModals from './dataIntegrity/IgnoreModals';
 
 
@@ -190,6 +195,11 @@ const DataIntegrityTab: React.FC = () => {
   const [showJobQueue, setShowJobQueue] = useState(false);
   const [showHubSpotQueue, setShowHubSpotQueue] = useState(false);
   const [showAlertHistory, setShowAlertHistory] = useState(false);
+  const [showPushNotifications, setShowPushNotifications] = useState(false);
+  const [showAutoApprove, setShowAutoApprove] = useState(false);
+  const [showAuditLog, setShowAuditLog] = useState(false);
+  const [showStripeTerminal, setShowStripeTerminal] = useState(false);
+  const [showEmailHealth, setShowEmailHealth] = useState(false);
   const [resyncEmail, setResyncEmail] = useState('');
   const [resyncResult, setResyncResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -2151,6 +2161,31 @@ const DataIntegrityTab: React.FC = () => {
       <AlertHistoryPanel
         isOpen={showAlertHistory}
         onToggle={() => setShowAlertHistory(!showAlertHistory)}
+      />
+
+      <PushNotificationPanel
+        isOpen={showPushNotifications}
+        onToggle={() => setShowPushNotifications(!showPushNotifications)}
+      />
+
+      <AutoApprovePanel
+        isOpen={showAutoApprove}
+        onToggle={() => setShowAutoApprove(!showAutoApprove)}
+      />
+
+      <AuditLogPanel
+        isOpen={showAuditLog}
+        onToggle={() => setShowAuditLog(!showAuditLog)}
+      />
+
+      <StripeTerminalPanel
+        isOpen={showStripeTerminal}
+        onToggle={() => setShowStripeTerminal(!showStripeTerminal)}
+      />
+
+      <EmailHealthPanel
+        isOpen={showEmailHealth}
+        onToggle={() => setShowEmailHealth(!showEmailHealth)}
       />
 
       <IgnoreModals
