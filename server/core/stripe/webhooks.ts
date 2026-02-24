@@ -2682,6 +2682,28 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
         logger.error('[Stripe Webhook] Failed to queue HubSpot sync for day pass:', { error: hubspotError });
       }
     });
+
+    deferredActions.push(async () => {
+      try {
+        await upsertTransactionCache({
+          stripeId: deferredPaymentIntentId!,
+          objectType: 'payment_intent',
+          amountCents: deferredDayPassAmountCents,
+          currency: 'usd',
+          status: 'succeeded',
+          createdAt: new Date(),
+          customerId,
+          customerEmail: deferredDayPassEmail,
+          customerName: [deferredFirstName, deferredLastName].filter(Boolean).join(' ') || null,
+          description: `Day Pass: ${deferredProductSlug}`,
+          metadata: session.metadata || undefined,
+          source: 'webhook',
+          paymentIntentId: deferredPaymentIntentId,
+        });
+      } catch (cacheErr: unknown) {
+        logger.error('[Stripe Webhook] Failed to cache day pass transaction:', { error: cacheErr });
+      }
+    });
   } catch (error: unknown) {
     logger.error('[Stripe Webhook] Error handling checkout session completed:', { error: error });
     throw error;

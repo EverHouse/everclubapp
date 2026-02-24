@@ -80,7 +80,8 @@ router.get('/api/financials/recent-transactions', isStaffOrAdmin, async (req: Re
           stc.status
         FROM stripe_transaction_cache stc
         LEFT JOIN users u ON LOWER(u.email) = LOWER(stc.customer_email)
-        WHERE stc.status IN ('succeeded', 'paid')${stcDateFilter}${stcCursorFilter}
+        WHERE stc.status IN ('succeeded', 'paid')
+          AND stc.stripe_id NOT IN (SELECT stripe_payment_intent_id FROM day_pass_purchases WHERE stripe_payment_intent_id IS NOT NULL)${stcDateFilter}${stcCursorFilter}
         
         UNION ALL
         
