@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.26.3",
+    date: "2026-02-24",
+    title: "Background System Fixes — Revenue, HubSpot & Fee Safety",
+    changes: [
+      "Fixed: Trackman attendance reconciliation was using the guest fee rate instead of the overage rate and ignoring session duration — a member sneaking extra players into a 3-hour session was only charged a flat guest fee instead of the proper time-based overage charge",
+      "Fixed: HubSpot sync queue could create duplicate jobs when a rate-limited job was retrying — the idempotency check now also covers jobs in 'failed' status awaiting retry, preventing wasted API calls and potential data races",
+      "Fixed: Fee calculator now safely handles orphaned billing sessions with no linked booking — previously this could generate an invalid database query and crash the fee service for all members",
+    ]
+  },
+  {
     version: "8.26.2",
     date: "2026-02-24",
     title: "Terminal Card Reader — New Member Signup Fix",

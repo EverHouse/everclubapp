@@ -30,7 +30,7 @@ export async function enqueueHubSpotSync(
     // If idempotency key provided, check for existing pending job
     if (idempotencyKey) {
       const existing = await db.execute(sql`SELECT id FROM hubspot_sync_queue 
-         WHERE idempotency_key = ${idempotencyKey} AND status IN ('pending', 'processing')`);
+         WHERE idempotency_key = ${idempotencyKey} AND status IN ('pending', 'processing', 'failed')`);
       if (existing.rows.length > 0) {
         logger.info('[HubSpot Queue] Duplicate job skipped', { 
           extra: { idempotencyKey, existingId: existing.rows[0].id }

@@ -45,32 +45,23 @@ export interface FindDiscrepanciesOptions {
 
 const DEFAULT_OVERAGE_RATE_PER_30_MIN = PRICING.OVERAGE_RATE_DOLLARS;
 
-async function getTierOverageRate(tier: string | null): Promise<number> {
-  if (!tier) return DEFAULT_OVERAGE_RATE_PER_30_MIN;
-  
-  try {
-    const result = await db.execute(sql`SELECT guest_fee_cents FROM membership_tiers WHERE LOWER(slug) = LOWER(${tier}) OR LOWER(name) = LOWER(${tier}) LIMIT 1`);
-    
-    if (result.rows.length > 0 && (result.rows[0] as Record<string, unknown>).guest_fee_cents) {
-      return Math.round((result.rows[0] as Record<string, unknown>).guest_fee_cents as number / 100);
-    }
-  } catch (error: unknown) {
-    logger.warn('[getTierOverageRate] Failed to fetch tier overage rate, using default', { extra: { tier, error } });
-  }
-  
-  return DEFAULT_OVERAGE_RATE_PER_30_MIN;
+async function getTierOverageRate(_tier: string | null): Promise<number> {
+  return PRICING.OVERAGE_RATE_DOLLARS;
 }
 
 function calculatePotentialFeeAdjustment(
-  _durationMinutes: number,
+  durationMinutes: number,
   declaredCount: number,
   actualCount: number,
-  _overageRatePer30Min: number = DEFAULT_OVERAGE_RATE_PER_30_MIN
+  overageRatePer30Min: number = DEFAULT_OVERAGE_RATE_PER_30_MIN
 ): number {
   if (actualCount <= declaredCount) return 0;
-  
+
   const additionalPlayers = actualCount - declaredCount;
-  return additionalPlayers * (PRICING.GUEST_FEE_CENTS / 100);
+  const minutesPerPlayer = Math.floor(durationMinutes / Math.max(actualCount, 1));
+  const stolenMinutes = minutesPerPlayer * additionalPlayers;
+  const blocksOwed = Math.ceil(stolenMinutes / PRICING.OVERAGE_BLOCK_MINUTES);
+  return blocksOwed * overageRatePer30Min;
 }
 
 export async function findAttendanceDiscrepancies(
