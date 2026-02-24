@@ -15,6 +15,8 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Staff portal bottom navigation now shows proper liquid glass transparency matching the member portal",
       "Fixed: Both staff and member bottom nav menus now correctly show a solid background when reduced transparency is enabled, and liquid glass when it is not",
       "Fixed: Staff command center FAB menu items now use liquid glass styling instead of solid backgrounds, with proper solid fallback for reduced transparency",
+      "Fixed: All FAB button variants (brand, amber, purple, red) now correctly show solid backgrounds when reduced transparency is enabled",
+      "Improved: FAB menu item text contrast increased for better readability on glass backgrounds",
     ]
   },
   {

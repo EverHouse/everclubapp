@@ -859,7 +859,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                   className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-6"
                   role="menuitem"
                 >
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">QR Scanner</span>
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">QR Scanner</span>
                   <div className="w-10 h-10 rounded-full bg-primary dark:bg-white/90 flex items-center justify-center">
                     <span className="material-symbols-outlined text-xl text-white dark:text-primary">qr_code_scanner</span>
                   </div>
@@ -873,7 +873,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                   className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-5"
                   role="menuitem"
                 >
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">New Event</span>
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New Event</span>
                   <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center">
                     <span className="material-symbols-outlined text-xl text-white">celebration</span>
                   </div>
@@ -887,7 +887,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                   className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-4"
                   role="menuitem"
                 >
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">New Wellness</span>
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New Wellness</span>
                   <div className="w-10 h-10 rounded-full bg-teal-500 flex items-center justify-center">
                     <span className="material-symbols-outlined text-xl text-white">spa</span>
                   </div>
@@ -901,7 +901,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                   className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-3"
                   role="menuitem"
                 >
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">New Notice</span>
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New Notice</span>
                   <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center">
                     <span className="material-symbols-outlined text-xl text-white">notifications</span>
                   </div>
@@ -915,7 +915,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                   className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-2"
                   role="menuitem"
                 >
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">Announcement</span>
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">Announcement</span>
                   <div className="w-10 h-10 rounded-full bg-[#CCB8E4] flex items-center justify-center">
                     <span className="material-symbols-outlined text-xl text-[#293515]">campaign</span>
                   </div>
@@ -930,7 +930,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                   className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-1"
                   role="menuitem"
                 >
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">New User</span>
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New User</span>
                   <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center">
                     <span className="material-symbols-outlined text-xl text-white">person_add</span>
                   </div>

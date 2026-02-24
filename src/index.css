@@ -463,6 +463,23 @@ input, select, textarea {
   .fab-main-btn {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    background-color: rgba(41, 53, 21, 0.95) !important;
+  }
+
+  .dark .fab-main-btn {
+    background-color: rgba(204, 184, 228, 0.95) !important;
+  }
+
+  .fab-main-btn[class*="bg-red-"] {
+    background-color: rgba(239, 68, 68, 0.95) !important;
+  }
+
+  .fab-main-btn[class*="bg-amber-"] {
+    background-color: rgba(245, 158, 11, 0.95) !important;
+  }
+
+  .fab-main-btn[class*="bg-\\[\\#CCB8E4\\]"] {
+    background-color: rgba(204, 184, 228, 0.95) !important;
   }
 
   .dark [class*="backdrop-blur"][class*="bg-\\[\\#"] {
