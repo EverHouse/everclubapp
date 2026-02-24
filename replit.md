@@ -16,7 +16,9 @@
 - Debugging → load `systematic-debugging` + domain skills BEFORE investigating
 - Researching an approach → load relevant domain skills BEFORE making recommendations
 
-Common skill mappings:
+**SCAN ALL INSTALLED SKILLS — not just the common mappings below.** The full skill list is in the system context with 80+ skills. Every skill has "use when..." trigger descriptions. You MUST scan ALL of them against the user's request — the table below is only a quick reference for the most common Ever Club domain areas. If a request touches marketing, SEO, copy, A/B testing, animations, forms, popups, pricing strategy, mobile design, email sequences, schema markup, website auditing, or ANY other area covered by an installed skill, load that skill too.
+
+Common skill mappings (quick reference — NOT exhaustive):
 - Booking changes → `booking-flow`, `booking-import-standards`, `checkin-flow`
 - Payment/billing → `fee-calculation`, `stripe-webhook-flow`, `stripe-integration`
 - Database/schema → `postgres-drizzle`, `project-architecture`
