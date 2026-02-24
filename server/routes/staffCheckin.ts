@@ -14,7 +14,7 @@ import { cancelPaymentIntent } from '../core/stripe';
 import { logFromRequest, logPaymentAudit } from '../core/auditLog';
 import { PRICING } from '../core/billing/pricingConfig';
 import { enforceSocialTierRules, type ParticipantForValidation } from '../core/bookingService/tierRules';
-import { broadcastMemberStatsUpdated, broadcastBookingInvoiceUpdate } from '../core/websocket';
+import { broadcastMemberStatsUpdated, broadcastBookingInvoiceUpdate, broadcastBookingRosterUpdate } from '../core/websocket';
 import { updateHubSpotContactVisitCount } from '../core/memberSync';
 import { ensureSessionForBooking } from '../core/bookingService/sessionManager';
 import { sendFirstVisitConfirmationEmail } from '../emails/firstVisitEmail';
@@ -1463,6 +1463,13 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
           reason: overrideReason || 'Staff direct add - matched to member'
         });
 
+        broadcastBookingRosterUpdate({
+          bookingId,
+          sessionId,
+          action: 'participant_added',
+          memberEmail: booking.owner_email,
+        });
+
         return res.json({ 
           success: true, 
           message: `Found existing member "${matchedMember.name}" - added as member (not guest)`,
@@ -1540,6 +1547,13 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
         guestName,
         sessionId,
         reason: overrideReason || 'Staff direct add'
+      });
+
+      broadcastBookingRosterUpdate({
+        bookingId,
+        sessionId,
+        action: 'participant_added',
+        memberEmail: booking.owner_email,
       });
 
       return res.json({ 
@@ -1636,6 +1650,13 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
         tierOverrideApplied,
         sessionId,
         reason: overrideReason || 'Staff direct add'
+      });
+
+      broadcastBookingRosterUpdate({
+        bookingId,
+        sessionId,
+        action: 'participant_added',
+        memberEmail: booking.owner_email,
       });
 
       return res.json({ 

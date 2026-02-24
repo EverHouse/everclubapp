@@ -35,7 +35,7 @@ import {
 import { logFromRequest, logBillingAudit } from '../../core/auditLog';
 import { sendPurchaseReceipt, PurchaseReceiptItem } from '../../emails/paymentEmails';
 import { getStaffInfo, MAX_RETRY_ATTEMPTS, GUEST_FEE_CENTS, SAVED_CARD_APPROVAL_THRESHOLD_CENTS } from './helpers';
-import { broadcastBillingUpdate, sendNotificationToUser } from '../../core/websocket';
+import { broadcastBillingUpdate, sendNotificationToUser, broadcastBookingInvoiceUpdate } from '../../core/websocket';
 import { alertOnExternalServiceError } from '../../core/errorAlerts';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { normalizeTierName } from '../../utils/tierUtils';
@@ -1392,6 +1392,12 @@ router.post('/api/stripe/staff/mark-booking-paid', isStaffOrAdmin, async (req: R
       action: 'payment_confirmed',
       bookingId,
       status: 'paid'
+    });
+
+    broadcastBookingInvoiceUpdate({
+      bookingId,
+      action: 'payment_confirmed',
+      sessionId,
     });
 
     logger.info('[Stripe] Staff marked booking as paid', {

@@ -606,6 +606,14 @@ export async function finalizeInvoicePaidOutOfBand(params: {
       extra: { bookingId, invoiceId, paidVia, terminalPaymentIntentId }
     });
 
+    try {
+      broadcastBookingInvoiceUpdate({ bookingId, action: 'invoice_paid', invoiceId });
+    } catch (err: unknown) {
+      logger.warn('[BookingInvoice] Failed to broadcast invoice paid (OOB path)', {
+        extra: { bookingId, invoiceId, error: getErrorMessage(err) }
+      });
+    }
+
     return {
       success: true,
       invoiceId,
