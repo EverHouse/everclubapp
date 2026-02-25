@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Elements,
   PaymentElement,
@@ -63,37 +63,45 @@ export function SimpleCheckoutForm({
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const isSubmittingRef = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isSubmittingRef.current) return;
 
     if (!stripe || !elements) {
       return;
     }
 
+    isSubmittingRef.current = true;
     setIsProcessing(true);
     setErrorMessage(null);
 
-    const { error, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: window.location.href,
-      },
-      redirect: 'if_required',
-    });
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: window.location.href,
+        },
+        redirect: 'if_required',
+      });
 
-    if (error) {
-      const msg = error.message || 'Payment failed';
-      setErrorMessage(msg);
-      onError?.(msg);
-      setIsProcessing(false);
-    } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-      onSuccess(paymentIntent.id);
-    } else {
-      const msg = 'Payment incomplete. Please try again.';
-      setErrorMessage(msg);
-      onError?.(msg);
-      setIsProcessing(false);
+      if (error) {
+        const msg = error.message || 'Payment failed';
+        setErrorMessage(msg);
+        onError?.(msg);
+        setIsProcessing(false);
+      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        onSuccess(paymentIntent.id);
+      } else {
+        const msg = 'Payment incomplete. Please try again.';
+        setErrorMessage(msg);
+        onError?.(msg);
+        setIsProcessing(false);
+      }
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 

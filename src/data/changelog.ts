@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.30.1",
+    date: "2026-02-25",
+    title: "Fix: Payment Double-Tap Protection",
+    changes: [
+      "Fixed: Rapid double-tap on 'Pay Now' button could fire two Stripe payment confirmations before the button disabled, causing a fatal Stripe error and crashing the payment flow — now uses a synchronous guard to instantly block duplicate submissions",
+    ]
+  },
+  {
     version: "8.30.0",
     date: "2026-02-25",
     title: "Fix: Notices Reverting to Draft After Editing",
