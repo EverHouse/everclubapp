@@ -847,6 +847,22 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
       });
     }
     
+    broadcastToStaff({
+      type: 'booking_auto_confirmed',
+      title: 'Booking Auto-Confirmed',
+      message: `${match.member_name || match.user_email}'s booking for ${pacificDate} at ${pacificStartTime} was auto-approved via Staff Auto-Match.`,
+      data: {
+        bookingId: match.id,
+        memberName: match.member_name || match.user_email,
+        memberEmail: match.user_email,
+        date: pacificDate,
+        time: pacificStartTime,
+        bay: `Bay ${resourceId}`,
+        wasAutoApproved: true,
+        trackmanBookingId
+      }
+    });
+    
     await db.execute(sql`UPDATE trackman_webhook_events 
        SET matched_booking_id = ${match.id}
        WHERE id = ${eventId} AND (matched_booking_id IS NULL OR matched_booking_id = ${event.matched_booking_id})`);
