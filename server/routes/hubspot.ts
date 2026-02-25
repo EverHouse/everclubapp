@@ -1760,7 +1760,7 @@ router.post('/api/admin/hubspot/set-forms-token', isAdmin, async (req: Request, 
     const userEmail = (req as any).user?.email || 'admin';
     await setPrivateAppToken(token, userEmail);
     const { syncHubSpotFormSubmissions } = await import('../core/hubspot/formSync');
-    const syncResult = await syncHubSpotFormSubmissions();
+    const syncResult = await syncHubSpotFormSubmissions({ force: true });
     res.json({
       success: true,
       message: `Token saved and sync triggered: ${syncResult.totalFetched} fetched, ${syncResult.newInserted} new, ${syncResult.errors.length} errors`,
@@ -1770,6 +1770,30 @@ router.post('/api/admin/hubspot/set-forms-token', isAdmin, async (req: Request, 
     logger.error('[HubSpot FormSync] Set token error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to save token' });
   }
+});
+
+router.get('/api/admin/hubspot/set-forms-token-page', isAdmin, (_req: Request, res: Response) => {
+  res.send(`<!DOCTYPE html><html><head><title>Set HubSpot Token</title>
+<style>body{font-family:system-ui;max-width:500px;margin:80px auto;padding:20px}
+input{width:100%;padding:12px;margin:10px 0;border:1px solid #ccc;border-radius:8px;font-size:14px}
+button{padding:12px 24px;background:#293515;color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px}
+#result{margin-top:20px;padding:16px;border-radius:8px;white-space:pre-wrap;font-size:13px}</style></head>
+<body><h2>Set HubSpot Private App Token</h2>
+<p>This saves the token directly to the production database, bypassing env vars.</p>
+<input type="text" id="token" placeholder="pat-na2-..." />
+<button onclick="submit()">Save & Sync</button>
+<div id="result"></div>
+<script>async function submit(){
+const token=document.getElementById('token').value.trim();
+if(!token){alert('Enter a token');return}
+const r=document.getElementById('result');
+r.style.background='#f0f0f0';r.textContent='Saving and syncing...';
+try{const res=await fetch('/api/admin/hubspot/set-forms-token',{method:'POST',
+headers:{'Content-Type':'application/json'},credentials:'include',
+body:JSON.stringify({token})});const data=await res.json();
+r.style.background=data.success?'#d4edda':'#f8d7da';
+r.textContent=JSON.stringify(data,null,2);}catch(e){r.style.background='#f8d7da';r.textContent='Error: '+e.message;}
+}</script></body></html>`);
 });
 
 export { fetchAllHubSpotContacts };
