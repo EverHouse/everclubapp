@@ -1403,37 +1403,6 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       </button>
                                     </>
                                   )}
-                                  {!issue.ignored && issue.table === 'booking_requests' && issue.category === 'booking_issue' && (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={() => setBookingSheet({
-                                          isOpen: true,
-                                          bookingId: typeof issue.recordId === 'number' ? issue.recordId : parseInt(String(issue.recordId)),
-                                          memberEmail: issue.context?.memberEmail || issue.context?.userEmail,
-                                          bookingDate: issue.context?.bookingDate,
-                                          timeSlot: issue.context?.startTime,
-                                        })}
-                                        className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors"
-                                        title="Open booking details"
-                                      >
-                                        <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleCancelBooking(typeof issue.recordId === 'number' ? issue.recordId : parseInt(String(issue.recordId)))}
-                                        disabled={cancellingBookings.has(typeof issue.recordId === 'number' ? issue.recordId : parseInt(String(issue.recordId)))}
-                                        className="p-1.5 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 rounded transition-colors disabled:opacity-50"
-                                        title="Cancel this booking"
-                                      >
-                                        {cancellingBookings.has(typeof issue.recordId === 'number' ? issue.recordId : parseInt(String(issue.recordId))) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
-                                        ) : (
-                                          <span className="material-symbols-outlined text-[16px]">cancel</span>
-                                        )}
-                                      </button>
-                                    </>
-                                  )}
                                   {!issue.ignored && issue.table === 'booking_sessions' && issue.category === 'booking_issue' && (
                                     <>
                                       {issue.context?.booking1Id && (

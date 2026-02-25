@@ -1,70 +1,5 @@
 # Ever Club Members App
 
-## ⛔ MANDATORY — READ BEFORE EVERY TASK ⛔
-
-**SKILL-LOADING IS NON-NEGOTIABLE.** Before ANY work — planning, auditing, discussing, OR coding — you MUST:
-1. Match the user's request against skill trigger words (every skill has "use when..." triggers in the skill list)
-2. Identify ALL relevant skills — not just implementation skills, but planning/audit skills too
-3. Read the full SKILL.md file for each relevant skill (e.g., `.agents/skills/booking-flow/SKILL.md`)
-4. Follow the architectural rules in those skills as the single source of truth
-5. If you skip this step, you WILL introduce bugs that violate established patterns
-
-**This applies to ALL task types, not just code changes:**
-- Planning a new feature → load `brainstorming` + domain skills BEFORE discussing
-- Auditing/reviewing code → load `code-reviewer`, `clean-code`, `project-architecture` + domain skills
-- Designing UI → load `frontend-design`, `ui-ux-pro-max`, `react-dev` BEFORE proposing anything
-- Debugging → load `systematic-debugging` + domain skills BEFORE investigating
-- Researching an approach → load relevant domain skills BEFORE making recommendations
-
-**SCAN ALL INSTALLED SKILLS — not just the common mappings below.** The full skill list is in the system context with 80+ skills. Every skill has "use when..." trigger descriptions. You MUST scan ALL of them against the user's request — the table below is only a quick reference for the most common Ever Club domain areas. If a request touches marketing, SEO, copy, A/B testing, animations, forms, popups, pricing strategy, mobile design, email sequences, schema markup, website auditing, or ANY other area covered by an installed skill, load that skill too.
-
-Common skill mappings (quick reference — NOT exhaustive):
-- Booking changes → `booking-flow`, `booking-import-standards`, `checkin-flow`
-- Payment/billing → `fee-calculation`, `stripe-webhook-flow`, `stripe-integration`
-- Database/schema → `postgres-drizzle`, `project-architecture`
-- Frontend/UI → `react-dev`, `frontend-design`, `ui-ux-pro-max`
-- HubSpot → `hubspot-sync`, `hubspot-integration`
-- Notifications → `notification-system`
-- Data integrity → `data-integrity-monitoring`
-- Guest passes → `guest-pass-system`
-- Member status → `member-lifecycle`
-- Scheduled jobs → `scheduler-jobs`
-- New feature planning → `brainstorming`, `project-architecture` + domain skills
-- Code audit/review → `code-reviewer`, `clean-code`, `project-architecture`
-- Strategy/business → `strategy-advisor`, `pricing-strategy`
-- Email features → `email-best-practices`, `resend` (+ sub-skills)
-- Performance → `performance`, `sql-optimization-patterns`
-- Testing → `test-driven-development`, `e2e-testing-patterns`, `webapp-testing`
-
-**CONVERSATION MEMORY IS NON-NEGOTIABLE.** At the start of every session and whenever making architectural decisions, use the `remembering-conversations` skill to search past conversations for relevant context, past decisions, known gotchas, and previous approaches. This prevents repeating mistakes and re-inventing solutions that were already discussed. Load this skill FIRST — before planning, before coding, before proposing anything.
-
-**CHANGELOG IS NON-NEGOTIABLE.** Every session that produces user-facing changes MUST end with an update to `src/data/changelog.ts` and `src/data/changelog-version.ts`. Group related changes into versioned entries (bump minor version per logical feature/fix group). Never leave a session without updating the changelog — members see this in-app.
-
-**INCIDENT LOG:** If you fail to follow ANY of the above rules, you MUST immediately log it in `.agents/incident-log.md` with: what rule was violated, what happened, estimated wasted agent usage, and corrective action. This is how the founder tracks accountability.
-
-**PLAN BEFORE CODING IS NON-NEGOTIABLE.** For ANY task that involves code changes, you MUST:
-1. Load all relevant skills first (see above)
-2. Search conversation memory for past context on this topic
-3. Create a task list outlining exactly what you plan to do — this gives the user an approval step before any code is written
-4. WAIT for the user to approve the plan before making any code changes
-5. Never skip straight to coding. The user must see and approve the approach first.
-
-This applies to bug fixes, new features, refactors, and any other code-touching work. The only exceptions are trivial one-line fixes where the change is obvious and low-risk.
-
-## ⛔ ANTI-PATTERNS — NEVER DO THESE ⛔
-
-These are the most expensive mistakes from the incident log (`.agents/incident-log.md`). Read the incident log at the start of every session to learn from past failures.
-
-1. **NO THRASHING.** If a fix doesn't work after 2 attempts, STOP. Do not make a 3rd attempt at the same approach. Instead: research the problem (web search, read docs, load relevant skills), understand the root cause, then try a fundamentally different approach. The incident log documents cases of 7-22 consecutive failed attempts on the same problem — this is the single most expensive pattern.
-
-2. **RESEARCH BEFORE CODING on unfamiliar topics.** If you don't know how something works (Safari viewport behavior, a library API, a CSS feature, a Stripe flow), search for documentation FIRST. Do not trial-and-error your way through it. One informed attempt beats 10 blind ones.
-
-3. **AUDIT THE FULL SCOPE, FIX ONCE.** When you find a bug, investigate whether there are related issues before writing any fix. Don't fix one symptom, deploy, find the next symptom, fix that, deploy — that's piecemeal and wastes messages. Audit everything, fix everything in one commit.
-
-4. **CHECK DATABASE CONSTRAINTS before using values.** Before using any enum/status value in code, verify it exists in the database CHECK constraint. The booking_requests.status CHECK allows ONLY: pending, approved, confirmed, declined, cancelled, cancellation_pending, attended, no_show, expired. Load `project-architecture` skill to confirm valid values for any table.
-
-5. **DON'T REPEAT A FAILED APPROACH.** If something was tried before and didn't work (check incident log + conversation memory), a different approach is needed — not the same approach again.
-
 ## Overview
 The Ever Club Members App is a private members club application designed for golf and wellness centers. Its core purpose is to streamline the management of golf simulator bookings, wellness service appointments, and club events. The project aims to create a central digital hub for private members clubs, providing comprehensive tools for membership management, facility booking, and community building, ultimately enhancing member satisfaction and operational efficiency.
 
@@ -100,71 +35,71 @@ The Ever Club Members App is a private members club application designed for gol
 ### Enforced Code Conventions
 - **Error Handling**: Empty catch blocks are prohibited; all `catch` blocks must re-throw, log, or use `safeDbOperation()`.
 - **Authentication**: All mutating API routes must be protected by authentication.
-- **Stripe Webhook Safety**: Webhook handlers modifying member status must include a `billing_provider` guard. Invoice payment failure handlers must verify `subscription_id` to prevent stale invoices from affecting active members. Async payment handlers must construct identical payloads to synchronous counterparts and throw errors on failure for Stripe retries. Payment handlers must auto-refund overpayments when participants are already paid — never silently keep the money (Bug 23).
-- **Fee Calculation Transaction Isolation**: `recalculateSessionFees()` and `computeFeeBreakdown()` use the global `db` pool. They MUST NEVER be called inside `db.transaction()` — the global pool cannot see uncommitted rows under Postgres Read Committed isolation, causing $0 fees or deadlock. Always commit the transaction first, then calculate fees (Bug 22).
-- **Individual Refund Status Updates**: When refunding multiple participants during cancellation, update each participant's `payment_status` to `'refunded'` only AFTER its individual Stripe refund succeeds. Never bulk-update before confirming each refund. Always call `PaymentStatusService.markPaymentRefunded()` after each successful refund (Bugs 12, 15).
-- **Fee Cascade Recalculation**: `recalculateSessionFees()` automatically cascades to later same-day bookings for the same member. Editing an earlier booking's duration or roster triggers recalculation on all subsequent sessions. Uses `skipCascade: true` internally to prevent infinite loops (Bug 13).
-- **Account Credit Audit Trails**: When `createPrepaymentIntent` returns `paidInFull: true` (account credit covered the full fee), call `logPaymentAudit()` with `paymentMethod: 'account_credit'` to create an audit record (Bug 17).
-- **Booking Race Condition Guards**: `approveBooking()`, `declineBooking()`, and `checkinBooking()` implement status guards and optimistic locking. All status-transition UPDATEs must include `WHERE status IN (...)` matching expected source statuses, and check `rowCount` after UPDATE to detect concurrent changes. `devConfirmBooking` uses `WHERE status IN ('pending', 'pending_approval')` to prevent overwriting concurrent cancellations (Bug 11).
+- **Stripe Webhook Safety**: Webhook handlers modifying member status must include a `billing_provider` guard. Async payment handlers must construct identical payloads to synchronous counterparts and throw errors on failure for Stripe retries. Payment handlers must auto-refund overpayments when participants are already paid.
+- **Fee Calculation Transaction Isolation**: `recalculateSessionFees()` and `computeFeeBreakdown()` use the global `db` pool. They MUST NEVER be called inside `db.transaction()`. Always commit the transaction first, then calculate fees.
+- **Individual Refund Status Updates**: When refunding multiple participants, update each participant's `payment_status` to `'refunded'` only AFTER its individual Stripe refund succeeds.
+- **Fee Cascade Recalculation**: `recalculateSessionFees()` automatically cascades to later same-day bookings for the same member.
+- **Account Credit Audit Trails**: When account credit covers a full fee, `logPaymentAudit()` must be called with `paymentMethod: 'account_credit'`.
+- **Booking Race Condition Guards**: `approveBooking()`, `declineBooking()`, and `checkinBooking()` implement status guards and optimistic locking. All status-transition UPDATEs must include `WHERE status IN (...)` matching expected source statuses, and check `rowCount` after UPDATE.
 - **Rate Limiting**: All public endpoints creating database records must have rate limiting.
 - **Unbounded Queries**: All SELECT queries must have a LIMIT clause or be naturally bounded.
-- **Scheduler Lifecycle**: All `setInterval()` and `setTimeout()` in schedulers must store their timer IDs for shutdown cleanup. Stop functions must clear both interval and timeout IDs.
+- **Scheduler Lifecycle**: All `setInterval()` and `setTimeout()` in schedulers must store their timer IDs for shutdown cleanup.
 - **WebSocket Session Revalidation**: WebSocket connections are periodically re-verified against the database (every 5 minutes). Expired or revoked sessions are terminated automatically.
-- **Cookie Signature Verification**: WebSocket `parseSessionId()` uses `cookie-signature.unsign()` to cryptographically verify session cookies. Cookies with invalid signatures are rejected.
-- **Lock Ordering (Group Billing)**: In all group billing transactions, always lock `billing_groups` (parent) FOR UPDATE before `group_members` (child) to prevent deadlocks.
+- **Cookie Signature Verification**: WebSocket `parseSessionId()` uses `cookie-signature.unsign()` to cryptographically verify session cookies.
+- **Lock Ordering (Group Billing)**: In all group billing transactions, always lock `billing_groups` FOR UPDATE before `group_members`.
 - **Stripe Rollback on Failure**: Both `addCorporateMember` and `removeCorporateMember` track `newStripeItemId` and roll back newly created subscription items if subsequent Stripe operations fail.
-- **Booking Expiry Grace Period**: The booking expiry scheduler waits 20 minutes past `start_time` before auto-expiring pending/pending_approval bookings, giving members time to check in at the front desk. Trackman-linked bookings are routed to `cancellation_pending` (not `expired`) so the Trackman hardware cleanup flow runs and the physical bay is unlocked.
-- **Group Member Removal Status Revocation**: When removing a member from a billing group (family or corporate), always set `membership_status = 'cancelled'`, `last_tier = tier`, `tier = NULL` on the user record. Compensating rollbacks must restore these fields.
-- **Group Add Rollback Status Reset**: When Stripe fails during `addGroupMember`/`addCorporateMember`, the compensating DB update must reset `membership_status = 'pending'` and `tier = NULL` to prevent ghost active users with no billing.
-- **WebSocket Staff Presence Accuracy**: On `ws.on('close')`, if remaining connections exist for a user, check `filtered.some(c => c.isStaff)` — if no remaining staff connections, remove from `staffEmails`.
-- **WebSocket Pool Size**: Session verification pool uses `max: 20` connections to handle reconnection storms during deploys.
-- **WebSocket Token-Based Auth Fallback**: The `{ type: 'auth', sessionId: '...' }` message accepts a `sessionId` field for mobile/React Native clients that cannot attach cookies to the WebSocket upgrade request.
-- **Frontend Async Race Protection**: All async fetches in `useEffect` hooks must use `AbortController` + `isCurrent` flags or `fetchIdRef` counters to prevent stale responses from overwriting current state.
-- **WebSocket Reconnect Jitter**: Frontend WebSocket reconnection uses random delay (2-5s for member hook, exponential backoff for staff hook) to prevent thundering herd on server restart.
-- **WebSocket Duplicate Socket Guard**: Before pushing a connection to the clients map, check `!existing.some(c => c.ws === ws)` to prevent the same WebSocket object from being registered multiple times (e.g., when a mobile client retransmits its auth message on a flaky network).
-- **Billing Group Creation Atomicity**: `createBillingGroup` and `createCorporateBillingGroupFromSubscription` wrap the INSERT into `billing_groups` + UPDATE of `users.billing_group_id` in a single `db.transaction()` to prevent orphaned groups if the connection drops between queries.
-- **Visitor Search Race Protection**: The visitor search `useEffect` in `useUnifiedBookingLogic.ts` uses an `isActive` flag pattern. When dependencies change, the cleanup sets `isActive = false`, preventing stale search responses from overwriting newer results.
-- **Scheduler Graceful Shutdown Completeness**: Every scheduler that uses `setTimeout` chains (not `setInterval`) must store the current timeout ID in a module-level variable and export a `stopXxxScheduler()` function that clears it. Both `memberSyncScheduler` and `backgroundSyncScheduler` now follow this pattern. All stop functions must be called in `stopSchedulers()` in `server/schedulers/index.ts`.
-- **WebSocket Mobile Staff Registration**: The `staff_register` handler must NOT rely solely on `getVerifiedUserFromRequest(req)` because mobile clients that authenticated via the auth message (not cookies) will have an empty `req`. It falls back to a direct DB lookup (`SELECT role FROM users WHERE email = ?`) to verify staff status.
-- **Booking Expiry WebSocket Broadcast**: After expiring or setting bookings to `cancellation_pending`, the scheduler must call `broadcastAvailabilityUpdate()` for each affected booking with a `resourceId`, using action `'cancelled'` for expired and `'updated'` for cancellation_pending. Without this, front desk iPads and member phones show stale availability until manual refresh.
-- **Conflict Check Status Completeness**: `checkBookingConflict()` in `bookingValidation.ts` must check all 6 active booking statuses: `pending`, `pending_approval`, `approved`, `confirmed`, `attended`, `cancellation_pending`. The creation-time hard block in `bookings.ts` has its own inline SQL with all 6 statuses, but `checkBookingConflict` is also used by reschedule and `checkAllConflicts`. Missing statuses allow double-bookings through alternate code paths.
-- **Closure Cache Pruning**: The `closureCache` Map in `bookingValidation.ts` has a 10-minute pruning interval that removes expired entries. Without this, expired entries accumulate indefinitely (though the practical impact is small since keys are bounded by unique dates queried).
-- **Auto-Complete Session Backfill**: The `bookingAutoCompleteScheduler` now calls `ensureSessionForBooking()` for each booking it marks as `attended` that has no `session_id`. Previously, it only set the status without creating sessions, causing "Active Bookings Without Sessions" data integrity failures. The manual auto-complete endpoint also backfills sessions.
-- **Billing Provider Auto-Classification**: The periodic auto-fix (`autoFixMissingTiers()`) now classifies Stripe billing providers in addition to MindBody. Active members with `stripe_subscription_id` and no `billing_provider` get set to `'stripe'` first (Stripe takes priority), then remaining members with `mindbody_client_id` get set to `'mindbody'`.
-- **No 'hubspot' Billing Provider**: The `billing_provider` CHECK constraint only allows: `stripe`, `mindbody`, `manual`, `comped`, `family_addon`. Code in `hubspot/members.ts` was incorrectly setting `'hubspot'` which would violate the constraint. Staff-created members via HubSpot now get `billing_provider='stripe'`. Existing `'hubspot'` values are migrated to `'manual'` on startup via db-init.
-- **Default billing_provider Is 'stripe'**: The column default for `billing_provider` is `'stripe'` (set in Drizzle schema and enforced via db-init `ALTER TABLE`). All new users (visitors, day-pass, staff-created, HubSpot sync) default to `'stripe'`. Only users who are `active` AND have a `mindbody_client_id` AND have no `stripe_subscription_id` get `billing_provider='mindbody'` (set by auto-fix and HubSpot sync).
-- **App DB Is Primary Brain for HubSpot Sync**: The app database is the single source of truth for `membership_status`, `tier`, `role`, and `billing_provider`. HubSpot → App sync only provides profile fill-in data (name, phone, address, DOB, preferences) via COALESCE — it never overwrites existing app data for these fields. **Exception**: MindBody-billed active members — HubSpot can update their `membership_status` (since MindBody → HubSpot is their billing source). When a MindBody member's status changes from `active` to non-active, the app triggers a deactivation cascade: tier is removed (saved to `last_tier`), `billing_provider` is set to `'stripe'`, and the changes are pushed to HubSpot. The member must reactivate through the Stripe signup flow. **Exception to the exception**: Members with `migration_status = 'pending'` skip the deactivation cascade — their tier and status are preserved during the MindBody→Stripe migration gap.
-- **MindBody → Stripe Migration Flow**: Staff initiates migration one-by-one via the directory profile drawer. Prerequisites: member has card on file + tier has Stripe pricing. Staff picks a billing start date and confirms MindBody cancellation. The system sets `migration_status = 'pending'` and waits. After daily HubSpot sync, `processPendingMigrations()` checks each pending migration: if MindBody status is no longer active AND billing start date has arrived, it creates a Stripe subscription. `billing_provider` is flipped to `'stripe'` BEFORE `stripe.subscriptions.create()` so the webhook handler processes correctly. If Stripe fails, `billing_provider` rolls back to `'mindbody'` and `migration_status = 'failed'`. For future billing dates, `trial_end` defers the first charge. Migration fields on users table: `migration_status` (pending/completed/cancelled/failed), `migration_billing_start_date`, `migration_requested_by`, `migration_tier_snapshot`. Stale migrations (>14 days pending) trigger staff alerts.
-- **Auto-Complete Fee Guard**: The booking auto-complete scheduler only marks bookings as `attended` if: (1) the booking has no session yet (zero fees by definition), OR (2) all participants are paid/waived/zero-fee. Bookings with unpaid fees (`cached_fee_cents > 0` and `payment_status = 'pending'`) remain as `approved`/`confirmed` so staff can follow up on payment.
-- **Route Authentication Audit**: Both middleware guards and inline `getSessionUser(req)` checks are used, with middleware preferred for staff/admin routes.
-- **Staff Conference Room Booking — No Slot Check**: The `StaffManualBookingModal` does NOT fetch available slots from the server. Staff click an empty cell on the calendar grid, and the clicked time pre-fills into a direct time input. The server-side slot-check endpoint (`/api/staff/conference-room/available-slots`) still exists for other uses but is not called by this modal. The booking POST endpoint still validates conflicts server-side.
-- **Admin Calendar Grid Hours**: The calendar grid starts at 8:30 AM and extends to 10:00 PM. These are defined in `CalendarGrid.tsx` `TIME_SLOTS` array. Club hours: Mon=Closed, Tue-Thu=8:30AM-8PM, Fri-Sat=8:30AM-10PM, Sun=8:30AM-6:30PM.
-- **No Name-Only Member Matching**: The MindBody sales import (`server/core/mindbody/import.ts`) must NEVER fall back to name-only matching for financial linking. Matching order is: mindbody_id → email → phone → name+phone. If all fail, the purchase goes to `result.unmatched++` for manual staff linking via the `/unmatched` admin route. Name-only matching risks attaching purchases to the wrong member when names collide (Bug 35).
-- **Immediate Cancellation Means Now**: In `server/routes/memberBilling.ts`, when `immediate` is true for subscription cancellation, `cancel_at` must be `Date.now()`, NOT `currentPeriodEnd`. This ensures banned/terminated members lose access immediately (Bug 36).
-- **Stripe Coupon API — Use discounts Array**: When applying coupons to Stripe subscriptions, use `discounts: [{ coupon: couponId }]` — NOT the deprecated root-level `coupon` property. Never use `as any` to bypass Stripe TypeScript types; if the types reject your call, the API likely will too (Bug 37). FIXED in v8.31.3.
-- **Stripe Idempotency Keys — Include Timestamp**: Idempotency keys for Stripe subscription creation must include `Date.now()` to prevent collisions on retries. A deterministic key like `sub_create_{customer}_{price}_{coupon}` will clash when the same member/price/coupon is retried with even slightly different metadata. Pattern: `sub_create_${customerId}_${priceId}_${couponId || 'none'}_${Date.now()}` (Bug 48).
-- **Free Activation Flow ($0 Subscriptions)**: When `createSubscription` returns `amountDue: 0`, the server sets `freeActivation: true`, marks the $0 invoice as paid out-of-band (if subscription is `incomplete`), activates the member immediately, and returns `clientSecret: null`. The frontend skips the payment step and calls `onSuccess()` directly. This handles both 100% coupons AND $0 tier prices. **All 3 subscription creation routes** (generic, existing member, new member) must pay the $0 invoice out-of-band to prevent Stripe auto-cancelling the `incomplete` subscription after 23 hours. Never send a SetupIntent clientSecret (`seti_*`) to the terminal/payment flow — it will fail with "No such payment_intent". All terminal routes (`payment-status`, `cancel-payment`, `refund-payment`, `process-existing-payment`, `confirm-subscription-payment`, `confirm-inline-payment`) must guard against `seti_` and `free_` prefixed IDs (Bug 49).
-- **PostgreSQL Result Row Count**: The PostgreSQL driver returns `rowCount`, not `count`, on raw query results. Always use `.rowCount` when checking how many rows were affected by an UPDATE/INSERT/DELETE (Bug 38).
-- **Migration Concurrency Guard**: `processPendingMigrations()` must set `migration_status = 'processing'` on each user BEFORE calling `executePendingMigration()`. This prevents concurrent cron runs from double-processing the same member. `executePendingMigration()` accepts both `'pending'` and `'processing'` as valid source statuses (Bug 40).
-- **Stripe trial_end 48-Hour Minimum**: Stripe requires `trial_end` to be at least 48 hours in the future. When creating a subscription with a deferred billing start date, only use `trial_end` if the start date is more than 48 hours away. Otherwise, bill immediately (Bug 41).
-- **ISO Dates for SQL**: Never use `formatDatePacific()` or localized date strings in SQL queries. Always use `.toISOString()` for date values passed to Postgres to avoid ambiguous date parsing (Bug 42).
-- **Sharp limitInputPixels**: All `sharp()` calls must pass `{ limitInputPixels: 268402689 }` (~16k x 16k max) to prevent image-bomb OOM crashes. Resize BEFORE format conversion for efficiency (Bug 43).
-- **Auth Rate Limiting — Dual Limiters**: `authRateLimiter` is an array of two middleware: `authRateLimiterByIp` (20 attempts/15min per IP) and `authRateLimiterByEmail` (10 attempts/15min per email). Both must fire independently to block brute-force attacks that rotate either vector (Bug 44).
-- **AbortController for Polling Fetches**: Any `useCallback` fetch that can be triggered by events or polling must use `AbortController` to cancel in-flight requests before starting new ones. Store the controller in a `useRef` and abort it at the start of each fetch call. Ignore `AbortError` in the catch block (Bug 45).
-- **Global Rate Limiter — Tiered Limits**: Authenticated users get 600 req/min, unauthenticated IP-based traffic gets 2000 req/min to prevent false positives on shared networks (Bug 46).
-- **Closure Calendar Sync — Patch, Don't Delete+Create**: When editing a closure, always try to PATCH the existing Google Calendar event in place (preserving its event ID) before falling back to delete+create. The sync matches closures by `internal_calendar_id`, so changing the event ID causes orphan drafts. The sync must use `COALESCE(notice_type, ${parsed})` to preserve user-set notice_type, and must handle comma-separated event IDs for multi-day closures (Bug 47).
-- **Closure Sync — Duplicate Prevention**: Before creating a new closure from a synced calendar event, check for existing active closures with the same title+start_date that are already configured (`needs_review = false`). If found, adopt the closure by updating its `internal_calendar_id` instead of creating a duplicate (Bug 47).
+- **Booking Expiry Grace Period**: The booking expiry scheduler waits 20 minutes past `start_time` before auto-expiring pending/pending_approval bookings. Trackman-linked bookings are routed to `cancellation_pending`.
+- **Group Member Removal Status Revocation**: When removing a member from a billing group, always set `membership_status = 'cancelled'`, `last_tier = tier`, `tier = NULL` on the user record.
+- **Group Add Rollback Status Reset**: When Stripe fails during `addGroupMember`/`addCorporateMember`, the compensating DB update must reset `membership_status = 'pending'` and `tier = NULL`.
+- **WebSocket Staff Presence Accuracy**: On `ws.on('close')`, if no remaining staff connections for a user, remove from `staffEmails`.
+- **WebSocket Pool Size**: Session verification pool uses `max: 20` connections.
+- **WebSocket Token-Based Auth Fallback**: The `{ type: 'auth', sessionId: '...' }` message accepts a `sessionId` field for mobile/React Native clients.
+- **Frontend Async Race Protection**: All async fetches in `useEffect` hooks must use `AbortController` + `isCurrent` flags or `fetchIdRef` counters.
+- **WebSocket Reconnect Jitter**: Frontend WebSocket reconnection uses random delay to prevent thundering herd.
+- **WebSocket Duplicate Socket Guard**: Prevent the same WebSocket object from being registered multiple times.
+- **Billing Group Creation Atomicity**: `createBillingGroup` and `createCorporateBillingGroupFromSubscription` wrap INSERT and UPDATE in a single `db.transaction()`.
+- **Visitor Search Race Protection**: The visitor search `useEffect` uses an `isActive` flag pattern.
+- **Scheduler Graceful Shutdown Completeness**: Every scheduler that uses `setTimeout` chains must store the current timeout ID and export a `stopXxxScheduler()` function.
+- **WebSocket Mobile Staff Registration**: The `staff_register` handler falls back to a direct DB lookup to verify staff status for mobile clients.
+- **Booking Expiry WebSocket Broadcast**: After expiring or setting bookings to `cancellation_pending`, the scheduler must call `broadcastAvailabilityUpdate()`.
+- **Conflict Check Status Completeness**: `checkBookingConflict()` must check all 6 active booking statuses.
+- **Closure Cache Pruning**: The `closureCache` Map in `bookingValidation.ts` has a 10-minute pruning interval.
+- **Auto-Complete Session Backfill**: The `bookingAutoCompleteScheduler` now calls `ensureSessionForBooking()` for each booking it marks as `attended` that has no `session_id`.
+- **Billing Provider Auto-Classification**: The periodic auto-fix (`autoFixMissingTiers()`) classifies Stripe billing providers in addition to MindBody.
+- **No 'hubspot' Billing Provider**: The `billing_provider` CHECK constraint does not allow `'hubspot'`. Staff-created members via HubSpot now get `billing_provider='stripe'`.
+- **Default billing_provider Is 'stripe'**: The column default for `billing_provider` is `'stripe'`.
+- **App DB Is Primary Brain for HubSpot Sync**: The app database is the single source of truth for `membership_status`, `tier`, `role`, and `billing_provider`. HubSpot → App sync only provides profile fill-in data.
+- **MindBody → Stripe Migration Flow**: Staff initiates migration via the directory profile drawer. System sets `migration_status = 'pending'`, processes MindBody status, then creates Stripe subscription.
+- **Auto-Complete Fee Guard**: The booking auto-complete scheduler only marks bookings as `attended` if no session yet, or all participants are paid/waived/zero-fee.
+- **Route Authentication Audit**: Both middleware guards and inline `getSessionUser(req)` checks are used.
+- **Staff Conference Room Booking — No Slot Check**: The `StaffManualBookingModal` does NOT fetch available slots from the server.
+- **Admin Calendar Grid Hours**: The calendar grid starts at 8:30 AM and extends to 10:00 PM.
+- **No Name-Only Member Matching**: MindBody sales import must NEVER fall back to name-only matching for financial linking.
+- **Immediate Cancellation Means Now**: For subscription cancellation, `cancel_at` must be `Date.now()`.
+- **Stripe Coupon API — Use discounts Array**: When applying coupons, use `discounts: [{ coupon: couponId }]`.
+- **Stripe Idempotency Keys — Include Timestamp**: Idempotency keys for Stripe subscription creation must include `Date.now()`.
+- **Free Activation Flow ($0 Subscriptions)**: When `createSubscription` returns `amountDue: 0`, the server sets `freeActivation: true`, marks the $0 invoice as paid, activates the member, and returns `clientSecret: null`.
+- **PostgreSQL Result Row Count**: Use `.rowCount` for affected rows by an UPDATE/INSERT/DELETE.
+- **Migration Concurrency Guard**: `processPendingMigrations()` must set `migration_status = 'processing'` before calling `executePendingMigration()`.
+- **Stripe trial_end 48-Hour Minimum**: Stripe requires `trial_end` to be at least 48 hours in the future.
+- **ISO Dates for SQL**: Always use `.toISOString()` for date values passed to Postgres.
+- **Sharp limitInputPixels**: All `sharp()` calls must pass `{ limitInputPixels: 268402689 }`.
+- **Auth Rate Limiting — Dual Limiters**: `authRateLimiter` is an array of two middleware: `authRateLimiterByIp` and `authRateLimiterByEmail`.
+- **AbortController for Polling Fetches**: Any `useCallback` fetch that can be triggered by events or polling must use `AbortController`.
+- **Global Rate Limiter — Tiered Limits**: Authenticated users get 600 req/min, unauthenticated IP-based traffic gets 2000 req/min.
+- **Closure Calendar Sync — Patch, Don't Delete+Create**: When editing a closure, try to PATCH the existing Google Calendar event.
+- **Closure Sync — Duplicate Prevention**: Before creating a new closure, check for existing active closures.
 
-## Accessibility (WCAG) Conventions
-- **Skip Navigation**: `src/App.tsx` includes a "Skip to main content" link as the first focusable element. The `<main>` tag has `id="main-content"`. CSS lives in `src/index.css` under `.skip-link`.
-- **Focus Trapping**: `SlideUpDrawer` and `ConfirmDialog` trap Tab/Shift+Tab within their bounds while open. SlideUpDrawer also handles Escape to close. If no `title` prop is provided, `aria-label="Dialog"` is used as fallback.
-- **Clickable Non-Button Elements**: Any `div`, `span`, `tr`, or `li` that has an `onClick` must also have `role="button"`, `tabIndex={0}`, and an `onKeyDown` handler that triggers the action on Enter or Space. Apply these conditionally only when `onClick` is provided.
-- **Combobox Pattern (MemberSearchInput)**: Uses `role="combobox"` on input, `role="listbox"` on dropdown, `role="option"` on items, with `aria-expanded`, `aria-controls`, `aria-activedescendant`, and an `aria-live="polite"` region for announcing result counts.
-- **Dropdown/Menu Pattern (BookingStatusDropdown)**: Uses `aria-haspopup="listbox"`, `aria-expanded`, `role="listbox"`, `role="option"`, with arrow key navigation (Up/Down), Enter to select, Escape to close.
+### Accessibility (WCAG) Conventions
+- **Skip Navigation**: `src/App.tsx` includes a "Skip to main content" link.
+- **Focus Trapping**: `SlideUpDrawer` and `ConfirmDialog` trap Tab/Shift+Tab within their bounds.
+- **Clickable Non-Button Elements**: Any `div`, `span`, `tr`, or `li` with an `onClick` must also have `role="button"`, `tabIndex={0}`, and an `onKeyDown` handler.
+- **Combobox Pattern (MemberSearchInput)**: Uses `role="combobox"` on input, `role="listbox"` on dropdown, `role="option"` on items, with `aria-expanded`, `aria-controls`, `aria-activedescendant`, and an `aria-live="polite"` region.
+- **Dropdown/Menu Pattern (BookingStatusDropdown)**: Uses `aria-haspopup="listbox"`, `aria-expanded`, `role="listbox"`, `role="option"`, with arrow key navigation, Enter to select, Escape to close.
 - **Tab Pattern (TabButton)**: Always include `role="tab"` and `aria-selected` on TabButton. Parent containers must have `role="tablist"`.
-- **Form Labels**: Every `<input>`, `<select>`, and `<textarea>` must have either a `<label>` element or an `aria-label` attribute. Never rely solely on `placeholder` for identification.
-- **Image Alt Text**: All `<img>` tags must have an `alt` attribute. Use descriptive text from the item's title/name with a fallback string for dynamic images. Use `alt=""` only for purely decorative images.
-- **Backdrop Overlays**: Modal/drawer backdrop divs must include `aria-hidden="true"` so screen readers skip them.
+- **Form Labels**: Every `<input>`, `<select>`, and `<textarea>` must have either a `<label>` element or an `aria-label` attribute.
+- **Image Alt Text**: All `<img>` tags must have an `alt` attribute.
+- **Backdrop Overlays**: Modal/drawer backdrop divs must include `aria-hidden="true"`.
 - **Toast Roles**: Error toasts use `role="alert"` with `aria-live="assertive"`. Non-error toasts use `role="status"` with `aria-live="polite"`.
 
 ## External Dependencies
