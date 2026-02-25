@@ -38,12 +38,11 @@ function applyScrollLock() {
   if (lockCount === 1) {
     savedScrollY = window.scrollY;
     document.body.style.position = 'fixed';
-    document.body.style.top = `-${savedScrollY}px`;
+    document.body.style.top = '0';
     document.body.style.left = '0';
     document.body.style.right = '0';
     document.body.style.bottom = '0';
     document.body.style.width = '100%';
-    document.documentElement.classList.add('overflow-hidden');
     document.documentElement.style.overscrollBehavior = 'none';
     document.body.style.overscrollBehavior = 'none';
     document.addEventListener('touchmove', preventTouchMove, { passive: false });
@@ -59,7 +58,6 @@ function removeScrollLock() {
     document.body.style.right = '';
     document.body.style.bottom = '';
     document.body.style.width = '';
-    document.documentElement.classList.remove('overflow-hidden');
     document.documentElement.style.overscrollBehavior = '';
     document.body.style.overscrollBehavior = '';
     document.removeEventListener('touchmove', preventTouchMove);
@@ -98,7 +96,6 @@ export function forceReleaseAllLocks(): void {
   document.body.style.right = '';
   document.body.style.bottom = '';
   document.body.style.width = '';
-  document.documentElement.classList.remove('overflow-hidden');
   document.documentElement.style.overscrollBehavior = '';
   document.body.style.overscrollBehavior = '';
   document.removeEventListener('touchmove', preventTouchMove);
@@ -187,7 +184,6 @@ if (typeof window !== 'undefined') {
       document.body.style.right = '';
       document.body.style.bottom = '';
       document.body.style.width = '';
-      document.documentElement.classList.remove('overflow-hidden');
       document.documentElement.style.overscrollBehavior = '';
       document.body.style.overscrollBehavior = '';
       document.removeEventListener('touchmove', preventTouchMove);

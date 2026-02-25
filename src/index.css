@@ -287,7 +287,6 @@ body {
    causing a gap at the bottom of the screen. */
 html.overflow-hidden {
   overscroll-behavior: none;
-  background-color: rgba(0, 0, 0, 0.6) !important;
 }
 
 html, body {
