@@ -34,13 +34,11 @@ function preventTouchMove(e: TouchEvent) {
   e.preventDefault();
 }
 
-let savedHtmlBg = '';
-
 function applyScrollLock() {
   if (lockCount === 1) {
     savedScrollY = window.scrollY;
-    savedHtmlBg = document.documentElement.style.backgroundColor;
     document.documentElement.style.setProperty('background-color', '#262626', 'important');
+    document.body.style.setProperty('background-color', '#262626', 'important');
     document.documentElement.classList.add('overflow-hidden');
     document.body.style.position = 'fixed';
     document.body.style.top = `-${savedScrollY}px`;
@@ -57,7 +55,8 @@ function applyScrollLock() {
 function removeScrollLock() {
   if (lockCount === 0 && lockOwners.size === 0) {
     const scrollY = savedScrollY;
-    document.documentElement.style.setProperty('background-color', savedHtmlBg || '');
+    document.documentElement.style.removeProperty('background-color');
+    document.body.style.removeProperty('background-color');
     document.documentElement.classList.remove('overflow-hidden');
     document.body.style.position = '';
     document.body.style.top = '';
@@ -97,7 +96,8 @@ export function forceReleaseAllLocks(): void {
   lockOwners.clear();
   lockCount = 0;
   const scrollY = savedScrollY;
-  document.documentElement.style.setProperty('background-color', savedHtmlBg || '');
+  document.documentElement.style.removeProperty('background-color');
+  document.body.style.removeProperty('background-color');
   document.documentElement.classList.remove('overflow-hidden');
   document.body.style.position = '';
   document.body.style.top = '';
@@ -187,7 +187,8 @@ export function useScrollLockControl() {
 if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && lockCount === 0 && lockOwners.size === 0) {
-      document.documentElement.style.setProperty('background-color', '');
+      document.documentElement.style.removeProperty('background-color');
+      document.body.style.removeProperty('background-color');
       document.documentElement.classList.remove('overflow-hidden');
       document.body.style.position = '';
       document.body.style.top = '';
