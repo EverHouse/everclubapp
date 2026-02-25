@@ -1,5 +1,5 @@
 import React from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { fetchWithCredentials } from '../../../../hooks/queries/useFetch';
 
 interface TerminalReader {
@@ -23,28 +23,11 @@ function getStatusColor(status: string): { dot: string; bg: string } {
 }
 
 const StripeTerminalPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
-  const queryClient = useQueryClient();
-
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin', 'stripe', 'terminal-readers'],
     queryFn: () => fetchWithCredentials<{ readers: TerminalReader[] }>('/api/stripe/terminal/readers'),
     refetchInterval: 60000,
     enabled: isOpen,
-  });
-
-  const createSimulatedMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch('/api/stripe/terminal/create-simulated-reader', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
-      if (!response.ok) throw new Error('Failed to create simulated reader');
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'stripe', 'terminal-readers'] });
-    },
   });
 
   const readers = data?.readers || [];
@@ -121,16 +104,6 @@ const StripeTerminalPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
               ) : (
                 <p className="text-center text-gray-500 dark:text-gray-400 text-sm py-4">No terminal readers registered</p>
               )}
-
-              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={() => createSimulatedMutation.mutate()}
-                  disabled={createSimulatedMutation.isPending}
-                  className="px-3 py-1.5 text-xs rounded-lg bg-primary/10 text-primary dark:bg-white/10 dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 disabled:opacity-50 transition-colors"
-                >
-                  {createSimulatedMutation.isPending ? 'Creating...' : '+ Add Simulated Reader'}
-                </button>
-              </div>
             </>
           )}
         </div>
