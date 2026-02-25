@@ -138,19 +138,19 @@ export async function ensureSessionForBooking(params: {
       }
     }
 
-    if (!sessionId) {
+    if (!sessionId && params.startTime !== params.endTime) {
       const overlapSession = await q.query(
         `SELECT id FROM booking_sessions
          WHERE resource_id = $1 AND session_date = $2
          AND tsrange(
            (session_date + start_time)::timestamp,
-           CASE WHEN end_time < start_time
+           CASE WHEN end_time <= start_time
              THEN (session_date + end_time + INTERVAL '1 day')::timestamp
              ELSE (session_date + end_time)::timestamp
            END, '[)'
          ) && tsrange(
            ($2::date + $3::time)::timestamp,
-           CASE WHEN $4::time < $3::time
+           CASE WHEN $4::time <= $3::time
              THEN ($2::date + $4::time + INTERVAL '1 day')::timestamp
              ELSE ($2::date + $4::time)::timestamp
            END, '[)'
