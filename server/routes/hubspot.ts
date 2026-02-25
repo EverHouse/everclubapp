@@ -1087,7 +1087,7 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
     const hubspot = await getHubSpotClient();
     
     // Find the latest cleaned CSV file
-    const assetsDir = path.join(process.cwd(), 'attached_assets');
+    const assetsDir = path.join(process.cwd(), 'uploads', 'trackman');
     const files = fs.readdirSync(assetsDir)
       .filter(f => f.startsWith('even_house_cleaned_member_data') && f.endsWith('.csv'))
       .sort()

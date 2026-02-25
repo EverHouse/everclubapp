@@ -240,7 +240,7 @@ async function isConvertedToPrivateEventBlock(
 }
 
 async function loadEmailMapping(): Promise<Map<string, string>> {
-  const mappingPath = path.join(process.cwd(), 'attached_assets', 'even_house_cleaned_member_data_1767012619480.csv');
+  const mappingPath = path.join(process.cwd(), 'uploads', 'trackman', 'even_house_cleaned_member_data_1767012619480.csv');
   const mapping = new Map<string, string>();
   
   // Load from CSV file first

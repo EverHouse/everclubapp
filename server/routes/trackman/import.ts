@@ -59,7 +59,7 @@ router.post('/api/admin/trackman/import', isStaffOrAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Invalid filename format' });
     }
     
-    const csvPath = path.join(process.cwd(), 'attached_assets', safeFilename);
+    const csvPath = path.join(process.cwd(), 'uploads', 'trackman', safeFilename);
     
     const result = await importTrackmanBookings(csvPath, user);
     
