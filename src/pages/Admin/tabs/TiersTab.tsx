@@ -535,7 +535,10 @@ const TiersTab: React.FC = () => {
                                     {oneTimePasses.map((pass, index) => (
                                         <div 
                                             key={pass.id} 
+                                            role="button"
+                                            tabIndex={0}
                                             onClick={() => openEdit(pass)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(pass); } }}
                                             className="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-all duration-fast animate-slide-up-stagger"
                                             style={{ '--stagger-index': index } as React.CSSProperties}
                                         >
@@ -1044,7 +1047,10 @@ const TiersTab: React.FC = () => {
                                                         ) : (
                                                             <span 
                                                                 className="text-sm font-medium text-primary dark:text-white cursor-pointer hover:text-primary/70"
+                                                                role="button"
+                                                                tabIndex={0}
                                                                 onClick={() => setEditingLabelId(feature.id)}
+                                                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditingLabelId(feature.id); } }}
                                                             >
                                                                 {feature.displayLabel}
                                                             </span>

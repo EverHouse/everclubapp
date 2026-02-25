@@ -210,6 +210,9 @@ const WhatsOn: React.FC = () => {
               >
                 <div 
                   onClick={() => setExpandedId(isExpanded ? null : itemId)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedId(isExpanded ? null : itemId); } }}
                   className={`flex gap-4 p-4 cursor-pointer transition-all duration-fast ${isExpanded ? '' : 'active:scale-[0.98]'}`}
                 >
                   <div className="w-14 h-14 flex-shrink-0 flex flex-col items-center justify-center rounded-xl bg-[#EAEBE6] dark:bg-white/5 text-primary dark:text-white">

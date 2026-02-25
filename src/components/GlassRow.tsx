@@ -25,6 +25,11 @@ const GlassRow: React.FC<GlassRowProps> = ({ title, subtitle, icon, color, actio
    return (
      <div 
        onClick={onClick}
+       {...(onClick ? {
+         role: 'button' as const,
+         tabIndex: 0,
+         onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }
+       } : {})}
        className={`glass-card p-4 flex items-center gap-4 group animate-slide-up-stagger ${onClick ? 'tactile-row cursor-pointer card-pressable glass-interactive transition-transform active:scale-[0.98]' : ''}`} 
        style={staggerIndex !== undefined ? { '--stagger-index': staggerIndex, animationFillMode: 'both' } as React.CSSProperties : { animationFillMode: 'both' }}
      >

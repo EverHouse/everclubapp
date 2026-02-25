@@ -21,6 +21,8 @@ const TabButton: React.FC<TabButtonProps> = ({ label, active, onClick, isDark = 
   return (
     <button 
       type="button"
+      role="tab"
+      aria-selected={active}
       onClick={handleClick}
       style={{ touchAction: 'manipulation' }}
       className={`tactile-btn pb-3 border-b-[3px] text-sm whitespace-nowrap flex-shrink-0 transition-colors min-h-[44px] focus:ring-2 focus:ring-offset-1 focus:ring-accent focus:outline-none rounded-sm ${

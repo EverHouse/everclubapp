@@ -70,6 +70,10 @@ export default function ContextualHelp({ guideIds, title = 'Page Guide' }: Conte
                 key={section.id}
                 className="bg-white/60 dark:bg-white/5 backdrop-blur-sm rounded-2xl border border-primary/10 dark:border-white/25 overflow-hidden hover:bg-white/80 dark:hover:bg-white/10 transition-colors cursor-pointer tactile-row"
                 onClick={() => setExpandedSection(expandedSection === String(section.id) ? null : String(section.id))}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedSection(expandedSection === String(section.id) ? null : String(section.id)); } }}
+                aria-expanded={expandedSection === String(section.id)}
               >
                 <div className="flex items-center">
                   <div className="flex-1 flex items-center gap-4 p-5 text-left">

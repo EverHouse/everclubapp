@@ -151,6 +151,18 @@ The Ever Club Members App is a private members club application designed for gol
 - **AbortController for Polling Fetches**: Any `useCallback` fetch that can be triggered by events or polling must use `AbortController` to cancel in-flight requests before starting new ones. Store the controller in a `useRef` and abort it at the start of each fetch call. Ignore `AbortError` in the catch block (Bug 45).
 - **Global Rate Limiter — Tiered Limits**: Authenticated users get 600 req/min, unauthenticated IP-based traffic gets 2000 req/min to prevent false positives on shared networks (Bug 46).
 
+## Accessibility (WCAG) Conventions
+- **Skip Navigation**: `src/App.tsx` includes a "Skip to main content" link as the first focusable element. The `<main>` tag has `id="main-content"`. CSS lives in `src/index.css` under `.skip-link`.
+- **Focus Trapping**: `SlideUpDrawer` and `ConfirmDialog` trap Tab/Shift+Tab within their bounds while open. SlideUpDrawer also handles Escape to close. If no `title` prop is provided, `aria-label="Dialog"` is used as fallback.
+- **Clickable Non-Button Elements**: Any `div`, `span`, `tr`, or `li` that has an `onClick` must also have `role="button"`, `tabIndex={0}`, and an `onKeyDown` handler that triggers the action on Enter or Space. Apply these conditionally only when `onClick` is provided.
+- **Combobox Pattern (MemberSearchInput)**: Uses `role="combobox"` on input, `role="listbox"` on dropdown, `role="option"` on items, with `aria-expanded`, `aria-controls`, `aria-activedescendant`, and an `aria-live="polite"` region for announcing result counts.
+- **Dropdown/Menu Pattern (BookingStatusDropdown)**: Uses `aria-haspopup="listbox"`, `aria-expanded`, `role="listbox"`, `role="option"`, with arrow key navigation (Up/Down), Enter to select, Escape to close.
+- **Tab Pattern (TabButton)**: Always include `role="tab"` and `aria-selected` on TabButton. Parent containers must have `role="tablist"`.
+- **Form Labels**: Every `<input>`, `<select>`, and `<textarea>` must have either a `<label>` element or an `aria-label` attribute. Never rely solely on `placeholder` for identification.
+- **Image Alt Text**: All `<img>` tags must have an `alt` attribute. Use descriptive text from the item's title/name with a fallback string for dynamic images. Use `alt=""` only for purely decorative images.
+- **Backdrop Overlays**: Modal/drawer backdrop divs must include `aria-hidden="true"` so screen readers skip them.
+- **Toast Roles**: Error toasts use `role="alert"` with `aria-live="assertive"`. Non-error toasts use `role="status"` with `aria-live="polite"`.
+
 ## External Dependencies
 - **Stripe**: Payment processing, subscriptions, and webhooks.
 - **HubSpot**: Two-way data synchronization and form submissions.

@@ -152,6 +152,9 @@ const PublicCafe: React.FC = () => {
                   >
                     <div
                       onClick={() => setExpandedItemId(isExpanded ? null : item.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedItemId(isExpanded ? null : item.id); } }}
                       className={`tactile-row flex justify-between items-center group p-3 cursor-pointer transition-all duration-fast ${isExpanded ? '' : 'active:scale-[0.98]'}`}
                     >
                       <div className="flex gap-4 flex-1 items-center">

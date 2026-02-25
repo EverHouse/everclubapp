@@ -8,6 +8,25 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.29.0",
+    date: "2026-02-25",
+    title: "WCAG Accessibility & Keyboard Navigation",
+    changes: [
+      "New: Skip navigation link — pressing Tab on any page now reveals a 'Skip to main content' link, allowing keyboard users to bypass the sidebar/header",
+      "Improved: Focus trapping in modals and drawers — Tab and Shift+Tab now cycle within SlideUpDrawer and ConfirmDialog instead of escaping to background content. Escape key closes drawers",
+      "Improved: All clickable div/span elements across shared components (GlassRow, ListItemMotion, ContextualHelp) now have role='button', tabIndex, and keyboard handlers for Enter/Space",
+      "Improved: MemberSearchInput dropdown now uses proper combobox ARIA pattern with role='combobox', role='listbox', role='option', aria-expanded, aria-activedescendant, and a live region announcing result counts",
+      "Improved: BookingStatusDropdown now supports full keyboard navigation (Arrow keys, Enter, Escape) with proper ARIA roles (listbox/option) and aria-expanded/aria-haspopup attributes",
+      "Improved: TabButton now includes role='tab' and aria-selected attributes; parent containers use role='tablist' across member pages",
+      "Improved: All interactive admin elements (sort headers, expandable rows, clickable cards in Directory, Tiers, Dashboard, AuditLog, SchedulerMonitor) are now keyboard-accessible",
+      "Improved: All interactive member and public page elements (Updates cards, Dashboard cards, Profile rows, Gallery images, WhatsOn/Cafe expandable items, AlertsCard items) are now keyboard-accessible",
+      "Improved: Form fields in CafeTab, EventsAdmin, AnnouncementManager, and EventFormDrawer now have aria-label attributes for screen reader identification",
+      "Improved: Images in WellnessAdmin, EventsAdmin, and CafeTab now have descriptive alt text using item titles with fallbacks",
+      "Improved: Modal backdrop overlays now have aria-hidden='true' so screen readers skip them (MemberMenuOverlay, MemberProfileDrawer, MenuOverlay, BookingStatusDropdown)",
+      "Improved: Toast notifications now use role='status' for non-error messages and role='alert' for errors, with matching aria-live urgency levels",
+    ]
+  },
+  {
     version: "8.28.0",
     date: "2026-02-25",
     title: "Admin Calendar, Conference Room & Critical Billing Fixes",

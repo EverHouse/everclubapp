@@ -460,7 +460,10 @@ const AvailabilityBlocksContent: React.FC = () => {
                                         {dayBlocks.map((block, blockIndex) => (
                                             <div 
                                                 key={block.id} 
+                                                role="button"
+                                                tabIndex={0}
                                                 onClick={() => openEdit(block)}
+                                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(block); } }}
                                                 className="tactile-row bg-gray-50 dark:bg-black/20 p-3 rounded-lg flex flex-col gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-black/30 transition-colors animate-slide-up-stagger"
                                                 style={{ '--stagger-index': blockIndex } as React.CSSProperties}
                                             >

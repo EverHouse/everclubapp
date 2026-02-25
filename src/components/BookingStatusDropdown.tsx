@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type MouseEvent } from 'react';
+import { useState, useRef, useEffect, useCallback, type MouseEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 
 interface BookingStatusDropdownProps {
@@ -11,6 +11,11 @@ interface BookingStatusDropdownProps {
   className?: string;
 }
 
+const OPTIONS: Array<{ value: 'attended' | 'no_show'; label: string }> = [
+  { value: 'attended', label: 'Checked In' },
+  { value: 'no_show', label: 'No Show' },
+];
+
 export function BookingStatusDropdown({
   currentStatus,
   onStatusChange,
@@ -21,18 +26,22 @@ export function BookingStatusDropdown({
   className = '',
 }: BookingStatusDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const isSm = size === 'sm';
   const minWidth = isSm ? 'min-w-[140px]' : 'min-w-[160px]';
   const itemTextSize = isSm ? 'text-xs' : 'text-sm';
   const iconSize = isSm ? 'w-5 h-5' : 'w-6 h-6';
   const iconTextSize = isSm ? 'text-xs' : 'text-sm';
+  const listboxId = 'booking-status-listbox';
 
   const handleButtonClick = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     e.preventDefault();
     if (!disabled && !loading) {
       setIsOpen(!isOpen);
+      setActiveIndex(-1);
     }
   };
 
@@ -49,7 +58,57 @@ export function BookingStatusDropdown({
     setIsOpen(false);
   };
 
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLButtonElement>) => {
+    if (!isOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!disabled && !loading) {
+          setIsOpen(true);
+          setActiveIndex(0);
+        }
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        e.stopPropagation();
+        setActiveIndex(prev => (prev + 1) % OPTIONS.length);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        e.stopPropagation();
+        setActiveIndex(prev => (prev - 1 + OPTIONS.length) % OPTIONS.length);
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        e.stopPropagation();
+        if (activeIndex >= 0 && activeIndex < OPTIONS.length) {
+          setIsOpen(false);
+          onStatusChange(OPTIONS[activeIndex].value);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        e.stopPropagation();
+        setIsOpen(false);
+        break;
+      case 'Tab':
+        setIsOpen(false);
+        break;
+    }
+  }, [isOpen, activeIndex, disabled, loading, onStatusChange]);
+
   const renderButton = () => {
+    const ariaProps = {
+      'aria-haspopup': 'listbox' as const,
+      'aria-expanded': isOpen,
+      'aria-controls': isOpen ? listboxId : undefined,
+    };
+
     if (loading) {
       const loadingClass = isSm
         ? 'text-xs px-2 py-1 rounded-lg flex items-center gap-1'
@@ -62,7 +121,7 @@ export function BookingStatusDropdown({
           : (isSm ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-300');
 
       return (
-        <button type="button" disabled className={`${loadingClass} ${loadingColorClass}`}>
+        <button type="button" disabled className={`${loadingClass} ${loadingColorClass}`} {...ariaProps}>
           <span className={`material-symbols-outlined ${isSm ? 'text-sm' : 'text-sm'} animate-spin`}>progress_activity</span>
           Updating...
         </button>
@@ -79,7 +138,7 @@ export function BookingStatusDropdown({
           }`;
 
       return (
-        <button type="button" onClick={handleButtonClick} disabled={disabled} className={btnClass}>
+        <button type="button" onClick={handleButtonClick} onKeyDown={handleKeyDown} disabled={disabled} className={btnClass} {...ariaProps}>
           <span className={`material-symbols-outlined ${isSm ? 'text-sm' : 'text-sm'}`}>{isSm ? 'login' : 'how_to_reg'}</span>
           Check In
           <span className={`material-symbols-outlined ${isSm ? 'text-xs' : 'text-sm'} ml-0.5`}>expand_more</span>
@@ -93,7 +152,7 @@ export function BookingStatusDropdown({
         : 'tactile-btn w-full py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-300 hover:ring-2 hover:ring-green-300 dark:hover:ring-green-600 cursor-pointer';
 
       return (
-        <button type="button" onClick={handleButtonClick} disabled={disabled} className={btnClass}>
+        <button type="button" onClick={handleButtonClick} onKeyDown={handleKeyDown} disabled={disabled} className={btnClass} {...ariaProps}>
           <span className={`material-symbols-outlined ${isSm ? 'text-sm' : 'text-sm'}`}>check_circle</span>
           Checked In
           <span className={`material-symbols-outlined ${isSm ? 'text-xs' : 'text-sm'} ml-0.5`}>expand_more</span>
@@ -106,7 +165,7 @@ export function BookingStatusDropdown({
       : 'tactile-btn w-full py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-300 hover:ring-2 hover:ring-red-300 dark:hover:ring-red-600 cursor-pointer';
 
     return (
-      <button type="button" onClick={handleButtonClick} disabled={disabled} className={btnClass}>
+      <button type="button" onClick={handleButtonClick} onKeyDown={handleKeyDown} disabled={disabled} className={btnClass} {...ariaProps}>
         <span className={`material-symbols-outlined ${isSm ? 'text-sm' : 'text-sm'}`}>person_off</span>
         No Show
         <span className={`material-symbols-outlined ${isSm ? 'text-xs' : 'text-sm'} ml-0.5`}>expand_more</span>
@@ -170,12 +229,16 @@ export function BookingStatusDropdown({
             className="fixed inset-0"
             style={{ zIndex: 10049 }}
             onClick={handleBackdropClick}
+            aria-hidden="true"
           />
-          <div style={menuStyle} className={`bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-primary/10 dark:border-white/20 py-1 ${minWidth} animate-pop-in`}>
+          <div ref={menuRef} id={listboxId} role="listbox" aria-label="Booking status" style={menuStyle} className={`bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-primary/10 dark:border-white/20 py-1 ${minWidth} animate-pop-in`}>
             <button
               type="button"
+              role="option"
+              id={`${listboxId}-option-0`}
+              aria-selected={currentStatus === 'attended'}
               onClick={(e) => handleItemClick(e, 'attended')}
-              className={`w-full px-3 py-2 text-left ${itemTextSize} flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors ${currentStatus === 'attended' ? 'font-bold' : ''}`}
+              className={`w-full px-3 py-2 text-left ${itemTextSize} flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors ${currentStatus === 'attended' ? 'font-bold' : ''} ${activeIndex === 0 ? 'bg-primary/10 dark:bg-white/10' : ''}`}
             >
               <span className={`inline-flex items-center justify-center ${iconSize} rounded-full bg-green-500/20 text-green-700 dark:text-green-400`}>
                 <span className={`material-symbols-outlined ${iconTextSize}`}>check_circle</span>
@@ -187,8 +250,11 @@ export function BookingStatusDropdown({
             </button>
             <button
               type="button"
+              role="option"
+              id={`${listboxId}-option-1`}
+              aria-selected={currentStatus === 'no_show'}
               onClick={(e) => handleItemClick(e, 'no_show')}
-              className={`w-full px-3 py-2 text-left ${itemTextSize} flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors ${currentStatus === 'no_show' ? 'font-bold' : ''}`}
+              className={`w-full px-3 py-2 text-left ${itemTextSize} flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors ${currentStatus === 'no_show' ? 'font-bold' : ''} ${activeIndex === 1 ? 'bg-primary/10 dark:bg-white/10' : ''}`}
             >
               <span className={`inline-flex items-center justify-center ${iconSize} rounded-full bg-red-500/20 text-red-700 dark:text-red-400`}>
                 <span className={`material-symbols-outlined ${iconTextSize}`}>person_off</span>

@@ -129,6 +129,9 @@ export const AlertsCard: React.FC<AlertsCardProps> = ({ notifications, onAlertCl
             <div 
               key={notif.id}
               onClick={onAlertClick}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && onAlertClick) { e.preventDefault(); onAlertClick(); } }}
               className={`flex items-start gap-3 p-2 rounded-lg hover:bg-primary/5 dark:hover:bg-white/5 transition-colors cursor-pointer tactile-row ${!notif.is_read ? 'bg-primary/5 dark:bg-white/5' : ''} ${isCancellation && !notif.is_read ? 'ring-1 ring-red-300 dark:ring-red-500/50 bg-red-50/50 dark:bg-red-900/10' : ''}`}
             >
               <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${getNotificationColor(notif.type)}`}>

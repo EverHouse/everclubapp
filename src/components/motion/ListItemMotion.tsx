@@ -38,6 +38,11 @@ export const MotionListItem: React.FC<MotionListItemProps> = ({
     <div
       className={`${getStaggerDelayClass(index)} ${className || ''}`}
       onClick={onClick}
+      {...(onClick ? {
+        role: 'button' as const,
+        tabIndex: 0,
+        onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }
+      } : {})}
       style={style}
     >
       {children}

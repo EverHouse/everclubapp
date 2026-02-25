@@ -142,6 +142,7 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
       <div 
         className={`absolute inset-0 bg-black/20 backdrop-blur-xl ${isClosing ? 'animate-backdrop-out' : 'animate-backdrop-in'}`}
         onClick={handleClose}
+        aria-hidden="true"
       ></div>
 
       <div 

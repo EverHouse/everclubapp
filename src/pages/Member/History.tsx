@@ -140,7 +140,7 @@ const History: React.FC = () => {
         </section>
 
         <section className={`mb-6 border-b -mx-6 px-6 animate-content-enter-delay-2 ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-          <div className="flex gap-6 overflow-x-auto pb-0 scrollbar-hide scroll-fade-right">
+          <div className="flex gap-6 overflow-x-auto pb-0 scrollbar-hide scroll-fade-right" role="tablist">
             <TabButton label="Visits" active={activeTab === 'visits'} onClick={() => setActiveTab('visits')} isDark={isDark} />
             <TabButton label="Payments" icon="payments" active={activeTab === 'payments'} onClick={() => setActiveTab('payments')} isDark={isDark} />
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback, useId } from 'react';
 import { useData } from '../../contexts/DataContext';
 
 export interface SelectedMember {
@@ -71,6 +71,9 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const instanceId = useId();
+  const listboxId = `member-search-listbox-${instanceId}`;
+  const getOptionId = (index: number) => `member-search-option-${instanceId}-${index}`;
 
   const useApiSearch = forceApiSearch || includeVisitors || includeFormer;
 
@@ -259,6 +262,11 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
           id="member-search-input"
           ref={inputRef}
           type="text"
+          role="combobox"
+          aria-expanded={isOpen && filteredMembers.length > 0}
+          aria-controls={listboxId}
+          aria-activedescendant={isOpen && filteredMembers.length > 0 ? getOptionId(highlightedIndex) : undefined}
+          aria-autocomplete="list"
           value={query}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
@@ -288,6 +296,8 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
       {isOpen && filteredMembers.length > 0 && (
         <div 
           ref={dropdownRef}
+          id={listboxId}
+          role="listbox"
           className="absolute left-0 right-0 top-full mt-1 z-[9999] bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto"
         >
           {filteredMembers.map((member, index) => {
@@ -295,7 +305,10 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
             return (
               <button
                 key={member.email}
+                id={getOptionId(index)}
                 type="button"
+                role="option"
+                aria-selected={index === highlightedIndex}
                 onClick={() => handleSelect(member)}
                 onMouseEnter={() => setHighlightedIndex(index)}
                 className={`tactile-row w-full px-4 py-3 flex items-center gap-3 border-b border-primary/5 dark:border-white/5 last:border-0 transition-colors ${
@@ -343,6 +356,14 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
           <p className="text-sm text-primary/60 dark:text-white/60">Searching...</p>
         </div>
       )}
+
+      <div aria-live="polite" className="sr-only">
+        {isOpen && filteredMembers.length > 0
+          ? `${filteredMembers.length} result${filteredMembers.length === 1 ? '' : 's'} available`
+          : isOpen && query.trim() && !isSearching
+            ? 'No results available'
+            : ''}
+      </div>
     </div>
   );
 };

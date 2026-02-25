@@ -634,6 +634,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-normal"
         style={{ height: '100dvh' }}
         onClick={onClose}
+        aria-hidden="true"
       />
       
       <div 
@@ -1417,6 +1418,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         <div 
           className="fixed inset-0 z-[10060] flex items-center justify-center bg-black/80 p-4"
           onClick={() => setShowIdImageFull(false)}
+          aria-hidden="true"
         >
           <div className="relative max-w-lg w-full" onClick={e => e.stopPropagation()}>
             <button

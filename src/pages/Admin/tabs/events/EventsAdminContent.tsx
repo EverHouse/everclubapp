@@ -587,11 +587,12 @@ export const EventsAdminContent: React.FC = () => {
                     )}
                     <div>
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Title *</label>
-                        <input className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="Event title" value={newItem.title || ''} onChange={e => setNewItem({...newItem, title: e.target.value})} />
+                        <input aria-label="Title" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="Event title" value={newItem.title || ''} onChange={e => setNewItem({...newItem, title: e.target.value})} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Category *</label>
                         <select 
+                            aria-label="Category"
                             className={`w-full border bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white ${
                                 touchedFields.has('category') && eventValidation.category 
                                     ? 'border-red-500 dark:border-red-500' 
@@ -618,19 +619,20 @@ export const EventsAdminContent: React.FC = () => {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Date *</label>
-                        <input type="date" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white" value={newItem.event_date || ''} onChange={e => setNewItem({...newItem, event_date: e.target.value})} />
+                        <input aria-label="Event date" type="date" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white" value={newItem.event_date || ''} onChange={e => setNewItem({...newItem, event_date: e.target.value})} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Start Time</label>
-                        <input type="time" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white" value={newItem.start_time || ''} onChange={e => setNewItem({...newItem, start_time: e.target.value})} />
+                        <input aria-label="Start time" type="time" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white" value={newItem.start_time || ''} onChange={e => setNewItem({...newItem, start_time: e.target.value})} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">End Time</label>
-                        <input type="time" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white" value={newItem.end_time || ''} onChange={e => setNewItem({...newItem, end_time: e.target.value})} />
+                        <input aria-label="End time" type="time" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white" value={newItem.end_time || ''} onChange={e => setNewItem({...newItem, end_time: e.target.value})} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Location *</label>
                         <input 
+                            aria-label="Location"
                             className={`w-full border bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 ${
                                 touchedFields.has('location') && eventValidation.location 
                                     ? 'border-red-500 dark:border-red-500' 
@@ -647,19 +649,20 @@ export const EventsAdminContent: React.FC = () => {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Image URL (optional)</label>
-                        <input className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="https://..." value={newItem.image_url || ''} onChange={e => setNewItem({...newItem, image_url: e.target.value})} />
+                        <input aria-label="Image URL" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="https://..." value={newItem.image_url || ''} onChange={e => setNewItem({...newItem, image_url: e.target.value})} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Max Attendees (optional)</label>
-                        <input type="number" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="e.g., 50" value={newItem.max_attendees || ''} onChange={e => setNewItem({...newItem, max_attendees: parseInt(e.target.value) || null})} />
+                        <input aria-label="Max attendees" type="number" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="e.g., 50" value={newItem.max_attendees || ''} onChange={e => setNewItem({...newItem, max_attendees: parseInt(e.target.value) || null})} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">External Link (optional)</label>
-                        <input className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="https://..." value={newItem.external_url || ''} onChange={e => setNewItem({...newItem, external_url: e.target.value})} />
+                        <input aria-label="External link" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="https://..." value={newItem.external_url || ''} onChange={e => setNewItem({...newItem, external_url: e.target.value})} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Description *</label>
                         <textarea 
+                            aria-label="Description"
                             className={`w-full border bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 resize-none ${
                                 touchedFields.has('description') && eventValidation.description 
                                     ? 'border-red-500 dark:border-red-500' 
@@ -801,7 +804,7 @@ export const EventsAdminContent: React.FC = () => {
                                         <div className="flex gap-4">
                                             <div className="w-20 h-20 rounded-lg bg-gray-100 dark:bg-white/5 flex-shrink-0 overflow-hidden flex items-center justify-center">
                                                 {event.image_url ? (
-                                                    <img src={event.image_url} alt="" className="w-full h-full object-cover" />
+                                                    <img src={event.image_url} alt={event.title || 'Event image'} className="w-full h-full object-cover" />
                                                 ) : (
                                                     <span aria-hidden="true" className="material-symbols-outlined text-3xl text-gray-500 dark:text-white/20">
                                                         {event.category === 'Golf' ? 'golf_course' : event.category === 'Tournaments' ? 'emoji_events' : event.category === 'Dining' ? 'restaurant' : event.category === 'Networking' ? 'handshake' : event.category === 'Workshops' ? 'school' : event.category === 'Family' ? 'family_restroom' : event.category === 'Entertainment' ? 'music_note' : event.category === 'Charity' ? 'volunteer_activism' : 'celebration'}
@@ -886,7 +889,7 @@ export const EventsAdminContent: React.FC = () => {
                                         <div className="flex gap-4">
                                             <div className="w-20 h-20 rounded-lg bg-gray-100 dark:bg-white/5 flex-shrink-0 overflow-hidden flex items-center justify-center">
                                                 {event.image_url ? (
-                                                    <img src={event.image_url} alt="" className="w-full h-full object-cover" />
+                                                    <img src={event.image_url} alt={event.title || 'Event image'} className="w-full h-full object-cover" />
                                                 ) : (
                                                     <span aria-hidden="true" className="material-symbols-outlined text-3xl text-gray-500 dark:text-white/20">
                                                         {event.category === 'Golf' ? 'golf_course' : event.category === 'Tournaments' ? 'emoji_events' : event.category === 'Dining' ? 'restaurant' : event.category === 'Networking' ? 'handshake' : event.category === 'Workshops' ? 'school' : event.category === 'Family' ? 'family_restroom' : event.category === 'Entertainment' ? 'music_note' : event.category === 'Charity' ? 'volunteer_activism' : 'celebration'}

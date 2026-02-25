@@ -173,11 +173,12 @@ export const EventFormDrawer: React.FC<EventFormDrawerProps> = ({ isOpen, onClos
         )}
         <div>
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Title *</label>
-          <input className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="Event title" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+          <input aria-label="Title" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="Event title" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Category *</label>
           <select
+            aria-label="Category"
             className={`w-full border bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white ${
               touchedFields.has('category') && eventValidation.category
                 ? 'border-red-500 dark:border-red-500'
@@ -204,19 +205,20 @@ export const EventFormDrawer: React.FC<EventFormDrawerProps> = ({ isOpen, onClos
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Date *</label>
-          <input type="date" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white" value={formData.event_date} onChange={e => setFormData({...formData, event_date: e.target.value})} />
+          <input aria-label="Event date" type="date" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white" value={formData.event_date} onChange={e => setFormData({...formData, event_date: e.target.value})} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Start Time</label>
-          <input type="time" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white" value={formData.start_time} onChange={e => setFormData({...formData, start_time: e.target.value})} />
+          <input aria-label="Start time" type="time" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white" value={formData.start_time} onChange={e => setFormData({...formData, start_time: e.target.value})} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">End Time</label>
-          <input type="time" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} />
+          <input aria-label="End time" type="time" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Location *</label>
           <input
+            aria-label="Location"
             className={`w-full border bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 ${
               touchedFields.has('location') && eventValidation.location
                 ? 'border-red-500 dark:border-red-500'
@@ -233,19 +235,20 @@ export const EventFormDrawer: React.FC<EventFormDrawerProps> = ({ isOpen, onClos
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Image URL (optional)</label>
-          <input className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="https://..." value={formData.image_url} onChange={e => setFormData({...formData, image_url: e.target.value})} />
+          <input aria-label="Image URL" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="https://..." value={formData.image_url} onChange={e => setFormData({...formData, image_url: e.target.value})} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Max Attendees (optional)</label>
-          <input type="number" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="e.g., 50" value={formData.max_attendees || ''} onChange={e => setFormData({...formData, max_attendees: parseInt(e.target.value) || null})} />
+          <input aria-label="Max attendees" type="number" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="e.g., 50" value={formData.max_attendees || ''} onChange={e => setFormData({...formData, max_attendees: parseInt(e.target.value) || null})} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">External Link (optional)</label>
-          <input className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="https://..." value={formData.external_url} onChange={e => setFormData({...formData, external_url: e.target.value})} />
+          <input aria-label="External link" className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60" placeholder="https://..." value={formData.external_url} onChange={e => setFormData({...formData, external_url: e.target.value})} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Description *</label>
           <textarea
+            aria-label="Description"
             className={`w-full border bg-gray-50 dark:bg-black/20 p-3 rounded-lg text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 resize-none ${
               touchedFields.has('description') && eventValidation.description
                 ? 'border-red-500 dark:border-red-500'

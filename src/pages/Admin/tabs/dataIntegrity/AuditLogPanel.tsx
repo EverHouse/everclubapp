@@ -158,7 +158,10 @@ const AuditLogPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
                       <React.Fragment key={log.id}>
                         <tr
                           className={`border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-gray-100 dark:hover:bg-white/[0.05] ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-white/[0.02]' : ''}`}
+                          tabIndex={0}
+                          role="button"
                           onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedId(expandedId === log.id ? null : log.id); } }}
                         >
                           <td className="py-2 pr-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatTimestamp(log.createdAt)}</td>
                           <td className="py-2 pr-3">

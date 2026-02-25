@@ -105,8 +105,8 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void; isDark: 
         minWidth: '280px',
         maxWidth: '420px',
       }}
-      role="alert"
-      aria-live="polite"
+      role={toast.type === 'error' ? 'alert' : 'status'}
+      aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
     >
       <div className="flex items-start gap-3 pl-4 pr-2 py-3">
         <span className={`material-symbols-outlined text-xl mt-0.5 flex-shrink-0 ${getIconColor(toast.type)}`}>

@@ -482,7 +482,7 @@ export const WellnessAdminContent: React.FC = () => {
                                         <div className="flex gap-4">
                                             <div className="w-20 h-20 rounded-lg bg-[#CCB8E4]/20 dark:bg-[#CCB8E4]/10 flex-shrink-0 overflow-hidden flex items-center justify-center">
                                                 {cls.image_url ? (
-                                                    <img src={cls.image_url} alt="" className="w-full h-full object-cover" />
+                                                    <img src={cls.image_url} alt={cls.title || 'Wellness class image'} className="w-full h-full object-cover" />
                                                 ) : (
                                                     <span aria-hidden="true" className="material-symbols-outlined text-3xl text-[#CCB8E4]">
                                                         {getCategoryIcon(cls.category)}
@@ -538,7 +538,7 @@ export const WellnessAdminContent: React.FC = () => {
                                         <div className="flex gap-4">
                                             <div className="w-20 h-20 rounded-lg bg-[#CCB8E4]/20 dark:bg-[#CCB8E4]/10 flex-shrink-0 overflow-hidden flex items-center justify-center">
                                                 {cls.image_url ? (
-                                                    <img src={cls.image_url} alt="" className="w-full h-full object-cover" />
+                                                    <img src={cls.image_url} alt={cls.title || 'Wellness class image'} className="w-full h-full object-cover" />
                                                 ) : (
                                                     <span aria-hidden="true" className="material-symbols-outlined text-3xl text-[#CCB8E4]">
                                                         {getCategoryIcon(cls.category)}

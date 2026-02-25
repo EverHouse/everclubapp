@@ -200,7 +200,10 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ field, label, className
     <div 
         className={`px-3 flex items-center self-stretch overflow-hidden font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none tactile-btn ${className}`}
         style={{ width, minWidth: 0, minHeight: '44px' }}
+        role="button"
+        tabIndex={0}
         onClick={() => onSort(field)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort(field); } }}
     >
         <div className="flex items-center gap-1 truncate">
             <span className="truncate">{label}</span>
@@ -1543,7 +1546,10 @@ const DirectoryTab: React.FC = () => {
                                 {sortedVisitors.map((v, index) => (
                                     <div 
                                         key={v.id}
+                                        role="button"
+                                        tabIndex={0}
                                         onClick={() => openVisitorDetails(v)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openVisitorDetails(v); } }}
                                         className="tactile-row bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98] animate-slide-up-stagger"
                                         style={{ '--stagger-index': index } as React.CSSProperties}
                                     >
@@ -1654,6 +1660,8 @@ const DirectoryTab: React.FC = () => {
                                                         key={field + label}
                                                         style={{ width }}
                                                         className="px-3 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none tactile-btn"
+                                                        role="button"
+                                                        tabIndex={0}
                                                         onClick={() => {
                                                             if (visitorSortField === field) {
                                                                 setVisitorSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
@@ -1662,6 +1670,7 @@ const DirectoryTab: React.FC = () => {
                                                                 setVisitorSortDirection(field === 'name' || field === 'email' || field === 'type' || field === 'source' ? 'asc' : 'desc');
                                                             }
                                                         }}
+                                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (visitorSortField === field) { setVisitorSortDirection(prev => prev === 'asc' ? 'desc' : 'asc'); } else { setVisitorSortField(field); setVisitorSortDirection(field === 'name' || field === 'email' || field === 'type' || field === 'source' ? 'asc' : 'desc'); } } }}
                                                     >
                                                         <div className="flex items-center gap-1 whitespace-nowrap">
                                                             {label}
@@ -1681,7 +1690,10 @@ const DirectoryTab: React.FC = () => {
                                     {sortedVisitors.map(v => (
                                         <tr 
                                             key={v.id}
+                                            tabIndex={0}
+                                            role="button"
                                             onClick={() => openVisitorDetails(v)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openVisitorDetails(v); } }}
                                             className="border-b border-gray-100 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
                                         >
                                             <td style={{ width: '20%' }} className="p-3 font-medium text-primary dark:text-white">
@@ -1790,7 +1802,10 @@ const DirectoryTab: React.FC = () => {
                                 {filteredTeamMembers.map((member, index) => (
                                     <div 
                                         key={member.staff_id}
+                                        role="button"
+                                        tabIndex={0}
                                         onClick={() => openTeamMemberDetails(member)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTeamMemberDetails(member); } }}
                                         className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98] animate-slide-up-stagger"
                                         style={{ '--stagger-index': index } as React.CSSProperties}
                                     >
@@ -1836,7 +1851,10 @@ const DirectoryTab: React.FC = () => {
                                     {filteredTeamMembers.map(member => (
                                         <tr 
                                             key={member.staff_id}
+                                            tabIndex={0}
+                                            role="button"
                                             onClick={() => openTeamMemberDetails(member)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTeamMemberDetails(member); } }}
                                             className="border-b border-gray-100 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
                                         >
                                             <td style={{ width: '18%' }} className="p-3 font-medium text-primary dark:text-white truncate">{[member.first_name, member.last_name].filter(Boolean).join(' ') || 'Unknown'}</td>
@@ -1860,7 +1878,10 @@ const DirectoryTab: React.FC = () => {
                                     {visibleItems.map((m, index) => (
                                         <div 
                                             key={m.email}
+                                            role="button"
+                                            tabIndex={0}
                                             onClick={() => openDetailsModal(m)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetailsModal(m); } }}
                                             className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98] animate-slide-up-stagger"
                                             style={{ '--stagger-index': Math.min(index, 10) } as React.CSSProperties}
                                         >
@@ -1971,7 +1992,10 @@ const DirectoryTab: React.FC = () => {
                                 {visibleItems.map(m => (
                                     <div 
                                         key={m.email}
+                                        role="button"
+                                        tabIndex={0}
                                         onClick={() => openDetailsModal(m)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetailsModal(m); } }}
                                         className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
                                     >
                                         <div style={{ width: '14%' }} className="p-3 font-medium text-primary dark:text-white truncate">{m.name}</div>

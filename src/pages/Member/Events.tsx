@@ -270,7 +270,7 @@ const MemberEvents: React.FC = () => {
       </section>
 
       <section className={`mb-6 border-b -mx-6 px-6 animate-content-enter-delay-2 ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-        <div className="flex gap-6 overflow-x-auto pb-0 scrollbar-hide scroll-fade-right">
+        <div className="flex gap-6 overflow-x-auto pb-0 scrollbar-hide scroll-fade-right" role="tablist">
           {['All', 'Social', 'Golf', 'Tournaments', 'Dining', 'Networking', 'Workshops', 'Family', 'Entertainment', 'Charity'].map(cat => (
             <TabButton 
               key={cat} 

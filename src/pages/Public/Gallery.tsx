@@ -215,6 +215,9 @@ const GalleryItem: React.FC<GalleryItemProps> = React.memo(({ img, title, catego
     <div 
       className={`tactile-card break-inside-avoid relative group rounded-2xl overflow-hidden shadow-sm dark:shadow-black/20 cursor-pointer mb-4 border border-white/20 dark:border-white/10 active:scale-[0.98] transition-transform animate-list-item-delay-${Math.min(index, 10)}`}
       onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } }}
     >
       {!loaded && !error && (
         <div className={`w-full ${skeletonHeight} bg-gradient-to-br from-gray-200 dark:from-white/10 via-gray-100 dark:via-white/5 to-gray-200 dark:to-white/10 rounded-2xl overflow-hidden`}>

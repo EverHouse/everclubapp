@@ -358,6 +358,20 @@ const MemberUpdates: React.FC = () => {
               >
                 <div 
                   className={`p-5 ${hasLongDesc || hasLink ? 'cursor-pointer' : ''}`}
+                  {...(hasLongDesc || hasLink ? {
+                    role: 'button',
+                    tabIndex: 0,
+                    onKeyDown: (e: React.KeyboardEvent) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (hasLink) {
+                          handleAnnouncementClick(item);
+                        } else if (hasLongDesc) {
+                          setExpandedId(isExpanded ? null : item.id);
+                        }
+                      }
+                    }
+                  } : {})}
                   onClick={() => {
                     if (hasLink) {
                       handleAnnouncementClick(item);

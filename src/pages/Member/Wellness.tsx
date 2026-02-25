@@ -162,7 +162,7 @@ const Wellness: React.FC = () => {
       </section>
 
       <section className={`mb-8 border-b -mx-6 px-6 animate-content-enter-delay-2 ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-        <div className="flex gap-6 overflow-x-auto pb-0 scrollbar-hide scroll-fade-right">
+        <div className="flex gap-6 overflow-x-auto pb-0 scrollbar-hide scroll-fade-right" role="tablist">
           <TabButton label="Upcoming" active={activeTab === 'classes'} onClick={() => setActiveTab('classes')} isDark={isDark} />
           <TabButton label="MedSpa" active={activeTab === 'medspa'} onClick={() => setActiveTab('medspa')} isDark={isDark} />
         </div>

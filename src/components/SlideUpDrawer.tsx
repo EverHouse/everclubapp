@@ -106,6 +106,35 @@ export function SlideUpDrawer({
     }, 250);
   }, [dismissible]);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' && dismissible) {
+      e.preventDefault();
+      handleClose();
+      return;
+    }
+
+    if (e.key === 'Tab') {
+      const focusableSelectors = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+      const focusableElements = drawerRef.current?.querySelectorAll<HTMLElement>(focusableSelectors);
+      if (!focusableElements || focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement || document.activeElement === drawerRef.current) {
+          e.preventDefault();
+          lastElement.focus();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement.focus();
+        }
+      }
+    }
+  }, [dismissible, handleClose]);
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!dismissible) return;
     
@@ -175,12 +204,14 @@ export function SlideUpDrawer({
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? 'drawer-title' : undefined}
+        aria-label={title ? undefined : 'Dialog'}
         tabIndex={-1}
         className={`fixed inset-x-0 bottom-0 flex flex-col ${maxHeightClasses[maxHeight]} ${isDark ? 'bg-[#1a1d15]' : 'bg-white'} rounded-t-3xl shadow-2xl transition-transform duration-normal ease-spring-smooth ${isClosing ? 'translate-y-full' : 'animate-slide-up-drawer'} ${className}`}
         style={{
           transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
           transition: dragState.isDragging ? 'none' : undefined
         }}
+        onKeyDown={handleKeyDown}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}

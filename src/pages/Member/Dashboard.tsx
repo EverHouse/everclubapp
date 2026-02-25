@@ -832,6 +832,9 @@ const Dashboard: React.FC = () => {
               return (
                 <div 
                   onClick={() => setIsCardOpen(true)} 
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsCardOpen(true); } }}
                   className={`relative h-56 lg:h-full lg:min-h-56 w-full rounded-[1.5rem] overflow-hidden cursor-pointer transition-all duration-emphasis ease-out group animate-slide-up-stagger active:scale-[0.98] hover:scale-[1.015] hover:shadow-2xl ${isExpired ? 'grayscale-[30%]' : ''}`}
                   style={{ '--stagger-index': 2 } as React.CSSProperties}
                 >

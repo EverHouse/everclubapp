@@ -897,6 +897,9 @@ const Profile: React.FC = () => {
            <Section title="Security" isDark={isDark} staggerIndex={6}>
               <div 
                 className={`p-4 flex items-center justify-between transition-colors cursor-pointer tactile-row ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowPasswordSection(!showPasswordSection); } }}
                 onClick={() => setShowPasswordSection(!showPasswordSection)}
               >
                 <div className="flex items-center gap-4">
@@ -1164,7 +1167,7 @@ const Section: React.FC<{title: string; children: React.ReactNode; isDark?: bool
 );
 
 const Row: React.FC<{icon: string; label: string; value?: string; toggle?: boolean; arrow?: boolean; isDark?: boolean; onClick?: () => void}> = ({ icon, label, value, toggle, arrow, isDark = true, onClick }) => (
-   <div onClick={onClick} className={`p-4 flex items-center justify-between transition-colors cursor-pointer tactile-row ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
+   <div onClick={onClick} {...(onClick ? { role: 'button', tabIndex: 0, onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } } : {})} className={`p-4 flex items-center justify-between transition-colors cursor-pointer tactile-row ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
       <div className="flex items-center gap-4">
          <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>{icon}</span>
          <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>{label}</span>
