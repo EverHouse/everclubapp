@@ -261,31 +261,25 @@
 }
 
 html {
-  min-height: 100dvh;
-  min-height: -webkit-fill-available;
+  min-height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
 }
 
 body {
-  min-height: 100dvh;
-  min-height: -webkit-fill-available;
+  min-height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
 }
 
 #root {
-  min-height: 100dvh;
-  min-height: -webkit-fill-available;
+  min-height: 100%;
   background-color: inherit;
 }
 
-/* Modal scroll lock - override when modal is open.
-   Only html gets overflow:hidden (applied to viewport).
-   Body must NOT get overflow:hidden — on iOS Safari it clips
-   position:fixed overlay children at the viewport boundary,
-   causing a gap at the bottom of the screen. */
-html.overflow-hidden {
+/* Modal scroll lock - override when modal is open */
+html.overflow-hidden,
+html.overflow-hidden body {
   overflow: hidden !important;
   overscroll-behavior: none;
 }
@@ -353,8 +347,7 @@ body::after {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: auto;
-  min-height: 100dvh;
-  min-height: -webkit-fill-available;
+  min-height: 100%;
 }
 
 /* iOS Input Font Size Fix - prevents auto-zoom on focus */

@@ -37,19 +37,13 @@ function preventTouchMove(e: TouchEvent) {
 function applyScrollLock() {
   if (lockCount === 1) {
     savedScrollY = window.scrollY;
-    const isDark = document.documentElement.classList.contains('dark');
-    const lockBg = isDark ? '#141414' : '#F2F2EC';
-    document.documentElement.style.setProperty('background-color', lockBg, 'important');
-    document.body.style.setProperty('background-color', lockBg, 'important');
-    document.documentElement.classList.add('overflow-hidden');
     document.body.style.position = 'fixed';
     document.body.style.top = `-${savedScrollY}px`;
     document.body.style.left = '0';
     document.body.style.right = '0';
-    document.body.style.bottom = '0';
     document.body.style.width = '100%';
-    document.documentElement.style.setProperty('touch-action', 'none', 'important');
-    document.body.style.setProperty('touch-action', 'none', 'important');
+    document.documentElement.classList.add('overflow-hidden');
+    document.body.classList.add('overflow-hidden');
     document.documentElement.style.overscrollBehavior = 'none';
     document.body.style.overscrollBehavior = 'none';
     document.addEventListener('touchmove', preventTouchMove, { passive: false });
@@ -59,17 +53,13 @@ function applyScrollLock() {
 function removeScrollLock() {
   if (lockCount === 0 && lockOwners.size === 0) {
     const scrollY = savedScrollY;
-    document.documentElement.style.removeProperty('background-color');
-    document.body.style.removeProperty('background-color');
-    document.documentElement.classList.remove('overflow-hidden');
     document.body.style.position = '';
     document.body.style.top = '';
     document.body.style.left = '';
     document.body.style.right = '';
-    document.body.style.bottom = '';
     document.body.style.width = '';
-    document.documentElement.style.removeProperty('touch-action');
-    document.body.style.removeProperty('touch-action');
+    document.documentElement.classList.remove('overflow-hidden');
+    document.body.classList.remove('overflow-hidden');
     document.documentElement.style.overscrollBehavior = '';
     document.body.style.overscrollBehavior = '';
     document.removeEventListener('touchmove', preventTouchMove);
@@ -102,17 +92,13 @@ export function forceReleaseAllLocks(): void {
   lockOwners.clear();
   lockCount = 0;
   const scrollY = savedScrollY;
-  document.documentElement.style.removeProperty('background-color');
-  document.body.style.removeProperty('background-color');
-  document.documentElement.classList.remove('overflow-hidden');
   document.body.style.position = '';
   document.body.style.top = '';
   document.body.style.left = '';
   document.body.style.right = '';
-  document.body.style.bottom = '';
   document.body.style.width = '';
-  document.documentElement.style.removeProperty('touch-action');
-  document.body.style.removeProperty('touch-action');
+  document.documentElement.classList.remove('overflow-hidden');
+  document.body.classList.remove('overflow-hidden');
   document.documentElement.style.overscrollBehavior = '';
   document.body.style.overscrollBehavior = '';
   document.removeEventListener('touchmove', preventTouchMove);
@@ -195,17 +181,13 @@ export function useScrollLockControl() {
 if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && lockCount === 0 && lockOwners.size === 0) {
-      document.documentElement.style.removeProperty('background-color');
-      document.body.style.removeProperty('background-color');
-      document.documentElement.classList.remove('overflow-hidden');
       document.body.style.position = '';
       document.body.style.top = '';
       document.body.style.left = '';
       document.body.style.right = '';
-      document.body.style.bottom = '';
       document.body.style.width = '';
-      document.documentElement.style.removeProperty('touch-action');
-      document.body.style.removeProperty('touch-action');
+      document.documentElement.classList.remove('overflow-hidden');
+      document.body.classList.remove('overflow-hidden');
       document.documentElement.style.overscrollBehavior = '';
       document.body.style.overscrollBehavior = '';
       document.removeEventListener('touchmove', preventTouchMove);
