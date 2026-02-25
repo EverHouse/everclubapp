@@ -3,8 +3,18 @@ import { getErrorMessage } from '../../utils/errorUtils';
 import { db } from '../../db';
 import { formSubmissions } from '../../../shared/schema';
 import { eq, and, gte, lte } from 'drizzle-orm';
+import { notifyAllStaff } from '../notificationService';
 
 import { logger } from '../logger';
+
+const FORM_TYPE_LABELS: Record<string, string> = {
+  'tour-request': 'Tour Request',
+  'event-inquiry': 'Event Inquiry',
+  'membership': 'Membership Application',
+  'private-hire': 'Private Hire Inquiry',
+  'guest-checkin': 'Guest Check-in',
+  'contact': 'Contact Form',
+};
 const HUBSPOT_FORMS: Record<string, string> = {
   'tour-request': process.env.HUBSPOT_FORM_TOUR_REQUEST || '',
   'membership': process.env.HUBSPOT_FORM_MEMBERSHIP || '',
@@ -296,7 +306,7 @@ export async function syncHubSpotFormSubmissions(): Promise<{
             metadataFields['pageUrl'] = submission.pageUrl;
           }
 
-          await db.insert(formSubmissions).values({
+          const insertResult = await db.insert(formSubmissions).values({
             formType,
             firstName,
             lastName,
@@ -308,9 +318,26 @@ export async function syncHubSpotFormSubmissions(): Promise<{
             hubspotSubmissionId: submission.conversionId,
             createdAt: new Date(submission.submittedAt),
             updatedAt: new Date(submission.submittedAt),
-          });
+          }).returning({ id: formSubmissions.id });
 
           result.newInserted++;
+
+          const formLabel = FORM_TYPE_LABELS[formType] || 'Form Submission';
+          const submitterName = [firstName, lastName].filter(Boolean).join(' ') || email || 'Someone';
+          const staffMessage = `${submitterName} submitted a ${formLabel}`;
+          const notificationUrl = formType === 'membership' ? '/admin/applications' : '/admin/inquiries';
+          const notificationRelatedType = formType === 'membership' ? 'application' : 'inquiry';
+
+          notifyAllStaff(
+            `New ${formLabel}`,
+            staffMessage,
+            'system',
+            {
+              relatedId: insertResult[0]?.id,
+              relatedType: notificationRelatedType,
+              url: notificationUrl
+            }
+          ).catch(err => logger.error('[HubSpot FormSync] Staff notification failed:', { extra: { err } }));
         } catch (err: unknown) {
           const msg = `Failed to insert submission ${submission.conversionId}: ${getErrorMessage(err)}`;
           logger.error(`[HubSpot FormSync] ${msg}`);
