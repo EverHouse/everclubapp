@@ -183,6 +183,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                         placeholder="Search members by name..."
                         privacyMode={privacyMode}
                         showTier={false}
+                        forceApiSearch
                       />
                     ) : (
                       <div className="space-y-2">

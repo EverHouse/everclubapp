@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.31.5",
+    date: "2026-02-25",
+    title: "Fix: Member Directory Search in Bookings",
+    changes: [
+      "Fixed: Members can now search for other active members when adding players to a booking — previously the member search returned no results because it relied on a staff-only data cache that regular members don't have access to",
+    ]
+  },
+  {
     version: "8.31.4",
     date: "2026-02-25",
     title: "Android Compatibility Improvements",
