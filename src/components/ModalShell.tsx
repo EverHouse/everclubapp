@@ -105,7 +105,7 @@ export function ModalShell({
       <div 
         className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-normal ${isClosing ? 'opacity-0' : 'animate-backdrop-fade-in'}`}
         aria-hidden="true"
-        style={{ touchAction: 'none' }}
+        style={{ touchAction: 'none', boxShadow: '0 0 0 100px rgba(0,0,0,0.6)' }}
       />
       
       <div 
