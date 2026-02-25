@@ -250,6 +250,24 @@ export async function syncHubSpotFormSubmissions(): Promise<{
       return result;
     }
 
+    logger.info(`[HubSpot FormSync] DIAGNOSTIC — Token check: length=${privateAppToken.length}, starts=${privateAppToken.substring(0, 8)}..., ends=...${privateAppToken.substring(privateAppToken.length - 4)}, NODE_ENV=${process.env.NODE_ENV}, REPL_SLUG=${process.env.REPL_SLUG || 'unset'}, REPL_OWNER=${process.env.REPL_OWNER || 'unset'}`);
+
+    logger.info('[HubSpot FormSync] Testing Private App token with direct node-fetch before using SDK...');
+    const testResponse = await nodeFetch('https://api.hubapi.com/marketing/v3/forms/?limit=1', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${privateAppToken}`,
+        'Accept': 'application/json',
+      },
+    });
+    const testStatus = testResponse.status;
+    const testBody = await testResponse.text();
+    logger.info(`[HubSpot FormSync] Direct fetch test: status=${testStatus}, body=${testBody.substring(0, 300)}`);
+
+    if (testStatus === 401 || testStatus === 403) {
+      logger.error(`[HubSpot FormSync] Direct node-fetch ALSO fails with ${testStatus}. The token itself is rejected by HubSpot from this environment. Falling back to connector token approach.`);
+    }
+
     const client = getHubSpotPrivateAppClient();
     if (!client) {
       authFailureBackoffUntil = Date.now() + 60 * 60 * 1000;
