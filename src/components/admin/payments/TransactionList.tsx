@@ -220,7 +220,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
       ))}
 
       {selectedTxId && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={handleCloseNotes}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={handleCloseNotes} aria-hidden="true">
           <div 
             className="bg-white dark:bg-surface-dark rounded-2xl w-full max-w-md shadow-xl"
             onClick={(e) => e.stopPropagation()}

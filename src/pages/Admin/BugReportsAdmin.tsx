@@ -334,6 +334,7 @@ const BugReportsAdmin: React.FC = () => {
                                 value={staffNotes}
                                 onChange={(e) => setStaffNotes(e.target.value)}
                                 placeholder="Add internal notes..."
+                                aria-label="Staff notes"
                                 rows={3}
                                 className={`w-full rounded-xl px-4 py-3 text-sm resize-none ${
                                     isDark 

@@ -38,7 +38,7 @@ const NfcCheckinWelcomeModal: React.FC<NfcCheckinWelcomeModalProps> = ({ isOpen,
 
   return (
     <ModalShell isOpen={isOpen} onClose={onClose} title="" showCloseButton={false}>
-      <div className="text-center px-2 pb-6 pt-2 cursor-pointer" onClick={onClose}>
+      <div className="text-center px-2 pb-6 pt-2 cursor-pointer" onClick={onClose} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClose(); } }}>
         {isSuccess ? (
           <>
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-accent/20 flex items-center justify-center">

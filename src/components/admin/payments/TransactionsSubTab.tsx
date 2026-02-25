@@ -387,7 +387,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
       })}
 
       {selectedAuth && actionType && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={resetModal}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={resetModal} aria-hidden="true">
           <div 
             className="bg-white dark:bg-surface-dark rounded-2xl w-full max-w-sm shadow-xl p-5"
             onClick={(e) => e.stopPropagation()}

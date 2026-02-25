@@ -280,6 +280,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, currentIndex, onClose
       className="fixed inset-0 bg-black/80 backdrop-blur-xl flex items-center justify-center"
       style={{ zIndex: 99999 }}
       onClick={onClose}
+      aria-hidden="true"
     >
       <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}>
         <div className="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full">

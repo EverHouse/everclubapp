@@ -123,7 +123,10 @@ const WebhookEventsPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
                   <React.Fragment key={event.id}>
                     <tr
                       className={`tactile-row border-b border-gray-100 dark:border-gray-800 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-white/[0.02]' : ''} cursor-pointer hover:bg-gray-100 dark:hover:bg-white/[0.05]`}
+                      tabIndex={0}
+                      role="button"
                       onClick={() => setExpandedEvent(expandedEvent === event.id ? null : event.id)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedEvent(expandedEvent === event.id ? null : event.id); } }}
                     >
                       <td className="py-2 pr-3 font-medium text-gray-900 dark:text-gray-100">{event.eventType}</td>
                       <td className="py-2 pr-3 text-gray-600 dark:text-gray-400 font-mono text-[10px]">

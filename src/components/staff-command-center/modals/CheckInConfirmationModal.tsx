@@ -77,6 +77,7 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
           backgroundColor: 'rgba(0, 0, 0, 0.5)',
           backdropFilter: 'blur(4px)',
         }}
+        aria-hidden="true"
       />
       <div
         className="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-300"

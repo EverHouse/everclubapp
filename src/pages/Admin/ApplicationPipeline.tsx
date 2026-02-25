@@ -368,6 +368,7 @@ const ApplicationPipeline: React.FC = () => {
                       value={selectedTierId || ''}
                       onChange={(e) => setSelectedTierId(e.target.value ? parseInt(e.target.value, 10) : null)}
                       className="flex-1 px-3 py-2.5 rounded-xl border bg-white dark:bg-black/30 border-gray-200 dark:border-white/20 text-gray-800 dark:text-white text-sm"
+                      aria-label="Select a tier"
                     >
                       <option value="">Select a tier...</option>
                       {tiers.map(t => (
