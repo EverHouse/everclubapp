@@ -1037,6 +1037,76 @@ router.post('/api/data-integrity/fix/delete-empty-session', isAdmin, async (req:
   }
 });
 
+router.post('/api/data-integrity/fix/assign-session-owner', isAdmin, async (req: Request, res) => {
+  const client = await pool.connect();
+  try {
+    const { sessionId, ownerEmail } = req.body;
+    if (!sessionId || !ownerEmail) return res.status(400).json({ success: false, message: 'sessionId and ownerEmail are required' });
+
+    const session = await client.query(
+      `SELECT bs.id, bs.resource_id, bs.session_date, bs.start_time, bs.end_time, r.name as resource_name
+       FROM booking_sessions bs
+       LEFT JOIN resources r ON bs.resource_id = r.id
+       WHERE bs.id = $1`,
+      [sessionId]
+    );
+    if (!session.rows.length) return res.status(404).json({ success: false, message: 'Session not found' });
+
+    const user = await client.query(
+      `SELECT id, email, first_name, last_name, membership_tier FROM users WHERE LOWER(email) = LOWER($1)`,
+      [ownerEmail]
+    );
+    if (!user.rows.length) return res.status(404).json({ success: false, message: 'Member not found' });
+
+    const member = user.rows[0];
+    const sess = session.rows[0];
+
+    await client.query('BEGIN');
+
+    const existingParticipant = await client.query(
+      `SELECT id FROM booking_participants WHERE session_id = $1 AND user_id = $2`,
+      [sessionId, member.id]
+    );
+
+    if (existingParticipant.rows.length === 0) {
+      await client.query(
+        `INSERT INTO booking_participants (session_id, user_id, user_email, display_name, participant_type, is_owner, created_at)
+         VALUES ($1, $2, $3, $4, 'member', true, NOW())`,
+        [sessionId, member.id, member.email, [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email]
+      );
+    }
+
+    let bookingId: number | null = null;
+    const linkedBooking = await client.query(
+      `SELECT id FROM booking_requests WHERE session_id = $1 LIMIT 1`,
+      [sessionId]
+    );
+    if (linkedBooking.rows.length > 0) {
+      bookingId = linkedBooking.rows[0].id;
+      await client.query(
+        `UPDATE booking_requests SET user_id = $1, user_email = $2, user_name = $3 WHERE id = $4 AND (user_email IS NULL OR user_email = '')`,
+        [member.id, member.email, [member.first_name, member.last_name].filter(Boolean).join(' '), bookingId]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    const displayName = [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email;
+    logFromRequest(req, 'assign_session', 'booking_session', String(sessionId),
+      `Assigned ${displayName} as owner of session #${sessionId} on ${sess.session_date} (${sess.resource_name})`,
+      { memberEmail: member.email, sessionDate: sess.session_date }
+    );
+
+    res.json({ success: true, message: `Assigned ${displayName} to session on ${sess.session_date} at ${sess.resource_name}` });
+  } catch (error: unknown) {
+    try { await client.query('ROLLBACK'); } catch {}
+    logger.error('[DataIntegrity] Assign session owner error', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, message: getErrorMessage(error) });
+  } finally {
+    client.release();
+  }
+});
+
 router.post('/api/data-integrity/fix/merge-stripe-customers', isAdmin, async (req: Request, res) => {
   try {
     const { email: rawEmail, keepCustomerId, removeCustomerId } = req.body;
