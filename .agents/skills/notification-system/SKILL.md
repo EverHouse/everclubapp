@@ -267,3 +267,4 @@ Return sorted by timestamp, limited to 20 items.
 9. WebSocket debounce keys must include the action type (e.g., `ws_revalidate_${email}` vs `ws_notify_${email}`) to prevent cross-action debounce collisions.
 10. On `ws.close`, always check `filtered.some(c => c.isStaff)` on remaining connections — do not assume remaining connections inherit staff status from the closed connection.
 11. The session revalidation pool must use `max: 20` (not 5) to handle reconnection storms during deploys without exhausting connections.
+12. Before pushing a connection to the clients map, always check `!existing.some(c => c.ws === ws)` to prevent duplicate socket registrations. Mobile clients on flaky networks may retransmit the `{ type: 'auth' }` message multiple times, which without this guard would push the same WebSocket object into the array repeatedly, causing duplicate broadcasts and frontend re-render thrashing.

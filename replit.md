@@ -113,7 +113,7 @@ The Ever Club Members App is a private members club application designed for gol
 - **Cookie Signature Verification**: WebSocket `parseSessionId()` uses `cookie-signature.unsign()` to cryptographically verify session cookies. Cookies with invalid signatures are rejected.
 - **Lock Ordering (Group Billing)**: In all group billing transactions, always lock `billing_groups` (parent) FOR UPDATE before `group_members` (child) to prevent deadlocks.
 - **Stripe Rollback on Failure**: Both `addCorporateMember` and `removeCorporateMember` track `newStripeItemId` and roll back newly created subscription items if subsequent Stripe operations fail.
-- **Booking Expiry Grace Period**: The booking expiry scheduler waits 20 minutes past `start_time` before auto-expiring pending/pending_approval bookings, giving members time to check in at the front desk.
+- **Booking Expiry Grace Period**: The booking expiry scheduler waits 20 minutes past `start_time` before auto-expiring pending/pending_approval bookings, giving members time to check in at the front desk. Trackman-linked bookings are routed to `cancellation_pending` (not `expired`) so the Trackman hardware cleanup flow runs and the physical bay is unlocked.
 - **Group Member Removal Status Revocation**: When removing a member from a billing group (family or corporate), always set `membership_status = 'cancelled'`, `last_tier = tier`, `tier = NULL` on the user record. Compensating rollbacks must restore these fields.
 - **Group Add Rollback Status Reset**: When Stripe fails during `addGroupMember`/`addCorporateMember`, the compensating DB update must reset `membership_status = 'pending'` and `tier = NULL` to prevent ghost active users with no billing.
 - **WebSocket Staff Presence Accuracy**: On `ws.on('close')`, if remaining connections exist for a user, check `filtered.some(c => c.isStaff)` — if no remaining staff connections, remove from `staffEmails`.
@@ -121,6 +121,9 @@ The Ever Club Members App is a private members club application designed for gol
 - **WebSocket Token-Based Auth Fallback**: The `{ type: 'auth', sessionId: '...' }` message accepts a `sessionId` field for mobile/React Native clients that cannot attach cookies to the WebSocket upgrade request.
 - **Frontend Async Race Protection**: All async fetches in `useEffect` hooks must use `AbortController` + `isCurrent` flags or `fetchIdRef` counters to prevent stale responses from overwriting current state.
 - **WebSocket Reconnect Jitter**: Frontend WebSocket reconnection uses random delay (2-5s for member hook, exponential backoff for staff hook) to prevent thundering herd on server restart.
+- **WebSocket Duplicate Socket Guard**: Before pushing a connection to the clients map, check `!existing.some(c => c.ws === ws)` to prevent the same WebSocket object from being registered multiple times (e.g., when a mobile client retransmits its auth message on a flaky network).
+- **Billing Group Creation Atomicity**: `createBillingGroup` and `createCorporateBillingGroupFromSubscription` wrap the INSERT into `billing_groups` + UPDATE of `users.billing_group_id` in a single `db.transaction()` to prevent orphaned groups if the connection drops between queries.
+- **Visitor Search Race Protection**: The visitor search `useEffect` in `useUnifiedBookingLogic.ts` uses an `isActive` flag pattern. When dependencies change, the cleanup sets `isActive = false`, preventing stale search responses from overwriting newer results.
 - **Route Authentication Audit**: Both middleware guards and inline `getSessionUser(req)` checks are used, with middleware preferred for staff/admin routes.
 
 ## External Dependencies

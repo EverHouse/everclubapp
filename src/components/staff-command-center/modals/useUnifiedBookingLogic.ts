@@ -567,6 +567,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
 
   useEffect(() => {
     if (isManageMode) return;
+    let isActive = true;
     const searchVisitors = async () => {
       if (!visitorSearch || visitorSearch.length < 2) {
         setVisitorSearchResults([]);
@@ -575,18 +576,21 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       setIsSearchingVisitors(true);
       try {
         const res = await fetch(`/api/visitors/search?query=${encodeURIComponent(visitorSearch)}&limit=10&includeMembers=true`, { credentials: 'include' });
+        if (!isActive) return;
         if (res.ok) {
           const data = await res.json();
-          setVisitorSearchResults(data);
+          if (isActive) {
+            setVisitorSearchResults(data);
+          }
         }
       } catch (err: unknown) {
-        console.error('Visitor search error:', err);
+        if (isActive) console.error('Visitor search error:', err);
       } finally {
-        setIsSearchingVisitors(false);
+        if (isActive) setIsSearchingVisitors(false);
       }
     };
     const timeoutId = setTimeout(searchVisitors, 300);
-    return () => clearTimeout(timeoutId);
+    return () => { isActive = false; clearTimeout(timeoutId); };
   }, [visitorSearch, isManageMode]);
 
   useEffect(() => {

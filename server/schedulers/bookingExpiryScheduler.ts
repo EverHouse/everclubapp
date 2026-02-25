@@ -21,14 +21,16 @@ async function expireStaleBookingRequests(): Promise<void> {
     
     logger.info(`[Booking Expiry] Running stale booking check at ${todayStr} ${currentTimePacific}`);
 
-    const expiredBookings = await queryWithRetry<ExpiredBookingResult>(
+    const trackmanLinked = await queryWithRetry<ExpiredBookingResult>(
       `UPDATE booking_requests 
-       SET status = 'expired',
-           staff_notes = COALESCE(staff_notes || E'\n', '') || '[Auto-expired: booking time passed without confirmation]',
+       SET status = 'cancellation_pending',
+           cancellation_pending_at = NOW(),
+           staff_notes = COALESCE(staff_notes || E'\n', '') || '[Auto-expired: booking time passed — routed to cancellation_pending for Trackman cleanup]',
            updated_at = NOW(),
            reviewed_at = NOW(),
            reviewed_by = 'system-auto-expiry'
        WHERE status IN ('pending', 'pending_approval')
+         AND trackman_booking_id IS NOT NULL
          AND (
            request_date < $1
            OR (request_date = $1 AND start_time < ($2::time - interval '20 minutes'))
@@ -37,9 +39,35 @@ async function expireStaleBookingRequests(): Promise<void> {
       [todayStr, currentTimePacific]
     );
 
-    const expiredCount = expiredBookings.rows.length;
+    for (const booking of trackmanLinked.rows) {
+      logger.info(
+        `[Booking Expiry] Trackman-linked request #${booking.id} → cancellation_pending: ` +
+        `${booking.userName || booking.userEmail} for ${booking.requestDate} ${booking.startTime}`
+      );
+    }
 
-    if (expiredCount === 0) {
+    const expiredBookings = await queryWithRetry<ExpiredBookingResult>(
+      `UPDATE booking_requests 
+       SET status = 'expired',
+           staff_notes = COALESCE(staff_notes || E'\n', '') || '[Auto-expired: booking time passed without confirmation]',
+           updated_at = NOW(),
+           reviewed_at = NOW(),
+           reviewed_by = 'system-auto-expiry'
+       WHERE status IN ('pending', 'pending_approval')
+         AND trackman_booking_id IS NULL
+         AND (
+           request_date < $1
+           OR (request_date = $1 AND start_time < ($2::time - interval '20 minutes'))
+         )
+       RETURNING id, user_email AS "userEmail", user_name AS "userName", request_date AS "requestDate", start_time AS "startTime", resource_id AS "resourceId"`,
+      [todayStr, currentTimePacific]
+    );
+
+    const trackmanCount = trackmanLinked.rows.length;
+    const expiredCount = expiredBookings.rows.length;
+    const totalCount = trackmanCount + expiredCount;
+
+    if (totalCount === 0) {
       logger.info('[Booking Expiry] No stale pending bookings found');
       return;
     }
@@ -51,20 +79,22 @@ async function expireStaleBookingRequests(): Promise<void> {
       );
     }
 
-    logger.info(`[Booking Expiry] Auto-expired ${expiredCount} stale booking request(s)`);
+    logger.info(`[Booking Expiry] Processed ${totalCount} stale booking(s): ${expiredCount} expired, ${trackmanCount} → cancellation_pending`);
     schedulerTracker.recordRun('Booking Expiry', true);
 
-    if (expiredCount >= 2) {
-      const summary = expiredBookings.rows
+    if (totalCount >= 2) {
+      const allBookings = [...trackmanLinked.rows, ...expiredBookings.rows];
+      const summary = allBookings
         .slice(0, 5)
         .map(b => `• ${b.userName || b.userEmail} - ${b.requestDate} ${b.startTime}`)
         .join('\n');
       
-      const moreText = expiredCount > 5 ? `\n...and ${expiredCount - 5} more` : '';
+      const moreText = totalCount > 5 ? `\n...and ${totalCount - 5} more` : '';
+      const trackmanNote = trackmanCount > 0 ? `\n\n⚠️ ${trackmanCount} booking(s) had Trackman links and were set to cancellation_pending for hardware cleanup.` : '';
 
       await notifyAllStaff(
         'Booking Requests Auto-Expired',
-        `${expiredCount} pending booking request(s) were auto-expired because their scheduled time passed without confirmation:\n\n${summary}${moreText}`,
+        `${totalCount} pending booking request(s) were auto-expired because their scheduled time passed without confirmation:\n\n${summary}${moreText}${trackmanNote}`,
         'system',
         { sendPush: false }
       );

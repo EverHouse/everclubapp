@@ -110,7 +110,7 @@ Check `getDay() === 0` (Sunday) + hour check + week-number tracking to prevent r
 9. Wrap the main logic in try/catch — never let errors crash the interval
 10. Add a `[Startup]` console.log in the start function for boot visibility
 11. **All `setTimeout()` and `setInterval()` timer IDs must be stored in a variable or collection** so they can be cleared on shutdown. The `stopSchedulers()` function must clear all interval AND timeout IDs. The booking expiry scheduler stores individual setTimeout IDs in a `Map` and clears them in its stop function. (v8.26.7)
-12. **Booking expiry targets both `pending` and `pending_approval`** statuses. A 20-minute grace period past `start_time` prevents premature expiry for members arriving at the front desk. (v8.26.7)
+12. **Booking expiry targets both `pending` and `pending_approval`** statuses. A 20-minute grace period past `start_time` prevents premature expiry for members arriving at the front desk. **Trackman-linked bookings** (those with `trackman_booking_id IS NOT NULL`) are set to `cancellation_pending` instead of `expired` so the Trackman hardware cleanup flow can unlock the physical bay. Non-Trackman bookings are set to `expired` directly. (v8.26.7)
 
 ## Job Queue
 

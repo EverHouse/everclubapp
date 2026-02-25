@@ -195,6 +195,10 @@ When adding a member to a billing group via `addGroupMember` or `addCorporateMem
 2. A Stripe subscription item is created.
 3. If the Stripe create fails, the compensating catch block resets `membership_status = 'pending'` and `tier = NULL` on the user record. This prevents ghost active users who appear as active members but have no billing.
 
+### Group Creation Atomicity
+
+`createBillingGroup` and `createCorporateBillingGroupFromSubscription` in `server/core/stripe/groupBilling.ts` wrap the INSERT into `billing_groups` + UPDATE of `users.billing_group_id` in a single `db.transaction()`. Without this transaction wrapper, a connection drop between the two queries would create an orphaned billing group with no user linked to it.
+
 Guard: the webhook only processes if the user's `stripe_subscription_id` matches the deleted subscription. This prevents processing old/duplicate subscription deletions.
 
 See [references/transitions.md](references/transitions.md) for all status transitions.

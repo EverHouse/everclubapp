@@ -279,19 +279,23 @@ export async function createBillingGroup(params: {
     
     const stripeCustomerId = primaryUserResult.rows[0]?.stripe_customer_id || null;
     
-    const result = await db.insert(billingGroups).values({
-      primaryEmail: params.primaryEmail.toLowerCase(),
-      primaryStripeCustomerId: stripeCustomerId,
-      groupName: params.groupName || null,
-      createdBy: params.createdBy,
-      createdByName: params.createdByName,
-    }).returning({ id: billingGroups.id });
+    const groupId = await db.transaction(async (tx) => {
+      const result = await tx.insert(billingGroups).values({
+        primaryEmail: params.primaryEmail.toLowerCase(),
+        primaryStripeCustomerId: stripeCustomerId,
+        groupName: params.groupName || null,
+        createdBy: params.createdBy,
+        createdByName: params.createdByName,
+      }).returning({ id: billingGroups.id });
+      
+      await tx.execute(
+        sql`UPDATE users SET billing_group_id = ${result[0].id} WHERE LOWER(email) = ${params.primaryEmail.toLowerCase()}`
+      );
+      
+      return result[0].id;
+    });
     
-    await db.execute(
-      sql`UPDATE users SET billing_group_id = ${result[0].id} WHERE LOWER(email) = ${params.primaryEmail.toLowerCase()}`
-    );
-    
-    return { success: true, groupId: result[0].id };
+    return { success: true, groupId };
   } catch (err: unknown) {
     logger.error('[GroupBilling] Error creating billing group:', { error: err });
     return { success: false, error: 'Operation failed. Please try again.' };
@@ -329,26 +333,30 @@ export async function createCorporateBillingGroupFromSubscription(params: {
       return { success: true, groupId: existingGroup[0].id };
     }
     
-    const result = await db.insert(billingGroups).values({
-      primaryEmail: params.primaryEmail.toLowerCase(),
-      primaryStripeCustomerId: params.stripeCustomerId,
-      primaryStripeSubscriptionId: params.stripeSubscriptionId,
-      groupName: params.companyName,
-      companyName: params.companyName,
-      type: 'corporate',
-      maxSeats: params.quantity,
-      isActive: true,
-      createdBy: 'system',
-      createdByName: 'Stripe Checkout',
-    }).returning({ id: billingGroups.id });
+    const groupId = await db.transaction(async (tx) => {
+      const result = await tx.insert(billingGroups).values({
+        primaryEmail: params.primaryEmail.toLowerCase(),
+        primaryStripeCustomerId: params.stripeCustomerId,
+        primaryStripeSubscriptionId: params.stripeSubscriptionId,
+        groupName: params.companyName,
+        companyName: params.companyName,
+        type: 'corporate',
+        maxSeats: params.quantity,
+        isActive: true,
+        createdBy: 'system',
+        createdByName: 'Stripe Checkout',
+      }).returning({ id: billingGroups.id });
+      
+      await tx.execute(
+        sql`UPDATE users SET billing_group_id = ${result[0].id} WHERE LOWER(email) = ${params.primaryEmail.toLowerCase()}`
+      );
+      
+      return result[0].id;
+    });
     
-    await db.execute(
-      sql`UPDATE users SET billing_group_id = ${result[0].id} WHERE LOWER(email) = ${params.primaryEmail.toLowerCase()}`
-    );
+    logger.info(`[GroupBilling] Auto-created corporate billing group: ${params.companyName} (ID: ${groupId}) for ${params.primaryEmail} with ${params.quantity} seats`);
     
-    logger.info(`[GroupBilling] Auto-created corporate billing group: ${params.companyName} (ID: ${result[0].id}) for ${params.primaryEmail} with ${params.quantity} seats`);
-    
-    return { success: true, groupId: result[0].id };
+    return { success: true, groupId };
   } catch (err: unknown) {
     logger.error('[GroupBilling] Error auto-creating corporate billing group:', { error: err });
     return { success: false, error: getErrorMessage(err) };

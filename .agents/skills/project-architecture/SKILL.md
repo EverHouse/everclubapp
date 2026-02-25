@@ -154,12 +154,14 @@ Database query results may return `Date` objects for date columns. Any function 
 - **Staff Presence Accuracy**: On `ws.close`, check `filtered.some(c => c.isStaff)` — don't assume remaining connections have staff privilege.
 - **Mobile Auth Fallback**: Auth messages accept optional `sessionId` field for mobile clients that can't attach cookies to the WebSocket upgrade request.
 - **Reconnection Jitter**: Member hook uses 2-5s random delay. Staff hook uses exponential backoff. Prevents thundering herd on restart.
+- **Duplicate Socket Guard**: Before `existing.push(connection)`, always check `!existing.some(c => c.ws === ws)`. Flaky mobile networks may retransmit auth messages, which without this guard pushes the same WebSocket into the array multiple times, causing duplicate broadcasts.
 
 ### 19. Group Billing Rollback Completeness (v8.26.7)
 - **Add Member Failure**: When Stripe fails during `addGroupMember`/`addCorporateMember`, the catch block MUST reset both `membership_status = 'pending'` AND `tier = NULL` on the user record. Without this, ghost users appear as active members with no billing.
 - **Remove Member**: When removing from a billing group, MUST set `membership_status = 'cancelled'`, `last_tier = tier`, `tier = NULL`. Without this, removed members retain active access indefinitely.
 - **Stripe Item Tracking**: Both add and remove operations track `newStripeItemId` to enable compensating Stripe rollbacks on subsequent failures.
 - **Lock Ordering**: Always lock `billing_groups` FOR UPDATE before `group_members` FOR UPDATE to prevent deadlocks.
+- **Group Creation Atomicity**: `createBillingGroup` and `createCorporateBillingGroupFromSubscription` MUST wrap the INSERT into `billing_groups` + UPDATE of `users.billing_group_id` in a single `db.transaction()`. Without this, a connection drop between the two queries creates an orphaned group with no user linked to it.
 
 ### 20. Frontend Async Race Protection (v8.26.7)
 All async fetches in React hooks MUST use one of these patterns to prevent stale responses from overwriting current state:

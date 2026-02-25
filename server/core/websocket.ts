@@ -278,7 +278,9 @@ export function initWebSocketServer(server: Server) {
       };
       
       const existing = clients.get(userEmail) || [];
-      existing.push(connection);
+      if (!existing.some(c => c.ws === ws)) {
+        existing.push(connection);
+      }
       clients.set(userEmail, existing);
       
       if (verifiedUser.isStaff) {
@@ -357,7 +359,9 @@ export function initWebSocketServer(server: Server) {
               };
               
               const existing = clients.get(userEmail) || [];
-              existing.push(connection);
+              if (!existing.some(c => c.ws === ws)) {
+                existing.push(connection);
+              }
               clients.set(userEmail, existing);
               
               if (verifiedFromMessage.isStaff) {
