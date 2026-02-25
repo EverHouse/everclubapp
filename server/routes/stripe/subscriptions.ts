@@ -229,11 +229,11 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async
       return res.status(500).json({ error: subscriptionResult.error || 'Failed to create subscription' });
     }
     
-    // Store subscription for potential rollback in case of database failure
     const stripeSubscription = subscriptionResult.subscription;
     
     const subStatus = stripeSubscription?.status;
-    const memberStatus = (subStatus === 'active' || subStatus === 'trialing') ? 'active' : 'pending';
+    const amountDue = stripeSubscription?.amountDue ?? 0;
+    const memberStatus = (subStatus === 'active' || subStatus === 'trialing' || amountDue === 0) ? 'active' : 'pending';
     
     try {
       await db.update(users).set({
@@ -541,10 +541,32 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
     logger.info('[Stripe] Created subscription for new member', { extra: { subscriptionResultSubscription: subscriptionResult.subscription?.subscriptionId, email } });
     
     const subStatus = subscriptionResult.subscription?.status;
-    const isFreeActivation = !subscriptionResult.subscription?.clientSecret && (subStatus === 'active' || subStatus === 'trialing');
+    const amountDue = subscriptionResult.subscription?.amountDue ?? 0;
+    const isFreeActivation = amountDue === 0;
     
     if (isFreeActivation) {
-      logger.info('[Stripe] Free activation (100% coupon) — subscription already active, no payment needed', { extra: { subscriptionResultSubscription: subscriptionResult.subscription?.subscriptionId } });
+      logger.info('[Stripe] Free activation ($0 subscription) — activating member immediately, no payment needed', {
+        extra: {
+          subscriptionId: subscriptionResult.subscription?.subscriptionId,
+          amountDue,
+          subscriptionStatus: subStatus,
+        }
+      });
+      
+      const stripe = await getStripeClient();
+      if (subStatus === 'incomplete' && subscriptionResult.subscription?.subscriptionId) {
+        try {
+          const sub = await stripe.subscriptions.retrieve(subscriptionResult.subscription.subscriptionId);
+          const latestInvoice = sub.latest_invoice;
+          const invoiceId = typeof latestInvoice === 'string' ? latestInvoice : latestInvoice?.id;
+          if (invoiceId) {
+            await stripe.invoices.pay(invoiceId, { paid_out_of_band: true });
+            logger.info('[Stripe] Marked $0 invoice as paid out of band', { extra: { invoiceId } });
+          }
+        } catch (payErr: unknown) {
+          logger.warn('[Stripe] Could not mark $0 invoice as paid (may already be paid)', { extra: { error: getErrorMessage(payErr) } });
+        }
+      }
       
       await db.update(users).set({
         membershipStatus: 'active',
@@ -556,10 +578,10 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
     
     res.json({
       success: true,
-      clientSecret: subscriptionResult.subscription?.clientSecret || null,
+      clientSecret: isFreeActivation ? null : (subscriptionResult.subscription?.clientSecret || null),
       subscriptionId: subscriptionResult.subscription?.subscriptionId,
       subscriptionStatus: subStatus,
-      freeActivation: isFreeActivation || false,
+      freeActivation: isFreeActivation,
       customerId,
       userId,
       tierName: tier.name

@@ -21,6 +21,7 @@ export interface SubscriptionResult {
   status: string;
   currentPeriodEnd: Date;
   clientSecret?: string;
+  amountDue?: number;
 }
 
 export async function createSubscription(params: CreateSubscriptionParams): Promise<{
@@ -113,10 +114,16 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
       }
     }
     
-    // Use payment_intent client_secret if available, otherwise use pending_setup_intent
-    const clientSecret = paymentIntent?.client_secret || pendingSetupIntent?.client_secret;
+    const invoiceAmountDue = invoice?.amount_due ?? 0;
     
-    logger.info(`[Stripe Subscriptions] Final client secret exists: ${!!clientSecret}`);
+    let clientSecret: string | undefined;
+    if (invoiceAmountDue > 0) {
+      clientSecret = paymentIntent?.client_secret || pendingSetupIntent?.client_secret || undefined;
+    } else {
+      logger.info(`[Stripe Subscriptions] Invoice amount is $0 — skipping clientSecret (no payment needed)`);
+    }
+    
+    logger.info(`[Stripe Subscriptions] Final: clientSecret=${!!clientSecret}, amountDue=${invoiceAmountDue}`);
     
     return {
       success: true,
@@ -124,7 +131,8 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
         subscriptionId: subscription.id,
         status: subscription.status,
         currentPeriodEnd: new Date((subscription as unknown as StripeSubscriptionWithPeriods).current_period_end * 1000),
-        clientSecret: clientSecret || undefined,
+        clientSecret,
+        amountDue: invoiceAmountDue,
       },
     };
   } catch (error: unknown) {

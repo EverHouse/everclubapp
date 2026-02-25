@@ -13,8 +13,10 @@ export const changelog: ChangelogEntry[] = [
     title: "Fix: Stripe Idempotency Bug & Android Scroll",
     changes: [
       "Fixed: Creating a VIP membership with a 100% coupon no longer crashes with a Stripe idempotency key conflict — the deterministic key collided on retries when parameters differed slightly between attempts",
-      "Fixed: 100% coupon memberships now activate instantly without requiring a card entry step — the subscription is already active at $0, so the payment step is skipped entirely with a success confirmation",
+      "Fixed: $0 memberships (100% coupon or free tiers) now activate instantly without a payment step — previously the flow showed a broken card entry screen or 'Payment Failed' error because Stripe returned a SetupIntent (seti_) which was incorrectly treated as a PaymentIntent",
+      "Fixed: Switching from 'Enter Card' to 'Card Reader' on a $0 subscription no longer shows 'No such payment_intent' error — the server now detects $0 invoices and marks the subscription as a free activation, skipping the payment step entirely",
       "Fixed: Migrated Stripe subscription coupon application from deprecated root-level 'coupon' property to the modern 'discounts' array format",
+      "Fixed: ID scanner 'string did not match the expected pattern' error — images from phone cameras were too large for the API. Now resized to max 1920px on capture/upload and 1500px on the server before OCR processing",
       "Fixed: Android Chrome scrolling was blocked across the app — React 19 delegates synthetic touch handlers to #root as non-passive listeners, which Android's scroll optimization rejects. Converted PullToRefresh to native addEventListener with passive: true for touchstart",
     ]
   },
