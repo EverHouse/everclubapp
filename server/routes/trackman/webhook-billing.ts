@@ -359,7 +359,8 @@ export async function createBookingForMember(
           date: slotDate,
           time: startTime,
           bay: bayNameForNotification,
-          wasAutoApproved: wasPending
+          wasAutoApproved: wasPending,
+          trackmanBookingId
         }
       });
       
@@ -545,7 +546,8 @@ export async function createBookingForMember(
           memberEmail: member.email,
           date: slotDate,
           time: startTime,
-          bay: bayNameForNotification
+          bay: bayNameForNotification,
+          trackmanBookingId
         }
       });
       

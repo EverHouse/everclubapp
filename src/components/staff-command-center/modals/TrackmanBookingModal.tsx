@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ModalShell } from '../../ModalShell';
 import { useToast } from '../../Toast';
 import { formatTime12Hour, formatDateShort } from '../../../utils/dateUtils';
@@ -32,7 +32,6 @@ function generateNotesText(booking: BookingRequest | null, guests: Guest[] = [],
   
   const lines: string[] = [];
   
-  // Add the member (host) line
   if (booking.user_email && booking.user_name) {
     const nameParts = booking.user_name.trim().split(/\s+/);
     const firstName = nameParts[0] || '';
@@ -40,7 +39,6 @@ function generateNotesText(booking: BookingRequest | null, guests: Guest[] = [],
     lines.push(`M|${booking.user_email}|${firstName}|${lastName}`);
   }
   
-  // Add known guests from booking_participants (filled post-approval)
   for (const guest of guests) {
     const email = guest.email || 'none';
     const nameParts = (guest.name || 'Guest').trim().split(/\s+/);
@@ -49,14 +47,11 @@ function generateNotesText(booking: BookingRequest | null, guests: Guest[] = [],
     lines.push(`G|${email}|${firstName}|${lastName}`);
   }
   
-  // Calculate filled count so far (host + guests)
   let filledCount = 1 + guests.length;
   
-  // Add pre-declared participants from enriched list (with resolved emails)
   const guestEmails = new Set(guests.map(g => g.email?.toLowerCase()).filter(Boolean));
   
   for (const participant of enrichedParticipants) {
-    // Skip if this email is already in guests list
     if (participant.email && guestEmails.has(participant.email.toLowerCase())) {
       continue;
     }
@@ -64,7 +59,6 @@ function generateNotesText(booking: BookingRequest | null, guests: Guest[] = [],
     const prefix = participant.type === 'member' ? 'M' : 'G';
     const email = participant.email || 'none';
     
-    // Use participant name if available (from directory selection), otherwise show Pending|Info
     let firstName = 'Pending';
     let lastName = 'Info';
     if (participant.name) {
@@ -77,9 +71,6 @@ function generateNotesText(booking: BookingRequest | null, guests: Guest[] = [],
     filledCount++;
   }
   
-  // Add placeholder lines for remaining players based on declared_player_count
-  // Format: G|none|Guest|N where N is the player number
-  // The parser treats "none" as a recognized placeholder (email becomes null)
   const declaredCount = booking.declared_player_count ?? 1;
   const remainingSlots = declaredCount - filledCount;
   
@@ -105,10 +96,19 @@ export function TrackmanBookingModal({
   const [error, setError] = useState<string | null>(null);
   const [enrichedParticipants, setEnrichedParticipants] = useState<EnrichedParticipant[]>([]);
   const [autoApproved, setAutoApproved] = useState(false);
+  const [autoConfirmedId, setAutoConfirmedId] = useState<string | null>(null);
+  const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!isOpen || !booking) {
       setAutoApproved(false);
+      setAutoConfirmedId(null);
+      setShowSuccessOverlay(false);
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
       return;
     }
 
@@ -117,25 +117,34 @@ export function TrackmanBookingModal({
       const eventBookingId = detail?.data?.bookingId;
       const eventEmail = detail?.data?.memberEmail;
       const eventDate = detail?.data?.date;
+      const trackmanId = detail?.data?.trackmanBookingId;
 
       const isMatch = (eventBookingId && eventBookingId === booking.id) ||
         (eventEmail && eventDate && eventEmail.toLowerCase() === booking.user_email?.toLowerCase() && eventDate === booking.request_date);
 
       if (isMatch) {
+        if (trackmanId) {
+          setExternalId(String(trackmanId));
+          setAutoConfirmedId(String(trackmanId));
+        }
         setAutoApproved(true);
-        setTimeout(() => {
+        setTimeout(() => setShowSuccessOverlay(true), 50);
+        closeTimerRef.current = setTimeout(() => {
           onClose();
-        }, 2000);
+        }, 3500);
       }
     };
 
     window.addEventListener('booking-auto-confirmed', handleAutoConfirmed as EventListener);
     return () => {
       window.removeEventListener('booking-auto-confirmed', handleAutoConfirmed as EventListener);
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
     };
   }, [isOpen, booking, onClose]);
 
-  // Fetch participant emails when modal opens
   useEffect(() => {
     if (!isOpen || !booking) {
       setEnrichedParticipants([]);
@@ -144,16 +153,13 @@ export function TrackmanBookingModal({
 
     const requestParticipants = (booking.request_participants || []) as EnrichedParticipant[];
     
-    // Find participants that have userId but no email
     const participantsNeedingEmail = requestParticipants.filter(p => p.userId && !p.email);
     
     if (participantsNeedingEmail.length === 0) {
-      // All participants already have emails
       setEnrichedParticipants(requestParticipants);
       return;
     }
 
-    // Fetch emails for participants with userId
     const fetchEmails = async () => {
       try {
         const userIds = participantsNeedingEmail.map(p => p.userId).filter(Boolean);
@@ -170,14 +176,12 @@ export function TrackmanBookingModal({
             Object.entries(data.emails || {})
           );
           
-          // Enrich participants with fetched emails
           const enriched = requestParticipants.map(p => ({
             ...p,
             email: p.email || (p.userId ? emailMap.get(p.userId) : undefined)
           }));
           setEnrichedParticipants(enriched);
         } else {
-          // Fallback to original participants if fetch fails
           setEnrichedParticipants(requestParticipants);
         }
       } catch (err: unknown) {
@@ -190,8 +194,6 @@ export function TrackmanBookingModal({
   }, [isOpen, booking]);
 
   const notesText = generateNotesText(booking, guests, enrichedParticipants);
-  // Use declared_player_count from booking, fallback to 1 + guests if not set
-  // Use nullish coalescing to preserve 0 as a valid value (though unlikely)
   const totalPlayers = booking?.declared_player_count ?? Math.max(1, 1 + guests.length);
 
   const handleCopy = useCallback(async () => {
@@ -244,6 +246,10 @@ export function TrackmanBookingModal({
   const handleClose = useCallback(() => {
     setExternalId('');
     setError(null);
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
     onClose();
   }, [onClose]);
 
@@ -253,126 +259,239 @@ export function TrackmanBookingModal({
     <ModalShell
       isOpen={isOpen}
       onClose={handleClose}
-      title="Book on Trackman"
+      title={autoApproved ? '' : 'Book on Trackman'}
       size="md"
     >
-      <div className="p-4 space-y-5">
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">info</span>
-            <h4 className="font-semibold text-blue-900 dark:text-blue-100">Booking Details</h4>
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <span className="text-blue-700/70 dark:text-blue-300/70">Member</span>
-              <p className="font-medium text-blue-900 dark:text-blue-100">{booking.user_name}</p>
-            </div>
-            <div>
-              <span className="text-blue-700/70 dark:text-blue-300/70">Date</span>
-              <p className="font-medium text-blue-900 dark:text-blue-100">{formatDateShort(booking.request_date)}</p>
-            </div>
-            <div>
-              <span className="text-blue-700/70 dark:text-blue-300/70">Time</span>
-              <p className="font-medium text-blue-900 dark:text-blue-100">
-                {formatTime12Hour(booking.start_time)} - {formatTime12Hour(booking.end_time)}
-              </p>
-            </div>
-            <div>
-              <span className="text-blue-700/70 dark:text-blue-300/70">Bay</span>
-              <p className="font-medium text-blue-900 dark:text-blue-100">
-                {booking.bay_name || booking.resource_name || (booking as any).resource_preference || 'Any Available'}
-              </p>
-            </div>
-            <div className="col-span-2">
-              <span className="text-blue-700/70 dark:text-blue-300/70">Total Players</span>
-              <p className="font-medium text-blue-900 dark:text-blue-100">
-                {totalPlayers} {totalPlayers === 1 ? 'player' : 'players'}
-                {guests.length > 0 && ` (1 member + ${guests.length} guest${guests.length > 1 ? 's' : ''})`}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Notes to paste into Trackman
-            </label>
-            <button
-              onClick={handleCopy}
-              className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-primary dark:text-[#CCB8E4] bg-primary/10 dark:bg-[#CCB8E4]/20 rounded-lg hover:bg-primary/20 dark:hover:bg-[#CCB8E4]/30 transition-colors"
-            >
-              <span className="material-symbols-outlined text-sm">
-                {copied ? 'check' : 'content_copy'}
-              </span>
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
-          </div>
-          <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-3 font-mono text-sm border border-gray-200 dark:border-white/10">
-            <pre className="whitespace-pre-wrap break-all text-gray-800 dark:text-gray-200">{notesText}</pre>
-          </div>
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-            Copy this text and paste it into the "Notes" field in Trackman. Set player count to {totalPlayers}.
-          </p>
-        </div>
-
-        <button
-          onClick={handleOpenTrackman}
-          className="tactile-btn w-full py-3 px-4 bg-[#E55A22] hover:bg-[#D04D18] text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+      <div className="relative overflow-hidden">
+        <div
+          className={`p-4 space-y-5 transition-all duration-500 ease-out ${
+            autoApproved ? 'opacity-0 scale-95 max-h-0 pointer-events-none' : 'opacity-100 scale-100'
+          }`}
+          style={{ transformOrigin: 'top center' }}
         >
-          <span className="material-symbols-outlined">open_in_new</span>
-          Open Trackman Portal
-        </button>
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">info</span>
+              <h4 className="font-semibold text-blue-900 dark:text-blue-100">Booking Details</h4>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-blue-700/70 dark:text-blue-300/70">Member</span>
+                <p className="font-medium text-blue-900 dark:text-blue-100">{booking.user_name}</p>
+              </div>
+              <div>
+                <span className="text-blue-700/70 dark:text-blue-300/70">Date</span>
+                <p className="font-medium text-blue-900 dark:text-blue-100">{formatDateShort(booking.request_date)}</p>
+              </div>
+              <div>
+                <span className="text-blue-700/70 dark:text-blue-300/70">Time</span>
+                <p className="font-medium text-blue-900 dark:text-blue-100">
+                  {formatTime12Hour(booking.start_time)} - {formatTime12Hour(booking.end_time)}
+                </p>
+              </div>
+              <div>
+                <span className="text-blue-700/70 dark:text-blue-300/70">Bay</span>
+                <p className="font-medium text-blue-900 dark:text-blue-100">
+                  {booking.bay_name || booking.resource_name || (booking as any).resource_preference || 'Any Available'}
+                </p>
+              </div>
+              <div className="col-span-2">
+                <span className="text-blue-700/70 dark:text-blue-300/70">Total Players</span>
+                <p className="font-medium text-blue-900 dark:text-blue-100">
+                  {totalPlayers} {totalPlayers === 1 ? 'player' : 'players'}
+                  {guests.length > 0 && ` (1 member + ${guests.length} guest${guests.length > 1 ? 's' : ''})`}
+                </p>
+              </div>
+            </div>
+          </div>
 
-        <div className="border-t border-gray-200 dark:border-white/10 pt-5">
-          <label htmlFor="externalId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Paste Trackman Booking ID
-          </label>
-          <input
-            id="externalId"
-            type="text"
-            value={externalId}
-            onChange={(e) => setExternalId(e.target.value)}
-            placeholder="e.g., 19510379"
-            className="w-full px-4 py-3 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all duration-fast"
-          />
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-            After creating the booking in Trackman, copy the Booking ID and paste it here.
-          </p>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Notes to paste into Trackman
+              </label>
+              <button
+                onClick={handleCopy}
+                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-primary dark:text-[#CCB8E4] bg-primary/10 dark:bg-[#CCB8E4]/20 rounded-lg hover:bg-primary/20 dark:hover:bg-[#CCB8E4]/30 transition-colors"
+              >
+                <span className="material-symbols-outlined text-sm">
+                  {copied ? 'check' : 'content_copy'}
+                </span>
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-3 font-mono text-sm border border-gray-200 dark:border-white/10">
+              <pre className="whitespace-pre-wrap break-all text-gray-800 dark:text-gray-200">{notesText}</pre>
+            </div>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Copy this text and paste it into the "Notes" field in Trackman. Set player count to {totalPlayers}.
+            </p>
+          </div>
+
+          <button
+            onClick={handleOpenTrackman}
+            className="tactile-btn w-full py-3 px-4 bg-[#E55A22] hover:bg-[#D04D18] text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+          >
+            <span className="material-symbols-outlined">open_in_new</span>
+            Open Trackman Portal
+          </button>
+
+          <div className="border-t border-gray-200 dark:border-white/10 pt-5">
+            <label htmlFor="externalId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Paste Trackman Booking ID
+            </label>
+            <input
+              id="externalId"
+              type="text"
+              value={externalId}
+              onChange={(e) => setExternalId(e.target.value)}
+              placeholder="e.g., 19510379"
+              className="w-full px-4 py-3 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all duration-fast"
+            />
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              After creating the booking in Trackman, copy the Booking ID and paste it here.
+            </p>
+          </div>
+
+          {!autoApproved && error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <span className="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+              <span className="text-sm text-red-700 dark:text-red-300">{error}</span>
+            </div>
+          )}
+
+          <button
+            onClick={handleConfirm}
+            disabled={isSubmitting || !externalId.trim() || autoApproved}
+            className="tactile-btn w-full py-3 px-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (
+              <>
+                <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                Confirming...
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined">check_circle</span>
+                Confirm Booking
+              </>
+            )}
+          </button>
         </div>
 
         {autoApproved && (
-          <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-            <span className="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
-            <span className="text-sm text-green-700 dark:text-green-300">This booking was just auto-approved via Trackman — no further action needed.</span>
+          <div
+            className={`p-6 flex flex-col items-center justify-center transition-all duration-500 ease-out ${
+              showSuccessOverlay ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            }`}
+          >
+            <div className="relative mb-5">
+              <div
+                className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center"
+                style={{
+                  animation: showSuccessOverlay ? 'trackmanCheckScale 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : 'none'
+                }}
+              >
+                <span
+                  className="material-symbols-outlined text-green-600 dark:text-green-400"
+                  style={{
+                    fontSize: '40px',
+                    animation: showSuccessOverlay ? 'trackmanCheckDraw 0.4s ease-out 0.3s both' : 'none'
+                  }}
+                >
+                  check_circle
+                </span>
+              </div>
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  animation: showSuccessOverlay ? 'trackmanRipple 1s ease-out 0.2s' : 'none',
+                  border: '2px solid rgb(34 197 94 / 0.4)',
+                  opacity: 0
+                }}
+              />
+            </div>
+
+            <h3
+              className="text-lg font-bold text-green-800 dark:text-green-200 mb-1"
+              style={{
+                animation: showSuccessOverlay ? 'trackmanFadeUp 0.4s ease-out 0.4s both' : 'none'
+              }}
+            >
+              Auto-Confirmed by Trackman
+            </h3>
+            <p
+              className="text-sm text-green-600/80 dark:text-green-400/80 mb-5"
+              style={{
+                animation: showSuccessOverlay ? 'trackmanFadeUp 0.4s ease-out 0.5s both' : 'none'
+              }}
+            >
+              No further action needed
+            </p>
+
+            {autoConfirmedId && (
+              <div
+                className="w-full max-w-xs"
+                style={{
+                  animation: showSuccessOverlay ? 'trackmanFadeUp 0.4s ease-out 0.6s both' : 'none'
+                }}
+              >
+                <div className="relative overflow-hidden rounded-xl border-2 border-green-400 dark:border-green-500 bg-green-50/50 dark:bg-green-900/20 p-4">
+                  <div
+                    className="absolute inset-0 opacity-20"
+                    style={{
+                      background: 'linear-gradient(90deg, transparent, rgba(34,197,94,0.3), transparent)',
+                      animation: showSuccessOverlay ? 'trackmanShimmer 2s ease-in-out 0.8s infinite' : 'none'
+                    }}
+                  />
+                  <div className="relative">
+                    <p className="text-xs font-medium text-green-700/70 dark:text-green-300/70 mb-1">
+                      Trackman Booking ID
+                    </p>
+                    <p className="text-xl font-mono font-bold text-green-800 dark:text-green-200 tracking-wider">
+                      {autoConfirmedId}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div
+              className="mt-5 flex items-center gap-2 text-xs text-green-600/60 dark:text-green-400/60"
+              style={{
+                animation: showSuccessOverlay ? 'trackmanFadeUp 0.4s ease-out 0.8s both' : 'none'
+              }}
+            >
+              <span className="material-symbols-outlined text-sm">schedule</span>
+              Closing automatically...
+            </div>
           </div>
         )}
-
-        {!autoApproved && error && (
-          <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <span className="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
-            <span className="text-sm text-red-700 dark:text-red-300">{error}</span>
-          </div>
-        )}
-
-        <button
-          onClick={handleConfirm}
-          disabled={isSubmitting || !externalId.trim() || autoApproved}
-          className="tactile-btn w-full py-3 px-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 disabled:cursor-not-allowed"
-        >
-          {isSubmitting ? (
-            <>
-              <span className="material-symbols-outlined animate-spin">progress_activity</span>
-              Confirming...
-            </>
-          ) : (
-            <>
-              <span className="material-symbols-outlined">check_circle</span>
-              Confirm Booking
-            </>
-          )}
-        </button>
       </div>
+
+      <style>{`
+        @keyframes trackmanCheckScale {
+          0% { transform: scale(0); opacity: 0; }
+          50% { transform: scale(1.15); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes trackmanCheckDraw {
+          0% { opacity: 0; transform: scale(0.5); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes trackmanRipple {
+          0% { transform: scale(1); opacity: 0.6; }
+          100% { transform: scale(1.8); opacity: 0; }
+        }
+        @keyframes trackmanFadeUp {
+          0% { opacity: 0; transform: translateY(8px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes trackmanShimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
     </ModalShell>
   );
 }
