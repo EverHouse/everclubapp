@@ -6,6 +6,15 @@ import EmptyState from '../../../../components/EmptyState';
 import type { IntegrityCheckResult, IntegrityIssue, IssueContext, ActiveIssue } from './dataIntegrityTypes';
 
 
+const formatTimeForSheet = (t: string | undefined): string => {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  if (isNaN(h)) return t;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+};
+
 interface HubspotSyncMember { email: string; firstName?: string; lastName?: string; tier?: string; status?: string; }
 interface SubscriptionUpdate { email: string; oldStatus?: string; newStatus?: string; reason?: string; }
 interface OrphanedStripeRecord { email: string; stripeCustomerId?: string; reason?: string; }
@@ -1295,7 +1304,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           sessionId: issue.recordId,
                                           bayName: issue.context?.resourceName as string,
                                           bookingDate: issue.context?.bookingDate as string,
-                                          timeSlot: `${issue.context?.startTime || ''} - ${issue.context?.endTime || ''}`,
+                                          timeSlot: `${formatTimeForSheet(issue.context?.startTime as string)} - ${formatTimeForSheet(issue.context?.endTime as string)}`,
                                           trackmanBookingId: issue.context?.trackmanBookingId as string,
                                           isUnmatched: true,
                                         })}

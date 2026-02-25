@@ -2002,6 +2002,7 @@ async function checkSessionsWithoutParticipants(): Promise<IntegrityCheckResult>
       description: `Session on ${row.session_date} at ${row.start_time}–${row.end_time} (${row.resource_name || 'unknown resource'}) has zero participants`,
       suggestion: 'Review session and add participants or remove empty session',
       context: {
+        sessionId: (row.id as number) || undefined,
         bookingDate: (row.session_date as string) || undefined,
         startTime: (row.start_time as string) || undefined,
         endTime: (row.end_time as string) || undefined,

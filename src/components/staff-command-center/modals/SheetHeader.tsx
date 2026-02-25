@@ -182,7 +182,7 @@ export function SheetHeader({
         </div>
       )}
       
-      {!isConferenceRoom && trackmanBookingId && (
+      {!isConferenceRoom && (trackmanBookingId || bayName || bookingDate || timeSlot) && (
         <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
           <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-2">
             Booking Details
@@ -212,10 +212,12 @@ export function SheetHeader({
                 {timeSlot}
               </p>
             )}
-            <p className="flex items-center gap-1 text-xs opacity-70">
-              <span className="material-symbols-outlined text-xs">tag</span>
-              ID: #{trackmanBookingId}
-            </p>
+            {trackmanBookingId && (
+              <p className="flex items-center gap-1 text-xs opacity-70">
+                <span className="material-symbols-outlined text-xs">tag</span>
+                ID: #{trackmanBookingId}
+              </p>
+            )}
           </div>
         </div>
       )}
