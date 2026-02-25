@@ -1133,13 +1133,30 @@ router.post('/api/data-integrity/fix/delete-member-no-email', isAdmin, async (re
       return res.status(400).json({ success: false, message: 'This member has an email address. Cannot delete via this endpoint.' });
     }
 
-    // Delete related records first
-    await db.execute(sql`DELETE FROM booking_participants WHERE user_id = ${recordId}`);
-    await db.execute(sql`DELETE FROM notifications WHERE user_id = ${recordId}`);
-    await db.execute(sql`DELETE FROM guest_passes WHERE user_id = ${recordId}`);
+    const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';
+
+    const cleanups = [
+      sql`DELETE FROM booking_participants WHERE user_id = ${recordId}`,
+      sql`DELETE FROM notifications WHERE user_id = ${recordId}`,
+      sql`DELETE FROM guest_passes WHERE user_id = ${recordId}`,
+      sql`UPDATE event_rsvps SET matched_user_id = NULL WHERE matched_user_id = ${recordId}`,
+      sql`UPDATE booking_requests SET user_id = NULL WHERE user_id = ${recordId}`,
+      sql`DELETE FROM wellness_enrollments WHERE user_id = ${recordId}`,
+      sql`DELETE FROM booking_fee_snapshots WHERE user_id = ${recordId}`,
+      sql`DELETE FROM day_pass_purchases WHERE user_id = ${recordId}`,
+      sql`DELETE FROM terminal_payments WHERE user_id = ${recordId}`,
+      sql`DELETE FROM push_subscriptions WHERE user_id = ${recordId}`,
+      sql`DELETE FROM stripe_payment_intents WHERE user_id = ${recordId}`,
+    ];
+
+    for (const query of cleanups) {
+      try { await db.execute(query); } catch (e) {
+        logger.warn('[DataIntegrity] Non-critical cleanup step failed during member delete', { extra: { recordId, error: getErrorMessage(e as Error) } });
+      }
+    }
+
     await db.execute(sql`DELETE FROM users WHERE id = ${recordId} AND (email IS NULL OR email = '')`);
 
-    const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';
     logFromRequest(req, 'delete_member', 'user', String(recordId), `Deleted member without email: "${name}" (id: ${recordId})`, { memberName: name });
 
     res.json({ success: true, message: `Deleted member "${name}" (id: ${recordId})` });
