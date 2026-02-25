@@ -30,13 +30,27 @@ Former-member statuses (used for filtering/archival):
 
 ## Key Invariants
 
+### App DB Is the Primary Brain
+
+The app database is the single source of truth for `membership_status`, `tier`, `role`, and `billing_provider` for ALL members. HubSpot → App sync only provides profile fill-in data (name, phone, address, DOB, preferences) — it never overwrites existing values for these authoritative fields.
+
 ### Stripe Is Authoritative for Stripe-Billed Members
 
-When `billing_provider = 'stripe'`, Stripe is the source of truth for `membership_status` and `tier`. HubSpot sync skips status/tier updates for Stripe-protected members (`STRIPE WINS` rule in `memberSync.ts`). The database is corrected from Stripe on login (auto-fix) and via webhooks. All Stripe webhook handlers check `billing_provider` before processing and bail out if it is not `'stripe'` (e.g., `'mindbody'`, `'manual'`, `'comped'`).
+When `billing_provider = 'stripe'`, Stripe is the source of truth for `membership_status` and `tier`. The database is corrected from Stripe on login (auto-fix) and via webhooks. All Stripe webhook handlers check `billing_provider` before processing and bail out if it is not `'stripe'` (e.g., `'mindbody'`, `'manual'`, `'comped'`).
 
-### HubSpot Is Authoritative for Membership Status (Not Tier)
+### MindBody Members — Status from HubSpot, Deactivation Cascade
 
-When `billing_provider` is not `'stripe'`, HubSpot drives `membership_status` during sync. The `syncAllMembersFromHubSpot` function in `server/core/memberSync.ts` pulls `membership_status` from HubSpot contact properties and writes it to the database. However, **the app is the source of truth for membership tier** — the HubSpot sync uses `COALESCE(existing_tier, hubspot_tier)`, meaning HubSpot tier only fills in the value for brand-new users who don't have a tier set yet. Once a tier exists in the app, HubSpot cannot overwrite it. Tier changes are managed exclusively through the app (staff UI, Stripe subscription changes, or admin actions).
+When `billing_provider = 'mindbody'` AND `membership_status = 'active'`, HubSpot can update `membership_status` during the daily sync (since MindBody pushes status to HubSpot). However, if HubSpot reports a MindBody member's status changed FROM `active` to any non-active value, the app triggers a **deactivation cascade**:
+1. `tier` is set to `NULL`, current tier saved to `last_tier`
+2. `billing_provider` is set to `'stripe'` (they must reactivate via Stripe)
+3. Changes are pushed to HubSpot via `syncTierToHubSpot`
+4. Grace period is started for reminder emails
+
+For all other billing providers (or MindBody members who are already non-active), HubSpot cannot overwrite `membership_status`.
+
+### Default billing_provider Is 'stripe'
+
+All new users default to `billing_provider = 'stripe'` (schema default, db-init ALTER, and explicit setting in creation paths). Only users who are `active` AND have a `mindbody_client_id` AND have no `stripe_subscription_id` get `billing_provider = 'mindbody'` (set by auto-fix every 4 hours and during HubSpot sync for new contacts).
 
 ### Staff = VIP Rule
 
@@ -48,7 +62,7 @@ All lookups normalize email to lowercase. `MemberService.findByEmail` checks thr
 
 ### Billing Provider Guards
 
-The `billing_provider` column controls which system manages a member. Valid values: `'stripe'`, `'mindbody'`, `'manual'`, `'comped'`. Subscription sync preserves non-stripe providers: `CASE WHEN billing_provider IN ('mindbody', 'manual', 'comped') THEN billing_provider ELSE 'stripe' END`. Comped members have full access without billing.
+The `billing_provider` column controls which system manages a member. Valid values: `'stripe'`, `'mindbody'`, `'manual'`, `'comped'`, `'family_addon'`. Default is `'stripe'`. Subscription sync preserves non-stripe providers: `CASE WHEN billing_provider IN ('mindbody', 'manual', 'comped') THEN billing_provider ELSE 'stripe' END`. Comped members have full access without billing.
 
 ### Member Cache
 

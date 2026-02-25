@@ -415,7 +415,7 @@ export async function createMemberLocally(input: AddMemberInput): Promise<Create
           role = 'member',
           tier = ${tier},
           membership_status = 'active',
-          billing_provider = COALESCE(billing_provider, 'manual'),
+          billing_provider = COALESCE(billing_provider, 'stripe'),
           join_date = COALESCE(join_date, ${startDate || getTodayPacific()}),
           discount_code = ${discountReason || null},
           updated_at = NOW()
@@ -435,7 +435,7 @@ export async function createMemberLocally(input: AddMemberInput): Promise<Create
         email, first_name, last_name, phone, role, tier, 
         membership_status, billing_provider,
         tags, discount_code, data_source, join_date, created_at, updated_at
-      ) VALUES (${normalizedEmail}, ${firstName}, ${lastName}, ${phone || null}, 'member', ${tier}, 'active', 'manual', ${JSON.stringify(tags)}, ${discountReason || null}, 'staff_manual', ${startDate || getTodayPacific()}, NOW(), NOW())
+      ) VALUES (${normalizedEmail}, ${firstName}, ${lastName}, ${phone || null}, 'member', ${tier}, 'active', 'stripe', ${JSON.stringify(tags)}, ${discountReason || null}, 'staff_manual', ${startDate || getTodayPacific()}, NOW(), NOW())
       RETURNING id`);
 
     findOrCreateHubSpotContact(normalizedEmail, firstName, lastName, phone || undefined, tier)
@@ -645,7 +645,7 @@ export async function createMemberWithDeal(input: AddMemberInput): Promise<AddMe
           email, first_name, last_name, phone, role, tier, 
           membership_status, billing_provider, hubspot_id, 
           tags, discount_code, data_source, join_date, created_at, updated_at
-        ) VALUES (${normalizedEmail}, ${firstName}, ${lastName}, ${phone || null}, 'member', ${tier}, 'active', 'manual', ${contactId}, ${JSON.stringify(tags)}, ${discountReason || null}, 'staff_manual', ${startDate || getTodayPacific()}, NOW(), NOW())
+        ) VALUES (${normalizedEmail}, ${firstName}, ${lastName}, ${phone || null}, 'member', ${tier}, 'active', 'stripe', ${contactId}, ${JSON.stringify(tags)}, ${discountReason || null}, 'staff_manual', ${startDate || getTodayPacific()}, NOW(), NOW())
         RETURNING id`) as any;
     } catch (userError: unknown) {
       logger.error('[AddMember] Failed to create user in database:', { error: userError });
@@ -949,8 +949,9 @@ export async function syncTierToHubSpot(params: {
   
   const { denormalizeTierForHubSpot } = await import('../../utils/tierUtils');
   const hubspotTier = denormalizeTierForHubSpot(newTier);
+  const isTierCleared = !newTier || newTier === '';
   
-  if (!hubspotTier) {
+  if (!hubspotTier && !isTierCleared) {
     logger.info(`[HubSpot TierSync] Unknown tier "${newTier}" for ${normalizedEmail}, skipping HubSpot sync`);
     return;
   }
@@ -985,7 +986,8 @@ export async function syncTierToHubSpot(params: {
     const hubspot = await getHubSpotClient();
     
     const properties: Record<string, string> = {
-      membership_tier: hubspotTier,
+      membership_tier: hubspotTier || '',
+      membership_status: membershipStatus || '',
       lifecyclestage: lifecyclestage
     };
     
@@ -997,7 +999,7 @@ export async function syncTierToHubSpot(params: {
       hubspot.crm.contacts.basicApi.update(hubspotContactId, { properties })
     );
     
-    logger.info(`[HubSpot TierSync] Updated contact ${normalizedEmail}: tier="${hubspotTier}", lifecycle="${lifecyclestage}", billing="${hubspotBillingProvider || 'not set'}"`);
+    logger.info(`[HubSpot TierSync] Updated contact ${normalizedEmail}: tier="${hubspotTier}", status="${membershipStatus}", lifecycle="${lifecyclestage}", billing="${hubspotBillingProvider || 'not set'}"`);
     
     const dealResult = await db.select()
       .from(hubspotDeals)

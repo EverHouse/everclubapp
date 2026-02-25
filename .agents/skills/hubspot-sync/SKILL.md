@@ -7,19 +7,18 @@ description: HubSpot CRM synchronization system — queue-based sync of contacts
 
 ## Architecture Overview
 
-The app integrates with HubSpot CRM as the central member directory. The integration is **asymmetric by design**:
+The app integrates with HubSpot CRM as a member directory. **The app database is the single source of truth** for `membership_status`, `tier`, `role`, and `billing_provider`:
 
-- **HubSpot → App (read direction):** The daily member sync (`syncAllMembersFromHubSpot`) pulls all contacts from HubSpot and upserts them into the local `users` table. HubSpot is the source of truth for member profiles, statuses, communication preferences, address/DOB, and notes sourced from Mindbody. **The app is the source of truth for membership tier** — the HubSpot sync only writes tier for brand-new users who have no tier in the app yet (via `COALESCE(existing_tier, hubspot_tier)`). Once a tier is set in the app, HubSpot cannot overwrite it.
-- **App → HubSpot (write direction):** The app pushes discrete changes (new contacts, tier changes, payments, day pass purchases, company associations) to HubSpot via a **persistent queue** (`hubspot_sync_queue` table). Deal creation is currently disabled but the infrastructure remains.
+- **HubSpot → App (read direction):** The daily member sync (`syncAllMembersFromHubSpot`) pulls contacts from HubSpot and upserts them into the local `users` table. HubSpot provides **profile fill-in data only** — name, phone, address, DOB, communication preferences, and notes. These use `COALESCE(hubspot_value, existing_value)` so HubSpot never overwrites existing app data. **The app is authoritative for `membership_status`, `tier`, `role`, and `billing_provider`** for all members. **Exception**: MindBody-billed active members (`billing_provider = 'mindbody'` AND `membership_status = 'active'`) — HubSpot can update their `membership_status` since MindBody pushes status to HubSpot. When a MindBody member's status changes from `active` to any non-active value, the app triggers a **deactivation cascade**: tier is removed (saved to `last_tier`), `billing_provider` is set to `'stripe'`, and changes are pushed back to HubSpot. The member must reactivate through Stripe.
+- **App → HubSpot (write direction):** The app pushes `membership_status`, `membership_tier`, `billing_provider`, and `lifecyclestage` to HubSpot for ALL members via `syncTierToHubSpot`. Discrete changes (payments, day pass purchases, company associations) go through a **persistent queue** (`hubspot_sync_queue` table). Deal creation is currently disabled.
 - **Form submissions (HubSpot → App):** A separate scheduler pulls form submissions from HubSpot Forms API every 30 minutes and inserts them into the local `form_submissions` table.
 
-### Loop Prevention — Single Writer Rule
+### Protection Rules
 
-The app prevents sync loops between HubSpot ↔ Mindbody ↔ App with two mechanisms:
-
-1. **Stripe-protected members:** When `billing_provider = 'stripe'`, the member sync skips overwriting `membership_status` and `tier` from HubSpot. Stripe is authoritative for those fields.
-2. **Mindbody-billed members:** When pushing status to HubSpot (`syncMemberToHubSpot`), the app skips writing `membership_status` for Mindbody-billed members to avoid a loop where Mindbody → HubSpot → App → HubSpot would cycle indefinitely.
+1. **App DB is primary brain:** Status, tier, role, and billing_provider are controlled by the app. HubSpot cannot overwrite these fields (except for the MindBody exception above).
+2. **MindBody deactivation cascade:** When a MindBody-billed active member's HubSpot status changes to non-active, the app: (a) sets `tier = NULL`, saves current tier to `last_tier`, (b) sets `billing_provider = 'stripe'`, (c) pushes the changes to HubSpot. The member must go through Stripe signup to reactivate.
 3. **Visitor protection:** Users with `role = 'visitor'` are not overwritten to `role = 'member'` by the HubSpot sync.
+4. **New users from HubSpot:** Get `billing_provider = 'mindbody'` if they have active status AND `mindbody_client_id`; otherwise get `billing_provider = 'stripe'`.
 
 ## Queue Model
 
@@ -68,7 +67,7 @@ When the app creates or updates a HubSpot contact, it sets:
 | firstName / lastName | firstname / lastname     |                                             |
 | phone                | phone                    |                                             |
 | tier (denormalized)  | membership_tier          | Uses `denormalizeTierForHubSpot` mapping    |
-| membership_status    | membership_status        | Skipped for Mindbody-billed members         |
+| membership_status    | membership_status        | Always pushed (app is primary brain)        |
 | billing_provider     | billing_provider         | Custom enumeration property                 |
 | lifecycle stage      | lifecyclestage           | `customer` for active, `other` for inactive |
 | join date            | membership_start_date    | Midnight UTC timestamp                      |
@@ -116,11 +115,12 @@ Deal creation is currently disabled (functions return early). The pipeline infra
 2. Skip contacts in the `sync_exclusions` table (permanently deleted members).
 3. For each contact, upsert into `users` with `ON CONFLICT (email) DO UPDATE`.
 4. **Tier normalization:** Only recognized tiers (matching `TIER_NAMES`) are written; unrecognized tiers log a warning and preserve the existing DB tier.
-5. **Status protection:** Stripe-billed and visitor users are not overwritten.
-6. **Notes sync:** Membership notes and messages from HubSpot are hashed; new notes create `member_notes` entries attributed to "HubSpot Sync (Mindbody)".
-7. **Linked emails:** Merged contact IDs (`hs_merged_object_ids`) are batch-fetched and stored in `user_linked_emails` for email deduplication.
-8. **Deal stage sync:** After the main sync, contacts with deal-relevant statuses get their deal stages updated in batches of 5 with 2-second delays.
-9. **Status change notifications:** When a member's status changes to a problematic state (past_due, declined, etc.), the app notifies the member and staff, and starts a grace period for Mindbody members.
+5. **Status/tier protection (app is primary brain):** ALL users are protected from status/tier overwrite EXCEPT MindBody-billed active members. For MindBody active members, HubSpot can update `membership_status` only. If a MindBody member's status changes from active → non-active, the deactivation cascade fires (tier removed, billing_provider → stripe).
+6. **New users:** Get `billing_provider = 'mindbody'` if active + has `mindbody_client_id`; otherwise `'stripe'`.
+7. **Notes sync:** Membership notes and messages from HubSpot are hashed; new notes create `member_notes` entries attributed to "HubSpot Sync (Mindbody)".
+8. **Linked emails:** Merged contact IDs (`hs_merged_object_ids`) are batch-fetched and stored in `user_linked_emails` for email deduplication.
+9. **Deal stage sync:** After the main sync, contacts with deal-relevant statuses get their deal stages updated in batches of 5 with 2-second delays.
+10. **Status change notifications:** When a member's status changes to a problematic state (past_due, declined, etc.), the app notifies the member and staff, and starts a grace period for Mindbody members.
 
 ### HubSpot Contact Properties Read
 

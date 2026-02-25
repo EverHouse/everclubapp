@@ -362,7 +362,8 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
             membershipStatus: users.membershipStatus,
             billingProvider: users.billingProvider,
             lastHubspotNotesHash: users.lastHubspotNotesHash,
-            role: users.role
+            role: users.role,
+            tier: users.tier
           })
             .from(users)
             .where(eq(users.email, email))
@@ -375,33 +376,38 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
             return null;
           }
           
-          const isStripeProtected = existingUser[0]?.billingProvider === 'stripe';
           const isVisitorProtected = existingUser[0]?.role === 'visitor';
+          const isMindBodyBilled = existingUser[0]?.billingProvider === 'mindbody';
+          const isCurrentlyActive = existingUser[0]?.membershipStatus === 'active';
+          const isMindBodyActiveAllowStatus = isMindBodyBilled && isCurrentlyActive;
+          const isStatusProtected = isVisitorProtected || !isMindBodyActiveAllowStatus;
+          const isMindBodyDeactivation = isMindBodyBilled && isCurrentlyActive && status !== 'active';
 
-          if (isStripeProtected) {
+          if (existingUser[0]?.billingProvider === 'stripe') {
             stripeProtectedCount++;
-            logger.info(`[MemberSync] STRIPE WINS: Skipping membership_status/tier update for Stripe-billed member ${email} (HubSpot status: ${status})`);
+            logger.info(`[MemberSync] APP DB PRIMARY: Skipping status/tier update for Stripe-billed member ${email} (HubSpot status: ${status})`);
+          } else if (isVisitorProtected) {
+            logger.info(`[MemberSync] VISITOR PROTECTED: Skipping status/tier/role update for visitor ${email} (HubSpot status: ${status})`);
+          } else if (isMindBodyDeactivation) {
+            logger.info(`[MemberSync] MINDBODY DEACTIVATION: ${email} status changing from active to ${status} — will remove tier and set billing_provider to stripe`);
+          } else if (isMindBodyActiveAllowStatus) {
+            logger.info(`[MemberSync] MINDBODY ACTIVE: Allowing HubSpot status update for ${email} (HubSpot status: ${status})`);
+          } else {
+            logger.info(`[MemberSync] APP DB PRIMARY: Skipping status/tier update for ${email} (billing: ${existingUser[0]?.billingProvider || 'default'}, HubSpot status: ${status})`);
           }
+
+          const newBillingProvider = status === 'active' && contact.properties.mindbody_client_id ? 'mindbody' : 'stripe';
           
-          if (isVisitorProtected) {
-            logger.info(`[MemberSync] VISITOR PROTECTED: Skipping membership_status/tier/role update for visitor ${email} (HubSpot status: ${status})`);
-          }
-          
-          const isProtected = isStripeProtected || isVisitorProtected;
-          
-          // Extract address fields from HubSpot (synced from Mindbody)
           const streetAddress = contact.properties.address?.trim() || null;
           const city = contact.properties.city?.trim() || null;
           const state = contact.properties.state?.trim() || null;
           const zipCode = contact.properties.zip?.trim() || null;
           
-          // Extract date of birth from HubSpot (synced from Mindbody)
-          // HubSpot stores dates as YYYY-MM-DD strings
           let dateOfBirth: string | null = null;
           if (contact.properties.date_of_birth) {
             const dobStr = contact.properties.date_of_birth.trim();
             if (/^\d{4}-\d{2}-\d{2}/.test(dobStr)) {
-              dateOfBirth = dobStr.split('T')[0]; // Extract just the date part
+              dateOfBirth = dobStr.split('T')[0];
             }
           }
           
@@ -417,6 +423,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
               tags: tags.length > 0 ? tags : [],
               hubspotId: contact.id,
               membershipStatus: status,
+              billingProvider: newBillingProvider,
               mindbodyClientId: contact.properties.mindbody_client_id || null,
               joinDate,
               emailOptIn,
@@ -440,11 +447,13 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
                 firstName: sql`COALESCE(${firstName}, ${users.firstName})`,
                 lastName: sql`COALESCE(${lastName}, ${users.lastName})`,
                 phone: sql`COALESCE(${contact.properties.phone || null}, ${users.phone})`,
-                tier: sql`COALESCE(${users.tier}, ${normalizedTier})`,
-                tierId: sql`COALESCE(${users.tierId}, ${tierId})`,
+                tier: isMindBodyDeactivation ? sql`NULL` : sql`COALESCE(${users.tier}, ${normalizedTier})`,
+                lastTier: isMindBodyDeactivation ? sql`COALESCE(${users.tier}, ${users.lastTier})` : sql`${users.lastTier}`,
+                tierId: isMindBodyDeactivation ? sql`NULL` : sql`COALESCE(${users.tierId}, ${tierId})`,
                 tags: tags.length > 0 ? tags : sql`${users.tags}`,
                 hubspotId: contact.id,
-                membershipStatus: isProtected ? sql`${users.membershipStatus}` : status,
+                membershipStatus: isStatusProtected ? sql`${users.membershipStatus}` : status,
+                billingProvider: isMindBodyDeactivation ? sql`'stripe'` : sql`${users.billingProvider}`,
                 role: isVisitorProtected ? sql`${users.role}` : sql`COALESCE(${users.role}, 'member')`,
                 mindbodyClientId: contact.properties.mindbody_client_id || null,
                 joinDate: joinDate ? joinDate : sql`${users.joinDate}`,
@@ -464,8 +473,20 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
                 updatedAt: new Date()
               }
             });
+
+          if (isMindBodyDeactivation) {
+            logger.info(`[MemberSync] MINDBODY DEACTIVATION CASCADE: ${email} — tier removed, billing_provider set to stripe. Must reactivate via Stripe.`);
+            try {
+              const { syncTierToHubSpot } = await import('./hubspot/members');
+              syncTierToHubSpot({ email, newTier: '', oldTier: existingUser[0]?.tier || undefined }).catch(err => {
+                logger.error(`[MemberSync] Failed to push deactivation to HubSpot for ${email}:`, { error: err });
+              });
+            } catch (err) {
+              logger.error(`[MemberSync] Failed to import syncTierToHubSpot for ${email}:`, { error: err });
+            }
+          }
           
-          if (oldStatus !== status && !isProtected) {
+          if (oldStatus !== status && !isStatusProtected) {
             detectAndNotifyStatusChange(email, firstName, lastName, oldStatus, status).catch(err => {
               logger.error(`[MemberSync] Failed to notify status change for ${email}:`, { error: err });
             });
@@ -929,7 +950,8 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
             membershipStatus: users.membershipStatus,
             billingProvider: users.billingProvider,
             lastHubspotNotesHash: users.lastHubspotNotesHash,
-            role: users.role
+            role: users.role,
+            tier: users.tier
           })
             .from(users)
             .where(eq(users.email, email))
@@ -942,19 +964,27 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
             return null;
           }
           
-          const isStripeProtected = existingUser[0]?.billingProvider === 'stripe';
           const isVisitorProtected = existingUser[0]?.role === 'visitor';
+          const isMindBodyBilled = existingUser[0]?.billingProvider === 'mindbody';
+          const isCurrentlyActive = existingUser[0]?.membershipStatus === 'active';
+          const isMindBodyActiveAllowStatus = isMindBodyBilled && isCurrentlyActive;
+          const isStatusProtected = isVisitorProtected || !isMindBodyActiveAllowStatus;
+          const isMindBodyDeactivation = isMindBodyBilled && isCurrentlyActive && status !== 'active';
 
-          if (isStripeProtected) {
+          if (existingUser[0]?.billingProvider === 'stripe') {
             stripeProtectedCount++;
-            logger.info(`[MemberSync] STRIPE WINS: Skipping membership_status/tier update for Stripe-billed member ${email} (HubSpot status: ${status})`);
+            logger.info(`[MemberSync] APP DB PRIMARY: Skipping status/tier update for Stripe-billed member ${email} (HubSpot status: ${status})`);
+          } else if (isVisitorProtected) {
+            logger.info(`[MemberSync] VISITOR PROTECTED: Skipping status/tier/role update for visitor ${email} (HubSpot status: ${status})`);
+          } else if (isMindBodyDeactivation) {
+            logger.info(`[MemberSync] MINDBODY DEACTIVATION: ${email} status changing from active to ${status} — will remove tier and set billing_provider to stripe`);
+          } else if (isMindBodyActiveAllowStatus) {
+            logger.info(`[MemberSync] MINDBODY ACTIVE: Allowing HubSpot status update for ${email} (HubSpot status: ${status})`);
+          } else {
+            logger.info(`[MemberSync] APP DB PRIMARY: Skipping status/tier update for ${email} (billing: ${existingUser[0]?.billingProvider || 'default'}, HubSpot status: ${status})`);
           }
-          
-          if (isVisitorProtected) {
-            logger.info(`[MemberSync] VISITOR PROTECTED: Skipping membership_status/tier/role update for visitor ${email} (HubSpot status: ${status})`);
-          }
-          
-          const isProtected = isStripeProtected || isVisitorProtected;
+
+          const newBillingProvider = status === 'active' && contact.properties.mindbody_client_id ? 'mindbody' : 'stripe';
           
           const streetAddress = contact.properties.address?.trim() || null;
           const city = contact.properties.city?.trim() || null;
@@ -981,6 +1011,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
               tags: tags.length > 0 ? tags : [],
               hubspotId: contact.id,
               membershipStatus: status,
+              billingProvider: newBillingProvider,
               mindbodyClientId: contact.properties.mindbody_client_id || null,
               joinDate,
               emailOptIn,
@@ -1004,11 +1035,13 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
                 firstName: sql`COALESCE(${firstName}, ${users.firstName})`,
                 lastName: sql`COALESCE(${lastName}, ${users.lastName})`,
                 phone: sql`COALESCE(${contact.properties.phone || null}, ${users.phone})`,
-                tier: sql`COALESCE(${users.tier}, ${normalizedTier})`,
-                tierId: sql`COALESCE(${users.tierId}, ${tierId})`,
+                tier: isMindBodyDeactivation ? sql`NULL` : sql`COALESCE(${users.tier}, ${normalizedTier})`,
+                lastTier: isMindBodyDeactivation ? sql`COALESCE(${users.tier}, ${users.lastTier})` : sql`${users.lastTier}`,
+                tierId: isMindBodyDeactivation ? sql`NULL` : sql`COALESCE(${users.tierId}, ${tierId})`,
                 tags: tags.length > 0 ? tags : sql`${users.tags}`,
                 hubspotId: contact.id,
-                membershipStatus: isProtected ? sql`${users.membershipStatus}` : status,
+                membershipStatus: isStatusProtected ? sql`${users.membershipStatus}` : status,
+                billingProvider: isMindBodyDeactivation ? sql`'stripe'` : sql`${users.billingProvider}`,
                 role: isVisitorProtected ? sql`${users.role}` : sql`COALESCE(${users.role}, 'member')`,
                 mindbodyClientId: contact.properties.mindbody_client_id || null,
                 joinDate: joinDate ? joinDate : sql`${users.joinDate}`,
@@ -1028,8 +1061,20 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
                 updatedAt: new Date()
               }
             });
+
+          if (isMindBodyDeactivation) {
+            logger.info(`[MemberSync] MINDBODY DEACTIVATION CASCADE: ${email} — tier removed, billing_provider set to stripe. Must reactivate via Stripe.`);
+            try {
+              const { syncTierToHubSpot } = await import('./hubspot/members');
+              syncTierToHubSpot({ email, newTier: '', oldTier: existingUser[0]?.tier || undefined }).catch(err => {
+                logger.error(`[MemberSync] Failed to push deactivation to HubSpot for ${email}:`, { error: err });
+              });
+            } catch (err) {
+              logger.error(`[MemberSync] Failed to import syncTierToHubSpot for ${email}:`, { error: err });
+            }
+          }
           
-          if (oldStatus !== status && !isProtected) {
+          if (oldStatus !== status && !isStatusProtected) {
             detectAndNotifyStatusChange(email, firstName, lastName, oldStatus, status).catch(err => {
               logger.error(`[MemberSync] Failed to notify status change for ${email}:`, { error: err });
             });

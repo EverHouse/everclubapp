@@ -39,12 +39,14 @@ async function autoCompletePastBookings(): Promise<void> {
            request_date < $1::date - INTERVAL '1 day'
            OR (request_date = $1::date - INTERVAL '1 day' AND end_time < $2::time)
          )
-         AND id NOT IN (
-           SELECT DISTINCT br.id FROM booking_requests br
-           JOIN booking_sessions bs ON br.session_id = bs.id
-           JOIN booking_participants bp ON bp.session_id = bs.id
-           WHERE bs.updated_at > NOW() - INTERVAL '10 minutes'
-           AND bp.payment_status IN ('paid', 'waived')
+         AND (
+           session_id IS NULL
+           OR NOT EXISTS (
+             SELECT 1 FROM booking_participants bp
+             WHERE bp.session_id = booking_requests.session_id
+               AND bp.cached_fee_cents > 0
+               AND bp.payment_status = 'pending'
+           )
          )
        RETURNING id, user_email AS "userEmail", user_name AS "userName", request_date AS "requestDate", 
                  start_time AS "startTime", end_time AS "endTime", resource_id AS "resourceId",
@@ -178,12 +180,14 @@ export async function runManualBookingAutoComplete(): Promise<{ markedCount: num
          request_date < $1::date - INTERVAL '1 day'
          OR (request_date = $1::date - INTERVAL '1 day' AND end_time < $2::time)
        )
-       AND id NOT IN (
-         SELECT DISTINCT br.id FROM booking_requests br
-         JOIN booking_sessions bs ON br.session_id = bs.id
-         JOIN booking_participants bp ON bp.session_id = bs.id
-         WHERE bs.updated_at > NOW() - INTERVAL '10 minutes'
-         AND bp.payment_status IN ('paid', 'waived')
+       AND (
+         session_id IS NULL
+         OR NOT EXISTS (
+           SELECT 1 FROM booking_participants bp
+           WHERE bp.session_id = booking_requests.session_id
+             AND bp.cached_fee_cents > 0
+             AND bp.payment_status = 'pending'
+         )
        )
      RETURNING id, user_email AS "userEmail", user_name AS "userName", request_date AS "requestDate",
                start_time AS "startTime", end_time AS "endTime", resource_id AS "resourceId",

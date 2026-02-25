@@ -361,6 +361,9 @@ export async function ensureDatabaseConstraints() {
         END $$;
       `);
       logger.info('[DB Init] Billing provider CHECK constraint created/verified');
+
+      await db.execute(sql`ALTER TABLE users ALTER COLUMN billing_provider SET DEFAULT 'stripe'`);
+      logger.info('[DB Init] billing_provider column default set to stripe');
       
       const hubspotFix = await db.execute(sql`
         UPDATE users SET billing_provider = 'manual', updated_at = NOW()

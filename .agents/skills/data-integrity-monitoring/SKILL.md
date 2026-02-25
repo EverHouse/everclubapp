@@ -200,12 +200,12 @@ Staff can trigger a manual integrity check from the admin dashboard. This calls 
 
 The system includes automated correction tasks:
 
-- **Auto-Fix Tiers** (every 4h) — Normalize `membership_status` casing, auto-classify `billing_provider` for members with Stripe subscriptions (`'stripe'`) or MindBody IDs (`'mindbody'`), sync staff roles. Stripe classification runs first and takes priority over MindBody.
+- **Auto-Fix Tiers** (every 4h) — Normalize `membership_status` casing, auto-classify `billing_provider` for members with Stripe subscriptions (`'stripe'`) or MindBody IDs (`'mindbody'` — only if `active` + has `mindbody_client_id` + no `stripe_subscription_id`), sync staff roles. Stripe classification runs first and takes priority over MindBody. Default `billing_provider` for all new users is `'stripe'`.
 - **Stripe Reconciliation** (daily at 5am Pacific) — Compare Stripe subscriptions and daily payments against database records. Uses database lock for multi-instance safety.
 - **Fee Snapshot Reconciliation** (every 15min) — Reconcile fee snapshot records against actual billing data.
 - **Abandoned Pending Cleanup** (every 6h) — Delete users stuck in `pending` status >24h with no Stripe subscription, cascade-deleting related records in a transaction.
-- **Booking Auto-Complete** (every 2h) — Mark approved/confirmed bookings as attended (auto checked-in) 24h after end time. Also calls `ensureSessionForBooking()` for each booking without a session to prevent "Active Bookings Without Sessions" data integrity failures. Assumes most members attended; staff can manually mark no_show via BookingStatusDropdown if needed.
-- **DB-Init Billing Provider Migration** (startup) — Migrates any existing `billing_provider='hubspot'` values to `'manual'`. The `'hubspot'` value is not in the CHECK constraint (`stripe`, `mindbody`, `manual`, `comped`, `family_addon`).
+- **Booking Auto-Complete** (every 2h) — Mark approved/confirmed bookings as attended (auto checked-in) 24h after end time. **Fee guard**: only auto-completes if the booking has no session (zero fees) OR all participants are paid/waived/zero-fee. Bookings with unpaid fees (`cached_fee_cents > 0` and `payment_status = 'pending'`) remain as approved/confirmed so staff can follow up. Also calls `ensureSessionForBooking()` for each booking without a session.
+- **DB-Init Billing Provider Default** (startup) — Sets column default to `'stripe'` via `ALTER TABLE`. Also migrates any existing `billing_provider='hubspot'` values to `'manual'`.
 
 ## Dashboard Overview
 

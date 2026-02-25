@@ -33,7 +33,7 @@ export const users = pgTable("users", {
   dataSource: varchar("data_source"),
   hubspotId: varchar("hubspot_id"),
   membershipStatus: varchar("membership_status").default("active"),
-  billingProvider: varchar("billing_provider").default("mindbody"),
+  billingProvider: varchar("billing_provider").default("stripe"),
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),
   stripeCurrentPeriodEnd: timestamp("stripe_current_period_end"),
