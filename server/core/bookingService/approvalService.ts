@@ -1159,6 +1159,27 @@ export async function cancelBooking(params: CancelBookingParams) {
       } catch (feeCleanupErr: unknown) {
         logger.error('[Staff Cancel] Failed to clear pending fees (non-blocking)', { extra: { feeCleanupErr } });
       }
+
+      try {
+        const sessionRow = await tx.execute(sql`
+          SELECT trackman_booking_id FROM booking_sessions WHERE id = ${sessionResult[0].sessionId}
+        `);
+        const hasTrackmanId = sessionRow.rows[0]?.trackman_booking_id;
+        if (!hasTrackmanId) {
+          await tx.execute(sql`
+            DELETE FROM booking_participants WHERE session_id = ${sessionResult[0].sessionId}
+          `);
+          await tx.execute(sql`
+            UPDATE booking_requests SET session_id = NULL WHERE session_id = ${sessionResult[0].sessionId}
+          `);
+          await tx.execute(sql`
+            DELETE FROM booking_sessions WHERE id = ${sessionResult[0].sessionId}
+          `);
+          logger.info('[Staff Cancel] Cleaned up orphaned session without Trackman ID', { extra: { sessionId: sessionResult[0].sessionId } });
+        }
+      } catch (sessionCleanupErr: unknown) {
+        logger.error('[Staff Cancel] Failed to clean up session (non-blocking)', { extra: { sessionCleanupErr } });
+      }
     }
 
     let pushInfo: { type: 'staff' | 'member' | 'both'; email?: string; staffMessage?: string; memberMessage?: string; message: string } | null = null;
