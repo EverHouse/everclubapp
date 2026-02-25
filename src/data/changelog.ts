@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.31.8",
+    date: "2026-02-25",
+    title: "Fix: Orphaned Session & Null Bay Guards on All Auto-Resolve Paths",
+    changes: [
+      "Fixed: 'Auto-resolve via same email' and 'auto-resolve via linked email' paths now detect orphaned session references (booking points to a deleted session) and create fresh sessions — previously only the main resolve path had this protection",
+      "Fixed: Null bay assignment guard added to the 'auto-resolve via same email' path — prevents silent session creation failure when a booking has no bay assigned (linked-email path already had this guard)",
+    ]
+  },
+  {
     version: "8.31.7",
     date: "2026-02-25",
     title: "Fix: Session Creation When Assigning Unmatched Trackman Bookings",

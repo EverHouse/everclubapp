@@ -568,6 +568,15 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                 const otherBD = otherBookingDetails.rows[0] as DbRow;
                 let otherSessionId = otherBD?.session_id;
                 
+                if (otherSessionId) {
+                  const sessionCheck = await db.execute(sql`SELECT id FROM booking_sessions WHERE id = ${otherSessionId} LIMIT 1`);
+                  if (sessionCheck.rows.length === 0) {
+                    logger.warn('[Email Learning] Orphaned session_id on booking, clearing', { extra: { bookingId: otherBooking.id, orphanedSessionId: otherSessionId } });
+                    await db.execute(sql`UPDATE booking_requests SET session_id = NULL WHERE id = ${otherBooking.id}`);
+                    otherSessionId = null;
+                  }
+                }
+                
                 if (!otherSessionId && otherBD && otherBD.resource_id) {
                   const otherDateStr = typeof otherBD.request_date === 'string' ? otherBD.request_date :
                     new Date(otherBD.request_date as string | number | Date).toISOString().split('T')[0];
@@ -982,7 +991,16 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
               const sameEmailBD = sameEmailDetails.rows[0] as DbRow;
               let sameEmailSessionId = sameEmailBD?.session_id;
               
-              if (!sameEmailSessionId && sameEmailBD) {
+              if (sameEmailSessionId) {
+                const sessionCheck = await db.execute(sql`SELECT id FROM booking_sessions WHERE id = ${sameEmailSessionId} LIMIT 1`);
+                if (sessionCheck.rows.length === 0) {
+                  logger.warn('[Auto-resolve] Orphaned session_id on booking, clearing', { extra: { bookingId: booking.id, orphanedSessionId: sameEmailSessionId } });
+                  await db.execute(sql`UPDATE booking_requests SET session_id = NULL WHERE id = ${booking.id}`);
+                  sameEmailSessionId = null;
+                }
+              }
+              
+              if (!sameEmailSessionId && sameEmailBD && sameEmailBD.resource_id) {
                 const sameEmailDateStr = typeof sameEmailBD.request_date === 'string' ? sameEmailBD.request_date :
                   new Date(sameEmailBD.request_date as string | number | Date).toISOString().split('T')[0];
                 const sameEmailSessionResult = await ensureSessionForBooking({
