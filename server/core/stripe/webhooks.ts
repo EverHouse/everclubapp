@@ -3084,7 +3084,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
           stripe_current_period_end = COALESCE($2, stripe_current_period_end),
           billing_provider = 'stripe',
           membership_status = CASE 
-            WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member') THEN $3
+            WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member', 'terminated', 'cancelled', 'expired', 'former_member', 'deleted', 'suspended', 'frozen', 'froze', 'declined', 'churned') THEN $3
             ELSE membership_status 
           END,
           join_date = CASE WHEN join_date IS NULL AND $3 = 'active' THEN NOW() ELSE join_date END,
@@ -3218,7 +3218,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
             stripe_subscription_id = COALESCE(stripe_subscription_id, $4),
             stripe_current_period_end = COALESCE($5, stripe_current_period_end),
             membership_status = CASE 
-              WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member') THEN $6
+              WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member', 'terminated', 'cancelled', 'expired', 'former_member', 'deleted', 'suspended', 'frozen', 'froze', 'declined', 'churned') THEN $6
               ELSE membership_status 
             END, 
             updated_at = NOW() 
@@ -3232,7 +3232,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
             
             const deferredActivationEmail = email;
             const deferredActivationTierName = tierName;
-            const deferredActivationStatus = subscription.status;
+            const deferredActivationStatus = (subscription.status === 'active' || subscription.status === 'trialing') ? 'active' : 'pending';
             const deferredActivationCustomerId = String(customerId);
             const deferredActivationInterval = subscription.items?.data?.[0]?.price?.recurring?.interval || undefined;
 
@@ -3328,7 +3328,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
                       `UPDATE users SET 
                         tier = $1, 
                         membership_status = CASE 
-                          WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member') THEN $4
+                          WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member', 'terminated', 'cancelled', 'expired', 'former_member', 'deleted', 'suspended', 'frozen', 'froze', 'declined', 'churned') THEN $4
                           ELSE membership_status 
                         END,
                         billing_provider = 'stripe',
@@ -3344,15 +3344,16 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
 
                       try {
                         const { syncMemberToHubSpot } = await import('../hubspot/stages');
+                        const mappedHubSpotStatus = (deferredSubscriptionStatus === 'active' || deferredSubscriptionStatus === 'trialing') ? 'active' : 'pending';
                         await syncMemberToHubSpot({
                           email: deferredEmail,
-                          status: deferredSubscriptionStatus,
+                          status: mappedHubSpotStatus,
                           billingProvider: 'stripe',
                           tier: tierName,
                           memberSince: new Date(),
                           billingGroupRole: 'Primary',
                         });
-                        logger.info(`[Stripe Webhook] Synced ${deferredEmail} to HubSpot: tier=${tierName}, status=${deferredSubscriptionStatus}, billing=stripe, memberSince=now`);
+                        logger.info(`[Stripe Webhook] Synced ${deferredEmail} to HubSpot: tier=${tierName}, status=${mappedHubSpotStatus}, billing=stripe, memberSince=now`);
                       } catch (hubspotError: unknown) {
                         logger.error('[Stripe Webhook] HubSpot sync failed for product name match:', { error: hubspotError });
                       }

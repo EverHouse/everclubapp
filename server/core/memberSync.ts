@@ -800,7 +800,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
       'hs_merged_object_ids'
     ];
     
-    const relevantStatuses = ['active', 'past_due', 'past due', 'pastdue', 'frozen', 'froze', 'suspended', 'declined', 'expired', 'terminated', 'cancelled'];
+    const relevantStatuses = ['active', 'Active', 'past_due', 'past due', 'pastdue', 'frozen', 'froze', 'Froze', 'suspended', 'Suspended', 'declined', 'Declined', 'expired', 'Expired', 'terminated', 'Terminated', 'cancelled', 'trialing', 'Pending', 'pending', 'Non-Member', 'non-member'];
     
     const filterGroups: Array<{ filters: Array<{ propertyName: string; operator: string; values?: string[]; value?: string }> }> = [
       {

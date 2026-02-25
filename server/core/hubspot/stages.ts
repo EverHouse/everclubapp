@@ -222,16 +222,16 @@ export async function syncMemberToHubSpot(
       logger.info(`[HubSpot Sync] Skipping status push for Mindbody-billed member ${email} to prevent sync loop`);
     }
     
+    let targetLifecycleStage: string | null = null;
     if (status && !isMindbodyBilled) {
       const normalizedStatus = status.toLowerCase();
       const hubspotStatus = DB_STATUS_TO_HUBSPOT_STATUS[normalizedStatus] || 'Suspended';
       properties.membership_status = hubspotStatus;
       updated.status = true;
       
-      // Set lifecycle stage based on membership status
-      // Active members should be 'customer', inactive/terminated should be 'other'
       const isActive = ['active', 'trialing', 'past_due'].includes(normalizedStatus);
-      properties.lifecyclestage = isActive ? 'customer' : 'other';
+      targetLifecycleStage = isActive ? 'customer' : 'other';
+      properties.lifecyclestage = targetLifecycleStage;
     }
     
     if (billingProvider) {
@@ -296,7 +296,16 @@ export async function syncMemberToHubSpot(
       return { success: true, contactId, updated };
     }
     
-    // Try to update all properties first
+    if (targetLifecycleStage) {
+      try {
+        await retryableHubSpotRequest(() =>
+          hubspot.crm.contacts.basicApi.update(contactId, { properties: { lifecyclestage: '0' } })
+        );
+      } catch (clearError: unknown) {
+        logger.warn(`[HubSpot Sync] Could not clear lifecyclestage for ${email} before setting to '${targetLifecycleStage}':`, { error: clearError });
+      }
+    }
+
     try {
       await retryableHubSpotRequest(() =>
         hubspot.crm.contacts.basicApi.update(contactId, { properties })

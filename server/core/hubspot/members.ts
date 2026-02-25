@@ -997,6 +997,14 @@ export async function syncTierToHubSpot(params: {
       properties.billing_provider = hubspotBillingProvider;
     }
     
+    try {
+      await retryableHubSpotRequest(() =>
+        hubspot.crm.contacts.basicApi.update(hubspotContactId, { properties: { lifecyclestage: '0' } })
+      );
+    } catch (clearError: unknown) {
+      logger.warn(`[HubSpot TierSync] Could not clear lifecyclestage for ${normalizedEmail} before setting to '${lifecyclestage}':`, { error: clearError });
+    }
+
     await retryableHubSpotRequest(() =>
       hubspot.crm.contacts.basicApi.update(hubspotContactId, { properties })
     );
