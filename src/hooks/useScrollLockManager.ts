@@ -38,11 +38,10 @@ function applyScrollLock() {
   if (lockCount === 1) {
     savedScrollY = window.scrollY;
     const isDark = document.documentElement.classList.contains('dark');
-    const lockBg = isDark ? '#1a1d15' : '#ffffff';
+    const lockBg = isDark ? '#141414' : '#F2F2EC';
     document.documentElement.style.setProperty('background-color', lockBg, 'important');
     document.body.style.setProperty('background-color', lockBg, 'important');
     document.documentElement.classList.add('overflow-hidden');
-    document.body.style.setProperty('overflow', 'hidden', 'important');
     document.body.style.position = 'fixed';
     document.body.style.top = `-${savedScrollY}px`;
     document.body.style.left = '0';
@@ -63,7 +62,6 @@ function removeScrollLock() {
     document.documentElement.style.removeProperty('background-color');
     document.body.style.removeProperty('background-color');
     document.documentElement.classList.remove('overflow-hidden');
-    document.body.style.removeProperty('overflow');
     document.body.style.position = '';
     document.body.style.top = '';
     document.body.style.left = '';
@@ -107,7 +105,6 @@ export function forceReleaseAllLocks(): void {
   document.documentElement.style.removeProperty('background-color');
   document.body.style.removeProperty('background-color');
   document.documentElement.classList.remove('overflow-hidden');
-  document.body.style.removeProperty('overflow');
   document.body.style.position = '';
   document.body.style.top = '';
   document.body.style.left = '';
@@ -201,7 +198,6 @@ if (typeof window !== 'undefined') {
       document.documentElement.style.removeProperty('background-color');
       document.body.style.removeProperty('background-color');
       document.documentElement.classList.remove('overflow-hidden');
-      document.body.style.removeProperty('overflow');
       document.body.style.position = '';
       document.body.style.top = '';
       document.body.style.left = '';
