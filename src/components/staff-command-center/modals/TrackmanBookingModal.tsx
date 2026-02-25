@@ -105,6 +105,8 @@ export function TrackmanBookingModal({
       setAutoApproved(false);
       setAutoConfirmedId(null);
       setShowSuccessOverlay(false);
+      setExternalId('');
+      setError(null);
       if (closeTimerRef.current) {
         clearTimeout(closeTimerRef.current);
         closeTimerRef.current = null;
@@ -265,7 +267,7 @@ export function TrackmanBookingModal({
       <div className="relative overflow-hidden">
         <div
           className={`p-4 space-y-5 transition-all duration-500 ease-out ${
-            autoApproved ? 'opacity-0 scale-95 max-h-0 pointer-events-none' : 'opacity-100 scale-100'
+            autoApproved ? 'opacity-0 scale-95 max-h-0 overflow-hidden pointer-events-none' : 'opacity-100 scale-100'
           }`}
           style={{ transformOrigin: 'top center' }}
         >
