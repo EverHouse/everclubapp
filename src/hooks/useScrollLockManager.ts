@@ -41,16 +41,19 @@ function applyScrollLock() {
     document.documentElement.style.setProperty('background-color', '#262626', 'important');
     document.body.style.setProperty('background-color', '#262626', 'important');
     document.documentElement.classList.add('overflow-hidden');
+    document.body.style.setProperty('overflow', 'hidden', 'important');
     document.body.style.position = 'fixed';
     document.body.style.top = `-${savedScrollY}px`;
     document.body.style.left = '0';
     document.body.style.right = '0';
     document.body.style.bottom = '0';
     document.body.style.width = '100%';
+    document.documentElement.style.setProperty('touch-action', 'none', 'important');
+    document.body.style.setProperty('touch-action', 'none', 'important');
     document.documentElement.style.overscrollBehavior = 'none';
     document.body.style.overscrollBehavior = 'none';
     document.addEventListener('touchmove', preventTouchMove, { passive: false });
-    console.log('[ScrollLock] APPLIED — body.position:', document.body.style.position, 'html.bg:', document.documentElement.style.backgroundColor);
+    console.log('[ScrollLock] APPLIED — body.position:', document.body.style.position, 'body.overflow:', document.body.style.overflow);
   } else {
     console.log('[ScrollLock] SKIPPED — lockCount is not 1');
   }
@@ -62,12 +65,15 @@ function removeScrollLock() {
     document.documentElement.style.removeProperty('background-color');
     document.body.style.removeProperty('background-color');
     document.documentElement.classList.remove('overflow-hidden');
+    document.body.style.removeProperty('overflow');
     document.body.style.position = '';
     document.body.style.top = '';
     document.body.style.left = '';
     document.body.style.right = '';
     document.body.style.bottom = '';
     document.body.style.width = '';
+    document.documentElement.style.removeProperty('touch-action');
+    document.body.style.removeProperty('touch-action');
     document.documentElement.style.overscrollBehavior = '';
     document.body.style.overscrollBehavior = '';
     document.removeEventListener('touchmove', preventTouchMove);
@@ -104,12 +110,15 @@ export function forceReleaseAllLocks(): void {
   document.documentElement.style.removeProperty('background-color');
   document.body.style.removeProperty('background-color');
   document.documentElement.classList.remove('overflow-hidden');
+  document.body.style.removeProperty('overflow');
   document.body.style.position = '';
   document.body.style.top = '';
   document.body.style.left = '';
   document.body.style.right = '';
   document.body.style.bottom = '';
   document.body.style.width = '';
+  document.documentElement.style.removeProperty('touch-action');
+  document.body.style.removeProperty('touch-action');
   document.documentElement.style.overscrollBehavior = '';
   document.body.style.overscrollBehavior = '';
   document.removeEventListener('touchmove', preventTouchMove);
@@ -199,12 +208,15 @@ if (typeof window !== 'undefined') {
       document.documentElement.style.removeProperty('background-color');
       document.body.style.removeProperty('background-color');
       document.documentElement.classList.remove('overflow-hidden');
+      document.body.style.removeProperty('overflow');
       document.body.style.position = '';
       document.body.style.top = '';
       document.body.style.left = '';
       document.body.style.right = '';
       document.body.style.bottom = '';
       document.body.style.width = '';
+      document.documentElement.style.removeProperty('touch-action');
+      document.body.style.removeProperty('touch-action');
       document.documentElement.style.overscrollBehavior = '';
       document.body.style.overscrollBehavior = '';
       document.removeEventListener('touchmove', preventTouchMove);
