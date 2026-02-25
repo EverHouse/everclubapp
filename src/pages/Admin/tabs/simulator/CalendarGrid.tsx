@@ -181,12 +181,11 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
 }) => {
     const timeSlots = useMemo(() => {
         const slots: string[] = [];
-        for (let hour = 8; hour <= 21; hour++) {
-            slots.push(`${hour.toString().padStart(2, '0')}:00`);
-            if (hour < 21) {
-                slots.push(`${hour.toString().padStart(2, '0')}:15`);
-                slots.push(`${hour.toString().padStart(2, '0')}:30`);
-                slots.push(`${hour.toString().padStart(2, '0')}:45`);
+        for (let hour = 8; hour <= 22; hour++) {
+            for (let min = 0; min < 60; min += 15) {
+                if (hour === 8 && min < 30) continue;
+                if (hour === 22 && min > 0) continue;
+                slots.push(`${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
             }
         }
         return slots;

@@ -1,7 +1,7 @@
 export const CALENDAR_CONFIG = {
   golf: {
     name: 'Booked Golf',
-    businessHours: { start: 9, end: 21 },
+    businessHours: { start: 9, end: 22 },
     slotDuration: 60,
   },
   conference: {
