@@ -79,6 +79,7 @@ router.get('/api/guest-passes/:email', isAuthenticated, async (req, res) => {
             passesUsed: 0,
             passesTotal: passesTotal
           })
+          .onConflictDoNothing()
       );
       result = await withRetry(() =>
         db.select()
@@ -430,7 +431,8 @@ export async function ensureGuestPassRecord(memberEmail: string, tier?: string):
           memberEmail: normalizedEmail,
           passesUsed: 0,
           passesTotal
-        });
+        })
+        .onConflictDoNothing();
     }
   } catch (error: unknown) {
     logger.error('[ensureGuestPassRecord] Error', { error: error instanceof Error ? error : new Error(String(error)) });

@@ -354,6 +354,7 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
                 passesUsed: 0,
                 passesTotal: passesTotal
               })
+              .onConflictDoNothing()
           );
           result = await withRetry(() =>
             db.select()
