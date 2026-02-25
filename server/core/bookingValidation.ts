@@ -39,11 +39,19 @@ export function parseTimeToMinutes(time: string | null | undefined): number {
 }
 
 export function hasTimeOverlap(start1: number, end1: number, start2: number, end2: number): boolean {
-  if (start2 > end2) {
-    // Overnight wrap-around: split into [start2, 1440) and [0, end2)
-    return (start1 < 1440 && end1 > start2) || (start1 < end2 && end1 > 0);
+  const normalizedEnd1 = start1 > end1 ? end1 + 1440 : end1;
+  const normalizedEnd2 = start2 > end2 ? end2 + 1440 : end2;
+
+  const overlapsNormal = Math.max(start1, start2) < Math.min(normalizedEnd1, normalizedEnd2);
+
+  if (start1 > end1 && start2 <= end2) {
+    return overlapsNormal || (start2 < end1);
   }
-  return start1 < end2 && end1 > start2;
+  if (start2 > end2 && start1 <= end1) {
+    return overlapsNormal || (start1 < end2);
+  }
+
+  return overlapsNormal;
 }
 
 async function getActiveClosuresForDate(bookingDate: string): Promise<Record<string, unknown>[]> {
@@ -153,8 +161,8 @@ export async function checkBookingConflict(
         eq(bookingRequests.status, 'cancellation_pending')
       ),
       and(
-        sql`${bookingRequests.startTime}::time < ${endTime}::time`,
-        sql`${bookingRequests.endTime}::time > ${startTime}::time`
+        sql`${bookingRequests.startTime}::time < ${endTime ?? null}::time`,
+        sql`${bookingRequests.endTime}::time > ${startTime ?? null}::time`
       )
     ];
 
@@ -192,8 +200,8 @@ export async function checkAvailabilityBlockConflict(
         eq(availabilityBlocks.resourceId, resourceId),
         sql`${availabilityBlocks.blockDate} = ${bookingDate}`,
         and(
-          sql`${availabilityBlocks.startTime}::time < ${endTime}::time`,
-          sql`${availabilityBlocks.endTime}::time > ${startTime}::time`
+          sql`${availabilityBlocks.startTime}::time < ${endTime ?? null}::time`,
+          sql`${availabilityBlocks.endTime}::time > ${startTime ?? null}::time`
         )
       ));
 

@@ -63,6 +63,15 @@ export async function checkUnifiedAvailability(
       };
     }
     
+    const requestConflict = await import('../bookingValidation').then(m => m.checkBookingConflict(resourceId, date, startTime, endTime));
+    if (requestConflict.hasConflict) {
+      return {
+        available: false,
+        conflictType: 'session',
+        conflictTitle: 'Pending Booking Request'
+      };
+    }
+
     return { available: true };
   } catch (error: unknown) {
     logger.error('[checkUnifiedAvailability] Error:', { error });
@@ -266,7 +275,8 @@ export async function getAvailableSlots(
           });
         }
       }
-      currentTime = Math.max(currentTime, slot.end);
+      const effectiveEnd = slot.end < slot.start ? slot.end + 1440 : slot.end;
+      currentTime = Math.max(currentTime, effectiveEnd);
     }
     
     for (let t = currentTime; t + slotDurationMinutes <= operatingEndMinutes; t += slotDurationMinutes) {
@@ -303,13 +313,17 @@ export async function isResourceAvailableForDate(
          AND end_time IS NULL
     `);
     
-    for (const closure of closures.rows) {
+    const parsePromises = closures.rows.map(async (closure) => {
       if (closure.affected_areas) {
         const affectedIds = await parseAffectedAreas(closure.affected_areas);
-        if (affectedIds.includes(resourceId)) {
-          return false;
-        }
+        return affectedIds.includes(resourceId);
       }
+      return false;
+    });
+
+    const results = await Promise.all(parsePromises);
+    if (results.some(hasConflict => hasConflict)) {
+      return false;
     }
     
     return true;

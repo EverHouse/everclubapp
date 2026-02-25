@@ -40,7 +40,7 @@ export type FamilyGroupWithMembers = BillingGroupWithMembers;
 export type FamilyMemberInfo = GroupMemberInfo;
 
 export function getCorporateVolumePrice(memberCount: number): number {
-  const tiers = getCorporateVolumeTiers();
+  const tiers = getCorporateVolumeTiers().sort((a, b) => b.minMembers - a.minMembers);
   for (const tier of tiers) {
     if (memberCount >= tier.minMembers) return tier.priceCents;
   }
@@ -882,7 +882,7 @@ export async function addCorporateMember(params: {
                   corporate_membership: 'true',
                 },
                 proration_behavior: 'create_prorations',
-              }, { idempotencyKey: `subitem_corp_add_${primaryStripeSubscriptionId}_${newPricePerSeat}_${newMemberCount}` });
+              }, { idempotencyKey: `subitem_corp_add_${primaryStripeSubscriptionId}_${newPricePerSeat}_${newMemberCount}_${Date.now()}` });
             
               newStripeItemId = newItem.id;
             
@@ -1038,7 +1038,7 @@ export async function removeCorporateMember(params: {
                 corporate_membership: 'true',
               },
               proration_behavior: 'create_prorations',
-            }, { idempotencyKey: `subitem_corp_remove_${primaryStripeSubscriptionId}_${newPricePerSeat}_${newMemberCount}` });
+            }, { idempotencyKey: `subitem_corp_remove_${primaryStripeSubscriptionId}_${newPricePerSeat}_${newMemberCount}_${Date.now()}` });
 
             newStripeItemId = newItem.id;
           
