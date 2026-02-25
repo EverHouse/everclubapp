@@ -1286,18 +1286,37 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                     </button>
                                   )}
                                   {!issue.ignored && issue.table === 'booking_sessions' && issue.category === 'orphan_record' && (
-                                    <button
-                                      onClick={() => {
-                                        if (confirm(`Delete empty session #${issue.recordId}? This cannot be undone.`)) {
-                                          fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/delete-empty-session', body: { recordId: issue.recordId } });
-                                        }
-                                      }}
-                                      disabled={fixingIssues.has(String(issue.recordId))}
-                                      className="p-1.5 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 rounded transition-colors disabled:opacity-50"
-                                      title="Delete empty session"
-                                    >
-                                      <span className="material-symbols-outlined text-[16px]">delete</span>
-                                    </button>
+                                    <>
+                                      {issue.context?.linkedBookingId && (
+                                        <button
+                                          onClick={() => setBookingSheet({
+                                            isOpen: true,
+                                            bookingId: issue.context!.linkedBookingId as number,
+                                            bayName: issue.context?.resourceName as string,
+                                            bookingDate: issue.context?.bookingDate as string,
+                                            timeSlot: `${issue.context?.startTime || ''} - ${issue.context?.endTime || ''}`,
+                                            trackmanBookingId: issue.context?.trackmanBookingId as string,
+                                            isUnmatched: true,
+                                          })}
+                                          className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors"
+                                          title="Assign member to this session"
+                                        >
+                                          <span className="material-symbols-outlined text-[16px]">person_add</span>
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => {
+                                          if (confirm(`Delete empty session #${issue.recordId}? This cannot be undone.`)) {
+                                            fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/delete-empty-session', body: { recordId: issue.recordId } });
+                                          }
+                                        }}
+                                        disabled={fixingIssues.has(String(issue.recordId))}
+                                        className="p-1.5 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 rounded transition-colors disabled:opacity-50"
+                                        title="Delete empty session"
+                                      >
+                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                      </button>
+                                    </>
                                   )}
                                   {!issue.ignored && issue.table === 'users' && issue.description?.includes('has no email') && (
                                     <button

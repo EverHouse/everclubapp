@@ -1980,10 +1980,14 @@ async function checkSessionsWithoutParticipants(): Promise<IntegrityCheckResult>
 
   const emptySessions = await db.execute(sql`
     SELECT bs.id, bs.session_date, bs.resource_id, bs.start_time, bs.end_time, bs.created_at,
-           r.name as resource_name
+           bs.trackman_booking_id,
+           r.name as resource_name,
+           br.id as linked_booking_id,
+           br.trackman_booking_id as booking_trackman_id
     FROM booking_sessions bs
     LEFT JOIN booking_participants bp ON bp.session_id = bs.id
     LEFT JOIN resources r ON bs.resource_id = r.id
+    LEFT JOIN booking_requests br ON br.session_id = bs.id
     WHERE bp.id IS NULL
       AND bs.session_date >= CURRENT_DATE - INTERVAL '30 days'
     LIMIT 100
@@ -2002,7 +2006,9 @@ async function checkSessionsWithoutParticipants(): Promise<IntegrityCheckResult>
         startTime: (row.start_time as string) || undefined,
         endTime: (row.end_time as string) || undefined,
         resourceName: (row.resource_name as string) || undefined,
-        resourceId: (row.resource_id as number) || undefined
+        resourceId: (row.resource_id as number) || undefined,
+        linkedBookingId: (row.linked_booking_id as number) || undefined,
+        trackmanBookingId: (row.trackman_booking_id as string) || (row.booking_trackman_id as string) || undefined
       }
     });
   }
