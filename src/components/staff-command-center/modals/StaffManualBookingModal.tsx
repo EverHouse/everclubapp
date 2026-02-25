@@ -36,64 +36,25 @@ export function StaffManualBookingModal({
 }: StaffManualBookingModalProps) {
   const { showToast } = useToast();
 
-  const initialDate = defaultDate ?? getTodayPacific();
-  const [confDate, setConfDate] = useState(initialDate);
+  const [confDate, setConfDate] = useState(defaultDate ?? getTodayPacific());
   const [confDuration, setConfDuration] = useState(60);
-  const [confAvailableSlots, setConfAvailableSlots] = useState<string[]>([]);
-  const [confSelectedSlot, setConfSelectedSlot] = useState<string>('');
+  const [confStartTime, setConfStartTime] = useState(defaultStartTime ?? '08:30');
   const [confHostMember, setConfHostMember] = useState<SelectedMember | null>(null);
   const [confFeeEstimate, setConfFeeEstimate] = useState<FeeEstimate | null>(null);
-  const [confLoadingSlots, setConfLoadingSlots] = useState(false);
   const [confLoadingFee, setConfLoadingFee] = useState(false);
   const [confSubmitting, setConfSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      const dateToUse = defaultDate ?? getTodayPacific();
-      setConfDate(dateToUse);
+      setConfDate(defaultDate ?? getTodayPacific());
+      setConfStartTime(defaultStartTime ?? '08:30');
       setConfDuration(60);
-      setConfAvailableSlots([]);
-      setConfSelectedSlot('');
       setConfHostMember(null);
       setConfFeeEstimate(null);
       setError(null);
     }
-  }, [isOpen, defaultDate]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const dateToFetch = confDate || defaultDate || getTodayPacific();
-    if (!dateToFetch) return;
-
-    setConfLoadingSlots(true);
-    setConfSelectedSlot('');
-    fetch(`/api/staff/conference-room/available-slots?date=${dateToFetch}&duration=${confDuration}`, { credentials: 'include' })
-      .then(res => res.json())
-      .then(slots => {
-        setConfAvailableSlots(slots);
-        if (slots.length > 0) {
-          let selectedSlot = slots[0];
-
-          if (defaultStartTime) {
-            if (slots.includes(defaultStartTime)) {
-              selectedSlot = defaultStartTime;
-            } else {
-              const [hours, mins] = defaultStartTime.split(':').map(Number);
-              const roundedMins = mins < 30 ? 0 : 30;
-              const roundedSlot = `${String(hours).padStart(2, '0')}:${String(roundedMins).padStart(2, '0')}`;
-              if (slots.includes(roundedSlot)) {
-                selectedSlot = roundedSlot;
-              }
-            }
-          }
-
-          setConfSelectedSlot(selectedSlot);
-        }
-      })
-      .catch(err => console.error('Failed to load available slots:', err))
-      .finally(() => setConfLoadingSlots(false));
-  }, [isOpen, confDate, confDuration, defaultStartTime]);
+  }, [isOpen, defaultDate, defaultStartTime]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -111,7 +72,7 @@ export function StaffManualBookingModal({
   }, [isOpen, confHostMember, confDate, confDuration]);
 
   const handleConferenceSubmit = useCallback(async () => {
-    if (!confHostMember || !confSelectedSlot || !confDate) {
+    if (!confHostMember || !confStartTime || !confDate) {
       setError('Please fill in all required fields');
       return;
     }
@@ -128,7 +89,7 @@ export function StaffManualBookingModal({
           hostEmail: confHostMember.email,
           hostName: confHostMember.name,
           date: confDate,
-          startTime: confSelectedSlot,
+          startTime: confStartTime,
           durationMinutes: confDuration
         })
       });
@@ -147,15 +108,14 @@ export function StaffManualBookingModal({
     } finally {
       setConfSubmitting(false);
     }
-  }, [confHostMember, confSelectedSlot, confDate, confDuration, showToast]);
+  }, [confHostMember, confStartTime, confDate, confDuration, showToast]);
 
-  const canCreateConferenceBooking = confHostMember && confSelectedSlot && confDate;
+  const canCreateConferenceBooking = confHostMember && confStartTime && confDate;
 
   const handleClose = useCallback(() => {
     setConfDate(getTodayPacific());
     setConfDuration(60);
-    setConfAvailableSlots([]);
-    setConfSelectedSlot('');
+    setConfStartTime('08:30');
     setConfHostMember(null);
     setConfFeeEstimate(null);
     setError(null);
@@ -236,30 +196,20 @@ export function StaffManualBookingModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Available Time Slots
+              Start Time
             </label>
-            {confLoadingSlots ? (
-              <div className="flex items-center gap-2 py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400">
-                <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
-                Loading available slots...
-              </div>
-            ) : confAvailableSlots.length === 0 ? (
-              <div className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
-                No available slots for this date and duration
-              </div>
-            ) : (
-              <select
-                value={confSelectedSlot}
-                onChange={(e) => setConfSelectedSlot(e.target.value)}
-                className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all duration-fast"
-              >
-                {confAvailableSlots.map(slot => (
-                  <option key={slot} value={slot}>
-                    {formatTime12Hour(slot)} - {formatTime12Hour(calculateEndTime(slot, confDuration))}
-                  </option>
-                ))}
-              </select>
-            )}
+            <div className="flex items-center gap-3">
+              <input
+                type="time"
+                value={confStartTime}
+                onChange={(e) => setConfStartTime(e.target.value)}
+                step="900"
+                className="flex-1 px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all duration-fast"
+              />
+              <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                {formatTime12Hour(confStartTime)} – {formatTime12Hour(calculateEndTime(confStartTime, confDuration))}
+              </span>
+            </div>
           </div>
 
           <div>
