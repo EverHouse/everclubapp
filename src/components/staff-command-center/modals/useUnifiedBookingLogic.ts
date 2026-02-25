@@ -1088,6 +1088,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
 
       let feesRecalculated = false;
       let resultBookingId = matchedBookingId;
+      let resolveMessage: string | null = null;
 
       if (isLegacyReview && matchedBookingId) {
         let numericId: number;
@@ -1117,6 +1118,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         }
         const data = await res.json();
         feesRecalculated = data.feesRecalculated === true;
+        resolveMessage = data.message || null;
         if (data.booking?.id) {
           resultBookingId = typeof data.booking.id === 'number' ? data.booking.id : parseInt(data.booking.id, 10);
         }
@@ -1188,7 +1190,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       }
       
       if (isLegacyReview) {
-        showToast(`Booking resolved and assigned to ${owner.name}`, 'success');
+        const hasWarning = resolveMessage && (resolveMessage.includes('Session') || resolveMessage.includes('session') || resolveMessage.includes('bay'));
+        showToast(resolveMessage || `Booking resolved and assigned to ${owner.name}`, hasWarning ? 'warning' : 'success', hasWarning ? 8000 : 3000);
       } else {
         showToast(`Booking assigned with ${filledSlotsCount} player${filledSlotsCount > 1 ? 's' : ''}${guestCount > 0 ? ` (${guestCount} guest${guestCount > 1 ? 's' : ''})` : ''}`, 'success');
       }

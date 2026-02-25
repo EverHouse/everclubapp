@@ -331,7 +331,8 @@ const TrackmanTab: React.FC = () => {
       if (data.autoResolved > 0) {
         showToast(`Resolved ${data.resolved} booking(s) (${data.autoResolved} auto-resolved with same name)`, 'success', 5000);
       } else {
-        showToast('Booking resolved successfully', 'success');
+        const hasWarning = data.message && (data.message.includes('Session') || data.message.includes('session') || data.message.includes('bay'));
+        showToast(data.message || 'Booking resolved successfully', hasWarning ? 'warning' : 'success', hasWarning ? 8000 : 3000);
       }
       await new Promise(resolve => setTimeout(resolve, 300));
     },

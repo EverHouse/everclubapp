@@ -481,14 +481,21 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
     const memberFullName = `${member.first_name} ${member.last_name}`.trim();
     
     if (booking.session_id) {
-      await db.execute(sql`UPDATE booking_participants 
-         SET user_id = ${member.id},
-             display_name = ${memberFullName}
-         WHERE session_id = ${booking.session_id} 
-           AND participant_type = 'owner'`);
-      logger.info('[Trackman Resolve] Updated owner participant display_name and user_id', { 
-        extra: { sessionId: booking.session_id, memberName: memberFullName, memberId: member.id } 
-      });
+      const sessionExists = await db.execute(sql`SELECT id FROM booking_sessions WHERE id = ${booking.session_id} LIMIT 1`);
+      if (sessionExists.rows.length === 0) {
+        logger.warn('[Trackman Resolve] Booking has orphaned session_id — session does not exist, clearing', { extra: { bookingId: booking.id, orphanedSessionId: booking.session_id } });
+        await db.execute(sql`UPDATE booking_requests SET session_id = NULL WHERE id = ${booking.id}`);
+        booking.session_id = null;
+      } else {
+        await db.execute(sql`UPDATE booking_participants 
+           SET user_id = ${member.id},
+               display_name = ${memberFullName}
+           WHERE session_id = ${booking.session_id} 
+             AND participant_type = 'owner'`);
+        logger.info('[Trackman Resolve] Updated owner participant display_name and user_id', { 
+          extra: { sessionId: booking.session_id, memberName: memberFullName, memberId: member.id } 
+        });
+      }
     }
     
     let originalEmailForLearning: string | null = null;
@@ -561,7 +568,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                 const otherBD = otherBookingDetails.rows[0] as DbRow;
                 let otherSessionId = otherBD?.session_id;
                 
-                if (!otherSessionId && otherBD) {
+                if (!otherSessionId && otherBD && otherBD.resource_id) {
                   const otherDateStr = typeof otherBD.request_date === 'string' ? otherBD.request_date :
                     new Date(otherBD.request_date as string | number | Date).toISOString().split('T')[0];
                   const otherSessionResult = await ensureSessionForBooking({
@@ -758,20 +765,29 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
         
         let sessionId = booking.session_id;
         if (!sessionId) {
-          const sessionResult = await ensureSessionForBooking({
-            bookingId: booking.id as number,
-            resourceId: booking.resource_id as number,
-            sessionDate: bookingDateStr,
-            startTime: booking.start_time as string,
-            endTime: booking.end_time as string,
-            ownerEmail: (member.email as string) || '',
-            ownerName: memberFullName,
-            ownerUserId: member.id?.toString(),
-            trackmanBookingId: booking.trackman_booking_id as string,
-            source: 'trackman_import',
-            createdBy: 'staff_resolve'
-          });
-          sessionId = sessionResult.sessionId || null;
+          if (!booking.resource_id) {
+            logger.warn('[Trackman Resolve] Cannot create session for visitor — booking has no resource_id (bay)', { extra: { bookingId: booking.id } });
+            billingMessage += ' (No bay assigned — session could not be created. Please set the bay and use Data Integrity to create the session.)';
+          } else {
+            const sessionResult = await ensureSessionForBooking({
+              bookingId: booking.id as number,
+              resourceId: booking.resource_id as number,
+              sessionDate: bookingDateStr,
+              startTime: booking.start_time as string,
+              endTime: booking.end_time as string,
+              ownerEmail: (member.email as string) || '',
+              ownerName: memberFullName,
+              ownerUserId: member.id?.toString(),
+              trackmanBookingId: booking.trackman_booking_id as string,
+              source: 'trackman_import',
+              createdBy: 'staff_resolve'
+            });
+            sessionId = sessionResult.sessionId || null;
+            if (!sessionId && sessionResult.error) {
+              logger.error('[Trackman Resolve] ensureSessionForBooking failed for visitor', { extra: { bookingId: booking.id, error: sessionResult.error } });
+              billingMessage += ' (Session creation failed — please use Data Integrity to create the session.)';
+            }
+          }
         }
         
         if (sessionId) {
@@ -803,20 +819,29 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
         
         let sessionId = booking.session_id;
         if (!sessionId) {
-          const sessionResult = await ensureSessionForBooking({
-            bookingId: booking.id as number,
-            resourceId: booking.resource_id as number,
-            sessionDate: bookingDateStr,
-            startTime: booking.start_time as string,
-            endTime: booking.end_time as string,
-            ownerEmail: (member.email as string) || '',
-            ownerName: memberFullName,
-            ownerUserId: member.id?.toString(),
-            trackmanBookingId: booking.trackman_booking_id as string,
-            source: 'trackman_import',
-            createdBy: 'staff_resolve'
-          });
-          sessionId = sessionResult.sessionId || null;
+          if (!booking.resource_id) {
+            logger.warn('[Trackman Resolve] Cannot create session — booking has no resource_id (bay)', { extra: { bookingId: booking.id } });
+            billingMessage += ' (No bay assigned — session could not be created. Please set the bay and use Data Integrity to create the session.)';
+          } else {
+            const sessionResult = await ensureSessionForBooking({
+              bookingId: booking.id as number,
+              resourceId: booking.resource_id as number,
+              sessionDate: bookingDateStr,
+              startTime: booking.start_time as string,
+              endTime: booking.end_time as string,
+              ownerEmail: (member.email as string) || '',
+              ownerName: memberFullName,
+              ownerUserId: member.id?.toString(),
+              trackmanBookingId: booking.trackman_booking_id as string,
+              source: 'trackman_import',
+              createdBy: 'staff_resolve'
+            });
+            sessionId = sessionResult.sessionId || null;
+            if (!sessionId && sessionResult.error) {
+              logger.error('[Trackman Resolve] ensureSessionForBooking failed', { extra: { bookingId: booking.id, error: sessionResult.error } });
+              billingMessage += ' (Session creation failed — please use Data Integrity to create the session.)';
+            }
+          }
         }
         
         if (sessionId) {

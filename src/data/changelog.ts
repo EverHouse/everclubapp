@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.31.7",
+    date: "2026-02-25",
+    title: "Fix: Session Creation When Assigning Unmatched Trackman Bookings",
+    changes: [
+      "Fixed: Assigning unmatched Trackman bookings to members now reliably creates billing sessions — previously session creation could fail silently (e.g., missing bay assignment or orphaned session reference) and staff would see a success message without realizing no session was created",
+      "Fixed: If a booking references a session that was deleted, the system now detects the orphaned reference, clears it, and creates a fresh session instead of silently skipping session creation",
+      "Improved: Staff now sees a clear warning message when session creation fails during assignment, instead of a misleading success message",
+    ]
+  },
+  {
     version: "8.31.6",
     date: "2026-02-25",
     title: "Fix: Dev/Production Scheduler Race Condition",
