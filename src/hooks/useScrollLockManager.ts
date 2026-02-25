@@ -34,11 +34,15 @@ function preventTouchMove(e: TouchEvent) {
   e.preventDefault();
 }
 
+let savedHtmlBg = '';
+
 function applyScrollLock() {
   if (lockCount === 1) {
     savedScrollY = window.scrollY;
+    savedHtmlBg = document.documentElement.style.backgroundColor;
+    document.documentElement.style.backgroundColor = 'rgba(0,0,0,0.6)';
     document.body.style.position = 'fixed';
-    document.body.style.top = '0';
+    document.body.style.top = `-${savedScrollY}px`;
     document.body.style.left = '0';
     document.body.style.right = '0';
     document.body.style.bottom = '0';
@@ -52,6 +56,7 @@ function applyScrollLock() {
 function removeScrollLock() {
   if (lockCount === 0 && lockOwners.size === 0) {
     const scrollY = savedScrollY;
+    document.documentElement.style.backgroundColor = savedHtmlBg;
     document.body.style.position = '';
     document.body.style.top = '';
     document.body.style.left = '';
@@ -90,6 +95,7 @@ export function forceReleaseAllLocks(): void {
   lockOwners.clear();
   lockCount = 0;
   const scrollY = savedScrollY;
+  document.documentElement.style.backgroundColor = savedHtmlBg;
   document.body.style.position = '';
   document.body.style.top = '';
   document.body.style.left = '';
@@ -178,6 +184,7 @@ export function useScrollLockControl() {
 if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && lockCount === 0 && lockOwners.size === 0) {
+      document.documentElement.style.backgroundColor = '';
       document.body.style.position = '';
       document.body.style.top = '';
       document.body.style.left = '';
