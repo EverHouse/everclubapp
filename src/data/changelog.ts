@@ -10,12 +10,16 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.28.0",
     date: "2026-02-25",
-    title: "Admin Calendar & Conference Room Booking Improvements",
+    title: "Admin Calendar, Conference Room & Critical Billing Fixes",
     changes: [
       "Improved: Admin calendar grid now starts at 8:30 AM and extends to 10:00 PM to match actual club operating hours — removed the unused 8:00 and 8:15 AM rows",
       "Improved: Conference room cells on the calendar now show a styled hover card with booking details instead of a plain browser tooltip",
       "Improved: Table column headers on admin pages now scroll naturally with the page instead of staying sticky, fixing visual clipping issues with hover popups",
       "Fixed: Staff conference room booking modal sometimes showed 'No available slots' even when clicking on clearly empty calendar cells — removed the unreliable slot-check and now uses the clicked time directly",
+      "Fixed: 'Cancel Immediately' for member subscriptions was actually scheduling cancellation at the end of the billing cycle instead of cancelling right now — immediate cancellations now take effect instantly (Bug 36)",
+      "Fixed: Applying discount coupons to subscriptions appeared to succeed but was silently ignored by Stripe due to using a deprecated API parameter — now uses the modern discounts array so coupons actually apply to billing (Bug 37)",
+      "Fixed: MindBody sales import could match purchases to the wrong member when two members share the same name — removed the risky name-only fallback; unmatched purchases now go to the admin unmatched queue for manual linking (Bug 35)",
+      "Fixed: Billing migration script always reported 'Updated 0 members' even when it succeeded, due to reading the wrong property from the database result (Bug 38)",
       "Fixed: Member deletion now properly cleans up related data across all tables to prevent orphaned records",
       "Fixed: Creating booking sessions with identical start and end times no longer causes an error",
       "Fixed: Database connection leak in certain error paths that could cause server crashes under load",

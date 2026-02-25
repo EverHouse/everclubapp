@@ -142,7 +142,7 @@ export async function bulkClassifyMindbodyMembers(): Promise<{ updated: number; 
         sql`${users.billingProvider} IS NULL OR ${users.billingProvider} = ''`
       ));
     
-    updated = (result as unknown as Record<string, unknown>).count as number || 0;
+    updated = (result as unknown as Record<string, unknown>).rowCount as number || 0;
     logger.info(`[BillingClassify] Updated ${updated} members with Mindbody IDs to mindbody provider`);
     
     return { updated, errors };

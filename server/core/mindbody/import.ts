@@ -435,21 +435,8 @@ export async function importSalesFromContent(content: string, clientLookup?: Map
           }
         }
         
-        // Try name-only match as final fallback (when we have first and last name but no phone)
-        if (member.length === 0 && firstName && lastName) {
-          const nameOnlyMatch = await db.select({ id: users.id, email: users.email })
-            .from(users)
-            .where(and(
-              ilike(users.firstName, firstName),
-              ilike(users.lastName, lastName)
-            ))
-            .limit(1);
-          if (nameOnlyMatch.length > 0) {
-            member = nameOnlyMatch;
-            matchMethod = 'name';
-            result.matchedByName++;
-          }
-        }
+        // Name-only matching removed — too high risk of false matches (e.g. two "John Smith" members).
+        // Unmatched purchases go to the /unmatched admin route for manual linking.
         
         if (member.length === 0) {
           result.unmatched++;

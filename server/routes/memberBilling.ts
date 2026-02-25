@@ -466,9 +466,13 @@ router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, async (req, res
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
     
-    const effectiveDate = immediate ? currentPeriodEnd : 
-      (thirtyDaysFromNow > currentPeriodEnd ? thirtyDaysFromNow : currentPeriodEnd);
-    const cancelAtTimestamp = Math.floor(effectiveDate.getTime() / 1000);
+    let cancelAtTimestamp: number;
+    if (immediate) {
+      cancelAtTimestamp = Math.floor(Date.now() / 1000);
+    } else {
+      const effectiveDate = thirtyDaysFromNow > currentPeriodEnd ? thirtyDaysFromNow : currentPeriodEnd;
+      cancelAtTimestamp = Math.floor(effectiveDate.getTime() / 1000);
+    }
 
     const updated = await stripe.subscriptions.update(subscription.id, {
       cancel_at: cancelAtTimestamp,
@@ -689,8 +693,8 @@ router.post('/api/member-billing/:email/discount', isStaffOrAdmin, async (req, r
     }
 
     await stripe.subscriptions.update(subscription.id, {
-      coupon: appliedCouponId,
-    } as any);
+      discounts: [{ coupon: appliedCouponId }],
+    });
 
     try {
       const coupon = await stripe.coupons.retrieve(appliedCouponId);
