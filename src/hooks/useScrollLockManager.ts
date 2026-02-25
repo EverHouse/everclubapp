@@ -41,6 +41,7 @@ function applyScrollLock() {
     document.body.style.top = `-${savedScrollY}px`;
     document.body.style.left = '0';
     document.body.style.right = '0';
+    document.body.style.bottom = '0';
     document.body.style.width = '100%';
     document.documentElement.classList.add('overflow-hidden');
     document.body.classList.add('overflow-hidden');
@@ -57,6 +58,7 @@ function removeScrollLock() {
     document.body.style.top = '';
     document.body.style.left = '';
     document.body.style.right = '';
+    document.body.style.bottom = '';
     document.body.style.width = '';
     document.documentElement.classList.remove('overflow-hidden');
     document.body.classList.remove('overflow-hidden');
@@ -96,6 +98,7 @@ export function forceReleaseAllLocks(): void {
   document.body.style.top = '';
   document.body.style.left = '';
   document.body.style.right = '';
+  document.body.style.bottom = '';
   document.body.style.width = '';
   document.documentElement.classList.remove('overflow-hidden');
   document.body.classList.remove('overflow-hidden');
@@ -185,6 +188,7 @@ if (typeof window !== 'undefined') {
       document.body.style.top = '';
       document.body.style.left = '';
       document.body.style.right = '';
+      document.body.style.bottom = '';
       document.body.style.width = '';
       document.documentElement.classList.remove('overflow-hidden');
       document.body.classList.remove('overflow-hidden');
