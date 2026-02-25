@@ -68,6 +68,21 @@ router.post('/api/stripe/subscriptions', isStaffOrAdmin, async (req: Request, re
       return res.status(500).json({ error: result.error || 'Failed to create subscription' });
     }
     
+    if ((result.subscription?.amountDue ?? 0) === 0 && result.subscription?.status === 'incomplete' && result.subscription?.subscriptionId) {
+      const stripe = await getStripeClient();
+      try {
+        const sub = await stripe.subscriptions.retrieve(result.subscription.subscriptionId);
+        const latestInvoice = sub.latest_invoice;
+        const invoiceId = typeof latestInvoice === 'string' ? latestInvoice : latestInvoice?.id;
+        if (invoiceId) {
+          await stripe.invoices.pay(invoiceId, { paid_out_of_band: true });
+          logger.info('[Stripe] Marked $0 invoice as paid out of band (generic route)', { extra: { invoiceId } });
+        }
+      } catch (payErr: unknown) {
+        logger.warn('[Stripe] Could not mark $0 invoice as paid (may already be paid)', { extra: { error: getErrorMessage(payErr) } });
+      }
+    }
+    
     try {
       if (memberEmail) {
         sendNotificationToUser(memberEmail, {
@@ -234,6 +249,21 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async
     const subStatus = stripeSubscription?.status;
     const amountDue = stripeSubscription?.amountDue ?? 0;
     const memberStatus = (subStatus === 'active' || subStatus === 'trialing' || amountDue === 0) ? 'active' : 'pending';
+    
+    if (amountDue === 0 && subStatus === 'incomplete' && stripeSubscription?.subscriptionId) {
+      const stripe = await getStripeClient();
+      try {
+        const sub = await stripe.subscriptions.retrieve(stripeSubscription.subscriptionId);
+        const latestInvoice = sub.latest_invoice;
+        const invoiceId = typeof latestInvoice === 'string' ? latestInvoice : latestInvoice?.id;
+        if (invoiceId) {
+          await stripe.invoices.pay(invoiceId, { paid_out_of_band: true });
+          logger.info('[Stripe] Marked $0 invoice as paid out of band (existing member)', { extra: { invoiceId } });
+        }
+      } catch (payErr: unknown) {
+        logger.warn('[Stripe] Could not mark $0 invoice as paid (may already be paid)', { extra: { error: getErrorMessage(payErr) } });
+      }
+    }
     
     try {
       await db.update(users).set({
