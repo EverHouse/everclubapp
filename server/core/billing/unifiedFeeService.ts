@@ -888,7 +888,8 @@ export async function invalidateCachedFees(
 
 export async function recalculateSessionFees(
   sessionId: number,
-  source: FeeComputeParams['source']
+  source: FeeComputeParams['source'],
+  options?: { skipCascade?: boolean }
 ): Promise<FeeBreakdown> {
   const breakdown = await computeFeeBreakdown({
     sessionId,
@@ -897,6 +898,55 @@ export async function recalculateSessionFees(
   });
   
   await applyFeeBreakdownToParticipants(sessionId, breakdown);
+
+  if (!options?.skipCascade) {
+    try {
+      const sessionInfo = await db.execute(sql`
+        SELECT bs.id, bs.session_date, br.user_email, br.start_time
+        FROM booking_sessions bs
+        JOIN booking_requests br ON br.session_id = bs.id
+        WHERE bs.id = ${sessionId}
+        LIMIT 1
+      `);
+      const sess = sessionInfo.rows[0] as Record<string, any> | undefined;
+      if (sess?.user_email && sess?.session_date) {
+        const laterSessions = await db.execute(sql`
+          SELECT bs.id
+          FROM booking_sessions bs
+          JOIN booking_requests br ON br.session_id = bs.id
+          WHERE LOWER(br.user_email) = LOWER(${sess.user_email})
+            AND bs.session_date = ${sess.session_date}
+            AND br.start_time > ${sess.start_time}
+            AND br.status IN ('approved', 'confirmed', 'attended')
+            AND bs.id != ${sessionId}
+          ORDER BY br.start_time ASC
+          LIMIT 10
+        `);
+        for (const later of laterSessions.rows as any[]) {
+          try {
+            const laterBreakdown = await computeFeeBreakdown({
+              sessionId: later.id,
+              source,
+              excludeSessionFromUsage: true
+            });
+            await applyFeeBreakdownToParticipants(later.id, laterBreakdown);
+            logger.info('[UnifiedFeeService] Cascade-recalculated subsequent session', {
+              triggeredBySessionId: sessionId,
+              cascadedSessionId: later.id,
+              newTotalCents: laterBreakdown.totals.totalCents
+            });
+          } catch (cascadeErr: unknown) {
+            logger.warn('[UnifiedFeeService] Failed to cascade-recalculate session', {
+              cascadedSessionId: later.id,
+              error: cascadeErr
+            });
+          }
+        }
+      }
+    } catch (cascadeLookupErr: unknown) {
+      logger.warn('[UnifiedFeeService] Failed to look up cascade sessions (non-blocking)', { error: cascadeLookupErr });
+    }
+  }
   
   return breakdown;
 }

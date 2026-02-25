@@ -14,6 +14,7 @@ import { createSessionWithUsageTracking, ensureSessionForBooking } from './sessi
 import { recalculateSessionFees } from '../billing/unifiedFeeService';
 import { PaymentStatusService } from '../billing/PaymentStatusService';
 import { cancelPaymentIntent, getStripeClient } from '../stripe';
+import { cancelPendingPaymentIntentsForBooking } from '../billing/paymentIntentCleanup';
 import Stripe from 'stripe';
 import { getCalendarNameForBayAsync } from '../../routes/bays/helpers';
 import { getCalendarIdByName, createCalendarEventOnCalendar, deleteCalendarEvent } from '../calendar/index';
@@ -171,15 +172,52 @@ export async function validateTrackmanId(trackmanBookingId: string, bookingId: n
           )
         `).then(r => r.rows as Array<Record<string, unknown>>);
 
-        if (orphanedSession?.id) {
-          await db.execute(sql`DELETE FROM booking_sessions WHERE id = ${orphanedSession.id}`);
-          logger.info('[ValidateTrackmanId] Cleaned up orphaned session', {
-            extra: { sessionId: orphanedSession.id, declinedBookingId: duplicateId }
+        try {
+          await cancelPendingPaymentIntentsForBooking(duplicateId);
+          logger.info('[ValidateTrackmanId] Cleaned up payment intents for orphaned booking', {
+            extra: { declinedBookingId: duplicateId }
+          });
+        } catch (piErr: unknown) {
+          logger.warn('[ValidateTrackmanId] Payment intent cleanup failed for orphaned booking (non-blocking)', {
+            extra: { declinedBookingId: duplicateId, error: piErr instanceof Error ? piErr.message : String(piErr) }
           });
         }
 
         try {
           const stripe = getStripeClient();
+
+          const allSnapshots = await db.execute(sql`
+            SELECT id, stripe_payment_intent_id, total_cents
+            FROM booking_fee_snapshots
+            WHERE booking_id = ${duplicateId} AND stripe_payment_intent_id IS NOT NULL
+          `);
+          for (const snapshot of allSnapshots.rows as any[]) {
+            try {
+              const pi = await stripe.paymentIntents.retrieve(snapshot.stripe_payment_intent_id);
+              if (pi.status === 'succeeded') {
+                const refund = await stripe.refunds.create({
+                  payment_intent: snapshot.stripe_payment_intent_id,
+                  reason: 'requested_by_customer'
+                }, {
+                  idempotencyKey: `refund_trackman_relink_snapshot_${duplicateId}_${snapshot.stripe_payment_intent_id}`
+                });
+                await PaymentStatusService.markPaymentRefunded({
+                  paymentIntentId: snapshot.stripe_payment_intent_id,
+                  bookingId: duplicateId,
+                  refundId: refund.id,
+                  amountCents: pi.amount
+                });
+                logger.info('[ValidateTrackmanId] Refunded fee snapshot for orphaned booking', {
+                  extra: { paymentIntentId: snapshot.stripe_payment_intent_id, refundId: refund.id, declinedBookingId: duplicateId }
+                });
+              }
+            } catch (snapErr: unknown) {
+              logger.warn('[ValidateTrackmanId] Fee snapshot refund failed (non-blocking)', {
+                extra: { paymentIntentId: snapshot.stripe_payment_intent_id, error: snapErr instanceof Error ? snapErr.message : String(snapErr) }
+              });
+            }
+          }
+
           const invoices = await stripe.invoices.search({
             query: `metadata["booking_id"]:"${duplicateId}"`,
             limit: 5
@@ -198,8 +236,15 @@ export async function validateTrackmanId(trackmanBookingId: string, bookingId: n
             }
           }
         } catch (invoiceErr: unknown) {
-          logger.warn('[ValidateTrackmanId] Invoice cleanup failed for orphaned booking (non-blocking)', {
+          logger.warn('[ValidateTrackmanId] Stripe cleanup failed for orphaned booking (non-blocking)', {
             extra: { declinedBookingId: duplicateId, error: invoiceErr instanceof Error ? invoiceErr.message : String(invoiceErr) }
+          });
+        }
+
+        if (orphanedSession?.id) {
+          await db.execute(sql`DELETE FROM booking_sessions WHERE id = ${orphanedSession.id}`);
+          logger.info('[ValidateTrackmanId] Cleaned up orphaned session', {
+            extra: { sessionId: orphanedSession.id, declinedBookingId: duplicateId }
           });
         }
 
@@ -595,6 +640,14 @@ export async function approveBooking(params: ApproveBookingParams) {
               eq(bookingParticipants.sessionId, prepaymentData.createdSessionId),
               eq(bookingParticipants.paymentStatus, 'pending')
             ));
+          await logPaymentAudit({
+            bookingId: prepaymentData.bookingId,
+            sessionId: prepaymentData.createdSessionId,
+            action: 'payment_confirmed',
+            staffEmail: 'system',
+            amountAffected: prepaymentData.totalFeeCents / 100,
+            paymentMethod: 'account_credit'
+          });
           logger.info('[Booking Approval] Prepayment fully covered by credit for session', { extra: { createdSessionId: prepaymentData.createdSessionId } });
         }
       } catch (prepayError: unknown) {
@@ -927,7 +980,7 @@ export async function cancelBooking(params: CancelBookingParams) {
     }
 
     const isTrackmanLinked = !!existing.trackmanBookingId && /^\d+$/.test(existing.trackmanBookingId);
-    const wasApproved = existing.status === 'approved';
+    const wasApproved = ['approved', 'confirmed'].includes(existing.status);
     const needsPendingCancel = isTrackmanLinked && wasApproved;
 
     if (needsPendingCancel) {
@@ -1259,6 +1312,9 @@ export async function cancelBooking(params: CancelBookingParams) {
                 }, {
                   idempotencyKey: `refund_staff_cancel_participant_${bookingId}_${participant.stripePaymentIntentId}`
                 });
+                await db.update(bookingParticipants)
+                  .set({ paymentStatus: 'refunded', refundedAt: new Date() })
+                  .where(eq(bookingParticipants.id, participant.id));
                 logger.info('[Staff Cancel] Refunded guest fee for : $, refund', { extra: { participantDisplay_name: participant.displayName, participantCached_fee_cents_100_ToFixed_2: ((participant.cachedFeeCents || 0) / 100).toFixed(2), refundId: refund.id } });
               }
             } catch (refundErr: unknown) {
@@ -1266,19 +1322,6 @@ export async function cancelBooking(params: CancelBookingParams) {
             }
           })),
         ]);
-
-        if (stripeCleanupData.sessionId) {
-          try {
-            await db.update(bookingParticipants)
-              .set({ paymentStatus: 'refunded' })
-              .where(and(
-                eq(bookingParticipants.sessionId, stripeCleanupData.sessionId),
-                eq(bookingParticipants.paymentStatus, 'paid')
-              ));
-          } catch (updateErr: unknown) {
-            logger.error('[Staff Cancel] Failed to mark participants as refunded after Stripe refunds', { extra: { error: getErrorMessage(updateErr) } });
-          }
-        }
       } catch (stripeErr: unknown) {
         logger.error('[Staff Cancel] Failed to handle payment intents (non-blocking)', { extra: { cancelIntentsErr: stripeErr } });
       }
@@ -1912,14 +1955,18 @@ export async function devConfirmBooking(params: DevConfirmParams) {
       }
     }
 
-    await tx.execute(sql`
+    const devConfirmResult = await tx.execute(sql`
       UPDATE booking_requests 
        SET status = 'approved', 
            session_id = COALESCE(session_id, ${sessionId}),
            notes = COALESCE(notes, '') || E'\n[Dev confirmed]',
            updated_at = NOW()
-       WHERE id = ${bookingId}
+       WHERE id = ${bookingId} AND status IN ('pending', 'pending_approval')
     `);
+
+    if (!devConfirmResult.rowCount || devConfirmResult.rowCount === 0) {
+      return { success: false, error: 'Booking status changed while processing — please refresh and try again' };
+    }
 
     const dateStr = typeof booking.request_date === 'string'
       ? booking.request_date
@@ -2094,6 +2141,12 @@ export async function completeCancellation(params: CompleteCancellationParams) {
             reason: 'requested_by_customer'
           }, {
             idempotencyKey: `refund_complete_cancel_snapshot_${bookingId}_${snapshot.stripe_payment_intent_id}`
+          });
+          await PaymentStatusService.markPaymentRefunded({
+            paymentIntentId: snapshot.stripe_payment_intent_id,
+            bookingId,
+            refundId: refund.id,
+            amountCents: pi.amount
           });
           logger.info('[Complete Cancellation] Refunded fee snapshot payment', { 
             extra: { 

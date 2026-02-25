@@ -10,13 +10,22 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.26.7",
     date: "2026-02-25",
-    title: "Check-In Sheet Actions, Webhook Transaction Safety & Data Integrity Fixes",
+    title: "Critical Financial Safety, Webhook Transaction & Check-In Fixes",
+    isMajor: true,
     changes: [
-      "Fixed: Check In and Cancel Booking buttons in the booking details sheet (opened from calendar/bay views) did nothing when tapped — both actions are now properly wired to the staff command center handlers",
-      "Fixed: The check-in status dropdown appeared behind the booking sheet and was misaligned — dropdown now renders above the sheet (z-index fix) and centers over the button",
-      "Fixed: Day pass purchases from Stripe checkout ran outside the webhook transaction boundary, risking inconsistent state if the webhook failed mid-processing — day pass recording now runs as a deferred action after the transaction commits, with existing idempotency protection preventing duplicates",
-      "Fixed: Check-in and no-show push notifications could display raw unparsed date strings (e.g. 'Tue Feb 24 2026...') instead of formatted dates — now correctly uses ISO date parsing",
-      "Fixed: If a booking had no owner email (legacy/ghost bookings), the check-in membership status query could crash with invalid SQL — now safely handles null/undefined emails",
+      "Fixed: When a Trackman ID was re-linked to a new booking, the old booking's paid sessions were deleted without refunding Payment Intents — now properly refunds succeeded payments and cancels pending ones before cleanup (Bug 10)",
+      "Fixed: devConfirmBooking could overwrite a member's cancellation due to a TOCTOU race condition — the UPDATE now includes an optimistic lock on booking status (Bug 11)",
+      "Fixed: completeCancellation refunded via Stripe but never updated the database to reflect 'refunded' status — now calls PaymentStatusService.markPaymentRefunded to keep the ledger accurate (Bug 12)",
+      "Fixed: Editing an earlier booking's duration didn't trigger fee recalculation on subsequent same-day bookings — recalculateSessionFees now cascades to later sessions for the same member (Bug 13)",
+      "Fixed: Cancelling a booking while a member was actively playing (status 'confirmed') bypassed the Trackman cancellation guard — wasApproved now includes 'confirmed' status to prevent free golf exploits (Bug 14)",
+      "Fixed: After cancelling a booking, all paid participants were bulk-marked as 'refunded' even if some individual Stripe refunds failed — each participant's status now updates only after their specific refund succeeds (Bug 15)",
+      "Fixed: Webhook overpayment verification double-counted session usage, causing false 'needs_review' flags for staff — now passes excludeSessionFromUsage to prevent double-counting (Bug 16)",
+      "Fixed: When account credit fully covered booking fees, no audit trail was created — now logs a payment_confirmed audit entry with 'account_credit' payment method (Bug 17)",
+      "Fixed: Day pass purchases from Stripe checkout ran outside the webhook transaction boundary — recording now runs as a deferred action after commit (Bug 18)",
+      "Fixed: Check In and Cancel Booking buttons in the booking details sheet did nothing when tapped — both are now properly wired to the staff command center handlers",
+      "Fixed: The check-in status dropdown appeared behind the booking sheet — dropdown now renders above the sheet and centers over the button",
+      "Fixed: Check-in/no-show push notifications could display raw unparsed date strings — now correctly uses ISO date parsing (Bug 20)",
+      "Fixed: Check-in membership status query could crash on legacy bookings with no owner email — now safely handles null/undefined emails (Bug 21)",
     ]
   },
   {

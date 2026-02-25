@@ -1043,7 +1043,8 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: S
     try {
       const currentFees = await computeFeeBreakdown({ 
         sessionId: snapshot.session_id, 
-        source: 'stripe' 
+        source: 'stripe',
+        excludeSessionFromUsage: true
       });
       
       // Compare totals with tolerance (allow up to $1.00 difference for rounding)
