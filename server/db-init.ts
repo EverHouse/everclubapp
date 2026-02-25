@@ -362,6 +362,14 @@ export async function ensureDatabaseConstraints() {
       `);
       logger.info('[DB Init] Billing provider CHECK constraint created/verified');
 
+      for (const val of ['auto-complete', 'manual-auto-complete', 'system']) {
+        try {
+          await db.execute(sql.raw(`ALTER TYPE booking_source ADD VALUE IF NOT EXISTS '${val}'`));
+        } catch {
+        }
+      }
+      logger.info('[DB Init] booking_source enum values synced');
+
       await db.execute(sql`ALTER TABLE users ALTER COLUMN billing_provider SET DEFAULT 'stripe'`);
       logger.info('[DB Init] billing_provider column default set to stripe');
 
