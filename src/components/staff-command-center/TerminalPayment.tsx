@@ -305,6 +305,15 @@ export function TerminalPayment({
 
       const data = await res.json();
 
+      if (data.freeActivation) {
+        setStatus('success');
+        setStatusMessage('No payment needed — $0 subscription activated!');
+        setTimeout(() => {
+          onSuccess(data.paymentIntentId || 'free');
+        }, 1500);
+        return;
+      }
+
       startTimeout();
 
       if (isSaveCard) {

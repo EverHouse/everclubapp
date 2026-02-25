@@ -605,6 +605,9 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
     if (!paymentIntentId) {
       return res.status(400).json({ error: 'paymentIntentId is required' });
     }
+    if (paymentIntentId.startsWith('seti_') || paymentIntentId.startsWith('free_')) {
+      return res.status(400).json({ error: 'This is a $0 subscription — no payment confirmation is needed.' });
+    }
     
     const stripe = await getStripeClient();
     

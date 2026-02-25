@@ -613,7 +613,19 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
     
     const amount = invoice.amount_due;
     if (!amount || amount <= 0) {
-      return res.status(400).json({ error: 'Invoice has no amount due' });
+      logger.info('[Terminal] $0 subscription — marking as paid out-of-band and activating member', { extra: { subscriptionId, userId } });
+      try {
+        await stripe.invoices.pay(invoice.id, { paid_out_of_band: true });
+      } catch (payErr: unknown) {
+        logger.warn('[Terminal] Could not mark $0 invoice as paid (may already be paid)', { extra: { error: getErrorMessage(payErr) } });
+      }
+      await db.execute(sql`UPDATE users SET membership_status = 'active', updated_at = NOW() WHERE id = ${Number(userId)}`);
+      return res.json({ 
+        success: true,
+        freeActivation: true,
+        paymentIntentId: `free_${subscriptionId}`,
+        message: 'No payment required — $0 subscription activated'
+      });
     }
     
     const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id || '';
@@ -804,6 +816,9 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
     
     if (!paymentIntentId || !subscriptionId || !userId) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+    if (paymentIntentId.startsWith('seti_') || paymentIntentId.startsWith('free_')) {
+      return res.json({ success: true, message: '$0 subscription — no payment confirmation needed' });
     }
     
     const { db } = await import('../../db');
@@ -1106,6 +1121,9 @@ router.post('/api/stripe/terminal/process-existing-payment', isStaffOrAdmin, asy
     }
     if (!paymentIntentId) {
       return res.status(400).json({ error: 'Payment Intent ID is required' });
+    }
+    if (paymentIntentId.startsWith('seti_')) {
+      return res.status(400).json({ error: 'Cannot process a SetupIntent as a payment. This is a $0 subscription — no payment is needed.' });
     }
 
     const stripe = await getStripeClient();

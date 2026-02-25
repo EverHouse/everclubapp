@@ -182,7 +182,7 @@ export function MemberFlow({
           return;
         }
         
-        if (data.clientSecret) {
+        if (data.clientSecret && !data.clientSecret.startsWith('seti_')) {
           setClientSecret(data.clientSecret);
           const piId = data.clientSecret.split('_secret_')[0];
           if (piId) setPaymentIntentId(piId);
