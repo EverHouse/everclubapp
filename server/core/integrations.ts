@@ -81,20 +81,29 @@ export async function getHubSpotClient() {
   return new Client({ accessToken: accessToken as string });
 }
 
-export function getHubSpotPrivateAppClient(): Client | null {
-  const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
-  if (!token) {
-    return null;
+export async function getHubSpotPrivateAppClient(): Promise<Client | null> {
+  try {
+    const { db } = await import('../db');
+    const { systemSettings } = await import('../../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    const rows = await db.select({ value: systemSettings.value })
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'hubspot_private_app_token'))
+      .limit(1);
+    if (rows.length > 0 && rows[0].value) {
+      return new Client({ accessToken: rows[0].value });
+    }
+  } catch {
   }
-  return new Client({ accessToken: token });
+  return null;
 }
 
 export async function getHubSpotClientWithFallback(): Promise<{ client: Client; source: 'connector' | 'private_app' }> {
-  const privateAppToken = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
-  if (privateAppToken) {
-    return { client: new Client({ accessToken: privateAppToken }), source: 'private_app' };
+  const privateAppClient = await getHubSpotPrivateAppClient();
+  if (privateAppClient) {
+    return { client: privateAppClient, source: 'private_app' };
   }
-  
+
   const accessToken = await getHubSpotAccessToken();
   return { client: new Client({ accessToken: accessToken as string }), source: 'connector' };
 }

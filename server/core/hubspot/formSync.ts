@@ -27,7 +27,6 @@
  * - `client.apiRequest()` — auth header breaks in production
  */
 
-import { getHubSpotPrivateAppClient } from '../integrations';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { db } from '../../db';
 import { formSubmissions, systemSettings } from '../../../shared/schema';
@@ -56,22 +55,17 @@ let firstSyncCompleted = false;
 
 async function getPrivateAppToken(): Promise<string | null> {
   try {
-    logger.info('[HubSpot FormSync] Checking database for Private App token...');
     const rows = await db.select({ value: systemSettings.value })
       .from(systemSettings)
       .where(eq(systemSettings.key, DB_TOKEN_KEY))
       .limit(1);
-    logger.info(`[HubSpot FormSync] Database query returned ${rows.length} rows`);
     if (rows.length > 0 && rows[0].value) {
-      const suffix = rows[0].value.substring(rows[0].value.length - 4);
-      logger.info(`[HubSpot FormSync] Found token in database ending ...${suffix}`);
       return rows[0].value;
     }
-    logger.info('[HubSpot FormSync] No token found in database, falling back to env var');
   } catch (err: unknown) {
     logger.error(`[HubSpot FormSync] Database token lookup failed: ${getErrorMessage(err)}`);
   }
-  return process.env.HUBSPOT_PRIVATE_APP_TOKEN || null;
+  return null;
 }
 
 export async function setPrivateAppToken(token: string, updatedBy: string): Promise<void> {
@@ -298,7 +292,7 @@ export async function syncHubSpotFormSubmissions(options?: { force?: boolean }):
     }
 
     const tokenSuffix = privateAppToken.substring(privateAppToken.length - 4);
-    logger.info(`[HubSpot FormSync] Using token ...${tokenSuffix} (source: ${privateAppToken === process.env.HUBSPOT_PRIVATE_APP_TOKEN ? 'env' : 'database'})`);
+    logger.info(`[HubSpot FormSync] Using token ...${tokenSuffix} (source: database)`);
 
     const client = new Client({ accessToken: privateAppToken });
 
@@ -467,19 +461,6 @@ export async function syncHubSpotFormSubmissions(options?: { force?: boolean }):
 
     firstSyncCompleted = true;
     authFailureAlreadyLogged = false;
-
-    if (privateAppToken === process.env.HUBSPOT_PRIVATE_APP_TOKEN) {
-      try {
-        await db.insert(systemSettings)
-          .values({ key: DB_TOKEN_KEY, value: privateAppToken, category: 'hubspot', updatedBy: 'auto-seed', updatedAt: new Date() })
-          .onConflictDoUpdate({
-            target: systemSettings.key,
-            set: { value: privateAppToken, updatedBy: 'auto-seed', updatedAt: new Date() },
-          });
-        logger.info('[HubSpot FormSync] Auto-seeded working token into database for future resilience');
-      } catch {
-      }
-    }
 
     logger.info(`[HubSpot FormSync] Sync complete: ${result.totalFetched} fetched, ${result.newInserted} inserted, ${result.skippedDuplicate} duplicates skipped, ${result.errors.length} errors`);
   } catch (err: unknown) {

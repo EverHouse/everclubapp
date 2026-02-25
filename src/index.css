@@ -204,7 +204,7 @@
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Tap Tokens */
-  --tap-scale: 0.97;
+  --tap-scale: 0.98;
   --tap-duration: 100ms;
   
   /* Z-Index Hierarchy Scale - Centralized overlay stacking */

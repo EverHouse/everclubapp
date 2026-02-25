@@ -148,7 +148,7 @@ export async function fetchHubSpotProducts(): Promise<HubSpotProduct[]> {
   } catch (error: unknown) {
     const errorBody = error && typeof error === 'object' && 'body' in error ? (error as { body: Record<string, unknown> }).body : undefined;
     if (getErrorCode(error) === '403' && errorBody?.category === 'MISSING_SCOPES') {
-      logger.error('[Stripe Products] HubSpot returned 403 for products. The token has correct scopes — check that HUBSPOT_PRIVATE_APP_TOKEN is valid and not expired.');
+      logger.error('[Stripe Products] HubSpot returned 403 for products. Check that the HubSpot Private App token is valid and not expired.');
       throw new Error('HubSpot products API returned 403. Check that your Private App token is valid — scopes are already configured.');
     }
     logger.error('[Stripe Products] Error fetching HubSpot products:', { error: error });
