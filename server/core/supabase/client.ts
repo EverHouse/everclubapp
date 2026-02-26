@@ -112,6 +112,8 @@ export function isSupabaseConfigured(): boolean {
   return !!(process.env.SUPABASE_URL && process.env.SERVICE_ROLE_KEY);
 }
 
+const REALTIME_SETUP_TIMEOUT = 10000;
+
 export async function enableRealtimeForTable(tableName: string): Promise<boolean> {
   if (!isSupabaseConfigured()) {
     logger.debug(`[Supabase] Skipping realtime for ${tableName} - Supabase not configured`);
@@ -124,10 +126,17 @@ export async function enableRealtimeForTable(tableName: string): Promise<boolean
     return false;
   }
 
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error(`Realtime setup for ${tableName} timed out after ${REALTIME_SETUP_TIMEOUT / 1000}s`)), REALTIME_SETUP_TIMEOUT);
+  });
+
   try {
     const supabase = getSupabaseAdmin();
 
-    const { error: tableCheckError } = await supabase.from(tableName).select('id').limit(0);
+    const { error: tableCheckError } = await Promise.race([
+      supabase.from(tableName).select('id').limit(0),
+      timeoutPromise
+    ]);
     if (tableCheckError) {
       const msg = tableCheckError.message || '';
       if (msg.includes('fetch failed') || msg.includes('ENOTFOUND') || msg.includes('ECONNREFUSED') || msg.includes('TypeError')) {
@@ -140,9 +149,12 @@ export async function enableRealtimeForTable(tableName: string): Promise<boolean
     }
 
     const quotedTable = `"public"."${tableName.replace(/"/g, '')}"`;
-    const { error: pubError } = await supabase.rpc('exec_sql' as any, {
-      query: `ALTER PUBLICATION supabase_realtime ADD TABLE ${quotedTable}`
-    }).maybeSingle();
+    const { error: pubError } = await Promise.race([
+      supabase.rpc('exec_sql' as any, {
+        query: `ALTER PUBLICATION supabase_realtime ADD TABLE ${quotedTable}`
+      }).maybeSingle(),
+      timeoutPromise
+    ]);
 
     if (pubError) {
       const msg = pubError.message || '';
@@ -167,7 +179,10 @@ export async function enableRealtimeForTable(tableName: string): Promise<boolean
     return true;
   } catch (err: unknown) {
     const errMsg = getErrorMessage(err);
-    if (errMsg.includes('fetch failed') || errMsg.includes('ENOTFOUND') || errMsg.includes('ECONNREFUSED')) {
+    if (errMsg.includes('timed out')) {
+      logger.warn(`[Supabase] Realtime setup for ${tableName} timed out - marking Supabase as unavailable`);
+      supabaseAvailable = false;
+    } else if (errMsg.includes('fetch failed') || errMsg.includes('ENOTFOUND') || errMsg.includes('ECONNREFUSED')) {
       logger.warn(`[Supabase] Cannot reach Supabase for ${tableName} - check SUPABASE_URL configuration`);
     } else {
       logger.error(`[Supabase] Error enabling realtime for ${tableName}:`, { extra: { detail: errMsg } });

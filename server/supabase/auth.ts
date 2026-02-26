@@ -1,21 +1,18 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Express, RequestHandler } from 'express';
 import { authStorage } from '../replit_integrations/auth/storage';
 import { logger } from '../core/logger';
-
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
-
-let supabaseClient: SupabaseClient | null = null;
+import { getSupabaseAnon } from '../core/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 function getSupabaseClient(): SupabaseClient | null {
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
     return null;
   }
-  if (!supabaseClient) {
-    supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  try {
+    return getSupabaseAnon();
+  } catch {
+    return null;
   }
-  return supabaseClient;
 }
 
 export { getSupabaseClient };
