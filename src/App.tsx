@@ -762,7 +762,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </div>
       </div>
 
-      <div className="fixed inset-0 pointer-events-none z-0 opacity-[0.04] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] mix-blend-overlay"></div>
+      <div className="fixed inset-0 pointer-events-none z-0 opacity-[0.04] mix-blend-overlay" id="texture-bg"></div>
 
       <NotificationContext.Provider value={{ openNotifications }}>
         <ViewAsBanner />

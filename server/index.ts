@@ -898,6 +898,10 @@ async function initializeApp() {
         const routePath = req.path.replace(/\/+$/, '') || '/';
         const meta = SEO_META[routePath];
 
+        res.setHeader('Content-Type', 'text/html');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Link', '</images/hero-lounge-optimized.webp>; rel=preload; as=image; type=image/webp');
+
         if (meta) {
           const ogUrl = `https://everclub.app${routePath === '/' ? '' : routePath}`;
           let html = cachedIndexHtml;
@@ -909,16 +913,12 @@ async function initializeApp() {
           html = html.replace(/<meta name="twitter:title"[^>]*>/, `<meta name="twitter:title" content="${meta.title}" />`);
           html = html.replace(/<meta name="twitter:description"[^>]*>/, `<meta name="twitter:description" content="${meta.description}" />`);
           html = html.replace('</head>', `<link rel="canonical" href="${ogUrl}" />\n${GEO_META_TAGS}\n${getJsonLdScripts(routePath)}\n</head>`);
-          res.setHeader('Content-Type', 'text/html');
-          res.setHeader('Cache-Control', 'no-cache');
           return res.send(html);
         }
 
         let html = cachedIndexHtml;
         const fallbackUrl = `https://everclub.app${routePath === '/' ? '' : routePath}`;
         html = html.replace('</head>', `<link rel="canonical" href="${fallbackUrl}" />\n${GEO_META_TAGS}\n${getJsonLdScripts(routePath)}\n</head>`);
-        res.setHeader('Content-Type', 'text/html');
-        res.setHeader('Cache-Control', 'no-cache');
         return res.send(html);
       }
       next();

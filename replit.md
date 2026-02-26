@@ -1,7 +1,7 @@
 # Ever Club Members App
 
 ## Overview
-The Ever Club Members App is a private members club application designed for golf and wellness centers. Its core purpose is to streamline the management of golf simulator bookings, wellness service appointments, and club events. The project aims to create a central digital hub for private members clubs, providing comprehensive tools for membership management, facility booking, and community building, ultimately enhancing member satisfaction and operational efficiency.
+The Ever Club Members App is a private members club application designed for golf and wellness centers. Its primary goal is to manage golf simulator bookings, wellness service appointments, and club events efficiently. The project aims to be a central digital hub for private members clubs, offering tools for membership management, facility booking, and community building to improve member satisfaction and operational efficiency.
 
 ## User Preferences
 - **Communication Style**: The founder is non-technical. Always explain changes in plain English, focusing on the business/member impact. Avoid unnecessary technical jargon.
@@ -16,27 +16,27 @@ The Ever Club Members App is a private members club application designed for gol
 - **Timezone**: All date/time operations must explicitly use Pacific Time (`America/Los_Angeles`).
 - **Audit Logging**: All staff actions must be logged using `logFromRequest()`.
 - **API/Frontend Consistency**: API response field names must align exactly with frontend TypeScript interfaces.
+- **Database & Data Integrity**: Uses PostgreSQL, Supabase Realtime, and Drizzle ORM with CASCADE constraints. Primary connection uses Replit's helium proxy.
+- **Real-time Updates**: Implements WebSocket broadcasting for booking and invoice changes. Supabase Realtime subscriptions cover `notifications`, `booking_sessions`, `announcements`, and `trackman_unmatched_bookings` tables.
 
 ### UI/UX & Frontend
 - **Design System**: Liquid Glass UI system, utilizing Tailwind CSS v4 and supporting dark mode.
 - **Interactions**: Features spring-physics for motion and drag-to-dismiss functionality.
 - **Technology Stack**: React 19, Vite, and state management using Zustand/TanStack libraries.
-- **Component Design**: Sheets and modals follow a structure of a Header (title and close "X"), a scrollable Body for content, and a Sticky Footer for actions.
-- **Button Hierarchy**: Differentiates between primary actions, secondary actions (as ghost links), and destructive actions.
+- **Component Design**: Sheets and modals follow a structure of a Header, a scrollable Body for content, and a Sticky Footer for actions.
+- **Button Hierarchy**: Differentiates between primary, secondary, and destructive actions.
 - **Fee Recalculation**: Roster changes trigger server-side fee recalculation, with visual feedback for loading states on the Financial Summary.
 
 ### Core Domain Features
 - **Booking & Scheduling**: Implements a "Request & Hold" model, unified participant management, calendar synchronization, and an auto-complete scheduler.
-- **Fees & Billing**: Features a unified fee service, dynamic pricing, prepayment, and guest fees, based on a "one invoice per booking" architecture. It supports dual payment paths (PaymentIntent for online, draft Stripe invoice for auto-approvals). The system handles existing payments to prevent double-charging and utilizes Stripe customer credit balances. Roster edits are blocked post-payment without staff override. Invoice lifecycle transitions through Draft, Finalize, and Pay/Void.
-- **Database & Data Integrity**: Uses PostgreSQL, Supabase Realtime, and Drizzle ORM with CASCADE constraints. The primary connection uses Replit's helium proxy via `DATABASE_URL` (auto-managed by Replit). `DATABASE_POOLER_URL` (Supabase session pooler, port 6543) exists but is disabled (`ENABLE_PGBOUNCER=false`) because it connects to a different Supabase project with an incomplete schema. Supabase direct connection (`db.*.supabase.co`) is IPv6-only and unreachable from Replit's IPv4 network. The session store (`connect-pg-simple`) and WebSocket pool both use the shared `pool` from `server/core/db.ts`.
+- **Fees & Billing**: Features a unified fee service, dynamic pricing, prepayment, and guest fees, based on a "one invoice per booking" architecture. It supports dual payment paths (Stripe PaymentIntent for online, draft Stripe invoice for auto-approvals) and handles existing payments to prevent double-charging, utilizing Stripe customer credit balances. Invoice lifecycle transitions through Draft, Finalize, and Pay/Void.
 - **Member Lifecycle**: Includes membership tiers, QR/NFC check-in, and onboarding processes.
-- **Real-time Updates**: Implements WebSocket broadcasting for booking and invoice changes. Supabase Realtime subscriptions cover `notifications`, `booking_sessions`, `announcements`, and `trackman_unmatched_bookings` tables.
 
 ### Enforced Code Conventions
 - **Error Handling**: Empty catch blocks are prohibited; all `catch` blocks must re-throw, log, or use `safeDbOperation()`.
 - **Authentication**: All mutating API routes must be protected by authentication.
 - **Stripe Webhook Safety**: Webhook handlers modifying member status must include a `billing_provider` guard. Async payment handlers must construct identical payloads to synchronous counterparts and throw errors on failure for Stripe retries. Payment handlers must auto-refund overpayments when participants are already paid.
-- **Fee Calculation Transaction Isolation**: `recalculateSessionFees()` and `computeFeeBreakdown()` use the global `db` pool. They MUST NEVER be called inside `db.transaction()`. Always commit the transaction first, then calculate fees.
+- **Fee Calculation Transaction Isolation**: `recalculateSessionFees()` and `computeFeeBreakdown()` use the global `db` pool and MUST NEVER be called inside `db.transaction()`. Always commit the transaction first, then calculate fees.
 - **Individual Refund Status Updates**: When refunding multiple participants, update each participant's `payment_status` to `'refunded'` only AFTER its individual Stripe refund succeeds.
 - **Fee Cascade Recalculation**: `recalculateSessionFees()` automatically cascades to later same-day bookings for the same member.
 - **Account Credit Audit Trails**: When account credit covers a full fee, `logPaymentAudit()` must be called with `paymentMethod: 'account_credit'`.
