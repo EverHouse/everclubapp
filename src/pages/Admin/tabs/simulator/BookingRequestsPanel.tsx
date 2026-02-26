@@ -590,7 +590,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     <span aria-hidden="true" className="material-symbols-outlined text-lg">person_add</span>
                                                                     Assign Member
                                                                 </button>
-                                                            ) : !isConferenceRoom && isToday && booking.status === 'attended' ? (
+                                                            ) : isToday && booking.status === 'attended' ? (
                                                                 <BookingStatusDropdown
                                                                     currentStatus="attended"
                                                                     onStatusChange={async (status) => {
@@ -599,7 +599,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     size="sm"
                                                                     menuDirection="down"
                                                                 />
-                                                            ) : !isConferenceRoom && isToday && booking.status === 'no_show' ? (
+                                                            ) : isToday && booking.status === 'no_show' ? (
                                                                 <BookingStatusDropdown
                                                                     currentStatus="no_show"
                                                                     onStatusChange={async (status) => {
@@ -608,7 +608,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     size="sm"
                                                                     menuDirection="down"
                                                                 />
-                                                            ) : !isConferenceRoom && isToday && (booking.fee_snapshot_paid || (!booking.has_unpaid_fees && (booking.total_owed || 0) <= 0)) ? (
+                                                            ) : isToday && (booking.fee_snapshot_paid || (!booking.has_unpaid_fees && (booking.total_owed || 0) <= 0)) ? (
                                                                 <BookingStatusDropdown
                                                                     currentStatus="check_in"
                                                                     onStatusChange={async (status) => {
@@ -617,7 +617,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     size="sm"
                                                                     menuDirection="down"
                                                                 />
-                                                            ) : !isConferenceRoom && isToday ? (
+                                                            ) : isToday ? (
                                                                 <BookingFeeButton
                                                                     bookingId={typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id as number}
                                                                     dbOwed={booking.total_owed || 0}
