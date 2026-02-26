@@ -96,11 +96,19 @@
         var isDark = themeMode === 'dark' || (themeMode === 'system' && prefersDark) || (!themeMode && prefersDark);
         if (isDark) document.documentElement.classList.add('dark');
 
-        // Load Material Symbols after first paint
         requestAnimationFrame(function() {
           var link = document.createElement('link');
           link.rel = 'stylesheet';
           link.href = 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap';
+          link.onload = function() {
+            if (document.fonts && document.fonts.ready) {
+              document.fonts.ready.then(function() {
+                document.documentElement.classList.add('icons-loaded');
+              });
+            } else {
+              document.documentElement.classList.add('icons-loaded');
+            }
+          };
           document.head.appendChild(link);
         });
       })();
