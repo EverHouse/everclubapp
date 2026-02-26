@@ -1949,7 +1949,15 @@ export async function deleteBooking(bookingId: number, archivedBy: string, hardD
     }
   }
   
-  return { hardDeleted: hardDelete, archived: !hardDelete, archivedBy };
+  return { 
+    hardDeleted: hardDelete, 
+    archived: !hardDelete, 
+    archivedBy,
+    cascadeErrors: cascadeResult?.errors?.length ? cascadeResult.errors : undefined,
+    prepaymentRefunds: cascadeResult?.prepaymentRefunds ?? 0,
+    guestPassesRefunded: cascadeResult?.guestPassesRefunded ?? 0,
+    participantsNotified: cascadeResult?.participantsNotified ?? 0,
+  };
 }
 
 export async function memberCancelBooking(bookingId: number, userEmail: string, sessionUserRole: string | undefined, actingAsEmail?: string) {
@@ -2188,7 +2196,8 @@ export async function memberCancelBooking(bookingId: number, userEmail: string, 
     cascade: {
       participantsNotified: cascadeResult.participantsNotified,
       guestPassesRefunded: cascadeResult.guestPassesRefunded,
-      prepaymentRefunds: cascadeResult.prepaymentRefunds
+      prepaymentRefunds: cascadeResult.prepaymentRefunds,
+      errors: cascadeResult.errors.length ? cascadeResult.errors : undefined
     }
   };
 }
