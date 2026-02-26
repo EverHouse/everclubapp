@@ -9,9 +9,10 @@ export interface UseSupabaseRealtimeOptions {
   onNotification?: (payload: Record<string, unknown>) => void;
   onBookingUpdate?: (payload: Record<string, unknown>) => void;
   onAnnouncementUpdate?: (payload: Record<string, unknown>) => void;
+  onTrackmanUnmatchedUpdate?: (payload: Record<string, unknown>) => void;
 }
 
-const DEFAULT_TABLES = ['notifications', 'booking_sessions', 'announcements'];
+const DEFAULT_TABLES = ['notifications', 'booking_sessions', 'announcements', 'trackman_unmatched_bookings'];
 
 export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
   const {
@@ -19,7 +20,8 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
     tables = DEFAULT_TABLES,
     onNotification,
     onBookingUpdate,
-    onAnnouncementUpdate
+    onAnnouncementUpdate,
+    onTrackmanUnmatchedUpdate
   } = options;
 
   const channelsRef = useRef<RealtimeChannel[]>([]);
@@ -49,6 +51,11 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
     window.dispatchEvent(new CustomEvent('announcement-update', { detail: payload }));
     onAnnouncementUpdate?.(payload);
   }, [onAnnouncementUpdate]);
+
+  const handleTrackmanUnmatchedUpdate = useCallback((payload: Record<string, unknown>) => {
+    window.dispatchEvent(new CustomEvent('trackman-unmatched-update', { detail: payload }));
+    onTrackmanUnmatchedUpdate?.(payload);
+  }, [onTrackmanUnmatchedUpdate]);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -121,6 +128,20 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
               },
               (payload) => {
                 handleAnnouncementUpdate(payload);
+              }
+            );
+        } else if (table === 'trackman_unmatched_bookings') {
+          channel = supabase
+            .channel(`realtime-${table}`)
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table
+              },
+              (payload) => {
+                handleTrackmanUnmatchedUpdate(payload);
               }
             );
         } else {
@@ -196,7 +217,7 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
       channelsRef.current = [];
       isSubscribedRef.current = false;
     };
-  }, [userEmail, tables, handleNotification, handleBookingUpdate, handleAnnouncementUpdate]);
+  }, [userEmail, tables, handleNotification, handleBookingUpdate, handleAnnouncementUpdate, handleTrackmanUnmatchedUpdate]);
 
   return {
     isConfigured: !!getSupabase()

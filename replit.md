@@ -30,7 +30,7 @@ The Ever Club Members App is a private members club application designed for gol
 - **Fees & Billing**: Features a unified fee service, dynamic pricing, prepayment, and guest fees, based on a "one invoice per booking" architecture. It supports dual payment paths (PaymentIntent for online, draft Stripe invoice for auto-approvals). The system handles existing payments to prevent double-charging and utilizes Stripe customer credit balances. Roster edits are blocked post-payment without staff override. Invoice lifecycle transitions through Draft, Finalize, and Pay/Void.
 - **Database & Data Integrity**: Uses PostgreSQL, Supabase Realtime, and Drizzle ORM with CASCADE constraints.
 - **Member Lifecycle**: Includes membership tiers, QR/NFC check-in, and onboarding processes.
-- **Real-time Updates**: Implements WebSocket broadcasting for booking and invoice changes.
+- **Real-time Updates**: Implements WebSocket broadcasting for booking and invoice changes. Supabase Realtime subscriptions cover `notifications`, `booking_sessions`, `announcements`, and `trackman_unmatched_bookings` tables.
 
 ### Enforced Code Conventions
 - **Error Handling**: Empty catch blocks are prohibited; all `catch` blocks must re-throw, log, or use `safeDbOperation()`.

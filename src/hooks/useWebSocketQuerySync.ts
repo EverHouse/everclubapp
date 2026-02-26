@@ -120,6 +120,13 @@ export function useWebSocketQuerySync() {
       queryClient.invalidateQueries({ queryKey: ['book-golf'] });
     };
 
+    const handleTrackmanUnmatchedUpdate = (event: CustomEvent) => {
+      if (import.meta.env.DEV) console.log('[WebSocketQuerySync] Invalidating trackman unmatched queries (Supabase Realtime)');
+      queryClient.invalidateQueries({ queryKey: ['trackman', 'unmatched'] });
+      queryClient.invalidateQueries({ queryKey: ['trackman', 'needs-players'] });
+      queryClient.invalidateQueries({ queryKey: ['data-integrity'] });
+    };
+
     const handleBookingAutoConfirmed = (event: CustomEvent) => {
       if (import.meta.env.DEV) console.log('[WebSocketQuerySync] Invalidating queries for booking-auto-confirmed');
       queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
@@ -153,6 +160,7 @@ export function useWebSocketQuerySync() {
     window.addEventListener('booking-auto-confirmed', handleBookingAutoConfirmed as EventListener);
     window.addEventListener('booking-confirmed', handleBookingConfirmed as EventListener);
     window.addEventListener('availability-update', handleAvailabilityUpdate as EventListener);
+    window.addEventListener('trackman-unmatched-update', handleTrackmanUnmatchedUpdate as EventListener);
 
     return () => {
       window.removeEventListener('booking-update', handleBookingUpdate as EventListener);
@@ -169,6 +177,7 @@ export function useWebSocketQuerySync() {
       window.removeEventListener('booking-auto-confirmed', handleBookingAutoConfirmed as EventListener);
       window.removeEventListener('booking-confirmed', handleBookingConfirmed as EventListener);
       window.removeEventListener('availability-update', handleAvailabilityUpdate as EventListener);
+      window.removeEventListener('trackman-unmatched-update', handleTrackmanUnmatchedUpdate as EventListener);
     };
   }, [queryClient]);
 }

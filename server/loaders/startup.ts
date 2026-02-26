@@ -275,11 +275,12 @@ export async function runStartupTasks(): Promise<void> {
     const realtimeResults = await Promise.all([
       enableRealtimeForTable('notifications'),
       enableRealtimeForTable('booking_sessions'),
-      enableRealtimeForTable('announcements')
+      enableRealtimeForTable('announcements'),
+      enableRealtimeForTable('trackman_unmatched_bookings')
     ]);
     const successCount = realtimeResults.filter(Boolean).length;
     if (successCount === realtimeResults.length) {
-      logger.info('[Supabase] Realtime enabled for notifications, booking_sessions, announcements');
+      logger.info('[Supabase] Realtime enabled for notifications, booking_sessions, announcements, trackman_unmatched_bookings');
       startupHealth.realtime = 'ok';
     } else if (successCount > 0) {
       logger.warn(`[Supabase] Realtime partially enabled (${successCount}/${realtimeResults.length} tables)`, { extra: { successCount, total: realtimeResults.length } });

@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.32.0",
+    date: "2026-02-25",
+    title: "Supabase Realtime for Trackman Unmatched Bookings",
+    changes: [
+      "New: Trackman unmatched bookings now update in real time via Supabase Realtime — staff viewing the Trackman tab will see new unmatched bookings appear automatically as they arrive from webhooks, without needing to refresh the page",
+      "New: Data integrity checks also refresh automatically when unmatched bookings change",
+    ]
+  },
+  {
     version: "8.31.9",
     date: "2026-02-25",
     title: "Fix: Data Integrity & Sync Alert Toggle Now Respected",
