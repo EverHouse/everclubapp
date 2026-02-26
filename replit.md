@@ -51,6 +51,10 @@ The Ever Club Members App is a private members club application designed for gol
 - **Security Headers**: HSTS with preload, CSP with `upgrade-insecure-requests`, COOP `same-origin-allow-popups` (required for Google GSI popup sign-in), X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy. All headers sent in all environments.
 - **robots.txt**: Static file (`public/robots.txt`) and server route (`server/index.ts`) kept in sync. Disallow rules listed before Allow.
 
+## Startup Sequence
+- **Dev script** (`npm run dev`): Pre-flight cleanup (removes Vite cache, kills stale node processes), then uses `concurrently` to run backend (`tsx server/index.ts` on port 3001) and frontend (`vite` on port 5000) side-by-side. The old `dev:all` script with bash `&` operators has been removed.
+- **Workflow**: The "Dev Server" workflow simply runs `npm run dev` and waits for port 5000.
+
 ## External Dependencies
 - **Stripe**: Payment processing, subscriptions, and webhooks.
 - **HubSpot**: Two-way data synchronization. The app DB is the primary source of truth for membership status, tier, role, and billing provider, with HubSpot providing profile fill-in data.

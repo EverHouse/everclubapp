@@ -4,9 +4,8 @@
   "version": "3.15",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "rm -rf node_modules/.vite && killall node || true && concurrently --names backend,frontend --prefix-colors blue,green \"npm run server\" \"vite\"",
     "server": "tsx server/index.ts",
-    "dev:all": "npm run server & npm run dev",
     "check:ghost-columns": "bash scripts/check-ghost-columns.sh",
     "build": "bash scripts/check-ghost-columns.sh && vite build",
     "preview": "vite preview",
@@ -30,6 +29,7 @@
     "@types/qrcode": "^1.5.6",
     "bcryptjs": "^3.0.3",
     "compression": "^1.8.1",
+    "concurrently": "^9.2.1",
     "connect-pg-simple": "^10.0.0",
     "cookie": "^1.1.1",
     "cors": "^2.8.5",
