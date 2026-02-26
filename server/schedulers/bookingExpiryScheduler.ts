@@ -33,8 +33,20 @@ async function expireStaleBookingRequests(): Promise<void> {
        WHERE status IN ('pending', 'pending_approval')
          AND trackman_booking_id IS NOT NULL
          AND (
-           request_date < $1
-           OR (request_date = $1 AND start_time < ($2::time - interval '20 minutes'))
+           request_date < $1::date - INTERVAL '1 day'
+           OR (
+             request_date = $1::date - INTERVAL '1 day'
+             AND CASE
+               WHEN end_time IS NOT NULL AND end_time < start_time
+                 THEN end_time < ($2::time - interval '20 minutes')
+               ELSE start_time < ($2::time - interval '20 minutes')
+             END
+           )
+           OR (
+             request_date = $1
+             AND (end_time IS NULL OR end_time >= start_time)
+             AND start_time < ($2::time - interval '20 minutes')
+           )
          )
        RETURNING id, user_email AS "userEmail", user_name AS "userName", request_date AS "requestDate", start_time AS "startTime", resource_id AS "resourceId"`,
       [todayStr, currentTimePacific]
@@ -64,8 +76,20 @@ async function expireStaleBookingRequests(): Promise<void> {
        WHERE status IN ('pending', 'pending_approval')
          AND trackman_booking_id IS NULL
          AND (
-           request_date < $1
-           OR (request_date = $1 AND start_time < ($2::time - interval '20 minutes'))
+           request_date < $1::date - INTERVAL '1 day'
+           OR (
+             request_date = $1::date - INTERVAL '1 day'
+             AND CASE
+               WHEN end_time IS NOT NULL AND end_time < start_time
+                 THEN end_time < ($2::time - interval '20 minutes')
+               ELSE start_time < ($2::time - interval '20 minutes')
+             END
+           )
+           OR (
+             request_date = $1
+             AND (end_time IS NULL OR end_time >= start_time)
+             AND start_time < ($2::time - interval '20 minutes')
+           )
          )
        RETURNING id, user_email AS "userEmail", user_name AS "userName", request_date AS "requestDate", start_time AS "startTime", resource_id AS "resourceId"`,
       [todayStr, currentTimePacific]
@@ -124,6 +148,20 @@ async function expireStaleBookingRequests(): Promise<void> {
 
 let intervalId: NodeJS.Timeout | null = null;
 let initialTimeoutId: NodeJS.Timeout | null = null;
+let isRunning = false;
+
+async function guardedExpiry(): Promise<void> {
+  if (isRunning) {
+    logger.info('[Booking Expiry] Skipping run — previous run still in progress');
+    return;
+  }
+  isRunning = true;
+  try {
+    await expireStaleBookingRequests();
+  } finally {
+    isRunning = false;
+  }
+}
 
 export function startBookingExpiryScheduler(): void {
   if (intervalId) {
@@ -134,14 +172,14 @@ export function startBookingExpiryScheduler(): void {
   logger.info('[Startup] Booking expiry scheduler enabled (runs every hour)');
 
   intervalId = setInterval(() => {
-    expireStaleBookingRequests().catch((err: unknown) => {
+    guardedExpiry().catch((err: unknown) => {
       logger.error('[Booking Expiry] Uncaught error:', { error: err as Error });
     });
   }, 60 * 60 * 1000);
   
   initialTimeoutId = setTimeout(() => {
     initialTimeoutId = null;
-    expireStaleBookingRequests().catch((err: unknown) => {
+    guardedExpiry().catch((err: unknown) => {
       logger.error('[Booking Expiry] Initial run error:', { error: err as Error });
     });
   }, 60 * 1000);

@@ -25,6 +25,38 @@ async function autoCompletePastBookings(): Promise<void> {
 
     logger.info(`[Booking Auto-Complete] Running auto-complete check at ${todayStr} ${currentTimePacific}`);
 
+    const stuckPendingPayments = await queryWithRetry<{ id: number; userEmail: string; userName: string | null; requestDate: string; startTime: string }>(
+      `SELECT br.id, br.user_email AS "userEmail", br.user_name AS "userName", 
+              br.request_date AS "requestDate", br.start_time AS "startTime"
+       FROM booking_requests br
+       WHERE br.status IN ('approved', 'confirmed')
+         AND br.is_relocating IS NOT TRUE
+         AND br.request_date < $1::date - INTERVAL '2 days'
+         AND br.session_id IS NOT NULL
+         AND EXISTS (
+           SELECT 1 FROM booking_participants bp
+           WHERE bp.session_id = br.session_id
+             AND bp.cached_fee_cents > 0
+             AND bp.payment_status = 'pending'
+         )`,
+      [todayStr]
+    );
+
+    if (stuckPendingPayments.rows.length > 0) {
+      const stuckSummary = stuckPendingPayments.rows
+        .slice(0, 5)
+        .map(b => `• #${b.id} ${b.userName || b.userEmail} - ${b.requestDate} ${b.startTime}`)
+        .join('\n');
+      const stuckMore = stuckPendingPayments.rows.length > 5 ? `\n...and ${stuckPendingPayments.rows.length - 5} more` : '';
+      logger.warn(`[Booking Auto-Complete] ${stuckPendingPayments.rows.length} booking(s) stuck with unpaid fees, skipped auto-complete`);
+      await notifyAllStaff(
+        'Bookings Stuck — Unpaid Fees',
+        `${stuckPendingPayments.rows.length} past booking(s) cannot be auto checked-in because they have unpaid fees. Please collect payment or waive fees:\n\n${stuckSummary}${stuckMore}`,
+        'system',
+        { sendPush: false }
+      );
+    }
+
     const markedBookings = await queryWithRetry<AutoCompletedBookingResult>(
       `UPDATE booking_requests 
        SET status = 'attended',
@@ -87,7 +119,10 @@ async function autoCompletePastBookings(): Promise<void> {
             source: 'auto-complete',
             createdBy: 'system-auto-checkin'
           });
-          if (result.created) {
+          if (result.error || result.sessionId === 0) {
+            sessionErrors++;
+            logger.error(`[Booking Auto-Complete] Session creation failed for booking #${booking.id}: ${result.error || 'sessionId=0'}`);
+          } else if (result.created) {
             sessionsCreated++;
             logger.info(`[Booking Auto-Complete] Created session ${result.sessionId} for booking #${booking.id}`);
           } else {
@@ -130,6 +165,21 @@ async function autoCompletePastBookings(): Promise<void> {
 }
 
 let intervalId: NodeJS.Timeout | null = null;
+let initialTimeoutId: NodeJS.Timeout | null = null;
+let isRunning = false;
+
+async function guardedAutoComplete(): Promise<void> {
+  if (isRunning) {
+    logger.info('[Booking Auto-Complete] Skipping run — previous run still in progress');
+    return;
+  }
+  isRunning = true;
+  try {
+    await autoCompletePastBookings();
+  } finally {
+    isRunning = false;
+  }
+}
 
 export function startBookingAutoCompleteScheduler(): void {
   if (intervalId) {
@@ -140,19 +190,24 @@ export function startBookingAutoCompleteScheduler(): void {
   logger.info('[Startup] Booking auto-complete scheduler enabled (runs every 2 hours)');
 
   intervalId = setInterval(() => {
-    autoCompletePastBookings().catch((err: unknown) => {
+    guardedAutoComplete().catch((err: unknown) => {
       logger.error('[Booking Auto-Complete] Uncaught error:', { error: err as Error });
     });
   }, 2 * 60 * 60 * 1000);
 
-  setTimeout(() => {
-    autoCompletePastBookings().catch((err: unknown) => {
+  initialTimeoutId = setTimeout(() => {
+    initialTimeoutId = null;
+    guardedAutoComplete().catch((err: unknown) => {
       logger.error('[Booking Auto-Complete] Initial run error:', { error: err as Error });
     });
   }, 120000);
 }
 
 export function stopBookingAutoCompleteScheduler(): void {
+  if (initialTimeoutId) {
+    clearTimeout(initialTimeoutId);
+    initialTimeoutId = null;
+  }
   if (intervalId) {
     clearInterval(intervalId);
     intervalId = null;
@@ -215,7 +270,11 @@ export async function runManualBookingAutoComplete(): Promise<{ markedCount: num
           source: 'manual-auto-complete',
           createdBy: 'system-auto-checkin'
         });
-        if (sessionResult.created) sessionsCreated++;
+        if (sessionResult.error || sessionResult.sessionId === 0) {
+          logger.error(`[Booking Auto-Complete] Manual: session creation failed for booking #${booking.id}: ${sessionResult.error || 'sessionId=0'}`);
+        } else if (sessionResult.created) {
+          sessionsCreated++;
+        }
       } catch (err) {
         logger.error(`[Booking Auto-Complete] Manual: failed to create session for booking #${booking.id}:`, { error: err as Error });
       }

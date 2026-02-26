@@ -33,8 +33,58 @@ async function tryClaimIntegritySlot(todayStr: string): Promise<boolean> {
     
     return result.length > 0;
   } catch (err: unknown) {
-    logger.error('[Integrity Check] Database error:', { error: err as Error });
+    logger.error('[Integrity Check] Database error claiming slot:', { error: err as Error });
+    alertOnScheduledTaskFailure(
+      'Daily Integrity Check',
+      err instanceof Error ? err : new Error(String(err)),
+      { context: 'Failed to claim daily integrity slot' }
+    ).catch((alertErr: unknown) => {
+      logger.error('[Integrity Check] Failed to send staff alert:', { error: alertErr as Error });
+    });
     return false;
+  }
+}
+
+let integrityRunning = false;
+let autoFixRunning = false;
+let cleanupRunning = false;
+
+async function guardedIntegrityCheck(): Promise<void> {
+  if (integrityRunning) {
+    logger.info('[Integrity Check] Skipping run — previous run still in progress');
+    return;
+  }
+  integrityRunning = true;
+  try {
+    await checkAndRunIntegrityCheck();
+  } finally {
+    integrityRunning = false;
+  }
+}
+
+async function guardedAutoFix(): Promise<void> {
+  if (autoFixRunning) {
+    logger.info('[Auto-Fix] Skipping run — previous run still in progress');
+    return;
+  }
+  autoFixRunning = true;
+  try {
+    await runPeriodicAutoFix();
+  } finally {
+    autoFixRunning = false;
+  }
+}
+
+async function guardedCleanup(): Promise<void> {
+  if (cleanupRunning) {
+    logger.info('[Auto-Cleanup] Skipping run — previous run still in progress');
+    return;
+  }
+  cleanupRunning = true;
+  try {
+    await cleanupAbandonedPendingUsers();
+  } finally {
+    cleanupRunning = false;
   }
 }
 
@@ -43,7 +93,7 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
     const currentHour = getPacificHour();
     const todayStr = getTodayPacific();
     
-    if (currentHour === INTEGRITY_CHECK_HOUR) {
+    if (currentHour >= INTEGRITY_CHECK_HOUR && currentHour <= 6) {
       const claimed = await tryClaimIntegritySlot(todayStr);
       
       if (claimed) {
@@ -195,12 +245,12 @@ async function cleanupAbandonedPendingUsers(): Promise<void> {
 }
 
 export function startIntegrityScheduler(): NodeJS.Timeout[] {
-  const id1 = setInterval(checkAndRunIntegrityCheck, 30 * 60 * 1000);
-  const id2 = setInterval(runPeriodicAutoFix, 4 * 60 * 60 * 1000);
-  const id3 = setInterval(cleanupAbandonedPendingUsers, 6 * 60 * 60 * 1000);
-  setTimeout(() => cleanupAbandonedPendingUsers().catch((err) => { logger.warn('[Scheduler] Non-critical cleanup failed:', err); }), 60 * 1000);
-  runPeriodicAutoFix().catch((err) => { logger.warn('[Scheduler] Non-critical auto-fix failed:', err); });
-  logger.info('[Startup] Daily integrity check scheduler enabled (runs at midnight Pacific)');
+  const id1 = setInterval(() => { guardedIntegrityCheck().catch((err) => { logger.error('[Integrity Check] Uncaught error:', { error: err as Error }); }); }, 30 * 60 * 1000);
+  const id2 = setInterval(() => { guardedAutoFix().catch((err) => { logger.error('[Auto-Fix] Uncaught error:', { error: err as Error }); }); }, 4 * 60 * 60 * 1000);
+  const id3 = setInterval(() => { guardedCleanup().catch((err) => { logger.error('[Auto-Cleanup] Uncaught error:', { error: err as Error }); }); }, 6 * 60 * 60 * 1000);
+  setTimeout(() => guardedCleanup().catch((err) => { logger.warn('[Scheduler] Non-critical cleanup failed:', err); }), 60 * 1000);
+  guardedAutoFix().catch((err) => { logger.warn('[Scheduler] Non-critical auto-fix failed:', err); });
+  logger.info('[Startup] Daily integrity check scheduler enabled (runs midnight–6am Pacific catch-up window)');
   logger.info('[Startup] Periodic auto-fix scheduler enabled (runs every 4 hours)');
   return [id1, id2, id3];
 }

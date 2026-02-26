@@ -70,7 +70,14 @@ The Ever Club Members App is a private members club application designed for gol
 - **Default billing_provider Is 'stripe'**: The column default for `billing_provider` is `'stripe'`.
 - **App DB Is Primary Brain for HubSpot Sync**: The app database is the single source of truth for `membership_status`, `tier`, `role`, and `billing_provider`. HubSpot → App sync only provides profile fill-in data.
 - **MindBody → Stripe Migration Flow**: Staff initiates migration via the directory profile drawer. System sets `migration_status = 'pending'`, processes MindBody status, then creates Stripe subscription.
-- **Auto-Complete Fee Guard**: The booking auto-complete scheduler only marks bookings as `attended` if no session yet, or all participants are paid/waived/zero-fee.
+- **Auto-Complete Fee Guard**: The booking auto-complete scheduler only marks bookings as `attended` if no session yet, or all participants are paid/waived/zero-fee. It also alerts staff about bookings stuck with unpaid fees for 2+ days.
+- **Session Creation Failure Detection**: `ensureSessionForBooking()` return values are checked for `error` or `sessionId === 0` in both auto-complete and manual flows, incrementing `sessionErrors` count.
+- **Scheduler In-Flight Guards**: All schedulers (auto-complete, expiry, integrity, auto-fix, cleanup, guest pass reset) use `isRunning` flags to prevent concurrent execution of the same task.
+- **Scheduler Catch-Up Windows**: Integrity check runs midnight–6am (was midnight only). Guest pass reset runs 3am–8am on 1st (was 3am only). Both use DB-level claim slots to prevent double runs.
+- **Scheduler Claim Failure Alerts**: `tryClaimIntegritySlot` and `tryClaimResetSlot` DB errors now trigger `alertOnScheduledTaskFailure()` to notify staff.
+- **Overnight Session Expiry**: Booking expiry scheduler handles overnight sessions (end_time < start_time) correctly, using end_time from the next day instead of start_time only.
+- **Double-Charge Prevention**: `create-payment-intent` checks for existing succeeded payments for the booking before creating a new one. Snapshot lookup no longer limited to 30-min window.
+- **Orphaned Invoice Prevention**: `createDraftInvoiceForBooking` cleans up Stripe invoices if line item addition or DB linkage fails, preventing orphaned invoices in Stripe.
 - **Route Authentication Audit**: Both middleware guards and inline `getSessionUser(req)` checks are used.
 - **Staff Conference Room Booking — No Slot Check**: The `StaffManualBookingModal` does NOT fetch available slots from the server.
 - **Admin Calendar Grid Hours**: The calendar grid starts at 8:30 AM and extends to 10:00 PM.

@@ -1,4 +1,5 @@
 import { schedulerTracker } from '../core/schedulerTracker';
+import { alertOnScheduledTaskFailure } from '../core/dataAlerts';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getPacificHour, getPacificDayOfMonth, getPacificDateParts } from '../utils/dateUtils';
@@ -17,6 +18,13 @@ async function tryClaimResetSlot(monthKey: string): Promise<boolean> {
   } catch (err: unknown) {
     logger.error('[Guest Pass Reset] Failed to claim reset slot:', { error: err as Error });
     schedulerTracker.recordRun('Guest Pass Reset', false, String(err));
+    alertOnScheduledTaskFailure(
+      'Guest Pass Reset',
+      err instanceof Error ? err : new Error(String(err)),
+      { context: 'Failed to claim monthly reset slot' }
+    ).catch((alertErr: unknown) => {
+      logger.error('[Guest Pass Reset] Failed to send staff alert:', { error: alertErr as Error });
+    });
     return false;
   }
 }
@@ -26,7 +34,7 @@ async function resetGuestPasses(): Promise<void> {
     const currentHour = getPacificHour();
     const dayOfMonth = getPacificDayOfMonth();
     
-    if (currentHour !== RESET_HOUR || dayOfMonth !== 1) {
+    if (dayOfMonth !== 1 || currentHour < RESET_HOUR || currentHour > 8) {
       return;
     }
     
@@ -70,6 +78,20 @@ async function resetGuestPasses(): Promise<void> {
 }
 
 let intervalId: NodeJS.Timeout | null = null;
+let isRunning = false;
+
+async function guardedResetGuestPasses(): Promise<void> {
+  if (isRunning) {
+    logger.info('[Guest Pass Reset] Skipping run — previous run still in progress');
+    return;
+  }
+  isRunning = true;
+  try {
+    await resetGuestPasses();
+  } finally {
+    isRunning = false;
+  }
+}
 
 export function startGuestPassResetScheduler(): void {
   if (intervalId) {
@@ -78,11 +100,11 @@ export function startGuestPassResetScheduler(): void {
     return;
   }
 
-  logger.info('[Startup] Guest pass reset scheduler enabled (runs 1st of month at 3am Pacific)');
+  logger.info('[Startup] Guest pass reset scheduler enabled (runs 1st of month, 3am–8am Pacific catch-up window)');
   schedulerTracker.recordRun('Guest Pass Reset', true);
   
   intervalId = setInterval(() => {
-    resetGuestPasses().catch((err: unknown) => {
+    guardedResetGuestPasses().catch((err: unknown) => {
       logger.error('[Guest Pass Reset] Uncaught error:', { error: err as Error });
       schedulerTracker.recordRun('Guest Pass Reset', false, String(err));
     });

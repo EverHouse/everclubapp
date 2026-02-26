@@ -226,11 +226,26 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
         return res.status(400).json({ error: 'Invalid session/booking combination' });
       }
 
+      const existingSucceeded = await db.execute(sql`SELECT spi.stripe_payment_intent_id, spi.amount_cents
+         FROM stripe_payment_intents spi
+         WHERE spi.booking_id = ${bookingId} AND spi.session_id = ${sessionId} AND spi.status = 'succeeded'
+         ORDER BY spi.created_at DESC LIMIT 1`);
+      if (existingSucceeded.rows.length > 0) {
+        const succeededPi = existingSucceeded.rows[0] as Record<string, unknown>;
+        logger.info('[Stripe] Booking already has succeeded payment, preventing double charge', {
+          extra: { bookingId, sessionId, existingPiId: succeededPi.stripe_payment_intent_id }
+        });
+        return res.status(200).json({
+          alreadyPaid: true,
+          message: 'Payment already completed',
+          paymentIntentId: succeededPi.stripe_payment_intent_id
+        });
+      }
+
       const existingPendingSnapshot = await db.execute(sql`SELECT bfs.id, bfs.stripe_payment_intent_id, spi.status as pi_status
          FROM booking_fee_snapshots bfs
          LEFT JOIN stripe_payment_intents spi ON bfs.stripe_payment_intent_id = spi.stripe_payment_intent_id
          WHERE bfs.booking_id = ${bookingId} AND bfs.status = 'pending'
-         AND bfs.created_at > NOW() - INTERVAL '30 minutes'
          ORDER BY bfs.created_at DESC
          LIMIT 1`);
       

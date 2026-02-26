@@ -162,11 +162,39 @@ export async function createDraftInvoiceForBooking(
     idempotencyKey: `invoice_booking_${bookingId}`
   });
 
-  await addLineItemsToInvoice(stripe, invoice.id, customerId, feeLineItems);
+  try {
+    await addLineItemsToInvoice(stripe, invoice.id, customerId, feeLineItems);
+  } catch (lineItemErr: unknown) {
+    logger.error('[BookingInvoice] Failed to add line items, cleaning up orphaned invoice', {
+      extra: { bookingId, invoiceId: invoice.id, error: getErrorMessage(lineItemErr) }
+    });
+    try {
+      await stripe.invoices.del(invoice.id);
+    } catch (deleteErr: unknown) {
+      logger.error('[BookingInvoice] Failed to delete orphaned draft invoice in Stripe', {
+        extra: { bookingId, invoiceId: invoice.id, error: getErrorMessage(deleteErr) }
+      });
+    }
+    throw lineItemErr;
+  }
 
   const totalCents = feeLineItems.reduce((sum, li) => sum + li.totalCents, 0);
 
-  await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = ${invoice.id}, updated_at = NOW() WHERE id = ${bookingId}`);
+  try {
+    await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = ${invoice.id}, updated_at = NOW() WHERE id = ${bookingId}`);
+  } catch (dbErr: unknown) {
+    logger.error('[BookingInvoice] Failed to link invoice to booking in DB, cleaning up Stripe invoice', {
+      extra: { bookingId, invoiceId: invoice.id, error: getErrorMessage(dbErr) }
+    });
+    try {
+      await stripe.invoices.del(invoice.id);
+    } catch (deleteErr: unknown) {
+      logger.error('[BookingInvoice] ORPHANED INVOICE: Failed to delete draft invoice after DB error', {
+        extra: { bookingId, invoiceId: invoice.id, error: getErrorMessage(deleteErr) }
+      });
+    }
+    throw dbErr;
+  }
 
   logger.info('[BookingInvoice] Created draft invoice for booking', {
     extra: { bookingId, sessionId, invoiceId: invoice.id, totalCents, lineItems: feeLineItems.length }
