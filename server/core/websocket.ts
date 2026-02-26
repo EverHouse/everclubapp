@@ -64,11 +64,12 @@ function getSessionPool(): Pool | null {
   }
   
   try {
+    const needsSsl = process.env.NODE_ENV === 'production' || !!process.env.DATABASE_POOLER_URL;
     sessionPool = new Pool({ 
       connectionString: dbUrl,
       connectionTimeoutMillis: 5000,
       max: 20,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+      ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
     });
     return sessionPool;
   } catch (err: unknown) {

@@ -8,13 +8,44 @@ const poolerUrl = process.env.DATABASE_POOLER_URL;
 const directUrl = process.env.DATABASE_URL;
 export const usingPooler = !!poolerUrl;
 
-export const pool = new Pool({
+const sslConfig = { rejectUnauthorized: false };
+const needsSsl = isProduction || usingPooler;
+
+const basePool = new Pool({
   connectionString: poolerUrl || directUrl,
   connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,
   max: parseInt(process.env.DB_POOL_MAX || '20', 10),
-  ssl: isProduction ? { rejectUnauthorized: false } : undefined
+  ssl: needsSsl ? sslConfig : undefined,
 });
+
+if (usingPooler) {
+  const origQuery = basePool.query.bind(basePool);
+  (basePool as any).query = function (...args: any[]) {
+    if (args[0] && typeof args[0] === 'object' && 'name' in args[0]) {
+      args[0] = { ...args[0], name: undefined };
+    }
+    return origQuery(...args);
+  };
+
+  const origConnect = basePool.connect.bind(basePool);
+  (basePool as any).connect = async function (...args: any[]) {
+    if (args.length > 0) {
+      return origConnect(...args);
+    }
+    const client = await origConnect() as PoolClient;
+    const origClientQuery = client.query.bind(client);
+    (client as any).query = function (...cArgs: any[]) {
+      if (cArgs[0] && typeof cArgs[0] === 'object' && 'name' in cArgs[0]) {
+        cArgs[0] = { ...cArgs[0], name: undefined };
+      }
+      return origClientQuery(...cArgs);
+    };
+    return client;
+  };
+}
+
+export const pool = basePool;
 
 export const directPool = poolerUrl
   ? new Pool({
@@ -22,7 +53,7 @@ export const directPool = poolerUrl
       connectionTimeoutMillis: 10000,
       idleTimeoutMillis: 30000,
       max: 5,
-      ssl: isProduction ? { rejectUnauthorized: false } : undefined
+      ssl: needsSsl ? sslConfig : undefined,
     })
   : pool;
 
