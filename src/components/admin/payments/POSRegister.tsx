@@ -1081,9 +1081,7 @@ const POSRegister: React.FC = () => {
             {renderProductGrid()}
           </div>
 
-          <div className="bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-2xl shadow-liquid dark:shadow-liquid-dark">
-            <RedeemDayPassSection variant="card" />
-          </div>
+          <RedeemDayPassSection variant="card" />
         </div>
 
         {(cartItems.length > 0 || canReview) && (
@@ -1227,7 +1225,7 @@ const POSRegister: React.FC = () => {
           </button>
         </div>
 
-        <div className="mt-4 bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-2xl shadow-liquid dark:shadow-liquid-dark">
+        <div className="mt-4">
           <RedeemDayPassSection variant="card" />
         </div>
       </div>
