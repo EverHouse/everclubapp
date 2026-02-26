@@ -286,6 +286,44 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
             });
           }
 
+          if (message.type === 'data_integrity_update') {
+            if (import.meta.env.DEV) console.log('[StaffWebSocket] Received data_integrity_update');
+            window.dispatchEvent(new CustomEvent('data-integrity-update', { detail: message }));
+          }
+
+          if (message.type === 'member_data_updated') {
+            if (import.meta.env.DEV) console.log('[StaffWebSocket] Received member_data_updated:', message.memberEmail);
+            window.dispatchEvent(new CustomEvent('member-data-updated', { detail: message }));
+          }
+
+          if (message.type === 'announcement_update') {
+            if (import.meta.env.DEV) console.log('[StaffWebSocket] Received announcement_update');
+            window.dispatchEvent(new CustomEvent('announcement-update', { detail: message }));
+          }
+
+          if (message.type === 'stripe_cleanup_progress') {
+            window.dispatchEvent(new CustomEvent('stripe-cleanup-progress', { detail: message }));
+          }
+
+          if (message.type === 'visitor_archive_progress') {
+            window.dispatchEvent(new CustomEvent('visitor-archive-progress', { detail: message }));
+          }
+
+          if (message.type === 'booking_roster_update') {
+            if (import.meta.env.DEV) console.log('[StaffWebSocket] Received booking_roster_update:', message.bookingId);
+            window.dispatchEvent(new CustomEvent('booking-roster-update', { detail: message }));
+          }
+
+          if (message.type === 'booking_invoice_update') {
+            if (import.meta.env.DEV) console.log('[StaffWebSocket] Received booking_invoice_update:', message.bookingId);
+            window.dispatchEvent(new CustomEvent('booking-invoice-update', { detail: message }));
+          }
+
+          if (message.type === 'waitlist_update') {
+            if (import.meta.env.DEV) console.log('[StaffWebSocket] Received waitlist_update');
+            window.dispatchEvent(new CustomEvent('waitlist-update', { detail: message }));
+          }
+
           if (message.type === 'day_pass_update') {
             if (import.meta.env.DEV) console.log('[StaffWebSocket] Received day_pass_update:', message.action);
             window.dispatchEvent(new CustomEvent('day-pass-update', { detail: message }));

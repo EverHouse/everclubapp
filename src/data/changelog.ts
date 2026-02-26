@@ -10,10 +10,12 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.32.0",
     date: "2026-02-25",
-    title: "Supabase Realtime for Trackman Unmatched Bookings",
+    title: "Real-Time Sync Gap Audit & Fixes",
     changes: [
-      "New: Trackman unmatched bookings now update in real time via Supabase Realtime — staff viewing the Trackman tab will see new unmatched bookings appear automatically as they arrive from webhooks, without needing to refresh the page",
-      "New: Data integrity checks also refresh automatically when unmatched bookings change",
+      "New: Trackman unmatched bookings now update in real time via Supabase Realtime — staff viewing the Trackman tab will see new unmatched bookings appear automatically",
+      "Fix: Roster changes (adding/removing players) now refresh the booking list, admin calendar, simulator view, and financials across all open tabs — previously only the single booking detail refreshed",
+      "Fix: Invoice changes (created, paid, voided) now refresh the financials dashboard and booking lists — previously only the specific booking detail and member history refreshed",
+      "Fix: Waitlist changes now refresh booking availability and wellness class views across all open tabs — previously only the wellness page refreshed",
     ]
   },
   {

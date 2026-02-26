@@ -120,6 +120,29 @@ export function useWebSocketQuerySync() {
       queryClient.invalidateQueries({ queryKey: ['book-golf'] });
     };
 
+    const handleBookingRosterUpdate = (event: CustomEvent) => {
+      if (import.meta.env.DEV) console.log('[WebSocketQuerySync] Invalidating queries for booking-roster-update');
+      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
+      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
+      queryClient.invalidateQueries({ queryKey: financialsKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['book-golf'] });
+    };
+
+    const handleBookingInvoiceUpdate = (event: CustomEvent) => {
+      if (import.meta.env.DEV) console.log('[WebSocketQuerySync] Invalidating queries for booking-invoice-update');
+      queryClient.invalidateQueries({ queryKey: financialsKeys.all });
+      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['member'] });
+    };
+
+    const handleWaitlistUpdate = (event: CustomEvent) => {
+      if (import.meta.env.DEV) console.log('[WebSocketQuerySync] Invalidating queries for waitlist-update');
+      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
+      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['book-golf'] });
+      queryClient.invalidateQueries({ queryKey: wellnessKeys.all });
+    };
+
     const handleTrackmanUnmatchedUpdate = (event: CustomEvent) => {
       if (import.meta.env.DEV) console.log('[WebSocketQuerySync] Invalidating trackman unmatched queries (Supabase Realtime)');
       queryClient.invalidateQueries({ queryKey: ['trackman', 'unmatched'] });
@@ -161,6 +184,9 @@ export function useWebSocketQuerySync() {
     window.addEventListener('booking-confirmed', handleBookingConfirmed as EventListener);
     window.addEventListener('availability-update', handleAvailabilityUpdate as EventListener);
     window.addEventListener('trackman-unmatched-update', handleTrackmanUnmatchedUpdate as EventListener);
+    window.addEventListener('booking-roster-update', handleBookingRosterUpdate as EventListener);
+    window.addEventListener('booking-invoice-update', handleBookingInvoiceUpdate as EventListener);
+    window.addEventListener('waitlist-update', handleWaitlistUpdate as EventListener);
 
     return () => {
       window.removeEventListener('booking-update', handleBookingUpdate as EventListener);
@@ -178,6 +204,9 @@ export function useWebSocketQuerySync() {
       window.removeEventListener('booking-confirmed', handleBookingConfirmed as EventListener);
       window.removeEventListener('availability-update', handleAvailabilityUpdate as EventListener);
       window.removeEventListener('trackman-unmatched-update', handleTrackmanUnmatchedUpdate as EventListener);
+      window.removeEventListener('booking-roster-update', handleBookingRosterUpdate as EventListener);
+      window.removeEventListener('booking-invoice-update', handleBookingInvoiceUpdate as EventListener);
+      window.removeEventListener('waitlist-update', handleWaitlistUpdate as EventListener);
     };
   }, [queryClient]);
 }
