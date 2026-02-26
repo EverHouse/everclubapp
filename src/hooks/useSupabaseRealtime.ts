@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../lib/supabase';
 import { bookingEvents } from '../lib/bookingEvents';
@@ -13,14 +13,6 @@ export interface UseSupabaseRealtimeOptions {
 }
 
 const DEFAULT_TABLES = ['notifications', 'booking_sessions', 'announcements', 'trackman_unmatched_bookings'];
-const MAX_RETRIES = 3;
-const BASE_RETRY_DELAY = 3000;
-
-function getRetryDelay(attempt: number): number {
-  const exponentialDelay = BASE_RETRY_DELAY * Math.pow(2, attempt);
-  const jitter = Math.random() * 1000;
-  return exponentialDelay + jitter;
-}
 
 export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
   const {
@@ -33,9 +25,8 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
   } = options;
 
   const channelsRef = useRef<Map<string, RealtimeChannel>>(new Map());
-  const retryCountRef = useRef<Record<string, number>>({});
-  const retryTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const mountedRef = useRef(true);
+  const instanceId = useMemo(() => Math.random().toString(36).slice(2, 8), []);
 
   const handleNotification = useCallback((payload: Record<string, unknown>) => {
     window.dispatchEvent(new CustomEvent('member-notification', { detail: payload }));
@@ -76,11 +67,11 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
   }, [handleNotification, handleBookingUpdate, handleAnnouncementUpdate, handleTrackmanUnmatchedUpdate]);
 
   const getChannelName = useCallback((table: string) => {
-    if (table === 'notifications' && userEmail) {
-      return `realtime-${table}-${userEmail}`;
-    }
-    return `realtime-${table}`;
-  }, [userEmail]);
+    const base = (table === 'notifications' && userEmail)
+      ? `realtime-${table}-${userEmail}`
+      : `realtime-${table}`;
+    return `${base}-${instanceId}`;
+  }, [userEmail, instanceId]);
 
   const subscribeToTable = useCallback((supabase: ReturnType<typeof getSupabase>, table: string) => {
     if (!supabase || !mountedRef.current) return;
@@ -90,7 +81,6 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
       try {
         supabase.removeChannel(existingChannel);
       } catch {
-        // Channel may already be removed
       }
       channelsRef.current.delete(table);
     }
@@ -113,35 +103,9 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
 
       if (status === 'SUBSCRIBED') {
         console.log(`[Supabase Realtime] Subscribed to ${table}`);
-        retryCountRef.current[table] = 0;
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        const currentRetries = retryCountRef.current[table] || 0;
         const errMsg = err ? ` (${err.message || err})` : '';
-
-        if (currentRetries >= MAX_RETRIES) {
-          console.warn(`[Supabase Realtime] Max retries reached for ${table}, disabling${errMsg}`);
-          try {
-            supabase.removeChannel(channel);
-          } catch {
-            // Ignore
-          }
-          channelsRef.current.delete(table);
-          return;
-        }
-
-        retryCountRef.current[table] = currentRetries + 1;
-        const delay = getRetryDelay(currentRetries);
-        console.warn(`[Supabase Realtime] ${status} for ${table} (attempt ${currentRetries + 1}/${MAX_RETRIES})${errMsg}, retrying in ${Math.round(delay / 1000)}s`);
-
-        if (retryTimersRef.current[table]) {
-          clearTimeout(retryTimersRef.current[table]);
-        }
-
-        retryTimersRef.current[table] = setTimeout(() => {
-          delete retryTimersRef.current[table];
-          if (!mountedRef.current) return;
-          subscribeToTable(supabase, table);
-        }, delay);
+        console.warn(`[Supabase Realtime] ${status} for ${table}${errMsg} — SDK will auto-recover`);
       } else if (status === 'CLOSED') {
         console.log(`[Supabase Realtime] Channel closed for ${table}`);
         channelsRef.current.delete(table);
@@ -160,25 +124,19 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
       };
     }
 
-    retryCountRef.current = {};
-
     for (const table of tables) {
       subscribeToTable(supabase, table);
     }
 
     return () => {
       mountedRef.current = false;
-      Object.values(retryTimersRef.current).forEach(clearTimeout);
-      retryTimersRef.current = {};
       channelsRef.current.forEach((channel) => {
         try {
           supabase.removeChannel(channel);
         } catch {
-          // Ignore cleanup errors
         }
       });
       channelsRef.current.clear();
-      retryCountRef.current = {};
     };
   }, [userEmail, tables, subscribeToTable]);
 

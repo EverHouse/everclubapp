@@ -26,9 +26,6 @@ export function getSupabase(): SupabaseClient | null {
   try {
     supabaseClient = createClient(url, anonKey, {
       realtime: {
-        params: {
-          eventsPerSecond: 10
-        },
         heartbeatIntervalMs: 25000,
         reconnectAfterMs: (tries: number) => {
           return Math.min(1000 * Math.pow(2, tries), 30000);

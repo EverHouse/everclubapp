@@ -31,8 +31,12 @@ function generateBuildVersion(): Plugin {
 export default defineConfig({
   server: {
     port: 5000,
+    strictPort: true,
     host: '0.0.0.0',
     allowedHosts: true,
+    hmr: {
+      clientPort: 443
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
@@ -63,7 +67,13 @@ export default defineConfig({
       }
     },
     watch: {
-      ignored: ['**/.cache/**', '**/node_modules/**']
+      ignored: [
+        '**/.cache/**',
+        '**/node_modules/**',
+        '**/.replit',
+        '**/*.tsbuildinfo',
+        '**/.replit_integration_files/**'
+      ]
     }
   },
   plugins: [

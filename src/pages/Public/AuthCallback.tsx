@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { getSupabase } from '../../lib/supabase';
 import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 
@@ -12,6 +12,11 @@ const AuthCallback: React.FC = () => {
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        const supabase = getSupabase();
+        if (!supabase) {
+          setError('Supabase is not configured');
+          return;
+        }
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {

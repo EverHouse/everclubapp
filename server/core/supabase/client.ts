@@ -52,7 +52,7 @@ export async function isSupabaseAvailable(): Promise<boolean> {
     });
     
     await Promise.race([
-      supabase.auth.getSession(),
+      supabase.from('users').select('id').limit(1),
       timeoutPromise
     ]);
     
