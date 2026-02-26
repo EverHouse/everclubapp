@@ -435,7 +435,7 @@ async function initializeApp() {
       { path: '/terms', priority: '0.3', changefreq: 'yearly' },
     ];
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
     const urls = publicPages.map(p =>
       `  <url>\n    <loc>${siteOrigin}${p.path}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`
     ).join('\n');

@@ -122,6 +122,7 @@ router.post('/api/staff-users', isAdmin, async (req, res) => {
 router.put('/api/staff-users/:id', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    if (isNaN(parseInt(id as string))) return res.status(400).json({ error: 'Invalid staff user ID' });
     const { email: rawEmail, name, first_name, last_name, phone, job_title, role, is_active } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
     
@@ -183,6 +184,7 @@ router.put('/api/staff-users/:id', isAdmin, async (req, res) => {
 router.delete('/api/staff-users/:id', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    if (isNaN(parseInt(id as string))) return res.status(400).json({ error: 'Invalid staff user ID' });
     
     const result = await db.delete(staffUsers)
       .where(eq(staffUsers.id, parseInt(id as string)))

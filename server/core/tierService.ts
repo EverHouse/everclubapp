@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { normalizeTierName, DEFAULT_TIER } from '../../shared/constants/tiers';
 import { normalizeEmail } from './utils/emailNormalization';
 import { normalizeToISODate } from '../utils/dateNormalize';
+import { getTodayPacific, addDaysToPacificDate } from '../utils/dateUtils';
 
 import { logger } from './logger';
 export interface TierLimits {
@@ -246,15 +247,12 @@ export async function checkDailyBookingLimit(
   }
   
   const bookingWindowDays = limits.booking_window_days ?? 7;
-  const bookingDate = new Date(date + 'T00:00:00');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const todayPacific = getTodayPacific();
+  const maxDateStr = addDaysToPacificDate(todayPacific, bookingWindowDays);
+  const bookingDateStr = normalizeToISODate(date);
   
-  const maxBookingDate = new Date(today);
-  maxBookingDate.setDate(maxBookingDate.getDate() + bookingWindowDays);
-  
-  if (bookingDate > maxBookingDate) {
-    const formattedMaxDate = maxBookingDate.toLocaleDateString('en-US', { 
+  if (bookingDateStr > maxDateStr) {
+    const formattedMaxDate = new Date(maxDateStr + 'T12:00:00').toLocaleDateString('en-US', { 
       weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' 
     });
     return { 

@@ -153,6 +153,7 @@ router.put('/api/bookings/:id/approve', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const bookingId = parseInt(id as string);
+    if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
     
     const result = await approveBooking(bookingId);
     
@@ -177,6 +178,7 @@ router.put('/api/bookings/:id/decline', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const bookingId = parseInt(id as string);
+    if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
     
     const result = await declineBooking(bookingId, req.body.reason);
     
@@ -198,6 +200,7 @@ router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, async (req, res) 
   try {
     const { id } = req.params;
     const bookingId = parseInt(id as string);
+    if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
     const { member_email: raw_member_email, member_name, member_id } = req.body;
     const member_email = raw_member_email?.trim()?.toLowerCase();
     
@@ -534,6 +537,7 @@ router.get('/api/bookings/:id/cascade-preview', isStaffOrAdmin, async (req, res)
   try {
     const { id } = req.params;
     const bookingId = parseInt(id as string);
+    if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
     
     const result = await getCascadePreview(bookingId);
     res.json(result);
@@ -549,6 +553,7 @@ router.delete('/api/bookings/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const bookingId = parseInt(id as string);
+    if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
     const sessionUser = getSessionUser(req);
     const archivedBy = sessionUser?.email || 'unknown';
     const hardDelete = req.query.hard_delete === 'true';
@@ -580,6 +585,7 @@ router.put('/api/bookings/:id/member-cancel', isAuthenticated, async (req, res) 
     }
     
     const bookingId = parseInt(id as string);
+    if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
     
     const result = await memberCancelBooking(bookingId, userEmail, sessionUserRole, actingAsEmail);
     

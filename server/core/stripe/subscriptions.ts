@@ -478,13 +478,17 @@ export async function changeSubscriptionTier(
         updateParams.default_payment_method = defaultPaymentMethod;
       }
       
-      await stripe.subscriptions.update(subscriptionId, updateParams);
+      await stripe.subscriptions.update(subscriptionId, updateParams, {
+        idempotencyKey: `tier-upgrade-${subscriptionId}-${newPriceId}-${itemId}`
+      });
       logger.info(`[Stripe Subscriptions] Immediately upgraded subscription ${subscriptionId} to price ${newPriceId} (payment method: ${defaultPaymentMethod || 'none'})`);
     } else {
       await stripe.subscriptions.update(subscriptionId, {
         items: [{ id: itemId, price: newPriceId }],
         proration_behavior: 'none',
         cancel_at_period_end: false,
+      }, {
+        idempotencyKey: `tier-downgrade-${subscriptionId}-${newPriceId}-${itemId}`
       });
       logger.info(`[Stripe Subscriptions] Changed subscription ${subscriptionId} to price ${newPriceId} (next cycle)`);
     }
