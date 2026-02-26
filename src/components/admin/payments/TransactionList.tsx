@@ -163,7 +163,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
 
   const content = loading ? (
     <div className="flex items-center justify-center py-8">
-      <WalkingGolferSpinner size="sm" variant="dark" />
+      <WalkingGolferSpinner size="sm" variant="auto" />
     </div>
   ) : transactions.length === 0 ? (
     <EmptyState icon="receipt_long" title="No transactions today" description="Payments will appear here as they're processed" variant="compact" />

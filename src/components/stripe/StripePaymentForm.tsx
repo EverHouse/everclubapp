@@ -129,7 +129,7 @@ export function SimpleCheckoutForm({
         >
           {isProcessing ? (
             <>
-              <WalkingGolferSpinner size="sm" variant="dark" />
+              <WalkingGolferSpinner size="sm" variant="auto" />
               Processing...
             </>
           ) : (

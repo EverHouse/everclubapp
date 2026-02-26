@@ -384,7 +384,7 @@ export function TerminalPayment({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <WalkingGolferSpinner size="sm" variant="dark" />
+        <WalkingGolferSpinner size="sm" variant="auto" />
       </div>
     );
   }

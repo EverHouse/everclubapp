@@ -86,7 +86,7 @@ export const OverduePaymentsSection: React.FC<OverduePaymentsSectionProps> = ({ 
     return (
       <div className={`${isDesktop ? 'h-full min-h-[280px]' : 'min-h-[200px]'} flex flex-col bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-2xl p-4 shadow-liquid dark:shadow-liquid-dark`}>
         <div className="flex items-center justify-center flex-1">
-          <WalkingGolferSpinner size="sm" variant="dark" />
+          <WalkingGolferSpinner size="sm" variant="auto" />
         </div>
       </div>
     );

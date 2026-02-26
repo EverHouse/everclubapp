@@ -237,7 +237,7 @@ const SubscriptionsSubTab: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
-          <WalkingGolferSpinner size="md" variant="dark" />
+          <WalkingGolferSpinner size="md" variant="auto" />
           <p className="text-sm text-primary/60 dark:text-white/60">Loading subscriptions...</p>
         </div>
       </div>
@@ -590,7 +590,7 @@ const InvoicesSubTab: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
-          <WalkingGolferSpinner size="md" variant="dark" />
+          <WalkingGolferSpinner size="md" variant="auto" />
           <p className="text-sm text-primary/60 dark:text-white/60">Loading invoices...</p>
         </div>
       </div>

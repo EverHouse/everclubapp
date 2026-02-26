@@ -143,7 +143,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
         <div className="p-4 space-y-4">
           {logic.isLoadingRoster ? (
             <div className="flex items-center justify-center py-12">
-              <WalkingGolferSpinner size="sm" variant="dark" />
+              <WalkingGolferSpinner size="sm" variant="auto" />
             </div>
           ) : logic.rosterError ? (
             <div className="text-center py-8">

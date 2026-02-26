@@ -380,7 +380,7 @@ const TeamTab: React.FC = () => {
 
         {isLoading ? (
           <div className="py-8 flex flex-col items-center gap-2">
-            <WalkingGolferSpinner size="md" variant="dark" />
+            <WalkingGolferSpinner size="md" variant="auto" />
             <p className="text-sm text-gray-500">Loading team...</p>
           </div>
         ) : filteredMembers.length === 0 ? (

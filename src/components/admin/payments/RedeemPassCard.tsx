@@ -1085,7 +1085,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
           
           {isLoadingUnredeemed ? (
             <div className="flex items-center justify-center py-6">
-              <WalkingGolferSpinner size="sm" variant="dark" />
+              <WalkingGolferSpinner size="sm" variant="auto" />
             </div>
           ) : unredeemedPasses.length === 0 ? (
             <div className="text-center py-6">

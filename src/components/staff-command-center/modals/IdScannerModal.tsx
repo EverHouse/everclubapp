@@ -448,7 +448,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
 
               {state === 'scanning' && (
                 <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                  <WalkingGolferSpinner size="md" variant="dark" />
+                  <WalkingGolferSpinner size="md" variant="auto" />
                   <p className={`text-sm font-medium ${textClass}`}>Scanning ID document...</p>
                   <p className={`text-xs ${subtextClass}`}>This may take a few seconds</p>
                 </div>

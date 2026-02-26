@@ -129,7 +129,7 @@ const SettingsTab: React.FC = () => {
   if (isLoading) {
     return (
       <div className="py-8 flex flex-col items-center gap-2">
-        <WalkingGolferSpinner size="md" variant="dark" />
+        <WalkingGolferSpinner size="md" variant="auto" />
         <p className="text-sm text-gray-500">Loading settings...</p>
       </div>
     );

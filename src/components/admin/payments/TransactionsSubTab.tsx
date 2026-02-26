@@ -136,7 +136,7 @@ const DailySummaryCard: React.FC<SectionProps> = ({ onClose, variant = 'modal' }
     <div className="space-y-4">
       {isLoading ? (
         <div className="flex items-center justify-center py-8">
-          <WalkingGolferSpinner size="sm" variant="dark" />
+          <WalkingGolferSpinner size="sm" variant="auto" />
         </div>
       ) : error ? (
         <div className="text-center py-4 text-red-500">{error instanceof Error ? error.message : 'Failed to fetch summary'}</div>
@@ -315,7 +315,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
 
   const content = loading ? (
     <div className="flex items-center justify-center py-8">
-      <WalkingGolferSpinner size="sm" variant="dark" />
+      <WalkingGolferSpinner size="sm" variant="auto" />
     </div>
   ) : authorizations.length === 0 ? (
     <EmptyState 
@@ -593,7 +593,7 @@ const FutureBookingsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
 
   const content = loading ? (
     <div className="flex items-center justify-center py-8">
-      <WalkingGolferSpinner size="sm" variant="dark" />
+      <WalkingGolferSpinner size="sm" variant="auto" />
     </div>
   ) : futureBookings.length === 0 ? (
     <EmptyState 
@@ -770,7 +770,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
 
   const content = loading ? (
     <div className="flex items-center justify-center py-8">
-      <WalkingGolferSpinner size="sm" variant="dark" />
+      <WalkingGolferSpinner size="sm" variant="auto" />
     </div>
   ) : failedPayments.length === 0 ? (
     <EmptyState 
@@ -957,7 +957,7 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
 
   const content = loading ? (
     <div className="flex items-center justify-center py-8">
-      <WalkingGolferSpinner size="sm" variant="dark" />
+      <WalkingGolferSpinner size="sm" variant="auto" />
     </div>
   ) : payments.length === 0 ? (
     <EmptyState icon="undo" title="No refunds yet" description="Completed refunds from the last 90 days will appear here" variant="compact" />

@@ -74,7 +74,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
 
   const content = loading ? (
     <div className="flex items-center justify-center py-12">
-      <WalkingGolferSpinner size="sm" variant="dark" />
+      <WalkingGolferSpinner size="sm" variant="auto" />
     </div>
   ) : overduePayments.length === 0 ? (
     <EmptyState icon="payments" title="No overdue payments" description="All payments are up to date" variant="compact" />

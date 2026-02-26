@@ -96,7 +96,7 @@ function CheckoutForm({ tier, email, quantity = 1, companyName, jobTitle, isCorp
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <WalkingGolferSpinner size="md" variant="dark" />
+        <WalkingGolferSpinner size="md" variant="auto" />
       </div>
     );
   }
@@ -524,7 +524,7 @@ function DayPassesSection() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <WalkingGolferSpinner size="md" variant="dark" />
+        <WalkingGolferSpinner size="md" variant="auto" />
       </div>
     );
   }
@@ -616,7 +616,7 @@ function DayPassesSection() {
                 className="flex-1 py-3 px-4 rounded-xl font-semibold bg-accent text-brand-green hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 tactile-btn"
               >
                 {submitting ? (
-                  <WalkingGolferSpinner size="sm" variant="dark" />
+                  <WalkingGolferSpinner size="sm" variant="auto" />
                 ) : (
                   <>
                     <span className="material-symbols-outlined text-lg">shopping_cart</span>
@@ -772,7 +772,7 @@ function CheckoutSuccess() {
   if (status === 'loading') {
     return (
       <div className="flex items-center justify-center py-16">
-        <WalkingGolferSpinner size="md" variant="dark" />
+        <WalkingGolferSpinner size="md" variant="auto" />
       </div>
     );
   }
@@ -847,7 +847,7 @@ function CheckoutSuccess() {
 
       {!pollingDone && !accountReady && (
         <div className="flex items-center justify-center gap-2 text-sm text-primary/60 dark:text-white/60 mb-6">
-          <WalkingGolferSpinner size="sm" variant="dark" />
+          <WalkingGolferSpinner size="sm" variant="auto" />
           Setting up your account...
         </div>
       )}

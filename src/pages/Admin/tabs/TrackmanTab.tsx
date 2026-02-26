@@ -519,7 +519,7 @@ const TrackmanTab: React.FC = () => {
         >
           {uploadMutation.isPending ? (
             <div className="flex flex-col items-center gap-3 w-full px-4">
-              <WalkingGolferSpinner size="lg" variant="dark" />
+              <WalkingGolferSpinner size="lg" variant="auto" />
               {uploadProgress && (
                 <div className="w-full max-w-sm">
                   <div className="flex items-center gap-2 mb-2 justify-center">
@@ -1057,7 +1057,7 @@ const TrackmanTab: React.FC = () => {
           
           {fuzzyMatchesLoading ? (
             <div className="flex flex-col items-center justify-center py-8 gap-3">
-              <WalkingGolferSpinner size="md" variant="dark" />
+              <WalkingGolferSpinner size="md" variant="auto" />
               <p className="text-sm text-primary/70 dark:text-white/70">Finding matches...</p>
             </div>
           ) : (

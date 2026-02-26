@@ -641,7 +641,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
           </div>
         ) : loading ? (
           <div className="flex items-center justify-center py-8">
-            <WalkingGolferSpinner size="sm" variant="dark" />
+            <WalkingGolferSpinner size="sm" variant="auto" />
           </div>
         ) : error ? (
           <div className="text-center py-8">
