@@ -4,26 +4,41 @@ import { getErrorMessage, getErrorCode, getErrorDetail } from '../utils/errorUti
 import { logger } from './logger';
 export const isProduction = process.env.NODE_ENV === 'production';
 
+const poolerUrl = process.env.DATABASE_POOLER_URL;
+const directUrl = process.env.DATABASE_URL;
+export const usingPooler = !!poolerUrl;
+
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: poolerUrl || directUrl,
   connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,
   max: parseInt(process.env.DB_POOL_MAX || '20', 10),
-  // SSL Note: rejectUnauthorized: false disables certificate verification.
-  // This is acceptable for Replit's managed Postgres (Neon-backed) where the connection
-  // is already secured. However, if migrating to an external database provider,
-  // you should use proper CA certificate verification:
-  //   ssl: { ca: fs.readFileSync('/path/to/ca-cert.pem'), rejectUnauthorized: true }
   ssl: isProduction ? { rejectUnauthorized: false } : undefined
 });
+
+export const directPool = poolerUrl
+  ? new Pool({
+      connectionString: directUrl,
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
+      max: 5,
+      ssl: isProduction ? { rejectUnauthorized: false } : undefined
+    })
+  : pool;
 
 pool.on('error', (err) => {
   logger.error('[Database] Pool error:', { extra: { detail: err.message } });
 });
 
 pool.on('connect', () => {
-  logger.info('[Database] New client connected');
+  logger.info(`[Database] New client connected via ${usingPooler ? 'PgBouncer pooler' : 'direct connection'}`);
 });
+
+if (poolerUrl && directPool !== pool) {
+  directPool.on('error', (err) => {
+    logger.error('[Database] Direct pool error:', { extra: { detail: err.message } });
+  });
+}
 
 const RETRYABLE_ERRORS = [
   'ECONNRESET',

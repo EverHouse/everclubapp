@@ -159,6 +159,7 @@ async function initializeApp() {
 
   logger.info(`[Startup] Environment: ${isProduction ? 'production' : 'development'}`);
   logger.info(`[Startup] DATABASE_URL: ${process.env.DATABASE_URL ? 'configured' : 'MISSING'}`);
+  logger.info(`[Startup] DATABASE_POOLER_URL: ${process.env.DATABASE_POOLER_URL ? 'configured (PgBouncer active)' : 'not set (using direct connection)'}`);
 
   const app = express();
 
@@ -360,6 +361,7 @@ async function initializeApp() {
           resourceCount: Number(resourceCountResult[0]?.count ?? 0),
           resourcesByType: resourceTypes.rows,
           databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing',
+          databasePooler: process.env.DATABASE_POOLER_URL ? 'pgbouncer' : 'direct',
           startupHealth,
           alerts: {
             counts: alertCounts,
