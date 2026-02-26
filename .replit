@@ -28,7 +28,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run server & sleep 2 && npm run dev"
+args = "npm run server & sleep 3 && npm run dev"
 waitForPort = 5000
 
 [userenv]
@@ -61,10 +61,6 @@ defaultBucketID = "replit-objstore-a74e2fa8-3e0a-44cd-bca4-3046e4e3b9c2"
 [[ports]]
 localPort = 80
 externalPort = 80
-
-[[ports]]
-localPort = 3001
-externalPort = 3001
 
 [[ports]]
 localPort = 5000
