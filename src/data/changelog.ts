@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.43.0",
+    date: "2026-02-27",
+    title: "Smart Visitor Type Detection",
+    changes: [
+      "Improvement: New visitor creation during Trackman booking assignment no longer requires manual visitor type selection — system automatically detects Day Pass for Slot 1 (owner) and Member Guest for Slots 2-4",
+      "Removed: Visitor Type dropdown from the Create New Visitor form in the booking assignment flow",
+    ]
+  },
+  {
     version: "8.42.0",
     date: "2026-02-27",
     title: "Notification & Check-in Fixes",

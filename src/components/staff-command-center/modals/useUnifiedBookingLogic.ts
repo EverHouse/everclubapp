@@ -719,6 +719,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     
     setIsCreatingVisitor(true);
     try {
+      const autoVisitorType = activeSlotIndex === 0 ? 'day_pass' : 'guest';
       const createRes = await fetch('/api/visitors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -727,7 +728,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
           email: visitorData.email,
           firstName: visitorData.firstName,
           lastName: visitorData.lastName,
-          visitorType: visitorData.visitorType,
+          visitorType: autoVisitorType,
           createStripeCustomer: true
         })
       });

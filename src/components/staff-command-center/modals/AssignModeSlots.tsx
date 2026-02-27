@@ -148,28 +148,13 @@ export function AssignModeSlots({
                   onChange={(e) => setVisitorData({ ...visitorData, email: e.target.value })}
                   className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/50 dark:placeholder:text-white/50 text-xs"
                 />
-                <div>
-                  <label className="block text-xs text-primary/70 dark:text-white/70 mb-1">Visitor Type *</label>
-                  <select
-                    value={visitorData.visitorType}
-                    onChange={(e) => setVisitorData({ ...visitorData, visitorType: e.target.value })}
-                    className={`w-full px-2 py-1.5 rounded-lg bg-white dark:bg-white/10 border text-primary dark:text-white text-xs ${
-                      visitorData.visitorType ? 'border-primary/20 dark:border-white/20' : 'border-red-300 dark:border-red-500/50'
-                    }`}
-                    required
-                  >
-                    <option value="">Select visitor type...</option>
-                    <option value="guest">Guest</option>
-                    <option value="day_pass">Day Pass</option>
-                    <option value="sim_walkin">Simulator Walk-in</option>
-                    <option value="golfnow">GolfNow</option>
-                    <option value="classpass">ClassPass</option>
-                    <option value="private_lesson">Private Lesson</option>
-                    <option value="lead">Lead</option>
-                  </select>
-                  {!visitorData.visitorType && visitorData.email && (
-                    <p className="text-xs text-red-500 mt-0.5">Please select a visitor type</p>
-                  )}
+                <div className="px-1 py-1 rounded-lg bg-primary/5 dark:bg-white/5">
+                  <p className="text-xs text-primary/60 dark:text-white/60">
+                    <span className="material-symbols-outlined text-xs align-middle mr-0.5">info</span>
+                    {activeSlotIndex === 0
+                      ? 'Will be created as Day Pass (Slot 1 owner)'
+                      : 'Will be created as Member Guest'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -208,7 +193,7 @@ export function AssignModeSlots({
 
             <button
               onClick={handleCreateVisitorAndAssign}
-              disabled={!visitorData.email || !visitorData.firstName || !visitorData.lastName || !visitorData.visitorType || isCreatingVisitor}
+              disabled={!visitorData.email || !visitorData.firstName || !visitorData.lastName || isCreatingVisitor}
               className="tactile-btn w-full py-2 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
             >
               {isCreatingVisitor ? (
