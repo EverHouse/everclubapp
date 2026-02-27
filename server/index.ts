@@ -343,6 +343,14 @@ async function initializeApp() {
   app.use(globalRateLimiter);
 
   app.get('/api/health', async (req, res) => {
+    if (!isReady) {
+      return res.status(503).json({
+        status: 'starting',
+        database: 'initializing',
+        uptime: process.uptime()
+      });
+    }
+
     try {
       const dbResult = await db.execute(sql`SELECT NOW() as time`);
       const isAuthenticated = req.session?.user?.isStaff === true;

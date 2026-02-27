@@ -55,6 +55,10 @@ const AdminDashboard: React.FC = () => {
     bookingDetails?: { bayName: string; startTime: string; endTime: string; resourceType: string } | null;
   }>({ isOpen: false, memberName: '', pinnedNotes: [] });
 
+  const handleCheckinClose = useCallback(() => {
+    setCheckinConfirmation(prev => ({ ...prev, isOpen: false }));
+  }, []);
+
   useEffect(() => {
     const handleWalkinCheckin = (event: CustomEvent) => {
       const detail = event.detail?.data;
@@ -233,7 +237,7 @@ const AdminDashboard: React.FC = () => {
 
       <CheckInConfirmationModal
         isOpen={checkinConfirmation.isOpen}
-        onClose={() => setCheckinConfirmation(prev => ({ ...prev, isOpen: false }))}
+        onClose={handleCheckinClose}
         memberName={checkinConfirmation.memberName}
         pinnedNotes={checkinConfirmation.pinnedNotes}
         tier={checkinConfirmation.tier}
