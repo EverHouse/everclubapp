@@ -156,6 +156,8 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
             totalAmount: serverTotal / 100,
             balanceApplied: invoiceResult.amountFromBalance / 100,
             remainingAmount: 0,
+            hostedInvoiceUrl: invoiceResult.hostedInvoiceUrl || null,
+            invoicePdf: invoiceResult.invoicePdf || null,
             participantFees: pendingFees.map(f => ({
               id: f.participantId,
               displayName: f.displayName,
@@ -172,6 +174,8 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
           totalAmount: serverTotal / 100,
           balanceApplied: 0,
           remainingAmount: serverTotal / 100,
+          hostedInvoiceUrl: invoiceResult.hostedInvoiceUrl || null,
+          invoicePdf: invoiceResult.invoicePdf || null,
           participantFees: pendingFees.map(f => ({
             id: f.participantId,
             displayName: f.displayName,
@@ -257,6 +261,8 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
         totalAmount: serverTotal / 100,
         balanceApplied: invoiceResult.amountFromBalance / 100,
         remainingAmount: 0,
+        hostedInvoiceUrl: invoiceResult.hostedInvoiceUrl || null,
+        invoicePdf: invoiceResult.invoicePdf || null,
         participantFees: participantFeesList,
       });
     }
@@ -269,6 +275,8 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       totalAmount: serverTotal / 100,
       balanceApplied: 0,
       remainingAmount: serverTotal / 100,
+      hostedInvoiceUrl: invoiceResult.hostedInvoiceUrl || null,
+      invoicePdf: invoiceResult.invoicePdf || null,
       participantFees: participantFeesList,
     });
   } catch (error: unknown) {
