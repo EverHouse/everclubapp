@@ -166,6 +166,7 @@ export async function handleBookingModification(
            duration_minutes = ${newDuration},
            resource_id = ${newResourceId},
            trackman_player_count = ${incoming.playerCount},
+           declared_player_count = ${incoming.playerCount},
            last_trackman_sync_at = NOW(),
            staff_notes = COALESCE(staff_notes, '') || ${staffNoteAddition},
            updated_at = NOW()
