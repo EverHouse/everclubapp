@@ -1270,8 +1270,8 @@ router.post('/api/stripe/terminal/save-card', isStaffOrAdmin, async (req: Reques
 
     const reader = await stripe.terminal.readers.processSetupIntent(readerId, {
       setup_intent: setupIntent.id,
-      customer_consent_collected: true
-    } as any);
+      allow_redisplay: 'always'
+    });
 
     if (reader.device_type?.startsWith('simulated')) {
       try {
