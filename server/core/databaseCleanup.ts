@@ -3,6 +3,11 @@ import { bookingRequests, notifications, users, eventRsvps } from '../../shared/
 import { sql, eq, like, or, and, lt, inArray } from 'drizzle-orm';
 import { logger } from './logger';
 
+interface DrizzleExecuteResult {
+  rowCount?: number;
+  rows?: unknown[];
+}
+
 interface CleanupResult {
   testNotifications: number;
   testBookings: number;
@@ -219,7 +224,8 @@ export async function cleanupOldAvailabilityBlocks(daysOld: number = 30): Promis
       WHERE block_date < CURRENT_DATE - ${daysOld} * INTERVAL '1 day'
     `);
     
-    const count = Number((result as unknown as Record<string, unknown>).rowCount || ((result as unknown as Record<string, unknown>).rows as unknown[] | undefined)?.length || 0);
+    const execResult = result as unknown as DrizzleExecuteResult;
+    const count = Number(execResult.rowCount || execResult.rows?.length || 0);
     
     if (count > 0) {
       logger.info(`[Cleanup] Removed ${count} old availability blocks (>${daysOld} days)`, {

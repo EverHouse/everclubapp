@@ -23,6 +23,16 @@ import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../utils/erro
 import { normalizeToISODate } from '../utils/dateNormalize';
 import { getCached, setCache } from './queryCache';
 
+interface DrizzleExecuteResult<T = Record<string, unknown>> {
+  rows?: T[];
+  rowCount?: number;
+}
+
+interface TrackmanWebhookRow {
+  payload: string | Record<string, unknown>;
+  trackman_booking_id: string;
+}
+
 const RESOURCE_CACHE_KEY = 'all_resources';
 const RESOURCE_CACHE_TTL = 60_000;
 
@@ -950,7 +960,7 @@ export async function linkTrackmanToMember(
         ORDER BY created_at DESC
         LIMIT 1
       `);
-      const webhookLog = (webhookResult as { rows?: Record<string, unknown>[] }).rows?.[0] ?? (webhookResult as unknown as Record<string, unknown>[])[0];
+      const webhookLog = (webhookResult as unknown as DrizzleExecuteResult<TrackmanWebhookRow>).rows?.[0];
       
       if (!webhookLog) {
         throw { statusCode: 404, error: 'Trackman booking not found in webhook logs' };

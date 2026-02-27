@@ -59,16 +59,25 @@ interface WebhookProcessingResult {
   deferredActions: DeferredAction[];
 }
 
+interface StripeEventObject {
+  id?: string;
+  customer?: string;
+  subscription?: string;
+  invoice?: string;
+  payment_intent?: string;
+  [key: string]: unknown;
+}
+
 function extractResourceId(event: Stripe.Event): string | null {
-  const obj = event.data?.object as unknown as Record<string, unknown> | undefined;
+  const obj = event.data?.object as unknown as StripeEventObject | undefined;
   if (!obj || !obj.id) return null;
   
-  if (event.type.startsWith('payment_intent.')) return obj.id as string;
-  if (event.type.startsWith('invoice.')) return obj.id as string;
-  if (event.type.startsWith('customer.subscription.')) return obj.id as string;
-  if (event.type.startsWith('checkout.session.')) return obj.id as string;
-  if (event.type.startsWith('charge.')) return (obj.payment_intent as string) || (obj.id as string);
-  if (event.type.startsWith('setup_intent.')) return obj.id as string;
+  if (event.type.startsWith('payment_intent.')) return obj.id;
+  if (event.type.startsWith('invoice.')) return obj.id;
+  if (event.type.startsWith('customer.subscription.')) return obj.id;
+  if (event.type.startsWith('checkout.session.')) return obj.id;
+  if (event.type.startsWith('charge.')) return obj.payment_intent || obj.id;
+  if (event.type.startsWith('setup_intent.')) return obj.id;
   
   return null;
 }
@@ -3116,12 +3125,13 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
 
     try {
       const subDiscounts = subscription.discounts?.filter((d): d is Stripe.Discount => typeof d !== 'string');
-      let subCoupon = (subDiscounts?.[0] as unknown as Record<string, unknown>)?.coupon as Stripe.Coupon | string | undefined;
+      let subCoupon: Stripe.Coupon | string | undefined = subDiscounts?.[0]?.source?.coupon ?? undefined;
       if (!subCoupon) {
         for (const item of (subscription.items?.data || [])) {
-          const rawItemDiscounts = ((item as unknown as Record<string, unknown>).discounts as Array<unknown> | undefined)?.filter((d: unknown): d is { coupon: Stripe.Coupon | string } => typeof d === 'object' && d !== null && 'coupon' in d);
-          if (rawItemDiscounts?.[0]?.coupon) {
-            subCoupon = rawItemDiscounts[0].coupon;
+          const itemDiscounts = item.discounts?.filter((d): d is Stripe.Discount => typeof d !== 'string');
+          const itemCoupon = itemDiscounts?.[0]?.source?.coupon;
+          if (itemCoupon) {
+            subCoupon = itemCoupon;
             break;
           }
         }
@@ -3949,12 +3959,13 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
 
     try {
       const updatedDiscounts = subscription.discounts?.filter((d): d is Stripe.Discount => typeof d !== 'string');
-      let currentCoupon = (updatedDiscounts?.[0] as unknown as Record<string, unknown>)?.coupon as Stripe.Coupon | string | undefined;
+      let currentCoupon: Stripe.Coupon | string | undefined = updatedDiscounts?.[0]?.source?.coupon ?? undefined;
       if (!currentCoupon) {
         for (const item of (subscription.items?.data || [])) {
-          const rawItemDiscounts = ((item as unknown as Record<string, unknown>).discounts as Array<unknown> | undefined)?.filter((d: unknown): d is { coupon: Stripe.Coupon | string } => typeof d === 'object' && d !== null && 'coupon' in d);
-          if (rawItemDiscounts?.[0]?.coupon) {
-            currentCoupon = rawItemDiscounts[0].coupon;
+          const itemDiscounts = item.discounts?.filter((d): d is Stripe.Discount => typeof d !== 'string');
+          const itemCoupon = itemDiscounts?.[0]?.source?.coupon;
+          if (itemCoupon) {
+            currentCoupon = itemCoupon;
             break;
           }
         }

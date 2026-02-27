@@ -115,6 +115,9 @@ export interface TrackmanWebhookPayload {
   purchase?: Record<string, unknown>;
   timestamp?: string;
   venue?: TrackmanV2Venue;
+  start_time?: string;
+  end_time?: string;
+  status?: string;
 }
 
 export interface NormalizedBookingFields {
@@ -331,7 +334,7 @@ export function parseDateTime(dateTimeStr: string | undefined, dateStr: string |
 export function redactPII(payload: unknown): unknown {
   if (!payload || typeof payload !== 'object') return payload;
   
-  const redacted: Record<string, unknown> = Array.isArray(payload) ? [...payload] as unknown as Record<string, unknown> : { ...(payload as Record<string, unknown>) };
+  const redacted: Record<string, unknown> = Array.isArray(payload) ? Object.fromEntries(payload.map((v, i) => [String(i), v])) : { ...(payload as Record<string, unknown>) };
   const sensitiveFields = ['email', 'phone', 'phoneNumber', 'mobile', 'customer_email', 'customerEmail'];
   
   for (const key of Object.keys(redacted)) {

@@ -13,6 +13,24 @@ import { findOrCreateHubSpotContact } from '../../core/hubspot/members';
 import { getSessionUser } from '../../types/session';
 import Stripe from 'stripe';
 
+interface StripeInvoiceExpanded extends Stripe.Invoice {
+  payment_intent: string | Stripe.PaymentIntent | null;
+}
+
+interface StripeSetupIntentExpanded {
+  latest_attempt?: {
+    payment_method_details?: {
+      card_present?: {
+        generated_card?: string;
+      };
+    };
+  };
+}
+
+interface CardPresentExpanded extends Stripe.PaymentMethod.CardPresent {
+  generated_card?: string;
+}
+
 const router = Router();
 
 router.post('/api/stripe/terminal/connection-token', isStaffOrAdmin, async (req: Request, res: Response) => {
@@ -657,8 +675,8 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
       logger.error('[Terminal] Error listing existing PIs:', { extra: { error: getErrorMessage(listErr) } });
     }
 
-    const invoiceRaw = invoice as unknown as Record<string, unknown>;
-    const invoicePI = (typeof invoiceRaw.payment_intent === 'object' && invoiceRaw.payment_intent !== null) ? invoiceRaw.payment_intent as Stripe.PaymentIntent : null;
+    const invoiceExpanded = invoice as StripeInvoiceExpanded;
+    const invoicePI = (typeof invoiceExpanded.payment_intent === 'object' && invoiceExpanded.payment_intent !== null) ? invoiceExpanded.payment_intent as Stripe.PaymentIntent : null;
     let paymentIntent: Stripe.PaymentIntent;
     
     if (invoicePI && invoicePI.id) {
@@ -910,10 +928,10 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
     if (piMetadata.requiresInvoiceReconciliation === 'true' && latestInvoice && latestInvoice.status !== 'paid') {
       try {
         if (latestInvoice.status === 'open') {
-          const latestInvRaw = latestInvoice as unknown as Record<string, unknown>;
-          const invoicePiId = typeof latestInvRaw.payment_intent === 'string'
-            ? latestInvRaw.payment_intent
-            : (typeof latestInvRaw.payment_intent === 'object' && latestInvRaw.payment_intent !== null) ? (latestInvRaw.payment_intent as Stripe.PaymentIntent).id : null;
+          const latestInvExpanded = latestInvoice as StripeInvoiceExpanded;
+          const invoicePiId = typeof latestInvExpanded.payment_intent === 'string'
+            ? latestInvExpanded.payment_intent
+            : (typeof latestInvExpanded.payment_intent === 'object' && latestInvExpanded.payment_intent !== null) ? (latestInvExpanded.payment_intent as Stripe.PaymentIntent).id : null;
           if (invoicePiId) {
             try {
               await stripe.paymentIntents.cancel(invoicePiId);
@@ -1150,7 +1168,7 @@ router.post('/api/stripe/terminal/process-existing-payment', isStaffOrAdmin, asy
     let readerLabel = readerId;
     try {
       const readerObj = await stripe.terminal.readers.retrieve(readerId);
-      readerLabel = (readerObj as unknown as Record<string, string>).label || readerId;
+      readerLabel = (readerObj as Stripe.Terminal.Reader).label || readerId;
     } catch (e: unknown) { /* reader label is cosmetic, ignore */ }
 
     const updateParams: Stripe.PaymentIntentUpdateParams = {
@@ -1366,14 +1384,14 @@ router.post('/api/stripe/terminal/confirm-save-card', isStaffOrAdmin, async (req
     let reusablePaymentMethodId = pmId;
 
     if (pm.type === 'card_present') {
-      const latestAttempt = (setupIntent as unknown as Record<string, unknown>).latest_attempt as Record<string, unknown> | undefined;
-      const generatedCard = (latestAttempt?.payment_method_details as Record<string, unknown> | undefined)?.card_present as Record<string, unknown> | undefined;
-      const generatedCardId = generatedCard?.generated_card as string | undefined;
+      const setupIntentExpanded = setupIntent as StripeSetupIntentExpanded;
+      const latestAttempt = setupIntentExpanded.latest_attempt;
+      const generatedCardId = latestAttempt?.payment_method_details?.card_present?.generated_card;
       if (generatedCardId) {
         reusablePaymentMethodId = generatedCardId;
         logger.info('[Terminal] Found generated_card from SetupAttempt', { extra: { reusablePaymentMethodId } });
-      } else if ((pm.card_present as unknown as Record<string, unknown> | undefined)?.generated_card) {
-        reusablePaymentMethodId = (pm.card_present as unknown as Record<string, unknown>).generated_card as string;
+      } else if ((pm.card_present as CardPresentExpanded | undefined)?.generated_card) {
+        reusablePaymentMethodId = (pm.card_present as CardPresentExpanded).generated_card as string;
         logger.info('[Terminal] Found generated_card from PaymentMethod object (fallback)', { extra: { reusablePaymentMethodId } });
       } else {
         logger.warn('[Terminal] No generated_card found for card_present PM — card may not be reusable for online payments', { extra: { pmId, setupIntentId } });

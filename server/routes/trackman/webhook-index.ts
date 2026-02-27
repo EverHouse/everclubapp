@@ -136,7 +136,7 @@ async function checkWebhookIdempotency(trackmanBookingId: string, status?: strin
   }
 }
 
-function buildContentSignature(payload: Record<string, unknown>): string | undefined {
+function buildContentSignature(payload: TrackmanWebhookPayload | Record<string, unknown>): string | undefined {
   const parts: string[] = [];
 
   const booking = payload?.booking as Record<string, unknown> | undefined;
@@ -200,11 +200,10 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
   // Check for duplicate webhook using idempotency guard BEFORE processing
   // Include status + content signature in dedup key so modifications with changed bay/time get through
   const trackmanBookingIdFromPayload = extractTrackmanBookingId(payload);
-  const pRec = payload as unknown as Record<string, unknown>;
-  const pBooking = pRec.booking as Record<string, unknown> | undefined;
-  const pData = pRec.data as Record<string, unknown> | undefined;
-  const webhookStatus = (pBooking?.status as string) || (pData?.status as string) || (pRec.event_type as string);
-  const contentSig = buildContentSignature(payload as unknown as Record<string, unknown>);
+  const pBooking = payload.booking;
+  const pData = payload.data;
+  const webhookStatus = pBooking?.status || pData?.status || payload.event_type || '';
+  const contentSig = buildContentSignature(payload);
   if (trackmanBookingIdFromPayload) {
     const isNewWebhook = await checkWebhookIdempotency(trackmanBookingIdFromPayload, webhookStatus, contentSig);
     if (!isNewWebhook) {
@@ -409,7 +408,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
     
     await logWebhookEvent(
       eventType,
-      payload as unknown as Record<string, unknown>,
+      payload,
       trackmanBookingId,
       trackmanUserId,
       matchedBookingId,
@@ -422,7 +421,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
     
     await logWebhookEvent(
       'error',
-      payload as unknown as Record<string, unknown>,
+      payload,
       undefined,
       undefined,
       undefined,
@@ -568,8 +567,7 @@ router.post('/api/admin/linked-emails', isStaffOrAdmin, async (req: Request, res
       return res.status(409).json({ error: 'This email is already linked to a member' });
     }
     
-    const session = req.session as unknown as Record<string, unknown>;
-    const createdBy = (session?.email as string) || 'unknown';
+    const createdBy = (req.session as { email?: string })?.email || 'unknown';
     
     await db.execute(sql`INSERT INTO user_linked_emails (primary_email, linked_email, source, created_by)
        VALUES (${primaryEmail.toLowerCase()}, ${linkedEmail.toLowerCase()}, ${'trackman_resolution'}, ${createdBy})`);

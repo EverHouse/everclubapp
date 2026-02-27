@@ -20,6 +20,14 @@ import { AssociationSpecAssociationCategoryEnum } from '@hubspot/api-client/lib/
 import { getErrorMessage, safeErrorDetail } from '../utils/errorUtils';
 import { denormalizeTierForHubSpot } from '../utils/tierUtils';
 
+interface HubSpotApiObject {
+  id: string;
+  properties: Record<string, string>;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+  [key: string]: unknown;
+}
+
 /**
  * Cutoff date for HubSpot batch import.
  * Contacts created on or before this date were batch-imported, so their real join date
@@ -313,7 +321,7 @@ function transformHubSpotContact(contact: Record<string, unknown>): Record<strin
 async function fetchRecentlyModifiedContacts(sinceTimestamp: number): Promise<Record<string, unknown>[]> {
   const hubspot = await getHubSpotClient();
   
-  let modifiedContacts: Record<string, unknown>[] = [];
+  let modifiedContacts: HubSpotApiObject[] = [];
   let after: string | undefined = undefined;
   
   do {
@@ -334,7 +342,7 @@ async function fetchRecentlyModifiedContacts(sinceTimestamp: number): Promise<Re
       hubspot.crm.contacts.searchApi.doSearch(searchRequest)
     );
     
-    modifiedContacts = modifiedContacts.concat(response.results as unknown as Record<string, unknown>[]);
+    modifiedContacts = modifiedContacts.concat(response.results as HubSpotApiObject[]);
     after = response.paging?.next?.after;
   } while (after);
   
@@ -385,14 +393,14 @@ async function fetchAllHubSpotContacts(forceRefresh: boolean = false): Promise<R
   
   const hubspot = await getHubSpotClient();
   
-  let allContacts: Record<string, unknown>[] = [];
+  let allContacts: HubSpotApiObject[] = [];
   let after: string | undefined = undefined;
   
   do {
     const response = await retryableHubSpotRequest(() => 
       hubspot.crm.contacts.basicApi.getPage(100, after, HUBSPOT_CONTACT_PROPERTIES)
     );
-    allContacts = allContacts.concat(response.results as unknown as Record<string, unknown>[]);
+    allContacts = allContacts.concat(response.results as HubSpotApiObject[]);
     after = response.paging?.next?.after;
   } while (after);
   
@@ -1119,14 +1127,14 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
     
     // Fetch all HubSpot contacts
     const properties = ['firstname', 'lastname', 'email', 'membership_tier', 'mindbody_client_id'];
-    let allContacts: Record<string, unknown>[] = [];
+    let allContacts: HubSpotApiObject[] = [];
     let after: string | undefined = undefined;
     
     do {
       const response = await retryableHubSpotRequest(() => 
         hubspot.crm.contacts.basicApi.getPage(100, after, properties)
       );
-      allContacts = allContacts.concat(response.results as unknown as Record<string, unknown>[]);
+      allContacts = allContacts.concat(response.results as HubSpotApiObject[]);
       after = response.paging?.next?.after;
     } while (after);
     
@@ -1682,18 +1690,18 @@ router.get('/api/hubspot/products', isStaffOrAdmin, async (req, res) => {
     const hubspot = await getHubSpotClient();
     
     const properties = ['name', 'price', 'hs_sku', 'description', 'hs_recurring_billing_period'];
-    let allProducts: Record<string, unknown>[] = [];
+    let allProducts: HubSpotApiObject[] = [];
     let after: string | undefined = undefined;
     
     do {
       const response = await retryableHubSpotRequest(() => 
         hubspot.crm.products.basicApi.getPage(100, after, properties)
       );
-      allProducts = allProducts.concat(response.results as unknown as Record<string, unknown>[]);
+      allProducts = allProducts.concat(response.results as HubSpotApiObject[]);
       after = response.paging?.next?.after;
     } while (after);
     
-    const products = allProducts.map((product: Record<string, unknown>) => {
+    const products = allProducts.map((product: HubSpotApiObject) => {
       const props = product.properties as Record<string, string | null | undefined>;
       return {
       id: product.id,

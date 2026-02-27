@@ -4,6 +4,10 @@ import { eq, and, isNotNull, isNull, sql } from 'drizzle-orm';
 import { getErrorMessage } from '../utils/errorUtils';
 import { logger } from '../core/logger';
 
+interface DrizzleExecuteResult {
+  rowCount?: number;
+}
+
 export interface BillingClassification {
   stripe: MemberBillingInfo[];
   mindbody: MemberBillingInfo[];
@@ -142,7 +146,7 @@ export async function bulkClassifyMindbodyMembers(): Promise<{ updated: number; 
         sql`${users.billingProvider} IS NULL OR ${users.billingProvider} = ''`
       ));
     
-    updated = (result as unknown as Record<string, unknown>).rowCount as number || 0;
+    updated = (result as unknown as DrizzleExecuteResult).rowCount || 0;
     logger.info(`[BillingClassify] Updated ${updated} members with Mindbody IDs to mindbody provider`);
     
     return { updated, errors };

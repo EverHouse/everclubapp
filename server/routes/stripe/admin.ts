@@ -5,6 +5,11 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { getStripeClient } from '../../core/stripe/client';
 import Stripe from 'stripe';
+
+interface StripeSubscriptionExpanded extends Stripe.Subscription {
+  current_period_end: number;
+}
+
 import { CustomerSyncResult } from '../../core/stripe/customerSync';
 import {
   getStripeProducts,
@@ -771,9 +776,9 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
           try {
             const subscription = await stripe.subscriptions.retrieve(member.stripe_subscription_id as string);
             const mappedStatus = statusMap[subscription.status] || subscription.status;
-            const subData = subscription as unknown as Record<string, unknown>;
+            const subData = subscription as unknown as StripeSubscriptionExpanded;
             const periodEnd = subData.current_period_end
-              ? new Date(Number(subData.current_period_end) * 1000)
+              ? new Date(subData.current_period_end * 1000)
               : null;
             const resolvedTier = await resolveTierFromSubscription(subscription);
             const changes: string[] = [];
@@ -850,9 +855,9 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
             if (subscriptions.data.length > 0) {
               const sub = subscriptions.data[0];
               const mappedStatus = statusMap[sub.status] || sub.status;
-              const subObj = sub as unknown as Record<string, unknown>;
+              const subObj = sub as unknown as StripeSubscriptionExpanded;
               const periodEnd = subObj.current_period_end
-                ? new Date(Number(subObj.current_period_end) * 1000)
+                ? new Date(subObj.current_period_end * 1000)
                 : null;
               const resolvedTier = await resolveTierFromSubscription(sub);
 

@@ -5,6 +5,11 @@ import { db } from '../../db';
 import { membershipTiers, users } from '../../../shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import Stripe from 'stripe';
+
+interface StripeInvoiceExpanded extends Stripe.Invoice {
+  payment_intent: string | Stripe.PaymentIntent | null;
+}
+
 import {
   createSubscription,
   cancelSubscription,
@@ -670,7 +675,7 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
             }
           }
 
-          const invoicePaymentIntent = (invoice as unknown as Record<string, unknown>).payment_intent;
+          const invoicePaymentIntent = (invoice as unknown as StripeInvoiceExpanded).payment_intent;
           const invoicePiId = typeof invoicePaymentIntent === 'string'
             ? invoicePaymentIntent
             : (typeof invoicePaymentIntent === 'object' && invoicePaymentIntent !== null) ? (invoicePaymentIntent as Stripe.PaymentIntent).id : null;

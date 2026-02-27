@@ -17,6 +17,7 @@ export interface SessionUser {
   isTestUser?: boolean;
   dateOfBirth?: string | null;
   isStaff?: boolean;
+  membershipStartDate?: string;
 }
 
 export interface StaffUser {
@@ -29,6 +30,7 @@ declare global {
     interface Request {
       user?: SessionUser;
       staffUser?: StaffUser;
+      supabaseUser?: import('@supabase/supabase-js').User;
     }
   }
 }

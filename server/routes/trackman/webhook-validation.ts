@@ -3,7 +3,7 @@ import { Request } from 'express';
 import { logger } from '../../core/logger';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
-import { isProduction, redactPII } from './webhook-helpers';
+import { isProduction, redactPII, TrackmanWebhookPayload } from './webhook-helpers';
 
 export function validateTrackmanWebhookSignature(req: Request): boolean {
   const webhookSecret = process.env.TRACKMAN_WEBHOOK_SECRET;
@@ -59,7 +59,7 @@ export function validateTrackmanWebhookSignature(req: Request): boolean {
 
 export async function logWebhookEvent(
   eventType: string,
-  payload: Record<string, unknown>,
+  payload: TrackmanWebhookPayload,
   trackmanBookingId?: string,
   trackmanUserId?: string,
   matchedBookingId?: number,

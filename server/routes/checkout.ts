@@ -199,7 +199,7 @@ router.get('/api/checkout/session/:sessionId', checkoutRateLimiter, async (req, 
     
     const session = await stripe.checkout.sessions.retrieve(sessionId as string, { expand: ['customer'] });
     
-    const customerEmail = session.customer_details?.email || (typeof session.customer === 'object' && session.customer !== null && 'email' in session.customer ? (session.customer as unknown as Record<string, unknown>).email as string : null) || null;
+    const customerEmail = session.customer_details?.email || (typeof session.customer === 'object' && session.customer !== null && 'email' in session.customer ? (session.customer as { email?: string }).email || null : null) || null;
     const metadata = session.metadata || {};
     
     let tierName: string | null = null;

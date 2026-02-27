@@ -8,6 +8,16 @@ import { sendOutstandingBalanceEmail } from '../emails/paymentEmails';
 import { getPacificMidnightUTC } from '../utils/dateUtils';
 import { upsertTransactionCache } from '../core/stripe/webhooks';
 import Stripe from 'stripe';
+
+interface StripeInvoiceExpanded extends Stripe.Invoice {
+  payment_intent: string | Stripe.PaymentIntent | null;
+}
+
+interface StripeSubscriptionExpanded extends Stripe.Subscription {
+  current_period_end: number;
+  customer: string | Stripe.Customer | Stripe.DeletedCustomer;
+}
+
 import { getErrorMessage } from '../utils/errorUtils';
 import { logFromRequest, type AuditAction } from '../core/auditLog';
 
@@ -317,7 +327,7 @@ router.post('/api/financials/backfill-stripe-cache', isStaffOrAdmin, async (req:
             metadata: inv.metadata,
             source: 'backfill',
             invoiceId: inv.id,
-            paymentIntentId: (inv as unknown as Record<string, unknown>).payment_intent ? (typeof (inv as unknown as Record<string, unknown>).payment_intent === 'string' ? (inv as unknown as Record<string, unknown>).payment_intent as string : ((inv as unknown as Record<string, unknown>).payment_intent as { id: string }).id) : undefined,
+            paymentIntentId: (inv as StripeInvoiceExpanded).payment_intent ? (typeof (inv as StripeInvoiceExpanded).payment_intent === 'string' ? (inv as StripeInvoiceExpanded).payment_intent as string : ((inv as StripeInvoiceExpanded).payment_intent as Stripe.PaymentIntent).id) : undefined,
           });
           invoicesProcessed++;
         }
@@ -668,10 +678,10 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
               
               const row = result.value.row;
               if (typeof sub.customer === 'string') {
-                (sub as unknown as Record<string, unknown>).customer = {
-                  id: row.stripe_customer_id,
-                  email: row.email,
-                  name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email,
+                (sub as unknown as { customer: unknown }).customer = {
+                  id: row.stripe_customer_id as string,
+                  email: row.email as string,
+                  name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email as string,
                 };
               }
               additionalSubs.push(sub);
@@ -707,7 +717,7 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
         currency: price?.currency || 'usd',
         interval: price?.recurring?.interval || 'month',
         status: sub.status,
-        currentPeriodEnd: (sub as unknown as Record<string, unknown>).current_period_end as number,
+        currentPeriodEnd: (sub as StripeSubscriptionExpanded).current_period_end,
         cancelAtPeriodEnd: sub.cancel_at_period_end,
       };
     });
@@ -762,7 +772,7 @@ router.post('/api/financials/subscriptions/:subscriptionId/send-reminder', isSta
       memberName: customer.name || 'Member',
       amount,
       description: `${product?.name || 'Membership'} subscription payment is past due`,
-      dueDate: new Date(((subscription as unknown as Record<string, unknown>).current_period_end as number) * 1000).toLocaleDateString('en-US', {
+      dueDate: new Date((subscription as unknown as StripeSubscriptionExpanded).current_period_end * 1000).toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',

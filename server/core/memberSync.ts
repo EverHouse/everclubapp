@@ -1422,7 +1422,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
           return new Date(timestamp) >= ninetyDaysAgo;
         });
         
-        allCalls = allCalls.concat(recentCalls as unknown as Record<string, unknown>[]);
+        allCalls = allCalls.concat(recentCalls);
         after = (response as unknown as { paging?: { next?: { after?: string } } }).paging?.next?.after;
         
         // Rate limiting: pause between pages

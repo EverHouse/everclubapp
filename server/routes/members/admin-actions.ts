@@ -19,6 +19,7 @@ import { logFromRequest } from '../../core/auditLog';
 import { previewMerge, executeMerge, findPotentialDuplicates } from '../../core/userMerge';
 import { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
 import { invalidateCache } from '../../core/queryCache';
+import type { TierChangeResult } from '../../core/hubspot/members';
 
 const router = Router();
 
@@ -101,7 +102,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
       ? `${sessionUser.firstName} ${sessionUser.lastName || ''}`.trim() 
       : sessionUser?.email?.split('@')[0] || 'Staff';
 
-    let hubspotResult: Record<string, unknown> = { success: true, oldLineItemRemoved: false, newLineItemAdded: false };
+    let hubspotResult: TierChangeResult = { success: true, oldLineItemRemoved: false, newLineItemAdded: false };
 
     if (normalizedTier) {
       hubspotResult = await handleTierChange(
@@ -110,7 +111,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
         normalizedTier,
         performedBy,
         performedByName
-      ) as unknown as Record<string, unknown>;
+      );
 
       if (!hubspotResult.success && hubspotResult.error) {
         logger.warn('[Members] HubSpot tier change failed for , queuing for retry', { extra: { normalizedEmail, hubspotResultError: hubspotResult.error } });

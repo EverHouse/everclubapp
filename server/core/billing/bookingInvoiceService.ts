@@ -9,6 +9,10 @@ import { eq, sql } from 'drizzle-orm';
 import type Stripe from 'stripe';
 import type { BookingFeeLineItem } from '../stripe/invoices';
 
+interface InvoiceWithPaymentIntent extends Stripe.Invoice {
+  payment_intent: string | Stripe.PaymentIntent | null;
+}
+
 interface BookingInvoiceIdRow {
   stripe_invoice_id: string | null;
 }
@@ -768,9 +772,10 @@ export async function voidBookingInvoice(bookingId: number): Promise<{
         extra: { bookingId, invoiceId, status: invoice.status }
       });
     } else if (invoice.status === 'paid') {
-      const paymentIntentId = typeof (invoice as unknown as Record<string, unknown>).payment_intent === 'string'
-        ? (invoice as unknown as Record<string, unknown>).payment_intent as string
-        : ((invoice as unknown as Record<string, unknown>).payment_intent as { id?: string } | null)?.id;
+      const invoiceExpanded = invoice as unknown as InvoiceWithPaymentIntent;
+      const paymentIntentId = typeof invoiceExpanded.payment_intent === 'string'
+        ? invoiceExpanded.payment_intent
+        : invoiceExpanded.payment_intent?.id;
       if (paymentIntentId) {
         try {
           const refund = await stripe.refunds.create({

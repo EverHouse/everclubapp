@@ -1,6 +1,15 @@
 import { logger } from '../core/logger';
 import { Router, Request, Response, NextFunction } from 'express';
 import Stripe from 'stripe';
+
+interface StripeSubscriptionExpanded extends Stripe.Subscription {
+  current_period_end: number;
+}
+
+interface StripeInvoiceExpanded extends Stripe.Invoice {
+  number: string | null;
+}
+
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getStripeClient } from '../core/stripe/client';
@@ -180,7 +189,7 @@ router.get('/api/my/billing/invoices', requireAuth, async (req, res) => {
     
     const invoices = (invoicesResult.invoices || []).map((inv) => ({
       id: inv.id,
-      number: (inv as unknown as Record<string, unknown>).number as string | null,
+      number: (inv as unknown as StripeInvoiceExpanded).number,
       status: inv.status,
       amountDue: inv.amountDue,
       amountPaid: inv.amountPaid,
@@ -843,7 +852,7 @@ router.post('/api/my/billing/request-cancellation', requireAuth, async (req, res
     const subscription = subscriptions.data[0];
     const now = new Date();
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const currentPeriodEnd = new Date((subscription as unknown as Record<string, number>).current_period_end * 1000);
+    const currentPeriodEnd = new Date((subscription as StripeSubscriptionExpanded).current_period_end * 1000);
     const effectiveDate = thirtyDaysFromNow > currentPeriodEnd ? thirtyDaysFromNow : currentPeriodEnd;
     const cancelAtTimestamp = Math.floor(effectiveDate.getTime() / 1000);
     

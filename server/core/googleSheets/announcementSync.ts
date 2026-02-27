@@ -6,6 +6,29 @@ import { systemSettings } from '../../../shared/models/system';
 import { eq, desc, sql } from 'drizzle-orm';
 import { formatDatePacific, createPacificDate } from '../../utils/dateUtils';
 
+export interface AnnouncementData {
+  id: number;
+  title?: string;
+  message?: string;
+  starts_at?: string | null;
+  startsAt?: string | null;
+  ends_at?: string | null;
+  endsAt?: string | null;
+  link_type?: string | null;
+  linkType?: string | null;
+  link_target?: string | null;
+  linkTarget?: string | null;
+  show_as_banner?: boolean;
+  showAsBanner?: boolean;
+  is_active?: boolean;
+  isActive?: boolean;
+  [key: string]: unknown;
+}
+
+interface DrizzleExecuteResult {
+  rows: AnnouncementData[];
+}
+
 interface ConnectionSettings {
   settings: {
     expires_at?: string;
@@ -66,7 +89,7 @@ async function getGoogleDriveClient() {
 
 const HEADER_ROW = ['App ID', 'Title', 'Description', 'Start Date', 'End Date', 'Link Type', 'Link Target', 'Banner (yes/no)', 'Active (yes/no)', 'Status'];
 
-function announcementToRow(a: Record<string, unknown>): string[] {
+function announcementToRow(a: AnnouncementData): string[] {
   return [
     String(a.id),
     (a.title as string) || '',
@@ -141,11 +164,11 @@ export async function createAnnouncementSheet(): Promise<string> {
     });
 
   const allAnnouncements = await db.execute(sql`SELECT id, title, message, starts_at, ends_at, link_type, link_target, show_as_banner, is_active FROM announcements ORDER BY id ASC`);
-  const queryResult = allAnnouncements as unknown as { rows: Record<string, unknown>[] };
-  const rows = queryResult.rows || (allAnnouncements as unknown as Record<string, unknown>[]);
+  const queryResult = allAnnouncements as unknown as DrizzleExecuteResult;
+  const rows = queryResult.rows;
 
   if (rows.length > 0) {
-    const dataRows = rows.map((a: Record<string, unknown>) => announcementToRow(a));
+    const dataRows = rows.map((a: AnnouncementData) => announcementToRow(a));
     await sheets.spreadsheets.values.append({
       spreadsheetId,
       range: 'Announcements!A2',
@@ -266,8 +289,8 @@ export async function syncFromSheet(sheetId: string): Promise<{ created: number;
           )
           RETURNING id
         `);
-        const resultRows = (result as unknown as { rows?: Record<string, unknown>[] }).rows;
-        const newRow = resultRows?.[0] || (result as unknown as Record<string, unknown>[])[0];
+        const insertResult = result as unknown as DrizzleExecuteResult;
+        const newRow = insertResult.rows?.[0];
         const newId = newRow?.id;
 
         if (newId) {
@@ -310,8 +333,8 @@ export async function syncToSheet(sheetId: string): Promise<{ pushed: number }> 
   let pushed = 0;
 
   const allAnnouncements = await db.execute(sql`SELECT id, title, message, starts_at, ends_at, link_type, link_target, show_as_banner, is_active FROM announcements ORDER BY id ASC`);
-  const syncResult = allAnnouncements as unknown as { rows: Record<string, unknown>[] };
-  const dbRows = syncResult.rows || (allAnnouncements as unknown as Record<string, unknown>[]);
+  const syncResult = allAnnouncements as unknown as DrizzleExecuteResult;
+  const dbRows = syncResult.rows;
 
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId,
@@ -370,7 +393,7 @@ export async function syncToSheet(sheetId: string): Promise<{ pushed: number }> 
   return { pushed };
 }
 
-export async function pushSingleAnnouncement(sheetId: string, announcement: Record<string, unknown>): Promise<void> {
+export async function pushSingleAnnouncement(sheetId: string, announcement: AnnouncementData): Promise<void> {
   const sheets = await getGoogleSheetClient();
 
   const response = await sheets.spreadsheets.values.get({

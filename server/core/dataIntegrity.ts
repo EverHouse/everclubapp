@@ -25,6 +25,10 @@ import { isProduction } from './db';
 import { getTodayPacific } from '../utils/dateUtils';
 import { getStripeClient } from './stripe/client';
 
+interface HubSpotBatchReadResult {
+  results: Array<{ id: string; properties?: Record<string, string> }>;
+}
+
 interface MemberRow {
   email: string;
   first_name?: string;
@@ -1340,7 +1344,7 @@ async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
             properties: ['membership_tier']
           } as unknown as Parameters<typeof hubspot.crm.contacts.batchApi.read>[0])
         );
-        for (const contact of ((readResult as unknown as Record<string, unknown>).results as Array<{ id: string; properties?: Record<string, string> }> || [])) {
+        for (const contact of ((readResult as unknown as HubSpotBatchReadResult).results || [])) {
           hubspotTierMap.set(contact.id, (contact.properties?.membership_tier || '').toLowerCase().trim());
         }
       } catch (batchErr: unknown) {
@@ -2852,7 +2856,7 @@ export async function bulkPushToHubSpot(dryRun: boolean = true): Promise<{
       const readResult = await retryableHubSpotRequest(() =>
         hubspot.crm.contacts.batchApi.read(readInput as unknown as Parameters<typeof hubspot.crm.contacts.batchApi.read>[0])
       );
-      for (const contact of ((readResult as unknown as Record<string, unknown>).results as Array<{ id: string; properties?: Record<string, string> }> || [])) {
+      for (const contact of ((readResult as unknown as HubSpotBatchReadResult).results || [])) {
         hsContactMap[contact.id] = contact.properties || {};
       }
     } catch (error: unknown) {

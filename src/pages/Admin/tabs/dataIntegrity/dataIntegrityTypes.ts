@@ -88,6 +88,9 @@ export interface IntegrityIssue {
   context?: IssueContext;
   ignored?: boolean;
   ignoreInfo?: IgnoreInfo;
+  issueKey?: string;
+  bookingId?: number | string;
+  id?: number | string;
 }
 
 export interface IgnoredIssueEntry {

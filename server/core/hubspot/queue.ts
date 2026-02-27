@@ -22,7 +22,7 @@ interface QueueJobOptions {
 
 export async function enqueueHubSpotSync(
   operation: HubSpotOperation,
-  payload: Record<string, unknown>,
+  payload: Record<string, unknown> | object,
   options: QueueJobOptions = {}
 ): Promise<number | null> {
   const { priority = 5, idempotencyKey, maxRetries = 5 } = options;

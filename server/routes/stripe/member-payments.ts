@@ -1,4 +1,10 @@
 import Stripe from 'stripe';
+
+interface StripeInvoiceExpanded extends Stripe.Invoice {
+  payment_intent: string | Stripe.PaymentIntent | null;
+  metadata: Record<string, string> | null;
+}
+
 import { logger } from '../../core/logger';
 import { Router, Request, Response } from 'express';
 import { isAuthenticated } from '../../core/middleware';
@@ -676,7 +682,7 @@ router.post('/api/member/invoices/:invoiceId/confirm', isAuthenticated, async (r
 
     try {
       const invoice = await stripe.invoices.retrieve(invoiceId);
-      const rawPi = (invoice as unknown as Record<string, unknown>).payment_intent;
+      const rawPi = (invoice as unknown as StripeInvoiceExpanded).payment_intent;
       const invoicePiId = typeof rawPi === 'string'
         ? rawPi
         : (typeof rawPi === 'object' && rawPi !== null) ? (rawPi as Stripe.PaymentIntent).id : null;
@@ -696,7 +702,7 @@ router.post('/api/member/invoices/:invoiceId/confirm', isAuthenticated, async (r
       try {
         await stripe.invoices.update(invoiceId, {
           metadata: {
-            ...(((invoice as unknown as Record<string, unknown>).metadata as Record<string, string>) || {}),
+            ...((invoice as unknown as StripeInvoiceExpanded).metadata || {}),
             reconciled_by_pi: paymentIntentId,
             reconciliation_source: 'member_payment',
           }
@@ -719,7 +725,7 @@ router.post('/api/member/invoices/:invoiceId/confirm', isAuthenticated, async (r
       });
 
       try {
-        const invoiceMeta = (invoice as unknown as Record<string, unknown>).metadata as Record<string, string> | null;
+        const invoiceMeta = (invoice as unknown as StripeInvoiceExpanded).metadata;
         const invoiceBookingId = invoiceMeta?.bookingId ? parseInt(invoiceMeta.bookingId) : null;
         if (invoiceBookingId) {
           broadcastBookingInvoiceUpdate({

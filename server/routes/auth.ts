@@ -990,7 +990,8 @@ router.post('/api/auth/verify-otp', async (req, res) => {
           status: statusMap[memberStatusStr] || 'Active',
           role,
           expires_at: Date.now() + sessionTtl,
-          dateOfBirth: (hasDbUser ? dbUser[0].dateOfBirth : contact?.properties.date_of_birth) || null
+          dateOfBirth: (hasDbUser ? dbUser[0].dateOfBirth : contact?.properties.date_of_birth) || null,
+          membershipStartDate: (hasDbUser ? dbUser[0].joinDate : contact?.properties.membership_start_date) || ''
         };
       }
     }
@@ -1007,7 +1008,7 @@ router.post('/api/auth/verify-otp', async (req, res) => {
       phone: member.phone,
       mindbodyClientId: member.mindbodyClientId,
       tags: member.tags || [],
-      membershipStartDate: (member as unknown as Record<string, unknown>).membershipStartDate as string || '',
+      membershipStartDate: member.membershipStartDate || '',
       role
     });
     

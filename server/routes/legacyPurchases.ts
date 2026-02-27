@@ -18,6 +18,15 @@ import multer from 'multer';
 import { logFromRequest } from '../core/auditLog';
 import { getErrorMessage } from '../utils/errorUtils';
 
+interface LegacyPurchaseWithStaff {
+  staffName?: string | null;
+}
+
+interface HubSpotLineItemResponse {
+  id: string;
+  properties: Record<string, string>;
+}
+
 // Configure multer for memory storage (CSV files are small)
 const upload = multer({ 
   storage: multer.memoryStorage(),
@@ -112,7 +121,7 @@ router.get("/api/legacy-purchases/my-purchases", async (req: Request, res: Respo
       saleDate: p.saleDate,
       isComp: p.isComp,
       quantity: p.quantity || 1,
-      staffName: (p as unknown as Record<string, unknown>).staffName as string || null,
+      staffName: (p as unknown as LegacyPurchaseWithStaff).staffName || null,
     }));
     
     logger.info('[LegacyPurchases] my-purchases for : found purchases', { extra: { targetEmail, formattedPurchasesLength: formattedPurchases.length } });
@@ -778,7 +787,7 @@ async function createLegacyLineItem(
       hubspot.crm.lineItems.basicApi.create({ properties })
     );
     
-    const lineItemId = (lineItemResponse as unknown as Record<string, unknown>).id as string;
+    const lineItemId = (lineItemResponse as unknown as HubSpotLineItemResponse).id;
     
     await retryableHubSpotRequest(() =>
       hubspot.crm.associations.v4.basicApi.create(

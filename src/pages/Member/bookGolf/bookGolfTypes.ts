@@ -50,6 +50,7 @@ export interface BookingRequest {
   duration_minutes: number;
   notes: string | null;
   status: 'pending' | 'pending_approval' | 'approved' | 'confirmed' | 'attended' | 'no_show' | 'declined' | 'cancelled' | 'cancellation_pending';
+  total_player_count?: number | null;
   trackman_booking_id?: string | null;
   staff_notes: string | null;
   suggested_time: string | null;

@@ -19,6 +19,15 @@ import { normalizeTierName } from '@shared/constants/tiers';
 import Stripe from 'stripe';
 import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
 
+interface ParticipantBillingWithTier {
+  tier?: string;
+  email?: string;
+  participantType: string;
+  minutesAllocated: number;
+  overageFee: number;
+  guestFee: number;
+}
+
 interface DbUserRow {
   id: number;
   email: string;
@@ -2068,7 +2077,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
                 minutesCharged: billing.minutesAllocated,
                 overageFee: billing.overageFee,
                 guestFee: 0,
-                tierAtBooking: (billing as unknown as Record<string, unknown>).tier as string || ownerTier || undefined,
+                tierAtBooking: (billing as unknown as ParticipantBillingWithTier).tier || ownerTier || undefined,
                 paymentMethod: 'unpaid'
               }, 'staff_manual');
             }

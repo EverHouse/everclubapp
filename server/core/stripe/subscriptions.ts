@@ -9,6 +9,10 @@ interface StripeSubscriptionWithPeriods extends Stripe.Subscription {
   current_period_start: number;
   current_period_end: number;
 }
+
+interface InvoiceWithPaymentIntent extends Stripe.Invoice {
+  payment_intent: string | Stripe.PaymentIntent | null;
+}
 export interface CreateSubscriptionParams {
   customerId: string;
   priceId: string;
@@ -58,7 +62,7 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
     });
     
     const invoice = subscription.latest_invoice as Stripe.Invoice;
-    let paymentIntent = (invoice as unknown as Record<string, unknown>)?.payment_intent as Stripe.PaymentIntent | null;
+    let paymentIntent = (invoice as InvoiceWithPaymentIntent)?.payment_intent as Stripe.PaymentIntent | null;
     const pendingSetupIntent = subscription.pending_setup_intent as Stripe.SetupIntent | null;
     
     logger.info(`[Stripe Subscriptions] Created subscription ${subscription.id} for customer ${customerId}`);

@@ -2,6 +2,11 @@ import { randomUUID } from 'crypto';
 import { logger } from '../../core/logger';
 import { Router, Request, Response } from 'express';
 import Stripe from 'stripe';
+
+interface StripeChargeExpanded extends Stripe.Charge {
+  invoice: string | { id: string } | null;
+}
+
 import { isStaffOrAdmin } from '../../core/middleware';
 import { db } from '../../db';
 import { passRedemptionLogs, dayPassPurchases, users } from '../../../shared/schema';
@@ -2847,7 +2852,7 @@ router.get('/api/payments/daily-summary', isStaffOrAdmin, async (req: Request, r
       
       transactionCount += 1;
 
-      const invoiceId = (ch as unknown as Record<string, unknown>).invoice as string | { id: string } | null;
+      const invoiceId = (ch as StripeChargeExpanded).invoice;
       if (invoiceId) invoiceIds.add(typeof invoiceId === 'string' ? invoiceId : invoiceId.id);
 
       if (invoiceId) {

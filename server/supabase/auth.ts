@@ -276,7 +276,7 @@ export const isSupabaseAuthenticated: RequestHandler = async (req, res, next) =>
       return res.status(401).json({ error: 'Invalid token' });
     }
     
-    (req as unknown as Record<string, unknown>).supabaseUser = user;
+    req.supabaseUser = user;
     next();
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);

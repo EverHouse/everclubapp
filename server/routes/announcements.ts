@@ -17,7 +17,8 @@ import {
   syncFromSheet,
   syncToSheet,
   pushSingleAnnouncement,
-  deleteFromSheet
+  deleteFromSheet,
+  AnnouncementData
 } from '../core/googleSheets/announcementSync';
 import { systemSettings } from '../../shared/models/system';
 import { safeErrorDetail, getErrorMessage } from '../utils/errorUtils';
@@ -264,7 +265,7 @@ router.post('/api/announcements', isStaffOrAdmin, async (req, res) => {
     
     getLinkedSheetId().then(sheetId => {
       if (sheetId) {
-        pushSingleAnnouncement(sheetId, newAnnouncement as unknown as Record<string, unknown>).catch(err => {
+        pushSingleAnnouncement(sheetId, newAnnouncement as unknown as AnnouncementData).catch(err => {
           logger.error('Failed to sync new announcement to Google Sheet', { extra: { error: getErrorMessage(err) } });
         });
       }
@@ -354,7 +355,7 @@ router.put('/api/announcements/:id', isStaffOrAdmin, async (req, res) => {
     
     getLinkedSheetId().then(sheetId => {
       if (sheetId) {
-        pushSingleAnnouncement(sheetId, updated as unknown as Record<string, unknown>).catch(err => {
+        pushSingleAnnouncement(sheetId, updated as unknown as AnnouncementData).catch(err => {
           logger.error('Failed to sync updated announcement to Google Sheet', { extra: { error: getErrorMessage(err) } });
         });
       }

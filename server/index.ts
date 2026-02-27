@@ -22,6 +22,11 @@ declare global {
   }
 }
 
+interface IncomingMessageWithExpressProps extends http.IncomingMessage {
+  originalUrl?: string;
+  rawBody?: string;
+}
+
 process.on('uncaughtException', (error) => {
   logger.error('[Process] Uncaught Exception - shutting down:', { error: error as Error });
   setTimeout(() => process.exit(1), 3000);
@@ -332,8 +337,9 @@ async function initializeApp() {
     express.json({
       limit: '1mb',
       verify: (req: http.IncomingMessage, _res: http.ServerResponse, buf: Buffer) => {
-        if ((req as unknown as Record<string, string>).originalUrl?.includes('/webhooks') || req.url?.includes('/webhooks')) {
-          (req as unknown as Record<string, unknown>).rawBody = buf.toString('utf8');
+        const expressReq = req as IncomingMessageWithExpressProps;
+        if (expressReq.originalUrl?.includes('/webhooks') || req.url?.includes('/webhooks')) {
+          expressReq.rawBody = buf.toString('utf8');
         }
       }
     })(req, res, next);

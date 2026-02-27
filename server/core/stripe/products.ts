@@ -1437,7 +1437,7 @@ function buildFeatureKeysForTier(tier: TierRecord): Array<{ lookupKey: string; n
   ];
 
   for (const { field, key, name } of booleanMap) {
-    if ((tier as unknown as Record<string, unknown>)[field]) {
+    if ((tier as Record<string, unknown>)[field]) {
       features.push({ lookupKey: key, name });
     }
   }

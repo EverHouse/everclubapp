@@ -413,10 +413,10 @@ const DataIntegrityTab: React.FC = () => {
           results: old.results.map((check) => ({
             ...check,
             issues: Array.isArray(check.issues)
-              ? check.issues.filter((d) => d.context?.issueKey !== variables.issueKey && (d as unknown as Record<string, unknown>).issueKey !== variables.issueKey)
+              ? check.issues.filter((d) => d.context?.issueKey !== variables.issueKey && d.issueKey !== variables.issueKey)
               : check.issues,
             issueCount: Array.isArray(check.issues)
-              ? check.issues.filter((d) => d.context?.issueKey !== variables.issueKey && (d as unknown as Record<string, unknown>).issueKey !== variables.issueKey).length
+              ? check.issues.filter((d) => d.context?.issueKey !== variables.issueKey && d.issueKey !== variables.issueKey).length
               : check.issueCount,
           })).filter((check) => check.issueCount > 0),
         };
@@ -469,10 +469,10 @@ const DataIntegrityTab: React.FC = () => {
           results: old.results.map((check) => ({
             ...check,
             issues: Array.isArray(check.issues)
-              ? check.issues.filter((d) => !ignoredKeys.has((d as unknown as Record<string, unknown>).issueKey as string))
+              ? check.issues.filter((d) => !ignoredKeys.has(d.issueKey as string))
               : check.issues,
             issueCount: Array.isArray(check.issues)
-              ? check.issues.filter((d) => !ignoredKeys.has((d as unknown as Record<string, unknown>).issueKey as string)).length
+              ? check.issues.filter((d) => !ignoredKeys.has(d.issueKey as string)).length
               : check.issueCount,
           })).filter((check) => check.issueCount > 0),
         };
@@ -503,10 +503,10 @@ const DataIntegrityTab: React.FC = () => {
           results: old.results.map((check) => ({
             ...check,
             issues: Array.isArray(check.issues)
-              ? check.issues.filter((d) => (d as unknown as Record<string, unknown>).issueKey !== variables.issueKey)
+              ? check.issues.filter((d) => d.issueKey !== variables.issueKey)
               : check.issues,
             issueCount: Array.isArray(check.issues)
-              ? check.issues.filter((d) => (d as unknown as Record<string, unknown>).issueKey !== variables.issueKey).length
+              ? check.issues.filter((d) => d.issueKey !== variables.issueKey).length
               : check.issueCount,
           })).filter((check) => check.issueCount > 0),
         };
@@ -542,10 +542,10 @@ const DataIntegrityTab: React.FC = () => {
           results: old.results.map((check) => ({
             ...check,
             issues: Array.isArray(check.issues)
-              ? check.issues.filter((d) => (d as unknown as Record<string, unknown>).issueKey !== variables.issueKey)
+              ? check.issues.filter((d) => d.issueKey !== variables.issueKey)
               : check.issues,
             issueCount: Array.isArray(check.issues)
-              ? check.issues.filter((d) => (d as unknown as Record<string, unknown>).issueKey !== variables.issueKey).length
+              ? check.issues.filter((d) => d.issueKey !== variables.issueKey).length
               : check.issueCount,
           })).filter((check) => check.issueCount > 0),
         };
@@ -603,10 +603,10 @@ const DataIntegrityTab: React.FC = () => {
           results: old.results.map((check) => ({
             ...check,
             issues: Array.isArray(check.issues)
-              ? check.issues.filter((d) => (d as unknown as Record<string, unknown>).bookingId !== bookingId && (d as unknown as Record<string, unknown>).id !== bookingId)
+              ? check.issues.filter((d) => d.bookingId !== bookingId && d.id !== bookingId)
               : check.issues,
             issueCount: Array.isArray(check.issues)
-              ? check.issues.filter((d) => (d as unknown as Record<string, unknown>).bookingId !== bookingId && (d as unknown as Record<string, unknown>).id !== bookingId).length
+              ? check.issues.filter((d) => d.bookingId !== bookingId && d.id !== bookingId).length
               : check.issueCount,
           })).filter((check) => check.issueCount > 0),
         };

@@ -729,7 +729,7 @@ const TiersTab: React.FC = () => {
                                                     Select up to 4 features to highlight on the pricing card
                                                 </p>
                                                 <div className="space-y-2">
-                                                    {BOOLEAN_FIELDS.filter(f => (selectedTier as unknown as Record<string, unknown>)?.[f.key]).map(field => (
+                                                    {BOOLEAN_FIELDS.filter(f => (selectedTier as unknown as Record<string, boolean | string | number | null | undefined>)?.[f.key]).map(field => (
                                                         <label 
                                                             key={field.key}
                                                             className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-colors ${
@@ -954,7 +954,7 @@ const TiersTab: React.FC = () => {
                                                     >
                                                         <span className="text-sm text-primary dark:text-white">{field.label}</span>
                                                         <Toggle
-                                                            checked={(selectedTier as unknown as Record<string, unknown>)?.[field.key] as boolean || false}
+                                                            checked={(selectedTier as unknown as Record<string, boolean | string | number | null | undefined>)?.[field.key] as boolean || false}
                                                             onChange={(val) => {
                                                                 if (selectedTier?.stripe_product_id) return;
                                                                 selectedTier && setSelectedTier({...selectedTier, [field.key]: val});
