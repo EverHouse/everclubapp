@@ -23,7 +23,6 @@ const PLACEHOLDER_EMAIL_PATTERNS = [
   '@test.local',
   '@example.com',
   'placeholder@',
-  'test@',
   'test-admin',
   'test-member',
   'test-staff',
@@ -31,13 +30,19 @@ const PLACEHOLDER_EMAIL_PATTERNS = [
   'testguest@',
   'notif-test-',
   'notification-test-',
-  '+test@',
+];
+
+const PLACEHOLDER_EMAIL_REGEXES = [
+  /^test@/,
+  /\+test@/,
 ];
 
 export function isPlaceholderEmail(email: string): boolean {
   if (!email) return true;
   const lowerEmail = email.toLowerCase();
-  return PLACEHOLDER_EMAIL_PATTERNS.some(pattern => lowerEmail.includes(pattern));
+  if (PLACEHOLDER_EMAIL_PATTERNS.some(pattern => lowerEmail.includes(pattern))) return true;
+  if (PLACEHOLDER_EMAIL_REGEXES.some(rx => rx.test(lowerEmail))) return true;
+  return false;
 }
 
 export interface ResolvedUser {
