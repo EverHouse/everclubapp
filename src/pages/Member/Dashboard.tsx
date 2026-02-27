@@ -8,7 +8,7 @@ import { usePageReady } from '../../contexts/PageReadyContext';
 import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import { useToast } from '../../components/Toast';
 import { bookingEvents } from '../../lib/bookingEvents';
-import GlassRow from '../../components/GlassRow';
+import ScheduleCard from '../../components/ScheduleCard';
 import OnboardingChecklist from '../../components/OnboardingChecklist';
 import { formatDateShort, getTodayString, getPacificHour, CLUB_TIMEZONE, formatDateTimePacific, formatMemberSince, formatTime12Hour, getNowTimePacific } from '../../utils/dateUtils';
 import { downloadICalFile } from '../../utils/icalUtils';
@@ -1047,21 +1047,71 @@ const Dashboard: React.FC = () => {
                   isOwnerOfBooking;
                 const rawBookingData = item.raw as DBBookingRequest;
 
+                const getScheduleStatus = () => {
+                  if (isCancelling) return { label: 'Cancelling', color: 'bg-red-500' };
+                  if (item.type === 'booking' || item.type === 'booking_request') {
+                    const s = (item as DashboardBookingItem).status;
+                    if (s === 'approved' || s === 'confirmed') return { label: 'Confirmed', color: 'bg-green-500' };
+                    if (s === 'pending' || s === 'pending_approval') return { label: 'Pending', color: 'bg-amber-500' };
+                    if (s === 'attended') return { label: 'Attended', color: 'bg-blue-500' };
+                    if (s === 'cancellation_pending') return { label: 'Cancel Pending', color: 'bg-orange-500' };
+                    return { label: formatStatusLabel(s || ''), color: 'bg-gray-400' };
+                  }
+                  if (item.type === 'rsvp') return { label: "RSVP'd", color: 'bg-green-500' };
+                  if (item.type === 'wellness') return { label: 'Enrolled', color: 'bg-green-500' };
+                  return undefined;
+                };
+
+                const getMetadata = () => {
+                  const chips: { icon: string; label: string }[] = [];
+                  if (item.type === 'booking' || item.type === 'booking_request') {
+                    const raw = item.raw as DBBookingRequest;
+                    if (raw.bay_name || raw.resource_name) chips.push({ icon: 'location_on', label: raw.bay_name || raw.resource_name || '' });
+                    if (raw.duration_minutes) {
+                      const hrs = Math.floor(raw.duration_minutes / 60);
+                      const mins = raw.duration_minutes % 60;
+                      chips.push({ icon: 'schedule', label: hrs > 0 ? (mins > 0 ? `${hrs}h ${mins}m` : `${hrs} Hour${hrs > 1 ? 's' : ''}`) : `${mins} min` });
+                    } else if (raw.start_time && raw.end_time) {
+                      const [sh, sm] = raw.start_time.split(':').map(Number);
+                      const [eh, em] = raw.end_time.split(':').map(Number);
+                      const dur = (eh * 60 + em) - (sh * 60 + sm);
+                      if (dur > 0) {
+                        const hrs = Math.floor(dur / 60);
+                        const mins = dur % 60;
+                        chips.push({ icon: 'schedule', label: hrs > 0 ? (mins > 0 ? `${hrs}h ${mins}m` : `${hrs} Hour${hrs > 1 ? 's' : ''}`) : `${mins} min` });
+                      }
+                    }
+                  } else if (item.type === 'rsvp') {
+                    const raw = item.raw as DBRSVP;
+                    if (raw.location) chips.push({ icon: 'location_on', label: raw.location });
+                  } else if (item.type === 'wellness') {
+                    const raw = item.raw as DBWellnessEnrollment;
+                    if (raw.category) chips.push({ icon: 'category', label: raw.category });
+                    if (raw.instructor) chips.push({ icon: 'person', label: raw.instructor });
+                  } else if (item.type === 'conference_room_calendar') {
+                    chips.push({ icon: 'location_on', label: 'Conference Room' });
+                  }
+                  return chips;
+                };
+
+                const scheduleStatus = getScheduleStatus();
+                const linkedBookerInfo = (item.type === 'booking' || item.type === 'booking_request') && 
+                  (item as DashboardBookingItem).isLinkedMember && (item as DashboardBookingItem).primaryBookerName
+                  ? `Booked by ${(item as DashboardBookingItem).primaryBookerName?.split(' ')[0]}`
+                  : undefined;
+
                 return (
                   <React.Fragment key={item.id}>
-                    <GlassRow 
-                      title={`${item.date} • ${item.time}${item.endTime ? ` - ${item.endTime}` : ''}`} 
-                      subtitle={item.type === 'booking' || item.type === 'booking_request' 
-                        ? item.title + ((item as DashboardBookingItem).isLinkedMember && (item as DashboardBookingItem).primaryBookerName ? ` • Booked by ${(item as DashboardBookingItem).primaryBookerName?.split(' ')[0]}` : '')
-                        : item.type === 'rsvp' 
-                          ? `${item.title}${item.details ? ` • ${item.details}` : ''}`
-                          : `${item.title}${item.details ? ` • ${item.details}` : ''}`
-                      } 
-                      icon={getIconForType(item.resourceType)} 
-                      color={isDark ? "text-secondary" : "text-primary"}
+                    <ScheduleCard
+                      status={scheduleStatus?.label}
+                      statusColor={scheduleStatus?.color}
+                      icon={getIconForType(item.resourceType)}
+                      title={item.title}
+                      dateTime={`${item.date} • ${item.time}${item.endTime ? ` - ${item.endTime}` : ''}`}
+                      metadata={getMetadata()}
                       actions={actions}
                       staggerIndex={idx + 4}
-                      badge={getStatusBadge()}
+                      linkedInfo={linkedBookerInfo}
                     />
                     {showRosterManager && (
                       <div className="mt-2 mb-4">
