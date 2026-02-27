@@ -421,7 +421,17 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
           paidInFull: true,
           balanceApplied: invoiceResult.amountFromBalance || serverTotal,
           paymentIntentId: invoiceResult.paymentIntentId,
-          invoiceId: invoiceResult.invoiceId
+          invoiceId: invoiceResult.invoiceId,
+          hostedInvoiceUrl: invoiceResult.hostedInvoiceUrl || null,
+          invoicePdf: invoiceResult.invoicePdf || null,
+          feeLineItems: feeLineItems.map(li => ({
+            participantId: li.participantId,
+            displayName: li.displayName,
+            participantType: li.participantType,
+            overageCents: li.overageCents,
+            guestCents: li.guestCents,
+            totalCents: li.totalCents,
+          })),
         });
       }
 
@@ -447,7 +457,17 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
         invoiceId: invoiceResult.invoiceId,
         paidInFull: false,
         balanceApplied: 0,
-        remainingCents: serverTotal
+        remainingCents: serverTotal,
+        hostedInvoiceUrl: invoiceResult.hostedInvoiceUrl || null,
+        invoicePdf: invoiceResult.invoicePdf || null,
+        feeLineItems: feeLineItems.map(li => ({
+          participantId: li.participantId,
+          displayName: li.displayName,
+          participantType: li.participantType,
+          overageCents: li.overageCents,
+          guestCents: li.guestCents,
+          totalCents: li.totalCents,
+        })),
       });
     }
 
