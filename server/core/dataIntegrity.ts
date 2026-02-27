@@ -66,7 +66,6 @@ const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'> = {
   'Orphan Event RSVPs': 'medium',
   'MindBody Stale Sync': 'medium',
   'MindBody Data Quality': 'medium',
-  'Duplicate Tour Sources': 'low',
   'Items Needing Review': 'low',
   'Stale Past Tours': 'low',
   'Unmatched Trackman Bookings': 'medium',
@@ -611,43 +610,6 @@ async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> {
   return {
     checkName: 'HubSpot Sync Mismatch',
     status: issues.length === 0 ? 'pass' : issues.some(i => i.severity === 'error') ? 'fail' : 'warning',
-    issueCount: issues.length,
-    issues,
-    lastRun: new Date()
-  };
-}
-
-async function checkDuplicateTourSources(): Promise<IntegrityCheckResult> {
-  const issues: IntegrityIssue[] = [];
-  
-  const duplicates = await db.select()
-    .from(tours)
-    .where(
-      and(
-        sql`${tours.googleCalendarId} IS NOT NULL`,
-        sql`${tours.hubspotMeetingId} IS NOT NULL`
-      )
-    );
-  
-  for (const tour of duplicates) {
-    issues.push({
-      category: 'sync_mismatch',
-      severity: 'warning',
-      table: 'tours',
-      recordId: tour.id,
-      description: `Tour "${tour.title}" on ${tour.tourDate} has both Google Calendar ID and HubSpot Meeting ID (potential duplicate sync)`,
-      suggestion: 'Review and remove duplicate source link',
-      context: {
-        tourDate: tour.tourDate || undefined,
-        guestName: tour.guestName || undefined,
-        startTime: tour.startTime || undefined
-      }
-    });
-  }
-  
-  return {
-    checkName: 'Duplicate Tour Sources',
-    status: issues.length === 0 ? 'pass' : 'warning',
     issueCount: issues.length,
     issues,
     lastRun: new Date()
@@ -2578,7 +2540,6 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     safeCheck(checkOverlappingBookings, 'Overlapping Bookings'),
     safeCheck(checkGuestPassAccountingDrift, 'Guest Pass Accounting Drift'),
     safeCheck(checkStalePendingBookings, 'Stale Pending Bookings'),
-    safeCheck(checkDuplicateTourSources, 'Duplicate Tour Sources'),
     safeCheck(checkStalePastTours, 'Stale Past Tours'),
     safeCheck(checkOrphanedUsageLedgerEntries, 'Orphaned Usage Ledger Entries'),
   ]);

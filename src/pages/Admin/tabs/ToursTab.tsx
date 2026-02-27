@@ -202,7 +202,7 @@ const ToursTab: React.FC = () => {
   return (
       <AnimatedPage className="space-y-6 pb-32 backdrop-blur-sm">
         <p className="text-sm text-primary/80 dark:text-white/80 animate-content-enter-delay-1">
-          Synced from Google Calendar: <span className="font-medium">Tours Scheduled</span>
+          Synced from HubSpot Meetings
         </p>
 
       {syncMessage && (
@@ -250,7 +250,7 @@ const ToursTab: React.FC = () => {
         <EmptyState
           icon="tour"
           title="No tours found"
-          description="Tours will appear here after syncing from Google Calendar"
+          description="Tours will appear here after syncing from HubSpot"
           variant="compact"
         />
       )}

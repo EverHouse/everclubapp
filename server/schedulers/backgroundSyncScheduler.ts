@@ -1,6 +1,5 @@
 import { schedulerTracker } from '../core/schedulerTracker';
 import { syncGoogleCalendarEvents, syncWellnessCalendarEvents, syncInternalCalendarToClosures, syncConferenceRoomCalendarToBookings } from '../core/calendar/index';
-import { syncToursFromCalendar } from '../routes/tours';
 import { alertOnSyncFailure } from '../core/dataAlerts';
 import { logger } from '../core/logger';
 
@@ -69,15 +68,13 @@ const runBackgroundSync = async () => {
   try {
     const eventsResult = await syncWithRetry('Events', () => syncGoogleCalendarEvents({ suppressAlert: true }), { synced: 0, created: 0, updated: 0, deleted: 0, pushedToCalendar: 0, error: 'Events sync failed' });
     const wellnessResult = await syncWithRetry('Wellness', () => syncWellnessCalendarEvents({ suppressAlert: true }), { synced: 0, created: 0, updated: 0, deleted: 0, pushedToCalendar: 0, error: 'Wellness sync failed' });
-    const toursResult = await syncWithRetry('Tours', () => syncToursFromCalendar(), { synced: 0, created: 0, updated: 0, cancelled: 0, error: 'Tours sync failed' });
     const closuresResult = await syncWithRetry('Closures', () => syncInternalCalendarToClosures(), { synced: 0, created: 0, updated: 0, deleted: 0, error: 'Closures sync failed' });
     const confRoomResult = await syncWithRetry('ConfRoom', () => syncConferenceRoomCalendarToBookings(), { synced: 0, linked: 0, created: 0, skipped: 0, cancelled: 0, updated: 0, error: 'Conference room sync failed' }) as { synced: number; linked: number; created: number; skipped: number; cancelled: number; updated: number; error?: string; warning?: string };
     const eventsMsg = eventsResult.error ? eventsResult.error : `${eventsResult.synced} synced`;
     const wellnessMsg = wellnessResult.error ? wellnessResult.error : `${wellnessResult.synced} synced`;
-    const toursMsg = toursResult.error ? toursResult.error : `${(toursResult as Record<string, unknown>).synced} synced`;
     const closuresMsg = closuresResult.error ? closuresResult.error : `${(closuresResult as Record<string, unknown>).synced} synced`;
     const confRoomMsg = confRoomResult.error ? confRoomResult.error : (confRoomResult.warning ? 'not configured' : `${confRoomResult.synced} synced`);
-    logger.info(`[Auto-sync] Events: ${eventsMsg}, Wellness: ${wellnessMsg}, Tours: ${toursMsg}, Closures: ${closuresMsg}, ConfRoom: ${confRoomMsg}`);
+    logger.info(`[Auto-sync] Events: ${eventsMsg}, Wellness: ${wellnessMsg}, Closures: ${closuresMsg}, ConfRoom: ${confRoomMsg}`);
   } catch (err: unknown) {
     logger.error('[Auto-sync] Calendar sync failed:', { error: err as Error });
     schedulerTracker.recordRun('Background Sync', false, String(err));

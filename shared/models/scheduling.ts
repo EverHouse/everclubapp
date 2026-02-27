@@ -180,7 +180,7 @@ export const trackmanImportRuns = pgTable("trackman_import_runs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Tours table - scheduled tours synced from HubSpot Meetings (legacy: Google Calendar)
+// Tours table - scheduled tours synced from HubSpot Meetings
 export const tours = pgTable("tours", {
   id: serial("id").primaryKey(),
   googleCalendarId: varchar("google_calendar_id").unique(),

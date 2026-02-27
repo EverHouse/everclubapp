@@ -5,8 +5,8 @@ import { db } from '../db';
 import { tours, dismissedHubspotMeetings } from '../../shared/schema';
 import { eq, gte, asc, desc, and, sql, or, ilike, inArray } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../core/middleware';
-import { getGoogleCalendarClient, getHubSpotClient } from '../core/integrations';
-import { CALENDAR_CONFIG, getCalendarIdByName, discoverCalendarIds, getCalendarAvailability, createCalendarEventOnCalendar } from '../core/calendar/index';
+import { getHubSpotClient } from '../core/integrations';
+import { CALENDAR_CONFIG, getCalendarIdByName, getCalendarAvailability, createCalendarEventOnCalendar } from '../core/calendar/index';
 import { safeSendEmail } from '../utils/resend';
 import { notifyAllStaff } from '../core/notificationService';
 import { getTodayPacific } from '../utils/dateUtils';
@@ -19,25 +19,6 @@ import { checkoutRateLimiter } from '../middleware/rateLimiting';
 function parseTimeToMinutes(timeStr: string): number {
   const [hours, minutes] = timeStr.split(':').map(Number);
   return hours * 60 + minutes;
-}
-
-interface CalendarAttendee {
-  email?: string;
-  displayName?: string;
-  organizer?: boolean;
-  self?: boolean;
-}
-
-function extractContactFromAttendees(attendees: CalendarAttendee[]): { email: string | null; name: string | null } {
-  if (!attendees || attendees.length === 0) return { email: null, name: null };
-  
-  const guest = attendees.find((a: CalendarAttendee) => !a.organizer && !a.self) || attendees[0];
-  if (!guest) return { email: null, name: null };
-  
-  return {
-    email: guest.email || null,
-    name: guest.displayName || null
-  };
 }
 
 const router = Router();
@@ -216,15 +197,7 @@ router.patch('/api/tours/:id/status', isStaffOrAdmin, async (req, res) => {
 
 router.post('/api/tours/sync', isStaffOrAdmin, async (req, res) => {
   try {
-    const { source } = req.query;
-    let result;
-    
-    if (source === 'calendar') {
-      result = await syncToursFromCalendar();
-    } else {
-      result = await syncToursFromHubSpot();
-    }
-    
+    const result = await syncToursFromHubSpot();
     res.json(result);
   } catch (error: unknown) {
     if (!isProduction) logger.error('Tours sync error', { error: error instanceof Error ? error : new Error(String(error)) });
@@ -628,218 +601,6 @@ async function fetchHubSpotTourMeetings(): Promise<HubSpotMeetingDetails[]> {
   }
   
   return result;
-}
-
-export async function syncToursFromCalendar(): Promise<{ synced: number; created: number; updated: number; cancelled: number; error?: string }> {
-  try {
-    await discoverCalendarIds();
-    const calendar = await getGoogleCalendarClient();
-    const calendarId = await getCalendarIdByName(CALENDAR_CONFIG.tours.name);
-    
-    if (!calendarId) {
-      return { synced: 0, created: 0, updated: 0, cancelled: 0, error: `Calendar "${CALENDAR_CONFIG.tours.name}" not found` };
-    }
-    
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-    oneYearAgo.setHours(0, 0, 0, 0);
-    
-    const allEvents: Array<{ id?: string | null; summary?: string | null; description?: string | null; start?: { dateTime?: string | null; date?: string | null }; end?: { dateTime?: string | null; date?: string | null }; attendees?: CalendarAttendee[]; status?: string | null }> = [];
-    let pageToken: string | undefined = undefined;
-    
-    do {
-      const response = await calendar.events.list({
-        calendarId,
-        timeMin: oneYearAgo.toISOString(),
-        maxResults: 250,
-        singleEvents: true,
-        orderBy: 'startTime',
-        pageToken,
-      });
-      
-      if (response.data.items) {
-        allEvents.push(...response.data.items);
-      }
-      pageToken = response.data.nextPageToken || undefined;
-    } while (pageToken);
-    
-    const events = allEvents;
-    let created = 0;
-    let updated = 0;
-    let cancelled = 0;
-    
-    const calendarEventIds = new Set(events.map(e => e.id).filter(Boolean));
-    
-    for (const event of events) {
-      if (!event.id || !event.summary) continue;
-      
-      const googleEventId = event.id;
-      const title = event.summary;
-      const description = event.description || '';
-      
-      let tourDate: string;
-      let startTime: string;
-      let endTime: string | null = null;
-      
-      if (event.start?.dateTime) {
-        const startDt = new Date(event.start.dateTime);
-        tourDate = startDt.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-        startTime = startDt.toLocaleTimeString('en-GB', { timeZone: 'America/Los_Angeles', hour12: false });
-        
-        if (event.end?.dateTime) {
-          const endDt = new Date(event.end.dateTime);
-          endTime = endDt.toLocaleTimeString('en-GB', { timeZone: 'America/Los_Angeles', hour12: false });
-        }
-      } else if (event.start?.date) {
-        tourDate = event.start.date;
-        startTime = '10:00:00';
-        endTime = '11:00:00';
-      } else {
-        continue;
-      }
-      
-      let guestName = title;
-      let guestEmail: string | null = null;
-      let guestPhone: string | null = null;
-      
-      const attendeeInfo = extractContactFromAttendees(event.attendees || []);
-      if (attendeeInfo.email) guestEmail = attendeeInfo.email;
-      if (attendeeInfo.name) guestName = attendeeInfo.name;
-      
-      if (description) {
-        const emailMatch = description.match(/email[:\s]+([^\s\n,]+@[^\s\n,]+)/i);
-        if (emailMatch && !guestEmail) guestEmail = emailMatch[1].trim();
-        
-        const phoneMatch = description.match(/phone[:\s]+([^\n]+)/i) || description.match(/(\(\d{3}\)\s*\d{3}[-.\s]?\d{4}|\d{3}[-.\s]?\d{3}[-.\s]?\d{4})/);
-        if (phoneMatch) guestPhone = phoneMatch[1].trim();
-        
-        const nameMatch = description.match(/name[:\s]+([^\n]+)/i);
-        if (nameMatch && !attendeeInfo.name) guestName = nameMatch[1].trim();
-      }
-      
-      // Check if calendar event was marked as cancelled (title starts with "Canceled:" or "Cancelled:")
-      const isCancelledEvent = /^cancell?ed:/i.test(title);
-      
-      const existing = await db.select().from(tours).where(eq(tours.googleCalendarId, googleEventId));
-      
-      if (existing.length > 0) {
-        if (isCancelledEvent && existing[0].status !== 'cancelled') {
-          // Calendar event was marked as cancelled - update tour status
-          await db.update(tours)
-            .set({
-              status: 'cancelled',
-              updatedAt: new Date(),
-            })
-            .where(eq(tours.googleCalendarId, googleEventId));
-          cancelled++;
-        } else if (!isCancelledEvent) {
-          // Normal update for non-cancelled events
-          await db.update(tours)
-            .set({
-              title,
-              guestName,
-              guestEmail,
-              guestPhone,
-              tourDate,
-              startTime,
-              endTime,
-              notes: description || null,
-              updatedAt: new Date(),
-            })
-            .where(eq(tours.googleCalendarId, googleEventId));
-          updated++;
-        }
-      } else {
-        let matchedExistingTour = null;
-        if (guestEmail) {
-          const eventTimeMinutes = parseTimeToMinutes(startTime);
-          // First, check for any existing tour with same email/date/time (including those from HubSpot)
-          const existingTours = await db.select().from(tours).where(
-            and(
-              ilike(tours.guestEmail, guestEmail),
-              eq(tours.tourDate, tourDate),
-              sql`${tours.googleCalendarId} IS NULL`
-            )
-          );
-          
-          matchedExistingTour = existingTours.find(t => {
-            if (t.startTime === '00:00:00') return true;
-            const existingTimeMinutes = parseTimeToMinutes(t.startTime);
-            return Math.abs(eventTimeMinutes - existingTimeMinutes) <= 15;
-          });
-        }
-        
-        if (matchedExistingTour) {
-          // Link this calendar event to the existing tour (may have been created from HubSpot)
-          await db.update(tours)
-            .set({
-              googleCalendarId: googleEventId,
-              title,
-              guestName: matchedExistingTour.guestName || guestName,
-              guestEmail: matchedExistingTour.guestEmail || guestEmail,
-              guestPhone: matchedExistingTour.guestPhone || guestPhone,
-              tourDate,
-              startTime,
-              endTime,
-              notes: description || null,
-              status: isCancelledEvent ? 'cancelled' : (matchedExistingTour.status === 'cancelled' ? 'cancelled' : 'scheduled'),
-              updatedAt: new Date(),
-            })
-            .where(eq(tours.id, matchedExistingTour.id));
-          updated++;
-        } else {
-          await db.insert(tours).values({
-            googleCalendarId: googleEventId,
-            title,
-            guestName,
-            guestEmail,
-            guestPhone,
-            tourDate,
-            startTime,
-            endTime,
-            notes: description || null,
-            status: 'scheduled',
-          });
-          created++;
-          
-          const tourDateObj = new Date(tourDate);
-          const formattedDate = tourDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' });
-          await notifyAllStaff(
-            'New Tour Scheduled',
-            `${guestName} scheduled a tour for ${formattedDate}`,
-            'tour_scheduled',
-            { relatedType: 'tour' }
-          );
-        }
-      }
-    }
-    
-    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-    const scheduledToursWithCalendarId = await db.select().from(tours)
-      .where(and(
-        sql`${tours.googleCalendarId} IS NOT NULL`,
-        eq(tours.status, 'scheduled'),
-        sql`${tours.tourDate} >= ${today}`
-      ));
-    
-    for (const tour of scheduledToursWithCalendarId) {
-      if (tour.googleCalendarId && !calendarEventIds.has(tour.googleCalendarId)) {
-        await db.update(tours)
-          .set({
-            status: 'cancelled',
-            updatedAt: new Date(),
-          })
-          .where(eq(tours.id, tour.id));
-        cancelled++;
-        logger.info('[Tour Sync] Cancelled tour # () - calendar event deleted', { extra: { tourId: tour.id, tourGuestName_tourTitle: tour.guestName || tour.title } });
-      }
-    }
-    
-    return { synced: events.length, created, updated, cancelled };
-  } catch (error: unknown) {
-    logger.error('Error syncing tours from calendar', { error: error instanceof Error ? error : new Error(String(error)) });
-    return { synced: 0, created: 0, updated: 0, cancelled: 0, error: 'Failed to sync tours' };
-  }
 }
 
 export async function sendTodayTourReminders(): Promise<number> {
