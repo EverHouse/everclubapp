@@ -190,7 +190,7 @@ export async function publish(
         resourceId: data.resourceId,
         resourceName: data.resourceName,
         resourceType: data.resourceType,
-        bookingDate: data.bookingDate,
+        bookingDate: data.bookingDate instanceof Date ? data.bookingDate.toISOString().split('T')[0] : String(data.bookingDate),
         startTime: data.startTime,
         endTime: data.endTime,
         durationMinutes: data.durationMinutes,
@@ -401,7 +401,7 @@ export async function linkAndNotifyParticipants(
               sessionId: bpSessionId,
               userId: null,
               participantType: 'guest',
-              displayName: participant.name || email,
+              displayName: email,
               inviteStatus: 'accepted',
               createdAt: new Date()
             });

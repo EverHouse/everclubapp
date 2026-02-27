@@ -799,14 +799,20 @@ export async function getBookingDataForTrackman(trackmanBookingId: string) {
   const webhookResult = await db.execute(sql`SELECT payload FROM trackman_webhook_events WHERE trackman_booking_id = ${trackmanBookingId} ORDER BY created_at DESC LIMIT 1`);
   
   if ((webhookResult.rows as Array<Record<string, unknown>>).length > 0) {
-    const payload = typeof (webhookResult.rows as Array<Record<string, unknown>>)[0].payload === 'string' 
-      ? JSON.parse((webhookResult.rows as Array<Record<string, unknown>>)[0].payload as string) 
-      : (webhookResult.rows as Array<Record<string, unknown>>)[0].payload;
-    const data = payload?.data || payload?.booking || {};
+    let payload: Record<string, unknown>;
+    try {
+      payload = typeof (webhookResult.rows as Array<Record<string, unknown>>)[0].payload === 'string' 
+        ? JSON.parse((webhookResult.rows as Array<Record<string, unknown>>)[0].payload as string) 
+        : (webhookResult.rows as Array<Record<string, unknown>>)[0].payload as Record<string, unknown>;
+    } catch (parseErr) {
+      logger.error('[resourceService] Failed to parse trackman webhook payload', { error: parseErr instanceof Error ? parseErr : new Error(String(parseErr)), extra: { trackmanBookingId } });
+      payload = {};
+    }
+    const data = (payload?.data || payload?.booking || {}) as Record<string, unknown>;
     
-    const startStr = data?.start;
-    const endStr = data?.end;
-    const bayRef = data?.bay?.ref;
+    const startStr = data?.start as string | undefined;
+    const endStr = data?.end as string | undefined;
+    const bayRef = (data?.bay as Record<string, unknown>)?.ref as string | undefined;
     
     if (startStr && endStr) {
       const startDate = new Date(startStr.includes('T') ? startStr : startStr.replace(' ', 'T') + 'Z');
@@ -950,14 +956,20 @@ export async function linkTrackmanToMember(
         throw { statusCode: 404, error: 'Trackman booking not found in webhook logs' };
       }
       
-      const payload = typeof webhookLog.payload === 'string' 
-        ? JSON.parse(webhookLog.payload) 
-        : webhookLog.payload;
-      const bookingData = payload?.data || payload?.booking || {};
+      let payload: Record<string, unknown>;
+      try {
+        payload = typeof webhookLog.payload === 'string' 
+          ? JSON.parse(webhookLog.payload) 
+          : webhookLog.payload as Record<string, unknown>;
+      } catch (parseErr) {
+        logger.error('[resourceService] Failed to parse trackman webhook payload', { error: parseErr instanceof Error ? parseErr : new Error(String(parseErr)), extra: { trackmanBookingId } });
+        throw { statusCode: 500, error: 'Failed to parse webhook payload data' };
+      }
+      const bookingData = (payload?.data || payload?.booking || {}) as Record<string, unknown>;
       
-      const startStr = bookingData?.start;
-      const endStr = bookingData?.end;
-      const bayRef = bookingData?.bay?.ref;
+      const startStr = bookingData?.start as string | undefined;
+      const endStr = bookingData?.end as string | undefined;
+      const bayRef = (bookingData?.bay as Record<string, unknown>)?.ref as string | undefined;
       
       if (!startStr || !endStr) {
         throw { statusCode: 400, error: 'Cannot extract booking time from webhook data' };

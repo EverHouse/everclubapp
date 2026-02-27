@@ -182,7 +182,7 @@ export async function validateTrackmanId(trackmanBookingId: string, bookingId: n
         }
 
         try {
-          const stripe = getStripeClient();
+          const stripe = await getStripeClient();
 
           const allSnapshots = await db.execute(sql`
             SELECT id, stripe_payment_intent_id, total_cents
@@ -946,7 +946,7 @@ interface CancelBookingParams {
 export async function cancelBooking(params: CancelBookingParams) {
   const { bookingId, staff_notes, cancelled_by } = params;
 
-  const { updated, bookingData, pushInfo, overageRefundResult, isConferenceRoom: isConfRoom, isPendingCancel, alreadyPending, stripeCleanupData } = await db.transaction(async (tx) => {
+  const { updated, bookingData, pushInfo, overageRefundResult, isConferenceRoom: isConfRoom, isPendingCancel, alreadyPending, stripeCleanupData, guestPassRefundData } = await db.transaction(async (tx) => {
     const [existing] = await tx.select({
       id: bookingRequests.id,
       calendarEventId: bookingRequests.calendarEventId,
@@ -1037,7 +1037,7 @@ export async function cancelBooking(params: CancelBookingParams) {
       `);
 
       for (const snapshot of allSnapshots.rows) {
-        snapshotIntents.push({ stripePaymentIntentId: snapshot.stripe_payment_intent_id });
+        snapshotIntents.push({ stripePaymentIntentId: String(snapshot.stripe_payment_intent_id) });
       }
 
       const otherIntents = await tx.execute(sql`
@@ -1051,7 +1051,7 @@ export async function cancelBooking(params: CancelBookingParams) {
       `);
 
       for (const row of otherIntents.rows) {
-        orphanIntents.push({ stripePaymentIntentId: row.stripe_payment_intent_id });
+        orphanIntents.push({ stripePaymentIntentId: String(row.stripe_payment_intent_id) });
       }
 
       if (existing.sessionId) {
@@ -1821,9 +1821,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
       try { broadcastMemberStatsUpdated(booking.userEmail, { lifetimeVisits: updatedUser.lifetime_visits }); } catch (err: unknown) { logger.error('[Broadcast] Stats update error', { extra: { err } }); }
     }
 
-    const dateStr = (booking.requestDate as any) instanceof Date
-      ? booking.requestDate.toISOString().split('T')[0]
-      : String(booking.requestDate).split('T')[0];
+    const dateStr = String(booking.requestDate).split('T')[0];
     const formattedDate = formatDateDisplayWithDay(dateStr);
     const formattedTime = formatTime12Hour(booking.startTime);
 
@@ -1839,9 +1837,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
   }
 
   if (newStatus === 'no_show' && booking.userEmail) {
-    const noShowDateStr = (booking.requestDate as any) instanceof Date
-      ? booking.requestDate.toISOString().split('T')[0]
-      : String(booking.requestDate).split('T')[0];
+    const noShowDateStr = String(booking.requestDate).split('T')[0];
     const formattedDate = formatDateDisplayWithDay(noShowDateStr);
     const formattedTime = formatTime12Hour(booking.startTime);
 

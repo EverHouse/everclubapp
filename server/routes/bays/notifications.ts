@@ -168,8 +168,8 @@ router.get('/api/recent-activity', isStaffOrAdmin, async (req, res) => {
       activities.push({
         id: `walkin_${visit.id}`,
         type: 'check_in',
-        timestamp: visit.created_at.toISOString ? visit.created_at.toISOString() : new Date(visit.created_at).toISOString(),
-        primary_text: name,
+        timestamp: new Date(String(visit.created_at)).toISOString(),
+        primary_text: String(name),
         secondary_text: `Walk-in check-in${visit.checked_in_by_name ? ` by ${visit.checked_in_by_name}` : ''}`,
         icon: 'qr_code_scanner'
       });

@@ -9,6 +9,50 @@ import { eq, sql } from 'drizzle-orm';
 import type Stripe from 'stripe';
 import type { BookingFeeLineItem } from '../stripe/invoices';
 
+interface BookingInvoiceIdRow {
+  stripe_invoice_id: string | null;
+}
+
+interface StripeCustomerIdRow {
+  stripe_customer_id: string | null;
+}
+
+interface ParticipantFeeRow {
+  id: number;
+  display_name: string | null;
+  participant_type: string;
+  cached_fee_cents: number;
+}
+
+interface RefundCountRow {
+  cnt: string | number;
+}
+
+interface BookingInfoRow {
+  user_email: string;
+  session_id: number;
+  trackman_booking_id: string | null;
+  status: string;
+}
+
+interface PaymentIntentLookupRow {
+  stripe_payment_intent_id: string;
+  amount_cents: number;
+}
+
+interface InvoiceSyncRow {
+  stripe_invoice_id: string | null;
+  user_email: string;
+  trackman_booking_id: string | null;
+  status: string;
+  resource_id: number | null;
+  resource_type: string;
+}
+
+interface TrackmanBookingIdRow {
+  trackman_booking_id: string | null;
+}
+
 export interface DraftInvoiceParams {
   customerId: string;
   bookingId: number;
@@ -124,7 +168,7 @@ export async function createDraftInvoiceForBooking(
   const { customerId, bookingId, sessionId, trackmanBookingId, feeLineItems } = params;
 
   const existingResult = await db.execute(sql`SELECT stripe_invoice_id FROM booking_requests WHERE id = ${bookingId} LIMIT 1`);
-  const existingInvoiceId = existingResult.rows[0]?.stripe_invoice_id;
+  const existingInvoiceId = existingResult.rows[0]?.stripe_invoice_id as string | undefined;
 
   if (existingInvoiceId) {
     try {
@@ -220,7 +264,7 @@ export async function updateDraftInvoiceLineItems(params: {
   const { bookingId, sessionId, feeLineItems } = params;
 
   const result = await db.execute(sql`SELECT stripe_invoice_id FROM booking_requests WHERE id = ${bookingId} LIMIT 1`);
-  const invoiceId = (result.rows as Array<Record<string, unknown>>)[0]?.stripe_invoice_id;
+  const invoiceId = (result.rows as unknown as BookingInvoiceIdRow[])[0]?.stripe_invoice_id;
 
   if (!invoiceId) {
     throw new Error(`No draft invoice found for booking ${bookingId}`);
@@ -248,7 +292,7 @@ export async function updateDraftInvoiceLineItems(params: {
   const totalCents = feeLineItems.reduce((sum, li) => sum + li.totalCents, 0);
 
   const trackmanResult = await db.execute(sql`SELECT trackman_booking_id FROM booking_requests WHERE id = ${bookingId} LIMIT 1`);
-  const trackmanBookingId = trackmanResult.rows[0]?.trackman_booking_id || null;
+  const trackmanBookingId = (trackmanResult.rows as unknown as TrackmanBookingIdRow[])[0]?.trackman_booking_id || null;
   const bookingRef = trackmanBookingId ? `TM-${trackmanBookingId}` : `#${bookingId}`;
 
   await stripe.invoices.update(invoiceId, {
@@ -278,7 +322,7 @@ export async function updateDraftInvoiceLineItems(params: {
 
 export async function getBookingInvoiceId(bookingId: number): Promise<string | null> {
   const result = await db.execute(sql`SELECT stripe_invoice_id FROM booking_requests WHERE id = ${bookingId} LIMIT 1`);
-  return (result.rows as Array<Record<string, unknown>>)[0]?.stripe_invoice_id as string || null;
+  return (result.rows as unknown as BookingInvoiceIdRow[])[0]?.stripe_invoice_id || null;
 }
 
 export async function getBookingInvoiceStatus(bookingId: number): Promise<{
@@ -352,7 +396,7 @@ export async function finalizeAndPayInvoice(params: {
      ORDER BY spi.created_at DESC LIMIT 1`);
 
   if (existingPiResult.rows.length > 0) {
-    const existingPi = existingPiResult.rows[0];
+    const existingPi = (existingPiResult.rows as unknown as PaymentIntentLookupRow[])[0];
     try {
       const stripePi = await stripe.paymentIntents.retrieve(existingPi.stripe_payment_intent_id);
       const pmTypes = stripePi.payment_method_types || [];
@@ -724,9 +768,9 @@ export async function voidBookingInvoice(bookingId: number): Promise<{
         extra: { bookingId, invoiceId, status: invoice.status }
       });
     } else if (invoice.status === 'paid') {
-      const paymentIntentId = typeof invoice.payment_intent === 'string'
-        ? invoice.payment_intent
-        : invoice.payment_intent?.id;
+      const paymentIntentId = typeof (invoice as unknown as Record<string, unknown>).payment_intent === 'string'
+        ? (invoice as unknown as Record<string, unknown>).payment_intent as string
+        : ((invoice as unknown as Record<string, unknown>).payment_intent as { id?: string } | null)?.id;
       if (paymentIntentId) {
         try {
           const refund = await stripe.refunds.create({
@@ -760,7 +804,7 @@ export async function voidBookingInvoice(bookingId: number): Promise<{
             AND stripe_payment_intent_id LIKE 'balance-%'
             AND status = 'refunded'
         `);
-        const alreadyHandled = Number((alreadyRefunded.rows[0] as any)?.cnt || 0) > 0;
+        const alreadyHandled = Number((alreadyRefunded.rows as unknown as RefundCountRow[])[0]?.cnt || 0) > 0;
 
         if (alreadyHandled) {
           logger.info('[BookingInvoice] Balance refund already processed for this booking, skipping', {
@@ -838,7 +882,7 @@ export async function recreateDraftInvoiceFromBooking(bookingId: number): Promis
       return { success: false };
     }
 
-    const booking = bookingResult.rows[0];
+    const booking = (bookingResult.rows as unknown as BookingInfoRow[])[0];
 
     if (booking.status !== 'approved') {
       logger.info('[BookingInvoice] recreateDraftInvoiceFromBooking: booking not approved, skipping', { extra: { bookingId, status: booking.status } });
@@ -847,7 +891,7 @@ export async function recreateDraftInvoiceFromBooking(bookingId: number): Promis
 
     const userResult = await db.execute(sql`SELECT stripe_customer_id FROM users WHERE LOWER(email) = LOWER(${booking.user_email}) LIMIT 1`);
 
-    const stripeCustomerId = (userResult.rows as Array<Record<string, unknown>>)[0]?.stripe_customer_id;
+    const stripeCustomerId = (userResult.rows as unknown as StripeCustomerIdRow[])[0]?.stripe_customer_id;
     if (!stripeCustomerId) {
       logger.warn('[BookingInvoice] recreateDraftInvoiceFromBooking: no stripe_customer_id for user', { extra: { bookingId, email: booking.user_email } });
       return { success: false };
@@ -857,12 +901,12 @@ export async function recreateDraftInvoiceFromBooking(bookingId: number): Promis
        FROM booking_participants
        WHERE session_id = ${booking.session_id} AND cached_fee_cents > 0`);
 
-    const feeLineItems: BookingFeeLineItem[] = (participantResult.rows as Array<Record<string, unknown>>).map((row: Record<string, unknown>) => {
-      const totalCents = row.cached_fee_cents as number;
+    const feeLineItems: BookingFeeLineItem[] = (participantResult.rows as unknown as ParticipantFeeRow[]).map((row) => {
+      const totalCents = row.cached_fee_cents;
       const isGuest = row.participant_type === 'guest';
       return {
-        participantId: row.id as number,
-        displayName: (row.display_name as string) || 'Unknown',
+        participantId: row.id,
+        displayName: row.display_name || 'Unknown',
         participantType: row.participant_type as 'owner' | 'member' | 'guest',
         overageCents: isGuest ? 0 : totalCents,
         guestCents: isGuest ? totalCents : 0,
@@ -878,7 +922,7 @@ export async function recreateDraftInvoiceFromBooking(bookingId: number): Promis
     }
 
     const draftResult = await createDraftInvoiceForBooking({
-      customerId: stripeCustomerId,
+      customerId: stripeCustomerId as string,
       bookingId,
       sessionId: booking.session_id,
       trackmanBookingId: booking.trackman_booking_id || null,
@@ -901,7 +945,7 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
        FROM booking_requests br
        LEFT JOIN resources r ON br.resource_id = r.id
        WHERE br.id = ${bookingId} LIMIT 1`);
-    const booking = invoiceResult.rows[0];
+    const booking = (invoiceResult.rows as unknown as InvoiceSyncRow[])[0];
     if (!booking) return;
     const stripeInvoiceId = booking.stripe_invoice_id;
 
@@ -912,22 +956,23 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
          FROM booking_participants
          WHERE session_id = ${sessionId} AND cached_fee_cents > 0`);
 
-      const totalFees = (participantResult.rows as Array<Record<string, unknown>>).reduce((sum: number, r: Record<string, unknown>) => sum + (r.cached_fee_cents as number), 0);
+      const typedParticipants = participantResult.rows as unknown as ParticipantFeeRow[];
+      const totalFees = typedParticipants.reduce((sum, r) => sum + r.cached_fee_cents, 0);
       if (totalFees <= 0) return;
 
       const userResult = await db.execute(sql`SELECT stripe_customer_id FROM users WHERE LOWER(email) = LOWER(${booking.user_email}) LIMIT 1`);
-      const stripeCustomerId = (userResult.rows as Array<Record<string, unknown>>)[0]?.stripe_customer_id;
+      const stripeCustomerId = (userResult.rows as unknown as StripeCustomerIdRow[])[0]?.stripe_customer_id;
       if (!stripeCustomerId) {
         logger.warn('[BookingInvoice] syncBookingInvoice: no stripe_customer_id for user, cannot create draft invoice', { extra: { bookingId, email: booking.user_email } });
         return;
       }
 
-      const feeLineItems: BookingFeeLineItem[] = (participantResult.rows as Array<Record<string, unknown>>).map((row: Record<string, unknown>) => {
-        const totalCents = row.cached_fee_cents as number;
+      const feeLineItems: BookingFeeLineItem[] = typedParticipants.map((row) => {
+        const totalCents = row.cached_fee_cents;
         const isGuest = row.participant_type === 'guest';
         return {
-          participantId: row.id as number,
-          displayName: (row.display_name as string) || 'Unknown',
+          participantId: row.id,
+          displayName: row.display_name || 'Unknown',
           participantType: row.participant_type as 'owner' | 'member' | 'guest',
           overageCents: isGuest ? 0 : totalCents,
           guestCents: isGuest ? totalCents : 0,
@@ -987,12 +1032,12 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
        FROM booking_participants
        WHERE session_id = ${sessionId} AND cached_fee_cents > 0`);
 
-    const feeLineItems: BookingFeeLineItem[] = (participantResult.rows as Array<Record<string, unknown>>).map((row: Record<string, unknown>) => {
-      const totalCents = row.cached_fee_cents as number;
+    const feeLineItems: BookingFeeLineItem[] = (participantResult.rows as unknown as ParticipantFeeRow[]).map((row) => {
+      const totalCents = row.cached_fee_cents;
       const isGuest = row.participant_type === 'guest';
       return {
-        participantId: row.id as number,
-        displayName: (row.display_name as string) || 'Unknown',
+        participantId: row.id,
+        displayName: row.display_name || 'Unknown',
         participantType: row.participant_type as 'owner' | 'member' | 'guest',
         overageCents: isGuest ? 0 : totalCents,
         guestCents: isGuest ? totalCents : 0,
@@ -1032,7 +1077,7 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
 export async function isBookingInvoicePaid(bookingId: number): Promise<{ locked: boolean; invoiceId?: string; reason?: string }> {
   try {
     const result = await db.execute(sql`SELECT stripe_invoice_id FROM booking_requests WHERE id = ${bookingId} LIMIT 1`);
-    const invoiceId = (result.rows as Array<Record<string, unknown>>)[0]?.stripe_invoice_id as string;
+    const invoiceId = (result.rows as unknown as BookingInvoiceIdRow[])[0]?.stripe_invoice_id;
     if (!invoiceId) return { locked: false };
 
     const stripe = await getStripeClient();

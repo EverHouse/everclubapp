@@ -5,6 +5,35 @@ import { logPaymentAudit } from '../auditLog';
 
 import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { logger } from '../logger';
+
+interface SnapshotRow {
+  id: number;
+  session_id: number;
+  booking_id: number;
+  participant_fees: Array<{ id?: number; amountCents?: number }> | null;
+  total_cents: number;
+  status: string;
+}
+
+interface PaymentIntentRow {
+  booking_id: number;
+  session_id: number | null;
+  amount_cents: number;
+}
+
+interface SessionIdRow {
+  session_id: number | null;
+}
+
+interface PendingParticipantRow {
+  id: number;
+  cached_fee_cents: number;
+}
+
+interface CancelSnapshotRow {
+  id: number;
+}
+
 export interface PaymentStatusUpdate {
   paymentIntentId: string;
   bookingId?: number;
@@ -54,10 +83,11 @@ export class PaymentStatusService {
             sql`SELECT booking_id, session_id, amount_cents FROM stripe_payment_intents WHERE stripe_payment_intent_id = ${paymentIntentId}`
           );
 
-          if (piLookup.rows.length > 0 && piLookup.rows[0].booking_id) {
-            const piRow = piLookup.rows[0];
+          const piRows = piLookup.rows as unknown as PaymentIntentRow[];
+          if (piRows.length > 0 && piRows[0].booking_id) {
+            const piRow = piRows[0];
             const sessionLookup = await tx.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${piRow.booking_id}`);
-            const resolvedSessionId = piRow.session_id || sessionLookup.rows[0]?.session_id;
+            const resolvedSessionId = piRow.session_id || (sessionLookup.rows as unknown as SessionIdRow[])[0]?.session_id;
 
             if (resolvedSessionId) {
               const pendingResult = await tx.execute(
@@ -67,8 +97,9 @@ export class PaymentStatusService {
                  FOR UPDATE`
               );
 
-              if (pendingResult.rows.length > 0) {
-                const totalPendingCents = pendingResult.rows.reduce((sum: number, row: { cached_fee_cents: number }) => sum + (row.cached_fee_cents || 0), 0);
+              const pendingRows = pendingResult.rows as unknown as PendingParticipantRow[];
+              if (pendingRows.length > 0) {
+                const totalPendingCents = pendingRows.reduce((sum, row) => sum + (row.cached_fee_cents || 0), 0);
                 const tolerance = 50;
                 
                 if (Math.abs(totalPendingCents - piRow.amount_cents) > tolerance) {
@@ -76,14 +107,14 @@ export class PaymentStatusService {
                   return { success: true, participantsUpdated: 0, snapshotsUpdated: 0 } as PaymentStatusResult;
                 }
 
-                const pendingIds = pendingResult.rows.map((r: { id: number }) => r.id);
+                const pendingIds = pendingRows.map((r) => r.id);
                 await tx.execute(
                   sql`UPDATE booking_participants
                    SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = ${paymentIntentId}, cached_fee_cents = 0
                    WHERE id = ANY(${toIntArrayLiteral(pendingIds)}::int[])`
                 );
 
-                for (const row of pendingResult.rows) {
+                for (const row of pendingRows) {
                   await logPaymentAudit({
                     bookingId: piRow.booking_id,
                     sessionId: resolvedSessionId,
@@ -99,8 +130,8 @@ export class PaymentStatusService {
                   });
                 }
 
-                logger.info(`[PaymentStatusService] No-snapshot fallback: updated ${pendingIds.length} participant(s) for booking ${piRow.booking_id}`);
-                return { success: true, participantsUpdated: pendingIds.length, snapshotsUpdated: 0 } as PaymentStatusResult;
+                logger.info(`[PaymentStatusService] No-snapshot fallback: updated ${pendingRows.length} participant(s) for booking ${piRow.booking_id}`);
+                return { success: true, participantsUpdated: pendingRows.length, snapshotsUpdated: 0 } as PaymentStatusResult;
               }
             }
           }
@@ -108,7 +139,7 @@ export class PaymentStatusService {
           return { success: true, participantsUpdated: 0, snapshotsUpdated: 0 } as PaymentStatusResult;
         }
         
-        const snapshot = snapshotResult.rows[0];
+        const snapshot = (snapshotResult.rows as unknown as SnapshotRow[])[0];
         
         await tx.execute(
           sql`UPDATE stripe_payment_intents SET status = 'succeeded', updated_at = NOW() 
@@ -191,7 +222,7 @@ export class PaymentStatusService {
         );
         
         if (snapshotResult.rows.length > 0) {
-          const snapshot = snapshotResult.rows[0];
+          const snapshot = (snapshotResult.rows as unknown as SnapshotRow[])[0];
           
           await tx.execute(
             sql`UPDATE booking_fee_snapshots SET status = 'refunded' WHERE id = ${snapshot.id}`
@@ -256,7 +287,7 @@ export class PaymentStatusService {
            FOR UPDATE`
         );
         
-        if (snapshotResult.rows.length > 0) {
+        if ((snapshotResult.rows as unknown as CancelSnapshotRow[]).length > 0) {
           await tx.execute(
             sql`UPDATE booking_fee_snapshots SET status = 'cancelled' 
              WHERE stripe_payment_intent_id = ${paymentIntentId}`

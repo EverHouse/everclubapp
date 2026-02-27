@@ -140,7 +140,7 @@ export async function createAnnouncementSheet(): Promise<string> {
       set: { value: spreadsheetId, updatedAt: new Date() }
     });
 
-  const allAnnouncements = await db.execute(sql`SELECT * FROM announcements ORDER BY id ASC`);
+  const allAnnouncements = await db.execute(sql`SELECT id, title, message, starts_at, ends_at, link_type, link_target, show_as_banner, is_active FROM announcements ORDER BY id ASC`);
   const queryResult = allAnnouncements as unknown as { rows: Record<string, unknown>[] };
   const rows = queryResult.rows || (allAnnouncements as unknown as Record<string, unknown>[]);
 
@@ -309,7 +309,7 @@ export async function syncToSheet(sheetId: string): Promise<{ pushed: number }> 
   const sheets = await getGoogleSheetClient();
   let pushed = 0;
 
-  const allAnnouncements = await db.execute(sql`SELECT * FROM announcements ORDER BY id ASC`);
+  const allAnnouncements = await db.execute(sql`SELECT id, title, message, starts_at, ends_at, link_type, link_target, show_as_banner, is_active FROM announcements ORDER BY id ASC`);
   const syncResult = allAnnouncements as unknown as { rows: Record<string, unknown>[] };
   const dbRows = syncResult.rows || (allAnnouncements as unknown as Record<string, unknown>[]);
 

@@ -65,6 +65,19 @@ interface BookingRecord {
   staffNotes: string | null;
 }
 
+interface FeeSnapshotRow {
+  id: number;
+  stripe_payment_intent_id: string;
+  snapshot_status: string;
+  total_cents: number;
+}
+
+interface BalancePaymentRow {
+  stripe_payment_intent_id: string;
+  stripe_customer_id: string;
+  amount_cents: number;
+}
+
 export class BookingStateService {
   static async cancelBooking(params: {
     bookingId: number;
@@ -169,7 +182,7 @@ export class BookingStateService {
         WHERE booking_id = ${bookingId} AND stripe_payment_intent_id IS NOT NULL
       `);
 
-      for (const snapshot of allSnapshots.rows as any[]) {
+      for (const snapshot of allSnapshots.rows as unknown as FeeSnapshotRow[]) {
         sideEffects.stripeSnapshotRefunds.push({
           paymentIntentId: snapshot.stripe_payment_intent_id,
           idempotencyKey: `refund_cancel_snapshot_${bookingId}_${snapshot.stripe_payment_intent_id}`,
@@ -182,7 +195,7 @@ export class BookingStateService {
           eq(stripePaymentIntents.bookingId, bookingId),
         ));
 
-      const snapshotPiIds = new Set((allSnapshots.rows as any[]).map((s: any) => s.stripe_payment_intent_id));
+      const snapshotPiIds = new Set((allSnapshots.rows as unknown as FeeSnapshotRow[]).map((s) => s.stripe_payment_intent_id));
       for (const row of otherIntents) {
         if (!snapshotPiIds.has(row.stripePaymentIntentId)) {
           sideEffects.stripeRefunds.push({
@@ -228,7 +241,7 @@ export class BookingStateService {
             AND status = 'succeeded'
         `);
 
-        for (const rec of balancePaymentRecords.rows as any[]) {
+        for (const rec of balancePaymentRecords.rows as unknown as BalancePaymentRow[]) {
           if (rec.stripe_customer_id && rec.amount_cents > 0) {
             sideEffects.balanceRefunds.push({
               stripeCustomerId: rec.stripe_customer_id,
@@ -449,7 +462,7 @@ export class BookingStateService {
         WHERE booking_id = ${bookingId} AND stripe_payment_intent_id IS NOT NULL
       `);
 
-      for (const snapshot of allSnapshots.rows as any[]) {
+      for (const snapshot of allSnapshots.rows as unknown as FeeSnapshotRow[]) {
         sideEffects.stripeSnapshotRefunds.push({
           paymentIntentId: snapshot.stripe_payment_intent_id,
           idempotencyKey: `refund_complete_cancel_snapshot_${bookingId}_${snapshot.stripe_payment_intent_id}`,
@@ -480,7 +493,7 @@ export class BookingStateService {
             isNull(bookingParticipants.refundedAt),
           ));
 
-        const snapshotPiIds = new Set((allSnapshots.rows as any[]).map((s: any) => s.stripe_payment_intent_id));
+        const snapshotPiIds = new Set((allSnapshots.rows as unknown as FeeSnapshotRow[]).map((s) => s.stripe_payment_intent_id));
         for (const participant of paidParticipants) {
           if (participant.stripePaymentIntentId && !snapshotPiIds.has(participant.stripePaymentIntentId)) {
             sideEffects.stripeRefunds.push({
@@ -499,7 +512,7 @@ export class BookingStateService {
             AND status = 'succeeded'
         `);
 
-        for (const rec of balancePaymentRecords.rows as any[]) {
+        for (const rec of balancePaymentRecords.rows as unknown as BalancePaymentRow[]) {
           if (rec.stripe_customer_id && rec.amount_cents > 0) {
             sideEffects.balanceRefunds.push({
               stripeCustomerId: rec.stripe_customer_id,

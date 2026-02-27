@@ -10,6 +10,18 @@ import { toIntArrayLiteral, toTextArrayLiteral, toBoolArrayLiteral } from '../..
 
 type SqlQueryParam = string | number | boolean | null | Date | string[];
 
+interface UsageRow {
+  identifier: string;
+  used: string | number;
+}
+
+interface TierRow {
+  email: string;
+  tier: string | null;
+  role: string | null;
+  membership_status: string;
+}
+
 export function getEffectivePlayerCount(declared: number | undefined, actual: number): number {
   const declaredCount = declared && declared > 0 ? declared : 1;
   return Math.max(declaredCount, actual, 1);
@@ -130,13 +142,13 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
          ORDER BY bp.participant_type = 'owner' DESC, bp.created_at ASC`
       );
       participants = participantsResult.rows.map(row => ({
-        participantId: row.participant_id,
-        userId: row.user_id,
-        guestId: row.guest_id,
-        email: row.email,
-        displayName: row.display_name,
+        participantId: Number(row.participant_id),
+        userId: String(row.user_id ?? ''),
+        guestId: row.guest_id != null ? Number(row.guest_id) : undefined,
+        email: String(row.email ?? ''),
+        displayName: String(row.display_name ?? ''),
         participantType: row.participant_type as 'owner' | 'member' | 'guest',
-        usedGuestPass: row.used_guest_pass ?? undefined
+        usedGuestPass: row.used_guest_pass != null ? Boolean(row.used_guest_pass) : undefined
       }));
     }
     
@@ -158,13 +170,13 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
          ORDER BY bp.participant_type = 'owner' DESC, bp.created_at ASC`
       );
       participants = bpFallbackResult.rows.map(row => ({
-        participantId: row.participant_id,
-        userId: row.user_id,
-        guestId: row.guest_id,
-        email: row.email,
-        displayName: row.display_name,
+        participantId: Number(row.participant_id),
+        userId: String(row.user_id ?? ''),
+        guestId: row.guest_id != null ? Number(row.guest_id) : undefined,
+        email: String(row.email ?? ''),
+        displayName: String(row.display_name ?? ''),
         participantType: row.participant_type as 'owner' | 'member' | 'guest',
-        usedGuestPass: row.used_guest_pass ?? undefined
+        usedGuestPass: row.used_guest_pass != null ? Boolean(row.used_guest_pass) : undefined
       }));
     }
     
@@ -226,7 +238,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       const statusCheck = await db.execute(
         sql`SELECT status FROM booking_requests WHERE id = ${sessionData.bookingId}`
       );
-      const bookingStatus = statusCheck.rows[0]?.status;
+      const bookingStatus = String(statusCheck.rows[0]?.status ?? '');
       if (['cancelled', 'declined', 'cancellation_pending'].includes(bookingStatus)) {
         logger.info('[FeeBreakdown] Booking is cancelled/declined — returning $0', {
           extra: { bookingId: sessionData.bookingId, status: bookingStatus }
@@ -322,7 +334,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
     const tiersResult = await db.execute(
       sql`SELECT LOWER(email) as email, tier, role, membership_status FROM users WHERE LOWER(email) = ANY(${emailArrayLiteral}::text[])`
     );
-    tiersResult.rows.forEach(r => {
+    (tiersResult.rows as unknown as TierRow[]).forEach(r => {
       if (r.tier && ['active', 'trialing', 'past_due'].includes(r.membership_status)) {
         tierMap.set(r.email, r.tier);
       }
@@ -357,7 +369,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
           sql`SELECT start_time FROM booking_requests WHERE id = ${currentBookingId}`
         );
         if (startTimeResult.rows.length > 0 && startTimeResult.rows[0].start_time) {
-          effectiveStartTime = startTimeResult.rows[0].start_time;
+          effectiveStartTime = String(startTimeResult.rows[0].start_time);
         }
       }
       
@@ -438,7 +450,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         FROM all_usage
         GROUP BY identifier
       `);
-      (usageResult.rows as Array<Record<string, unknown>>).forEach(r => usageMap.set(r.identifier as string, parseInt(String(r.used)) || 0));
+      (usageResult.rows as unknown as UsageRow[]).forEach(r => usageMap.set(r.identifier, parseInt(String(r.used)) || 0));
     } else {
       // Filter by resource type to separate simulator vs conference room usage
       const resourceTypeFilter = isConferenceRoom ? 'conference_room' : 'simulator';
@@ -511,7 +523,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
              SELECT * FROM ghost_usage
            ) combined
            GROUP BY identifier`);
-      (usageResult.rows as Array<Record<string, unknown>>).forEach(r => usageMap.set(r.identifier as string, parseInt(String(r.used)) || 0));
+      (usageResult.rows as unknown as UsageRow[]).forEach(r => usageMap.set(r.identifier, parseInt(String(r.used)) || 0));
     }
   }
 
@@ -907,7 +919,7 @@ export async function recalculateSessionFees(
         WHERE bs.id = ${sessionId}
         LIMIT 1
       `);
-      const sess = sessionInfo.rows[0] as Record<string, any> | undefined;
+      const sess = sessionInfo.rows[0] as { id: number; session_date: string; user_email: string; start_time: string } | undefined;
       if (sess?.user_email && sess?.session_date) {
         const laterSessions = await db.execute(sql`
           SELECT bs.id
@@ -921,7 +933,7 @@ export async function recalculateSessionFees(
           ORDER BY br.start_time ASC
           LIMIT 10
         `);
-        for (const later of laterSessions.rows as any[]) {
+        for (const later of laterSessions.rows as { id: number }[]) {
           try {
             const laterBreakdown = await computeFeeBreakdown({
               sessionId: later.id,
