@@ -1104,8 +1104,8 @@ const Dashboard: React.FC = () => {
                   const chips: { icon: string; label: string }[] = [];
                   if (item.type === 'booking' || item.type === 'booking_request') {
                     const raw = item.raw as DBBookingRequest;
-                    const bayName = raw.bay_name || raw.resource_name;
-                    if (bayName) chips.push({ icon: 'location_on', label: bayName });
+                    const playerCount = raw.declared_player_count || 1;
+                    chips.push({ icon: 'group', label: `${playerCount} Player${playerCount !== 1 ? 's' : ''}` });
                     if (raw.duration_minutes) {
                       const hrs = Math.floor(raw.duration_minutes / 60);
                       const mins = raw.duration_minutes % 60;
@@ -1120,8 +1120,6 @@ const Dashboard: React.FC = () => {
                         chips.push({ icon: 'schedule', label: hrs > 0 ? (mins > 0 ? `${hrs}h ${mins}m` : `${hrs} Hour${hrs > 1 ? 's' : ''}`) : `${mins} min` });
                       }
                     }
-                    const playerCount = raw.declared_player_count || 1;
-                    chips.push({ icon: 'group', label: `${playerCount} Player${playerCount !== 1 ? 's' : ''}` });
                   } else if (item.type === 'rsvp') {
                     const raw = item.raw as DBRSVP;
                     if (raw.location) chips.push({ icon: 'location_on', label: raw.location });

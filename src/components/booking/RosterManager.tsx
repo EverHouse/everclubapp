@@ -362,6 +362,8 @@ const RosterManager: React.FC<RosterManagerProps> = ({
     };
   }, [participants]);
 
+  const rosterLocked = !!(feePreview?.allPaid);
+
   const hasUnpaidFees = useMemo(() => {
     if (!feePreview) return false;
     if (feePreview.allPaid) return false;
@@ -433,7 +435,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                 </p>
               </div>
               {getTypeBadge(participant.participantType)}
-              {canManage && (
+              {canManage && !rosterLocked && (
                 <button
                   onClick={() => handleRemoveParticipant(participant.id, participant.displayName)}
                   disabled={removingId === participant.id}
@@ -454,7 +456,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
             </div>
           ))}
 
-          {remainingSlots > 0 && canManage && (
+          {remainingSlots > 0 && canManage && !rosterLocked && (
             <div className={`flex flex-col gap-2 p-3 rounded-2xl border-2 border-dashed ${
               isDark ? 'border-white/20' : 'border-black/10'
             }`}>
