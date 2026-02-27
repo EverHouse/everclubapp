@@ -25,6 +25,15 @@ export interface ChargeCardOptions {
   participantIds?: number[];
 }
 
+export interface FeeLineItemResult {
+  participantId: number;
+  displayName: string;
+  participantType: 'owner' | 'member' | 'guest';
+  overageCents: number;
+  guestCents: number;
+  totalCents: number;
+}
+
 export interface ChargeCardResult {
   success: boolean;
   noSavedCard?: boolean;
@@ -33,6 +42,13 @@ export interface ChargeCardResult {
   cardError?: boolean;
   error?: string;
   message?: string;
+  invoiceId?: string;
+  hostedInvoiceUrl?: string | null;
+  invoicePdf?: string | null;
+  feeLineItems?: FeeLineItemResult[];
+  totalAmount?: number;
+  amountCharged?: number;
+  balanceApplied?: number;
 }
 
 export interface StaffCancelOptions {
@@ -180,7 +196,17 @@ export function useBookingActions() {
 
       if (res.ok && data.success) {
         invalidateBookingQueries(queryClient);
-        return { success: true, message: data.message || 'Card charged successfully' };
+        return { 
+          success: true, 
+          message: data.message || 'Card charged successfully',
+          invoiceId: data.invoiceId,
+          hostedInvoiceUrl: data.hostedInvoiceUrl,
+          invoicePdf: data.invoicePdf,
+          feeLineItems: data.feeLineItems,
+          totalAmount: data.totalAmount,
+          amountCharged: data.amountCharged,
+          balanceApplied: data.balanceApplied,
+        };
       }
 
       if (data.noSavedCard || data.noStripeCustomer) {

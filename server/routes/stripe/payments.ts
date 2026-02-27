@@ -1320,7 +1320,17 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
         cardBrand,
         amountCharged,
         balanceApplied,
-        totalAmount: authoritativeAmountCents
+        totalAmount: authoritativeAmountCents,
+        hostedInvoiceUrl: invoiceResult.hostedInvoiceUrl || null,
+        invoicePdf: invoiceResult.invoicePdf || null,
+        feeLineItems: feeLineItems.map(li => ({
+          participantId: li.participantId,
+          displayName: li.displayName,
+          participantType: li.participantType,
+          overageCents: li.overageCents,
+          guestCents: li.guestCents,
+          totalCents: li.totalCents,
+        })),
       });
     } else {
       logger.warn('[Stripe] Invoice charge requires action', { extra: { invoiceStatus: invoiceResult.status, memberEmail: member.email } });
