@@ -54,7 +54,6 @@ export interface BookingRequest {
   staff_notes: string | null;
   suggested_time: string | null;
   created_at: string;
-  reschedule_booking_id?: number | null;
 }
 
 export interface Closure {

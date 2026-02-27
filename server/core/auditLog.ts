@@ -28,8 +28,6 @@ export type AuditAction =
   | 'approve_booking'
   | 'decline_booking'
   | 'create_booking'
-  | 'reschedule_booking'
-  | 'booking_rescheduled'
   | 'mark_no_show'
   | 'mark_attended'
   | 'add_guest_to_booking'

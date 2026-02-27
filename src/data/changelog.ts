@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.41.0",
+    date: "2026-02-27",
+    title: "Reschedule Feature Removed",
+    changes: [
+      "Removed: Staff reschedule feature (start/confirm/cancel routes) fully removed — booking modifications are now handled exclusively through Trackman webhooks",
+      "Removed: Relocation cleanup scheduler no longer needed since reschedule flow is gone",
+      "Removed: Booking reschedule email template and notification type",
+      "Removed: Reschedule-from-ID parameter in staff manual booking creation",
+      "Cleanup: Removed reschedule-related database schema columns (is_relocating, relocating_started_at, original_resource_id, original_start_time, original_end_time, original_booked_date, reschedule_booking_id) from Drizzle schema — existing database columns preserved but no longer referenced",
+    ]
+  },
+  {
     version: "8.40.0",
     date: "2026-02-27",
     title: "Heritage Typography System",

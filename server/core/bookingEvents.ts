@@ -16,7 +16,6 @@ export type BookingEventType =
   | 'booking_approved'
   | 'booking_declined'
   | 'booking_cancelled'
-  | 'booking_rescheduled'
   | 'booking_checked_in';
 
 export interface BookingEventData {

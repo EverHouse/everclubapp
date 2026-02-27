@@ -639,7 +639,6 @@ router.post('/api/staff/bookings/manual', isStaffOrAdmin, async (req, res) => {
       booking_source, 
       notes,
       staff_notes,
-      reschedule_from_id,
       trackman_booking_id
     } = req.body;
 
@@ -662,7 +661,6 @@ router.post('/api/staff/bookings/manual', isStaffOrAdmin, async (req, res) => {
       bookingSource: booking_source,
       notes,
       staffNotes: staff_notes,
-      rescheduleFromId: reschedule_from_id,
       trackmanBookingId: trackman_booking_id,
       staffEmail,
     });

@@ -18,7 +18,6 @@ import { startUnresolvedTrackmanScheduler, stopUnresolvedTrackmanScheduler } fro
 import { startGuestPassResetScheduler, stopGuestPassResetScheduler } from './guestPassResetScheduler';
 import { startMemberSyncScheduler, stopMemberSyncScheduler } from './memberSyncScheduler';
 import { startDuplicateCleanupScheduler } from './duplicateCleanupScheduler';
-import { startRelocationCleanupScheduler } from './relocationCleanupScheduler';
 import { startStuckCancellationScheduler, stopStuckCancellationScheduler } from './stuckCancellationScheduler';
 import { startPendingUserCleanupScheduler, stopPendingUserCleanupScheduler } from './pendingUserCleanupScheduler';
 import { startWebhookEventCleanupScheduler, stopWebhookEventCleanupScheduler } from './webhookEventCleanupScheduler';
@@ -59,7 +58,6 @@ export function initSchedulers(): void {
   schedulerTracker.registerScheduler('Member Sync', 24 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Duplicate Cleanup', 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Guest Pass Reset', 60 * 60 * 1000);
-  schedulerTracker.registerScheduler('Relocation Cleanup', 5 * 60 * 1000);
   schedulerTracker.registerScheduler('Stuck Cancellation', 2 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Pending User Cleanup', 6 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Webhook Event Cleanup', 24 * 60 * 60 * 1000);
@@ -87,7 +85,6 @@ export function initSchedulers(): void {
   startMemberSyncScheduler();
   intervalIds.push(startDuplicateCleanupScheduler());
   startGuestPassResetScheduler();
-  intervalIds.push(startRelocationCleanupScheduler());
   startStuckCancellationScheduler();
   startPendingUserCleanupScheduler();
   startWebhookEventCleanupScheduler();

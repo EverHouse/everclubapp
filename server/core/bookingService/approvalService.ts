@@ -45,7 +45,6 @@ interface BookingRow {
   createdAt: Date | null;
   updatedAt: Date | null;
   calendarEventId: string | null;
-  rescheduleBookingId: number | null;
 }
 
 interface BookingUpdateResult {
@@ -115,8 +114,7 @@ export function formatBookingRow(row: BookingRow) {
     reviewed_at: row.reviewedAt,
     created_at: row.createdAt,
     updated_at: row.updatedAt,
-    calendar_event_id: row.calendarEventId,
-    reschedule_booking_id: row.rescheduleBookingId
+    calendar_event_id: row.calendarEventId
   };
 }
 

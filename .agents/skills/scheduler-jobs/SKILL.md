@@ -45,7 +45,6 @@ All schedulers registered in `initSchedulers()`:
 | Member Sync | memberSyncScheduler.ts | 24 hr | 3 AM Pacific | Full daily member data sync from HubSpot |
 | Duplicate Cleanup | duplicateCleanupScheduler.ts | 1 hr | 4 AM Pacific | Remove duplicate Trackman bookings (keep earliest) |
 | Guest Pass Reset | guestPassResetScheduler.ts | 1 hr | 3 AM Pacific, 1st of month | Reset monthly guest pass counters |
-| Relocation Cleanup | relocationCleanupScheduler.ts | 5 min | None | Clear stale bay relocation records |
 | Stuck Cancellation | stuckCancellationScheduler.ts | 2 hr | None | Alert staff about bookings stuck in cancellation_pending > 4h |
 | Pending User Cleanup | pendingUserCleanupScheduler.ts | 6 hr | None | Delete old pending Stripe users (48h+, no subscription), cancel Stripe customer |
 | Webhook Event Cleanup | webhookEventCleanupScheduler.ts | 24 hr | None | Remove webhook_processed_events older than 7 days |

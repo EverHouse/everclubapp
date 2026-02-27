@@ -340,7 +340,6 @@ const BookGolf: React.FC = () => {
       declared_player_count?: number;
       member_notes?: string;
       request_participants?: Array<{ email?: string; type: string; userId?: string; name?: string }>;
-      reschedule_booking_id?: number;
       guardian_name?: string;
       guardian_relationship?: string;
       guardian_phone?: string;

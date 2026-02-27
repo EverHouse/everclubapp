@@ -46,7 +46,6 @@ interface BookingInsertRow {
   endTime: string;
   notes: string | null;
   status: string | null;
-  rescheduleBookingId: number | null;
   declaredPlayerCount: number | null;
   memberNotes: string | null;
   guardianName: string | null;
@@ -138,7 +137,6 @@ router.get('/api/booking-requests', async (req, res) => {
       created_at: bookingRequests.createdAt,
       updated_at: bookingRequests.updatedAt,
       calendar_event_id: bookingRequests.calendarEventId,
-      reschedule_booking_id: bookingRequests.rescheduleBookingId,
       resource_name: resources.name,
       resource_type: resources.type,
       tier: users.tier,
@@ -746,7 +744,6 @@ router.post('/api/booking-requests', bookingRateLimiter, async (req, res) => {
         endTime: dbRow.end_time,
         notes: dbRow.notes,
         status: dbRow.status,
-        rescheduleBookingId: dbRow.reschedule_booking_id,
         declaredPlayerCount: dbRow.declared_player_count,
         memberNotes: dbRow.member_notes,
         guardianName: dbRow.guardian_name,
@@ -915,7 +912,6 @@ router.post('/api/booking-requests', bookingRateLimiter, async (req, res) => {
       created_at: row.createdAt,
       updated_at: row.updatedAt,
       calendar_event_id: (row as any).calendarEventId,
-      reschedule_booking_id: row.rescheduleBookingId,
       ...((row as any)._invoicePayResult ? {
         invoicePayment: {
           paidInFull: (row as any)._invoicePayResult.paidInFull,

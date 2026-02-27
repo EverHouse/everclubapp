@@ -1,7 +1,7 @@
 import { getWelcomeEmailHtml } from '../emails/welcomeEmail';
 import { getTrialWelcomeHtml } from '../emails/trialWelcomeEmail';
 import { getFirstVisitHtml } from '../emails/firstVisitEmail';
-import { getBookingConfirmationHtml, getBookingRescheduleHtml } from '../emails/bookingEmails';
+import { getBookingConfirmationHtml } from '../emails/bookingEmails';
 import { getPassWithQrHtml, getRedemptionConfirmationHtml } from '../emails/passEmails';
 import { getPaymentReceiptHtml, getPaymentFailedHtml, getOutstandingBalanceHtml, getFeeWaivedHtml, getPurchaseReceiptHtml } from '../emails/paymentEmails';
 import { getMembershipRenewalHtml, getMembershipFailedHtml, getCardExpiringHtml, getGracePeriodReminderHtml, getMembershipActivationHtml } from '../emails/membershipEmails';
@@ -19,7 +19,6 @@ const TEMPLATE_REGISTRY: EmailTemplateInfo[] = [
   { id: 'trial-welcome', name: 'Trial Welcome', description: 'Sent when a trial membership begins', category: 'Welcome' },
   { id: 'first-visit', name: 'First Visit', description: 'Sent after a member\'s first visit', category: 'Welcome' },
   { id: 'booking-confirmation', name: 'Booking Confirmation', description: 'Sent when a bay booking is confirmed', category: 'Booking' },
-  { id: 'booking-reschedule', name: 'Booking Reschedule', description: 'Sent when a booking is rescheduled', category: 'Booking' },
   { id: 'pass-with-qr', name: 'Pass with QR Code', description: 'Pass purchase confirmation with QR code', category: 'Passes' },
   { id: 'redemption-confirmation', name: 'Redemption Confirmation', description: 'Sent when a pass is redeemed', category: 'Passes' },
   { id: 'payment-receipt', name: 'Payment Receipt', description: 'Receipt for a successful payment', category: 'Payments' },
@@ -62,15 +61,6 @@ export async function renderTemplatePreview(templateId: string): Promise<string 
         bayName: 'Bay 3',
         memberName: 'Alex Johnson',
         durationMinutes: 60,
-      });
-
-    case 'booking-reschedule':
-      return getBookingRescheduleHtml({
-        date: '2026-03-15',
-        startTime: '14:00',
-        endTime: '15:00',
-        bayName: 'Bay 3',
-        memberName: 'Alex Johnson',
       });
 
     case 'pass-with-qr':

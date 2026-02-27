@@ -30,7 +30,6 @@ async function autoCompletePastBookings(): Promise<void> {
               br.request_date AS "requestDate", br.start_time AS "startTime"
        FROM booking_requests br
        WHERE br.status IN ('approved', 'confirmed')
-         AND br.is_relocating IS NOT TRUE
          AND br.request_date < $1::date - INTERVAL '2 days'
          AND br.session_id IS NOT NULL
          AND EXISTS (
@@ -66,7 +65,6 @@ async function autoCompletePastBookings(): Promise<void> {
            reviewed_by = 'system-auto-checkin'
        WHERE status IN ('approved', 'confirmed')
          AND status NOT IN ('attended', 'checked_in')
-         AND is_relocating IS NOT TRUE
          AND (
            request_date < $1::date - INTERVAL '1 day'
            OR (request_date = $1::date - INTERVAL '1 day' AND end_time < $2::time)
@@ -230,7 +228,6 @@ export async function runManualBookingAutoComplete(): Promise<{ markedCount: num
          reviewed_by = 'system-auto-checkin'
      WHERE status IN ('approved', 'confirmed')
        AND status NOT IN ('attended', 'checked_in')
-       AND is_relocating IS NOT TRUE
        AND (
          request_date < $1::date - INTERVAL '1 day'
          OR (request_date = $1::date - INTERVAL '1 day' AND end_time < $2::time)

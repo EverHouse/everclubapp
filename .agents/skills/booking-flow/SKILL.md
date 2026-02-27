@@ -1,6 +1,6 @@
 ---
 name: booking-flow
-description: End-to-end booking lifecycle in the Ever Club Members App — booking request creation, booking flow, booking lifecycle, session creation, conflict detection, bay assignment, approval flow, auto-approve, reschedule, Trackman sync, booking request statuses, guest pass holds, usage tracking, member cancel, staff approval, prepayment, calendar sync, and reconciliation.
+description: End-to-end booking lifecycle in the Ever Club Members App — booking request creation, booking flow, booking lifecycle, session creation, conflict detection, bay assignment, approval flow, auto-approve, Trackman sync, Trackman booking modifications, booking request statuses, guest pass holds, usage tracking, member cancel, staff approval, prepayment, calendar sync, and reconciliation.
 ---
 
 # Booking Flow
@@ -134,8 +134,7 @@ Two cancellation paths:
 **Trackman cancel** (`cancelBookingByTrackmanId()`):
 
 1. Find booking by `trackman_booking_id`.
-2. Guard: if `is_relocating=true`, unlink `trackman_booking_id` and skip cancellation (booking is being rescheduled).
-3. Update status to `'cancelled'`, append `'[Cancelled via Trackman webhook]'` to staff notes.
+2. Update status to `'cancelled'`, append `'[Cancelled via Trackman webhook]'` to staff notes.
 4. Clear pending fees: set `booking_participants.cached_fee_cents = 0`, `payment_status = 'waived'` for the session's pending participants.
 5. Cancel pending Stripe payment intents (same as member flow).
 5a. Handle Stripe invoice cleanup via `voidBookingInvoice(bookingId)` (non-blocking). This handles all invoice states: draft (deletes), open (voids), paid (auto-refunds via `stripe.refunds.create`, notifies staff on failure), void/uncollectible (skips).
@@ -150,19 +149,12 @@ Two cancellation paths:
 The auto-complete scheduler (`server/schedulers/bookingAutoCompleteScheduler.ts`) runs every 2 hours. It marks approved/confirmed bookings as `attended` (auto checked-in) when 24 hours have passed since the booking's end time. This assumes most members attended their bookings and avoids noisy false no-show notifications. Staff can still manually mark a booking as `no_show` via the BookingStatusDropdown if needed.
 
 - Uses Pacific timezone via `getTodayPacific()` / `formatTimePacific()`
-- Excludes relocating bookings (`is_relocating IS NOT TRUE`)
 - Notifies staff when 2+ bookings are auto checked-in
 - Manual trigger available via `runManualBookingAutoComplete()`
 
-### 9. Reschedule
+### 9. Booking Modifications (Trackman Webhooks)
 
-Three-step flow (all staff-only):
-
-1. **Start** (`POST /api/admin/booking/:id/reschedule/start`): Set `is_relocating=true`. This flag prevents Trackman webhook cancellation from interfering.
-2. **Confirm** (`POST /api/admin/booking/:id/reschedule/confirm`): Validate new time slot via centralized `checkBookingConflict()` (closures, blocks, session overlaps, advisory lock). Update booking and session times, link new `trackman_booking_id`. Store original values in `original_resource_id`, `original_start_time`, etc. Recalculate fees. Sync invoice line items via `syncBookingInvoice()` after fee recalculation. Send reschedule email to member. WebSocket broadcast errors are logged as warnings (non-blocking).
-3. **Cancel** (`POST /api/admin/booking/:id/reschedule/cancel`): Clear `is_relocating` flag, abort the reschedule.
-
-**Note:** Reschedule UI is currently hidden across SimulatorTab, BookingActions, and PaymentSection. Backend routes are preserved for future use.
+Booking modifications are handled exclusively through Trackman webhook `booking.updated` events via `handleBookingModification()` in `server/routes/trackman/webhook-handlers.ts`. When a booking is modified in Trackman (bay change, time change), the webhook updates the local record, recalculates fees, syncs the invoice, and notifies the member. The previous staff-initiated reschedule feature (start/confirm/cancel routes) was removed in v8.41.0.
 
 ## Conflict Detection Detail
 
@@ -228,13 +220,11 @@ Resource type?
 
 7. **Time tolerance matching**: Trackman webhook matching uses ±10 minute tolerance (`ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))) <= 600`). This accounts for Trackman sessions starting slightly earlier/later than booked times.
 
-8. **Relocating guard**: When `is_relocating=true`, Trackman webhook cancellation is skipped. The old `trackman_booking_id` is cleared so the Trackman cancellation event does not cancel the booking being rescheduled.
+8. **Row-level locking**: `checkSessionConflictWithLock()` uses `FOR UPDATE NOWAIT` on `booking_sessions` for pessimistic locking during session creation. Guest pass deduction uses `FOR UPDATE` on `guest_passes` for atomic read-modify-write.
 
-9. **Row-level locking**: `checkSessionConflictWithLock()` uses `FOR UPDATE NOWAIT` on `booking_sessions` for pessimistic locking during session creation. Guest pass deduction uses `FOR UPDATE` on `guest_passes` for atomic read-modify-write.
+9. **Usage ledger stores emails**: `usage_ledger.member_id` stores email addresses (not UUIDs) for historical consistency. The `resolveUserIdToEmail()` step converts UUIDs to emails before ledger writes.
 
-10. **Usage ledger stores emails**: `usage_ledger.member_id` stores email addresses (not UUIDs) for historical consistency. The `resolveUserIdToEmail()` step converts UUIDs to emails before ledger writes.
-
-11. **Post-commit notifications**: Booking creation sends the HTTP response BEFORE executing post-commit operations (staff notifications, event publishing, availability broadcast). This ensures the client gets a success response even if notifications fail.
+10. **Post-commit notifications**: Booking creation sends the HTTP response BEFORE executing post-commit operations (staff notifications, event publishing, availability broadcast). This ensures the client gets a success response even if notifications fail.
 
 12. **Fee calculation is post-commit**: `recalculateSessionFees()` uses the global `db` pool, NOT transaction handles. It MUST run after `db.transaction()` commits, never inside it. Inside an uncommitted transaction, the global pool cannot see the new session/participant rows (Postgres Read Committed isolation), causing $0 fees or deadlock. (v8.26.7, Bug 22)
 
@@ -246,7 +236,7 @@ Resource type?
 
 16. **Roster lock after paid invoice**: Once a booking's Stripe invoice is paid, roster edits (add/remove participant, change player count) are blocked via `enforceRosterLock()`. Staff can override with a reason (logged via audit). The lock is fail-open: if the Stripe API check fails, edits proceed.
 
-17. **Conflict check scope**: `checkBookingConflict()`, `checkAvailabilityBlockConflict()`, and `checkSessionConflict()` use simple time overlap logic (`start < end AND end > start`). This is correct because bookings and availability blocks are constrained to single-day, same-day time windows — cross-midnight bookings cannot be created (club closes at 10 PM). Only `hasTimeOverlap()` in closure checks needs overnight wrap-around handling, because facility closures CAN span midnight (e.g., 22:00–06:00). **`checkBookingConflict()` must check all 6 active statuses**: `pending`, `pending_approval`, `approved`, `confirmed`, `attended`, `cancellation_pending` — matching the inline SQL in `bookings.ts` line 568. Missing statuses allow double-bookings through reschedule and other code paths that use `checkAllConflicts`. (v8.26.7)
+17. **Conflict check scope**: `checkBookingConflict()`, `checkAvailabilityBlockConflict()`, and `checkSessionConflict()` use simple time overlap logic (`start < end AND end > start`). This is correct because bookings and availability blocks are constrained to single-day, same-day time windows — cross-midnight bookings cannot be created (club closes at 10 PM). Only `hasTimeOverlap()` in closure checks needs overnight wrap-around handling, because facility closures CAN span midnight (e.g., 22:00–06:00). **`checkBookingConflict()` must check all 6 active statuses**: `pending`, `pending_approval`, `approved`, `confirmed`, `attended`, `cancellation_pending` — matching the inline SQL in `bookings.ts` line 568. Missing statuses allow double-bookings through code paths that use `checkAllConflicts`. (v8.26.7)
 
 19. **Booking expiry includes pending_approval + Trackman guard + WebSocket broadcast**: The booking expiry scheduler (`bookingExpiryScheduler.ts`) targets both `pending` and `pending_approval` bookings. It waits 20 minutes past the booking `start_time` before acting. **Trackman-linked bookings** (those with a `trackman_booking_id`) are set to `cancellation_pending` instead of `expired`, so the Trackman hardware cleanup flow runs and the physical bay is unlocked. Non-Trackman bookings are set to `expired` directly. After each status change, the scheduler calls `broadcastAvailabilityUpdate()` for every affected booking with a `resourceId`, so front desk iPads and member phones update instantly. The scheduler tracks its `setTimeout` timer IDs and clears them on shutdown. The manual expiry endpoint also includes `pending_approval` in its query. (v8.26.7)
 
@@ -264,7 +254,6 @@ Resource type?
 | `booking_approved` | After staff approves booking |
 | `booking_declined` | After staff declines booking |
 | `booking_cancelled` | After cancellation (member or Trackman) |
-| `booking_rescheduled` | After reschedule confirmed |
 | `booking_checked_in` | After staff marks attended |
 
 Each event can trigger member notifications (push, WebSocket, email) and staff notifications independently via `PublishOptions`.
@@ -365,7 +354,7 @@ When Trackman sends a Booking Update webhook with changes (bay, time, date), the
 - `server/core/bookingService/tierRules.ts` — Tier validation rules, daily minute limits, Social tier guest restrictions, and `TierValidationResult` interface. See `references/server-flow.md#tier-validation-rules` for detailed documentation.
 - `server/core/bookingService/sessionManager.ts` — Session creation, participant linking, usage ledger recording, and guest pass deduction.
 - `server/core/bookingService/conflictDetection.ts` — Booking conflict detection (owner and participant conflicts).
-- `server/core/bookingValidation.ts` — Centralized booking conflict detection (`checkBookingConflict`). Used by reschedule confirm and booking creation for consistent conflict validation with advisory locks.
+- `server/core/bookingValidation.ts` — Centralized booking conflict detection (`checkBookingConflict`). Used by booking creation for consistent conflict validation with advisory locks.
 - `server/core/bookingService/availabilityGuard.ts` — Availability validation (closures, blocks, session overlaps).
 - `server/core/billing/bookingInvoiceService.ts` — Draft invoice creation, line item sync, finalization, voiding, paid-status check. Key exports: `createDraftInvoiceForBooking`, `syncBookingInvoice`, `finalizeAndPayInvoice`, `finalizeInvoicePaidOutOfBand`, `voidBookingInvoice`, `isBookingInvoicePaid`. `finalizeAndPayInvoice()` includes terminal payment detection: before charging, it checks for existing terminal payments on the booking to avoid double-charging. It is also balance-aware: if the customer's Stripe balance fully covers the invoice amount, the invoice is finalized and auto-paid without requiring a card charge.
 - `server/core/bookingService/rosterService.ts` — Roster changes with `enforceRosterLock()` guard. Exports: `addParticipant`, `removeParticipant`, `updateDeclaredPlayerCount`, `applyRosterBatch`.

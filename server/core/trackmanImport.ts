@@ -2523,7 +2523,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             status: matchedEmail ? 'approved' : normalizedStatus,
             createdAt: originalBookedDate || new Date(),
             trackmanBookingId: row.bookingId,
-            originalBookedDate: originalBookedDate,
             guestCount: actualGuestCount,
             trackmanPlayerCount: row.playerCount,
             declaredPlayerCount: row.playerCount,
@@ -3262,7 +3261,6 @@ async function insertBookingIfNotExists(
       status: finalStatus,
       createdAt: booking.createdAt,
       trackmanBookingId: booking.trackmanBookingId,
-      originalBookedDate: booking.createdAt,
       guestCount: actualGuestCount,
     }).returning({ id: bookingRequests.id });
   } catch (insertErr: unknown) {

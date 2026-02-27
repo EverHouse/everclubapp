@@ -18,7 +18,6 @@ export interface BookingRequest {
     resource_name?: string;
     first_name?: string;
     last_name?: string;
-    reschedule_booking_id?: number | null;
     tier?: string | null;
     trackman_booking_id?: string | null;
     has_unpaid_fees?: boolean;

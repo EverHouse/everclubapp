@@ -462,20 +462,11 @@ export async function cancelBookingByTrackmanId(
       requestDate: bookingRequests.requestDate,
       startTime: bookingRequests.startTime,
       resourceId: bookingRequests.resourceId,
-      isRelocating: bookingRequests.isRelocating,
       trackmanBookingId: bookingRequests.trackmanBookingId
     }).from(bookingRequests).where(eq(bookingRequests.trackmanBookingId, trackmanBookingId));
 
     if (!booking) return { cancelled: false };
     if (booking.status === 'cancelled') return { cancelled: true, bookingId: booking.id };
-
-    if (booking.isRelocating) {
-      logger.info('[Trackman Webhook] Skipping cancellation for relocating booking', {
-        extra: { bookingId: booking.id, trackmanBookingId, isRelocating: true }
-      });
-      await db.update(bookingRequests).set({ trackmanBookingId: null }).where(and(eq(bookingRequests.id, booking.id), eq(bookingRequests.trackmanBookingId, trackmanBookingId)));
-      return { cancelled: false };
-    }
 
     const wasPendingCancellation = booking.status === 'cancellation_pending';
 

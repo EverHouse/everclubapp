@@ -2212,7 +2212,6 @@ export async function createManualBooking(params: {
   bookingSource: string;
   notes?: string;
   staffNotes?: string;
-  rescheduleFromId?: number;
   trackmanBookingId?: string;
   staffEmail: string;
 }) {
@@ -2242,15 +2241,7 @@ export async function createManualBooking(params: {
     throw { statusCode: 404, error: 'Resource not found' };
   }
 
-  let oldBookingRequest: typeof bookingRequests.$inferSelect | null = null;
-  if (params.rescheduleFromId) {
-    const [found] = await db.select()
-      .from(bookingRequests)
-      .where(eq(bookingRequests.id, params.rescheduleFromId));
-    oldBookingRequest = found || null;
-  }
-
-  if (!params.rescheduleFromId) {
+  {
     const existingBookings = await db.select({
       id: bookingRequests.id,
       resourceType: resources.type
@@ -2374,68 +2365,6 @@ export async function createManualBooking(params: {
       trackmanBookingId: params.trackmanBookingId || null
     })
     .returning();
-
-  if (oldBookingRequest) {
-    await db.update(bookingRequests)
-      .set({ status: 'cancelled', updatedAt: new Date() })
-      .where(eq(bookingRequests.id, params.rescheduleFromId as number));
-    
-    try {
-      const pendingIntents = await db.execute(sql`SELECT stripe_payment_intent_id 
-         FROM stripe_payment_intents 
-         WHERE booking_id = ${params.rescheduleFromId} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')`);
-      for (const row of (pendingIntents.rows as Array<Record<string, unknown>>)) {
-        try {
-          await cancelPaymentIntent(row.stripe_payment_intent_id as string);
-          logger.info('[Reschedule] Cancelled payment intent for old booking', {
-            extra: { oldBookingId: params.rescheduleFromId, paymentIntentId: row.stripe_payment_intent_id }
-          });
-        } catch (cancelErr: unknown) {
-          logger.warn('[Reschedule] Failed to cancel payment intent', { 
-            extra: { paymentIntentId: row.stripe_payment_intent_id, error: getErrorMessage(cancelErr) }
-          });
-        }
-      }
-    } catch (cancelIntentsErr: unknown) {
-      logger.warn('[Reschedule] Failed to cancel pending payment intents', { error: cancelIntentsErr as Error });
-    }
-    
-    // Void old booking invoice
-    try {
-      const { voidBookingInvoice } = await import('./billing/bookingInvoiceService');
-      await voidBookingInvoice(params.rescheduleFromId as number);
-    } catch (voidErr: unknown) {
-      logger.warn('[Reschedule] Failed to void old booking invoice', { 
-        extra: { bookingId: params.rescheduleFromId, error: getErrorMessage(voidErr) }
-      });
-    }
-    
-    if (oldBookingRequest.calendarEventId && oldBookingRequest.resourceId) {
-      try {
-        const [oldResource] = await db.select({ type: resources.type })
-          .from(resources)
-          .where(eq(resources.id, oldBookingRequest.resourceId));
-        
-        if (oldResource?.type === 'conference_room') {
-          const oldCalendarId = await getCalendarIdByName(CALENDAR_CONFIG.conference.name);
-          if (oldCalendarId) {
-            await deleteCalendarEvent(oldBookingRequest.calendarEventId, oldCalendarId);
-          }
-        }
-      } catch (calErr: unknown) {
-        logger.warn('Failed to delete old calendar event during reschedule', { error: calErr as Error });
-      }
-    }
-    
-    logger.info('Rescheduled booking - cancelled old, created new', { 
-      oldBookingId: params.rescheduleFromId, 
-      newBookingId: newBooking.id,
-      memberEmail: params.memberEmail
-    });
-
-    bookingEvents.cleanupNotificationsForBooking(params.rescheduleFromId as number, { delete: true })
-      .catch(err => logger.error('Failed to cleanup old booking notifications', { extra: { error: err } }));
-  }
 
   try {
     const formattedDate = new Date(params.bookingDate + 'T00:00:00').toLocaleDateString('en-US', { 
