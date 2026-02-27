@@ -1699,11 +1699,44 @@ router.post('/api/staff/qr-checkin', isStaffOrAdmin, async (req: Request, res: R
       return res.status(result.error === 'Member not found' ? 404 : 500).json({ error: result.error });
     }
 
+    let bookingInfo: { hasBooking: boolean; bookingId?: number; bookingDetails?: { bayName: string; startTime: string; endTime: string; resourceType: string } } = { hasBooking: false };
+
+    try {
+      const bookingResult = await db.execute(sql`
+        SELECT br.id, br.start_time, br.end_time, r.name as bay_name, r.type as resource_type
+        FROM booking_requests br
+        LEFT JOIN resources r ON br.resource_id = r.id
+        WHERE LOWER(br.user_email) = LOWER(${result.memberEmail})
+          AND br.request_date = (CURRENT_DATE AT TIME ZONE 'America/Chicago')::date
+          AND br.status = 'approved'
+        ORDER BY ABS(EXTRACT(EPOCH FROM (br.start_time::time - (CURRENT_TIME AT TIME ZONE 'America/Chicago')::time))) ASC
+        LIMIT 1
+      `);
+
+      if (bookingResult.rows.length > 0) {
+        const booking = bookingResult.rows[0];
+        bookingInfo = {
+          hasBooking: true,
+          bookingId: booking.id as number,
+          bookingDetails: {
+            bayName: (booking.bay_name as string) || 'Unassigned',
+            startTime: booking.start_time as string,
+            endTime: booking.end_time as string,
+            resourceType: (booking.resource_type as string) || 'golf_simulator'
+          }
+        };
+      }
+    } catch (bookingLookupErr: unknown) {
+      logger.warn('[QRCheckin] Non-blocking: Failed to look up booking for member', {
+        extra: { memberId, error: (bookingLookupErr as Error).message }
+      });
+    }
+
     logFromRequest(req, 'qr_walkin_checkin', 'member', memberId, result.memberName, {
       memberEmail: result.memberEmail,
       tier: result.tier,
       lifetimeVisits: result.lifetimeVisits,
-      type: 'walk_in'
+      type: bookingInfo.hasBooking ? 'booking_checkin' : 'walk_in'
     });
 
     res.json({
@@ -1713,7 +1746,8 @@ router.post('/api/staff/qr-checkin', isStaffOrAdmin, async (req: Request, res: R
       tier: result.tier,
       lifetimeVisits: result.lifetimeVisits,
       pinnedNotes: result.pinnedNotes,
-      membershipStatus: result.membershipStatus
+      membershipStatus: result.membershipStatus,
+      ...bookingInfo
     });
   } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to process QR check-in', error);

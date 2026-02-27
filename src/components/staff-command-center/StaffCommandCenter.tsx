@@ -91,6 +91,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
   }>({ isOpen: false, trackmanBookingId: null });
   
   const optimisticUpdateRef = useRef<OptimisticUpdateRef | null>(null);
+  const pendingQrBookingRef = useRef<{ memberName: string; pinnedNotes: Array<{ content: string; createdBy: string }>; tier: string | null; membershipStatus: string | null; bookingDetails: { bayName: string; startTime: string; endTime: string; resourceType: string } | null } | null>(null);
 
   useEffect(() => {
     const handleBookingAutoConfirmed = (event: CustomEvent) => {
@@ -129,17 +130,46 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         });
         const result = await response.json();
         if (response.ok && result.success) {
-          window.dispatchEvent(new CustomEvent('walkin-checkin', {
-            detail: {
-              data: {
+          if (result.hasBooking && result.bookingId) {
+            const booking = data.todaysBookings.find(b => b.id === result.bookingId);
+            if (booking) {
+              pendingQrBookingRef.current = {
                 memberName: result.memberName,
                 pinnedNotes: result.pinnedNotes || [],
                 tier: result.tier,
-                membershipStatus: result.membershipStatus
-              }
+                membershipStatus: result.membershipStatus,
+                bookingDetails: result.bookingDetails || null
+              };
+              handleCheckIn(booking);
+              showToast(`Checking in ${result.memberName} for booking...`, 'info');
+            } else {
+              window.dispatchEvent(new CustomEvent('walkin-checkin', {
+                detail: {
+                  data: {
+                    memberName: result.memberName,
+                    pinnedNotes: result.pinnedNotes || [],
+                    tier: result.tier,
+                    membershipStatus: result.membershipStatus,
+                    bookingDetails: result.bookingDetails || null
+                  }
+                }
+              }));
+              refresh();
+              showToast(`Booking found but not in today's list — checked in as walk-in`, 'info');
             }
-          }));
-          refresh();
+          } else {
+            window.dispatchEvent(new CustomEvent('walkin-checkin', {
+              detail: {
+                data: {
+                  memberName: result.memberName,
+                  pinnedNotes: result.pinnedNotes || [],
+                  tier: result.tier,
+                  membershipStatus: result.membershipStatus
+                }
+              }
+            }));
+            refresh();
+          }
         } else if (result.alreadyCheckedIn) {
           playSound('tap');
           showToast('This member was already checked in just now', 'info');
@@ -448,7 +478,23 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
     
     if (result.success) {
       optimisticUpdateRef.current = null;
+      if (pendingQrBookingRef.current) {
+        const qrContext = pendingQrBookingRef.current;
+        pendingQrBookingRef.current = null;
+        window.dispatchEvent(new CustomEvent('walkin-checkin', {
+          detail: {
+            data: {
+              memberName: qrContext.memberName,
+              pinnedNotes: qrContext.pinnedNotes,
+              tier: qrContext.tier,
+              membershipStatus: qrContext.membershipStatus,
+              bookingDetails: qrContext.bookingDetails
+            }
+          }
+        }));
+      }
     } else {
+      pendingQrBookingRef.current = null;
       optimisticUpdateRef.current = null;
       updateTodaysBookings(prev => prev.map(b => 
         b.id === booking.id ? { ...b, status: originalStatus } : b
@@ -472,7 +518,12 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
           mode: 'manage' as const,
         });
       } else if (result.requiresPayment) {
-        setBillingModal({ isOpen: true, bookingId: id });
+        setBookingSheet({
+          isOpen: true,
+          trackmanBookingId: null,
+          bookingId: id,
+          mode: 'manage' as const,
+        });
       }
     }
     

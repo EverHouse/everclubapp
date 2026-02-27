@@ -52,6 +52,7 @@ const AdminDashboard: React.FC = () => {
     pinnedNotes: Array<{ content: string; createdBy: string }>;
     tier?: string | null;
     membershipStatus?: string | null;
+    bookingDetails?: { bayName: string; startTime: string; endTime: string; resourceType: string } | null;
   }>({ isOpen: false, memberName: '', pinnedNotes: [] });
 
   useEffect(() => {
@@ -63,7 +64,8 @@ const AdminDashboard: React.FC = () => {
           memberName: detail.memberName || 'Member',
           pinnedNotes: detail.pinnedNotes || [],
           tier: detail.tier,
-          membershipStatus: detail.membershipStatus
+          membershipStatus: detail.membershipStatus,
+          bookingDetails: detail.bookingDetails || null
         });
         adminQueryClient.invalidateQueries();
       }
@@ -236,6 +238,7 @@ const AdminDashboard: React.FC = () => {
         pinnedNotes={checkinConfirmation.pinnedNotes}
         tier={checkinConfirmation.tier}
         membershipStatus={checkinConfirmation.membershipStatus}
+        bookingDetails={checkinConfirmation.bookingDetails}
       />
     </div>
   );

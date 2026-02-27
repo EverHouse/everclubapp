@@ -30,7 +30,7 @@ The Ever Club Members App is a private members club application designed for gol
 ### Core Domain Features
 - **Booking & Scheduling**: Implements a "Request & Hold" model, unified participant management, calendar synchronization, and an auto-complete scheduler. Booking conflicts are checked against all 6 active booking statuses.
 - **Fees & Billing**: Features a unified fee service, dynamic pricing, prepayment, and guest fees, based on a "one invoice per booking" architecture. Supports dual payment paths (Stripe PaymentIntent for online, draft Stripe invoice for auto-approvals) and handles existing payments. Invoice lifecycle transitions through Draft, Finalize, and Pay/Void. Fee recalculation is triggered by roster changes and cascades to later same-day bookings.
-- **Member Lifecycle**: Includes membership tiers, QR/NFC check-in, and onboarding processes.
+- **Member Lifecycle**: Includes membership tiers, QR/NFC check-in, and onboarding processes. QR scan (`MEMBER:<uuid>`) auto-detects today's bookings — if found, routes to booking check-in (with Unified Booking Sheet for outstanding fees) instead of walk-in check-in. Confirmation modal shows booking details (bay, time, resource type) on success.
 - **Error Handling**: Empty catch blocks are prohibited; all `catch` blocks must re-throw, log, or use `safeDbOperation()`.
 - **Authentication**: All mutating API routes require authentication.
 - **Rate Limiting**: All public endpoints creating database records are rate-limited. Authenticated users get 600 req/min, unauthenticated IP-based traffic gets 2000 req/min.

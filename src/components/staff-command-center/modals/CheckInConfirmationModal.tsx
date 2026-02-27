@@ -7,6 +7,13 @@ interface PinnedNote {
   createdBy: string;
 }
 
+interface BookingDetails {
+  bayName: string;
+  startTime: string;
+  endTime: string;
+  resourceType: string;
+}
+
 interface CheckInConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -14,6 +21,24 @@ interface CheckInConfirmationModalProps {
   pinnedNotes: PinnedNote[];
   tier?: string | null;
   membershipStatus?: string | null;
+  bookingDetails?: BookingDetails | null;
+}
+
+function formatTime(time: string): string {
+  try {
+    const [hours, minutes] = time.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+    return `${displayHours}:${String(minutes).padStart(2, '0')} ${period}`;
+  } catch {
+    return time;
+  }
+}
+
+function formatResourceType(type: string): string {
+  if (type === 'golf_simulator') return 'Golf Simulator';
+  if (type === 'conference_room') return 'Conference Room';
+  return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
@@ -22,7 +47,8 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
   memberName,
   pinnedNotes,
   tier,
-  membershipStatus
+  membershipStatus,
+  bookingDetails
 }) => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -110,6 +136,15 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
           {tier && (
             <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full bg-white/15 text-white/90 text-xs font-semibold uppercase tracking-wider">
               {tier}
+            </div>
+          )}
+
+          {bookingDetails && (
+            <div className="mt-3 flex items-center justify-center gap-1.5 text-white/85 text-sm">
+              <span className="material-symbols-outlined text-base">sports_golf</span>
+              <span className="font-medium">
+                {bookingDetails.bayName} · {formatResourceType(bookingDetails.resourceType)} · {formatTime(bookingDetails.startTime)} – {formatTime(bookingDetails.endTime)}
+              </span>
             </div>
           )}
 
