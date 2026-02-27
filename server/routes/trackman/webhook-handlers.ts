@@ -96,12 +96,7 @@ export async function handleBookingModification(
   const timeChanged = incoming.parsedStartTime !== existingStartTime ||
     (incoming.parsedEndTime && incoming.parsedEndTime !== existingEndTime);
   const dateChanged = incoming.parsedDate !== existingDate;
-  const playerCountChanged = incoming.playerCount != null &&
-    existing.declaredPlayerCount != null
-    ? incoming.playerCount !== existing.declaredPlayerCount
-    : false;
-
-  if (!bayChanged && !timeChanged && !dateChanged && !playerCountChanged) {
+  if (!bayChanged && !timeChanged && !dateChanged) {
     logger.info('[Trackman Webhook] No modifications detected for linked booking', {
       extra: { bookingId, trackmanBookingId: incoming.trackmanBookingId }
     });
@@ -152,9 +147,6 @@ export async function handleBookingModification(
   if (dateChanged) {
     changes.push(`Date changed: ${existingDate} → ${newDate}`);
   }
-  if (playerCountChanged) {
-    changes.push(`Player count changed: ${existing.declaredPlayerCount} → ${incoming.playerCount}`);
-  }
 
   try {
     const staffNoteAddition = ` [Modified via Trackman: ${changes.join(', ')}]`;
@@ -166,7 +158,6 @@ export async function handleBookingModification(
            duration_minutes = ${newDuration},
            resource_id = ${newResourceId},
            trackman_player_count = ${incoming.playerCount},
-           declared_player_count = ${incoming.playerCount},
            last_trackman_sync_at = NOW(),
            staff_notes = COALESCE(staff_notes, '') || ${staffNoteAddition},
            updated_at = NOW()
