@@ -712,16 +712,47 @@ export async function voidBookingInvoice(bookingId: number): Promise<{
           return { success: false, error: 'Failed to refund paid invoice' };
         }
       } else {
-        logger.warn('[BookingInvoice] Paid invoice has no payment intent, cannot auto-refund', {
-          extra: { bookingId, invoiceId }
-        });
-        notifyAllStaff(
-          'Paid Invoice — Manual Refund Needed',
-          `Cancelled booking #${bookingId} has a paid invoice (${invoiceId}) with no payment intent attached. Please refund manually in Stripe.`,
-          'warning',
-          { relatedId: bookingId, relatedType: 'booking' }
-        ).catch((err: unknown) => { logger.warn('[BookingInvoice] Failed to notify staff about manual refund', { extra: { bookingId, error: getErrorMessage(err) } }); });
-        return { success: false, error: 'Invoice has no payment intent for refund' };
+        const amountPaid = invoice.amount_paid || 0;
+        const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+        if (amountPaid > 0 && customerId) {
+          try {
+            const balanceTxn = await stripe.customers.createBalanceTransaction(
+              customerId,
+              {
+                amount: -amountPaid,
+                currency: invoice.currency || 'usd',
+                description: `Refund for cancelled booking #${bookingId} (invoice ${invoiceId})`,
+              }
+            );
+            logger.info('[BookingInvoice] Restored customer credit balance for cancelled booking', {
+              extra: { bookingId, invoiceId, amountCents: amountPaid, balanceTransactionId: balanceTxn.id, customerId }
+            });
+
+            await db.execute(sql`
+              UPDATE stripe_payment_intents 
+              SET status = 'refunded', updated_at = NOW(),
+                  description = COALESCE(description, '') || ${` [Refund: ${balanceTxn.id}]`}
+              WHERE stripe_payment_intent_id LIKE 'balance-%' 
+                AND booking_id = ${bookingId} 
+                AND status = 'succeeded'
+            `);
+          } catch (balanceErr: unknown) {
+            logger.error('[BookingInvoice] Failed to restore customer credit balance', {
+              extra: { bookingId, invoiceId, error: getErrorMessage(balanceErr) }
+            });
+            notifyAllStaff(
+              'Paid Invoice — Manual Refund Needed',
+              `Cancelled booking #${bookingId} has a paid invoice (${invoiceId}) with no payment intent attached. Please refund manually in Stripe.`,
+              'warning',
+              { relatedId: bookingId, relatedType: 'booking' }
+            ).catch((err: unknown) => { logger.warn('[BookingInvoice] Failed to notify staff about manual refund', { extra: { bookingId, error: getErrorMessage(err) } }); });
+            return { success: false, error: 'Failed to restore credit balance' };
+          }
+        } else {
+          logger.info('[BookingInvoice] Paid invoice with no payment intent and zero amount, skipping refund', {
+            extra: { bookingId, invoiceId, amountPaid }
+          });
+        }
       }
     }
 
