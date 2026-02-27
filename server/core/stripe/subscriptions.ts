@@ -210,6 +210,7 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
       expand: [
         'data.items.data.price', 
         'data.schedule',
+        'data.discounts',
       ],
     });
     
@@ -274,7 +275,9 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
           }
         }
         
-        const discountObj = sub.discount;
+        const discountObj = (sub as unknown as { discounts?: Array<{ id: string; coupon: Stripe.Coupon }> }).discounts?.[0]
+          || (sub as unknown as { discount?: { id: string; coupon: Stripe.Coupon } }).discount
+          || null;
         const mappedDiscount = discountObj && discountObj.coupon ? {
           id: discountObj.id,
           coupon: {
