@@ -984,9 +984,39 @@ const Dashboard: React.FC = () => {
                     ];
                   }
                 } else if (item.type === 'rsvp') {
-                  actions = [{ icon: 'close', label: 'Cancel RSVP', onClick: () => handleCancelRSVP((item.raw as DBRSVP).event_id) }];
+                  const rsvpRaw = item.raw as DBRSVP;
+                  actions = [
+                    {
+                      icon: 'calendar_add_on',
+                      label: 'Add to Calendar',
+                      onClick: () => downloadICalFile({
+                        title: `${item.title} - Ever Club`,
+                        description: `Your event at Ever Club`,
+                        location: rsvpRaw.location || 'Ever Club, 15771 Red Hill Ave, Ste 500, Tustin, CA 92780',
+                        startDate: item.rawDate,
+                        startTime: rsvpRaw.start_time,
+                        endTime: rsvpRaw.end_time || ''
+                      }, `EverClub_${item.rawDate}_${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`)
+                    },
+                    { icon: 'close', label: 'Cancel RSVP', onClick: () => handleCancelRSVP(rsvpRaw.event_id) }
+                  ];
                 } else if (item.type === 'wellness') {
-                  actions = [{ icon: 'close', label: 'Cancel', onClick: () => handleCancelWellness((item.raw as DBWellnessEnrollment).class_id) }];
+                  const wellnessRaw = item.raw as DBWellnessEnrollment;
+                  actions = [
+                    {
+                      icon: 'calendar_add_on',
+                      label: 'Add to Calendar',
+                      onClick: () => downloadICalFile({
+                        title: `${item.title} - Ever Club`,
+                        description: `Your wellness class at Ever Club`,
+                        location: 'Ever Club, 15771 Red Hill Ave, Ste 500, Tustin, CA 92780',
+                        startDate: item.rawDate,
+                        startTime: wellnessRaw.time,
+                        endTime: ''
+                      }, `EverClub_${item.rawDate}_${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`)
+                    },
+                    { icon: 'close', label: 'Cancel', onClick: () => handleCancelWellness(wellnessRaw.class_id) }
+                  ];
                 } else {
                   actions = [];
                 }
@@ -1066,7 +1096,8 @@ const Dashboard: React.FC = () => {
                   const chips: { icon: string; label: string }[] = [];
                   if (item.type === 'booking' || item.type === 'booking_request') {
                     const raw = item.raw as DBBookingRequest;
-                    if (raw.bay_name || raw.resource_name) chips.push({ icon: 'location_on', label: raw.bay_name || raw.resource_name || '' });
+                    const playerCount = raw.declared_player_count || 1;
+                    chips.push({ icon: 'group', label: `${playerCount} Player${playerCount !== 1 ? 's' : ''}` });
                     if (raw.duration_minutes) {
                       const hrs = Math.floor(raw.duration_minutes / 60);
                       const mins = raw.duration_minutes % 60;
@@ -1081,15 +1112,10 @@ const Dashboard: React.FC = () => {
                         chips.push({ icon: 'schedule', label: hrs > 0 ? (mins > 0 ? `${hrs}h ${mins}m` : `${hrs} Hour${hrs > 1 ? 's' : ''}`) : `${mins} min` });
                       }
                     }
-                  } else if (item.type === 'rsvp') {
-                    const raw = item.raw as DBRSVP;
-                    if (raw.location) chips.push({ icon: 'location_on', label: raw.location });
                   } else if (item.type === 'wellness') {
                     const raw = item.raw as DBWellnessEnrollment;
                     if (raw.category) chips.push({ icon: 'category', label: raw.category });
                     if (raw.instructor) chips.push({ icon: 'person', label: raw.instructor });
-                  } else if (item.type === 'conference_room_calendar') {
-                    chips.push({ icon: 'location_on', label: 'Conference Room' });
                   }
                   return chips;
                 };

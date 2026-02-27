@@ -79,32 +79,35 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
         </p>
       )}
 
-      {metadata && metadata.length > 0 && (
-        <div className={`flex items-center gap-0 text-xs flex-wrap ${isDark ? 'text-white/60' : 'text-primary/50'}`}>
-          {metadata.map((chip, idx) => (
-            <React.Fragment key={idx}>
-              {idx > 0 && <span className={`mx-2 ${isDark ? 'text-white/20' : 'text-primary/20'}`}>|</span>}
-              <span className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">{chip.icon}</span>
-                {chip.label}
-              </span>
-            </React.Fragment>
-          ))}
-        </div>
-      )}
-
-      {actions && actions.length > 0 && (
-        <div className="flex justify-end gap-1.5 mt-3 -mb-1">
-          {actions.map((action, idx) => (
-            <button
-              key={idx}
-              onClick={(e) => { e.stopPropagation(); action.onClick(); }}
-              className={`w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform ${isDark ? 'bg-white/10 text-white/70 hover:text-white' : 'bg-primary/[0.06] text-primary/60 hover:text-primary'}`}
-              aria-label={action.label}
-            >
-              <span className="material-symbols-outlined text-base">{action.icon}</span>
-            </button>
-          ))}
+      {((metadata && metadata.length > 0) || (actions && actions.length > 0)) && (
+        <div className="flex items-center justify-between mt-2 -mb-1">
+          {metadata && metadata.length > 0 ? (
+            <div className={`flex items-center gap-0 text-xs flex-wrap ${isDark ? 'text-white/60' : 'text-primary/50'}`}>
+              {metadata.map((chip, idx) => (
+                <React.Fragment key={idx}>
+                  {idx > 0 && <span className={`mx-2 ${isDark ? 'text-white/20' : 'text-primary/20'}`}>|</span>}
+                  <span className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">{chip.icon}</span>
+                    {chip.label}
+                  </span>
+                </React.Fragment>
+              ))}
+            </div>
+          ) : <div />}
+          {actions && actions.length > 0 && (
+            <div className="flex gap-1.5">
+              {actions.map((action, idx) => (
+                <button
+                  key={idx}
+                  onClick={(e) => { e.stopPropagation(); action.onClick(); }}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform ${isDark ? 'bg-white/10 text-white/70 hover:text-white' : 'bg-primary/[0.06] text-primary/60 hover:text-primary'}`}
+                  aria-label={action.label}
+                >
+                  <span className="material-symbols-outlined text-base">{action.icon}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
