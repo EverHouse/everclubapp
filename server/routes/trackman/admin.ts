@@ -2367,7 +2367,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         for (const p of participantsResult.rows as DbRow[]) {
           const participantFee = feeMap.get(p.participant_id as number) || 0;
           const email = String(p.user_email || '').toLowerCase();
-          const isPaid = p.payment_status === 'paid';
+          const isPaid = p.payment_status === 'paid' || p.payment_status === 'waived';
+          const paidLabel = p.payment_status === 'waived' ? 'Waived' : 'Paid';
           const participantIsStaff = staffFlagMap.get(p.participant_id as number) || false;
           
           if (p.participant_type === 'owner') {
@@ -2377,7 +2378,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
             if (email) {
               const ownerNote = participantIsStaff ? 'Staff — included'
                 : ownerIsInactive ? `${ownerStatus} — $${participantFee} (no membership benefits)`
-                : (isPaid ? 'Paid' : (participantFee > 0 ? 'Overage fee' : 'Within daily allowance'));
+                : (isPaid ? paidLabel : (participantFee > 0 ? 'Overage fee' : 'Within daily allowance'));
               emailToFeeMap.set(email, {
                 fee: participantIsStaff ? 0 : participantFee,
                 feeNote: ownerNote,
@@ -2398,13 +2399,13 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
               name: (p.display_name as string) || 'Unknown Member',
               tier: participantIsStaff ? 'Staff' : ((p.user_tier as string) || null),
               fee: (isPaid || participantIsStaff || isInactive) ? 0 : participantFee,
-              feeNote: isInactive ? `${memberStatus} — $${participantFee} charged to host` : (participantIsStaff ? 'Staff — included' : (isPaid ? 'Paid' : (participantFee > 0 ? 'Overage fee' : 'Within allowance'))),
+              feeNote: isInactive ? `${memberStatus} — $${participantFee} charged to host` : (participantIsStaff ? 'Staff — included' : (isPaid ? paidLabel : (participantFee > 0 ? 'Overage fee' : 'Within allowance'))),
               membershipStatus: memberStatus as string
             });
             if (email) {
               emailToFeeMap.set(email, {
                 fee: (isInactive || participantIsStaff) ? 0 : participantFee,
-                feeNote: isInactive ? `${memberStatus} — $${participantFee} charged to host` : (participantIsStaff ? 'Staff — included' : (isPaid ? 'Paid' : (participantFee > 0 ? 'Overage fee' : 'Within daily allowance'))),
+                feeNote: isInactive ? `${memberStatus} — $${participantFee} charged to host` : (participantIsStaff ? 'Staff — included' : (isPaid ? paidLabel : (participantFee > 0 ? 'Overage fee' : 'Within daily allowance'))),
                 isPaid,
                 isStaff: participantIsStaff
               });
@@ -2531,8 +2532,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     let pendingFeeCount = 0;
     if (sessionId) {
       const paidCheck = await db.execute(sql`SELECT 
-          COUNT(*) FILTER (WHERE payment_status = 'paid' AND cached_fee_cents > 0) as paid_count,
-          COUNT(*) FILTER (WHERE cached_fee_cents > 0 OR payment_status = 'paid') as total_with_fees,
+          COUNT(*) FILTER (WHERE payment_status IN ('paid', 'waived') AND cached_fee_cents > 0) as paid_count,
+          COUNT(*) FILTER (WHERE cached_fee_cents > 0 OR payment_status IN ('paid', 'waived')) as total_with_fees,
           COUNT(*) FILTER (WHERE payment_status = 'pending' AND cached_fee_cents > 0) as pending_count
         FROM booking_participants 
         WHERE session_id = ${sessionId}`);
