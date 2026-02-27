@@ -828,7 +828,7 @@ router.post('/api/data-tools/sync-members-to-hubspot', isAdmin, async (req: Requ
     
     // Get members without HubSpot ID
     const queryBuilder = sql`
-      SELECT id, email, first_name, last_name, tier, mindbody_client_id, membership_status
+      SELECT id, email, first_name, last_name, tier, mindbody_client_id, membership_status, role
       FROM users 
       WHERE hubspot_id IS NULL
     `;
@@ -863,7 +863,8 @@ router.post('/api/data-tools/sync-members-to-hubspot', isAdmin, async (req: Requ
             member.first_name || '',
             member.last_name || '',
             undefined,
-            member.tier || undefined
+            member.tier || undefined,
+            { role: member.role }
           );
           
           await db.execute(sql`UPDATE users SET hubspot_id = ${result.contactId}, updated_at = NOW() WHERE id = ${member.id}`);

@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.44.0",
+    date: "2026-02-27",
+    title: "HubSpot Visitor Status Fix",
+    changes: [
+      "Fix: Bulk HubSpot sync tool now correctly passes user role — visitors are created as Non-Member/Lead instead of incorrectly receiving Active/Customer status",
+    ]
+  },
+  {
     version: "8.43.0",
     date: "2026-02-27",
     title: "Smart Visitor Type Detection",
