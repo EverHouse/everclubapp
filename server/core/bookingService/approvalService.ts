@@ -474,7 +474,7 @@ export async function approveBooking(params: ApproveBookingParams) {
                 .where(eq(users.id, resolvedUserId))
                 .limit(1);
               if (memberResult.length > 0) {
-                resolvedName = memberResult[0].firstName || memberResult[0].email;
+                resolvedName = memberResult[0].firstName || memberResult[0].email || undefined;
               }
             }
 
@@ -981,7 +981,7 @@ export async function cancelBooking(params: CancelBookingParams) {
     }
 
     const isTrackmanLinked = !!existing.trackmanBookingId && /^\d+$/.test(existing.trackmanBookingId);
-    const wasApproved = ['approved', 'confirmed'].includes(existing.status);
+    const wasApproved = ['approved', 'confirmed'].includes(existing.status || '');
     const needsPendingCancel = isTrackmanLinked && wasApproved;
 
     if (needsPendingCancel) {

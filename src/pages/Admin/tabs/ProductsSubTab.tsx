@@ -161,7 +161,7 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
                   <textarea
                     className="w-full border border-gray-200 dark:border-white/20 bg-white dark:bg-black/30 p-2 rounded-lg text-primary dark:text-white text-sm resize-none"
                     rows={2}
-                    value={(editValues).description || ''}
+                    value={String(editValues.description || '')}
                     onChange={e => setEditValues({ ...editValues, description: e.target.value })}
                   />
                 </div>
@@ -243,7 +243,7 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
                     min="0"
                     max="100"
                     className="w-full border border-gray-200 dark:border-white/20 bg-white dark:bg-black/30 p-2 rounded-lg text-primary dark:text-white text-sm"
-                    value={editValues.discountPercent ?? ''}
+                    value={String(editValues.discountPercent ?? '')}
                     onChange={e => setEditValues({ ...editValues, discountPercent: parseInt(e.target.value) || 0 })}
                   />
                 </div>
@@ -252,7 +252,7 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
                   <textarea
                     className="w-full border border-gray-200 dark:border-white/20 bg-white dark:bg-black/30 p-2 rounded-lg text-primary dark:text-white text-sm resize-none"
                     rows={2}
-                    value={editValues.description || ''}
+                    value={String(editValues.description || '')}
                     onChange={e => setEditValues({ ...editValues, description: e.target.value })}
                   />
                 </div>
