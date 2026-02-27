@@ -24,7 +24,6 @@ import { BookingQueuesSection } from './sections/BookingQueuesSection';
 import { TodayScheduleSection } from './sections/TodayScheduleSection';
 import { ResourcesSection, NoticeBoardWidget } from './sections/ResourcesSection';
 import { AlertsCard } from './sections/AlertsCard';
-import { QuickActionsGrid } from './sections/QuickActionsGrid';
 import { CheckinBillingModal } from './modals/CheckinBillingModal';
 import QrScannerModal from './modals/QrScannerModal';
 import { TrackmanBookingModal } from './modals/TrackmanBookingModal';
