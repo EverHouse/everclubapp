@@ -18,13 +18,26 @@ interface WebhookEvent {
   status: 'processed' | 'failed' | 'pending';
 }
 
+function ensureUtc(dateStr: string): string {
+  if (!dateStr) return dateStr;
+  let s = dateStr.replace(' ', 'T');
+  if (!s.includes('Z') && !s.includes('+') && !/T[\d:]+[-+]/.test(s)) {
+    s += 'Z';
+  }
+  return s;
+}
+
 function formatTime(dateStr: string | null): string {
   if (!dateStr) return '-';
-  const d = new Date(dateStr);
+  const d = new Date(ensureUtc(dateStr));
   const diff = Date.now() - d.getTime();
   if (diff < 3600000) return `${Math.round(diff / 60000)}m ago`;
   if (diff < 86400000) return `${Math.round(diff / 3600000)}h ago`;
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' });
+}
+
+function formatDateTimePacific(dateStr: string): string {
+  return new Date(ensureUtc(dateStr)).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' });
 }
 
 interface Props {
@@ -153,9 +166,9 @@ const WebhookEventsPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
                             {event.matchedUserId && (
                               <p className="text-gray-600 dark:text-gray-400"><strong>Matched User:</strong> {event.matchedUserId}</p>
                             )}
-                            <p className="text-gray-500 dark:text-gray-500"><strong>Created:</strong> {new Date(event.createdAt).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</p>
+                            <p className="text-gray-500 dark:text-gray-500"><strong>Created:</strong> {formatDateTimePacific(event.createdAt)}</p>
                             {event.processedAt && (
-                              <p className="text-gray-500 dark:text-gray-500"><strong>Processed:</strong> {new Date(event.processedAt).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</p>
+                              <p className="text-gray-500 dark:text-gray-500"><strong>Processed:</strong> {formatDateTimePacific(event.processedAt)}</p>
                             )}
                           </div>
                         </td>
