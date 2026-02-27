@@ -737,7 +737,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
 
         </div>
 
-        {/* Mobile Layout - Order: Next Tour/Event → Notice Board → Alerts → Facility Status → Booking Requests → Upcoming Bookings → Upcoming Events → Upcoming Wellness */}
+        {/* Mobile Layout - Order: Next Tour/Event → Facility Status → Notice Board → Alerts → Booking Requests → Upcoming Bookings → Upcoming Events → Upcoming Wellness */}
         <div className="lg:hidden space-y-4 animate-content-enter-delay-2">
           {/* Next Tour/Event cards */}
           <TodayScheduleSection
@@ -751,7 +751,16 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
             today={today}
             variant="mobile-top"
           />
-          {/* Internal Notice Board (first under widgets on mobile) */}
+          {/* Facility Status (right under the tour/wellness widgets on mobile) */}
+          <ResourcesSection
+            bayStatuses={data.bayStatuses}
+            closures={data.closures}
+            upcomingClosure={data.upcomingClosure}
+            announcements={data.announcements}
+            variant="mobile-facility-only"
+            recentActivity={data.recentActivity}
+          />
+          {/* Internal Notice Board */}
           <ResourcesSection
             bayStatuses={data.bayStatuses}
             closures={data.closures}
@@ -760,22 +769,13 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
             variant="mobile-notice-only"
             recentActivity={data.recentActivity}
           />
-          {/* Alerts Card (below Notice Board on mobile) */}
+          {/* Alerts Card */}
           <AlertsCard 
             notifications={data.notifications} 
             onAlertClick={() => {
               navigateToTab('updates');
               setTimeout(() => window.dispatchEvent(new CustomEvent('switch-to-alerts-tab')), 100);
             }}
-          />
-          {/* Facility Status (below Alerts on mobile) */}
-          <ResourcesSection
-            bayStatuses={data.bayStatuses}
-            closures={data.closures}
-            upcomingClosure={data.upcomingClosure}
-            announcements={data.announcements}
-            variant="mobile-facility-only"
-            recentActivity={data.recentActivity}
           />
           {/* Booking Requests & Upcoming Bookings */}
           <BookingQueuesSection
