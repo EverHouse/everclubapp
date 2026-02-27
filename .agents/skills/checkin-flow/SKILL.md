@@ -55,18 +55,25 @@ PUT /api/bookings/:id/checkin (server/routes/bays/approval.ts)
   ├─ Notify member via WebSocket + notification
 ```
 
-## Check-In Flow (QR Walk-In Path)
+## Check-In Flow (QR Path — Smart Booking Detection, v8.36.0)
 
 ```
-Staff opens QR scanner in Command Center
+Staff opens QR scanner (FAB → QR Scanner, positioned near "New User")
        │
        ▼
-QrScannerModal scans member QR code
+QrScannerModal scans member QR code (MEMBER:<uuid>)
   ├─ Uses html5-qrcode library
   ├─ Extracts member ID from QR data
        │
        ▼
-POST /api/staff/qr-checkin { memberId }
+Smart Booking Detection
+  ├─ Auto-checks for today's scheduled bookings for the scanned member
+  ├─ If booking found → routes to booking check-in path (with billing via Unified Booking Sheet)
+  ├─ If no booking found → routes to walk-in check-in path
+  ├─ QR booking context is preserved when redirecting to payment or roster screens
+       │
+       ▼
+Walk-In Path: POST /api/staff/qr-checkin { memberId }
   ├─ Look up member by ID
   ├─ Deduplicate (reject if checked in within 2 minutes)
   ├─ Increment lifetime_visits on users table
@@ -79,8 +86,10 @@ POST /api/staff/qr-checkin { memberId }
        ▼
 CheckInConfirmationModal shows result
   ├─ Member name, tier, lifetime visits
+  ├─ Booking details (bay, time, resource type) if booking check-in
   ├─ Pinned notes (staff alerts)
   ├─ Membership status warnings
+  ├─ Members receive immediate feedback after check-in
 ```
 
 ## Key Invariants

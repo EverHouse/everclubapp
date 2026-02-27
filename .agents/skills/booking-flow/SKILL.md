@@ -333,6 +333,28 @@ Trackman webhook handlers (`webhook-billing.ts`, `webhook-validation.ts`) had pr
 
 **Rule:** Always use `${value ?? null}` in Drizzle `sql` template literals for optional parameters. See `stripe-webhook-flow` skill for the full pattern.
 
+## Roster Lock After Payment (v8.37.0)
+
+Once a booking's invoice has been paid, the roster is **locked**. `enforceRosterLock()` in `rosterService.ts` checks `isBookingInvoicePaid(bookingId)` before allowing any roster mutation (add, remove, update player count). If the invoice is paid:
+- Non-admin users are blocked outright (HTTP 403).
+- Admin users can override with a required `lockOverrideReason` parameter.
+- All overrides are audit-logged with the admin's email and reason.
+
+This prevents fee discrepancies after payment — adding a player after payment would change fees but the invoice is already finalized.
+
+## Trackman Booking Modification Webhooks (v8.34.0)
+
+When Trackman sends a Booking Update webhook with changes (bay, time, date), the app automatically:
+
+1. Detects the modification type (bay change, time change, date change) by comparing webhook data against the existing booking.
+2. Updates the booking record, session, fees, and invoice to reflect the new slot.
+3. Runs conflict detection on the new slot — if conflicts exist, staff are warned but the change is applied (Trackman is source of truth).
+4. Notifies staff via WebSocket with details about what changed.
+5. Sends push notifications to affected members.
+6. Records the event as `booking.modified` in webhook stats (purple badge).
+
+**Idempotency:** The webhook idempotency guard uses content-aware signatures (bay, time, status) so modification webhooks are not rejected as duplicates of the original creation webhook.
+
 ## References
 
 **Core Reference Docs:**

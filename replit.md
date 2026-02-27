@@ -18,6 +18,7 @@ The Ever Club Members App is a private members club application designed for gol
 - **API/Frontend Consistency**: API response field names must align exactly with frontend TypeScript interfaces.
 - **Database & Data Integrity**: Uses PostgreSQL, Supabase Realtime, and Drizzle ORM with CASCADE constraints.
 - **Real-time Updates**: Implements WebSocket broadcasting for booking and invoice changes. Supabase Realtime subscriptions cover `notifications`, `booking_sessions`, `announcements`, and `trackman_unmatched_bookings` tables. Staff Command Center uses React Query (`useCommandCenterQueries.ts`) with WebSocket-driven cache invalidation via `useWebSocketQuerySync.ts` — no polling. `commandCenterKeys` factory in `src/hooks/queries/useCommandCenterQueries.ts` defines query keys; all hooks use `placeholderData: keepPreviousData` for anti-flicker.
+- **Member Dashboard**: Member schedule uses a chronological card layout with rich visual cards for bookings, events, and wellness sessions. Cards show player count, start/end times, and "Add to Calendar" functionality.
 
 ### UI/UX & Frontend
 - **Design System**: Liquid Glass UI system, utilizing Tailwind CSS v4 and supporting dark mode.
@@ -29,7 +30,7 @@ The Ever Club Members App is a private members club application designed for gol
 
 ### Core Domain Features
 - **Booking & Scheduling**: Implements a "Request & Hold" model, unified participant management, calendar synchronization, and an auto-complete scheduler. Booking conflicts are checked against all 6 active booking statuses. Trackman Booking Update webhooks handle creation, cancellation, AND modification — when staff move a booking to a different bay or adjust the time in Trackman, the app auto-updates the booking, session, fees, and invoice.
-- **Fees & Billing**: Features a unified fee service, dynamic pricing, prepayment, and guest fees, based on a "one invoice per booking" architecture. Supports dual payment paths (Stripe PaymentIntent for online, draft Stripe invoice for auto-approvals) and handles existing payments. Invoice lifecycle transitions through Draft, Finalize, and Pay/Void. Fee recalculation is triggered by roster changes and cascades to later same-day bookings.
+- **Fees & Billing**: Features a unified fee service, dynamic pricing, prepayment, and guest fees, based on a "one invoice per booking" architecture. Supports dual payment paths (Stripe PaymentIntent for online, draft Stripe invoice for auto-approvals) and handles existing payments. Invoice lifecycle transitions through Draft, Finalize, and Pay/Void. Fee recalculation is triggered by roster changes and cascades to later same-day bookings. Roster is locked after invoice payment — admin override with logged reason required for post-payment changes. Credit balances are properly restored on booking cancellation refunds.
 - **Member Lifecycle**: Includes membership tiers, QR/NFC check-in, and onboarding processes. QR scan (`MEMBER:<uuid>`) auto-detects today's bookings — if found, routes to booking check-in (with Unified Booking Sheet for outstanding fees) instead of walk-in check-in. Confirmation modal shows booking details (bay, time, resource type) on success.
 - **Error Handling**: Empty catch blocks are prohibited; all `catch` blocks must re-throw, log, or use `safeDbOperation()`.
 - **Authentication**: All mutating API routes require authentication.
@@ -50,6 +51,7 @@ The Ever Club Members App is a private members club application designed for gol
 - **HubSpot**: Script deferred via `requestIdleCallback` (falls back to 3s `setTimeout`).
 - **Security Headers**: HSTS with preload, CSP with `upgrade-insecure-requests`, COOP `same-origin-allow-popups` (required for Google GSI popup sign-in), X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy. All headers sent in all environments.
 - **robots.txt**: Static file (`public/robots.txt`) and server route (`server/index.ts`) kept in sync. Disallow rules listed before Allow.
+- **Crawler Navigation**: Hidden navigation links rendered for search engine crawlers to improve site indexing and discoverability.
 
 ## Startup Sequence
 - **Dev script** (`npm run dev`): Pre-flight cleanup (removes Vite cache, kills stale node processes), then uses `concurrently` to run backend (`tsx server/index.ts` on port 3001) and frontend (`vite` on port 5000) side-by-side. The old `dev:all` script with bash `&` operators has been removed.

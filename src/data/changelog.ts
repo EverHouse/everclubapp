@@ -8,6 +8,84 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.40.0",
+    date: "2026-02-27",
+    title: "Heritage Typography System",
+    changes: [
+      "New: App now uses Geologica (variable, 100–900 weight) for all body text and UI elements, replacing the previous font stack",
+      "New: Playfair Display (Bold) used for major headings, establishing a heritage luxury aesthetic",
+      "Improvement: Fonts loaded non-render-blocking via media='print' onload pattern with font-display: swap fallback — no impact on page load speed",
+    ]
+  },
+  {
+    version: "8.39.0",
+    date: "2026-02-27",
+    title: "Member Schedule Dashboard Redesign",
+    isMajor: true,
+    changes: [
+      "New: Member schedule now uses a chronological card layout — bookings, events, and wellness sessions displayed as rich visual cards sorted by date and time",
+      "New: Booking and event cards show player count (e.g., '2/4 players') so members can see roster status at a glance",
+      "New: 'Add to Calendar' button on booking and event cards lets members save sessions to their phone calendar",
+      "New: Event and wellness cards now show both start and end times instead of just the start time",
+      "Improvement: Schedule cards redesigned with larger, more detailed visual elements for better readability on mobile",
+      "Improvement: Booking confirmation notifications now appear directly on the member dashboard",
+    ]
+  },
+  {
+    version: "8.38.0",
+    date: "2026-02-27",
+    title: "Billing & Payment Reliability",
+    changes: [
+      "New: Invoice details (amount, status, line items) now included in member payment API responses — members can see exactly what they're paying for",
+      "New: Active discounts (e.g., 'Comped Membership 100% off') now visible in the member billing section",
+      "Fix: Billing links now reliably open in new tabs across all devices (iOS Safari, Android Chrome, desktop)",
+      "Fix: Card charging made more reliable by handling audit log edge cases that could cause silent failures",
+      "Fix: Customer credit balances now properly restored when bookings are cancelled with refunds",
+      "Fix: Save card parameter now uses the correct Stripe API field, ensuring cards are saved for future use",
+      "Fix: Waived payments now correctly counted when calculating roster fees and payment totals",
+      "Fix: Booking fee status correctly reflects waived charges instead of showing as unpaid",
+    ]
+  },
+  {
+    version: "8.37.0",
+    date: "2026-02-27",
+    title: "Roster & Booking Integrity",
+    changes: [
+      "New: Roster is now locked after payment is collected — players cannot be added or removed from a paid booking without an admin override with a logged reason",
+      "Fix: Booking approval now correctly transfers all participants without creating duplicates",
+      "Fix: Roster management improved for paid events — display and slot handling work correctly for bookings with collected payments",
+      "Fix: Declared player count now included when modifying bookings, preventing slot count from resetting",
+      "Fix: Booking status changes now reliably sync across all views (calendar, list, detail sheet)",
+    ]
+  },
+  {
+    version: "8.36.0",
+    date: "2026-02-26",
+    title: "Check-in & QR Code Enhancements",
+    changes: [
+      "Improvement: QR Scanner moved near 'New User' in the floating action button menu for faster staff access",
+      "Improvement: QR booking context preserved when redirecting to payment or roster — staff no longer lose the booking reference mid-flow",
+      "Improvement: Members now receive immediate visual feedback after being checked in, with a confirmation showing booking details (bay, time, resource type)",
+      "Improvement: QR check-in confirmation now displays full booking details instead of just the member name",
+      "Improvement: Check-in process refined for members with existing bookings — auto-detects today's scheduled sessions",
+    ]
+  },
+  {
+    version: "8.35.0",
+    date: "2026-02-26",
+    title: "Account Safety, Data Integrity & SEO",
+    changes: [
+      "New: Hidden navigation links added for search engine crawlers to improve site indexing and discoverability",
+      "Fix: Guest pass records now properly merged when combining duplicate user accounts — prevents constraint violations",
+      "Fix: Dismissed notice records now merged during user account merging — prevents notices reappearing for merged members",
+      "Fix: Placeholder email patterns (e.g., 'noemail@placeholder.com') no longer block valid user accounts from being created with real emails",
+      "Fix: Timestamps now consistently parsed as UTC across the application, preventing off-by-one-day errors in some timezones",
+      "Fix: Webhook event timestamps display correctly in Pacific time on the admin dashboard",
+      "Fix: Usage ledger entries now protected with a foreign key constraint to booking_sessions — prevents orphaned ledger records when sessions are deleted",
+      "Fix: Google Calendar removed as a tour data source — HubSpot Meetings is now the sole source of truth for tours (Calendar still used for availability checks and creating events)",
+    ]
+  },
+  {
     version: "8.34.0",
     date: "2026-02-27",
     title: "Trackman Booking Modification Webhooks",
