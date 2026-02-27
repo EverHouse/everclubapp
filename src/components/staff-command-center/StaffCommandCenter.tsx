@@ -912,23 +912,9 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                 <button
                   onClick={() => { 
                     setFabOpen(false); 
-                    setQrScannerOpen(true);
-                  }}
-                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-6"
-                  role="menuitem"
-                >
-                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">QR Scanner</span>
-                  <div className="w-10 h-10 rounded-full bg-primary dark:bg-white/90 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-xl text-white dark:text-primary">qr_code_scanner</span>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => { 
-                    setFabOpen(false); 
                     setEventDrawerOpen(true);
                   }}
-                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-5"
+                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-6"
                   role="menuitem"
                 >
                   <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New Event</span>
@@ -942,7 +928,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                     setFabOpen(false); 
                     setWellnessDrawerOpen(true);
                   }}
-                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-4"
+                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-5"
                   role="menuitem"
                 >
                   <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New Wellness</span>
@@ -956,7 +942,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                     setFabOpen(false); 
                     setNoticeDrawerOpen(true);
                   }}
-                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-3"
+                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-4"
                   role="menuitem"
                 >
                   <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New Notice</span>
@@ -970,12 +956,26 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                     setFabOpen(false); 
                     setAnnouncementDrawerOpen(true);
                   }}
-                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-2"
+                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-3"
                   role="menuitem"
                 >
                   <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">Announcement</span>
                   <div className="w-10 h-10 rounded-full bg-[#CCB8E4] flex items-center justify-center">
                     <span className="material-symbols-outlined text-xl text-[#293515]">campaign</span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { 
+                    setFabOpen(false); 
+                    setQrScannerOpen(true);
+                  }}
+                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-2"
+                  role="menuitem"
+                >
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">QR Scanner</span>
+                  <div className="w-10 h-10 rounded-full bg-primary dark:bg-white/90 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-xl text-white dark:text-primary">qr_code_scanner</span>
                   </div>
                 </button>
 
