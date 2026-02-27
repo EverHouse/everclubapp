@@ -1502,6 +1502,44 @@ export async function updateGenericStatus(bookingId: number, status: string, sta
   return result;
 }
 
+interface CheckinExistingRow {
+  status: string | null;
+  user_email: string;
+  session_id: number | null;
+  resource_id: number | null;
+  request_date: string;
+  start_time: string;
+  end_time: string;
+  declared_player_count: number | null;
+  user_name: string | null;
+}
+
+interface RosterRow {
+  trackman_player_count: number | null;
+  declared_player_count: number | null;
+  session_id: number | null;
+  total_slots: string;
+  empty_slots: string;
+  participant_count: string;
+}
+
+interface DevConfirmBookingRow {
+  id: number;
+  status: string | null;
+  user_email: string;
+  user_name: string | null;
+  user_id: string | null;
+  stripe_customer_id: string | null;
+  tier: string | null;
+  resource_id: number | null;
+  request_date: string | Date;
+  start_time: string;
+  end_time: string;
+  session_id: number | null;
+  owner_email: string | null;
+  request_participants: unknown;
+}
+
 interface CheckinBookingParams {
   bookingId: number;
   targetStatus?: string;
@@ -1536,7 +1574,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
     return { error: 'Booking not found', statusCode: 404 };
   }
 
-  const existing: Record<string, any> = existingResult[0];
+  const existing: CheckinExistingRow = existingResult[0] as unknown as CheckinExistingRow;
   const currentStatus = existing.status;
 
   if (newStatus === 'attended') {
@@ -1545,7 +1583,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
       WHERE LOWER(email) = LOWER(${existing.user_email ?? null})
       LIMIT 1
     `);
-    const ownerStatus = (ownerStatusResult.rows[0] as Record<string, any>)?.membership_status;
+    const ownerStatus = (ownerStatusResult.rows[0] as unknown as { membership_status: string | null })?.membership_status;
     const blockedStatuses = ['cancelled', 'suspended', 'terminated', 'inactive'];
     if (ownerStatus && blockedStatuses.includes(ownerStatus) && !skipPaymentCheck) {
       logger.warn('[Checkin] Attempting check-in for member with blocked status', { extra: { bookingId, ownerEmail: existing.user_email, membershipStatus: ownerStatus } });
@@ -1566,7 +1604,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
     try {
       const userResult = await db.select({ id: users.id })
         .from(users)
-        .where(eq(sql`LOWER(${users.email})`, existing.user_email?.toLowerCase()))
+        .where(eq(sql`LOWER(${users.email})`, (existing.user_email || '').toLowerCase()))
         .limit(1);
       const userId = userResult[0]?.id || null;
 
@@ -1576,8 +1614,8 @@ export async function checkinBooking(params: CheckinBookingParams) {
         sessionDate: existing.request_date,
         startTime: existing.start_time,
         endTime: existing.end_time,
-        ownerEmail: existing.user_email || existing.owner_email || '',
-        ownerName: existing.user_name,
+        ownerEmail: existing.user_email || '',
+        ownerName: existing.user_name || undefined,
         ownerUserId: userId?.toString() || undefined,
         source: 'staff_manual',
         createdBy: staffEmail
@@ -1597,7 +1635,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
     allowedStatuses.push('cancelled', 'cancellation_pending');
   }
 
-  if (!allowedStatuses.includes(currentStatus)) {
+  if (!allowedStatuses.includes(currentStatus || '')) {
     return { error: `Cannot update booking with status: ${currentStatus}`, statusCode: 400 };
   }
 
@@ -1615,12 +1653,11 @@ export async function checkinBooking(params: CheckinBookingParams) {
     `);
 
     if (rosterResult.rows.length > 0) {
-      const roster = rosterResult.rows[0] as Record<string, any>;
+      const roster = rosterResult.rows[0] as unknown as RosterRow;
       const declaredCount = roster.declared_player_count || roster.trackman_player_count || 1;
       const participantCount = parseInt(roster.participant_count) || 0;
 
       if (roster.session_id && participantCount >= declaredCount) {
-        // Session exists with enough participants — roster is complete
       } else {
         const emptySlots = parseInt(roster.empty_slots) || 0;
         const totalSlots = parseInt(roster.total_slots) || 0;
@@ -1661,7 +1698,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
 
     if (parseInt((nullFeesCheck.rows[0] as unknown as { null_count: string })?.null_count) > 0) {
       try {
-        await recalculateSessionFees(existing.session_id, 'checkin');
+        await recalculateSessionFees(existing.session_id as number, 'checkin');
         logger.info('[Check-in Guard] Recalculated fees for session - some participants had NULL or zero cached_fee_cents', { extra: { existingSession_id: existing.session_id } });
       } catch (recalcError: unknown) {
         logger.error('[Check-in Guard] Failed to recalculate fees for session', { extra: { session_id: existing.session_id, recalcError } });
@@ -1710,7 +1747,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
       if (skipPaymentCheck) {
         await logPaymentAudit({
           bookingId,
-          sessionId: existing.session_id,
+          sessionId: existing.session_id as number,
           action: 'payment_check_bypassed',
           staffEmail,
           staffName,
@@ -1721,7 +1758,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
       } else {
         await logPaymentAudit({
           bookingId,
-          sessionId: existing.session_id,
+          sessionId: existing.session_id as number,
           action: 'checkin_guard_triggered',
           staffEmail,
           staffName,
@@ -1753,7 +1790,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
       })
       .where(and(
         eq(bookingRequests.id, bookingId),
-        eq(bookingRequests.status, currentStatus)
+        eq(bookingRequests.status, currentStatus || '')
       ))
       .returning();
 
@@ -1782,7 +1819,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
     for (const p of unpaidParticipants) {
       await logPaymentAudit({
         bookingId,
-        sessionId: existing.session_id,
+        sessionId: existing.session_id as number,
         participantId: p.id,
         action: 'payment_confirmed',
         staffEmail,
@@ -1796,8 +1833,8 @@ export async function checkinBooking(params: CheckinBookingParams) {
     broadcastBillingUpdate({
       action: 'booking_payment_updated',
       bookingId,
-      sessionId: existing.session_id,
-      memberEmail: existing.user_email,
+      sessionId: existing.session_id as number,
+      memberEmail: existing.user_email as string,
       amount: totalOutstanding * 100
     });
   }
@@ -1879,7 +1916,7 @@ export async function devConfirmBooking(params: DevConfirmParams) {
     return { error: 'Booking not found', statusCode: 404 };
   }
 
-  const booking = bookingResult.rows[0] as Record<string, any>;
+  const booking = bookingResult.rows[0] as unknown as DevConfirmBookingRow;
 
   if (booking.status !== 'pending' && booking.status !== 'pending_approval') {
     return { error: `Booking is already ${booking.status}`, statusCode: 400 };
@@ -1892,12 +1929,12 @@ export async function devConfirmBooking(params: DevConfirmParams) {
     if (!sessionId && booking.resource_id) {
       const sessionResult = await ensureSessionForBooking({
         bookingId,
-        resourceId: booking.resource_id,
-        sessionDate: booking.request_date,
-        startTime: booking.start_time,
-        endTime: booking.end_time,
-        ownerEmail: booking.user_email || booking.owner_email || '',
-        ownerName: booking.user_name,
+        resourceId: booking.resource_id as number,
+        sessionDate: booking.request_date as string,
+        startTime: booking.start_time as string,
+        endTime: booking.end_time as string,
+        ownerEmail: (booking.user_email || booking.owner_email || '') as string,
+        ownerName: (booking.user_name || undefined) as string | undefined,
         ownerUserId: booking.user_id?.toString() || undefined,
         source: 'staff_manual',
         createdBy: 'dev_confirm'
@@ -2001,7 +2038,7 @@ export async function devConfirmBooking(params: DevConfirmParams) {
       });
 
       try {
-        const feeResult = await recalculateSessionFees(sessionId, 'approval');
+        const feeResult = await recalculateSessionFees(sessionId as number, 'approval');
         if (feeResult?.totalSessionFee) {
           totalFeeCents = feeResult.totalSessionFee;
         }
@@ -2025,13 +2062,13 @@ export async function devConfirmBooking(params: DevConfirmParams) {
 
     const dateStr = typeof booking.request_date === 'string'
       ? booking.request_date
-      : booking.request_date.toISOString().split('T')[0];
+      : (booking.request_date as Date).toISOString().split('T')[0];
     const timeStr = typeof booking.start_time === 'string'
       ? booking.start_time.substring(0, 5)
-      : booking.start_time;
+      : String(booking.start_time);
 
     await tx.insert(notifications).values({
-      userEmail: booking.user_email,
+      userEmail: booking.user_email as string,
       title: 'Booking Confirmed',
       message: `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.`,
       type: 'booking',
@@ -2053,9 +2090,9 @@ export async function devConfirmBooking(params: DevConfirmParams) {
              AND LOWER(u.email) != LOWER(${booking.user_email})
         `);
 
-        const ownerName = booking.user_name || booking.user_email?.split('@')[0] || 'A member';
+        const ownerName = booking.user_name || (booking.user_email as string)?.split('@')[0] || 'A member';
         const formattedDate = formatDateDisplayWithDay(dateStr);
-        const formattedTime = formatTime12Hour(timeStr);
+        const formattedTime = formatTime12Hour(timeStr as string);
 
         for (const participant of participantsResult.rows as unknown as Array<{ user_email: string; first_name: string | null; last_name: string | null }>) {
           const participantEmail = participant.user_email?.toLowerCase();
@@ -2089,7 +2126,7 @@ export async function devConfirmBooking(params: DevConfirmParams) {
     return { sessionId, totalFeeCents, dateStr, timeStr };
   });
 
-  sendNotificationToUser(booking.user_email, {
+  sendNotificationToUser(booking.user_email as string, {
     type: 'notification',
     title: 'Booking Confirmed',
     message: `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.`,

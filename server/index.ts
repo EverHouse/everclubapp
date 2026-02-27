@@ -11,7 +11,7 @@ let isReady = false;
 let httpServer: Server | null = null;
 let schedulersInitialized = false;
 let websocketInitialized = false;
-let expressApp: any = null;
+let expressApp: import('express').Express | null = null;
 let cachedIndexHtml: string | null = null;
 
 declare global {
@@ -331,9 +331,9 @@ async function initializeApp() {
     }
     express.json({
       limit: '1mb',
-      verify: (req: any, _res: any, buf: Buffer) => {
-        if (req.originalUrl?.includes('/webhooks') || req.url?.includes('/webhooks')) {
-          req.rawBody = buf.toString('utf8');
+      verify: (req: http.IncomingMessage, _res: http.ServerResponse, buf: Buffer) => {
+        if ((req as unknown as Record<string, string>).originalUrl?.includes('/webhooks') || req.url?.includes('/webhooks')) {
+          (req as unknown as Record<string, unknown>).rawBody = buf.toString('utf8');
         }
       }
     })(req, res, next);
@@ -979,7 +979,7 @@ async function initializeApp() {
             RETURNING email, role
           `);
           if (result.rows.length > 0) {
-            logger.info('[Startup] Restored incorrectly archived staff accounts', { extra: { restored: result.rows.map((r: any) => r.email) } });
+            logger.info('[Startup] Restored incorrectly archived staff accounts', { extra: { restored: result.rows.map((r: Record<string, unknown>) => r.email) } });
           }
           break;
         } catch (err) {
@@ -1002,7 +1002,7 @@ async function initializeApp() {
           RETURNING email, stripe_customer_id
         `);
         if (cleanupResult.rows.length > 0) {
-          logger.info('[Startup] Cleared Stripe IDs from merged/archived users', { extra: { count: cleanupResult.rows.length, users: cleanupResult.rows.map((r: any) => r.email) } });
+          logger.info('[Startup] Cleared Stripe IDs from merged/archived users', { extra: { count: cleanupResult.rows.length, users: cleanupResult.rows.map((r: Record<string, unknown>) => r.email) } });
         }
       } catch (err) {
         logger.warn('[Startup] Failed to cleanup merged user Stripe IDs:', { error: err as Error });
@@ -1049,7 +1049,8 @@ async function initializeApp() {
   }, heavyTaskDelay);
 }
 
-async function autoSeedResources(db: any, sql: any, resourcesTable: any, isProduction: boolean) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic Drizzle types not worth replicating for one-time seed function
+async function autoSeedResources(db: { select: (...args: any[]) => any; insert: (...args: any[]) => any }, sql: any, resourcesTable: any, isProduction: boolean) {
   try {
     const result = await db.select({ count: sql<number>`count(*)` }).from(resourcesTable);
     const count = Number(result[0]?.count ?? 0);
@@ -1074,7 +1075,8 @@ async function autoSeedResources(db: any, sql: any, resourcesTable: any, isProdu
   }
 }
 
-async function autoSeedCafeMenu(db: any, sql: any, cafeItemsTable: any, isProduction: boolean) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic Drizzle types not worth replicating for one-time seed function
+async function autoSeedCafeMenu(db: { select: (...args: any[]) => any; insert: (...args: any[]) => any }, sql: any, cafeItemsTable: any, isProduction: boolean) {
   try {
     const result = await db.select({ count: sql<number>`count(*)` }).from(cafeItemsTable);
     const count = Number(result[0]?.count ?? 0);

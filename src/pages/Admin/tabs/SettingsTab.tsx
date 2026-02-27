@@ -57,7 +57,7 @@ const SettingsTab: React.FC = () => {
   const { data: fetchedSettings, isLoading, error } = useQuery({
     queryKey: ['settings'],
     queryFn: async () => {
-      const data = await fetchWithCredentials<Record<string, any>>('/api/settings');
+      const data = await fetchWithCredentials<Record<string, { value: string }>>('/api/settings');
       
       const categoryLabels: Record<string, string> = {};
       for (const key of CATEGORY_KEYS) {

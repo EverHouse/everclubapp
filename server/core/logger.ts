@@ -25,13 +25,13 @@ interface LogContext {
   method?: string;
   path?: string;
   userEmail?: string;
-  params?: Record<string, any>;
-  query?: Record<string, any>;
+  params?: Record<string, unknown>;
+  query?: Record<string, unknown>;
   duration?: number;
   statusCode?: number;
   error?: unknown;
   stack?: string;
-  extra?: Record<string, any>;
+  extra?: Record<string, unknown>;
   bookingId?: number;
   oldBookingId?: number;
   newBookingId?: number;
@@ -45,6 +45,7 @@ interface LogContext {
   dbErrorDetail?: string;
   dbErrorTable?: string;
   dbErrorConstraint?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- index signatures for extensible log context require any
   [key: string]: any;
 }
 
@@ -52,10 +53,10 @@ function formatTimestamp(): string {
   return new Date().toISOString();
 }
 
-function sanitize(obj: Record<string, any> | undefined): Record<string, any> | undefined {
+function sanitize(obj: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
   if (!obj) return undefined;
   const sensitiveKeys = ['password', 'token', 'secret', 'authorization', 'cookie', 'apikey', 'api_key'];
-  const sanitized: Record<string, any> = {};
+  const sanitized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
     if (sensitiveKeys.some(sk => key.toLowerCase().includes(sk))) {
       sanitized[key] = '[REDACTED]';
@@ -189,7 +190,7 @@ export function logAndRespond(
     method: req.method,
     path: req.path,
     params: req.params,
-    query: req.query as Record<string, any>,
+    query: req.query as Record<string, unknown>,
     error: err,
     dbErrorCode,
     dbErrorDetail,

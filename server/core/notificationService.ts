@@ -101,7 +101,7 @@ export interface DeliveryResult {
   channel: 'database' | 'websocket' | 'push' | 'email';
   success: boolean;
   error?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 export interface NotificationResult {

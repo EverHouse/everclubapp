@@ -70,7 +70,7 @@ const HubSpotFormModal: React.FC<HubSpotFormModalProps> = ({
       }));
 
       const hutk = getHubspotCookie();
-      const context: Record<string, any> = {
+      const context: Record<string, unknown> = {
         pageUri: window.location.href,
         pageName: document.title
       };

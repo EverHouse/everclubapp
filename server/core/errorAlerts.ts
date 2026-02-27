@@ -222,7 +222,7 @@ interface AlertOptions {
   title: string;
   message: string;
   context?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   userEmail?: string;
   requestId?: string;
 }
@@ -270,8 +270,8 @@ export async function sendErrorAlert(options: AlertOptions): Promise<boolean> {
     });
     
     const friendlyType = getFriendlyTypeName(type);
-    const friendlyMessage = translateErrorToPlainLanguage(message, details?.path || context);
-    const area = getFriendlyAreaName(details?.path || context);
+    const friendlyMessage = translateErrorToPlainLanguage(message, (details?.path as string) || context);
+    const area = getFriendlyAreaName((details?.path as string) || context);
     
     let contextInfo = '';
     if (userEmail) {
@@ -353,8 +353,8 @@ export async function sendErrorAlert(options: AlertOptions): Promise<boolean> {
               <div style="background: #f3f4f6; border-radius: 6px; padding: 16px; font-family: 'SF Mono', Menlo, monospace; font-size: 12px; color: #6b7280; line-height: 1.5; word-break: break-all;">
                 ${title !== friendlyType ? `<p style="margin: 0 0 6px 0;"><strong>Error:</strong> ${escapeHtml(title)}</p>` : ''}
                 <p style="margin: 0 0 6px 0;"><strong>Message:</strong> ${escapeHtml(message.substring(0, 500))}</p>
-                ${details?.path ? `<p style="margin: 0 0 6px 0;"><strong>Path:</strong> ${details.method || 'GET'} ${escapeHtml(details.path)}</p>` : ''}
-                ${details?.dbErrorCode ? `<p style="margin: 0 0 6px 0;"><strong>DB Error:</strong> ${escapeHtml(details.dbErrorCode)}${details.dbErrorTable ? ` on table "${escapeHtml(details.dbErrorTable)}"` : ''}${details.dbErrorConstraint ? ` (constraint: ${escapeHtml(details.dbErrorConstraint)})` : ''}</p>` : ''}
+                ${details?.path ? `<p style="margin: 0 0 6px 0;"><strong>Path:</strong> ${(details.method as string) || 'GET'} ${escapeHtml(details.path as string)}</p>` : ''}
+                ${details?.dbErrorCode ? `<p style="margin: 0 0 6px 0;"><strong>DB Error:</strong> ${escapeHtml(details.dbErrorCode as string)}${details.dbErrorTable ? ` on table "${escapeHtml(details.dbErrorTable as string)}"` : ''}${details.dbErrorConstraint ? ` (constraint: ${escapeHtml(details.dbErrorConstraint as string)})` : ''}</p>` : ''}
                 ${requestId ? `<p style="margin: 0;"><strong>Request ID:</strong> ${escapeHtml(requestId)}</p>` : ''}
               </div>
             </div>
@@ -451,7 +451,7 @@ export async function alertOnExternalServiceError(
 export async function alertOnBookingFailure(
   userEmail: string,
   reason: string,
-  bookingDetails?: Record<string, any>
+  bookingDetails?: Record<string, unknown>
 ): Promise<void> {
   await sendErrorAlert({
     type: 'booking_failure',

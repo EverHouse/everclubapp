@@ -28,10 +28,10 @@ const CafeTab: React.FC = () => {
             if (!response.ok) throw new Error('Failed to pull from Stripe');
             return response.json();
         },
-        onSuccess: (data: Record<string, any>) => {
+        onSuccess: (data: { cafe?: { synced?: number; created?: number; deactivated?: number } }) => {
             let message = `Pulled from Stripe:\n• ${data.cafe?.synced || 0} cafe items synced`;
-            if (data.cafe?.created > 0) message += `\n• ${data.cafe.created} new items created`;
-            if (data.cafe?.deactivated > 0) message += `\n• ${data.cafe.deactivated} items deactivated`;
+            if ((data.cafe?.created ?? 0) > 0) message += `\n• ${data.cafe?.created} new items created`;
+            if ((data.cafe?.deactivated ?? 0) > 0) message += `\n• ${data.cafe?.deactivated} items deactivated`;
             showToast(message, 'success');
         },
     });

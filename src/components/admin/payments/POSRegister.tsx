@@ -230,7 +230,7 @@ const POSRegister: React.FC = () => {
     setError(null);
 
     try {
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         memberEmail: customer.email,
         memberName: customer.name,
         amountCents: totalCents,

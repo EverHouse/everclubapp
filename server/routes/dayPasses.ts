@@ -425,7 +425,7 @@ router.post('/api/day-passes/staff-checkout/confirm', isStaffOrAdmin, async (req
     const purchaserState = metadata.purchaser_state;
     const purchaserZipCode = metadata.purchaser_zip_code;
     if (user.id && (purchaserStreetAddress || purchaserCity || purchaserState || purchaserZipCode)) {
-      const addressUpdate: Record<string, any> = { updatedAt: new Date() };
+      const addressUpdate: Record<string, unknown> = { updatedAt: new Date() };
       if (purchaserStreetAddress) addressUpdate.streetAddress = purchaserStreetAddress;
       if (purchaserCity) addressUpdate.city = purchaserCity;
       if (purchaserState) addressUpdate.state = purchaserState;

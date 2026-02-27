@@ -107,7 +107,7 @@ const MembershipApply: React.FC = () => {
       ];
 
       const hutk = getHubspotCookie();
-      const context: Record<string, any> = {
+      const context: Record<string, unknown> = {
         pageUri: window.location.href,
         pageName: 'Membership Application'
       };

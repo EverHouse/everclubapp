@@ -309,7 +309,7 @@ router.get('/api/my-visits', isAuthenticated, async (req, res) => {
         category: row.category || undefined,
         invitedBy: row.invited_by || undefined,
       }))
-      .sort((a: any, b: any) => (b.date as string).localeCompare(a.date as string));
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
     
     res.json(visits);
   } catch (error: unknown) {

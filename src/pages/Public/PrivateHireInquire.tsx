@@ -138,7 +138,7 @@ const PrivateHireInquire: React.FC = () => {
       ];
 
       const hutk = getHubspotCookie();
-      const context: Record<string, any> = {
+      const context: Record<string, unknown> = {
         pageUri: window.location.href,
         pageName: 'Private Hire - Event Inquiry'
       };

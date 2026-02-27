@@ -7,6 +7,99 @@ import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 import { AnimatedPage } from '../../../components/motion';
 import { useData } from '../../../contexts/DataContext';
 
+interface AuditLogDetails {
+    member_email?: string;
+    email?: string;
+    visitor_email?: string;
+    guest_email?: string;
+    attendee_email?: string;
+    rsvp_email?: string;
+    owner_email?: string;
+    trackman_email?: string;
+    oldEmail?: string;
+    newEmail?: string;
+    new_email?: string;
+    memberEmail?: string;
+    linkedBy?: string;
+    previous_owner?: string;
+    amount?: number | string;
+    amount_cents?: number;
+    fee_amount?: number;
+    refund_amount_cents?: number;
+    description?: string;
+    reason?: string;
+    refund_reason?: string;
+    failure_reason?: string;
+    appDuplicateCount?: number;
+    hubspotDuplicateCount?: number;
+    ghostBookingsFound?: number;
+    bookingsProcessed?: number;
+    recordsUpdated?: number;
+    recordsCreated?: number;
+    recordsSkipped?: number;
+    recordsAffected?: number;
+    bookingsImported?: number;
+    bookingsReset?: number;
+    contactsUpdated?: number;
+    contactsCreated?: number;
+    eventsUpdated?: number;
+    eventsCreated?: number;
+    total?: number;
+    total_players?: number;
+    count?: number;
+    passes_remaining?: number;
+    refunded_passes?: number;
+    participantCount?: number;
+    booking_date?: string;
+    start_time?: string;
+    booking_time?: string;
+    bay_name?: string;
+    bay?: string | number;
+    action?: string;
+    tier?: string;
+    old_tier?: string;
+    new_tier?: string;
+    section?: string;
+    tour_date?: string;
+    previous_status?: string;
+    new_status?: string;
+    newStatus?: string;
+    event_date?: string;
+    date?: string;
+    location?: string;
+    instructor?: string;
+    memberEnrolled?: string;
+    priority?: string;
+    startDate?: string;
+    endDate?: string;
+    affectedAreas?: string;
+    guest_name?: string;
+    guestName?: string;
+    memberName?: string;
+    member_name?: string;
+    participantName?: string;
+    participantType?: string;
+    groupType?: string;
+    filename?: string;
+    class_title?: string;
+    class_date?: string;
+    event_title?: string;
+    is_partial?: boolean;
+    stripe_customer_id?: string;
+    stripe_subscription_id?: string;
+    invoice_id?: string;
+    trackman_booking_id?: string;
+    visitor_name?: string;
+    name?: string;
+    owner_name?: string;
+    new_name?: string;
+    payment_status?: string;
+    from?: string;
+    to?: string;
+    source?: string;
+    waiver_version?: string;
+}
+
 interface AuditLogEntry {
     id: number;
     staffEmail: string;
@@ -15,7 +108,7 @@ interface AuditLogEntry {
     resourceType: string;
     resourceId: string | null;
     resourceName: string | null;
-    details: Record<string, any> | null;
+    details: AuditLogDetails | null;
     ipAddress: string | null;
     createdAt: string;
     actorType: 'staff' | 'member' | 'system';
@@ -282,14 +375,14 @@ const ChangelogTab: React.FC = () => {
         const parts: string[] = [];
         
         // Parse details - handle both object and string (from database)
-        let d: Record<string, any> = {};
+        let d: AuditLogDetails = {};
         try {
             const rawDetails = entry.details as unknown;
             if (rawDetails) {
                 if (typeof rawDetails === 'string') {
                     d = JSON.parse(rawDetails);
                 } else if (typeof rawDetails === 'object' && rawDetails !== null) {
-                    d = rawDetails as Record<string, any>;
+                    d = rawDetails as AuditLogDetails;
                 }
             }
         } catch {
@@ -476,7 +569,7 @@ const ChangelogTab: React.FC = () => {
                 break;
             case 'record_charge':
                 if (d.member_email) parts.push(d.member_email);
-                if (d.amount) parts.push(`$${(d.amount / 100).toFixed(2)}`);
+                if (d.amount) parts.push(`$${(Number(d.amount) / 100).toFixed(2)}`);
                 if (d.description) parts.push(d.description);
                 break;
             case 'send_payment_link':

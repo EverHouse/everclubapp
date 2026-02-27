@@ -31,7 +31,7 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
   const [discountRules, setDiscountRules] = useState<DiscountRule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editValues, setEditValues] = useState<Record<string, any>>({});
+  const [editValues, setEditValues] = useState<Record<string, string | number | boolean>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [productsRef] = useAutoAnimate();
 
@@ -152,7 +152,7 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
                     type="number"
                     step="0.01"
                     className="w-full border border-gray-200 dark:border-white/20 bg-white dark:bg-black/30 p-2 rounded-lg text-primary dark:text-white text-sm"
-                    value={(editValues as Record<string, any>).unitPrice || ''}
+                    value={String(editValues.unitPrice || '')}
                     onChange={e => setEditValues({ ...editValues, unitPrice: e.target.value })}
                   />
                 </div>
@@ -161,14 +161,14 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
                   <textarea
                     className="w-full border border-gray-200 dark:border-white/20 bg-white dark:bg-black/30 p-2 rounded-lg text-primary dark:text-white text-sm resize-none"
                     rows={2}
-                    value={(editValues as Record<string, any>).description || ''}
+                    value={(editValues).description || ''}
                     onChange={e => setEditValues({ ...editValues, description: e.target.value })}
                   />
                 </div>
                 <label className="flex items-center justify-between">
                   <span className="text-sm text-primary dark:text-white">Active</span>
                   <Toggle
-                    checked={(editValues as Record<string, any>).isActive as boolean ?? true}
+                    checked={editValues.isActive as boolean ?? true}
                     onChange={val => setEditValues({ ...editValues, isActive: val })}
                     label="Active"
                   />
@@ -243,7 +243,7 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
                     min="0"
                     max="100"
                     className="w-full border border-gray-200 dark:border-white/20 bg-white dark:bg-black/30 p-2 rounded-lg text-primary dark:text-white text-sm"
-                    value={(editValues as Record<string, any>).discountPercent ?? ''}
+                    value={editValues.discountPercent ?? ''}
                     onChange={e => setEditValues({ ...editValues, discountPercent: parseInt(e.target.value) || 0 })}
                   />
                 </div>
@@ -252,14 +252,14 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
                   <textarea
                     className="w-full border border-gray-200 dark:border-white/20 bg-white dark:bg-black/30 p-2 rounded-lg text-primary dark:text-white text-sm resize-none"
                     rows={2}
-                    value={(editValues as Record<string, any>).description || ''}
+                    value={editValues.description || ''}
                     onChange={e => setEditValues({ ...editValues, description: e.target.value })}
                   />
                 </div>
                 <label className="flex items-center justify-between">
                   <span className="text-sm text-primary dark:text-white">Active</span>
                   <Toggle
-                    checked={(editValues as Record<string, any>).isActive as boolean ?? true}
+                    checked={editValues.isActive as boolean ?? true}
                     onChange={val => setEditValues({ ...editValues, isActive: val })}
                     label="Active"
                   />
