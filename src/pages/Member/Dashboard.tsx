@@ -295,6 +295,24 @@ const Dashboard: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+    const handleCheckinNotification = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      const isCheckinNotification = detail?.data?.notificationType === 'booking' && 
+        (detail?.title === 'Check-In Complete' || detail?.title === 'Checked In');
+      if (isCheckinNotification) {
+        setIsCardOpen(false);
+        setNfcCheckinData({
+          type: 'success',
+          memberName: user?.name?.split(' ')[0] || user?.name || 'Member',
+          tier: user?.tier || null,
+        });
+      }
+    };
+    window.addEventListener('member-notification', handleCheckinNotification);
+    return () => window.removeEventListener('member-notification', handleCheckinNotification);
+  }, [user?.name, user?.tier]);
+
   const allItems = [
     ...dbBookings.map(b => {
       const isLinkedMember = user?.email ? b.user_email?.toLowerCase() !== user.email.toLowerCase() : false;
