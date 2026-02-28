@@ -109,9 +109,11 @@ const MarketingContactsAuditPanel: React.FC<MarketingContactsAuditPanelProps> = 
     mutationFn: (contactIds: string[]) =>
       postWithCredentials('/api/admin/hubspot/remove-marketing-contacts', { contactIds }),
     onSuccess: (data) => {
-      showToast(`Removed ${data.removed} contacts from marketing. ${data.failed > 0 ? `${data.failed} failed.` : ''}`, data.failed > 0 ? 'warning' : 'success');
+      showToast(`Removed ${data.removed} contacts from marketing. ${data.failed > 0 ? `${data.failed} failed.` : ''} Refreshing audit data (may take a moment for HubSpot to update)...`, data.failed > 0 ? 'warning' : 'success');
       setSelectedContacts(new Set());
-      auditQuery.refetch();
+      setTimeout(() => {
+        auditQuery.refetch({ cancelRefetch: true });
+      }, 3000);
     },
     onError: (error) => {
       showToast(`Failed to remove contacts: ${error.message}`, 'error');

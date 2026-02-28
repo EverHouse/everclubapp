@@ -1933,6 +1933,10 @@ const MARKETING_AUDIT_PROPERTIES = [
 
 router.get('/api/admin/hubspot/marketing-contacts-audit', isAdmin, async (_req: Request, res: Response) => {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+
     const hubspot = await getHubSpotClient();
 
     let allContacts: HubSpotApiObject[] = [];
