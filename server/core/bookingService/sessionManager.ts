@@ -926,6 +926,7 @@ export async function createSessionWithUsageTracking(
       }
       
       // Step 5c: Deduct guest passes INSIDE the transaction for atomicity
+      let actualPassesDeducted = 0;
       if (billingResult.guestPassesUsed > 0) {
         const emailLower = request.ownerEmail.toLowerCase().trim();
         const passesNeeded = billingResult.guestPassesUsed;
@@ -939,7 +940,8 @@ export async function createSessionWithUsageTracking(
           `);
           
           if (holdResult.rows && holdResult.rows.length > 0) {
-            const passesToConvert = (holdResult.rows[0] as { passes_held: number }).passes_held as number || 0;
+            const passesHeld = (holdResult.rows[0] as { passes_held: number }).passes_held as number || 0;
+            const passesToConvert = Math.min(passesHeld, billingResult.guestPassesUsed);
             
             if (passesToConvert > 0) {
               // Verify we don't exceed total passes available
@@ -967,12 +969,19 @@ export async function createSessionWithUsageTracking(
                 SET passes_used = passes_used + ${passesToConvert}
                 WHERE LOWER(member_email) = ${emailLower}
               `);
+              actualPassesDeducted = passesToConvert;
             }
             
             // Delete the hold
             await tx.execute(sql`
               DELETE FROM guest_pass_holds WHERE booking_id = ${request.bookingId}
             `);
+            
+            if (passesToConvert < billingResult.guestPassesUsed) {
+              logger.warn('[createSessionWithUsageTracking] Guest pass hold shortfall — extra guests will be charged as paid', {
+                extra: { bookingId: request.bookingId, ownerEmail: request.ownerEmail, passesHeld, guestPassesUsed: billingResult.guestPassesUsed, passesConverted: passesToConvert }
+              });
+            }
             
             logger.info('[createSessionWithUsageTracking] Converted guest pass holds to usage (atomic)', {
               extra: { bookingId: request.bookingId, ownerEmail: request.ownerEmail, passesConverted: passesToConvert }
@@ -1006,6 +1015,7 @@ export async function createSessionWithUsageTracking(
                 SET passes_used = passes_used + ${passesNeeded}
                 WHERE LOWER(member_email) = ${emailLower}
               `);
+              actualPassesDeducted = passesNeeded;
               
               logger.info('[createSessionWithUsageTracking] Directly deducted guest passes (hold fallback)', {
                 extra: { bookingId: request.bookingId, ownerEmail: request.ownerEmail, passesDeducted: passesNeeded }
@@ -1032,6 +1042,7 @@ export async function createSessionWithUsageTracking(
                   INSERT INTO guest_passes (member_email, passes_total, passes_used)
                   VALUES (${emailLower}, ${monthlyAllocation}, ${passesNeeded})
                 `);
+                actualPassesDeducted = passesNeeded;
                 
                 logger.info('[createSessionWithUsageTracking] Created guest pass record for first-time user (hold fallback)', {
                   extra: { ownerEmail: request.ownerEmail, monthlyAllocation, passesDeducted: passesNeeded }
@@ -1065,6 +1076,7 @@ export async function createSessionWithUsageTracking(
               SET passes_used = passes_used + ${passesNeeded}
               WHERE LOWER(member_email) = ${emailLower}
             `);
+            actualPassesDeducted = passesNeeded;
             
             logger.info('[createSessionWithUsageTracking] Deducted guest passes (atomic, no holds)', {
               extra: { ownerEmail: request.ownerEmail, passesDeducted: passesNeeded }
@@ -1091,6 +1103,7 @@ export async function createSessionWithUsageTracking(
                 INSERT INTO guest_passes (member_email, passes_total, passes_used)
                 VALUES (${emailLower}, ${monthlyAllocation}, ${passesNeeded})
               `);
+              actualPassesDeducted = passesNeeded;
               
               logger.info('[createSessionWithUsageTracking] Created guest pass record for first-time user', {
                 extra: { ownerEmail: request.ownerEmail, monthlyAllocation, passesDeducted: passesNeeded }
@@ -1100,10 +1113,10 @@ export async function createSessionWithUsageTracking(
         }
       }
       
-      if (billingResult.guestPassesUsed > 0) {
+      if (actualPassesDeducted > 0) {
         const guestParticipantIds = linkedParticipants
           .filter(p => p.participantType === 'guest')
-          .slice(0, billingResult.guestPassesUsed)
+          .slice(0, actualPassesDeducted)
           .map(p => p.id);
         
         if (guestParticipantIds.length > 0) {

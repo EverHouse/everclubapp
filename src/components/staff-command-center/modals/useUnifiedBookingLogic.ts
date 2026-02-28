@@ -533,6 +533,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
 
   useEffect(() => {
     if (isManageMode) return;
+    let isActive = true;
     const checkDuplicates = async () => {
       const fullName = `${visitorData.firstName} ${visitorData.lastName}`.trim();
       if (fullName.length < 3) {
@@ -543,7 +544,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       setIsCheckingDuplicates(true);
       try {
         const res = await fetch(`/api/visitors/search?query=${encodeURIComponent(fullName)}&limit=5&includeStaff=true&includeMembers=true`, { credentials: 'include' });
-        if (res.ok) {
+        if (res.ok && isActive) {
           const data = await res.json();
           const matches = data.filter((v: { id: string; email: string; name?: string; firstName?: string; lastName?: string }) => {
             const vName = (v.name || `${v.firstName} ${v.lastName}`).toLowerCase().trim();
@@ -556,14 +557,14 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
           })));
         }
       } catch (err: unknown) {
-        console.error('Duplicate check error:', err);
+        if (isActive) console.error('Duplicate check error:', err);
       } finally {
-        setIsCheckingDuplicates(false);
+        if (isActive) setIsCheckingDuplicates(false);
       }
     };
     
     const timeoutId = setTimeout(checkDuplicates, 500);
-    return () => clearTimeout(timeoutId);
+    return () => { isActive = false; clearTimeout(timeoutId); };
   }, [visitorData.firstName, visitorData.lastName, isManageMode]);
 
   useEffect(() => {

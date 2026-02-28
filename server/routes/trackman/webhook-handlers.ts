@@ -25,8 +25,7 @@ import {
 import { resolveLinkedEmail, findMemberByEmail, logWebhookEvent } from './webhook-validation';
 import { 
   updateBaySlotCache, 
-  createBookingForMember, 
-  refundGuestPassesForCancelledBooking
+  createBookingForMember
 } from './webhook-billing';
 import { refundGuestPass } from '../guestPasses';
 import { getErrorMessage } from '../../utils/errorUtils';
@@ -753,9 +752,7 @@ async function tryLinkCancelledBooking(
       extra: { bookingId, trackmanBookingId, email: customerEmail, date: slotDate, time: startTime }
     });
     
-    const refundedPasses = await refundGuestPassesForCancelledBooking(bookingId, memberEmail);
-    
-    return { matched: true, bookingId, refundedPasses };
+    return { matched: true, bookingId, refundedPasses: 0 };
   } catch (e: unknown) {
     logger.error('[Trackman Webhook] Failed to link cancelled booking', { error: e as Error });
     return { matched: false };

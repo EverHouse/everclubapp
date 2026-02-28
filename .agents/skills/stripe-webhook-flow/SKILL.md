@@ -449,6 +449,12 @@ Both refund calls include deterministic idempotency keys (v8.51.0): `refund_over
 
 **Rule:** When a webhook payment handler detects that work is already done (participant already paid, subscription already active, etc.), it must UNDO the financial side effect (refund), not just skip the database update.
 
+### Terminal Payment Refund Handling (v8.52.0)
+
+When `voidBookingInvoice` processes a paid invoice, it resolves the `paymentIntentId` from `invoice.payment_intent` OR from `invoice.metadata.terminalPaymentIntentId`. Invoices paid out-of-band via the physical card reader have no native `payment_intent` — without checking metadata, the system falls into the balance-credit branch and gives store credit instead of a real card refund.
+
+**Rule:** When resolving a payment intent for refund, always check `invoice.metadata.terminalPaymentIntentId` as a fallback after `invoice.payment_intent`.
+
 ### Day Pass Deferred Action Pattern (v8.26.7, Bug 18)
 
 Day pass purchases from `handleCheckoutSessionCompleted` and `handleCheckoutSessionAsyncPaymentSucceeded` record the purchase via `recordDayPassPurchaseFromWebhook()` as a **deferred action** (runs after COMMIT), not inside the webhook transaction. This ensures the day pass recording doesn't hold the transaction open during Stripe API calls, and the existing idempotency protection in `recordDayPassPurchaseFromWebhook` prevents duplicates if Stripe retries.

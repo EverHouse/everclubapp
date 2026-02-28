@@ -775,7 +775,8 @@ export async function voidBookingInvoice(bookingId: number): Promise<{
       const invoiceExpanded = invoice as unknown as InvoiceWithPaymentIntent;
       const paymentIntentId = typeof invoiceExpanded.payment_intent === 'string'
         ? invoiceExpanded.payment_intent
-        : invoiceExpanded.payment_intent?.id;
+        : invoiceExpanded.payment_intent?.id
+        || (invoice.metadata as Record<string, string>)?.terminalPaymentIntentId;
       if (paymentIntentId) {
         try {
           const refund = await stripe.refunds.create({

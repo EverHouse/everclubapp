@@ -8,6 +8,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.52.0",
+    date: "2026-02-28",
+    title: "Financial Exploit & Race Condition Fixes",
+    isMajor: true,
+    changes: [
+      "Fix: Guest pass hold-to-usage conversion now uses MIN(passes_held, passes_needed) — prevents a malicious or glitching client from holding 1 pass but getting 3 guests marked as paid",
+      "Fix: Guest participant payment_status marking now uses the actual number of passes deducted, not the billing result's requested count — closes the free-guest exploit completely",
+      "Fix: Terminal (card reader) payment refunds now check invoice metadata for the terminal Payment Intent ID — cancelling a terminal-paid booking now issues a real card refund instead of incorrectly granting store credit",
+      "Fix: Removed double guest pass refund in delayed Trackman webhook linking — a late-arriving webhook matching a cancelled booking no longer triggers a second pass refund (cancellation workflows already handle their own refunds)",
+      "Fix: Duplicate visitor search now uses an isActive cleanup flag — prevents stale fetch responses from overwriting the correct duplicates list when the staff member types quickly",
+    ]
+  },
+  {
     version: "8.51.0",
     date: "2026-02-28",
     title: "Critical Webhook & Billing Safety Fixes",

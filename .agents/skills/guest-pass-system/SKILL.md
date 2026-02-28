@@ -187,6 +187,8 @@ The GET endpoint calculates pending guest count by:
 - Always normalize email to lowercase for all guest pass operations
 - Reject placeholder guests (`"Guest 1"`, `"Guest 2"`, etc.) from pass consumption via regex `/^Guest \d+$/i`
 - Guest pass holds expire after 30 days
+- **Hold-to-usage conversion must use `Math.min(passesHeld, guestPassesUsed)`** — never trust that holds match the final guest count. Mark only `actualPassesDeducted` guests as `payment_status = 'paid'`; shortfall guests must flow through standard fee billing.
+- **Never refund guest passes from `tryLinkCancelledBooking`** — cancellation workflows already handle their own refunds. Delayed Trackman links must only update the Trackman ID and notes, not trigger secondary financial actions.
 - Call `broadcastMemberStatsUpdated(email, { guestPasses: remaining })` after pass use/refund to update the UI via WebSocket
 - All transactional operations use `BEGIN`/`COMMIT`/`ROLLBACK` with proper error handling
 - Use `SELECT FOR UPDATE` to prevent race conditions on concurrent pass operations
