@@ -306,9 +306,36 @@ export function TrackmanBookingModal({
                 <span className="text-blue-700/70 dark:text-blue-300/70">Total Players</span>
                 <p className="font-medium text-blue-900 dark:text-blue-100">
                   {totalPlayers} {totalPlayers === 1 ? 'player' : 'players'}
-                  {guests.length > 0 && ` (1 member + ${guests.length} guest${guests.length > 1 ? 's' : ''})`}
+                  {(enrichedParticipants.length > 0 || guests.length > 0) && (() => {
+                    const memberCount = 1 + enrichedParticipants.filter(p => p.type === 'member').length;
+                    const guestCount = guests.length + enrichedParticipants.filter(p => p.type === 'guest').length;
+                    const parts: string[] = [];
+                    parts.push(`${memberCount} member${memberCount !== 1 ? 's' : ''}`);
+                    if (guestCount > 0) parts.push(`${guestCount} guest${guestCount !== 1 ? 's' : ''}`);
+                    return ` (${parts.join(' + ')})`;
+                  })()}
                 </p>
               </div>
+              {enrichedParticipants.length > 0 && (
+                <div className="col-span-2">
+                  <span className="text-blue-700/70 dark:text-blue-300/70">Added Players</span>
+                  <div className="mt-1 space-y-1">
+                    {enrichedParticipants.map((p, i) => (
+                      <div key={i} className="flex items-center gap-2 text-sm">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded ${p.type === 'member' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
+                          {p.type === 'member' ? 'Member' : 'Guest'}
+                        </span>
+                        <span className="font-medium text-blue-900 dark:text-blue-100">
+                          {p.name || p.email || 'Unknown'}
+                        </span>
+                        {p.name && p.email && (
+                          <span className="text-blue-700/50 dark:text-blue-300/50 text-xs">{p.email}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

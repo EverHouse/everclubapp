@@ -272,6 +272,11 @@ const BookGolf: React.FC = () => {
   const guestsWithInfo = activeTab === 'simulator'
     ? playerSlots.filter(slot => slot.type === 'guest' && (slot.selectedId || (slot.firstName?.trim() && slot.lastName?.trim() && slot.email && slot.email.includes('@')))).length
     : 0;
+  const memberUserIds = activeTab === 'simulator'
+    ? playerSlots
+        .filter(slot => slot.type === 'member' && slot.selectedId)
+        .map(slot => slot.selectedId!)
+    : [];
   const memberEmails = activeTab === 'simulator'
     ? playerSlots
         .filter(slot => slot.type === 'member' && slot.email)
@@ -287,6 +292,9 @@ const BookGolf: React.FC = () => {
       resourceType: activeTab === 'conference' ? 'conference_room' : 'simulator',
       guestsWithInfo: guestsWithInfo.toString()
     });
+    if (memberUserIds.length > 0) {
+      params.set('memberUserIds', memberUserIds.join(','));
+    }
     if (memberEmails.length > 0) {
       params.set('memberEmails', memberEmails.join(','));
     }
@@ -294,7 +302,7 @@ const BookGolf: React.FC = () => {
       params.set('email', effectiveUser.email);
     }
     return params.toString();
-  }, [duration, guestCount, guestsWithInfo, effectivePlayerCount, selectedDateObj?.date, activeTab, effectiveUser?.email, isAdminViewingAs, playerSlots, memberEmails]);
+  }, [duration, guestCount, guestsWithInfo, effectivePlayerCount, selectedDateObj?.date, activeTab, effectiveUser?.email, isAdminViewingAs, playerSlots, memberUserIds, memberEmails]);
 
   const { data: feeEstimateData, isLoading: feeEstimateLoading } = useQuery({
     queryKey: bookGolfKeys.feeEstimate(feeEstimateParams),

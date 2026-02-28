@@ -130,6 +130,20 @@ const PendingRequestsCard = memo<PendingRequestsCardProps>(({
                         <p className="text-xs text-primary/80 dark:text-white/80">
                           {formatTime12Hour(request.start_time)} - {formatTime12Hour(request.end_time)} • {request.bay_name}
                         </p>
+                        {((request.declared_player_count && request.declared_player_count > 1) || (request.request_participants && request.request_participants.length > 0)) && (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="material-symbols-outlined text-xs text-primary/50 dark:text-white/50">group</span>
+                            <span className="text-[11px] text-primary/60 dark:text-white/60">
+                              {request.declared_player_count ?? 1} players
+                              {request.request_participants && request.request_participants.length > 0 && (
+                                <>
+                                  {' — '}
+                                  {request.request_participants.map(p => p.name || p.email || (p.type === 'member' ? 'Member' : 'Guest')).join(', ')}
+                                </>
+                              )}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     {request.has_conflict && (

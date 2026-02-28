@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '../../db';
 import { pool } from '../../core/db';
 import { bookingRequests, resources, users, bookingParticipants, notifications } from '../../../shared/schema';
-import { eq, and, or, ne, desc, sql, SQL } from 'drizzle-orm';
+import { eq, and, or, ne, desc, sql, SQL, inArray } from 'drizzle-orm';
 import { sendPushNotification } from '../push';
 import { checkDailyBookingLimit, getMemberTierByEmail, getTierLimits, getDailyBookedMinutes } from '../../core/tierService';
 import { notifyAllStaff } from '../../core/notificationService';
@@ -1699,7 +1699,30 @@ router.get('/api/fee-estimate', async (req, res) => {
     const resourceType = (req.query.resourceType as string) || 'simulator';
     const guestsWithInfo = parseInt(req.query.guestsWithInfo as string) || 0;
     const memberEmailsParam = req.query.memberEmails as string | undefined;
-    const memberEmails = memberEmailsParam ? memberEmailsParam.split(',').map(e => e.trim().toLowerCase()).filter(Boolean) : [];
+    let memberEmails = memberEmailsParam ? memberEmailsParam.split(',').map(e => e.trim().toLowerCase()).filter(Boolean) : [];
+    
+    const memberUserIdsParam = req.query.memberUserIds as string | undefined;
+    const memberUserIds = memberUserIdsParam ? memberUserIdsParam.split(',').map(id => id.trim()).filter(Boolean) : [];
+    
+    if (memberUserIds.length > 0) {
+      try {
+        const resolvedUsers = await db.select({ id: users.id, email: users.email })
+          .from(users)
+          .where(inArray(users.id, memberUserIds));
+        const resolvedEmails = resolvedUsers
+          .map(u => u.email?.toLowerCase())
+          .filter((e): e is string => !!e);
+        const existingSet = new Set(memberEmails);
+        for (const email of resolvedEmails) {
+          if (!existingSet.has(email)) {
+            memberEmails.push(email);
+            existingSet.add(email);
+          }
+        }
+      } catch (err: unknown) {
+        logger.error('[FeeEstimate] Failed to resolve member user IDs to emails', { error: err instanceof Error ? err : new Error(String(err)) });
+      }
+    }
     
     // Members can only check their own fees
     const ownerEmail = isStaff && req.query.email 

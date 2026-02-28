@@ -21,7 +21,7 @@ export interface BookingRequest {
   declared_player_count?: number | null;
   guest_count?: number | null;
   is_unmatched?: boolean;
-  request_participants?: Array<{ email: string; type: 'member' | 'guest' }> | null;
+  request_participants?: Array<{ email?: string; type: 'member' | 'guest'; userId?: string; name?: string }> | null;
   trackman_booking_id?: string | null;
   trackman_player_count?: number | null;
   filled_player_count?: number;

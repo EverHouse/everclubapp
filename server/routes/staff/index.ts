@@ -49,7 +49,9 @@ router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
         firstName: users.firstName,
         lastName: users.lastName,
         email: users.email,
-        resourceName: resources.name
+        resourceName: resources.name,
+        declaredPlayerCount: bookingRequests.declaredPlayerCount,
+        requestParticipants: bookingRequests.requestParticipants
       })
         .from(bookingRequests)
         .leftJoin(users, eq(users.id, bookingRequests.userId))
