@@ -1446,6 +1446,7 @@ async function calculateFeeEstimate(params: {
   resourceType?: string;
   guestsWithInfo?: number;
   memberEmails?: string[];
+  memberEmailToUserId?: Map<string, string>;
 }) {
   const { ownerEmail, durationMinutes, guestCount, requestDate, playerCount, sessionId, bookingId, resourceType } = params;
   
@@ -1476,11 +1477,14 @@ async function calculateFeeEstimate(params: {
   // Add additional members (other club members in the booking)
   // This prevents them from being counted as empty slots (which would charge extra guest fees)
   const memberEmails = params.memberEmails || [];
+  const emailToUserId = params.memberEmailToUserId || new Map<string, string>();
   const inferredMemberCount = Math.max(0, playerCount - guestCount - 1);
   const memberCount = memberEmails.length > 0 ? memberEmails.length : inferredMemberCount;
   for (let i = 0; i < memberCount; i++) {
     const memberEmail = memberEmails[i] || undefined;
+    const memberUserId = memberEmail ? emailToUserId.get(memberEmail) : undefined;
     participants.push({ 
+      userId: memberUserId,
       email: memberEmail, 
       displayName: memberEmail ? `Member ${i + 1}` : `Estimated Member ${i + 1}`, 
       participantType: 'member' 
@@ -1704,19 +1708,21 @@ router.get('/api/fee-estimate', async (req, res) => {
     const memberUserIdsParam = req.query.memberUserIds as string | undefined;
     const memberUserIds = memberUserIdsParam ? memberUserIdsParam.split(',').map(id => id.trim()).filter(Boolean) : [];
     
+    const memberEmailToUserId = new Map<string, string>();
     if (memberUserIds.length > 0) {
       try {
         const resolvedUsers = await db.select({ id: users.id, email: users.email })
           .from(users)
           .where(inArray(users.id, memberUserIds));
-        const resolvedEmails = resolvedUsers
-          .map(u => u.email?.toLowerCase())
-          .filter((e): e is string => !!e);
         const existingSet = new Set(memberEmails);
-        for (const email of resolvedEmails) {
-          if (!existingSet.has(email)) {
-            memberEmails.push(email);
-            existingSet.add(email);
+        for (const u of resolvedUsers) {
+          const email = u.email?.toLowerCase();
+          if (email) {
+            memberEmailToUserId.set(email, u.id);
+            if (!existingSet.has(email)) {
+              memberEmails.push(email);
+              existingSet.add(email);
+            }
           }
         }
       } catch (err: unknown) {
@@ -1737,6 +1743,7 @@ router.get('/api/fee-estimate', async (req, res) => {
       playerCount,
       resourceType,
       memberEmails,
+      memberEmailToUserId,
       guestsWithInfo
     });
     
