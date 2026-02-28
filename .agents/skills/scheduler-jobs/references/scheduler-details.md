@@ -106,14 +106,6 @@ Uses DB connection timeouts (10s) and statement timeouts (30s) for safety.
 4. If 2+ bookings expired, send summary notification to all staff (up to 5 listed)
 5. Initial run after 1 minute delay
 
-### Relocation Cleanup (5 min)
-
-**File:** `server/schedulers/relocationCleanupScheduler.ts`
-**Interval:** 5 min | **Time Gate:** None
-
-1. Call `clearStaleRelocations()` from `server/routes/bays/reschedule`
-2. Remove bay relocation records that are no longer active
-
 ### Stuck Cancellation (2 hr)
 
 **File:** `server/schedulers/stuckCancellationScheduler.ts`
@@ -245,18 +237,6 @@ Each sync uses `syncWithRetry()`: attempt once, if failed retry after 5 seconds.
 4. Limit: 50 per run
 5. Initial run after 1 minute delay
 
-### Invite Expiry (5 min)
-
-**File:** `server/schedulers/inviteExpiryScheduler.ts`
-**Interval:** 5 min | **Time Gate:** None
-
-1. Query `booking_participants` with `invite_status = 'pending'`, `invite_expires_at < NOW()`, `participant_type = 'member'`
-2. For each expired invite:
-   - Update status to `expired`, set `expired_reason = 'auto_expired'`
-   - Look up member email and delete from `booking_members`
-   - Notify booking owner that the invite expired
-3. Run within per-invite transactions
-
 ## Compliance Schedulers
 
 ### Integrity Check (Midnight Pacific)
@@ -305,3 +285,15 @@ Each sync uses `syncWithRetry()`: attempt once, if failed retry after 5 seconds.
 2. Claim monthly slot via `tryClaimResetSlot(monthKey)` — key `last_guest_pass_reset`, value format `YYYY-MM`
 3. UPDATE `guest_passes` SET `passes_used = 0` WHERE `passes_used > 0`
 4. Log each member's reset status
+
+## Infrastructure Schedulers
+
+### Supabase Heartbeat (6 hr)
+
+**File:** `server/schedulers/supabaseHeartbeatScheduler.ts`
+**Interval:** 6 hr | **Time Gate:** None
+
+1. Skip if Supabase is not configured
+2. Ping Supabase by querying user count
+3. Log successful heartbeat with user count
+4. Record run via `schedulerTracker.recordRun('Supabase Heartbeat', ...)`

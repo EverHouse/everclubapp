@@ -178,7 +178,7 @@ Every 30 seconds:
 |---|---|
 | All users | `broadcastToAllMembers`, `broadcastAnnouncementUpdate`, `broadcastAvailabilityUpdate`, `broadcastWaitlistUpdate`, `broadcastClosureUpdate`, `broadcastCafeMenuUpdate` |
 | Staff only | `broadcastToStaff`, `broadcastBookingEvent`, `broadcastDirectoryUpdate`, `broadcastMemberDataUpdated`, `broadcastDayPassUpdate`, `broadcastDataIntegrityUpdate` |
-| Member + staff | `broadcastMemberStatsUpdated`, `broadcastTierUpdate`, `broadcastBillingUpdate` |
+| Member + staff | `broadcastMemberStatsUpdated`, `broadcastTierUpdate`, `broadcastBillingUpdate`, `broadcastBookingRosterUpdate` |
 | Single user | `sendNotificationToUser` |
 
 ## Graceful Shutdown

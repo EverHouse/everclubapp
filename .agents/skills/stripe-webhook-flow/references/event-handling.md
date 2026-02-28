@@ -202,6 +202,100 @@ The webhook system does not auto-sync discount rules to Stripe. Instead:
 - Coupons are then applied to checkouts by code (checkout form or backend Stripe operations)
 - Use `getDiscountSyncStatus()` to verify all rules are synced and up-to-date in Stripe
 
+## Customer Events
+
+### `customer.created` → `handleCustomerCreated`
+
+- Log new Stripe customer creation
+- If customer email matches an existing user without a `stripe_customer_id`, attach the customer ID
+- **Deferred:** audit log
+
+### `customer.updated` → `handleCustomerUpdated`
+
+- Sync updated customer metadata (email, name) to local user record if applicable
+- **Deferred:** audit log
+
+### `customer.deleted` → `handleCustomerDeleted`
+
+- Clear `stripe_customer_id` from matching user record
+- **Deferred:** audit log, staff notification
+
+## Payment Method Events
+
+### `payment_method.attached` → `handlePaymentMethodAttached`
+
+- Update user's `requires_card_update = false` if a new payment method is attached
+- For MindBody-billed members: notify staff that member has saved a card and is eligible for migration
+- **Deferred:** staff notification (for MindBody members), billing broadcast
+
+### `payment_method.detached` → `handlePaymentMethodDetached`
+
+- Check remaining payment methods on customer
+- If zero remaining: set `requires_card_update = true`
+- **Deferred:** audit log
+
+### `payment_method.updated` → `handlePaymentMethodUpdated`
+
+- Update card expiry tracking on user record
+- **Deferred:** audit log
+
+### `payment_method.automatically_updated` → `handlePaymentMethodAutoUpdated`
+
+- Handle automatic card updates from card networks (e.g., new expiry date)
+- Update card expiry tracking
+- **Deferred:** audit log, member notification
+
+## Setup Intent Events
+
+### `setup_intent.succeeded` → `handleSetupIntentSucceeded`
+
+- For MindBody-billed members: notify staff that member has saved a card and is eligible for migration
+- **Deferred:** staff notification, billing broadcast
+
+### `setup_intent.setup_failed` → `handleSetupIntentFailed`
+
+- Log setup failure details
+- **Deferred:** audit log
+
+## Checkout Session Additional Events
+
+### `checkout.session.expired` → `handleCheckoutSessionExpired`
+
+- Log expired checkout sessions
+- Clean up any pending state related to the session
+- **Deferred:** audit log
+
+### `checkout.session.async_payment_succeeded` → `handleCheckoutSessionAsyncPaymentSucceeded`
+
+- Handle delayed payment methods (ACH, Klarna, Affirm)
+- For day pass purchases: call `recordDayPassPurchaseFromWebhook()`, send QR code email, notify staff
+- Must maintain payload parity with synchronous `handleCheckoutSessionCompleted`
+- **Throws** on failure so Stripe retries
+
+### `checkout.session.async_payment_failed` → `handleCheckoutSessionAsyncPaymentFailed`
+
+- Log async payment failure
+- **Deferred:** staff notification, audit log
+
+## Invoice Additional Events
+
+### `invoice.payment_action_required` → `handleInvoicePaymentActionRequired`
+
+- Notify member that payment action is required (e.g., 3D Secure authentication)
+- **Deferred:** member notification, staff notification
+
+### `invoice.overdue` → `handleInvoiceOverdue`
+
+- Handle overdue invoices
+- **Deferred:** staff notification, audit log
+
+## Charge Additional Events
+
+### `charge.dispute.updated` → `handleChargeDisputeUpdated`
+
+- Update dispute tracking with latest status/evidence details
+- **Deferred:** staff notification, audit log
+
 ## Credit Note Events
 
 ### `credit_note.created` → `handleCreditNoteCreated`

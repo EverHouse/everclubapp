@@ -25,7 +25,6 @@ All mutating routes (POST/PUT/PATCH/DELETE) must be protected. Two equivalent pa
 
 - `bookings.ts` — Booking CRUD, cancellation flow
 - `approval.ts` — Booking approval, rejection, prepayment
-- `reschedule.ts` — Booking rescheduling
 - `calendar.ts` — Booking calendar views
 - `resources.ts` — Bay/resource management
 - `notifications.ts` — Booking notifications
@@ -41,7 +40,6 @@ All mutating routes (POST/PUT/PATCH/DELETE) must be protected. Two equivalent pa
 - `member-payments.ts` — Member-facing payment endpoints
 - `subscriptions.ts` — Subscription management
 - `invoices.ts` — Invoice endpoints
-- `overage.ts` — Overage fee endpoints
 - `admin.ts` — Stripe admin tools
 - `config.ts` — Stripe config endpoints
 - `coupons.ts` — Coupon management
@@ -103,6 +101,7 @@ All mutating routes (POST/PUT/PATCH/DELETE) must be protected. Two equivalent pa
 - `resources.ts` — Resource/bay CRUD
 - `availability.ts` — Availability endpoint
 - `staffCheckin.ts` — Check-in flow, fee calculation
+- `nfcCheckin.ts` — NFC check-in endpoints
 - `notifications.ts` — Notification CRUD
 - `announcements.ts` — Club announcements
 - `events.ts` — Event management, Eventbrite sync
@@ -142,7 +141,6 @@ All mutating routes (POST/PUT/PATCH/DELETE) must be protected. Two equivalent pa
 - `resendWebhooks.ts` — Resend email webhooks
 - `legacyPurchases.ts` — Legacy purchase import
 - `mindbody.ts` — MindBody import endpoints
-- `mcp.ts` — MCP tool endpoints
 - `testAuth.ts` — Dev-only test auth
 - `emailTemplates.ts` — Email template preview endpoints
 - `monitoring.ts` — System monitoring endpoints

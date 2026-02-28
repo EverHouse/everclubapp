@@ -134,15 +134,20 @@ Two cancellation paths:
 **Trackman cancel** (`cancelBookingByTrackmanId()`):
 
 1. Find booking by `trackman_booking_id`.
-2. Update status to `'cancelled'`, append `'[Cancelled via Trackman webhook]'` to staff notes.
-4. Clear pending fees: set `booking_participants.cached_fee_cents = 0`, `payment_status = 'waived'` for the session's pending participants.
-5. Cancel pending Stripe payment intents (same as member flow).
-5a. Handle Stripe invoice cleanup via `voidBookingInvoice(bookingId)` (non-blocking). This handles all invoice states: draft (deletes), open (voids), paid (auto-refunds via `stripe.refunds.create`, notifies staff on failure), void/uncollectible (skips).
-6. Refund already-paid participant fees: for each participant with `payment_status='paid'`, call `stripe.refunds.create()`. On refund success, call `PaymentStatusService.markPaymentRefunded()` to update participant and payment records to `'refunded'`. Each participant's status update runs only after its individual refund succeeds — never bulk-update all participants before confirming each refund. (Fixed v8.26.7, Bugs 12 & 15)
-7. Refund guest passes via `refundGuestPassesForCancelledBooking()`.
-8. Notify staff and member. If `wasPendingCancellation`, send member a confirmation push notification.
-9. Log audit entry via `logSystemAction({ action: 'booking_cancelled_webhook' })`.
-10. Broadcast availability update.
+2. If already cancelled, return early.
+3. Detect if `wasPendingCancellation` (status was `cancellation_pending`).
+4. Delegate to `BookingStateService`:
+   - If `wasPendingCancellation` → `BookingStateService.completePendingCancellation()`.
+   - Otherwise → `BookingStateService.cancelBooking()` with `source: 'trackman_webhook'` and staff notes `'[Cancelled via Trackman webhook]'`.
+5. `BookingStateService` handles all side effects atomically via a side-effects manifest:
+   - Refund Stripe payment intents (paid → refund, pending → cancel).
+   - Refund balance payments (credit balance restoration).
+   - Void booking invoice via `voidBookingInvoice(bookingId)`.
+   - Delete Google Calendar event.
+   - Release guest pass holds.
+   - Notify staff and member (push + WebSocket).
+   - Publish `booking_cancelled` event.
+   - Broadcast availability update.
 
 ### 8. Auto Check-In (status: `attended`)
 
@@ -238,7 +243,7 @@ Resource type?
 
 17. **Conflict check scope**: `checkBookingConflict()`, `checkAvailabilityBlockConflict()`, and `checkSessionConflict()` use simple time overlap logic (`start < end AND end > start`). This is correct because bookings and availability blocks are constrained to single-day, same-day time windows — cross-midnight bookings cannot be created (club closes at 10 PM). Only `hasTimeOverlap()` in closure checks needs overnight wrap-around handling, because facility closures CAN span midnight (e.g., 22:00–06:00). **`checkBookingConflict()` must check all 6 active statuses**: `pending`, `pending_approval`, `approved`, `confirmed`, `attended`, `cancellation_pending` — matching the inline SQL in `bookings.ts` line 568. Missing statuses allow double-bookings through code paths that use `checkAllConflicts`. (v8.26.7)
 
-19. **Booking expiry includes pending_approval + Trackman guard + WebSocket broadcast**: The booking expiry scheduler (`bookingExpiryScheduler.ts`) targets both `pending` and `pending_approval` bookings. It waits 20 minutes past the booking `start_time` before acting. **Trackman-linked bookings** (those with a `trackman_booking_id`) are set to `cancellation_pending` instead of `expired`, so the Trackman hardware cleanup flow runs and the physical bay is unlocked. Non-Trackman bookings are set to `expired` directly. After each status change, the scheduler calls `broadcastAvailabilityUpdate()` for every affected booking with a `resourceId`, so front desk iPads and member phones update instantly. The scheduler tracks its `setTimeout` timer IDs and clears them on shutdown. The manual expiry endpoint also includes `pending_approval` in its query. (v8.26.7)
+19. **Booking expiry includes pending_approval + Trackman guard + WebSocket broadcast**: The booking expiry scheduler (`bookingExpiryScheduler.ts`) targets both `pending` and `pending_approval` bookings. It waits 20 minutes past the booking `start_time` before acting. **Trackman-linked bookings** (those with a `trackman_booking_id`) are set to `cancellation_pending` instead of `expired`, so the Trackman hardware cleanup flow runs and the physical bay is unlocked. Non-Trackman bookings are set to `expired` directly. After each status change, the scheduler calls `broadcastAvailabilityUpdate()` for every affected booking with a `resourceId`, so front desk iPads and member phones update instantly. The scheduler tracks its `setTimeout` timer IDs and clears them on shutdown. The manual expiry endpoint also includes `pending_approval` in its query.
 
 20. **Roster fetch race protection**: `fetchRosterData()` in `useUnifiedBookingLogic.ts` uses a `rosterFetchIdRef` counter to prevent stale roster data from overwriting current state. Each fetch increments the counter, and after `await`, checks that it hasn't been superseded by a newer fetch. This prevents rapid-fire WebSocket events from causing the UI to flicker with old data. (v8.26.7)
 
@@ -353,6 +358,7 @@ When Trackman sends a Booking Update webhook with changes (bay, time, date), the
 **Key Implementation Files:**
 - `server/core/bookingService/tierRules.ts` — Tier validation rules, daily minute limits, Social tier guest restrictions, and `TierValidationResult` interface. See `references/server-flow.md#tier-validation-rules` for detailed documentation.
 - `server/core/bookingService/sessionManager.ts` — Session creation, participant linking, usage ledger recording, and guest pass deduction.
+- `server/core/bookingService/bookingStateService.ts` — `BookingStateService` class: centralized cancellation (member and Trackman), `completePendingCancellation()`, side-effects manifest for atomic cleanup (Stripe refunds, balance restoration, invoice void, calendar deletion, guest pass release, notifications).
 - `server/core/bookingService/conflictDetection.ts` — Booking conflict detection (owner and participant conflicts).
 - `server/core/bookingValidation.ts` — Centralized booking conflict detection (`checkBookingConflict`). Used by booking creation for consistent conflict validation with advisory locks.
 - `server/core/bookingService/availabilityGuard.ts` — Availability validation (closures, blocks, session overlaps).

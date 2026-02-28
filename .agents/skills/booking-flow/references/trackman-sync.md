@@ -66,14 +66,20 @@ Webhook payload arrives
 ```
 cancelBookingByTrackmanId(trackmanBookingId)
   ├── Find booking by trackman_booking_id
-  ├── Guard: if is_relocating=true → unlink trackman_booking_id, skip cancellation
-  ├── UPDATE status='cancelled'
-  ├── Clear pending fees on booking_participants
-  ├── Cancel pending Stripe payment intents
-  ├── Refund paid participant fees (stripe.refunds.create)
-  ├── refundGuestPassesForCancelledBooking()
-  ├── Notify staff and member
-  └── broadcastAvailabilityUpdate({ action: 'cancelled' })
+  ├── If already cancelled → return early
+  ├── Detect wasPendingCancellation (status === 'cancellation_pending')
+  ├── Delegate to BookingStateService:
+  │   ├── If wasPendingCancellation → completePendingCancellation()
+  │   └── Else → cancelBooking() with source: 'trackman_webhook'
+  ├── BookingStateService handles all side effects:
+  │   ├── Refund/cancel Stripe payment intents
+  │   ├── Refund balance payments
+  │   ├── Void booking invoice
+  │   ├── Delete calendar event
+  │   ├── Release guest pass holds
+  │   ├── Notify staff and member
+  │   └── Broadcast availability update
+  └── Return { cancelled, bookingId, wasPendingCancellation }
 ```
 
 ### Delta Billing on Duration Change
@@ -198,7 +204,7 @@ The overage rate comes from `membership_tiers.guest_fee_cents` for the member's 
 
 ## Calendar Sync
 
-Golf calendar sync (`server/core/calendar/sync/golf.ts`) is **deprecated** — bookings are done in-app only. The module returns immediately without performing any sync operations. Calendar events are still created per-booking during the approval flow via `createCalendarEventOnCalendar()` in the approval handler.
+Golf calendar sync has been removed (the `server/core/calendar/sync/golf.ts` file no longer exists). Bookings are done in-app only. Calendar events are still created per-booking during the approval flow via `createCalendarEventOnCalendar()` in the approval handler.
 
 ## Key Integration Points
 

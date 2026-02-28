@@ -20,7 +20,7 @@ The monitoring system operates as a layered defense against data corruption, syn
 │               Alert & Notification Layer                  │
 │  dataAlerts.ts  •  errorAlerts.ts  •  monitoring.ts       │
 ├─────────────────────────────────────────────────────────┤
-│               Scheduler Engine (27+ tasks)                │
+│               Scheduler Engine (27 tasks)                  │
 │  server/schedulers/index.ts  •  schedulerTracker.ts       │
 ├─────────────────────────────────────────────────────────┤
 │               Database  •  External Services              │
@@ -32,7 +32,7 @@ The monitoring system operates as a layered defense against data corruption, syn
 
 | Component | File | Purpose |
 |---|---|---|
-| Integrity Engine | `server/core/dataIntegrity.ts` | Run 29 integrity checks, store history, track issues, support ignore rules and audit log |
+| Integrity Engine | `server/core/dataIntegrity.ts` | Run 30 integrity checks, store history, track issues, support ignore rules and audit log |
 | Data Alerts | `server/core/dataAlerts.ts` | Send in-app staff notifications for integrity failures, sync errors, import issues |
 | Error Alerts | `server/core/errorAlerts.ts` | Send email alerts for server errors, payment failures, external service issues |
 | Monitoring Core | `server/core/monitoring.ts` | Log alerts to `system_alerts` table, provide in-memory recent alert buffer |
@@ -48,7 +48,7 @@ The monitoring system operates as a layered defense against data corruption, syn
 
 ### Integrity Check Severities
 
-Each of the 29 integrity checks has an assigned severity in `severityMap`:
+Each of the 30 integrity checks has an assigned severity in `severityMap`:
 
 - **Critical** — Require immediate attention. Trigger staff notifications on every run if status is `fail`. Examples: Stripe Subscription Sync, Billing Provider Hybrid State, Orphaned Payment Intents, Deal Stage Drift, Stuck Transitional Members, Invoice-Booking Reconciliation, Overlapping Bookings, Active Bookings Without Sessions.
 - **High** — Trigger notifications when issue count exceeds a threshold (default 10). Examples: Tier Reconciliation, Duplicate Stripe Customers, Members Without Email, HubSpot ID Duplicates, Guest Pass Accounting Drift, Stale Pending Bookings.
@@ -134,7 +134,7 @@ The integrity scheduler (`server/schedulers/integrityScheduler.ts`) polls every 
 
 1. Claim a database lock via `system_settings` (upsert with `IS DISTINCT FROM` guard) to prevent duplicate execution across multiple deployment instances.
 2. Run pre-check cleanup: remove orphaned notifications, mark orphaned bookings, normalize emails.
-3. Execute all 25 integrity checks in parallel via `runAllIntegrityChecks()`.
+3. Execute all 30 integrity checks in parallel via `runAllIntegrityChecks()`.
 4. Apply active ignore rules (time-bounded, stored in `integrity_ignores` table).
 5. Store results in `integrity_check_history` (JSON blob + summary counts).
 6. Update `integrity_issues_tracking` — mark new issues, auto-resolve issues no longer detected.
@@ -143,7 +143,7 @@ The integrity scheduler (`server/schedulers/integrityScheduler.ts`) polls every 
 
 ### On-Demand Execution
 
-Staff can trigger a manual integrity check from the admin dashboard. This calls `runManualIntegrityCheck()` which runs the same 25 checks but skips the database lock claim and always sends an email if errors are found.
+Staff can trigger a manual integrity check from the admin dashboard. This calls `runManualIntegrityCheck()` which runs the same 30 checks but skips the database lock claim and always sends an email if errors are found.
 
 ### Cached Results
 
@@ -153,7 +153,7 @@ Staff can trigger a manual integrity check from the admin dashboard. This calls 
 
 ### Scheduler Tracker
 
-`schedulerTracker.ts` maintains an in-memory registry of all 28 schedulers. Each scheduler calls `registerScheduler(name, intervalMs)` at startup and `recordRun(name, success, error?, durationMs?)` after each execution. The admin dashboard queries `/api/admin/monitoring/schedulers` to display:
+`schedulerTracker.ts` maintains an in-memory registry of all 27 schedulers. Each scheduler calls `registerScheduler(name, intervalMs)` at startup and `recordRun(name, success, error?, durationMs?)` after each execution. The admin dashboard queries `/api/admin/monitoring/schedulers` to display:
 
 - Task name, last run time, result (success/error/pending)
 - Run count, last duration, expected interval, next expected run
@@ -204,7 +204,7 @@ The system includes automated correction tasks:
 - **Stripe Reconciliation** (daily at 5am Pacific) — Compare Stripe subscriptions and daily payments against database records. Uses database lock for multi-instance safety.
 - **Fee Snapshot Reconciliation** (every 15min) — Reconcile fee snapshot records against actual billing data.
 - **Abandoned Pending Cleanup** (every 6h) — Delete users stuck in `pending` status >24h with no Stripe subscription, cascade-deleting related records in a transaction.
-- **Booking Auto-Complete** (every 2h) — Mark approved/confirmed bookings as attended (auto checked-in) 24h after end time. **Fee guard**: only auto-completes if the booking has no session (zero fees) OR all participants are paid/waived/zero-fee. Bookings with unpaid fees (`cached_fee_cents > 0` and `payment_status = 'pending'`) remain as approved/confirmed so staff can follow up. Also calls `ensureSessionForBooking()` for each booking without a session.
+- **Booking Auto-Complete** (every 30min) — Mark approved/confirmed bookings as attended (auto checked-in) 30 min after end time for same-day bookings, or next day for overnight sessions. **Fee guard**: only auto-completes if the booking has no session (zero fees) OR all participants are paid/waived/zero-fee. Bookings with unpaid fees (`cached_fee_cents > 0` and `payment_status = 'pending'`) remain as approved/confirmed so staff can follow up. Also calls `ensureSessionForBooking()` for each booking without a session.
 - **DB-Init Billing Provider Default** (startup) — Sets column default to `'stripe'` via `ALTER TABLE`. Also migrates any existing `billing_provider='hubspot'` values to `'manual'`.
 
 ## Dashboard Overview
@@ -247,16 +247,15 @@ The following production error patterns were discovered and fixed during the Feb
 
 ### Integrity Hardening (Feb 26, 2026)
 
-1. **3 checks wired into runAllIntegrityChecks** — `checkDuplicateTourSources`, `checkStalePastTours`, and new `checkOrphanedUsageLedgerEntries` were added. Total checks: 32 (was 29).
-2. **Orphaned Usage Ledger check** — Detects `usage_ledger` entries referencing non-existent `booking_sessions` (billing-critical, severity: critical). Scans 90-day window.
-3. **Unsafe sessionId fallback fixed** — `payment.sessionId || 0` in refund logic replaced with `?? null` to avoid false-matching session_id=0.
-4. **Payment status optimistic locking** — `payment_status = 'pending'` update in prepayment flow widened to `IN ('pending', 'unpaid')` for correct state matching.
-5. **Supabase exec_sql warning suppressed** — `exec_sql` RPC unavailability downgraded from WARN to DEBUG to reduce log noise.
+1. **`checkStalePastTours` wired into runAllIntegrityChecks** — Total checks: 30.
+2. **Unsafe sessionId fallback fixed** — `payment.sessionId || 0` in refund logic replaced with `?? null` to avoid false-matching session_id=0.
+3. **Payment status optimistic locking** — `payment_status = 'pending'` update in prepayment flow widened to `IN ('pending', 'unpaid')` for correct state matching.
+4. **Supabase exec_sql warning suppressed** — `exec_sql` RPC unavailability downgraded from WARN to DEBUG to reduce log noise.
 
 ## Reference Files
 
-- **[references/integrity-checks.md](references/integrity-checks.md)** — Complete list of all 32 integrity checks with detection logic, severity, and recommended actions. Also covers webhook, job queue, and HubSpot queue monitors.
-- **[references/scheduler-map.md](references/scheduler-map.md)** — All 27+ scheduled tasks with frequencies, execution windows, and multi-instance safety details.
+- **[references/integrity-checks.md](references/integrity-checks.md)** — Complete list of all 30 integrity checks with detection logic, severity, and recommended actions. Also covers webhook, job queue, and HubSpot queue monitors.
+- **[references/scheduler-map.md](references/scheduler-map.md)** — All 27 scheduled tasks with frequencies, execution windows, and multi-instance safety details.
 
 ## Database Tables Used by Monitoring
 
@@ -279,7 +278,7 @@ The following production error patterns were discovered and fixed during the Feb
 
 | File | Role |
 |---|---|
-| `server/core/dataIntegrity.ts` | 29 integrity checks, issue tracking, ignore rules, audit log, sync push/pull, bulk operations |
+| `server/core/dataIntegrity.ts` | 30 integrity checks, issue tracking, ignore rules, audit log, sync push/pull, bulk operations |
 | `server/core/dataAlerts.ts` | In-app staff notifications for imports, sync failures, integrity issues, scheduled task failures |
 | `server/core/errorAlerts.ts` | Email alerts with plain-language translation, rate limiting, transient error filtering |
 | `server/core/monitoring.ts` | Alert logging to `system_alerts` table and in-memory buffer |

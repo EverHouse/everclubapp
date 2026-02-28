@@ -208,10 +208,10 @@ The **Unified Booking Sheet** (`UnifiedBookingSheet.tsx` + `useUnifiedBookingLog
 - Inline payment collection via Stripe, fee waiver with required reason
 - Quick Add from Notes, player count editing, check-in flow integration
 
-**DEPRECATED components (do NOT use or extend):**
-- `src/components/admin/BookingMembersEditor.tsx` — replaced by Mode B
+**DEPRECATED components (already removed, do NOT recreate):**
+- `BookingMembersEditor.tsx` — replaced by Mode B
 - `PlayerManagementModal.tsx` — replaced by UnifiedBookingSheet
-- `src/components/staff-command-center/modals/CompleteRosterModal.tsx` — replaced by Mode B with check-in context
+- `CompleteRosterModal.tsx` — replaced by Mode B with check-in context
 
 **All triggers route to the Unified Booking Sheet:**
 - Owner edit pencil icon → Mode B
@@ -249,11 +249,9 @@ ALL booking actions (Check-in, Cancel, Pay/Charge) in the frontend are centraliz
 
 | Directory | Purpose | Editable? |
 |-----------|---------|-----------|
-| `tests/unit/` | Vitest unit tests | When adding/changing logic |
-| `tests/e2e/` | Playwright E2E tests | When adding features |
+| `tests/` | Vitest test setup | When adding/changing logic |
 | `public/` | PWA manifest, service worker, static images | When changing PWA config |
 | `drizzle/` | Auto-generated migrations & snapshots | NEVER edit manually |
-| `docs/` | ER diagrams, feature roadmap, UI audit, API docs | Reference only |
 | `scripts/` | Root-level maintenance scripts | Run manually |
 | `uploads/trackman/` | Uploaded Trackman CSV files | Auto-managed |
 | `attached_assets/` | Reference images from conversations | Read-only |

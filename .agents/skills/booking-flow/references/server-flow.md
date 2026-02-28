@@ -154,73 +154,28 @@ PUT /api/booking-requests/:id/member-cancel
 cancelBookingByTrackmanId(trackmanBookingId)
   ├── SELECT booking by trackman_booking_id
   │
-  ├── If is_relocating=true:
-  │   ├── Clear trackman_booking_id (unlink so webhook doesn't interfere)
-  │   └── Return { cancelled: false } — skip cancellation during reschedule
-  │
   ├── If already cancelled: return { cancelled: true }
   │
-  ├── UPDATE booking_requests SET status='cancelled', staff_notes += '[Cancelled via Trackman webhook]'
+  ├── Detect wasPendingCancellation (status === 'cancellation_pending')
   │
-  ├── Clear pending fees on session:
-  │   └── UPDATE booking_participants SET cached_fee_cents=0, payment_status='waived'
-  │       WHERE session_id AND payment_status='pending'
+  ├── Delegate to BookingStateService:
+  │   ├── If wasPendingCancellation:
+  │   │   └── BookingStateService.completePendingCancellation({ bookingId, staffEmail: 'trackman-webhook@system', source: 'trackman_webhook' })
+  │   └── Else:
+  │       └── BookingStateService.cancelBooking({ bookingId, source: 'trackman_webhook', staffNotes: '[Cancelled via Trackman webhook]' })
   │
-  ├── Cancel pending payment intents (same as member cancel flow)
+  ├── BookingStateService handles side effects via manifest:
+  │   ├── Refund paid Stripe payment intents (stripe.refunds.create)
+  │   ├── Cancel pending Stripe payment intents
+  │   ├── Refund balance payments (credit balance restoration)
+  │   ├── Void booking invoice via voidBookingInvoice(bookingId)
+  │   ├── Delete Google Calendar event
+  │   ├── Release guest pass holds
+  │   ├── Notify staff and member (push + WebSocket)
+  │   ├── Publish booking_cancelled event
+  │   └── broadcastAvailabilityUpdate({ action: 'cancelled' })
   │
-  ├── Refund paid participant fees:
-  │   ├── SELECT booking_participants WHERE payment_status='paid' AND stripe_payment_intent_id
-  │   ├── For each: stripe.refunds.create({ charge, reason: 'requested_by_customer' })
-  │   └── UPDATE booking_participants SET refunded_at, payment_status='waived'
-  │   └── UPDATE stripe_payment_intents SET status='refunded'
-  │   └── UPDATE booking_fee_snapshots SET status='refunded'
-  │
-  ├── refundGuestPassesForCancelledBooking(bookingId, memberEmail)
-  │
-  ├── notifyAllStaff('Booking Cancelled via TrackMan', message)
-  ├── logSystemAction({ action: 'booking_cancelled_webhook', ... })
-  ├── If wasPendingCancellation: notifyMember({ title: 'Booking Cancelled', ... })
-  └── broadcastAvailabilityUpdate({ action: 'cancelled' })
-```
-
-## Reschedule Booking
-
-**Routes**: `server/routes/bays/reschedule.ts`
-
-```
-POST /api/admin/booking/:id/reschedule/start
-  ├── Middleware: isStaffOrAdmin
-  ├── Validate booking exists and not cancelled
-  ├── Validate booking is not in the past
-  └── UPDATE booking_requests SET is_relocating=true, relocating_started_at=NOW()
-
-POST /api/admin/booking/:id/reschedule/confirm
-  ├── Middleware: isStaffOrAdmin
-  ├── Required body: resource_id, request_date, start_time, end_time, duration_minutes, trackman_booking_id
-  ├── Validate booking exists, not cancelled, is_relocating=true
-  │
-  ├── Conflict checks:
-  │   ├── SELECT booking_requests for time overlaps on new slot
-  │   ├── checkClosureConflict(resource_id, request_date, start_time, end_time)
-  │   └── checkAvailabilityBlockConflict(resource_id, request_date, start_time, end_time)
-  │
-  ├── BEGIN transaction
-  │   ├── UPDATE booking_requests SET resource_id, request_date, start_time, end_time,
-  │   │     duration_minutes, trackman_booking_id, is_relocating=false,
-  │   │     original_resource_id, original_start_time, original_end_time, original_booked_date
-  │   │
-  │   └── If session exists:
-  │       └── UPDATE booking_sessions SET resource_id, session_date, start_time, end_time, trackman_booking_id
-  ├── COMMIT
-  │
-  ├── If session exists: recalculateSessionFees(sessionId, 'reschedule')
-  ├── sendBookingRescheduleEmail(memberEmail, ...)
-  ├── broadcastAvailabilityUpdate (old slot freed, new slot booked)
-  └── logFromRequest(req, 'booking_rescheduled', ...)
-
-POST /api/admin/booking/:id/reschedule/cancel
-  ├── Middleware: isStaffOrAdmin
-  └── UPDATE booking_requests SET is_relocating=false, relocating_started_at=NULL
+  └── Return { cancelled: true, bookingId, wasPendingCancellation }
 ```
 
 ## Session Creation (Core)

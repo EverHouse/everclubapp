@@ -1,6 +1,6 @@
 ---
 name: scheduler-jobs
-description: "Scheduled maintenance tasks — daily, hourly, and continuous background jobs. Covers all 25+ schedulers, their timing, idempotency, the scheduler tracker, and the job queue processor. Use when adding new scheduled tasks, debugging scheduler issues, understanding maintenance windows, or checking scheduler health via the admin dashboard."
+description: "Scheduled maintenance tasks — daily, hourly, and continuous background jobs. Covers all 27 schedulers, their timing, idempotency, the scheduler tracker, and the job queue processor. Use when adding new scheduled tasks, debugging scheduler issues, understanding maintenance windows, or checking scheduler health via the admin dashboard."
 ---
 
 # Scheduler Jobs
@@ -26,7 +26,6 @@ All schedulers registered in `initSchedulers()`:
 | Daily Reminder | dailyReminderScheduler.ts | 30 min | 6 PM Pacific | Send tomorrow's event/booking/wellness reminders (defined in push.ts, triggered by dailyReminderScheduler) |
 | Morning Closure | morningClosureScheduler.ts | 30 min | 8 AM Pacific | Notify members about today's facility closures (defined in push.ts, triggered by morningClosureScheduler) |
 | Weekly Cleanup | weeklyCleanupScheduler.ts | 1 hr | Sunday 3 AM Pacific | Clean up old data, expired records, stale sessions |
-| Invite Expiry | inviteExpiryScheduler.ts | 5 min | None | Expire stale booking participant invitations |
 | Integrity Check | integrityScheduler.ts | 30 min | Midnight Pacific | Run data integrity checks, send alert emails |
 | Auto-Fix Tiers | integrityScheduler.ts | 4 hr | None | Sub-task of Integrity Scheduler: Fix missing tiers, normalize membership_status case |
 | Abandoned Pending Cleanup | integrityScheduler.ts | 6 hr | None | Sub-task of Integrity Scheduler: Delete abandoned pending users (24h+ old, no subscription) |
@@ -35,7 +34,7 @@ All schedulers registered in `initSchedulers()`:
 | Fee Snapshot Reconciliation | feeSnapshotReconciliationScheduler.ts | 15 min | None | Reconcile pending fee snapshots, cancel abandoned payment intents |
 | Grace Period | gracePeriodScheduler.ts | 1 hr | 10 AM Pacific | Process membership grace periods, send reminder emails, terminate |
 | Booking Expiry | bookingExpiryScheduler.ts | 1 hr | None | Expire past-due pending/pending_approval bookings (20-min grace period past start_time) |
-| Booking Auto-Complete | bookingAutoCompleteScheduler.ts | 2 hr | None | Mark approved/confirmed bookings as attended (auto checked-in) 24h after end time. **Fee guard**: only auto-completes if session has no unpaid fees (`cached_fee_cents > 0` with `payment_status = 'pending'` blocks auto-complete). Also calls `ensureSessionForBooking()` for each booking without a session. |
+| Booking Auto-Complete | bookingAutoCompleteScheduler.ts | 30 min | None | Mark approved/confirmed bookings as attended (auto checked-in) 30 min after end time for same-day bookings, or next day for overnight sessions. **Fee guard**: only auto-completes if session has no unpaid fees (`cached_fee_cents > 0` with `payment_status = 'pending'` blocks auto-complete). Also calls `ensureSessionForBooking()` for each booking without a session. |
 | Communication Logs Sync | communicationLogsScheduler.ts | 30 min | None | Sync communication log records |
 | Webhook Log Cleanup | webhookLogCleanupScheduler.ts | 1 hr | 4 AM Pacific | Delete webhook logs older than 30 days |
 | Session Cleanup | sessionCleanupScheduler.ts | 1 hr | 2 AM Pacific | Clean up expired HTTP sessions |
@@ -49,6 +48,7 @@ All schedulers registered in `initSchedulers()`:
 | Pending User Cleanup | pendingUserCleanupScheduler.ts | 6 hr | None | Delete old pending Stripe users (48h+, no subscription), cancel Stripe customer |
 | Webhook Event Cleanup | webhookEventCleanupScheduler.ts | 24 hr | None | Remove webhook_processed_events older than 7 days |
 | Onboarding Nudge | onboardingNudgeScheduler.ts | 1 hr | 10 AM Pacific | Send graduated onboarding nudge emails to stalled members |
+| Supabase Heartbeat | supabaseHeartbeatScheduler.ts | 6 hr | None | Ping Supabase to keep connection alive and verify user count |
 | Job Queue Processor | jobQueue.ts | 5 sec | None | Process background job queue (emails, notifications, syncs) |
 
 ## Scheduler Tracker

@@ -14,7 +14,6 @@ Follow these rules whenever touching booking, import, billing, or cancellation c
 - `server/core/billing/unifiedFeeService.ts` — `computeFeeBreakdown()`, fee line items
 - `server/routes/bays/bookings.ts` — Booking CRUD, member booking creation
 - `server/routes/bays/approval.ts` — Approval, prepayment creation
-- `server/routes/bays/reschedule.ts` — Reschedule flow (start, confirm, cancel)
 - `server/routes/bays/staff-conference-booking.ts` — Staff conference room booking
 - `server/routes/staff/manualBooking.ts` — Staff manual booking creation
 - `server/routes/staffCheckin.ts` — Staff check-in flow, session creation at check-in
@@ -25,6 +24,7 @@ Follow these rules whenever touching booking, import, billing, or cancellation c
 - `server/routes/resources.ts` — Resource management, session linking
 - `server/core/calendar/sync/conference-room.ts` — Conference room calendar sync, auto-session creation
 - `server/core/visitors/autoMatchService.ts` — Visitor auto-match, session linking
+- `server/core/bookingService/bookingStateService.ts` — `BookingStateService`: centralized cancellation with side-effects manifest
 - `server/schedulers/stuckCancellationScheduler.ts` — Safety net for stuck cancellations
 - `server/core/billing/bookingInvoiceService.ts` — Invoice lifecycle: draft, sync, finalize, void
 - `server/core/bookingService/rosterService.ts` — Roster changes with invoice-paid lock guard
@@ -72,7 +72,6 @@ Every code path that can create or approve a booking must call `ensureSessionFor
 - Trackman webhook billing (`server/routes/trackman/webhook-billing.ts`)
 - Trackman webhook index (`server/routes/trackman/webhook-index.ts`)
 - CSV import — new bookings AND merged placeholders (`server/core/trackmanImport.ts`)
-- Reschedule (`server/routes/bays/reschedule.ts`)
 - Conference room calendar sync (`server/core/calendar/sync/conference-room.ts`)
 - Data tools / backfill (`server/routes/dataTools.ts`)
 - Resource management (`server/routes/resources.ts`)
@@ -120,7 +119,6 @@ Time slots remain occupied while a booking is in `cancellation_pending`. Availab
 Handle `cancellation_pending` status in every query that filters by booking status:
 - Availability checks (treat as occupied)
 - Active booking counts (include in active)
-- Reschedule guards (block reschedule)
 - Payment guards (block new payments)
 - Command center views (show with special badge)
 - Member booking lists (show with pending message)
@@ -329,7 +327,6 @@ Perform all booking roster edits, owner assignments, and guest additions exclusi
 
 Sub-components:
 - `SheetHeader.tsx` — Header with booking info
-- `BookingActions.tsx` — Action buttons
 - `PaymentSection.tsx` — Fee display and payment status
 - `AssignModeSlots.tsx` — Slot assignment UI for unlinked bookings
 - `AssignModeFooter.tsx` — Footer actions for assign mode

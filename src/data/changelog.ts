@@ -8,6 +8,35 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.48.0",
+    date: "2026-02-27",
+    title: "Marketing Contacts Audit Panel",
+    changes: [
+      "New: Marketing Contacts Audit panel added to Data Integrity tab — staff can now view all HubSpot marketing contacts, identify non-members incorrectly marked as marketing, and remove them directly from the admin dashboard",
+      "New: Panel auto-refreshes after contact removal so staff see updated results immediately",
+    ]
+  },
+  {
+    version: "8.47.0",
+    date: "2026-02-27",
+    title: "Booking Auto-Complete & Fee Accuracy",
+    changes: [
+      "Improvement: Booking auto-complete scheduler now runs every 30 minutes instead of every 2 hours — past bookings are marked as completed faster",
+      "Improvement: Auto-complete logic improved for overnight sessions and same-day bookings — correctly handles end times that cross midnight and completes bookings 30 minutes after their end time on the same day",
+      "Improvement: Fee estimates now resolve member user IDs for more accurate per-player fee breakdowns when members are on the roster",
+    ]
+  },
+  {
+    version: "8.46.0",
+    date: "2026-02-27",
+    title: "TypeScript Strict Type Safety & Audio Fixes",
+    changes: [
+      "Improvement: Replaced hundreds of unsafe type casts (as any) across 190+ files with properly typed interfaces — eliminates an entire class of silent runtime bugs in billing, bookings, webhooks, and admin routes",
+      "Fix: Notification and check-in sounds now reliably play on iOS and Android — audio context is unlocked on the first user interaction instead of failing silently",
+      "Fix: Audit log detail viewer now displays structured typed fields instead of raw JSON for billing, booking, and notification events",
+    ]
+  },
+  {
     version: "8.45.0",
     date: "2026-02-27",
     title: "Live Role Refresh on Session Check",

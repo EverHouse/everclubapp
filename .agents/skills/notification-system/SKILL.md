@@ -88,11 +88,11 @@ Steps:
 | Tours | `tour`, `tour_scheduled`, `tour_reminder` |
 | Payments | `payment_method_update`, `payment_success`, `payment_failed`, `payment_receipt`, `payment_error`, `outstanding_balance`, `fee_waived` |
 | Membership | `membership_renewed`, `membership_failed`, `membership_past_due`, `membership_cancelled`, `membership_terminated`, `membership_cancellation` |
-| Billing | `billing_alert`, `billing_migration` |
+| Billing | `billing`, `billing_alert`, `billing_migration` |
 | Passes | `guest_pass`, `day_pass` |
 | Trackman | `trackman_booking`, `trackman_unmatched`, `trackman_cancelled_link` |
 | Terminal | `terminal_refund`, `terminal_dispute`, `terminal_dispute_closed`, `terminal_payment_canceled` |
-| Staff/Admin | `announcement`, `new_member`, `member_status_change`, `card_expiring`, `staff_note`, `account_deletion`, `funds_added`, `trial_expired`, `waiver_review`, `cancellation_pending`, `cancellation_stuck`, `bug_report`, `import_failure`, `integration_error`, `attendance` |
+| Staff/Admin | `announcement`, `new_member`, `member_status_change`, `card_expiring`, `staff_note`, `account_deletion`, `funds_added`, `trial_expired`, `trial_ending`, `waiver_review`, `cancellation_pending`, `cancellation_stuck`, `bug_report`, `import_failure`, `integration_error`, `attendance` |
 
 Add new types to the `NotificationType` union in `notificationService.ts`.
 
@@ -141,6 +141,7 @@ All format the dollar amount as `$X.XX` and set appropriate `relatedType`/`relat
 | `broadcastDayPassUpdate(data)` | Staff only | `day_pass_update` |
 | `broadcastCafeMenuUpdate(action)` | All users | `cafe_menu_update` |
 | `broadcastDataIntegrityUpdate(action, details?)` | Staff only | `data_integrity_update` |
+| `broadcastBookingRosterUpdate(data)` | Member + staff | `booking_roster_update` |
 
 See `references/websocket-architecture.md` for full details.
 

@@ -140,9 +140,9 @@ Issues are categorized as: `orphan_record`, `sync_mismatch`, `data_quality`, `bo
 - **Detects**: Records across various tables flagged with `needs_review=true`.
 - **Action**: Review and clear the flag.
 
-### Duplicate Tour Sources / Stale Past Tours
-- **Detects**: Tour records with duplicate source identifiers or tours past their date still in active state.
-- **Action**: Clean up duplicate or stale tour records.
+### Stale Past Tours
+- **Detects**: Tour records past their date still in active state.
+- **Action**: Clean up stale tour records.
 
 ---
 

@@ -38,9 +38,10 @@ Authenticated members:
 - `Profile.tsx` — Member profile, settings, Google linking
 - `Updates.tsx` — Club announcements
 - `Wellness.tsx` — Wellness service booking
+- `NfcCheckin.tsx` — NFC check-in page
 
 **Subdirectory `bookGolf/`** — Booking flow sub-components:
-- `types.ts` — Booking flow type definitions
+- `bookGolfTypes.ts` — Booking flow type definitions
 - `DatePickerStrip.tsx` — Date selector strip
 - `ResourceCard.tsx` — Resource/bay card display
 
@@ -53,7 +54,8 @@ Staff/admin only:
 - `BugReportsAdmin.tsx`, `DataIntegrity.tsx`, `FaqsAdmin.tsx`
 - `GalleryAdmin.tsx`, `InquiriesAdmin.tsx`
 
-**Subdirectory `components/`** — Admin-specific components
+**Subdirectory `components/`** — Admin-specific components:
+- `AvailabilityBlocksContent.tsx` — Availability blocks management content
 
 **Subdirectory `layout/`** — Admin layout components:
 - `StaffBottomNav.tsx` — Staff mobile bottom nav
@@ -61,17 +63,43 @@ Staff/admin only:
 - Types and hooks sub-dirs
 
 **Subdirectory `tabs/`** — Admin tab panels:
+- `AnnouncementsTab.tsx` — Announcements management
+- `BlocksTab.tsx` — Availability blocks management
+- `CafeTab.tsx` — Cafe menu management
+- `ChangelogTab.tsx` — Changelog display
+- `DataIntegrityTab.tsx` — Data integrity dashboard
+- `DirectoryTab.tsx` — Member directory
+- `DiscountsSubTab.tsx` — Discount management
 - `EmailTemplatesTab.tsx` — Email template preview and management
+- `EventsTab.tsx` — Events management
+- `FinancialsTab.tsx` — Financial reports
+- `ProductsSubTab.tsx` — Stripe products management
+- `SettingsTab.tsx` — App settings
+- `SimulatorTab.tsx` — Simulator management
+- `TeamTab.tsx` — Staff team management
+- `TiersTab.tsx` — Membership tier management
 - `ToursTab.tsx` — Tour management tab
+- `TrackmanTab.tsx` — Trackman integration management
+- `UpdatesTab.tsx` — Updates/changelog tab
 
 **Subdirectory `tabs/dataIntegrity/`** — Data integrity sub-panels:
 - `AlertHistoryPanel.tsx` — Alert history tracking panel
+- `AuditLogPanel.tsx` — Audit log viewer
+- `AutoApprovePanel.tsx` — Auto-approve settings
 - `CleanupToolsPanel.tsx` — Database cleanup tools
+- `EmailHealthPanel.tsx` — Email delivery health monitor
 - `HubSpotQueuePanel.tsx` — HubSpot sync queue monitor
+- `IgnoreModals.tsx` — Ignore/dismiss modals for integrity issues
+- `IntegrityResultsPanel.tsx` — Integrity check results
 - `JobQueuePanel.tsx` — Job queue monitor
+- `MarketingContactsAuditPanel.tsx` — Marketing contacts audit
+- `PushNotificationPanel.tsx` — Push notification management
 - `SchedulerMonitorPanel.tsx` — Scheduler execution monitor
+- `StripeTerminalPanel.tsx` — Stripe Terminal management
 - `SyncToolsPanel.tsx` — Data sync tools
 - `WebhookEventsPanel.tsx` — Webhook event log panel
+- `dataIntegrityTypes.ts` — Data integrity type definitions
+- `dataIntegrityUtils.ts` — Data integrity utility functions
 
 **Subdirectory `tabs/events/`** — Event management tabs
 
@@ -109,11 +137,14 @@ Sub-dirs: `drawers/`, `hooks/`, `modals/`, `sections/`.
 - `UnifiedBookingSheet.tsx` — Unified booking management sheet
 - `useUnifiedBookingLogic.ts` — Booking sheet orchestration hook
 - `AssignModeFooter.tsx` — Assign mode footer actions
+- `AssignModeSlots.tsx` — Assign mode slot display
+- `bookingSheetTypes.ts` — Booking sheet type definitions
 - `ManageModeRoster.tsx` — Manage mode roster display
 - `PaymentSection.tsx` — Payment section in booking sheet
 - `SheetHeader.tsx` — Booking sheet header
 - `TrackmanBookingModal.tsx` — Trackman booking details modal
 - `StaffManualBookingModal.tsx` — Staff manual booking creation
+- `StaffDirectAddModal.tsx` — Staff direct add modal
 - `CheckinBillingModal.tsx` — Check-in billing confirmation
 - `CheckInConfirmationModal.tsx` — Check-in confirmation dialog
 - `IdScannerModal.tsx` — ID/license scanning modal
@@ -162,10 +193,16 @@ Sub-dirs: `drawers/`, `hooks/`, `modals/`, `sections/`.
 ### Contexts (`src/contexts/`)
 
 - `DataContext.tsx` — Central data provider (TanStack Query)
+- `AuthDataContext.tsx` — Auth session data provider
+- `AnnouncementDataContext.tsx` — Announcement data provider
+- `AnnouncementBadgeContext.tsx` — Unread announcement badges
+- `BookingDataContext.tsx` — Booking data provider
+- `CafeDataContext.tsx` — Cafe data provider
+- `EventDataContext.tsx` — Event data provider
+- `MemberDataContext.tsx` — Member data provider
 - `NotificationContext.tsx` — Notification delivery and display
 - `ThemeContext.tsx` — Light/Dark/System theme
 - `StaffWebSocketContext.tsx` — Real-time staff updates
-- `AnnouncementBadgeContext.tsx` — Unread announcement badges
 - `BottomNavContext.tsx` — Mobile bottom nav visibility
 - `NavigationLoadingContext.tsx` — Page transition loading states
 - `PageReadyContext.tsx` — Page-ready signals for animations
@@ -176,15 +213,13 @@ Sub-dirs: `drawers/`, `hooks/`, `modals/`, `sections/`.
 
 - `useStaffWebSocket.ts`, `useWebSocket.ts`, `useWebSocketQuerySync.ts` — Real-time sync
 - `useSupabaseRealtime.ts` — Supabase realtime subscriptions
-- `useOptimisticBookings.ts`, `useOptimisticEvents.ts` — Optimistic UI updates
-- `useBookingFilters.ts` — Booking list filtering
 - `usePricing.ts` — Stripe pricing data
 - `useTierPermissions.ts` — Tier-based feature gating
 - `useServiceWorkerUpdate.ts` — PWA update detection
 - `useBreakpoint.ts` — Responsive breakpoint detection
 - `useScrollLock.ts`, `useScrollLockManager.ts` — Modal scroll locking
 - `useKeyboardDetection.ts` — Mobile keyboard handling
-- `useAnimatedRemove.ts`, `useParallax.ts`, `useConfetti.ts` — Animations
+- `useParallax.ts` — Parallax animations
 - `useEdgeSwipe.ts`, `useDragAutoScroll.ts` — Touch gestures
 - `useNotificationSounds.ts` — Audio alerts
 - `useAsyncAction.ts` — Async action with loading/error states
@@ -214,6 +249,7 @@ Sub-dirs: `drawers/`, `hooks/`, `modals/`, `sections/`.
 ## Data (`src/data/`)
 
 - `changelog.ts` — Version changelog entries (UPDATE AFTER EVERY FEATURE/FIX)
+- `changelog-version.ts` — Latest version for "new updates" badge
 - `defaults.ts` — Default values and constants
 - `integrityCheckMetadata.ts` — Data integrity check definitions
 
@@ -224,12 +260,14 @@ Sub-dirs: `drawers/`, `hooks/`, `modals/`, `sections/`.
 
 ## Utils (`src/utils/`)
 
+- `closureUtils.ts` — Closure date helpers
 - `dateUtils.ts` — Date formatting (Pacific timezone priority)
-- `formatting.ts` — Number, currency, text formatting
-- `permissions.ts` — Role/permission checks
-- `tierUtils.ts` — Tier comparison and display helpers
-- `statusColors.ts` — Booking/payment status color mapping
 - `errorHandling.ts` — Error parsing and display
+- `formatting.ts` — Number, currency, text formatting
 - `haptics.ts` — Mobile haptic feedback
-- `sounds.ts` — Audio file references
 - `icalUtils.ts` — Calendar file generation
+- `permissions.ts` — Role/permission checks
+- `phoneFormat.ts` — Phone number formatting
+- `sounds.ts` — Audio file references
+- `statusColors.ts` — Booking/payment status color mapping
+- `tierUtils.ts` — Tier comparison and display helpers

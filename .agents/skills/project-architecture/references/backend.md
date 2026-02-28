@@ -14,7 +14,9 @@ ALL business logic lives here. Routes call these modules — never write logic i
 | `feeCalculator.ts` | Low-level fee math helpers |
 | `guestPassConsumer.ts` | Guest pass deduction logic |
 | `guestPassHoldService.ts` | Guest pass hold/release during booking |
+| `bookingInvoiceService.ts` | Booking invoice creation and management |
 | `cardExpiryChecker.ts` | Card expiry monitoring and alerts |
+| `paymentIntentCleanup.ts` | Stale payment intent cleanup |
 | `PaymentStatusService.ts` | Payment status tracking and transitions |
 
 ---
@@ -24,8 +26,11 @@ ALL business logic lives here. Routes call these modules — never write logic i
 | File | Purpose |
 |------|---------|
 | `sessionManager.ts` | `ensureSessionForBooking()`, `createSession()`, `linkParticipants()` — THE session creation function |
-| `conflictDetection.ts` | Double-booking prevention |
+| `approvalService.ts` | Booking approval/rejection logic |
 | `availabilityGuard.ts` | Slot availability checks |
+| `bookingStateService.ts` | Booking state transitions |
+| `conflictDetection.ts` | Double-booking prevention |
+| `rosterService.ts` | Roster/participant management |
 | `tierRules.ts` | Tier-based booking limits and access rules |
 | `usageCalculator.ts` | Daily usage, guest pass remaining, overage calculation |
 | `trackmanReconciliation.ts` | Trackman data reconciliation |
@@ -63,6 +68,7 @@ Only if all 3 fail does it INSERT a new session. When called inside a transactio
 | `hubspotSync.ts` | Stripe subscription → HubSpot sync |
 | `environmentValidation.ts` | Stripe test/live mode validation |
 | `paymentRepository.ts` | Payment data access layer |
+| `billingMigration.ts` | Billing provider migration logic |
 | `transactionCache.ts` | Stripe transaction cache management |
 | `index.ts` | Re-exports |
 
@@ -98,11 +104,10 @@ Only if all 3 fail does it INSERT a new session. When called inside a transactio
 | `availability.ts` | Calendar availability calculation |
 | `cache.ts` | Calendar data caching |
 | `config.ts` | Calendar IDs and settings |
-| `sync/golf.ts` | Golf simulator calendar sync |
+| `sync/closures.ts` | Closure calendar sync |
 | `sync/conference-room.ts` | Conference room calendar sync |
 | `sync/wellness.ts` | Wellness calendar sync |
 | `sync/events.ts` | Event calendar sync |
-| `sync/closures.ts` | Closure calendar sync |
 | `sync/index.ts` | Sync orchestration |
 | `index.ts` | Re-exports |
 
@@ -169,6 +174,10 @@ Only if all 3 fail does it INSERT a new session. When called inside a transactio
 | `hubspotQueueMonitor.ts` | HubSpot queue monitoring |
 | `safeDbOperation.ts` | Safe database operations wrapper (`safeDbOperation()`, `safeDbTransaction()`) |
 | `schedulerTracker.ts` | Scheduler execution tracking |
+| `walkInCheckinService.ts` | Walk-in check-in processing |
+| `resourceService.ts` | Resource/bay management logic |
+| `queryCache.ts` | Query result caching |
+| `settingsHelper.ts` | App settings helper |
 | `webhookMonitor.ts` | Webhook monitoring |
 | `googleSheets/announcementSync.ts` | Google Sheets → announcements sync |
 | `mindbody/import.ts`, `mindbody/index.ts` | MindBody data import |
@@ -215,7 +224,6 @@ Only if all 3 fail does it INSERT a new session. When called inside a transactio
 | `models/content.ts` | Content types (announcements, FAQs) |
 | `models/system.ts` | System config types |
 | `models/hubspot-billing.ts` | HubSpot billing types |
-| `models/walkInVisits.ts` | Walk-in visit types |
 | `constants/statuses.ts` | Booking/payment status strings |
 | `constants/tiers.ts` | Tier name constants |
 | `constants/products.ts` | Stripe product ID constants |
@@ -247,9 +255,10 @@ Only if all 3 fail does it INSERT a new session. When called inside a transactio
 ### Server Utils (`server/utils/`)
 
 - `dateUtils.ts` — Pacific timezone date utilities (ALWAYS use these, never raw Date)
-- `calendarSync.ts` — Calendar sync helpers
+- `dateNormalize.ts` — Date normalization helpers
 - `resend.ts` — Resend email sending
-- `stringUtils.ts` — String manipulation
+- `errorUtils.ts` — Error formatting and handling utilities
+- `sqlArrayLiteral.ts` — SQL array literal helpers
 - `tierUtils.ts` — Server-side tier utilities
 
 ### Server Types (`server/types/`)

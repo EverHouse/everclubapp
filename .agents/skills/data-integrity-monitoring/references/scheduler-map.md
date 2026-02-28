@@ -57,9 +57,7 @@ Exposed via `GET /api/admin/monitoring/schedulers`.
 
 | Scheduler | File | Purpose |
 |---|---|---|
-| Background Sync | `backgroundSyncScheduler.ts` | Sync member data changes to external services (HubSpot, Google Calendar). |
-| Invite Expiry | `inviteExpiryScheduler.ts` | Expire pending membership invitations that have passed their deadline. |
-| Relocation Cleanup | `relocationCleanupScheduler.ts` | Clean up temporary relocation-related data. |
+| Background Sync | `backgroundSyncScheduler.ts` | Sync Google Calendar events, wellness, tours, closures, conference rooms. |
 
 ---
 
@@ -105,6 +103,7 @@ Exposed via `GET /api/admin/monitoring/schedulers`.
 | Scheduler | File | Purpose |
 |---|---|---|
 | Stuck Cancellation | `stuckCancellationScheduler.ts` | Find and resolve members stuck in cancellation-pending states beyond expected timeframes. |
+| Booking Auto-Complete | `bookingAutoCompleteScheduler.ts` | Mark approved/confirmed bookings as attended 24h after end time. Fee guard prevents auto-complete for unpaid bookings. |
 
 ---
 
@@ -123,6 +122,7 @@ Exposed via `GET /api/admin/monitoring/schedulers`.
 |---|---|---|
 | Abandoned Pending Cleanup | `integrityScheduler.ts` | Delete users in `pending` status >24h with no Stripe subscription. Cascade-deletes notifications, bookings, RSVPs, enrollments, fees, notes, and guest passes in a transaction. |
 | Pending User Cleanup | `pendingUserCleanupScheduler.ts` | Additional cleanup for stale pending user records. |
+| Supabase Heartbeat | `supabaseHeartbeatScheduler.ts` | Ping Supabase to keep connection alive and verify user count. |
 
 ---
 
@@ -141,7 +141,7 @@ These schedulers use the poll-and-check pattern (run their interval loop but onl
 
 | Hour | Task | Lock |
 |---|---|---|
-| 00:00 | Integrity Check — run all 25 checks, pre-check cleanup, email alert | `system_settings` lock |
+| 00:00 | Integrity Check — run all 30 checks, pre-check cleanup, email alert | `system_settings` lock |
 | 04:00 | Webhook Log Cleanup — delete Trackman logs >30 days | No lock (idempotent) |
 | 05:00 | Stripe Reconciliation — daily payment and subscription reconciliation | `system_settings` lock |
 | 10:00 | Grace Period — process grace period expirations and send reminders | No lock |
