@@ -40,6 +40,12 @@ export const changelog: ChangelogEntry[] = [
       "Improvement: Optimistic UI for profile edits, SMS preferences, and booking submissions — changes appear instantly with automatic rollback on errors",
       "Improvement: Admin skeleton loaders — Data Integrity, Financials, and Application Pipeline tabs now show structural loading placeholders instead of spinners",
       "Improvement: Dark mode glass readability — increased glass surface opacity and ensured body text on glass panels meets WCAG AA contrast standards",
+      "Improvement: Accessibility — aria-labels added to all icon-only buttons across both portals for screen reader support",
+      "Improvement: Profile page redesigned — edit button spans full card width, improved button spacing and visual hierarchy",
+      "Improvement: Booking confirmation copy updated — simulator requests now show clearer, more descriptive confirmation text",
+      "Improvement: Member portal page titles rewritten with evocative, instructional copy that matches the luxury brand voice",
+      "Improvement: Mobile notice board layout refined with better spacing and card styling",
+      "Improvement: Landing page sections updated with consistent premium layout, floating glass card hero design, and editorial italic headings",
     ]
   },
   {
@@ -99,11 +105,16 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.42.0",
     date: "2026-02-27",
-    title: "Notification & Check-in Fixes",
+    title: "Notification, Check-in & Connection Stability",
     changes: [
       "Fix: QR code booking check-in no longer gets stuck on 'processing' — check-in confirmation sound now plays only once even when multiple events arrive simultaneously",
       "Fix: QR check-in properly clears pending state when payment or roster action is required, preventing stale data on subsequent scans",
+      "Fix: Supabase Realtime connection stability improved with better error handling, reconnection logic, and console spam eliminated",
+      "Fix: Server-side Supabase auth requests now include timeouts to prevent hanging connections during outages",
+      "Fix: Supabase Realtime setup gracefully handles missing RPC functions instead of crashing on startup",
+      "Fix: Booking cancellation error details now surfaced to staff instead of showing generic failure messages",
       "Improvement: Booking modification notifications now display times in 12-hour format (e.g., '1:00 PM' instead of '13:00') for both staff and member notifications",
+      "Improvement: Dev server startup improved with reliable parallel process management for frontend and backend",
       "Removed: Fee waiver email and push notifications to members — staff-only audit logging is preserved",
     ]
   },
@@ -122,11 +133,17 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.40.0",
     date: "2026-02-27",
-    title: "Heritage Typography System",
+    title: "Heritage Typography & Visual Polish",
     changes: [
       "New: App now uses Instrument Sans (variable, 400–700 weight) for all body text, labels, and UI elements",
       "New: Newsreader (variable serif) used for display and headline typography, establishing a luxury editorial aesthetic",
       "Improvement: Fonts loaded non-render-blocking via media='print' onload pattern with font-display: swap fallback — no impact on page load speed",
+      "Improvement: Loading spinner automatically adapts to light and dark mode backgrounds",
+      "Improvement: Staff portal navigation styling refined — header, sidebar, and hamburger menu updated for consistency with the editorial design system",
+      "Improvement: Google sign-in reliability improved with a redirect fallback for browsers that block popups",
+      "Improvement: Liquid Glass styling applied consistently to all staff command center cards",
+      "Improvement: Day pass and payment redemption cards restyled to match the Liquid Glass design system",
+      "Improvement: Trackman file upload now shows a progress bar during CSV processing",
     ]
   },
   {
@@ -150,12 +167,17 @@ export const changelog: ChangelogEntry[] = [
     changes: [
       "New: Invoice details (amount, status, line items) now included in member payment API responses — members can see exactly what they're paying for",
       "New: Active discounts (e.g., 'Comped Membership 100% off') now visible in the member billing section",
+      "New: Discount and plan details now shown in subscription information — members can see their current pricing and any applied promotions",
+      "Fix: $0 subscriptions now handled safely — free plans activate without attempting to charge, and invoices are automatically marked as paid",
+      "Fix: Discount application to incomplete subscriptions no longer causes errors",
+      "Fix: Subscription details display correctly for zero-priced and comped plans",
       "Fix: Billing links now reliably open in new tabs across all devices (iOS Safari, Android Chrome, desktop)",
       "Fix: Card charging made more reliable by handling audit log edge cases that could cause silent failures",
       "Fix: Customer credit balances now properly restored when bookings are cancelled with refunds",
       "Fix: Save card parameter now uses the correct Stripe API field, ensuring cards are saved for future use",
       "Fix: Waived payments now correctly counted when calculating roster fees and payment totals",
       "Fix: Booking fee status correctly reflects waived charges instead of showing as unpaid",
+      "Fix: Booking expiration logic correctly handles overnight sessions that cross midnight",
     ]
   },
   {
@@ -175,11 +197,18 @@ export const changelog: ChangelogEntry[] = [
     date: "2026-02-26",
     title: "Check-in & QR Code Enhancements",
     changes: [
+      "New: Conference room bookings now support check-in via QR scan — same flow as simulator bookings",
+      "New: Animated success overlay on booking confirmation modal — clear visual feedback when a booking is submitted",
+      "New: Trackman auto-confirmation shows animated progress feedback when a booking is auto-matched",
       "Improvement: QR Scanner moved near 'New User' in the floating action button menu for faster staff access",
       "Improvement: QR booking context preserved when redirecting to payment or roster — staff no longer lose the booking reference mid-flow",
       "Improvement: Members now receive immediate visual feedback after being checked in, with a confirmation showing booking details (bay, time, resource type)",
       "Improvement: QR check-in confirmation now displays full booking details instead of just the member name",
       "Improvement: Check-in process refined for members with existing bookings — auto-detects today's scheduled sessions",
+      "Improvement: ID scanning improved with automatic image resizing and increased upload limits for better accuracy on high-resolution phone cameras",
+      "Fix: Guest pass duplicate records no longer cause constraint violations during creation",
+      "Fix: Stripe customer accounts now automatically linked when matching member emails are found",
+      "Fix: Member email changes now automatically sync to their Stripe customer record",
     ]
   },
   {
@@ -188,6 +217,11 @@ export const changelog: ChangelogEntry[] = [
     title: "Account Safety, Data Integrity & SEO",
     changes: [
       "New: Hidden navigation links added for search engine crawlers to improve site indexing and discoverability",
+      "New: Supabase keep-alive scheduler prevents the project from hibernating during low-traffic periods",
+      "Improvement: Database connections switched to Supabase session pooler for better connection management and reliability under load",
+      "Improvement: Database functions hardened against SQL injection vulnerabilities with parameterized queries",
+      "Improvement: Touch scrolling performance improved with passive native event listeners — smoother scrolling on mobile devices",
+      "Improvement: Notification alert frequency now respects admin settings — staff can control how often integrity and sync alerts fire",
       "Fix: Guest pass records now properly merged when combining duplicate user accounts — prevents constraint violations",
       "Fix: Dismissed notice records now merged during user account merging — prevents notices reappearing for merged members",
       "Fix: Placeholder email patterns (e.g., 'noemail@placeholder.com') no longer block valid user accounts from being created with real emails",
@@ -195,6 +229,8 @@ export const changelog: ChangelogEntry[] = [
       "Fix: Webhook event timestamps display correctly in Pacific time on the admin dashboard",
       "Fix: Usage ledger entries now protected with a foreign key constraint to booking_sessions — prevents orphaned ledger records when sessions are deleted",
       "Fix: Google Calendar removed as a tour data source — HubSpot Meetings is now the sole source of truth for tours (Calendar still used for availability checks and creating events)",
+      "Fix: Duplicate database index removed that was causing performance degradation",
+      "Fix: robots.txt and security headers updated for better search engine indexing and site protection",
     ]
   },
   {
@@ -464,6 +500,13 @@ export const changelog: ChangelogEntry[] = [
     date: "2026-02-24",
     title: "Check-In Race Condition, HubSpot Sync & Fee Calculation Fixes",
     changes: [
+      "New: Staff now receive push notifications when a visitor submits a form on the website (tour requests, membership inquiries, event bookings)",
+      "New: Session creation now triggers automatically for auto-resolved bookings, ensuring billing records exist from the start",
+      "Improvement: Calendar event synchronization improved for more reliable event data across the app",
+      "Improvement: Keyboard navigation and accessibility improved across multiple interactive components",
+      "Fix: HubSpot lifecycle stage correctly synced when member status changes — archiving now sets the right stage instead of an invalid value",
+      "Fix: Visitor and day-pass contact creation in HubSpot now uses correct lifecycle stage mapping",
+      "Fix: Database updated to include all valid booking source values, preventing constraint errors on new booking types",
       "Fixed: If two staff members clicked check-in on the same booking at the exact same time, both could succeed — the system now locks against the exact booking status to prevent duplicate check-ins",
       "Fixed: During corporate member signup, if HubSpot was slow or timed out, the company link was permanently lost — the system now queues a reliable retry so the company always gets synced to HubSpot",
       "Fixed: On legacy or malformed bookings missing an explicit owner in the roster, overage fees for empty slots were silently skipped — the system now correctly assigns the overage to the first member participant as a fallback",
