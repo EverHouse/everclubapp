@@ -36,6 +36,11 @@ export default {
           bone: "#F2F2EC",
           lavender: "#CCB8E4"
         },
+        error: {
+          DEFAULT: "#DC2626",
+          light: "#FEE2E2",
+          dark: "#F87171",
+        },
         "glass-surface-primary": {
           DEFAULT: "rgba(204, 184, 228, 0.15)",
           border: "rgba(204, 184, 228, 0.25)",

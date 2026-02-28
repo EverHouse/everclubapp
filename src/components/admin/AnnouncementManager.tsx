@@ -418,7 +418,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                                 <span className="w-2 h-2 rounded-full bg-accent"></span>
                                 <span className="text-[10px] text-gray-500 dark:text-gray-600">{item.date}</span>
                                 {item.showAsBanner && (
-                                    <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-lavender/20 text-lavender rounded">Banner</span>
+                                    <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-lavender/20 text-lavender-dark dark:text-lavender rounded">Banner</span>
                                 )}
                             </div>
                             <h4 className="font-bold text-gray-900 dark:text-white mb-1">{item.title}</h4>

@@ -558,7 +558,7 @@ const TiersTab: React.FC = () => {
                                                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{pass.description}</p>
                                                     )}
                                                 </div>
-                                                <button className="text-gray-600 hover:text-primary dark:hover:text-white transition-colors">
+                                                <button aria-label="Edit pass" className="text-gray-600 hover:text-primary dark:hover:text-white transition-colors">
                                                     <span aria-hidden="true" className="material-symbols-outlined">edit</span>
                                                 </button>
                                             </div>
@@ -1226,7 +1226,7 @@ const TiersTab: React.FC = () => {
                                             </div>
                                             <p className="text-xl font-bold text-primary dark:text-white">{tier.price_string}</p>
                                         </div>
-                                        <button className="text-gray-600 hover:text-primary dark:hover:text-white transition-colors">
+                                        <button aria-label="Edit tier" className="text-gray-600 hover:text-primary dark:hover:text-white transition-colors">
                                             <span aria-hidden="true" className="material-symbols-outlined">edit</span>
                                         </button>
                                     </div>

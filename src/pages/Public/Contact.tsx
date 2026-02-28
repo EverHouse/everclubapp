@@ -150,7 +150,7 @@ const Contact: React.FC = () => {
                     </div>
                     <button 
                         onClick={() => setIsSubmitted(false)}
-                        className="mt-6 text-sm font-bold text-primary dark:text-white underline hover:text-accent"
+                        className="mt-6 text-sm font-bold text-primary dark:text-white underline hover:text-accent-dark dark:hover:text-accent"
                     >
                         Send another message
                     </button>

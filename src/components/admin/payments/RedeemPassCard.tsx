@@ -813,6 +813,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
             onClick={handleScanQR}
             className="tactile-btn shrink-0 px-3 py-3 rounded-xl bg-teal-600 text-white font-semibold flex items-center gap-2 hover:bg-teal-700 transition-colors"
             title="Scan QR / Enter Pass ID"
+            aria-label="Scan QR code"
           >
             <span className="material-symbols-outlined text-lg">qr_code_scanner</span>
           </button>
@@ -1200,7 +1201,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
           <span className="material-symbols-outlined text-teal-600 dark:text-teal-400">qr_code_scanner</span>
           <h3 className="font-bold text-primary dark:text-white">Redeem Day Pass</h3>
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
+        <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
           <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
         </button>
       </div>

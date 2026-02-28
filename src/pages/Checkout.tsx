@@ -236,7 +236,7 @@ function CorporateCheckoutForm({ tier, email, initialQuantity }: CorporateChecko
     <div className="space-y-6">
       <div className="text-center mb-8">
         <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-accent/20 flex items-center justify-center">
-          <span className="material-symbols-outlined text-3xl text-accent">corporate_fare</span>
+          <span className="material-symbols-outlined text-3xl text-accent-dark dark:text-accent">corporate_fare</span>
         </div>
         <h2 className="text-2xl font-bold text-primary dark:text-white mb-2">Corporate Membership</h2>
         <p className="text-primary/70 dark:text-white/70">Team memberships with volume discounts</p>
@@ -364,7 +364,7 @@ function CorporateCheckoutForm({ tier, email, initialQuantity }: CorporateChecko
 
       <div className="glass-card rounded-xl p-5 backdrop-blur-xl bg-white/40 dark:bg-white/5 border border-white/30 dark:border-white/10">
         <h3 className="font-semibold text-primary dark:text-white mb-4 flex items-center gap-2">
-          <span className="material-symbols-outlined text-accent">receipt_long</span>
+          <span className="material-symbols-outlined text-accent-dark dark:text-accent">receipt_long</span>
           Price Summary
         </h3>
         <div className="space-y-3">
@@ -378,7 +378,7 @@ function CorporateCheckoutForm({ tier, email, initialQuantity }: CorporateChecko
           </div>
           <div className="border-t border-primary/10 dark:border-white/10 pt-3 flex justify-between">
             <span className="text-primary dark:text-white font-semibold">Total Monthly</span>
-            <span className="text-2xl font-bold text-accent">${totalMonthly.toLocaleString('en-US')}</span>
+            <span className="text-2xl font-bold text-accent-dark dark:text-accent">${totalMonthly.toLocaleString('en-US')}</span>
           </div>
         </div>
 
@@ -386,7 +386,7 @@ function CorporateCheckoutForm({ tier, email, initialQuantity }: CorporateChecko
           <h4 className="text-xs font-medium text-primary/60 dark:text-white/60 uppercase tracking-wide mb-2">Volume Discounts</h4>
           <div className="grid grid-cols-2 gap-2 text-xs">
             {corporateTiers.length > 0 && (
-              <div className={`p-2 rounded-lg ${quantity < (corporateTiers.reduce((min, t) => Math.min(min, t.minMembers), Infinity)) ? 'bg-accent/20 text-accent font-medium' : 'text-primary/60 dark:text-white/60'}`}>
+              <div className={`p-2 rounded-lg ${quantity < (corporateTiers.reduce((min, t) => Math.min(min, t.minMembers), Infinity)) ? 'bg-accent/20 text-accent-dark dark:text-accent font-medium' : 'text-primary/60 dark:text-white/60'}`}>
                 1-{Math.min(...corporateTiers.map(t => t.minMembers)) - 1} seats: ${corporateBasePrice}/mo
               </div>
             )}
@@ -397,7 +397,7 @@ function CorporateCheckoutForm({ tier, email, initialQuantity }: CorporateChecko
                 ? quantity >= t.minMembers && quantity < nextTier.minMembers
                 : quantity >= t.minMembers;
               return (
-                <div key={t.minMembers} className={`p-2 rounded-lg ${isActive ? 'bg-accent/20 text-accent font-medium' : 'text-primary/60 dark:text-white/60'}`}>
+                <div key={t.minMembers} className={`p-2 rounded-lg ${isActive ? 'bg-accent/20 text-accent-dark dark:text-accent font-medium' : 'text-primary/60 dark:text-white/60'}`}>
                   {label} seats: ${t.priceDollars}/mo
                 </div>
               );
@@ -642,7 +642,7 @@ function DayPassesSection() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-primary dark:text-white">{product.name}</h3>
-                  <p className="text-2xl font-semibold text-accent">{formatPrice(product.priceCents)}</p>
+                  <p className="text-2xl font-semibold text-accent-dark dark:text-accent">{formatPrice(product.priceCents)}</p>
                 </div>
               </div>
 
@@ -808,15 +808,15 @@ function CheckoutSuccess() {
           <h3 className="font-bold text-primary dark:text-white mb-3">What's Next?</h3>
           <ul className="space-y-2 text-primary/70 dark:text-white/70 text-sm">
             <li className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-accent text-lg">mail</span>
+              <span className="material-symbols-outlined text-accent-dark dark:text-accent text-lg">mail</span>
               Check your email for your day pass details
             </li>
             <li className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-accent text-lg">location_on</span>
+              <span className="material-symbols-outlined text-accent-dark dark:text-accent text-lg">location_on</span>
               Visit us at 123 Ever Club Lane
             </li>
             <li className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-accent text-lg">schedule</span>
+              <span className="material-symbols-outlined text-accent-dark dark:text-accent text-lg">schedule</span>
               Present your confirmation at the front desk
             </li>
           </ul>
@@ -854,13 +854,13 @@ function CheckoutSuccess() {
 
       <div className="glass-card rounded-xl p-6 max-w-md mx-auto mb-8 text-left backdrop-blur-xl bg-white/40 dark:bg-white/5 border border-white/30 dark:border-white/10">
         <h3 className="font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
-          <span className="material-symbols-outlined text-accent">rocket_launch</span>
+          <span className="material-symbols-outlined text-accent-dark dark:text-accent">rocket_launch</span>
           What's Next
         </h3>
         <ul className="space-y-4">
           <li className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="material-symbols-outlined text-accent text-lg">login</span>
+              <span className="material-symbols-outlined text-accent-dark dark:text-accent text-lg">login</span>
             </div>
             <div>
               <p className="font-medium text-primary dark:text-white text-sm">Sign in to your account</p>
@@ -869,7 +869,7 @@ function CheckoutSuccess() {
           </li>
           <li className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="material-symbols-outlined text-accent text-lg">sports_golf</span>
+              <span className="material-symbols-outlined text-accent-dark dark:text-accent text-lg">sports_golf</span>
             </div>
             <div>
               <p className="font-medium text-primary dark:text-white text-sm">Book your first simulator session</p>
@@ -878,7 +878,7 @@ function CheckoutSuccess() {
           </li>
           <li className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="material-symbols-outlined text-accent text-lg">person</span>
+              <span className="material-symbols-outlined text-accent-dark dark:text-accent text-lg">person</span>
             </div>
             <div>
               <p className="font-medium text-primary dark:text-white text-sm">Complete your profile</p>
@@ -887,7 +887,7 @@ function CheckoutSuccess() {
           </li>
           <li className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="material-symbols-outlined text-accent text-lg">install_mobile</span>
+              <span className="material-symbols-outlined text-accent-dark dark:text-accent text-lg">install_mobile</span>
             </div>
             <div>
               <p className="font-medium text-primary dark:text-white text-sm">Install the app</p>

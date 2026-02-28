@@ -188,7 +188,7 @@ export const StaffDirectAddModal: React.FC<StaffDirectAddModalProps> = ({
               <span className="material-symbols-outlined">person_add</span>
               Add Player (Staff)
             </h2>
-            <button onClick={onClose} className="p-1 hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg">
+            <button onClick={onClose} className="p-1 hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg" aria-label="Close">
               <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
             </button>
           </div>

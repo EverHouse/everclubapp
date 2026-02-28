@@ -876,7 +876,7 @@ const BookGolf: React.FC = () => {
 
       {effectiveUser?.status && !['active', 'trialing'].includes(effectiveUser.status.toLowerCase()) ? (
         <section className={`rounded-xl p-6 border text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-          <span className="material-symbols-outlined text-4xl text-accent mb-4">lock</span>
+          <span className="material-symbols-outlined text-4xl text-accent-dark dark:text-accent mb-4">lock</span>
           <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>Membership Not Active</h3>
           <p className={`text-sm mb-4 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
             Your membership is currently {effectiveUser.status.toLowerCase()}. Please contact the front desk or update your membership to resume booking.
@@ -910,7 +910,7 @@ const BookGolf: React.FC = () => {
 
         {activeTab === 'simulator' && isTierLoaded && !canBookSimulators ? (
         <section className={`rounded-xl p-6 border text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-          <span className="material-symbols-outlined text-4xl text-accent mb-4">lock</span>
+          <span className="material-symbols-outlined text-4xl text-accent-dark dark:text-accent mb-4">lock</span>
           <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>Upgrade to Book Simulators</h3>
           <p className={`text-sm mb-4 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
             Golf simulator access is available for Core, Premium, and Corporate members. Upgrade your membership to start booking.
@@ -925,7 +925,7 @@ const BookGolf: React.FC = () => {
         </section>
       ) : activeTab === 'conference' && isTierLoaded && !canBookConference ? (
         <section className={`rounded-xl p-6 border text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-          <span className="material-symbols-outlined text-4xl text-accent mb-4">lock</span>
+          <span className="material-symbols-outlined text-4xl text-accent-dark dark:text-accent mb-4">lock</span>
           <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>Upgrade for Conference Room Access</h3>
           <p className={`text-sm mb-4 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
             Conference room booking is available for Core, Premium, and Corporate members. Upgrade your membership to start booking.
@@ -1118,7 +1118,7 @@ const BookGolf: React.FC = () => {
             }`}>
               <div className="flex items-start gap-3">
                 <span className={`material-symbols-outlined text-2xl ${
-                  existingDayBooking.status === 'cancellation_pending' ? (isDark ? 'text-orange-400' : 'text-orange-600') : 'text-accent'
+                  existingDayBooking.status === 'cancellation_pending' ? (isDark ? 'text-orange-400' : 'text-orange-600') : (isDark ? 'text-accent' : 'text-accent-dark')
                 }`}>
                   {existingDayBooking.status === 'cancellation_pending' ? 'hourglass_top' : 'event_available'}
                 </span>
@@ -1283,7 +1283,7 @@ const BookGolf: React.FC = () => {
                       >
                         <div className="flex items-center gap-3">
                           <span className={`material-symbols-outlined text-xl transition-transform duration-fast ${isExpanded ? 'rotate-90' : ''} ${
-                            hasSelectedSlot ? (isDark ? 'text-accent' : 'text-accent') : (isDark ? 'text-white/80' : 'text-primary/80')
+                            hasSelectedSlot ? (isDark ? 'text-accent' : 'text-accent-dark') : (isDark ? 'text-white/80' : 'text-primary/80')
                           }`}>
                             chevron_right
                           </span>
@@ -1291,13 +1291,13 @@ const BookGolf: React.FC = () => {
                             <div className={`font-bold text-base ${hasSelectedSlot ? (isDark ? 'text-accent' : 'text-primary') : (isDark ? 'text-white' : 'text-primary')}`}>
                               {hourGroup.hourLabel}
                             </div>
-                            <div className={`text-[10px] font-bold uppercase tracking-wide ${hasSelectedSlot ? 'text-accent/80' : 'opacity-50'}`}>
+                            <div className={`text-[10px] font-bold uppercase tracking-wide ${hasSelectedSlot ? 'text-accent-dark/80 dark:text-accent/80' : 'opacity-50'}`}>
                               {hourGroup.slots.length} {hourGroup.slots.length === 1 ? 'time' : 'times'} · {hourGroup.totalAvailable} {activeTab === 'simulator' ? 'bays' : 'rooms'}
                             </div>
                           </div>
                         </div>
                         {hasSelectedSlot && (
-                          <span className="material-symbols-outlined text-accent">check_circle</span>
+                          <span className="material-symbols-outlined text-accent-dark dark:text-accent">check_circle</span>
                         )}
                       </button>
                       

@@ -625,6 +625,7 @@ export function InlinePaymentBody({
           type="button"
           onClick={closePaymentOptions}
           className="tactile-btn p-1 rounded-full text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+          aria-label="Close payment options"
         >
           <span className="material-symbols-outlined text-sm">close</span>
         </button>

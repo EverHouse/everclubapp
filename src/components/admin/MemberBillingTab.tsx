@@ -396,7 +396,7 @@ function PauseDurationModal({
                 </p>
               </div>
               {selectedDuration === 30 && (
-                <span className="material-symbols-outlined text-accent">check_circle</span>
+                <span className="material-symbols-outlined text-accent-dark dark:text-accent">check_circle</span>
               )}
             </div>
           </button>
@@ -421,7 +421,7 @@ function PauseDurationModal({
                 </p>
               </div>
               {selectedDuration === 60 && (
-                <span className="material-symbols-outlined text-accent">check_circle</span>
+                <span className="material-symbols-outlined text-accent-dark dark:text-accent">check_circle</span>
               )}
             </div>
           </button>

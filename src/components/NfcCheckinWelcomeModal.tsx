@@ -42,7 +42,7 @@ const NfcCheckinWelcomeModal: React.FC<NfcCheckinWelcomeModalProps> = ({ isOpen,
         {isSuccess ? (
           <>
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-accent/20 flex items-center justify-center">
-              <span className="material-symbols-outlined text-3xl text-accent">check_circle</span>
+              <span className="material-symbols-outlined text-3xl text-accent-dark dark:text-accent">check_circle</span>
             </div>
             <h2 className="text-2xl font-bold text-primary dark:text-white mb-1">
               Welcome, {checkinData.memberName}!
@@ -51,7 +51,7 @@ const NfcCheckinWelcomeModal: React.FC<NfcCheckinWelcomeModalProps> = ({ isOpen,
               You're checked in
             </p>
             {checkinData.tier && (
-              <div className="inline-flex items-center px-3 py-1 rounded-full bg-accent/15 text-accent text-xs font-semibold uppercase tracking-wider mb-4">
+              <div className="inline-flex items-center px-3 py-1 rounded-full bg-accent/15 text-accent-dark dark:text-accent text-xs font-semibold uppercase tracking-wider mb-4">
                 {checkinData.tier}
               </div>
             )}

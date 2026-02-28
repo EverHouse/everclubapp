@@ -124,6 +124,7 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
             <button
               onClick={onClose}
               className="tactile-btn w-7 h-7 rounded-full flex items-center justify-center bg-white/20 hover:bg-white/30 transition-colors text-white"
+              aria-label="Close"
             >
               <span className="material-symbols-outlined text-sm">close</span>
             </button>

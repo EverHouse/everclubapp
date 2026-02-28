@@ -986,7 +986,7 @@ const TrackmanTab: React.FC = () => {
                 <div className="p-3 bg-accent/10 dark:bg-accent/20 rounded-lg border border-accent/30">
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Players</p>
                   <p className="font-medium text-primary dark:text-white text-sm flex items-center gap-1">
-                    <span className="material-symbols-outlined text-accent text-base">group</span>
+                    <span className="material-symbols-outlined text-accent-dark dark:text-accent text-base">group</span>
                     {viewDetailBooking.slotInfo?.totalSlots || viewDetailBooking.trackmanPlayerCount || 1} {(viewDetailBooking.slotInfo?.totalSlots || viewDetailBooking.trackmanPlayerCount || 1) === 1 ? 'player' : 'players'}
                   </p>
                 </div>

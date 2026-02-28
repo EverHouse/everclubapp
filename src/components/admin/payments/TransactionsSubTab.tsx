@@ -211,7 +211,7 @@ const DailySummaryCard: React.FC<SectionProps> = ({ onClose, variant = 'modal' }
           <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400">summarize</span>
           <h3 className="font-bold text-primary dark:text-white">Daily Summary</h3>
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
+        <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
           <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
         </button>
       </div>
@@ -410,6 +410,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
                   <button
                     onClick={resetModal}
                     className="tactile-btn p-2 rounded-full hover:bg-primary/10 dark:hover:bg-white/10"
+                    aria-label="Close"
                   >
                     <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
                   </button>
@@ -570,7 +571,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
             </span>
           )}
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
+        <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
           <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
         </button>
       </div>
@@ -684,7 +685,7 @@ const FutureBookingsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
                 </span>
               )}
             </div>
-            <button type="button" onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
+            <button type="button" onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
               <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
             </button>
           </div>
@@ -941,7 +942,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
               </span>
             )}
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
+          <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
             <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
           </button>
         </div>
@@ -1010,7 +1011,7 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
           <span className="material-symbols-outlined text-purple-600 dark:text-purple-400">undo</span>
           <h3 className="font-bold text-primary dark:text-white">Refund History</h3>
         </div>
-        <button type="button" onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
+        <button type="button" onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
           <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
         </button>
       </div>

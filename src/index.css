@@ -605,9 +605,11 @@ button, a, [role="button"], .tap-target, input[type="button"], input[type="submi
   touch-action: manipulation;
 }
 
-/* Allow components to override with their own focus styles */
+/* Custom focus ring — visible alternative to browser default.
+   Currently unused in JSX/TSX components (dead code). Kept for future use. */
 .custom-focus:focus-visible {
-  outline: none;
+  outline: 2px solid var(--color-accent, #CCB8E4);
+  outline-offset: 2px;
 }
 
 /* Images default to block display but preserve Tailwind sizing */
@@ -1662,29 +1664,29 @@ html.dark .border-accessible {
 @keyframes toastSlideIn {
   0% {
     opacity: 0;
-    transform: translateX(100%) scale(0.95);
+    transform: translateY(100%) scale(0.95);
   }
   60% {
     opacity: 1;
-    transform: translateX(-8px) scale(1.02);
+    transform: translateY(-8px) scale(1.02);
   }
   80% {
-    transform: translateX(3px) scale(0.99);
+    transform: translateY(3px) scale(0.99);
   }
   100% {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
 @keyframes toastSlideOut {
   0% {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateY(0) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translateX(110%) scale(0.95);
+    transform: translateY(100%) scale(0.95);
   }
 }
 

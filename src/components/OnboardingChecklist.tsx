@@ -210,7 +210,7 @@ const OnboardingChecklist: React.FC = () => {
           >
             <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
               step.completed
-                ? 'bg-accent/20 text-accent'
+                ? 'bg-accent/20 text-accent-dark dark:text-accent'
                 : 'bg-primary/10 dark:bg-white/10 text-primary/50 dark:text-white/50'
             }`}>
               <span className="material-symbols-outlined text-lg">
@@ -220,7 +220,7 @@ const OnboardingChecklist: React.FC = () => {
             <div className="flex-1 min-w-0">
               <p className={`text-sm font-medium ${
                 step.completed
-                  ? 'text-accent line-through'
+                  ? 'text-accent-dark dark:text-accent line-through'
                   : 'text-primary dark:text-white'
               }`}>
                 {step.label}

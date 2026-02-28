@@ -484,7 +484,7 @@ export const WellnessAdminContent: React.FC = () => {
                                                 {cls.image_url ? (
                                                     <img src={cls.image_url} alt={cls.title || 'Wellness class image'} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-3xl text-[#CCB8E4]">
+                                                    <span aria-hidden="true" className="material-symbols-outlined text-3xl text-[#8B6FA8] dark:text-[#CCB8E4]">
                                                         {getCategoryIcon(cls.category)}
                                                     </span>
                                                 )}
@@ -540,7 +540,7 @@ export const WellnessAdminContent: React.FC = () => {
                                                 {cls.image_url ? (
                                                     <img src={cls.image_url} alt={cls.title || 'Wellness class image'} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-3xl text-[#CCB8E4]">
+                                                    <span aria-hidden="true" className="material-symbols-outlined text-3xl text-[#8B6FA8] dark:text-[#CCB8E4]">
                                                         {getCategoryIcon(cls.category)}
                                                     </span>
                                                 )}

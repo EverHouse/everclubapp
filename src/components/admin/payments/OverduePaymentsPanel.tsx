@@ -152,7 +152,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
                 </span>
               )}
             </div>
-            <button onClick={onClose} className="tactile-btn p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
+            <button onClick={onClose} className="tactile-btn p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
               <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
             </button>
           </div>

@@ -693,7 +693,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                       {member.emailRedacted}
                     </p>
                   </div>
-                  <span className="material-symbols-outlined text-[#CCB8E4]">add_circle</span>
+                  <span className="material-symbols-outlined text-[#8B6FA8] dark:text-[#CCB8E4]">add_circle</span>
                 </button>
               ))}
             </div>

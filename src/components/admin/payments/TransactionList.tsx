@@ -230,6 +230,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
               <button
                 onClick={handleCloseNotes}
                 className="tactile-btn p-2 rounded-full hover:bg-primary/10 dark:hover:bg-white/10"
+                aria-label="Close notes"
               >
                 <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
               </button>
@@ -436,7 +437,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
           <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">receipt_long</span>
           <h3 className="font-bold text-primary dark:text-white">Today's Transactions</h3>
         </div>
-        <button type="button" onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
+        <button type="button" onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
           <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
         </button>
       </div>
