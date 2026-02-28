@@ -1449,8 +1449,9 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
           // This ensures MindBody billing status changes are reflected instantly
           try {
             const hubspot = await getHubSpotClient();
-            const contact = await hubspot.crm.contacts.basicApi.getById(objectId, ['email', 'membership_status', 'membership_tier']);
+            const contact = await hubspot.crm.contacts.basicApi.getById(objectId, ['email', 'membership_status', 'membership_tier', 'mindbody_client_id']);
             const email = contact.properties.email?.toLowerCase();
+            const hasMindbodyId = !!(contact.properties as Record<string, string | null>).mindbody_client_id;
             
             if (email) {
               const exclusionCheck = await db.execute(sql`SELECT 1 FROM sync_exclusions WHERE email = ${email}`);
@@ -1484,24 +1485,25 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
                     const memberTier = existingUser?.tier || 'Unknown';
 
                     const nonNotifiableStatuses = ['non-member', 'visitor', 'lead'];
+                    const changeSource = hasMindbodyId ? 'via MindBody' : (isStripeProtected ? 'via Stripe' : 'via HubSpot');
                     if (prevStatus && !nonNotifiableStatuses.includes(prevStatus) && newStatus === 'non-member') {
                       await notifyAllStaff(
                         'Member Status Changed',
-                        `${hubspotMemberName} (${email}) status changed to non-member via MindBody (was ${prevStatus}).`,
+                        `${hubspotMemberName} (${email}) status changed to non-member ${changeSource} (was ${prevStatus}).`,
                         'member_status_change',
                         { sendPush: true, url: '/admin/members' }
                       );
                     } else if (activeStatuses.includes(newStatus) && !activeStatuses.includes((prevStatus || '') as string)) {
                       await notifyAllStaff(
                         '🎉 New Member Activated',
-                        `${hubspotMemberName} (${email}) is now active via MindBody (${memberTier} tier).`,
+                        `${hubspotMemberName} (${email}) is now active ${changeSource} (${memberTier} tier).`,
                         'new_member',
                         { sendPush: true, url: '/admin/members' }
                       );
                     } else if (inactiveStatuses.includes(newStatus) && !inactiveStatuses.includes((prevStatus || '') as string)) {
                       await notifyAllStaff(
                         'Member Status Changed',
-                        `${hubspotMemberName} (${email}) status changed to ${newStatus} via MindBody.`,
+                        `${hubspotMemberName} (${email}) status changed to ${newStatus} ${changeSource}.`,
                         'member_status_change',
                         { sendPush: true, url: '/admin/members' }
                       );
