@@ -11,6 +11,24 @@ import { sendPassWithQrEmail } from '../emails/passEmails';
 import { queuePaymentSyncToHubSpot, queueDayPassSyncToHubSpot, syncCompanyToHubSpot } from './hubspot';
 
 import { logger } from './logger';
+
+interface JobIdRow {
+  id: number;
+}
+
+interface JobRow {
+  id: number;
+  job_type: string;
+  payload: Record<string, unknown>;
+  retry_count: number;
+  max_retries: number;
+}
+
+interface JobStatusCountRow {
+  status: string;
+  count: number;
+}
+
 const WORKER_ID = `worker-${process.pid}-${Date.now()}`;
 const LOCK_TIMEOUT_MS = 5 * 60 * 1000;
 const BATCH_SIZE = 10;
@@ -57,7 +75,7 @@ export async function queueJob(
      VALUES (${jobType}, ${JSON.stringify(payload)}, ${priority}, ${maxRetries}, ${scheduledForIso}::timestamptz, ${webhookEventId})
      RETURNING id`);
   
-  return (result.rows[0] as Record<string, unknown>).id as number;
+  return (result.rows[0] as unknown as JobIdRow).id;
 }
 
 export async function queueJobInTransaction(
@@ -113,13 +131,16 @@ async function claimJobs(): Promise<Array<{ id: number; jobType: string; payload
      )
      RETURNING id, job_type, payload, retry_count, max_retries`);
   
-  return result.rows.map((r: Record<string, unknown>) => ({
-    id: r.id as number,
-    jobType: r.job_type as string,
-    payload: r.payload as Record<string, unknown>,
-    retryCount: r.retry_count as number,
-    maxRetries: r.max_retries as number,
-  }));
+  return result.rows.map((r) => {
+    const row = r as unknown as JobRow;
+    return {
+      id: row.id,
+      jobType: row.job_type,
+      payload: row.payload,
+      retryCount: row.retry_count,
+      maxRetries: row.max_retries,
+    };
+  });
 }
 
 async function markJobCompleted(jobId: number): Promise<void> {
@@ -327,11 +348,11 @@ export async function getJobQueueStats(): Promise<{
   
   const stats = { pending: 0, processing: 0, completed: 0, failed: 0 };
   for (const _row of result.rows) {
-    const row = _row as Record<string, unknown>;
-    if (row.status === 'pending') stats.pending = row.count as number;
-    else if (row.status === 'processing') stats.processing = row.count as number;
-    else if (row.status === 'completed') stats.completed = row.count as number;
-    else if (row.status === 'failed') stats.failed = row.count as number;
+    const row = _row as unknown as JobStatusCountRow;
+    if (row.status === 'pending') stats.pending = row.count;
+    else if (row.status === 'processing') stats.processing = row.count;
+    else if (row.status === 'completed') stats.completed = row.count;
+    else if (row.status === 'failed') stats.failed = row.count;
   }
   
   return stats;

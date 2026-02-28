@@ -23,7 +23,7 @@ export async function reconcileDailyPayments() {
     let statusMismatches = 0;
 
     while (hasMore) {
-      const params: Record<string, unknown> = {
+      const params: { created: { gte: number }; limit: number; starting_after?: string } = {
         created: { gte: yesterday },
         limit: 100,
       };
@@ -39,7 +39,7 @@ export async function reconcileDailyPayments() {
         if (pi.status === 'succeeded') {
           const result = await db.execute(sql`SELECT status FROM stripe_payment_intents WHERE stripe_payment_intent_id = ${pi.id}`);
 
-          if (result.rows.length === 0 || (result.rows[0] as Record<string, unknown>).status !== 'succeeded') {
+          if (result.rows.length === 0 || (result.rows[0] as { status: string }).status !== 'succeeded') {
             logger.warn(`[Reconcile] Healing payment: ${pi.id} (${(pi.amount / 100).toFixed(2)} ${pi.currency})`);
             
             const userId = pi.metadata?.userId || pi.metadata?.email || 'unknown';
@@ -89,12 +89,12 @@ export async function reconcileSubscriptions() {
 
     let mismatches = 0;
     
-    for (const member of (activeMembers.rows as Array<Record<string, unknown>>)) {
+    for (const member of (activeMembers.rows as Array<{ id: string; email: string; stripe_customer_id: string | null; stripe_subscription_id: string | null; tier: string | null; membership_status: string | null }>)) {
       if (!member.stripe_customer_id) continue;
       
       try {
         const subscriptions = await stripe.subscriptions.list({
-          customer: member.stripe_customer_id as string,
+          customer: member.stripe_customer_id,
           limit: 10
         });
         
@@ -174,8 +174,8 @@ export async function reconcileSubscriptions() {
           const existingUser = await db.execute(sql`SELECT id, email, stripe_customer_id FROM users WHERE LOWER(email) = LOWER(${customerEmail})`);
           
           if (existingUser.rows.length > 0) {
-            if (!(existingUser.rows[0] as Record<string, unknown>).stripe_customer_id) {
-              await db.execute(sql`UPDATE users SET stripe_customer_id = ${customer.id}, updated_at = NOW() WHERE id = ${(existingUser.rows[0] as Record<string, unknown>).id}`);
+            if (!(existingUser.rows[0] as { id: string; email: string; stripe_customer_id: string | null }).stripe_customer_id) {
+              await db.execute(sql`UPDATE users SET stripe_customer_id = ${customer.id}, updated_at = NOW() WHERE id = ${(existingUser.rows[0] as { id: string; email: string; stripe_customer_id: string | null }).id}`);
               logger.info(`[Reconcile] Updated missing stripe_customer_id for ${customerEmail}`);
             }
             continue;
@@ -197,8 +197,8 @@ export async function reconcileSubscriptions() {
           if (priceId) {
             const tierResult = await db.execute(sql`SELECT slug, name FROM membership_tiers WHERE stripe_price_id = ${priceId} OR founding_price_id = ${priceId}`);
             if (tierResult.rows.length > 0) {
-              tierSlug = (tierResult.rows[0] as Record<string, unknown>).slug as string;
-              tierName = (tierResult.rows[0] as Record<string, unknown>).name as string;
+              tierSlug = (tierResult.rows[0] as { slug: string; name: string }).slug;
+              tierName = (tierResult.rows[0] as { slug: string; name: string }).name;
             }
           }
           
@@ -317,7 +317,7 @@ export async function reconcileDailyRefunds() {
         );
         
         const currentStatus = dbRecord.rows.length > 0 
-          ? (dbRecord.rows[0] as Record<string, unknown>).status as string 
+          ? (dbRecord.rows[0] as { status: string }).status
           : null;
         
         if (currentStatus === 'refunded' || currentStatus === 'partially_refunded') {

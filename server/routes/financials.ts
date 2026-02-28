@@ -127,15 +127,15 @@ router.get('/api/financials/recent-transactions', isStaffOrAdmin, async (req: Re
     `);
     
     const hasMore = result.rows.length > limit;
-    const transactions = result.rows.slice(0, limit).map((row: Record<string, unknown>) => ({
-      id: row.id as string,
-      type: row.type as string,
-      amount_cents: parseInt(row.amount_cents as string) || 0,
-      description: row.description as string,
-      member_email: row.member_email as string,
-      member_name: row.member_name as string,
-      created_at: new Date(row.created_at as string),
-      status: row.status as string
+    const transactions = (result.rows.slice(0, limit) as Array<{ id: string; type: string; amount_cents: string; description: string; member_email: string; member_name: string; created_at: string; status: string }>).map((row) => ({
+      id: row.id,
+      type: row.type,
+      amount_cents: parseInt(row.amount_cents) || 0,
+      description: row.description,
+      member_email: row.member_email,
+      member_name: row.member_name,
+      created_at: new Date(row.created_at),
+      status: row.status
     }));
     
     const seen = new Set<string>();
@@ -399,7 +399,7 @@ router.post('/api/financials/sync-member-payments', isStaffOrAdmin, async (req: 
       return res.status(404).json({ success: false, error: 'User not found' });
     }
     
-    const user = userResult.rows[0] as Record<string, unknown>;
+    const user = userResult.rows[0] as { id: string; stripe_customer_id: string | null; first_name: string | null; last_name: string | null };
     if (!user.stripe_customer_id) {
       return res.status(400).json({ success: false, error: 'User has no Stripe customer linked' });
     }
@@ -646,10 +646,10 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
       
       logger.info('[Financials] Found Stripe-billed customers in database', { extra: { dbResultRowsLength: dbResult.rows.length } });
       
-      const uniqueCustomers = new Map<string, Record<string, unknown>>();
-      for (const row of dbResult.rows as Record<string, unknown>[]) {
-        if (!uniqueCustomers.has(row.stripe_customer_id as string)) {
-          uniqueCustomers.set(row.stripe_customer_id as string, row);
+      const uniqueCustomers = new Map<string, { email: string; stripe_customer_id: string; first_name: string | null; last_name: string | null }>();
+      for (const row of dbResult.rows as Array<{ email: string; stripe_customer_id: string; first_name: string | null; last_name: string | null }>) {
+        if (!uniqueCustomers.has(row.stripe_customer_id)) {
+          uniqueCustomers.set(row.stripe_customer_id, row);
         }
       }
       
@@ -661,7 +661,7 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
         const batchResults = await Promise.allSettled(
           batch.map(async (row) => {
             const custSubs = await stripe.subscriptions.list({ 
-              customer: row.stripe_customer_id as string, 
+              customer: row.stripe_customer_id, 
               status: statusFilter,
               limit: 100,
               expand: ['data.items.data.price', 'data.customer']

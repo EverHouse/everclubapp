@@ -2,6 +2,16 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 
 import { logger } from '../logger';
+
+interface PurchaseHistoryRow {
+  item_name: string;
+  activity_date: string;
+}
+
+interface GuestActivityRow {
+  activity_date: string;
+}
+
 export type VisitorType = 'classpass' | 'sim_walkin' | 'private_lesson' | 'guest' | 'day_pass' | 'lead' | 'golfnow' | 'private_event';
 export type ActivitySource = 'day_pass_purchase' | 'guest_booking' | 'booking_participant' | 'legacy_purchase' | 'trackman_auto_match';
 
@@ -208,8 +218,9 @@ export async function calculateVisitorTypeFromHistory(email: string): Promise<Vi
     let purchaseDate: Date | null = null;
     
     if (lastPurchase) {
-      const itemName = (String((lastPurchase as Record<string, unknown>).item_name || '')).toLowerCase();
-      purchaseDate = new Date(String((lastPurchase as Record<string, unknown>).activity_date));
+      const typedPurchase = lastPurchase as unknown as PurchaseHistoryRow;
+      const itemName = (String(typedPurchase.item_name || '')).toLowerCase();
+      purchaseDate = new Date(String(typedPurchase.activity_date));
       
       if (itemName.includes('classpass')) {
         purchaseType = 'classpass';
@@ -224,7 +235,7 @@ export async function calculateVisitorTypeFromHistory(email: string): Promise<Vi
     
     let guestDate: Date | null = null;
     if (lastGuestAppearance) {
-      guestDate = new Date(String((lastGuestAppearance as Record<string, unknown>).activity_date));
+      guestDate = new Date(String((lastGuestAppearance as unknown as GuestActivityRow).activity_date));
     }
     
     if (!purchaseType && !guestDate) {

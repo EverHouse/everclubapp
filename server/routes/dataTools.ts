@@ -514,9 +514,9 @@ router.post('/api/data-tools/update-attendance', isAdmin, async (req: Request, r
       return res.status(404).json({ error: 'Booking not found' });
     }
     
-    const bookingRow = existingBooking.rows[0] as Record<string, unknown>;
-    const previousStatus = bookingRow.reconciliation_status as string | null;
-    const previousNotes = bookingRow.reconciliation_notes as string | null;
+    const bookingRow = existingBooking.rows[0] as { id: number; user_email: string; reconciliation_status: string | null; reconciliation_notes: string | null };
+    const previousStatus = bookingRow.reconciliation_status;
+    const previousNotes = bookingRow.reconciliation_notes;
     
     await db.execute(sql`UPDATE booking_requests SET 
         reconciliation_status = ${attendanceStatus},
@@ -1987,7 +1987,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
         const duplicateSessionCheck = await db.execute(sql`SELECT id FROM booking_sessions WHERE trackman_booking_id = ${booking.trackmanBookingId}`);
         
         if (duplicateSessionCheck.rows.length > 0) {
-          const existingSessionId = (duplicateSessionCheck.rows[0] as Record<string, unknown>).id as number;
+          const existingSessionId = (duplicateSessionCheck.rows[0] as { id: number }).id;
           await db.execute(sql`UPDATE booking_requests SET session_id = ${existingSessionId}, updated_at = NOW() WHERE id = ${booking.bookingId}`);
           
           fixed.push({
@@ -2035,7 +2035,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
         const ownerTier = booking.tier || await getMemberTierByEmail(booking.userEmail, { allowInactive: true });
         
         const resourceResult = await db.execute(sql`SELECT type FROM resources WHERE id = ${booking.resourceId}`);
-        const resourceType = (resourceResult.rows[0] as Record<string, unknown>)?.type as string || 'simulator';
+        const resourceType = (resourceResult.rows[0] as { type: string })?.type || 'simulator';
         
         const participants = [
           { email: booking.userEmail, participantType: 'owner' as const, displayName: booking.userName || booking.userEmail }
@@ -2103,7 +2103,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
             : booking.durationMinutes || 60;
           
           const userResult = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${booking.userEmail})`);
-          const userId = (userResult.rows[0] as Record<string, unknown>)?.id as number || null;
+          const userId = (userResult.rows[0] as { id: number })?.id || null;
           
           await db.execute(sql`
             INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
@@ -2227,7 +2227,7 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
       WHERE stripe_customer_id IS NOT NULL 
         AND membership_status = 'active'
     `);
-    const activeStripeIds = new Set(activeUsersResult.rows.map((r) => (r as Record<string, unknown>).stripe_customer_id as string));
+    const activeStripeIds = new Set(activeUsersResult.rows.map((r) => (r as { stripe_customer_id: string }).stripe_customer_id));
     
     const emptyCustomers: typeof allCustomers = [];
     let skippedActiveCount = 0;

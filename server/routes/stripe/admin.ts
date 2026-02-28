@@ -278,7 +278,7 @@ router.post('/api/stripe/staff/send-membership-link', isStaffOrAdmin, async (req
       return res.status(404).json({ error: 'Tier not found or inactive' });
     }
 
-    const tier = tierResult.rows[0] as Record<string, unknown>;
+    const tier = tierResult.rows[0] as { id: number; name: string; stripe_price_id: string | null; price_cents: number; billing_interval: string };
 
     if (!tier.stripe_price_id) {
       return res.status(400).json({ error: 'This tier has not been synced to Stripe. Please sync tiers first.' });
@@ -295,7 +295,7 @@ router.post('/api/stripe/staff/send-membership-link', isStaffOrAdmin, async (req
       customer_email: email,
       line_items: [
         {
-          price: tier.stripe_price_id as string,
+          price: tier.stripe_price_id,
           quantity: 1,
         },
       ],
@@ -399,7 +399,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
       return res.status(404).json({ error: 'Member not found' });
     }
 
-    const member = memberResult.rows[0] as Record<string, unknown>;
+    const member = memberResult.rows[0] as { id: number; email: string; first_name: string | null; last_name: string | null; tier: string | null; last_tier: string | null; membership_status: string | null; billing_provider: string | null; stripe_customer_id: string | null };
     const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email;
 
     let reactivationLink = 'https://everclub.app/billing';
@@ -436,7 +436,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
             LIMIT 1`);
 
           if (tierResult.rows.length > 0) {
-            const tier = tierResult.rows[0] as Record<string, unknown>;
+            const tier = tierResult.rows[0] as { id: number; name: string; stripe_price_id: string | null; price_cents: number; billing_interval: string };
             if (tier.stripe_price_id) {
               const stripe = await getStripeClient();
               const baseUrl = process.env.REPLIT_DEV_DOMAIN
@@ -592,7 +592,7 @@ router.post('/api/public/day-pass/checkout', checkoutRateLimiter, async (req: Re
       return res.status(404).json({ error: 'Day pass type not found' });
     }
 
-    const tier = tierResult.rows[0] as Record<string, unknown>;
+    const tier = tierResult.rows[0] as { id: number; name: string; slug: string; stripe_price_id: string | null; price_cents: number; description: string | null };
 
     if (!tier.stripe_price_id) {
       return res.status(400).json({ error: 'This day pass is not set up in Stripe yet. This usually resolves itself on server restart. Try refreshing in a minute.' });
@@ -609,7 +609,7 @@ router.post('/api/public/day-pass/checkout', checkoutRateLimiter, async (req: Re
       payment_method_types: ['card'],
       line_items: [
         {
-          price: tier.stripe_price_id as string,
+          price: tier.stripe_price_id,
           quantity: 1,
         },
       ],

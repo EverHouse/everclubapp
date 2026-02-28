@@ -91,7 +91,7 @@ export async function findAttendanceDiscrepancies(
     const whereClause = sql`${baseConditions} ${dateStartFilter} ${dateEndFilter} ${statusFilter}`;
     
     const countResult = await db.execute(sql`SELECT COUNT(*) as total FROM booking_requests br WHERE ${whereClause}`);
-    const totalCount = parseInt((countResult.rows[0] as Record<string, unknown>).total as string, 10);
+    const totalCount = parseInt((countResult.rows[0] as { total: string }).total as string, 10);
     
     const statsResult = await db.execute(sql`SELECT 
         COUNT(*) as total_discrepancies,
@@ -124,10 +124,28 @@ export async function findAttendanceDiscrepancies(
     
     let totalPotentialFeeAdjustment = 0;
     
-    const discrepancies: ReconciliationResult[] = (result.rows as Array<Record<string, unknown>>).map(row => {
-      const declaredCount = parseInt(row.declared_player_count as string) || 0;
-      const actualCount = parseInt(row.trackman_player_count as string) || 0;
-      const durationMinutes = parseInt(row.duration_minutes as string) || 0;
+    interface DiscrepancyRow {
+      id: number;
+      user_email: string;
+      user_name: string | null;
+      request_date: string;
+      start_time: string;
+      end_time: string;
+      duration_minutes: string;
+      declared_player_count: string;
+      trackman_player_count: string;
+      reconciliation_status: string | null;
+      reconciled_by: string | null;
+      reconciled_at: Date | null;
+      reconciliation_notes: string | null;
+      resource_id: number | null;
+      trackman_booking_id: string | null;
+    }
+
+    const discrepancies: ReconciliationResult[] = (result.rows as unknown as DiscrepancyRow[]).map(row => {
+      const declaredCount = parseInt(row.declared_player_count) || 0;
+      const actualCount = parseInt(row.trackman_player_count) || 0;
+      const durationMinutes = parseInt(row.duration_minutes) || 0;
       
       let discrepancy: 'over_declared' | 'under_declared' | 'matched';
       if (actualCount > declaredCount) {
@@ -149,12 +167,12 @@ export async function findAttendanceDiscrepancies(
       }
       
       return {
-        bookingId: row.id as number,
-        userEmail: row.user_email as string,
-        userName: row.user_name as string | null,
-        requestDate: row.request_date as string,
-        startTime: row.start_time as string,
-        endTime: row.end_time as string,
+        bookingId: row.id,
+        userEmail: row.user_email,
+        userName: row.user_name,
+        requestDate: row.request_date,
+        startTime: row.start_time,
+        endTime: row.end_time,
         durationMinutes,
         declaredCount,
         actualCount,
@@ -162,20 +180,27 @@ export async function findAttendanceDiscrepancies(
         discrepancyAmount: Math.abs(actualCount - declaredCount),
         requiresReview: discrepancy === 'under_declared' && !row.reconciliation_status,
         potentialFeeAdjustment,
-        reconciliationStatus: row.reconciliation_status as string | null,
-        reconciledBy: row.reconciled_by as string | null,
-        reconciledAt: row.reconciled_at as Date | null,
-        resourceId: row.resource_id as number | null,
-        trackmanBookingId: row.trackman_booking_id as string | null
+        reconciliationStatus: row.reconciliation_status,
+        reconciledBy: row.reconciled_by,
+        reconciledAt: row.reconciled_at,
+        resourceId: row.resource_id,
+        trackmanBookingId: row.trackman_booking_id
       };
     });
     
-    const statsRow = statsResult.rows[0] as Record<string, unknown>;
+    interface StatsRow {
+      total_discrepancies: string;
+      pending_review: string;
+      reviewed: string;
+      adjusted: string;
+    }
+
+    const statsRow = statsResult.rows[0] as unknown as StatsRow;
     const stats: ReconciliationStats = {
-      totalDiscrepancies: parseInt(statsRow.total_discrepancies as string) || 0,
-      pendingReview: parseInt(statsRow.pending_review as string) || 0,
-      reviewed: parseInt(statsRow.reviewed as string) || 0,
-      adjusted: parseInt(statsRow.adjusted as string) || 0,
+      totalDiscrepancies: parseInt(statsRow.total_discrepancies) || 0,
+      pendingReview: parseInt(statsRow.pending_review) || 0,
+      reviewed: parseInt(statsRow.reviewed) || 0,
+      adjusted: parseInt(statsRow.adjusted) || 0,
       totalPotentialFeeAdjustment
     };
     
@@ -186,12 +211,23 @@ export async function findAttendanceDiscrepancies(
   }
 }
 
+interface BookingReconciliationRow {
+  id: number;
+  declared_player_count: string;
+  trackman_player_count: string;
+  duration_minutes: string;
+  user_email: string;
+  reconciliation_status: string | null;
+  session_id: number | null;
+  tier?: string | null;
+}
+
 export async function markAsReconciled(
   bookingId: number,
   staffEmail: string,
   status: 'reviewed' | 'adjusted',
   notes?: string
-): Promise<{ success: boolean; booking?: Record<string, unknown> }> {
+): Promise<{ success: boolean; booking?: BookingReconciliationRow }> {
   try {
     const bookingResult = await db.execute(sql`SELECT id, declared_player_count, trackman_player_count, duration_minutes, 
               user_email, reconciliation_status, session_id
@@ -202,7 +238,7 @@ export async function markAsReconciled(
       return { success: false };
     }
     
-    const booking = bookingResult.rows[0] as Record<string, unknown>;
+    const booking = bookingResult.rows[0] as unknown as BookingReconciliationRow;
     const previousStatus = booking.reconciliation_status as string;
     
     const updateResult = await db.execute(sql`UPDATE booking_requests 
@@ -215,9 +251,9 @@ export async function markAsReconciled(
        RETURNING *`);
     
     if (status === 'adjusted') {
-      const declaredCount = parseInt(booking.declared_player_count as string) || 0;
-      const actualCount = parseInt(booking.trackman_player_count as string) || 0;
-      const durationMinutes = parseInt(booking.duration_minutes as string) || 0;
+      const declaredCount = parseInt(booking.declared_player_count) || 0;
+      const actualCount = parseInt(booking.trackman_player_count) || 0;
+      const durationMinutes = parseInt(booking.duration_minutes) || 0;
       const feeAdjustment = calculatePotentialFeeAdjustment(durationMinutes, declaredCount, actualCount);
       
       await logPaymentAudit({
@@ -260,7 +296,7 @@ export async function markAsReconciled(
       });
     }
     
-    return { success: true, booking: updateResult.rows[0] as Record<string, unknown> };
+    return { success: true, booking: updateResult.rows[0] as unknown as BookingReconciliationRow };
   } catch (error: unknown) {
     logger.error('[markAsReconciled] Error:', { error });
     throw error;
@@ -303,27 +339,27 @@ export async function adjustLedgerForReconciliation(
       return { success: false, adjustmentAmount: 0 };
     }
     
-    const booking = bookingResult.rows[0] as Record<string, unknown>;
-    const declaredCount = parseInt(booking.declared_player_count as string) || 0;
-    const actualCount = parseInt(booking.trackman_player_count as string) || 0;
-    const durationMinutes = parseInt(booking.duration_minutes as string) || 0;
+    const booking = bookingResult.rows[0] as unknown as BookingReconciliationRow;
+    const declaredCount = parseInt(booking.declared_player_count) || 0;
+    const actualCount = parseInt(booking.trackman_player_count) || 0;
+    const durationMinutes = parseInt(booking.duration_minutes) || 0;
     
     if (actualCount <= declaredCount) {
       return { success: true, adjustmentAmount: 0 };
     }
     
-    const overageRate = await getTierOverageRate(booking.tier as string | null);
+    const overageRate = await getTierOverageRate(booking.tier ?? null);
     const feeAdjustment = calculatePotentialFeeAdjustment(durationMinutes, declaredCount, actualCount, overageRate);
     
     if (booking.session_id && feeAdjustment > 0) {
       await recordUsage(
-        booking.session_id as number,
+        booking.session_id,
         {
-          memberId: booking.user_email as string,
+          memberId: booking.user_email,
           minutesCharged: 0,
           overageFee: feeAdjustment,
           guestFee: 0,
-          tierAtBooking: (booking.tier as string) || 'unknown',
+          tierAtBooking: booking.tier || 'unknown',
           paymentMethod: 'unpaid',
         },
         'staff_manual'

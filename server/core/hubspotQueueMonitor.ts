@@ -18,6 +18,16 @@ interface FailedQueueItem {
   nextRetryAt: string | null;
 }
 
+interface FailedQueueRow {
+  id: number;
+  operation: string;
+  last_error: string | null;
+  created_at: string | Date;
+  retry_count: number;
+  max_retries: number;
+  next_retry_at: string | Date | null;
+}
+
 interface HubSpotQueueMonitorData {
   stats: HubSpotQueueStats;
   recentFailed: FailedQueueItem[];
@@ -35,7 +45,7 @@ export async function getHubSpotQueueMonitorData(): Promise<HubSpotQueueMonitorD
     FROM hubspot_sync_queue
   `);
 
-  const row = statsResult.rows[0] as Record<string, unknown>;
+  const row = statsResult.rows[0] as unknown as HubSpotQueueStats;
   const stats: HubSpotQueueStats = {
     pending: Number(row?.pending) || 0,
     failed: Number(row?.failed) || 0,
@@ -51,27 +61,30 @@ export async function getHubSpotQueueMonitorData(): Promise<HubSpotQueueMonitorD
     LIMIT 20
   `);
 
-  const recentFailed: FailedQueueItem[] = failedResult.rows.map((r: Record<string, unknown>) => ({
-    id: r.id as number,
-    operation: r.operation as string,
-    lastError: r.last_error as string,
-    createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
-    retryCount: Number(r.retry_count),
-    maxRetries: Number(r.max_retries),
-    nextRetryAt: r.next_retry_at instanceof Date ? r.next_retry_at.toISOString() : String(r.next_retry_at || ''),
-  }));
+  const recentFailed: FailedQueueItem[] = failedResult.rows.map((_r) => {
+    const r = _r as unknown as FailedQueueRow;
+    return {
+      id: r.id,
+      operation: r.operation,
+      lastError: r.last_error,
+      createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+      retryCount: Number(r.retry_count),
+      maxRetries: Number(r.max_retries),
+      nextRetryAt: r.next_retry_at instanceof Date ? r.next_retry_at.toISOString() : String(r.next_retry_at || ''),
+    };
+  });
 
   const avgResult = await db.execute(sql`
     SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (completed_at - created_at)) * 1000), 0)::int as avg_ms
     FROM hubspot_sync_queue
     WHERE status = 'completed' AND completed_at > NOW() - INTERVAL '24 hours'
   `);
-  const avgProcessingTime = Number((avgResult.rows[0] as Record<string, unknown>)?.avg_ms) || 0;
+  const avgProcessingTime = Number((avgResult.rows[0] as { avg_ms?: number })?.avg_ms) || 0;
 
   const lagResult = await db.execute(sql`
     SELECT MIN(created_at) as oldest_pending FROM hubspot_sync_queue WHERE status = 'pending'
   `);
-  const oldestPending = (lagResult.rows[0] as Record<string, unknown>)?.oldest_pending;
+  const oldestPending = (lagResult.rows[0] as { oldest_pending?: string | Date })?.oldest_pending;
   let queueLag = 'No pending items';
   if (oldestPending) {
     const lagMs = Date.now() - new Date(oldestPending as string).getTime();

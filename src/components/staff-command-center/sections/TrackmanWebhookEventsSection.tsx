@@ -113,7 +113,23 @@ interface WebhookStats {
 }
 
 
-const getPlayerCount = (bookingData: Record<string, unknown>): number | null => {
+interface TrackmanPayloadBooking {
+  cancelled?: boolean;
+  canceled?: boolean;
+  status?: string;
+  updatedAt?: string;
+  createdAt?: string;
+  bay_name?: string;
+  bayName?: string;
+  bay?: { ref?: string; name?: string };
+  start?: string;
+  end?: string;
+  players?: unknown[];
+  playerCount?: number;
+  player_count?: number;
+}
+
+const getPlayerCount = (bookingData: TrackmanPayloadBooking): number | null => {
   if (bookingData?.players && Array.isArray(bookingData.players)) {
     return bookingData.players.length;
   }
@@ -133,7 +149,7 @@ const getEventTypeFromPayload = (payload: Record<string, unknown>, storedEventTy
   }
   
   // Try to determine event type from payload structure
-  const booking = (payload?.booking || payload?.data) as Record<string, unknown> | undefined;
+  const booking = (payload?.booking || payload?.data) as TrackmanPayloadBooking | undefined;
   if (booking) {
     if (booking.cancelled || booking.canceled || booking.status === 'cancelled' || booking.status === 'canceled') {
       return 'cancelled';
@@ -427,7 +443,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                   
                   const payload = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;
                   const eventType = getEventTypeFromPayload(payload, event.event_type);
-                  const bookingData = payload?.data || payload?.booking || {};
+                  const bookingData = (payload?.data || payload?.booking || {}) as TrackmanPayloadBooking;
                   const bayName = bookingData?.bay_name || bookingData?.bayName || (bookingData?.bay?.ref ? `Bay ${bookingData.bay.ref}` : undefined);
                   
                   const bookingStart = bookingData?.start;

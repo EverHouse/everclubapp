@@ -85,10 +85,22 @@ export function getBaseDescription(description: string): string {
   return description.replace(/\n---\n\[Affected:.*?\]\n\[Members Notified:.*?\]/s, '').trim();
 }
 
+interface ResourceIdRow { id: number }
+
+interface ClosureRow {
+  id: number;
+  start_date: string;
+  end_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  affected_areas: string | null;
+  needs_review: boolean;
+}
+
 async function getAllResourceIds(): Promise<number[]> {
   const idSet = new Set<number>();
   const resourcesResult = await db.execute(sql`SELECT id FROM resources`);
-  (resourcesResult.rows as Array<Record<string, unknown>>).forEach((r: Record<string, unknown>) => idSet.add(r.id as number));
+  (resourcesResult.rows as unknown as ResourceIdRow[]).forEach((r) => idSet.add(r.id));
   return Array.from(idSet);
 }
 
@@ -107,14 +119,14 @@ async function getResourceIdsForAffectedAreas(affectedAreas: string): Promise<nu
   
   if (normalized === 'all_bays') {
     const simulatorsResult = await db.execute(sql`SELECT id FROM resources WHERE type = 'simulator'`);
-    (simulatorsResult.rows as Array<Record<string, unknown>>).forEach((r: Record<string, unknown>) => idSet.add(r.id as number));
+    (simulatorsResult.rows as unknown as ResourceIdRow[]).forEach((r) => idSet.add(r.id));
     return Array.from(idSet);
   }
   
   if (normalized === 'conference_room' || normalized === 'conference room') {
     const confResult = await db.execute(sql`SELECT id FROM resources WHERE LOWER(name) LIKE '%conference%' LIMIT 1`);
     if (confResult.rows.length > 0) {
-      idSet.add((confResult.rows[0] as Record<string, unknown>).id as number);
+      idSet.add((confResult.rows[0] as unknown as ResourceIdRow).id);
     }
     return Array.from(idSet);
   }
@@ -126,10 +138,10 @@ async function getResourceIdsForAffectedAreas(affectedAreas: string): Promise<nu
       all.forEach(id => idSet.add(id));
     } else if (t === 'all_bays') {
       const simulatorsResult = await db.execute(sql`SELECT id FROM resources WHERE type = 'simulator'`);
-      (simulatorsResult.rows as Array<Record<string, unknown>>).forEach((r: Record<string, unknown>) => idSet.add(r.id as number));
+      (simulatorsResult.rows as unknown as ResourceIdRow[]).forEach((r) => idSet.add(r.id));
     } else if (t === 'conference_room' || t === 'conference room') {
       const confResult = await db.execute(sql`SELECT id FROM resources WHERE LOWER(name) LIKE '%conference%' LIMIT 1`);
-      if ((confResult.rows as Array<Record<string, unknown>>).length > 0) idSet.add(((confResult.rows as Array<Record<string, unknown>>)[0]).id as number);
+      if ((confResult.rows as unknown as ResourceIdRow[]).length > 0) idSet.add((confResult.rows[0] as unknown as ResourceIdRow).id);
     } else if (t.startsWith('bay_')) {
       const bayId = parseInt(t.replace('bay_', ''));
       if (!isNaN(bayId)) idSet.add(bayId);
@@ -195,7 +207,7 @@ async function createAvailabilityBlocks(
   const validResourcesResult = await db.execute(
     sql`SELECT id FROM resources WHERE id = ANY(${toIntArrayLiteral(resourceIds)}::int[])`
   );
-  const validResourceIds = new Set((validResourcesResult.rows as Array<Record<string, unknown>>).map((r: Record<string, unknown>) => r.id as number));
+  const validResourceIds = new Set((validResourcesResult.rows as unknown as ResourceIdRow[]).map((r) => r.id));
   const filteredIds = resourceIds.filter(id => validResourceIds.has(id));
   
   if (filteredIds.length < resourceIds.length) {
@@ -341,18 +353,18 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
         );
         if (adoptable.rows.length > 0) {
           await db.execute(
-            sql`UPDATE facility_closures SET internal_calendar_id = ${internalCalendarId} WHERE id = ${(adoptable.rows[0] as Record<string, unknown>).id}`
+            sql`UPDATE facility_closures SET internal_calendar_id = ${internalCalendarId} WHERE id = ${(adoptable.rows[0] as unknown as ClosureRow).id}`
           );
           existing = adoptable;
-          logger.info(`[Calendar Sync] Adopted closure #${(adoptable.rows[0] as Record<string, unknown>).id} for event ${internalCalendarId}: ${title}`);
+          logger.info(`[Calendar Sync] Adopted closure #${(adoptable.rows[0] as unknown as ClosureRow).id} for event ${internalCalendarId}: ${title}`);
         }
       }
       
       if (existing.rows.length > 0) {
-        const existingClosure = existing.rows[0] as Record<string, unknown>;
-        const closureId = existingClosure.id as number;
+        const existingClosure = existing.rows[0] as unknown as ClosureRow;
+        const closureId = existingClosure.id;
         
-        const preservedAffectedAreas = (existingClosure.affected_areas as string) || 'entire_facility';
+        const preservedAffectedAreas = existingClosure.affected_areas || 'entire_facility';
         
         const datesChanged = 
           existingClosure.start_date !== startDate || 
@@ -396,7 +408,7 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
            RETURNING id`
         );
         
-        const closureId = (result.rows[0] as Record<string, unknown>).id as number;
+        const closureId = (result.rows[0] as { id: number }).id;
         
         if (affectedAreas !== 'none') {
           const resourceIds = await getResourceIdsForAffectedAreas(affectedAreas);
@@ -418,13 +430,14 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
     );
     
     let deleted = 0;
-    for (const closure of existingClosures.rows as Array<Record<string, unknown>>) {
-      const closureCalIds = (closure.internal_calendar_id as string).split(',').map((id: string) => id.trim()).filter(Boolean);
+    interface ExistingClosureRow { id: number; internal_calendar_id: string }
+    for (const closure of existingClosures.rows as unknown as ExistingClosureRow[]) {
+      const closureCalIds = closure.internal_calendar_id.split(',').map((id: string) => id.trim()).filter(Boolean);
       const anyCancelled = closureCalIds.some((id: string) => cancelledEventIds.has(id));
       const anyFetched = closureCalIds.some((id: string) => fetchedEventIds.has(id));
       
       if (anyCancelled || !anyFetched) {
-        await deleteAvailabilityBlocks(closure.id as number);
+        await deleteAvailabilityBlocks(closure.id);
         await db.execute(sql`UPDATE facility_closures SET is_active = false WHERE id = ${closure.id}`);
         logger.info(`[Calendar Sync] Deactivated closure #${closure.id} and removed availability blocks`);
         deleted++;

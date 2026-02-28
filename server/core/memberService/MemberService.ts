@@ -16,6 +16,52 @@ import {
 } from './memberTypes';
 import type { MembershipTier } from '../../../shared/schema';
 
+interface BookingEmailRow {
+  user_email: string;
+}
+
+interface StaffUserRow {
+  id: number;
+  email: string;
+  name: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  job_title: string;
+  role: string;
+  is_active: boolean;
+}
+
+interface MemberQueryRow {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  tier: string;
+  tier_id: number;
+  phone: string;
+  tags: unknown;
+  stripe_customer_id: string;
+  hubspot_id: string;
+  mindbody_client_id: string;
+  membership_status: string;
+  join_date: string;
+  lifetime_visits: number;
+  linked_emails: unknown;
+  trackman_email: string;
+  archived_at: string | null;
+  tier_config_id: number;
+  tier_name: string;
+  daily_sim_minutes: number;
+  guest_passes_per_month: number;
+  booking_window_days: number;
+  can_book_simulators: boolean;
+  can_book_conference: boolean;
+  can_book_wellness: boolean;
+  unlimited_access: boolean;
+}
+
 export const USAGE_LEDGER_MEMBER_JOIN = `
   LEFT JOIN users member_lookup ON member_lookup.id = bp.user_id
   LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id 
@@ -97,7 +143,7 @@ class MemberServiceClass {
     
     if (result.rows.length === 0) return null;
     
-    const member = this.rowToMemberRecord(result.rows[0], options.includeTierConfig);
+    const member = this.rowToMemberRecord(result.rows[0] as unknown as MemberQueryRow, options.includeTierConfig);
     memberCache.setMember(member);
     return member;
   }
@@ -152,7 +198,7 @@ class MemberServiceClass {
     
     if (result.rows.length === 0) return null;
     
-    const member = this.rowToMemberRecord(result.rows[0], options.includeTierConfig);
+    const member = this.rowToMemberRecord(result.rows[0] as unknown as MemberQueryRow, options.includeTierConfig);
     memberCache.setMember(member);
     return member;
   }
@@ -202,7 +248,7 @@ class MemberServiceClass {
     
     if (result.rows.length === 0) return null;
     
-    const member = this.rowToMemberRecord(result.rows[0], options.includeTierConfig);
+    const member = this.rowToMemberRecord(result.rows[0] as unknown as MemberQueryRow, options.includeTierConfig);
     memberCache.setMember(member);
     return member;
   }
@@ -252,7 +298,7 @@ class MemberServiceClass {
     
     if (result.rows.length === 0) return null;
     
-    const member = this.rowToMemberRecord(result.rows[0], options.includeTierConfig);
+    const member = this.rowToMemberRecord(result.rows[0] as unknown as MemberQueryRow, options.includeTierConfig);
     memberCache.setMember(member);
     return member;
   }
@@ -342,8 +388,8 @@ class MemberServiceClass {
         SELECT user_email FROM booking_requests WHERE session_id = ${sessionId} LIMIT 1
       `);
       
-      if (bookingResult.rows.length > 0 && (bookingResult.rows[0] as Record<string, unknown>).user_email) {
-        const bookingEmail = (bookingResult.rows[0] as Record<string, unknown>).user_email as string;
+      if (bookingResult.rows.length > 0 && (bookingResult.rows[0] as unknown as BookingEmailRow).user_email) {
+        const bookingEmail = (bookingResult.rows[0] as unknown as BookingEmailRow).user_email;
         const member = await this.findByEmail(bookingEmail, { includeTierConfig: true });
         if (member) {
           return {
@@ -388,19 +434,19 @@ class MemberServiceClass {
     
     if (result.rows.length === 0) return null;
     
-    const row = result.rows[0] as Record<string, unknown>;
+    const row = result.rows[0] as unknown as StaffUserRow;
     const staff: StaffRecord = {
       id: Number(row.id),
-      email: row.email as string,
+      email: row.email,
       normalizedEmail: normalized,
-      name: row.name as string,
-      firstName: row.first_name as string,
-      lastName: row.last_name as string,
-      displayName: (row.name as string) || `${row.first_name || ''} ${row.last_name || ''}`.trim() || (row.email as string),
+      name: row.name,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      displayName: row.name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || row.email,
       role: row.role === 'admin' ? 'admin' : 'staff',
-      jobTitle: row.job_title as string,
-      phone: row.phone as string,
-      isActive: row.is_active as boolean
+      jobTitle: row.job_title,
+      phone: row.phone,
+      isActive: row.is_active
     };
     
     memberCache.setStaff(staff);
@@ -441,8 +487,8 @@ class MemberServiceClass {
       const result = await db.execute(sql`
         SELECT user_email FROM booking_requests WHERE session_id = ${sessionId} LIMIT 1
       `);
-      if (result.rows.length > 0 && (result.rows[0] as Record<string, unknown>).user_email) {
-        return normalizeEmail((result.rows[0] as Record<string, unknown>).user_email as string);
+      if (result.rows.length > 0 && (result.rows[0] as unknown as BookingEmailRow).user_email) {
+        return normalizeEmail((result.rows[0] as unknown as BookingEmailRow).user_email);
       }
     }
     
@@ -461,7 +507,7 @@ class MemberServiceClass {
     return memberCache.getStats();
   }
   
-  private rowToMemberRecord(row: Record<string, unknown>, includeTierConfig: boolean = false): MemberRecord {
+  private rowToMemberRecord(row: MemberQueryRow, includeTierConfig: boolean = false): MemberRecord {
     const linkedEmails = Array.isArray(row.linked_emails) 
       ? row.linked_emails 
       : (typeof row.linked_emails === 'string' ? JSON.parse(row.linked_emails) : []);

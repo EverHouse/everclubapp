@@ -19,7 +19,9 @@ import { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
 import { getTodayPacific } from '../../utils/dateUtils';
 import { broadcastBookingRosterUpdate } from '../../core/websocket';
 
-type DbRow = Record<string, unknown>;
+interface DbRow {
+  [key: string]: unknown;
+}
 
 const router = Router();
 
@@ -2147,7 +2149,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           membershipStatus: membershipStatus as string | null,
           isInactiveMember: !!isInactiveMember,
           isStaff: isStaffUser,
-          guestInfo: null as Record<string, unknown> | null
+          guestInfo: null as { name?: string; email?: string } | null
         };
       });
 

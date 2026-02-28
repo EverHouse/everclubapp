@@ -24,6 +24,14 @@ export interface RosterParticipant {
   createdAt: string;
 }
 
+interface ConflictData {
+  id?: number;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  resourceName?: string;
+}
+
 interface BookingConflictDetails {
   memberName: string;
   conflictingBooking: {
@@ -236,7 +244,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
     haptic.light();
     
     try {
-      const { ok, data, error, errorType, errorData } = await apiRequest<{ success: boolean; participant: Record<string, unknown>; conflict?: Record<string, unknown>; errorType?: string }>(
+      const { ok, data, error, errorType, errorData } = await apiRequest<{ success: boolean; participant: Record<string, unknown>; conflict?: ConflictData; errorType?: string }>(
         `/api/bookings/${bookingId}/participants`,
         {
           method: 'POST',
@@ -261,15 +269,15 @@ const RosterManager: React.FC<RosterManagerProps> = ({
         haptic.error();
         
         if (errorType === 'booking_conflict' || (error && error.includes('scheduling conflict'))) {
-          const conflict = errorData?.conflict;
+          const conflict = errorData?.conflict as ConflictData | undefined;
           setConflictDetails({
             memberName: member.name,
             conflictingBooking: conflict ? {
-              id: (conflict as Record<string, unknown>).id as number || 0,
-              date: (conflict as Record<string, unknown>).date as string || booking?.requestDate || 'Unknown',
-              startTime: (conflict as Record<string, unknown>).startTime as string || booking?.startTime || 'Unknown',
-              endTime: (conflict as Record<string, unknown>).endTime as string || booking?.endTime || 'Unknown',
-              resourceName: (conflict as Record<string, unknown>).resourceName as string || booking?.resourceName || undefined
+              id: conflict.id || 0,
+              date: conflict.date || booking?.requestDate || 'Unknown',
+              startTime: conflict.startTime || booking?.startTime || 'Unknown',
+              endTime: conflict.endTime || booking?.endTime || 'Unknown',
+              resourceName: conflict.resourceName || booking?.resourceName || undefined
             } : {
               id: 0,
               date: booking?.requestDate || 'Unknown',

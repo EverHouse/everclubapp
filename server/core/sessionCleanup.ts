@@ -2,8 +2,21 @@ import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { logger } from './logger';
 
+interface DatabaseError {
+  code?: string;
+  message?: string;
+}
+
+interface SessionStatsRow {
+  total: string;
+  active: string;
+  expired: string;
+  oldest_active: string | null;
+  newest_active: string | null;
+}
+
 function isTableMissingError(error: unknown): boolean {
-  const code = (error as Record<string, unknown>)?.code;
+  const code = (error as unknown as DatabaseError)?.code;
   if (code === '42P01') return true;
   const msg = error instanceof Error ? error.message : String(error);
   return msg.includes('42P01') || msg.includes('relation "session" does not exist') || msg.includes('relation \\"session\\" does not exist');
@@ -56,7 +69,7 @@ export async function getSessionStats(): Promise<{
       FROM session
     `);
     
-    const row = result.rows[0] as Record<string, unknown>;
+    const row = result.rows[0] as unknown as SessionStatsRow;
     
     return {
       total: parseInt(String(row.total)) || 0,

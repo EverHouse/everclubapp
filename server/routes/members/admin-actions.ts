@@ -70,7 +70,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
       const migrationCheck = await db.execute(sql`
         SELECT migration_status FROM users WHERE LOWER(email) = ${normalizedEmail}
       `);
-      if ((migrationCheck.rows[0] as Record<string, unknown>)?.migration_status === 'pending') {
+      if ((migrationCheck.rows[0] as { migration_status: string | null })?.migration_status === 'pending') {
         return res.status(400).json({ error: 'Cannot clear tier while billing migration is pending. Cancel the migration first.' });
       }
     }
@@ -355,7 +355,7 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
     const migrationCheck = await db.execute(sql`
       SELECT migration_status FROM users WHERE id = ${userResult[0].id}
     `);
-    if ((migrationCheck.rows[0] as Record<string, unknown>)?.migration_status === 'pending') {
+    if ((migrationCheck.rows[0] as { migration_status: string | null })?.migration_status === 'pending') {
       return res.status(400).json({ error: 'Cannot archive member while billing migration is pending. Cancel the migration first.' });
     }
     
@@ -612,7 +612,7 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     deletionLog.push('wellness_enrollments');
     
     const sessionIdsResult = await db.execute(sql`SELECT DISTINCT session_id FROM booking_requests WHERE (LOWER(user_email) = ${normalizedEmail} OR user_id = ${userId}) AND session_id IS NOT NULL`);
-    const sessionIds = (sessionIdsResult.rows as Record<string, unknown>[]).map((r) => r.session_id);
+    const sessionIds = (sessionIdsResult.rows as { session_id: number }[]).map((r) => r.session_id);
     deletionLog.push(`booking_session_ids_found (${sessionIds.length})`);
 
     await db.execute(sql`DELETE FROM booking_fee_snapshots WHERE booking_id IN (SELECT id FROM booking_requests WHERE LOWER(user_email) = ${normalizedEmail} OR user_id = ${userId})`);

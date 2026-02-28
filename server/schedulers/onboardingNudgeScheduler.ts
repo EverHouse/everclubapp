@@ -37,9 +37,9 @@ async function processOnboardingNudges(): Promise<void> {
     logger.info(`[Onboarding Nudge] Found ${membersResult.rows.length} stalled members to nudge`);
 
     for (const rawMember of membersResult.rows) {
-      const member = rawMember as Record<string, unknown>;
+      const member = rawMember as { email: string; first_name: string; created_at: string; onboarding_nudge_count: number; id: number };
       const hoursSinceSignup = (Date.now() - new Date(String(member.created_at)).getTime()) / (1000 * 60 * 60);
-      const currentNudgeCount = (member.onboarding_nudge_count as number) || 0;
+      const currentNudgeCount = member.onboarding_nudge_count || 0;
 
       let sendResult: { success: boolean; error?: string } = { success: false };
 

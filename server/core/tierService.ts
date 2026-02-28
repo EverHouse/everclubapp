@@ -6,6 +6,17 @@ import { normalizeToISODate } from '../utils/dateNormalize';
 import { getTodayPacific, addDaysToPacificDate } from '../utils/dateUtils';
 
 import { logger } from './logger';
+
+interface MemberTierRow {
+  tier: string | null;
+  tier_name: string | null;
+  membership_status: string | null;
+}
+
+interface TotalMinutesRow {
+  total_minutes: string;
+}
+
 export interface TierLimits {
   daily_sim_minutes: number;
   guest_passes_per_month: number;
@@ -102,17 +113,17 @@ export async function getMemberTierByEmail(email: string, options?: { allowInact
       return null;
     }
     
-    const user = result.rows[0] as Record<string, unknown>;
+    const user = result.rows[0] as unknown as MemberTierRow;
     
     if (!options?.allowInactive) {
       const validStatuses = ['active', 'trialing', 'past_due'];
-      if (!user.membership_status || !validStatuses.includes(user.membership_status as string)) {
+      if (!user.membership_status || !validStatuses.includes(user.membership_status)) {
         logger.warn(`[TierService] Denying tier access for ${email} (Status: ${user.membership_status || 'none'})`);
         return null;
       }
     }
     
-    return (user.tier_name as string) || (user.tier as string) || null;
+    return user.tier_name || user.tier || null;
   } catch (error: unknown) {
     logger.error('[getMemberTierByEmail] Error:', { error: error });
     return null;
@@ -136,7 +147,7 @@ export async function getDailyBookedMinutes(email: string, date: string, resourc
         AND br.status IN ('pending', 'approved', 'attended', 'confirmed')
         ${resourceFilter}`);
     
-    return parseInt((result.rows[0] as Record<string, unknown>).total_minutes as string) || 0;
+    return parseInt((result.rows[0] as unknown as TotalMinutesRow).total_minutes) || 0;
   } catch (error: unknown) {
     logger.error('[getDailyBookedMinutes] Error:', { error: error });
     return 0;
@@ -172,7 +183,7 @@ export async function getDailyParticipantMinutes(email: string, date: string, ex
          ${excludeClause}
          ${resourceTypeClause}`);
 
-    return parseFloat((participantsResult.rows[0] as Record<string, unknown>).total_minutes as string) || 0;
+    return parseFloat((participantsResult.rows[0] as unknown as TotalMinutesRow).total_minutes) || 0;
   } catch (error: unknown) {
     logger.error('[getDailyParticipantMinutes] Error:', { error: error });
     return 0;
@@ -210,7 +221,7 @@ export async function getTotalDailyUsageMinutes(
       getDailyParticipantMinutes(email, date, excludeBookingId, resourceType)
     ]);
 
-    const ownerMinutes = parseFloat((ownerResult.rows[0] as Record<string, unknown>).total_minutes as string) || 0;
+    const ownerMinutes = parseFloat((ownerResult.rows[0] as unknown as TotalMinutesRow).total_minutes) || 0;
 
     return {
       ownerMinutes,

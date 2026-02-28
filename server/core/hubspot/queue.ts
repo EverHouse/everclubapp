@@ -14,6 +14,26 @@ export type HubSpotOperation =
   | 'sync_day_pass'
   | 'sync_payment';
 
+interface QueueIdRow {
+  id: number;
+}
+
+interface QueueJobRow {
+  id: number;
+  operation: string;
+  payload: Record<string, unknown>;
+  retry_count: number;
+  max_retries: number;
+}
+
+interface QueueStatsRow {
+  pending: string | number;
+  processing: string | number;
+  failed: string | number;
+  dead: string | number;
+  completed_today: string | number;
+}
+
 interface QueueJobOptions {
   priority?: number;  // 1-10, lower = higher priority
   idempotencyKey?: string;
@@ -36,7 +56,7 @@ export async function enqueueHubSpotSync(
         logger.info('[HubSpot Queue] Duplicate job skipped', { 
           extra: { idempotencyKey, existingId: existing.rows[0].id }
         });
-        return (existing.rows[0] as Record<string, unknown>).id as number;
+        return (existing.rows[0] as unknown as QueueIdRow).id;
       }
     }
     
@@ -53,10 +73,10 @@ export async function enqueueHubSpotSync(
     }
     
     logger.info('[HubSpot Queue] Job enqueued', { 
-      extra: { jobId: (result.rows[0] as Record<string, unknown>).id, operation, idempotencyKey }
+      extra: { jobId: (result.rows[0] as unknown as QueueIdRow).id, operation, idempotencyKey }
     });
     
-    return (result.rows[0] as Record<string, unknown>).id as number;
+    return (result.rows[0] as unknown as QueueIdRow).id;
   } catch (error: unknown) {
     logger.error('[HubSpot Queue] Failed to enqueue job', { 
       error: error,
@@ -105,12 +125,11 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
   });
   
   for (const _job of result.rows) {
-    const job = _job as Record<string, unknown>;
+    const job = _job as unknown as QueueJobRow;
     stats.processed++;
     
     try {
-      // Execute the operation
-      await executeHubSpotOperation(job.operation as string, job.payload as Record<string, unknown>);
+      await executeHubSpotOperation(job.operation, job.payload);
       
       // Mark as completed
       await db.execute(sql`UPDATE hubspot_sync_queue 
@@ -321,7 +340,7 @@ export async function getQueueStats(): Promise<{
     FROM hubspot_sync_queue
   `);
   
-  const statsRow = result.rows[0] as Record<string, unknown>;
+  const statsRow = result.rows[0] as unknown as QueueStatsRow;
   return {
     pending: parseInt(String(statsRow.pending)) || 0,
     processing: parseInt(String(statsRow.processing)) || 0,

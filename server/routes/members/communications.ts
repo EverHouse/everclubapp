@@ -294,10 +294,11 @@ router.get('/api/my-visits', isAuthenticated, async (req, res) => {
       ORDER BY visit_type, visit_id, date DESC
     `);
     
-    const rows = (unifiedVisitsResult.rows as Record<string, unknown>[]) || [];
+    interface VisitRow { visit_id: number; visit_type: string; role: string; date: string; start_time: string | null; end_time: string | null; resource_name: string; location: string | null; category: string | null; invited_by: string | null }
+    const rows = (unifiedVisitsResult.rows as unknown as VisitRow[]) || [];
     
     const visits = rows
-      .map((row: Record<string, unknown>) => ({
+      .map((row: VisitRow) => ({
         id: row.visit_id,
         type: row.visit_type,
         role: row.role,

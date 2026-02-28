@@ -4,6 +4,11 @@ import { getErrorMessage } from '../../utils/errorUtils';
 import { logBillingAudit } from '../auditLog';
 
 import { logger } from '../logger';
+
+interface CountRow {
+  count: string;
+}
+
 export interface EmailChangeResult {
   success: boolean;
   oldEmail: string;
@@ -190,7 +195,7 @@ export async function previewEmailChangeImpact(
       const result = await db.execute(
         sql`SELECT COUNT(*) as count FROM ${sql.raw(table)} WHERE LOWER(${sql.raw(column)}) = LOWER(${email.toLowerCase().trim()})`
       );
-      const count = parseInt(String((result.rows[0] as Record<string, unknown>).count), 10);
+      const count = parseInt(String((result.rows[0] as unknown as CountRow).count), 10);
       if (count > 0) {
         tables.push({ tableName: table, columnName: column, rowCount: count });
       }

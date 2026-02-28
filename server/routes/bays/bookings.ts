@@ -358,7 +358,7 @@ router.get('/api/booking-requests', async (req, res) => {
     }
     
     const enrichedResult = result.map((booking) => {
-      const mutableBooking = booking as Record<string, unknown>;
+      const mutableBooking = booking as { [key: string]: unknown };
       if (!isStaffRequest) {
         delete mutableBooking.staff_notes;
       }
@@ -1646,7 +1646,7 @@ router.get('/api/fee-estimate', async (req, res) => {
       let resourceType = 'simulator';
       if (request.resourceId) {
         const resourceResult = await db.execute(sql`SELECT type FROM resources WHERE id = ${request.resourceId}`);
-        resourceType = (resourceResult.rows[0] as Record<string, unknown>)?.type as string || 'simulator';
+        resourceType = (resourceResult.rows[0] as { type: string })?.type || 'simulator';
       }
       
       // If booking has a session, use actual participant count for accuracy
@@ -1659,8 +1659,8 @@ router.get('/api/fee-estimate', async (req, res) => {
             COUNT(*) as total_count
            FROM booking_participants 
            WHERE session_id = ${request.sessionId}`);
-        const actualTotal = parseInt((participantResult.rows[0] as Record<string, unknown>)?.total_count as string || '0');
-        const actualGuests = parseInt((participantResult.rows[0] as Record<string, unknown>)?.guest_count as string || '0');
+        const actualTotal = parseInt((participantResult.rows[0] as { total_count: string; guest_count: string })?.total_count || '0');
+        const actualGuests = parseInt((participantResult.rows[0] as { total_count: string; guest_count: string })?.guest_count || '0');
         
         // Use the greater of declared vs actual (staff may have added more players)
         effectivePlayerCount = Math.max(declaredPlayerCount, actualTotal);

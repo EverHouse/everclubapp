@@ -167,7 +167,7 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
               if (!resolvedTerminal.stripeCustomerId) {
                 const terminalUserCheck = await db.execute(sql`SELECT archived_at FROM users WHERE id = ${resolvedTerminal.userId}`);
                 await db.execute(sql`UPDATE users SET stripe_customer_id = ${customerId}, archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = ${resolvedTerminal.userId}`);
-                if ((terminalUserCheck.rows as Array<Record<string, unknown>>)[0]?.archived_at) {
+                if ((terminalUserCheck.rows as Array<{ archived_at: string | null }>)[0]?.archived_at) {
                   logger.info('[Auto-Unarchive] User unarchived after receiving Stripe customer ID', { extra: { resolvedTerminalPrimaryEmail: resolvedTerminal.primaryEmail } });
                 }
               }
@@ -227,9 +227,9 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
         const pendingParticipants = await db.execute(sql`SELECT id, cached_fee_cents FROM booking_participants
            WHERE session_id = ${parseInt(metadata.sessionId)} AND payment_status = 'pending' AND cached_fee_cents > 0`);
         if (pendingParticipants.rows.length > 0) {
-          const fees = (pendingParticipants.rows as Array<Record<string, unknown>>).map((r: Record<string, unknown>) => ({
-            id: r.id as number,
-            amountCents: r.cached_fee_cents as number
+          const fees = (pendingParticipants.rows as Array<{ id: number; cached_fee_cents: number }>).map((r) => ({
+            id: r.id,
+            amountCents: r.cached_fee_cents
           }));
           const serialized = JSON.stringify(fees);
           if (serialized.length <= 490) {
@@ -314,15 +314,15 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
                WHERE session_id = ${sessionIdVal} AND payment_status = 'pending' AND cached_fee_cents > 0`);
 
             if (participantRows.rows.length > 0) {
-              const feeLineItems: BookingFeeLineItem[] = (participantRows.rows as Array<Record<string, unknown>>).map((r: Record<string, unknown>) => {
+              const feeLineItems: BookingFeeLineItem[] = (participantRows.rows as Array<{ id: number; display_name: string; participant_type: string; cached_fee_cents: number }>).map((r) => {
                 const isGuest = r.participant_type === 'guest';
                 return {
-                  participantId: r.id as number,
-                  displayName: (r.display_name as string) || (isGuest ? 'Guest' : 'Member'),
+                  participantId: r.id,
+                  displayName: r.display_name || (isGuest ? 'Guest' : 'Member'),
                   participantType: r.participant_type as 'owner' | 'member' | 'guest',
-                  overageCents: isGuest ? 0 : (r.cached_fee_cents as number),
-                  guestCents: isGuest ? (r.cached_fee_cents as number) : 0,
-                  totalCents: r.cached_fee_cents as number,
+                  overageCents: isGuest ? 0 : r.cached_fee_cents,
+                  guestCents: isGuest ? r.cached_fee_cents : 0,
+                  totalCents: r.cached_fee_cents,
                 };
               });
 
@@ -613,7 +613,7 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
     if (userCheck.rows.length === 0) {
       return res.status(400).json({ error: 'User not found. Cannot process payment without a linked member account.' });
     }
-    const pendingUser = userCheck.rows[0] as Record<string, unknown>;
+    const pendingUser = userCheck.rows[0] as { id: string; email: string; membership_status: string };
     const pendingUserStatus = pendingUser.membership_status as string;
     const allowedStatuses = ['pending', 'incomplete'];
     if (!allowedStatuses.includes(pendingUserStatus)) {

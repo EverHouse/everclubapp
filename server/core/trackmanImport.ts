@@ -21,6 +21,34 @@ import { alertOnTrackmanImportIssues } from './dataAlerts';
 import { staffUsers } from '../../shared/schema';
 
 import { logger } from './logger';
+
+interface UserIdRow {
+  id: string;
+}
+
+interface PaidCheckRow {
+  has_paid?: boolean;
+  has_snapshot?: boolean;
+  has_paid_participants: boolean;
+}
+
+interface SessionCheckRow {
+  session_id: number | null;
+}
+
+interface ClosureIdRow {
+  id: number;
+}
+
+interface PaymentIntentRow {
+  stripe_payment_intent_id: string;
+}
+
+interface LinkedEmailRow {
+  primary_email: string;
+  linked_email: string;
+}
+
 /**
  * Fetches email addresses of all active staff members with the 'golf_instructor' role.
  * Used to identify lesson bookings during Trackman import and cleanup.
@@ -307,10 +335,10 @@ async function loadEmailMapping(): Promise<Map<string, string>> {
     );
     
     let linkedCount = 0;
-    for (const row of linkedEmailsResult.rows) {
+    for (const row of linkedEmailsResult.rows as unknown as LinkedEmailRow[]) {
       if (row.primary_email && row.linked_email) {
-        const normalizedLinked = (row.linked_email as string).toLowerCase().trim();
-        const normalizedPrimary = (row.primary_email as string).toLowerCase().trim();
+        const normalizedLinked = row.linked_email.toLowerCase().trim();
+        const normalizedPrimary = row.primary_email.toLowerCase().trim();
         if (!mapping.has(normalizedLinked)) {
           mapping.set(normalizedLinked, normalizedPrimary);
           linkedCount++;
@@ -568,7 +596,7 @@ function resolveEmail(email: string, membersByEmail: Map<string, string>, trackm
 
 async function getUserIdByEmail(email: string): Promise<string | null> {
   const result = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${email}) LIMIT 1`);
-  return (result.rows[0] as Record<string, unknown>)?.id as string || null;
+  return (result.rows[0] as unknown as UserIdRow)?.id || null;
 }
 
 // Check if an email belongs to a user (via primary email, trackman_email, or manually_linked_emails)
@@ -1747,7 +1775,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 EXISTS(
                   SELECT 1 FROM booking_participants WHERE session_id = ${existing.sessionId} AND payment_status = 'paid'
                 ) AS has_paid_participants`);
-              hasPaidFees = Boolean((paidCheck.rows[0] as Record<string, unknown>)?.has_paid) || Boolean((paidCheck.rows[0] as Record<string, unknown>)?.has_paid_participants);
+              hasPaidFees = Boolean((paidCheck.rows[0] as unknown as PaidCheckRow)?.has_paid) || Boolean((paidCheck.rows[0] as unknown as PaidCheckRow)?.has_paid_participants);
             } catch (err) { logger.debug('Failed to parse fee, assuming paid', { error: err }); hasPaidFees = true; }
           }
           if (hasPaidFees) {
@@ -1778,7 +1806,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 SELECT 1 FROM booking_participants 
                 WHERE session_id = ${existing.sessionId} AND payment_status = 'paid'
               ) AS has_paid_participants`);
-            hasCompletedPayments = Boolean((paymentCheck.rows[0] as Record<string, unknown>)?.has_snapshot) || Boolean((paymentCheck.rows[0] as Record<string, unknown>)?.has_paid_participants);
+            hasCompletedPayments = Boolean((paymentCheck.rows[0] as unknown as PaidCheckRow)?.has_snapshot) || Boolean((paymentCheck.rows[0] as unknown as PaidCheckRow)?.has_paid_participants);
           } catch (checkErr: unknown) {
             hasCompletedPayments = true;
             process.stderr.write(`[Trackman Import] FAIL-CLOSED: Could not check payment status for booking #${existing.id}, treating as frozen: ${getErrorMessage(checkErr)}\n`);
@@ -3365,7 +3393,7 @@ export async function resolveUnmatchedBooking(
       SELECT session_id FROM booking_requests WHERE id = ${insertResult.bookingId} AND session_id IS NOT NULL
     `);
     
-    if ((existingSession.rows as Record<string, unknown>[]).length === 0 || !(existingSession.rows[0] as Record<string, unknown>)?.session_id) {
+    if (existingSession.rows.length === 0 || !(existingSession.rows[0] as unknown as SessionCheckRow)?.session_id) {
       const bookingDate = booking.bookingDate ? new Date(booking.bookingDate).toISOString().split('T')[0] : '';
       const startTime = booking.startTime?.toString() || '';
       const endTime = booking.endTime?.toString() || '';
@@ -3481,7 +3509,7 @@ export async function resolveUnmatchedBooking(
           SELECT session_id FROM booking_requests WHERE id = ${otherResult.bookingId} AND session_id IS NOT NULL
         `);
         
-        if ((otherExistingSession.rows as Record<string, unknown>[]).length === 0 || !(otherExistingSession.rows[0] as Record<string, unknown>)?.session_id) {
+        if (otherExistingSession.rows.length === 0 || !(otherExistingSession.rows[0] as unknown as SessionCheckRow)?.session_id) {
           const otherBookingDate = other.bookingDate ? new Date(other.bookingDate).toISOString().split('T')[0] : '';
           const otherStartTime = other.startTime?.toString() || '';
           const otherEndTime = other.endTime?.toString() || '';
@@ -3715,7 +3743,7 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
             await db.execute(sql`
               INSERT INTO availability_blocks 
                 (closure_id, resource_id, block_date, start_time, end_time, block_type, notes, created_by)
-              VALUES (${(closureResult.rows[0] as Record<string, unknown>).id}, ${resourceId}, ${bookingDate}, ${startTime}, ${endTime}, 'blocked', ${`Lesson - ${userName || 'Unknown'}`}, ${performedBy})
+              VALUES (${(closureResult.rows[0] as unknown as ClosureIdRow).id}, ${resourceId}, ${bookingDate}, ${startTime}, ${endTime}, 'blocked', ${`Lesson - ${userName || 'Unknown'}`}, ${performedBy})
             `);
             
             process.stderr.write(`[Trackman Rescan] Created availability block for lesson: ${userName} on ${bookingDate} ${startTime}-${endTime}\n`);
@@ -3987,7 +4015,7 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
         await db.execute(sql`
           INSERT INTO availability_blocks 
             (closure_id, resource_id, block_date, start_time, end_time, block_type, notes, created_by)
-          VALUES (${(closureResult.rows[0] as Record<string, unknown>).id}, ${booking.resource_id}, ${bookingDate}, ${booking.start_time}, ${endTime}, 'blocked', ${`Lesson - ${booking.user_name || 'Unknown'}`}, 'system_cleanup')
+          VALUES (${(closureResult.rows[0] as unknown as ClosureIdRow).id}, ${booking.resource_id}, ${bookingDate}, ${booking.start_time}, ${endTime}, 'blocked', ${`Lesson - ${booking.user_name || 'Unknown'}`}, 'system_cleanup')
         `);
       }
 
@@ -4015,10 +4043,10 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
       for (const intent of pendingIntents.rows) {
         try {
           const stripe = await import('./stripe').then(m => m.getStripeClient());
-          await stripe.paymentIntents.cancel((intent as Record<string, unknown>).stripe_payment_intent_id as string);
-          log(`[Lesson Cleanup] Cancelled payment intent ${(intent as Record<string, unknown>).stripe_payment_intent_id}`);
+          await stripe.paymentIntents.cancel((intent as unknown as PaymentIntentRow).stripe_payment_intent_id);
+          log(`[Lesson Cleanup] Cancelled payment intent ${(intent as unknown as PaymentIntentRow).stripe_payment_intent_id}`);
         } catch (err: unknown) {
-          log(`[Lesson Cleanup] Could not cancel payment intent ${(intent as Record<string, unknown>).stripe_payment_intent_id}: ${getErrorMessage(err)}`);
+          log(`[Lesson Cleanup] Could not cancel payment intent ${(intent as unknown as PaymentIntentRow).stripe_payment_intent_id}: ${getErrorMessage(err)}`);
         }
       }
 
@@ -4101,7 +4129,7 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
         await db.execute(sql`
           INSERT INTO availability_blocks 
             (closure_id, resource_id, block_date, start_time, end_time, block_type, notes, created_by)
-          VALUES (${(closureResult.rows[0] as Record<string, unknown>).id}, ${resourceId}, ${bookingDate}, ${item.startTime}, ${item.endTime || item.startTime}, 'blocked', ${`Lesson - ${item.userName || 'Unknown'}`}, 'system_cleanup')
+          VALUES (${(closureResult.rows[0] as unknown as ClosureIdRow).id}, ${resourceId}, ${bookingDate}, ${item.startTime}, ${item.endTime || item.startTime}, 'blocked', ${`Lesson - ${item.userName || 'Unknown'}`}, 'system_cleanup')
         `);
       }
 

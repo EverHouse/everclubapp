@@ -314,6 +314,7 @@ export function useFeeEstimate(bookingId: number | string | null, options?: { en
           guestsUsingPasses: number;
           guestsCharged: number;
           guestFees: number;
+          guestFeePerUnit?: number;
         };
         note: string;
       }>;

@@ -195,7 +195,7 @@ export async function runStartupTasks(): Promise<void> {
         ];
 
         try {
-          const webhookObj = ((result as Record<string, unknown>)?.webhook || result) as Record<string, unknown>;
+          const webhookObj = ((result as { webhook?: { id?: string; enabled_events?: string[] } })?.webhook || result) as { id?: string; enabled_events?: string[] };
           if (webhookObj?.id) {
             const currentEvents = (webhookObj.enabled_events || []) as string[];
             const missingEvents = requiredEvents.filter(

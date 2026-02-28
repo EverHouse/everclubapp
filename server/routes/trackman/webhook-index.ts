@@ -11,6 +11,7 @@ import {
   TrackmanWebhookPayload,
   TrackmanV2WebhookPayload,
   TrackmanV2Booking,
+  TrackmanBookingPayload,
   isProduction,
   isTrackmanV2Payload,
   parseTrackmanV2Payload,
@@ -31,7 +32,135 @@ import type { ExistingBookingData } from './webhook-handlers';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 
-type DbRow = Record<string, unknown>;
+interface TotalCountRow {
+  total: string;
+}
+
+interface BookingMatchRow {
+  id: number;
+  user_email: string;
+  user_name: string;
+  resource_id: number | null;
+  start_time: string;
+  end_time: string;
+  request_date: string;
+  duration_minutes: number | null;
+  session_id: number | null;
+  status: string;
+  declared_player_count: number | null;
+}
+
+interface BookingDataRow {
+  id: string;
+  booking_id: string;
+}
+
+interface LinkedEmailRow {
+  primary_email: string;
+  linked_email: string;
+  source: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+interface WebhookEventRetryRow {
+  id: number;
+  event_type: string;
+  payload: string | Record<string, unknown>;
+  trackman_booking_id: string | null;
+  retry_count: number | null;
+}
+
+interface WebhookEventAutoMatchRow {
+  id: number;
+  event_type: string;
+  payload: string | Record<string, unknown>;
+  trackman_booking_id: string | null;
+  matched_booking_id: number | null;
+}
+
+interface BookingUnmatchedCheckRow {
+  id: number;
+  user_email: string;
+  is_unmatched: boolean;
+}
+
+interface ApprovedMatchRow {
+  id: number;
+  user_email: string;
+  status: string;
+  start_time: string;
+  end_time: string;
+  request_date: string;
+  resource_id: number | null;
+  member_name: string | null;
+}
+
+interface SimulateBookingRow {
+  id: number;
+  user_email: string;
+  user_name: string | null;
+  resource_id: number | null;
+  start_time: string;
+  end_time: string;
+  request_date: string | Date;
+  duration_minutes: number | null;
+  declared_player_count: number | null;
+  session_id: number | null;
+  status: string;
+  stripe_customer_id: string | null;
+  tier: string | null;
+  calculatedTotalFeeCents?: number;
+  notes: string | null;
+}
+
+interface ResourceNameRow {
+  id: number;
+  name: string;
+}
+
+interface InsertedIdRow {
+  id: number;
+}
+
+interface UserIdRow {
+  id: number;
+}
+
+interface UnmatchedWebhookEventRow {
+  id: number;
+  trackman_booking_id: string;
+  payload: string | Record<string, unknown>;
+  created_at: string;
+}
+
+interface ExistingBookingIdRow {
+  id: number;
+}
+
+interface ExistingBookingLinkRow {
+  id: number;
+  user_email: string;
+  user_name: string;
+  trackman_booking_id: string | null;
+}
+
+interface NewBookingRow {
+  id: number;
+  was_inserted: boolean;
+}
+
+interface BackfillDetailItem {
+  trackmanId: string | unknown;
+  status: string;
+  reason?: string;
+  bookingId?: number | unknown;
+  member?: string | unknown;
+  date?: string;
+  time?: string;
+  bay?: string;
+}
+
 import {
   updateBaySlotCache, 
   createBookingForMember,
@@ -80,10 +209,10 @@ async function notifyMemberBookingConfirmed(
 /**
  * Extract trackmanBookingId from webhook payload (handles both V1 and V2 formats)
  */
-function extractTrackmanBookingId(payload: TrackmanWebhookPayload | TrackmanV2WebhookPayload | Record<string, unknown>): string | undefined {
-  const p = payload as Record<string, unknown>;
-  const booking = p.booking as Record<string, unknown> | undefined;
-  const data = p.data as Record<string, unknown> | undefined;
+function extractTrackmanBookingId(payload: TrackmanWebhookPayload | TrackmanV2WebhookPayload): string | undefined {
+  const p = payload as unknown as TrackmanWebhookPayload;
+  const booking = p.booking as unknown as TrackmanBookingPayload | TrackmanV2Booking | undefined;
+  const data = p.data as unknown as TrackmanBookingPayload | undefined;
 
   if (booking?.id !== undefined) {
     return String(booking.id);
@@ -136,19 +265,18 @@ async function checkWebhookIdempotency(trackmanBookingId: string, status?: strin
   }
 }
 
-function buildContentSignature(payload: TrackmanWebhookPayload | Record<string, unknown>): string | undefined {
+function buildContentSignature(payload: TrackmanWebhookPayload): string | undefined {
   const parts: string[] = [];
 
-  const booking = payload?.booking as Record<string, unknown> | undefined;
+  const booking = payload?.booking as unknown as TrackmanV2Booking | undefined;
   if (booking) {
     if (booking.start) parts.push(`s:${booking.start}`);
     if (booking.end) parts.push(`e:${booking.end}`);
-    const bay = booking.bay as Record<string, unknown> | undefined;
-    if (bay?.ref) parts.push(`b:${bay.ref}`);
+    if (booking.bay?.ref) parts.push(`b:${booking.bay.ref}`);
     if (booking.status) parts.push(`st:${booking.status}`);
   }
 
-  const data = payload?.data as Record<string, unknown> | undefined;
+  const data = payload?.data as unknown as TrackmanBookingPayload | undefined;
   if (data && parts.length === 0) {
     if (data.start_time) parts.push(`s:${data.start_time}`);
     if (data.end_time) parts.push(`e:${data.end_time}`);
@@ -228,13 +356,13 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
       logger.info('[Trackman Webhook] Processing V2 format payload', {
         extra: { 
           venue: payload.venue?.name,
-          bookingId: (payload.booking as TrackmanV2Booking)?.id,
-          status: (payload.booking as TrackmanV2Booking)?.status,
-          externalBookingId: (payload.booking as TrackmanV2Booking)?.externalBookingId
+          bookingId: (payload.booking as unknown as TrackmanV2Booking)?.id,
+          status: (payload.booking as unknown as TrackmanV2Booking)?.status,
+          externalBookingId: (payload.booking as unknown as TrackmanV2Booking)?.externalBookingId
         }
       });
       
-      const v2Result = parseTrackmanV2Payload(payload as TrackmanV2WebhookPayload);
+      const v2Result = parseTrackmanV2Payload(payload as unknown as TrackmanV2WebhookPayload);
       trackmanBookingId = v2Result.normalized.trackmanBookingId;
       eventType = v2Result.eventType;
       
@@ -256,8 +384,8 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
               FROM booking_requests WHERE trackman_booking_id = ${v2Result.normalized.trackmanBookingId} LIMIT 1`
         );
         if (directMatch.rows.length > 0) {
-          matchedBookingId = (directMatch.rows[0] as Record<string, unknown>).id as number;
-          matchedUserId = (directMatch.rows[0] as Record<string, unknown>).user_email as string;
+          matchedBookingId = (directMatch.rows[0] as unknown as BookingMatchRow).id;
+          matchedUserId = (directMatch.rows[0] as unknown as BookingMatchRow).user_email;
           
           logger.info('[Trackman Webhook] V2: Matched via trackman_booking_id', {
             extra: { bookingId: matchedBookingId, trackmanBookingId, status: v2Result.normalized.status }
@@ -401,7 +529,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
         
         const bookingData = payload.data || payload.booking;
         if (bookingData) {
-          trackmanBookingId = (bookingData as Record<string, unknown>).id as string || (bookingData as Record<string, unknown>).booking_id as string;
+          trackmanBookingId = (bookingData as unknown as BookingDataRow).id || (bookingData as unknown as BookingDataRow).booking_id;
         }
       }
     }
@@ -473,7 +601,7 @@ router.get('/api/admin/trackman-webhooks', isStaffOrAdmin, async (req: Request, 
     
     res.json({
       events: result.rows,
-      total: parseInt((countResult.rows[0] as DbRow).total as string),
+      total: parseInt((countResult.rows[0] as unknown as TotalCountRow).total),
       limit,
       offset
     });
@@ -602,8 +730,8 @@ router.get('/api/admin/linked-emails/:email', isStaffOrAdmin, async (req: Reques
        WHERE LOWER(primary_email) = LOWER(${email})`);
     
     res.json({
-      linkedTo: asLinked.rows.length > 0 ? (asLinked.rows[0] as DbRow).primary_email : null,
-      linkedEmails: asPrimary.rows.map((r: DbRow) => ({
+      linkedTo: asLinked.rows.length > 0 ? (asLinked.rows[0] as unknown as LinkedEmailRow).primary_email : null,
+      linkedEmails: (asPrimary.rows as unknown as LinkedEmailRow[]).map((r) => ({
         linkedEmail: r.linked_email,
         source: r.source,
         createdBy: r.created_by,
@@ -693,7 +821,7 @@ router.post('/api/admin/trackman-webhook/:eventId/retry', isStaffOrAdmin, async 
       return res.status(404).json({ error: 'Event not found' });
     }
     
-    const event = eventResult.rows[0] as DbRow;
+    const event = eventResult.rows[0] as unknown as WebhookEventRetryRow;
     const payload = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;
     
     await db.execute(sql`UPDATE trackman_webhook_events 
@@ -766,12 +894,12 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
       return res.status(404).json({ error: 'Event not found' });
     }
     
-    const event = eventResult.rows[0] as DbRow;
+    const event = eventResult.rows[0] as unknown as WebhookEventAutoMatchRow;
     
     if (event.matched_booking_id) {
       const matchedBooking = await db.execute(sql`SELECT id, user_email, is_unmatched FROM booking_requests WHERE id = ${event.matched_booking_id}`);
       
-      if (matchedBooking.rows.length > 0 && !(matchedBooking.rows[0] as DbRow).is_unmatched) {
+      if (matchedBooking.rows.length > 0 && !(matchedBooking.rows[0] as unknown as BookingUnmatchedCheckRow).is_unmatched) {
         return res.json({ 
           success: false, 
           message: 'This event is already linked to a member booking',
@@ -853,7 +981,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
         });
       }
       
-      const match = approvedMatchResult.rows[0] as DbRow;
+      const match = approvedMatchResult.rows[0] as unknown as ApprovedMatchRow;
       
       const updateResult = await db.execute(sql`UPDATE booking_requests 
          SET trackman_booking_id = ${trackmanBookingId},
@@ -890,7 +1018,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
       });
     }
     
-    const match = matchResult.rows[0] as DbRow;
+    const match = matchResult.rows[0] as unknown as ApprovedMatchRow;
     
     const pendingUpdateResult = await db.execute(sql`UPDATE booking_requests 
        SET status = 'approved',
@@ -1036,7 +1164,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    const booking = bookingResult.rows[0] as DbRow;
+    const booking = bookingResult.rows[0] as unknown as SimulateBookingRow;
     
     if (booking.status !== 'pending' && booking.status !== 'pending_approval') {
       return res.status(400).json({ error: `Booking is already ${booking.status}` });
@@ -1045,7 +1173,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
     const fakeTrackmanId = `SIM-${Date.now()}`;
     
     const resourceResult = await db.execute(sql`SELECT id, name FROM resources WHERE id = ${booking.resource_id}`);
-    const resource = resourceResult.rows[0] as DbRow;
+    const resource = resourceResult.rows[0] as unknown as ResourceNameRow;
     const bayRef = String(resource?.name || '').match(/\d+/)?.[0] || '1';
     // Map bay number to Trackman bay ID (approximate mapping)
     const bayIdMap: Record<string, number> = { '1': 7410, '2': 7411, '3': 7412, '4': 7413 };
@@ -1114,14 +1242,14 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
     logger.info('[Simulate Confirm] Created webhook event record', {
       bookingId,
       trackmanId: fakeTrackmanId,
-      webhookEventId: (webhookEventResult.rows[0] as DbRow)?.id
+      webhookEventId: (webhookEventResult.rows[0] as unknown as InsertedIdRow)?.id
     });
 
     let sessionId = booking.session_id;
     if (!sessionId && booking.resource_id) {
       try {
         const userResult = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${booking.user_email})`);
-        const userId = (userResult.rows[0] as DbRow)?.id || null;
+        const userId = (userResult.rows[0] as unknown as UserIdRow)?.id || null;
 
         const sessionResult = await ensureSessionForBooking({
           bookingId,
@@ -1162,7 +1290,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
           try {
             const feeResult = await recalculateSessionFees(sessionId as number, 'approval');
             if (feeResult?.totalSessionFee) {
-              (booking as DbRow).calculatedTotalFeeCents = feeResult.totalSessionFee;
+              booking.calculatedTotalFeeCents = feeResult.totalSessionFee;
             }
             logger.info('[Simulate Confirm] Calculated fees for session', {
               sessionId,
@@ -1186,7 +1314,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
        WHERE id = ${bookingId}`);
 
     try {
-      const dateStr = typeof booking.request_date === 'string' ? booking.request_date : formatDatePacific(new Date(booking.request_date as string | number));
+      const dateStr = typeof booking.request_date === 'string' ? booking.request_date : formatDatePacific(new Date(booking.request_date));
       const timeStr = typeof booking.start_time === 'string' 
         ? booking.start_time.substring(0, 5) 
         : formatTimePacific(new Date(booking.start_time as string | number));
@@ -1235,7 +1363,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
       }
     });
 
-    const totalFeeCents = (booking as DbRow).calculatedTotalFeeCents as number || 0;
+    const totalFeeCents = booking.calculatedTotalFeeCents || 0;
     
     res.json({ 
       success: true, 
@@ -1266,10 +1394,10 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
       created: 0,
       skipped: 0,
       errors: 0,
-      details: [] as DbRow[]
+      details: [] as BackfillDetailItem[]
     };
     
-    for (const event of unmatchedEvents.rows as DbRow[]) {
+    for (const event of unmatchedEvents.rows as unknown as UnmatchedWebhookEventRow[]) {
       try {
         const payload = typeof event.payload === 'string' 
           ? JSON.parse(event.payload) 
@@ -1318,7 +1446,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
         const existingByTrackman = await db.execute(sql`SELECT id FROM booking_requests WHERE trackman_booking_id = ${event.trackman_booking_id}`);
         
         if (existingByTrackman.rows.length > 0) {
-          await db.execute(sql`UPDATE trackman_webhook_events SET matched_booking_id = ${(existingByTrackman.rows[0] as DbRow).id} WHERE id = ${event.id}`);
+          await db.execute(sql`UPDATE trackman_webhook_events SET matched_booking_id = ${(existingByTrackman.rows[0] as unknown as ExistingBookingIdRow).id} WHERE id = ${event.id}`);
           results.skipped++;
           results.details.push({ 
             trackmanId: event.trackman_booking_id, 
@@ -1338,7 +1466,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
           LIMIT 1`);
         
         if (matchingBooking.rows.length > 0) {
-          const existingBooking = matchingBooking.rows[0] as DbRow;
+          const existingBooking = matchingBooking.rows[0] as unknown as ExistingBookingLinkRow;
           
           await db.execute(sql`UPDATE booking_requests 
             SET trackman_booking_id = ${event.trackman_booking_id},
@@ -1375,7 +1503,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
             RETURNING id, (xmax = 0) AS was_inserted`);
           
           if (newBooking.rows.length > 0) {
-            const bookingId = (newBooking.rows[0] as DbRow).id;
+            const bookingId = (newBooking.rows[0] as unknown as NewBookingRow).id;
             
             await db.execute(sql`UPDATE trackman_webhook_events SET matched_booking_id = ${bookingId} WHERE id = ${event.id}`);
             
@@ -1475,7 +1603,7 @@ router.post('/api/trackman/replay-webhooks-to-dev', isAdmin, async (req, res) =>
     let failed = 0;
     const errors: string[] = [];
     
-    for (const event of events.rows as DbRow[]) {
+    for (const event of events.rows as unknown as UnmatchedWebhookEventRow[]) {
       try {
         const payload = typeof event.payload === 'string' 
           ? JSON.parse(event.payload) 

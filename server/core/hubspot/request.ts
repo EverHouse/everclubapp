@@ -2,11 +2,16 @@ import pRetry, { AbortError } from 'p-retry';
 import { isProduction } from '../db';
 
 import { logger } from '../logger';
+interface HubSpotErrorObject {
+  response?: { statusCode?: number };
+  status?: number;
+  code?: number;
+}
+
 export function isRateLimitError(error: unknown): boolean {
   const errorMsg = error instanceof Error ? error.message : String(error);
-  const errObj = error as Record<string, unknown>;
-  const response = errObj?.response as Record<string, unknown> | undefined;
-  const statusCode = response?.statusCode || errObj?.status || errObj?.code;
+  const errObj = error as HubSpotErrorObject;
+  const statusCode = errObj?.response?.statusCode || errObj?.status || errObj?.code;
   return (
     statusCode === 429 ||
     errorMsg.includes("429") ||

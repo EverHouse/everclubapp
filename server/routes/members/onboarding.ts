@@ -32,7 +32,25 @@ router.get('/api/member/onboarding', isAuthenticated, async (req, res) => {
       LIMIT 1
     `);
 
-    const user = (result.rows as Record<string, unknown>[])?.[0];
+    interface OnboardingUserRow {
+      first_name: string | null;
+      last_name: string | null;
+      phone: string | null;
+      tier: string | null;
+      waiver_version: string | null;
+      waiver_signed_at: string | null;
+      onboarding_completed_at: string | null;
+      onboarding_dismissed_at: string | null;
+      first_login_at: string | null;
+      first_booking_at: string | null;
+      profile_completed_at: string | null;
+      app_installed_at: string | null;
+      concierge_saved_at: string | null;
+      id_image_url: string | null;
+      join_date: string | null;
+      created_at: string;
+    }
+    const user = (result.rows as unknown as OnboardingUserRow[])?.[0];
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const hasProfile = !!(user.first_name && user.last_name && user.phone);
@@ -59,7 +77,7 @@ router.get('/api/member/onboarding', isAuthenticated, async (req, res) => {
         SELECT profile_completed_at, onboarding_completed_at
         FROM users WHERE LOWER(email) = ${email} LIMIT 1
       `);
-      const refreshed = (refreshResult.rows as Record<string, unknown>[])?.[0];
+      const refreshed = (refreshResult.rows as { profile_completed_at: string | null; onboarding_completed_at: string | null }[])?.[0];
       if (refreshed) {
         finalUser = { ...user, ...refreshed };
       }
@@ -126,7 +144,7 @@ router.post('/api/member/onboarding/complete-step', isAuthenticated, async (req,
       FROM users WHERE LOWER(email) = ${email}
     `);
 
-    const check = (checkResult.rows as Record<string, unknown>[])?.[0];
+    const check = (checkResult.rows as { has_profile: boolean; has_waiver: boolean; has_booking: boolean; has_app: boolean; has_concierge: boolean }[])?.[0];
     if (check?.has_profile && check?.has_waiver && check?.has_booking && check?.has_app && check?.has_concierge) {
       await db.execute(sql`UPDATE users SET onboarding_completed_at = NOW(), updated_at = NOW() WHERE LOWER(email) = ${email} AND onboarding_completed_at IS NULL`);
     }
@@ -185,7 +203,7 @@ router.put('/api/member/profile', isAuthenticated, async (req, res) => {
       RETURNING first_name, last_name, phone, profile_completed_at
     `);
 
-    const updated = (result.rows as Record<string, unknown>[])?.[0];
+    const updated = (result.rows as { first_name: string; last_name: string; phone: string; profile_completed_at: string | null }[])?.[0];
     if (!updated) return res.status(404).json({ error: 'User not found' });
 
     db.execute(sql`UPDATE users SET onboarding_completed_at = NOW(), updated_at = NOW() 
@@ -220,7 +238,7 @@ async function syncProfileToExternalServices(
     const userResult = await db.execute(sql`
       SELECT stripe_customer_id, hubspot_id, tier, id FROM users WHERE LOWER(email) = ${email.toLowerCase()}
     `);
-    const user = (userResult.rows as Record<string, unknown>[])?.[0];
+    const user = (userResult.rows as { stripe_customer_id: string | null; hubspot_id: string | null; tier: string | null; id: string }[])?.[0];
 
     if (user?.stripe_customer_id) {
       const { getStripeClient } = await import('../../core/stripe/client');

@@ -722,7 +722,7 @@ async function handleChargeRefunded(client: PoolClient, charge: Stripe.Charge): 
               title: 'Payment Refunded',
               message: `Your booking payment of $${(amount_refunded / 100).toFixed(2)} has been refunded. It may take 5-10 business days to appear on your statement.`,
               data: { sessionId: row.session_id, eventType: 'payment_refunded' }
-            }, { action: 'payment_refunded', sessionId: row.session_id, triggerSource: 'webhooks.ts' } as Record<string, unknown>);
+            }, { action: 'payment_refunded', triggerSource: 'webhooks.ts' });
           });
         }
       }
@@ -4319,7 +4319,7 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: Strip
       );
 
       if (deactivatedMembersResult.rows.length > 0) {
-        const orphanedEmails = deactivatedMembersResult.rows.map((m: Record<string, unknown>) => m.member_email);
+        const orphanedEmails = (deactivatedMembersResult.rows as Array<{ member_email: string }>).map((m) => m.member_email);
         
         logger.warn(`[Stripe Webhook] ORPHAN BILLING WARNING: Primary member ${memberName} (${email}) ` +
           `subscription cancelled with ${orphanedEmails.length} group members deactivated: ${orphanedEmails.join(', ')}`);

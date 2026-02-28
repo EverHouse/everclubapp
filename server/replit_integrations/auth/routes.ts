@@ -58,7 +58,7 @@ export function registerAuthRoutes(app: Express): void {
              AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
          ) unified_bookings
       `);
-      const pastBookingsCount = parseInt(String((bookingsResult.rows[0] as Record<string, unknown>)?.count || '0'), 10);
+      const pastBookingsCount = parseInt(String((bookingsResult.rows[0] as { count: string })?.count || '0'), 10);
       
       // Count past event RSVPs (event date < today, excluding cancelled)
       const eventRsvpResult = await db.execute(sql`
@@ -71,7 +71,7 @@ export function registerAuthRoutes(app: Express): void {
            OR er.matched_user_id = ${dbUser?.id || null}
          )
       `);
-      const pastEventsCount = parseInt(String((eventRsvpResult.rows[0] as Record<string, unknown>)?.rsvp_count || '0'), 10);
+      const pastEventsCount = parseInt(String((eventRsvpResult.rows[0] as { rsvp_count: string })?.rsvp_count || '0'), 10);
       
       // Count past wellness enrollments (class date < today, excluding cancelled)
       const wellnessResult = await db.execute(sql`
@@ -81,7 +81,7 @@ export function registerAuthRoutes(app: Express): void {
          AND we.status != 'cancelled'
          AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
       `);
-      const pastWellnessCount = parseInt(String((wellnessResult.rows[0] as Record<string, unknown>)?.wellness_count || '0'), 10);
+      const pastWellnessCount = parseInt(String((wellnessResult.rows[0] as { wellness_count: string })?.wellness_count || '0'), 10);
       
       // Get last activity date from all visit sources using UNION
       const lastActivityResult = await db.execute(sql`

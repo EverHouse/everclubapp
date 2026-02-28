@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 
-let connectionSettings: Record<string, unknown> | undefined;
+let connectionSettings: { settings?: { publishable?: string; secret?: string } } | undefined;
 
 async function getCredentials() {
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
@@ -34,7 +34,7 @@ async function getCredentials() {
   
   connectionSettings = data.items?.[0];
 
-  const settings = connectionSettings?.settings as Record<string, unknown> | undefined;
+  const settings = connectionSettings?.settings as { publishable?: string; secret?: string } | undefined;
   if (!connectionSettings || !settings || (!settings.publishable || !settings.secret)) {
     throw new Error(`Stripe ${targetEnvironment} connection not found`);
   }

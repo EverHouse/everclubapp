@@ -3,6 +3,23 @@ import { sql } from 'drizzle-orm';
 import { getErrorMessage } from '../../utils/errorUtils';
 
 import { logger } from '../logger';
+
+interface TierRow {
+  id: number;
+  slug: string;
+  name: string;
+}
+
+interface UserTierRow {
+  id: number;
+  email: string;
+  tier: string | null;
+  tier_id: number | null;
+  stripe_subscription_id: string | null;
+  tier_slug: string | null;
+  tier_name: string | null;
+}
+
 export interface TierSyncResult {
   success: boolean;
   newTier?: string;
@@ -23,8 +40,8 @@ export async function syncMemberTierFromStripe(
       return { success: false, error: `No tier found for price ID: ${stripePriceId}` };
     }
     
-    const row = tierResult.rows[0] as Record<string, unknown>;
-    const { id: tierId, slug: tierSlug, name: tierName } = row as { id: number; slug: string; name: string };
+    const row = tierResult.rows[0] as unknown as TierRow;
+    const { id: tierId, slug: tierSlug, name: tierName } = row;
     
     const updateResult = await db.execute(sql`UPDATE users SET tier = ${tierSlug}, tier_id = ${tierId}, updated_at = NOW() 
        WHERE LOWER(email) = LOWER(${email})
@@ -142,7 +159,7 @@ export async function validateTierConsistency(email: string): Promise<{
       return { isConsistent: false, issues: ['User not found'] };
     }
     
-    const user = userResult.rows[0] as Record<string, unknown>;
+    const user = userResult.rows[0] as unknown as UserTierRow;
     const issues: string[] = [];
     
     if (user.tier_id && user.tier !== user.tier_slug) {

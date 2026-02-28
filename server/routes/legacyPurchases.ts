@@ -326,16 +326,25 @@ async function getUnifiedPurchasesForEmail(email: string): Promise<UnifiedPurcha
      LIMIT 1000`
   );
   
-  unifiedCashCheckPayments = cashCheckResult.rows.map((record: Record<string, unknown>) => {
-    const actionDetails = (record.details as Record<string, unknown>) || {};
-    const paymentMethod = (actionDetails as Record<string, unknown>).paymentMethod || (actionDetails as Record<string, unknown>).payment_method || 'cash';
+  interface AuditLogRow {
+    id: number;
+    action: string;
+    actor_email: string;
+    resource_type: string;
+    resource_id: string;
+    details: { paymentMethod?: string; payment_method?: string; description?: string; amountCents?: number; amount_cents?: number } | null;
+    created_at: string | Date | null;
+  }
+  unifiedCashCheckPayments = (cashCheckResult.rows as unknown as AuditLogRow[]).map((record) => {
+    const actionDetails = record.details || {};
+    const paymentMethod = actionDetails.paymentMethod || actionDetails.payment_method || 'cash';
     
     return {
       id: `cash-${record.id}`,
       type: 'legacy' as const,
-      itemName: ((actionDetails as Record<string, unknown>).description as string) || 'Cash/Check Payment',
+      itemName: actionDetails.description || 'Cash/Check Payment',
       itemCategory: 'payment',
-      amountCents: ((actionDetails as Record<string, unknown>).amountCents as number) || ((actionDetails as Record<string, unknown>).amount_cents as number) || 0,
+      amountCents: actionDetails.amountCents || actionDetails.amount_cents || 0,
       date: safeToISOString(record.created_at as string | Date | null),
       status: 'paid',
       source: paymentMethod === 'check' ? 'Check' : 'Cash',
@@ -596,7 +605,7 @@ router.post("/api/legacy-purchases/admin/upload-csv",
           status: 'completed',
           completedAt: new Date(),
           results: results,
-        } as Record<string, unknown>)
+        } as unknown as typeof legacyImportJobs.$inferInsert)
         .where(eq(legacyImportJobs.id, job.id));
       
       res.json({
@@ -671,7 +680,7 @@ router.post("/api/legacy-purchases/admin/link-guest-fees", isAdmin, async (req: 
       if (sessions.rows && sessions.rows.length > 0) {
         await db.update(legacyPurchases)
           .set({
-            linkedBookingSessionId: (sessions.rows[0] as Record<string, unknown>).id as number,
+            linkedBookingSessionId: (sessions.rows[0] as { id: number }).id,
             linkedAt: new Date(),
           })
           .where(eq(legacyPurchases.id, purchase.id));

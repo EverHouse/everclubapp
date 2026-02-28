@@ -108,8 +108,31 @@ export async function syncGoogleCalendarEvents(options?: { suppressAlert?: boole
                 reviewed_at, last_synced_at, review_dismissed, needs_review
          FROM events WHERE google_calendar_id = ${googleEventId}`);
       
+      interface EventDbRow {
+        id: number;
+        locally_edited: boolean;
+        app_last_modified_at: string | null;
+        google_event_updated_at: string | null;
+        title: string;
+        description: string | null;
+        event_date: Date | string;
+        start_time: string;
+        end_time: string | null;
+        location: string | null;
+        category: string | null;
+        image_url: string | null;
+        external_url: string | null;
+        max_attendees: number | null;
+        visibility: string | null;
+        requires_rsvp: boolean | null;
+        reviewed_at: string | null;
+        last_synced_at: string | null;
+        review_dismissed: boolean;
+        needs_review: boolean;
+      }
+
       if (existing.rows.length > 0) {
-        const dbRow = existing.rows[0] as Record<string, unknown>;
+        const dbRow = existing.rows[0] as unknown as EventDbRow;
         const appModifiedAt = dbRow.app_last_modified_at ? new Date(dbRow.app_last_modified_at as string) : null;
         
         if (dbRow.locally_edited === true && appModifiedAt) {

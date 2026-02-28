@@ -252,10 +252,10 @@ const POSRegister: React.FC = () => {
 
       if (customer.isNewCustomer) {
         payload.isNewCustomer = true;
-        payload.firstName = (customer as Record<string, unknown>).firstName;
-        payload.lastName = (customer as Record<string, unknown>).lastName;
-        if ((customer as Record<string, unknown>).phone) {
-          payload.phone = (customer as Record<string, unknown>).phone;
+        payload.firstName = customer.firstName;
+        payload.lastName = customer.lastName;
+        if (customer.phone) {
+          payload.phone = customer.phone;
         }
       }
 

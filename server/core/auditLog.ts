@@ -492,7 +492,7 @@ export async function logBillingAudit(params: BillingAuditParams): Promise<void>
         hubspotDealId: params.hubspotDealId,
         previousValue: params.previousValue,
         newValue: params.newValue,
-        ...((params.actionDetails as Record<string, unknown>) || {}),
+        ...(params.actionDetails || {}),
       },
       actorType: 'staff',
     });
@@ -533,7 +533,7 @@ export async function logPaymentAudit(params: PaymentAuditParams): Promise<void>
         previousStatus: params.previousStatus,
         newStatus: params.newStatus,
         paymentMethod: params.paymentMethod,
-        ...((params.metadata as Record<string, unknown>) || {}),
+        ...(params.metadata || {}),
       },
       actorType: 'staff',
     });

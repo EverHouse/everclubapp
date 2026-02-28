@@ -2,19 +2,23 @@ import { logger } from './logger';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 
+interface ResourceIdRow {
+  id: number;
+}
+
 export async function getAllActiveBayIds(): Promise<number[]> {
   const result = await db.execute(sql`SELECT id FROM resources WHERE type = 'simulator'`);
-  return (result.rows as Array<Record<string, unknown>>).map((r) => r.id as number);
+  return (result.rows as unknown as ResourceIdRow[]).map((r) => r.id);
 }
 
 export async function getAllResourceIds(): Promise<number[]> {
   const result = await db.execute(sql`SELECT id FROM resources`);
-  return (result.rows as Array<Record<string, unknown>>).map((r) => r.id as number);
+  return (result.rows as unknown as ResourceIdRow[]).map((r) => r.id);
 }
 
 export async function getConferenceRoomId(): Promise<number | null> {
   const result = await db.execute(sql`SELECT id FROM resources WHERE LOWER(name) LIKE '%conference%' LIMIT 1`);
-  return result.rows.length > 0 ? (result.rows[0] as Record<string, unknown>).id as number : null;
+  return result.rows.length > 0 ? (result.rows[0] as unknown as ResourceIdRow).id : null;
 }
 
 export async function parseAffectedAreas(affectedAreas: string): Promise<number[]> {

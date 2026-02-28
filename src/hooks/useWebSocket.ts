@@ -10,6 +10,10 @@ declare global {
   }
 }
 
+interface WebSocketNotificationData {
+  eventType?: string;
+}
+
 interface WebSocketMessage {
   type: string;
   title?: string;
@@ -75,7 +79,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
             window.dispatchEvent(new CustomEvent('member-notification', { detail: message }));
             
             // Trigger data refresh for booking, RSVP, and wellness related notifications
-            const eventType = (message.data as Record<string, unknown> | undefined)?.eventType;
+            const eventType = (message.data as WebSocketNotificationData | undefined)?.eventType;
             if (eventType && [
               'booking_approved', 'booking_declined', 'booking_cancelled', 'booking_created',
               'rsvp_created', 'rsvp_cancelled',

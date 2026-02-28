@@ -4,6 +4,17 @@ import { getErrorMessage } from '../../utils/errorUtils';
 import { syncBookingInvoice } from './bookingInvoiceService';
 
 import { logger } from '../logger';
+
+interface GuestPassCheckRow { id: number; used_guest_pass: boolean; guest_id: number | null }
+interface OwnerIdRow { id: number }
+interface TierGuestPassRow { guest_passes_per_month: number }
+interface GuestPassRemainingRow { remaining: number }
+interface GuestPassRow { passes_used: number; passes_total: number }
+interface PurchaseIdRow { id: number }
+interface BookingIdRow { id: number }
+interface StripePriceIdRow { stripe_price_id: string }
+interface SessionBookingRow { session_id: number; booking_id: number }
+
 export interface GuestPassConsumptionResult {
   success: boolean;
   error?: string;
@@ -36,20 +47,20 @@ export async function consumeGuestPassForParticipant(
     await db.transaction(async (tx) => {
       const alreadyUsed = await tx.execute(sql`SELECT id, used_guest_pass, guest_id FROM booking_participants WHERE id = ${participantId}`);
       
-      if ((alreadyUsed.rows[0] as Record<string, unknown>)?.used_guest_pass === true) {
+      if ((alreadyUsed.rows[0] as unknown as GuestPassCheckRow)?.used_guest_pass === true) {
         logger.info(`[GuestPassConsumer] Guest pass already consumed for participant ${participantId}, skipping (idempotency)`);
         passesRemaining = -1;
         return;
       }
       
       const ownerResult = await tx.execute(sql`SELECT id FROM users WHERE LOWER(email) = ${ownerEmailLower}`);
-      const ownerId = (ownerResult.rows[0] as Record<string, unknown>)?.id;
+      const ownerId = (ownerResult.rows[0] as unknown as OwnerIdRow)?.id;
       
       const tierResult = await tx.execute(sql`SELECT mt.guest_passes_per_month 
        FROM users u 
        JOIN membership_tiers mt ON LOWER(u.tier) = LOWER(mt.name)
        WHERE LOWER(u.email) = ${ownerEmailLower}`);
-      const tierGuestPasses = (tierResult.rows[0] as Record<string, unknown>)?.guest_passes_per_month ?? 4;
+      const tierGuestPasses = (tierResult.rows[0] as unknown as TierGuestPassRow)?.guest_passes_per_month ?? 4;
       
       const existingPass = await tx.execute(sql`SELECT id, passes_used, passes_total FROM guest_passes WHERE LOWER(member_email) = ${ownerEmailLower} FOR UPDATE`);
       
@@ -57,9 +68,9 @@ export async function consumeGuestPassForParticipant(
         const insertResult = await tx.execute(sql`INSERT INTO guest_passes (member_email, passes_used, passes_total)
          VALUES (${ownerEmailLower}, ${1}, ${tierGuestPasses})
          RETURNING passes_total - passes_used as remaining`);
-        passesRemaining = (insertResult.rows[0] as Record<string, unknown>)?.remaining as number ?? ((tierGuestPasses as number) - 1);
+        passesRemaining = (insertResult.rows[0] as unknown as GuestPassRemainingRow)?.remaining as number ?? ((tierGuestPasses as number) - 1);
       } else {
-        let { passes_used, passes_total } = existingPass.rows[0] as Record<string, unknown>;
+        let { passes_used, passes_total } = existingPass.rows[0] as unknown as GuestPassRow;
         if ((tierGuestPasses as number) > (passes_total as number)) {
           await tx.execute(sql`UPDATE guest_passes SET passes_total = ${tierGuestPasses} WHERE LOWER(member_email) = ${ownerEmailLower}`);
           passes_total = tierGuestPasses;
@@ -76,7 +87,7 @@ export async function consumeGuestPassForParticipant(
         if (updateResult.rows.length === 0) {
           throw new Error(`NO_PASSES_REMAINING:No guest passes remaining for ${ownerEmailLower}. Race condition prevented over-consumption.`);
         }
-        passesRemaining = (updateResult.rows[0] as Record<string, unknown>)?.remaining as number ?? 0;
+        passesRemaining = (updateResult.rows[0] as unknown as GuestPassRemainingRow)?.remaining as number ?? 0;
       }
       
       if (ownerId) {
@@ -104,7 +115,7 @@ export async function consumeGuestPassForParticipant(
        VALUES (${ownerId}, ${ownerEmailLower}, ${`Guest Pass - ${guestName}`}, ${'guest_pass'}, ${0}, ${1}, ${0}, ${0}, ${0}, ${0}, ${0}, ${'guest_pass'}, ${sessionDate}, ${sessionId}, ${true}, ${false}, NOW())
        RETURNING id`);
       
-      purchaseId = (purchaseResult.rows[0] as Record<string, unknown>)?.id as number;
+      purchaseId = (purchaseResult.rows[0] as unknown as PurchaseIdRow)?.id as number;
       
       await tx.execute(sql`INSERT INTO notifications (user_email, title, message, type, related_type, created_at)
        VALUES (${ownerEmailLower}, ${'Guest Pass Used'}, ${`Guest pass used for ${guestName}. You have ${passesRemaining} pass${passesRemaining !== 1 ? 'es' : ''} remaining this month.`}, ${'guest_pass'}, ${'guest_pass'}, NOW())`);
@@ -121,7 +132,7 @@ export async function consumeGuestPassForParticipant(
     try {
       const bookingResult = await db.execute(sql`SELECT id FROM booking_requests WHERE session_id = ${sessionId} LIMIT 1`);
       if (bookingResult.rows.length > 0) {
-        resolvedBookingId = (bookingResult.rows[0] as Record<string, unknown>).id as number;
+        resolvedBookingId = (bookingResult.rows[0] as unknown as BookingIdRow).id as number;
         await db.execute(sql`DELETE FROM guest_pass_holds 
            WHERE booking_id = ${resolvedBookingId} AND LOWER(member_email) = ${ownerEmailLower} AND passes_held <= 1;
            UPDATE guest_pass_holds 
@@ -173,7 +184,7 @@ export async function canUseGuestPass(ownerEmail: string): Promise<{
        FROM users u 
        JOIN membership_tiers mt ON LOWER(u.tier) = LOWER(mt.name)
        WHERE LOWER(u.email) = ${ownerEmailLower}`);
-    const tierGuestPasses = (tierResult.rows[0] as Record<string, unknown>)?.guest_passes_per_month ?? 4;
+    const tierGuestPasses = (tierResult.rows[0] as unknown as TierGuestPassRow)?.guest_passes_per_month ?? 4;
     
     const result = await db.execute(sql`SELECT passes_used, passes_total FROM guest_passes WHERE LOWER(member_email) = ${ownerEmailLower}`);
     
@@ -181,7 +192,7 @@ export async function canUseGuestPass(ownerEmail: string): Promise<{
       return { canUse: (tierGuestPasses as number) > 0, remaining: tierGuestPasses as number, total: tierGuestPasses as number };
     }
     
-    const row = result.rows[0] as Record<string, unknown>;
+    const row = result.rows[0] as unknown as GuestPassRow;
     const { passes_used, passes_total } = row;
     const remaining = Math.max(0, (passes_total as number) - (passes_used as number));
     
@@ -209,7 +220,7 @@ export async function refundGuestPassForParticipant(
     await db.transaction(async (tx) => {
       const participantCheck = await tx.execute(sql`SELECT id, used_guest_pass FROM booking_participants WHERE id = ${participantId}`);
       
-      if ((participantCheck.rows[0] as Record<string, unknown>)?.used_guest_pass !== true) {
+      if ((participantCheck.rows[0] as unknown as GuestPassCheckRow)?.used_guest_pass !== true) {
         logger.info(`[GuestPassConsumer] Guest pass not used for participant ${participantId}, nothing to refund`);
         remaining = -1;
         return;
@@ -225,12 +236,12 @@ export async function refundGuestPassForParticipant(
       let guestFeeCents = PRICING.GUEST_FEE_CENTS;
       try {
         const priceResult = await tx.execute(sql`SELECT stripe_price_id FROM membership_tiers WHERE LOWER(name) = 'guest pass' AND stripe_price_id IS NOT NULL`);
-        if ((priceResult.rows[0] as Record<string, unknown>)?.stripe_price_id) {
+        if ((priceResult.rows[0] as unknown as StripePriceIdRow)?.stripe_price_id) {
           const { getStripeClient } = await import('../stripe/client');
           const stripe = await getStripeClient();
           // NOTE: Must stay in transaction - result needed for DB writes (guest fee amount for cached_fee_cents)
           const price = await Promise.race([
-            stripe.prices.retrieve((priceResult.rows[0] as Record<string, unknown>).stripe_price_id as string),
+            stripe.prices.retrieve((priceResult.rows[0] as unknown as StripePriceIdRow).stripe_price_id as string),
             new Promise<never>((_, reject) => 
               setTimeout(() => reject(new Error('Stripe prices.retrieve timed out after 5s')), 5000)
             )
@@ -264,7 +275,7 @@ export async function refundGuestPassForParticipant(
            LIMIT 1
          )`);
       
-      remaining = (passResult.rows[0] as Record<string, unknown>)?.remaining as number ?? 0;
+      remaining = (passResult.rows[0] as unknown as GuestPassRemainingRow)?.remaining as number ?? 0;
     });
     
     if (remaining === -1) {
@@ -279,8 +290,8 @@ export async function refundGuestPassForParticipant(
          JOIN booking_sessions bs ON bp.session_id = bs.id
          JOIN booking_requests br ON br.session_id = bs.id
          WHERE bp.id = ${participantId} LIMIT 1`);
-      if ((sessionResult.rows[0] as Record<string, unknown>)) {
-        const row = sessionResult.rows[0] as Record<string, unknown>;
+      if ((sessionResult.rows[0] as unknown as SessionBookingRow)) {
+        const row = sessionResult.rows[0] as unknown as SessionBookingRow;
         syncBookingInvoice(row.booking_id as number, row.session_id as number).catch(err => {
           logger.warn('[GuestPassConsumer] Non-blocking: draft invoice sync failed after pass refund', { extra: { error: getErrorMessage(err) } });
         });

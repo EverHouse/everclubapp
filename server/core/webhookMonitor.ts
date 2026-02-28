@@ -1,6 +1,24 @@
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 
+interface WebhookTotalRow {
+  total: number;
+}
+
+interface WebhookEventRow {
+  id: number;
+  event_type: string;
+  trackman_booking_id: string | null;
+  trackman_user_id: string | null;
+  processed_at: Date | string | null;
+  processing_error: string | null;
+  matched_booking_id: number | null;
+  matched_user_id: number | null;
+  created_at: Date | string;
+  retry_count: number;
+  last_retry_at: Date | string | null;
+}
+
 interface WebhookEvent {
   id: number;
   eventType: string;
@@ -50,7 +68,7 @@ export async function getWebhookEvents(params: WebhookQueryParams): Promise<{ ev
   const countResult = await db.execute(sql`
     SELECT COUNT(*)::int as total FROM trackman_webhook_events ${whereClause}
   `);
-  const total = (countResult.rows[0] as Record<string, unknown>)?.total || 0;
+  const total = (countResult.rows[0] as unknown as WebhookTotalRow)?.total || 0;
 
   const result = await db.execute(sql`
     SELECT id, event_type, trackman_booking_id, trackman_user_id, processed_at, processing_error, matched_booking_id, matched_user_id, created_at, retry_count, last_retry_at
@@ -59,7 +77,7 @@ export async function getWebhookEvents(params: WebhookQueryParams): Promise<{ ev
     LIMIT ${limit} OFFSET ${offset}
   `);
 
-  const events = (result.rows as Record<string, unknown>[]).map((row: Record<string, unknown>) => ({
+  const events = (result.rows as unknown as WebhookEventRow[]).map((row: WebhookEventRow) => ({
     id: Number(row.id),
     eventType: String(row.event_type),
     trackmanBookingId: String(row.trackman_booking_id || ''),

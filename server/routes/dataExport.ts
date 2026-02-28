@@ -255,9 +255,9 @@ async function gatherMemberData(email: string): Promise<MemberDataExport> {
       createdAt: n.created_at,
     })),
     guestPasses: guestPassesResult.rows[0] ? {
-      used: (guestPassesResult.rows[0] as Record<string, unknown>).passes_used,
-      total: (guestPassesResult.rows[0] as Record<string, unknown>).passes_total,
-      lastReset: (guestPassesResult.rows[0] as Record<string, unknown>).last_reset_date,
+      used: (guestPassesResult.rows[0] as { passes_used: number; passes_total: number; last_reset_date: string | null }).passes_used,
+      total: (guestPassesResult.rows[0] as { passes_used: number; passes_total: number; last_reset_date: string | null }).passes_total,
+      lastReset: (guestPassesResult.rows[0] as { passes_used: number; passes_total: number; last_reset_date: string | null }).last_reset_date,
     } : null,
     eventRsvps: eventRsvpsResult.rows.map((r: Record<string, unknown>) => ({
       eventId: r.event_id,
@@ -300,10 +300,10 @@ async function gatherMemberData(email: string): Promise<MemberDataExport> {
       createdAt: w.created_at,
     })),
     preferences: profile ? {
-      emailNotifications: (profile as Record<string, unknown>).email_notifications_enabled,
-      smsNotifications: (profile as Record<string, unknown>).sms_notifications_enabled,
-      bookingReminders: (profile as Record<string, unknown>).booking_reminders_enabled,
-      marketingEmails: (profile as Record<string, unknown>).marketing_emails_enabled,
+      emailNotifications: profile.email_notifications_enabled,
+      smsNotifications: profile.sms_notifications_enabled,
+      bookingReminders: profile.booking_reminders_enabled,
+      marketingEmails: profile.marketing_emails_enabled,
     } : null,
   };
 }

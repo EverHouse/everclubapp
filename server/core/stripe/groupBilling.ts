@@ -11,6 +11,16 @@ import { findOrCreateHubSpotContact } from '../hubspot/members';
 
 import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { logger } from '../logger';
+
+interface StripeCustomerIdRow { stripe_customer_id: string | null }
+interface UserBillingRow { id: string; billing_group_id: number | null; stripe_subscription_id: string | null; membership_status: string | null }
+interface InsertIdRow { id: number }
+interface ExclusionCheckRow { [key: string]: unknown }
+interface GroupBillingRow { id: number; primary_stripe_subscription_id: string | null; max_seats: number | null; [key: string]: unknown }
+interface MemberRecordRow { id: number; member_email: string; is_active: boolean; stripe_subscription_item_id: string | null; billing_group_id: number }
+interface RemainingCountRow { cnt: string }
+interface EarlyReturnError { __earlyReturn: boolean; result: { success: false; error: string } }
+
 export interface BillingGroupWithMembers {
   id: number;
   primaryEmail: string;
@@ -279,7 +289,7 @@ export async function createBillingGroup(params: {
       sql`SELECT stripe_customer_id FROM users WHERE LOWER(email) = ${params.primaryEmail.toLowerCase()}`
     );
     
-    const stripeCustomerId = (primaryUserResult.rows[0] as unknown as { stripe_customer_id: string | null } | undefined)?.stripe_customer_id || null;
+    const stripeCustomerId = (primaryUserResult.rows[0] as unknown as StripeCustomerIdRow | undefined)?.stripe_customer_id || null;
     
     const groupId = await db.transaction(async (tx) => {
       const result = await tx.insert(billingGroups).values({
@@ -484,9 +494,8 @@ export async function addGroupMember(params: {
     let userExists = userResult.rows.length > 0;
     
     if (userExists) {
-      const user = (userResult.rows as Array<Record<string, unknown>>)[0];
+      const user = (userResult.rows as unknown as UserBillingRow[])[0];
       
-      // If user is already in a different billing group, prevent the operation
       if (user.billing_group_id !== null && user.billing_group_id !== params.billingGroupId) {
         return { 
           success: false, 
@@ -546,7 +555,7 @@ export async function addGroupMember(params: {
           RETURNING id`
         );
         
-        insertedMemberId = (insertResult.rows as Array<Record<string, unknown>>)[0].id as number;
+        insertedMemberId = (insertResult.rows as unknown as InsertIdRow[])[0].id as number;
 
         if (userExists) {
           const setFragments = [
@@ -577,7 +586,7 @@ export async function addGroupMember(params: {
           }
         } else {
           const exclusionCheck = await tx.execute(sql`SELECT 1 FROM sync_exclusions WHERE email = ${params.memberEmail.toLowerCase()}`);
-          if ((exclusionCheck.rows as Array<Record<string, unknown>>).length > 0) {
+          if ((exclusionCheck.rows as unknown as ExclusionCheckRow[]).length > 0) {
             logger.info(`[GroupBilling] Skipping family sub-member creation for ${params.memberEmail} — permanently deleted (sync_exclusions)`);
           } else {
             const userId = randomUUID();
@@ -751,7 +760,7 @@ export async function addCorporateMember(params: {
         }
     
         if (userResult.rows.length > 0) {
-          const user = userResult.rows[0] as Record<string, unknown>;
+          const user = userResult.rows[0] as unknown as UserBillingRow;
       
           if (user.billing_group_id !== null && user.billing_group_id !== params.billingGroupId) {
             throw Object.assign(new Error('User is already in a billing group. Remove them first.'), { __earlyReturn: true, result: { success: false, error: 'User is already in a billing group. Remove them first.' } });
@@ -772,7 +781,7 @@ export async function addCorporateMember(params: {
           throw Object.assign(new Error('Billing group not found'), { __earlyReturn: true, result: { success: false, error: 'Billing group not found' } });
         }
     
-        const group = [groupResult.rows[0] as Record<string, unknown>];
+        const group = [groupResult.rows[0] as unknown as GroupBillingRow];
         primaryStripeSubscriptionId = (group[0].primary_stripe_subscription_id as string) || null;
     
         const currentMembersResult = await tx.execute(
@@ -790,7 +799,7 @@ export async function addCorporateMember(params: {
           RETURNING id`
         );
       
-        insertedMemberId = (insertResult.rows as Array<Record<string, unknown>>)[0].id as number;
+        insertedMemberId = (insertResult.rows as unknown as InsertIdRow[])[0].id as number;
       
         const existingUserCheck = resolvedCorporate
           ? { rows: [{ id: resolvedCorporate.userId }] }
@@ -822,7 +831,7 @@ export async function addCorporateMember(params: {
           }
         } else {
           const corpExclusionCheck = await tx.execute(sql`SELECT 1 FROM sync_exclusions WHERE email = ${params.memberEmail.toLowerCase()}`);
-          if ((corpExclusionCheck.rows as Array<Record<string, unknown>>).length > 0) {
+          if ((corpExclusionCheck.rows as unknown as ExclusionCheckRow[]).length > 0) {
             logger.info(`[GroupBilling] Skipping corporate sub-member creation for ${params.memberEmail} — permanently deleted (sync_exclusions)`);
           } else {
             const userId = randomUUID();
@@ -938,8 +947,8 @@ export async function addCorporateMember(params: {
       return { success: true, memberId: insertedMemberId };
       
     } catch (dbErr: unknown) {
-      if ((dbErr as Record<string, unknown>)?.__earlyReturn) {
-        return (dbErr as Record<string, unknown>).result as { success: false; error: string };
+      if ((dbErr as unknown as EarlyReturnError)?.__earlyReturn) {
+        return (dbErr as unknown as EarlyReturnError).result;
       }
       logger.error('[GroupBilling] DB transaction failed:', { error: dbErr });
       return { success: false, error: 'System error. Please try again.' };
@@ -964,7 +973,7 @@ export async function removeCorporateMember(params: {
       const groupResult = await tx.execute(
         sql`SELECT id, primary_stripe_subscription_id FROM billing_groups WHERE id = ${params.billingGroupId} FOR UPDATE`
       );
-      const group = groupResult.rows as Array<Record<string, unknown>>;
+      const group = groupResult.rows as unknown as GroupBillingRow[];
 
       const memberResult = await tx.execute(
         sql`SELECT gm.id, gm.member_email, gm.is_active
@@ -977,7 +986,7 @@ export async function removeCorporateMember(params: {
         throw Object.assign(new Error('Member not found in this billing group'), { __earlyReturn: true, result: { success: false, error: 'Member not found in this billing group' } });
       }
     
-      const memberRecord = memberResult.rows[0] as Record<string, unknown>;
+      const memberRecord = memberResult.rows[0] as unknown as MemberRecordRow;
       memberId = memberRecord.id as number;
     
       if (!memberRecord.is_active) {
@@ -999,7 +1008,7 @@ export async function removeCorporateMember(params: {
           sql`SELECT COUNT(*) as cnt FROM group_members WHERE billing_group_id = ${params.billingGroupId} AND is_active = true`
         );
         
-        newMemberCount = Math.max(parseInt((remainingResult.rows[0] as Record<string, unknown>).cnt as string, 10), 5);
+        newMemberCount = Math.max(parseInt((remainingResult.rows[0] as unknown as RemainingCountRow).cnt as string, 10), 5);
       }
     });
     
@@ -1083,8 +1092,8 @@ export async function removeCorporateMember(params: {
     logger.info(`[GroupBilling] Successfully removed corporate member ${params.memberEmail}`);
     return { success: true };
   } catch (err: unknown) {
-    if ((err as Record<string, unknown>)?.__earlyReturn) {
-      return (err as Record<string, unknown>).result as { success: false; error: string };
+    if ((err as unknown as EarlyReturnError)?.__earlyReturn) {
+      return (err as unknown as EarlyReturnError).result;
     }
     logger.error('[GroupBilling] Error removing corporate member:', { error: err });
     return { success: false, error: 'Failed to remove member. Please try again.' };
@@ -1112,7 +1121,7 @@ export async function removeGroupMember(params: {
         throw Object.assign(new Error('Group member not found'), { __earlyReturn: true, result: { success: false, error: 'Group member not found' } });
       }
     
-      const memberRecord = memberResult.rows[0] as Record<string, unknown>;
+      const memberRecord = memberResult.rows[0] as unknown as MemberRecordRow;
     
       if (!memberRecord.is_active) {
         throw Object.assign(new Error('Member is already inactive'), { __earlyReturn: true, result: { success: false, error: 'Member is already inactive' } });
@@ -1157,8 +1166,8 @@ export async function removeGroupMember(params: {
     logger.info(`[GroupBilling] Successfully removed group member ${params.memberId}`);
     return { success: true };
   } catch (err: unknown) {
-    if ((err as Record<string, unknown>)?.__earlyReturn) {
-      return (err as Record<string, unknown>).result as { success: false; error: string };
+    if ((err as unknown as EarlyReturnError)?.__earlyReturn) {
+      return (err as unknown as EarlyReturnError).result;
     }
     logger.error('[GroupBilling] Error removing group member:', { error: err });
     return { success: false, error: 'Failed to remove member. Please try again.' };

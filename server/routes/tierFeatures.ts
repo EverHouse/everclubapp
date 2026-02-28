@@ -92,7 +92,7 @@ router.get('/api/tier-features', async (req, res) => {
           if (mapping.column === null) {
             derivedValue = true;
           } else {
-            const rawValue = (tier as Record<string, unknown>)[mapping.column];
+            const rawValue = (tier as { [key: string]: unknown })[mapping.column];
             if (mapping.format) {
               derivedValue = mapping.format(rawValue);
               if (derivedValue === '—') derivedValue = null;

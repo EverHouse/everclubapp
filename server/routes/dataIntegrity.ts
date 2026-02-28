@@ -801,7 +801,8 @@ router.post('/api/data-integrity/fix/fix-orphaned-participants', isAdmin, async 
       WHERE bp.user_id IS NOT NULL AND bp.user_id != '' AND u.id IS NULL
     `);
     
-    const rows = invalidParticipants.rows as Record<string, unknown>[];
+    interface OrphanedParticipantRow { id: number; user_id: string; display_name: string; participant_type: string; session_id: number }
+    const rows = invalidParticipants.rows as unknown as OrphanedParticipantRow[];
     
     if (rows.length === 0) {
       return res.json({ success: true, message: 'No orphaned participants found', relinked: 0, converted: 0, total: 0, dryRun });
@@ -816,7 +817,7 @@ router.post('/api/data-integrity/fix/fix-orphaned-participants', isAdmin, async 
       `);
       
       if (emailMatch.rows.length > 0) {
-        const matchedUser = emailMatch.rows[0] as Record<string, unknown>;
+        const matchedUser = emailMatch.rows[0] as { id: string; email: string };
         relinked.push({
           id: row.id as number,
           displayName: row.display_name as string,
@@ -957,8 +958,8 @@ router.post('/api/data-integrity/fix/approve-all-review-items', isAdmin, async (
     const wellnessCount = await db.execute(sql`SELECT COUNT(*)::int as count FROM wellness_classes WHERE needs_review = true AND is_active = true`);
     const eventCount = await db.execute(sql`SELECT COUNT(*)::int as count FROM events WHERE needs_review = true`);
     
-    const wCount = (wellnessCount.rows[0] as Record<string, unknown>)?.count || 0;
-    const eCount = (eventCount.rows[0] as Record<string, unknown>)?.count || 0;
+    const wCount = (wellnessCount.rows[0] as { count: number })?.count || 0;
+    const eCount = (eventCount.rows[0] as { count: number })?.count || 0;
     const total = Number(wCount) + Number(eCount);
     
     if (!dryRun) {
@@ -1198,7 +1199,7 @@ router.post('/api/data-integrity/fix/delete-member-no-email', isAdmin, async (re
     if (!member.rows.length) {
       return res.status(404).json({ success: false, message: 'Member not found' });
     }
-    const user = member.rows[0] as Record<string, unknown>;
+    const user = member.rows[0] as { id: string; email: string | null; first_name: string | null; last_name: string | null };
     if (user.email && String(user.email).trim() !== '') {
       return res.status(400).json({ success: false, message: 'This member has an email address. Cannot delete via this endpoint.' });
     }

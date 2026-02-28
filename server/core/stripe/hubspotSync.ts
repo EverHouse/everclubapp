@@ -51,9 +51,9 @@ export async function syncPaymentToHubSpot(params: SyncPaymentParams): Promise<v
   let productName = description;
 
   if (productResult.rows.length > 0) {
-    const row = productResult.rows[0] as Record<string, unknown>;
-    productId = row.hubspot_product_id as string;
-    productName = row.product_name as string;
+    const row = productResult.rows[0] as { hubspot_product_id: string; product_name: string };
+    productId = row.hubspot_product_id;
+    productName = row.product_name;
   }
 
   try {
@@ -154,9 +154,9 @@ export async function syncDayPassToHubSpot(params: SyncDayPassParams): Promise<v
     let productName = `Day Pass - ${productSlug}`;
 
     if (productResult.rows.length > 0) {
-      const row = productResult.rows[0] as Record<string, unknown>;
-      productId = row.hubspot_product_id as string;
-      productName = row.product_name as string;
+      const row = productResult.rows[0] as { hubspot_product_id: string; product_name: string };
+      productId = row.hubspot_product_id;
+      productName = row.product_name;
     }
 
     try {

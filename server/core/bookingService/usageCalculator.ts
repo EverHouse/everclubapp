@@ -179,7 +179,7 @@ export async function getDailyUsageFromLedger(
            )
            ${warningExclude}`);
       
-      const missingCount = parseInt((missingCheck.rows[0] as Record<string, unknown>)?.missing_count as string) || 0;
+      const missingCount = parseInt((missingCheck.rows[0] as { missing_count: string })?.missing_count as string) || 0;
       if (missingCount > 0) {
         logger.warn('[getDailyUsageFromLedger] Sessions with participants but no ledger entries detected', {
           extra: { memberEmail, date, missingSessionCount: missingCount }
@@ -189,7 +189,7 @@ export async function getDailyUsageFromLedger(
       logger.warn('[getDailyUsageFromLedger] Ledger consistency check failed:', { error: checkError });
     }
 
-    return parseInt((result.rows[0] as Record<string, unknown>).total_minutes as string) || 0;
+    return parseInt((result.rows[0] as { total_minutes: string }).total_minutes as string) || 0;
   } catch (error: unknown) {
     logger.error('[getDailyUsageFromLedger] Error:', { error });
     return 0;
@@ -216,8 +216,8 @@ export async function getGuestPassInfo(
       return { remaining: monthlyAllocation, hasGuestPassBenefit: true };
     }
     
-    const row = result.rows[0] as Record<string, unknown>;
-    const remaining = Math.max(0, (row.passes_total as number) - (row.passes_used as number));
+    const row = result.rows[0] as { passes_total: number; passes_used: number };
+    const remaining = Math.max(0, row.passes_total - row.passes_used);
     return { remaining, hasGuestPassBenefit: true };
   } catch (error: unknown) {
     logger.error('[getGuestPassInfo] Error:', { error });
@@ -658,11 +658,21 @@ export async function recalculateSessionFees(
       throw new Error(`Session ${sessionId} not found`);
     }
     
-    const session = sessionResult.rows[0] as Record<string, unknown>;
-    const sessionDate = session.session_date as string;
+    interface SessionRecalcRow {
+      id: number;
+      session_date: string;
+      start_time: string;
+      end_time: string;
+      host_email: string;
+      declared_player_count: number | null;
+      resource_type: string | null;
+    }
+
+    const session = sessionResult.rows[0] as unknown as SessionRecalcRow;
+    const sessionDate = session.session_date;
     
-    const startTimeParts = (session.start_time as string).split(':').map(Number);
-    const endTimeParts = (session.end_time as string).split(':').map(Number);
+    const startTimeParts = session.start_time.split(':').map(Number);
+    const endTimeParts = session.end_time.split(':').map(Number);
     const startMinutes = startTimeParts[0] * 60 + startTimeParts[1];
     let endMinutes = endTimeParts[0] * 60 + endTimeParts[1];
     
@@ -671,7 +681,7 @@ export async function recalculateSessionFees(
     }
     
     const sessionDuration = Math.round(endMinutes - startMinutes) || 60;
-    const hostEmail = session.host_email as string;
+    const hostEmail = session.host_email;
     
     const participantsResult = await db.execute(sql`SELECT bp.id, bp.user_id, bp.guest_id, bp.display_name, bp.participant_type,
               u.email as member_email
@@ -685,12 +695,21 @@ export async function recalculateSessionFees(
            WHEN 'guest' THEN 3 
          END`);
     
-    const participants: Participant[] = (participantsResult.rows as Array<Record<string, unknown>>).map(p => ({
-      userId: p.user_id as string,
-      email: (p.member_email as string) || (p.user_id as string),
-      guestId: p.guest_id as number,
-      participantType: p.participant_type as 'owner' | 'member' | 'guest',
-      displayName: p.display_name as string
+    interface ParticipantRecalcRow {
+      id: number;
+      user_id: string | null;
+      guest_id: number | null;
+      display_name: string;
+      participant_type: 'owner' | 'member' | 'guest';
+      member_email: string | null;
+    }
+
+    const participants: Participant[] = (participantsResult.rows as unknown as ParticipantRecalcRow[]).map(p => ({
+      userId: p.user_id || undefined,
+      email: p.member_email || p.user_id || undefined,
+      guestId: p.guest_id || undefined,
+      participantType: p.participant_type,
+      displayName: p.display_name
     }));
     
     const declaredPlayerCount = (session.declared_player_count as number) || participants.length || 1;

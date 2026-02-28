@@ -35,6 +35,8 @@ export interface BookingRequest {
     note?: string | null;
     fee_snapshot_paid?: boolean;
     member_notes?: string | null;
+    unfilled_slots?: number | null;
+    trackman_customer_notes?: string | null;
 }
 
 export interface Bay {

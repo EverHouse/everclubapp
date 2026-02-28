@@ -144,6 +144,29 @@ interface BackgroundJobStatus {
   job?: { id: string; status: string; progress?: number; result?: unknown; error?: string };
 }
 
+interface StripeCleanupJobResult {
+  success: boolean;
+  message: string;
+  dryRun?: boolean;
+  totalCustomers?: number;
+  emptyCount?: number;
+  skippedActiveCount?: number;
+  customers?: Array<{ id: string; email: string; name: string; created: string }>;
+  deleted?: Array<{ id: string; email: string }>;
+  deletedCount?: number;
+}
+
+interface VisitorArchiveJobResult {
+  success: boolean;
+  message: string;
+  dryRun?: boolean;
+  totalScanned?: number;
+  eligibleCount?: number;
+  keptCount?: number;
+  archivedCount?: number;
+  sampleArchived?: Array<{ name: string; email: string }>;
+}
+
 interface MemberDetails {
   id?: unknown;
   email: string;
@@ -951,18 +974,18 @@ const DataIntegrityTab: React.FC = () => {
           if (statusData.job.status === 'completed') {
             setIsRunningStripeCleanup(false);
             setStripeCleanupProgress(null);
-            const r = statusData.job.result as Record<string, unknown> | undefined;
+            const r = statusData.job.result as StripeCleanupJobResult | undefined;
             if (r) {
               setStripeCleanupResult({
-                success: r.success as boolean,
-                message: r.message as string,
-                dryRun: r.dryRun as boolean | undefined,
-                totalCustomers: r.totalCustomers as number | undefined,
-                emptyCount: r.emptyCount as number | undefined,
-                skippedActiveCount: r.skippedActiveCount as number | undefined,
-                customers: r.customers as Array<{ id: string; email: string; name: string; created: string }> | undefined,
-                deleted: r.deleted as Array<{ id: string; email: string }> | undefined,
-                deletedCount: r.deletedCount as number | undefined,
+                success: r.success,
+                message: r.message,
+                dryRun: r.dryRun,
+                totalCustomers: r.totalCustomers,
+                emptyCount: r.emptyCount,
+                skippedActiveCount: r.skippedActiveCount,
+                customers: r.customers,
+                deleted: r.deleted,
+                deletedCount: r.deletedCount,
               });
             }
           } else if (statusData.job.status === 'failed') {
@@ -1027,17 +1050,17 @@ const DataIntegrityTab: React.FC = () => {
           if (statusData.job.status === 'completed') {
             setIsRunningVisitorArchive(false);
             setVisitorArchiveProgress(null);
-            const r = statusData.job.result as Record<string, unknown> | undefined;
+            const r = statusData.job.result as VisitorArchiveJobResult | undefined;
             if (r) {
               setVisitorArchiveResult({
-                success: r.success as boolean,
-                message: r.message as string,
-                dryRun: r.dryRun as boolean | undefined,
-                totalScanned: r.totalScanned as number | undefined,
-                eligibleCount: r.eligibleCount as number | undefined,
-                keptCount: r.keptCount as number | undefined,
-                archivedCount: r.archivedCount as number | undefined,
-                sampleArchived: r.sampleArchived as Array<{ name: string; email: string }> | undefined,
+                success: r.success,
+                message: r.message,
+                dryRun: r.dryRun,
+                totalScanned: r.totalScanned,
+                eligibleCount: r.eligibleCount,
+                keptCount: r.keptCount,
+                archivedCount: r.archivedCount,
+                sampleArchived: r.sampleArchived,
               });
             }
           } else if (statusData.job.status === 'failed') {

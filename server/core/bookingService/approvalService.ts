@@ -168,7 +168,7 @@ export async function validateTrackmanId(trackmanBookingId: string, bookingId: n
           SELECT id FROM booking_sessions WHERE id = (
             SELECT session_id FROM booking_requests WHERE id = ${duplicateId}
           )
-        `).then(r => r.rows as Array<Record<string, unknown>>);
+        `).then(r => r.rows as Array<{ id: number }>);
 
         try {
           await cancelPendingPaymentIntentsForBooking(duplicateId);
@@ -971,7 +971,7 @@ export async function cancelBooking(params: CancelBookingParams) {
       return {
         updated: existing,
         bookingData: existing,
-        pushInfo: null as Record<string, unknown> | null,
+        pushInfo: null as unknown as CancelPushInfo | null,
         overageRefundResult: {},
         isConferenceRoom: false,
         isPendingCancel: true,
@@ -1987,8 +1987,9 @@ export async function devConfirmBooking(params: DevConfirmParams) {
               SELECT name, first_name, last_name, email FROM users WHERE id = ${resolvedUserId}
             `);
             if (userResult.rows.length > 0) {
-              const u = userResult.rows[0] as Record<string, unknown>;
-              resolvedName = (u.name as string) || `${(u.first_name as string) || ''} ${(u.last_name as string) || ''}`.trim() || (u.email as string) || 'Member';
+              interface UserNameRow { id: string; name: string | null; first_name: string | null; last_name: string | null; email: string }
+              const u = userResult.rows[0] as unknown as UserNameRow;
+              resolvedName = u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || 'Member';
             }
           }
 
@@ -1997,11 +1998,12 @@ export async function devConfirmBooking(params: DevConfirmParams) {
               SELECT id, name, first_name, last_name FROM users WHERE LOWER(email) = LOWER(${rp.email})
             `);
             if (userResult.rows.length > 0) {
-              resolvedUserId = (userResult.rows[0] as unknown as { id: string }).id;
+              interface UserNameLookupRow { id: string; name: string | null; first_name: string | null; last_name: string | null }
+              resolvedUserId = (userResult.rows[0] as unknown as UserNameLookupRow).id;
               participantType = 'member';
               if (!resolvedName) {
-                const u = userResult.rows[0] as Record<string, unknown>;
-                resolvedName = (u.name as string) || `${(u.first_name as string) || ''} ${(u.last_name as string) || ''}`.trim();
+                const u = userResult.rows[0] as unknown as UserNameLookupRow;
+                resolvedName = u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim();
               }
             }
           }

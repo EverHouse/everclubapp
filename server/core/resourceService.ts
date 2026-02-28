@@ -33,6 +33,52 @@ interface TrackmanWebhookRow {
   trackman_booking_id: string;
 }
 
+interface BookingParticipantRow {
+  id: number;
+  user_id: string | null;
+  guest_id: number | null;
+  participant_type: string;
+  display_name: string | null;
+}
+
+interface UserEmailRow {
+  email: string;
+}
+
+interface PaymentIntentIdRow {
+  stripe_payment_intent_id: string;
+  amount_cents?: number;
+  stripe_customer_id?: string;
+  user_id?: string;
+}
+
+interface TrackmanPayloadData {
+  start?: string;
+  end?: string;
+  bay?: { ref?: string; name?: string };
+  [key: string]: unknown;
+}
+
+interface MemberLookupRow {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+}
+
+interface LinkedEmailIdRow {
+  id: number;
+}
+
+interface FeeSumRow {
+  total_cents: string | null;
+  overage_cents?: string | null;
+  guest_cents?: string | null;
+}
+
+interface ResourceTypeRow {
+  type: string;
+}
+
 const RESOURCE_CACHE_KEY = 'all_resources';
 const RESOURCE_CACHE_TTL = 60_000;
 
@@ -87,23 +133,23 @@ export async function handleCancellationCascade(
     if (sessionId) {
       const participantsResult = await tx.execute(sql`SELECT id, user_id, guest_id, participant_type, display_name 
          FROM booking_participants WHERE session_id = ${sessionId}`);
-      const participants = participantsResult.rows as Array<Record<string, unknown>>;
+      const participants = participantsResult.rows as unknown as BookingParticipantRow[];
 
       for (const participant of participants) {
         if (participant.participant_type === 'member' && participant.user_id) {
           const userResult = await tx.execute(sql`SELECT email FROM users WHERE id = ${participant.user_id} OR LOWER(email) = LOWER(${participant.user_id}) LIMIT 1`);
-          if ((userResult.rows as Array<Record<string, unknown>>).length > 0) {
+          if ((userResult.rows as unknown as UserEmailRow[]).length > 0) {
             membersToNotify.push({
-              email: (userResult.rows as Array<Record<string, unknown>>)[0].email as string,
-              participantId: participant.id as number
+              email: (userResult.rows as unknown as UserEmailRow[])[0].email,
+              participantId: participant.id
             });
           }
         }
 
         if (participant.participant_type === 'guest' && shouldRefundGuestPasses) {
           guestsToRefund.push({
-            displayName: (participant.display_name as string) || 'Guest',
-            participantId: participant.id as number
+            displayName: participant.display_name || 'Guest',
+            participantId: participant.id
           });
         }
       }
@@ -117,12 +163,12 @@ export async function handleCancellationCascade(
        FROM stripe_payment_intents 
        WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')`);
 
-    return { pendingIntents: pendingIntentsResult.rows as Array<Record<string, unknown>> };
+    return { pendingIntents: pendingIntentsResult.rows as unknown as PaymentIntentIdRow[] };
   });
     
   for (const row of txResult.pendingIntents) {
     try {
-      await cancelPaymentIntent(row.stripe_payment_intent_id as string);
+      await cancelPaymentIntent(row.stripe_payment_intent_id);
       logger.info('[cancellation-cascade] Cancelled payment intent', {
         extra: { bookingId, paymentIntentId: row.stripe_payment_intent_id }
       });
@@ -137,7 +183,7 @@ export async function handleCancellationCascade(
        FROM stripe_payment_intents spi
        WHERE spi.booking_id = ${bookingId} AND spi.purpose = 'prepayment' AND spi.status = 'succeeded'`);
 
-  await Promise.allSettled((succeededIntents.rows as Array<Record<string, unknown>>).map(async (row) => {
+  await Promise.allSettled((succeededIntents.rows as unknown as PaymentIntentIdRow[]).map(async (row) => {
     try {
       const claimResult = await db.execute(sql`UPDATE stripe_payment_intents 
            SET status = 'refunding', updated_at = NOW() 
@@ -153,10 +199,10 @@ export async function handleCancellationCascade(
         
         const stripe = await getStripeClient();
         
-        if ((row.stripe_payment_intent_id as string).startsWith('balance-')) {
+        if (row.stripe_payment_intent_id.startsWith('balance-')) {
           if (row.stripe_customer_id) {
             const balanceTransaction = await stripe.customers.createBalanceTransaction(
-              row.stripe_customer_id as string,
+              row.stripe_customer_id,
               {
                 amount: -(row.amount_cents as number),
                 currency: 'usd',
@@ -183,7 +229,7 @@ export async function handleCancellationCascade(
             });
           }
         } else {
-          const paymentIntent = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id as string);
+          const paymentIntent = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id);
           
           if (paymentIntent.status === 'succeeded' && paymentIntent.latest_charge) {
             const idempotencyKey = `refund-booking-${bookingId}-${row.stripe_payment_intent_id}`;
@@ -808,21 +854,22 @@ export async function getBookingDataForTrackman(trackmanBookingId: string) {
   
   const webhookResult = await db.execute(sql`SELECT payload FROM trackman_webhook_events WHERE trackman_booking_id = ${trackmanBookingId} ORDER BY created_at DESC LIMIT 1`);
   
-  if ((webhookResult.rows as Array<Record<string, unknown>>).length > 0) {
-    let payload: Record<string, unknown>;
+  if ((webhookResult.rows as unknown as TrackmanWebhookRow[]).length > 0) {
+    let payload: TrackmanPayloadData;
     try {
-      payload = typeof (webhookResult.rows as Array<Record<string, unknown>>)[0].payload === 'string' 
-        ? JSON.parse((webhookResult.rows as Array<Record<string, unknown>>)[0].payload as string) 
-        : (webhookResult.rows as Array<Record<string, unknown>>)[0].payload as Record<string, unknown>;
+      const webhookRow = (webhookResult.rows as unknown as TrackmanWebhookRow[])[0];
+      payload = typeof webhookRow.payload === 'string' 
+        ? JSON.parse(webhookRow.payload) 
+        : webhookRow.payload as unknown as TrackmanPayloadData;
     } catch (parseErr) {
       logger.error('[resourceService] Failed to parse trackman webhook payload', { error: parseErr instanceof Error ? parseErr : new Error(String(parseErr)), extra: { trackmanBookingId } });
       payload = {};
     }
-    const data = (payload?.data || payload?.booking || {}) as Record<string, unknown>;
+    const data = ((payload?.data || payload?.booking || {}) as unknown as TrackmanPayloadData);
     
-    const startStr = data?.start as string | undefined;
-    const endStr = data?.end as string | undefined;
-    const bayRef = (data?.bay as Record<string, unknown>)?.ref as string | undefined;
+    const startStr = data?.start;
+    const endStr = data?.end;
+    const bayRef = data?.bay?.ref;
     
     if (startStr && endStr) {
       const startDate = new Date(startStr.includes('T') ? startStr : startStr.replace(' ', 'T') + 'Z');
@@ -970,16 +1017,16 @@ export async function linkTrackmanToMember(
       try {
         payload = typeof webhookLog.payload === 'string' 
           ? JSON.parse(webhookLog.payload) 
-          : webhookLog.payload as Record<string, unknown>;
+          : webhookLog.payload as unknown as TrackmanPayloadData;
       } catch (parseErr) {
         logger.error('[resourceService] Failed to parse trackman webhook payload', { error: parseErr instanceof Error ? parseErr : new Error(String(parseErr)), extra: { trackmanBookingId } });
         throw { statusCode: 500, error: 'Failed to parse webhook payload data' };
       }
-      const bookingData = (payload?.data || payload?.booking || {}) as Record<string, unknown>;
+      const bookingData = ((payload?.data || payload?.booking || {}) as unknown as TrackmanPayloadData);
       
-      const startStr = bookingData?.start as string | undefined;
-      const endStr = bookingData?.end as string | undefined;
-      const bayRef = (bookingData?.bay as Record<string, unknown>)?.ref as string | undefined;
+      const startStr = bookingData?.start;
+      const endStr = bookingData?.end;
+      const bayRef = bookingData?.bay?.ref;
       
       if (!startStr || !endStr) {
         throw { statusCode: 400, error: 'Cannot extract booking time from webhook data' };
@@ -1083,7 +1130,7 @@ export async function linkTrackmanToMember(
              VALUES (${finalSessionId}, 'guest', ${player.guest_name || 'Guest (info pending)'}, ${slotDuration}, 'pending', false, NOW())`);
         } else if (player.type === 'member' && player.email) {
           const memberLookup = await db.execute(sql`SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER(${player.email}) LIMIT 1`);
-          const memberRow = (memberLookup.rows as Array<Record<string, unknown>>)[0];
+          const memberRow = (memberLookup.rows as unknown as MemberLookupRow[])[0];
           const displayName = memberRow ? [memberRow.first_name, memberRow.last_name].filter(Boolean).join(' ') || player.email : player.email;
           await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, payment_status, created_at)
              VALUES (${finalSessionId}, ${memberRow?.id || null}, 'member', ${displayName}, ${slotDuration}, 'pending', NOW())`);
@@ -1130,7 +1177,7 @@ export async function linkEmailToMember(ownerEmail: string, originalEmail: strin
   try {
     const existingLink = await db.execute(sql`SELECT id FROM user_linked_emails WHERE LOWER(linked_email) = LOWER(${originalEmail})`);
     
-    if ((existingLink.rows as Array<Record<string, unknown>>).length === 0) {
+    if ((existingLink.rows as unknown as LinkedEmailIdRow[]).length === 0) {
       const [member] = await db.select().from(users).where(eq(users.email, ownerEmail.toLowerCase())).limit(1);
       if (member) {
         await db.execute(sql`INSERT INTO user_linked_emails (primary_email, linked_email, source, created_at) 
@@ -1535,7 +1582,7 @@ export async function assignWithPlayers(
              VALUES (${result.sessionId}, 'guest', ${player.guest_name || 'Guest (info pending)'}, ${slotDuration}, 'pending', false, NOW())`);
         } else if (player.type === 'member' && player.email) {
           const memberLookup = await db.execute(sql`SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER(${player.email}) LIMIT 1`);
-          const memberRow = (memberLookup.rows as Array<Record<string, unknown>>)[0];
+          const memberRow = (memberLookup.rows as unknown as MemberLookupRow[])[0];
           const displayName = memberRow
             ? `${memberRow.first_name || ''} ${memberRow.last_name || ''}`.trim() || player.name || player.email
             : player.name || player.email;
@@ -1573,9 +1620,10 @@ export async function assignWithPlayers(
         WHERE session_id = ${result.sessionId}
       `);
       
-      const totalCents = parseInt((feeResult.rows as Array<Record<string, unknown>>)[0]?.total_cents as string || '0');
-      const overageCents = parseInt((feeResult.rows as Array<Record<string, unknown>>)[0]?.overage_cents as string || '0');
-      const guestCents = parseInt((feeResult.rows as Array<Record<string, unknown>>)[0]?.guest_cents as string || '0');
+      const feeRow = (feeResult.rows as unknown as FeeSumRow[])[0];
+      const totalCents = parseInt(feeRow?.total_cents || '0');
+      const overageCents = parseInt(feeRow?.overage_cents || '0');
+      const guestCents = parseInt(feeRow?.guest_cents || '0');
       
       if (totalCents > 0) {
         const prepayResult = await createPrepaymentIntent({
@@ -1624,7 +1672,7 @@ export async function assignWithPlayers(
         WHERE session_id = ${result.sessionId}
       `);
       
-      const totalCents = parseInt((feeResult.rows as Array<Record<string, unknown>>)[0]?.total_cents as string || '0');
+      const totalCents = parseInt((feeResult.rows as unknown as FeeSumRow[])[0]?.total_cents || '0');
       const feeMessage = totalCents > 0 
         ? ` Estimated fees: $${(totalCents / 100).toFixed(2)}. You can pay now from your dashboard.`
         : '';
@@ -1729,7 +1777,7 @@ export async function createBookingRequest(params: {
   let resourceType = 'simulator';
   if (params.resourceId) {
     const resourceResult = await db.execute(sql`SELECT type FROM resources WHERE id = ${params.resourceId}`);
-    resourceType = (resourceResult.rows as Array<Record<string, unknown>>)[0]?.type as string || 'simulator';
+    resourceType = (resourceResult.rows as unknown as ResourceTypeRow[])[0]?.type || 'simulator';
   }
   
   const limitCheck = await checkDailyBookingLimit(params.userEmail, params.bookingDate, durationMinutes, userTier, resourceType);

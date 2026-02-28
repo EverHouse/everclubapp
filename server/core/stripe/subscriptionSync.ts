@@ -214,7 +214,7 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
           const existingUser = await db.execute(sql`SELECT id, tier, stripe_customer_id, stripe_subscription_id, hubspot_id, first_name, last_name, updated_at FROM users WHERE LOWER(email) = ${email}`);
 
           if (existingUser.rows.length > 0) {
-            const user = existingUser.rows[0] as Record<string, unknown>;
+            const user = existingUser.rows[0] as { id: string; tier: string | null; stripe_customer_id: string | null; stripe_subscription_id: string | null; hubspot_id: string | null; first_name: string | null; last_name: string | null; updated_at: string | null };
             const needsUpdate = 
               user.stripe_customer_id !== stripeCustomerId ||
               user.stripe_subscription_id !== stripeSubscriptionId ||

@@ -1,5 +1,11 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+interface SupabaseRealtimeConfig {
+  heartbeatIntervalMs: number;
+  reconnectAfterMs: (tries: number) => number;
+  timeout: number;
+}
+
 let supabaseClient: SupabaseClient | null = null;
 let initAttempted = false;
 
@@ -31,7 +37,7 @@ export function getSupabase(): SupabaseClient | null {
           return Math.min(1000 * Math.pow(2, tries), 30000);
         },
         timeout: 30000,
-      } as Record<string, unknown>,
+      } as SupabaseRealtimeConfig,
     } as Parameters<typeof createClient>[2]);
     return supabaseClient;
   } catch {

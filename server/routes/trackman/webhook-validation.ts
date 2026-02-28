@@ -3,7 +3,24 @@ import { Request } from 'express';
 import { logger } from '../../core/logger';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
-import { isProduction, redactPII, TrackmanWebhookPayload } from './webhook-helpers';
+import { isProduction, redactPII, TrackmanWebhookPayload, TrackmanBookingPayload } from './webhook-helpers';
+
+interface WebhookEventIdRow {
+  id: number;
+  payload?: unknown;
+}
+
+interface EmailLookupRow {
+  primary_email?: string;
+  email?: string;
+}
+
+interface MemberRow {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+}
 
 export function validateTrackmanWebhookSignature(req: Request): boolean {
   const webhookSecret = process.env.TRACKMAN_WEBHOOK_SECRET;
@@ -71,9 +88,9 @@ export async function logWebhookEvent(
     
     if (trackmanBookingId) {
       const bookingData = payload?.data || payload?.booking || {};
-      const bd = bookingData as Record<string, unknown>;
-      const startTime = (bd?.start as string) || (bd?.start_time as string) || (payload.start_time as string) || '';
-      const endTime = (bd?.end as string) || (bd?.end_time as string) || (payload.end_time as string) || '';
+      const bd = bookingData as unknown as TrackmanBookingPayload;
+      const startTime = (bd?.startTime as string) || (bd?.start_time as string) || (payload.start_time as string) || '';
+      const endTime = (bd?.endTime as string) || (bd?.end_time as string) || (payload.end_time as string) || '';
       const status = (bd?.status as string) || (payload.status as string) || eventType;
       
       const recentDupe = await db.execute(sql`SELECT id, payload FROM trackman_webhook_events 
@@ -99,19 +116,20 @@ export async function logWebhookEvent(
           logger.info('[Trackman Webhook] Skipping duplicate event', {
             extra: { trackmanBookingId, eventType, existingId: recentDupe.rows[0].id }
           });
-          return (recentDupe.rows[0] as Record<string, unknown>).id as number;
+          return (recentDupe.rows[0] as unknown as WebhookEventIdRow).id;
         }
       }
     }
     
     const sigParts: string[] = [];
-    const v2Booking = payload.booking as Record<string, unknown> | undefined;
-    const v1Data = payload.data as Record<string, unknown> | undefined;
-    if (v2Booking?.start) {
-      if (v2Booking.start) sigParts.push(`s:${v2Booking.start}`);
-      if (v2Booking.end) sigParts.push(`e:${v2Booking.end}`);
-      const v2Bay = v2Booking.bay as Record<string, unknown> | undefined;
-      if (v2Bay?.ref) sigParts.push(`b:${v2Bay.ref}`);
+    const v2Booking = payload.booking as unknown as TrackmanBookingPayload | undefined;
+    const v1Data = payload.data as unknown as TrackmanBookingPayload | undefined;
+    if (v2Booking?.startTime || v2Booking?.start_time) {
+      const start = v2Booking.startTime || v2Booking.start_time;
+      const end = v2Booking.endTime || v2Booking.end_time;
+      if (start) sigParts.push(`s:${start}`);
+      if (end) sigParts.push(`e:${end}`);
+      if (v2Booking.bay_id || v2Booking.bayId) sigParts.push(`b:${v2Booking.bay_id || v2Booking.bayId}`);
       if (v2Booking.status) sigParts.push(`st:${v2Booking.status}`);
     } else if (v1Data) {
       if (v1Data.start_time) sigParts.push(`s:${v1Data.start_time}`);
@@ -130,7 +148,7 @@ export async function logWebhookEvent(
        (event_type, payload, trackman_booking_id, trackman_user_id, matched_booking_id, matched_user_id, processed_at, processing_error, dedup_key)
        VALUES (${eventType}, ${JSON.stringify(redactedPayload)}, ${trackmanBookingId ?? null}, ${trackmanUserId ?? null}, ${matchedBookingId ?? null}, ${matchedUserId ?? null}, NOW(), ${error ?? null}, ${dedupKey})
        RETURNING id`);
-    return (result.rows[0] as Record<string, unknown>)?.id as number;
+    return (result.rows[0] as unknown as WebhookEventIdRow)?.id as number;
   } catch (e: unknown) {
     logger.error('[Trackman Webhook] Failed to log webhook event', { error: e as Error });
     return 0;
@@ -142,7 +160,7 @@ export async function resolveLinkedEmail(email: string): Promise<string> {
     const linkResult = await db.execute(sql`SELECT primary_email FROM user_linked_emails WHERE LOWER(linked_email) = LOWER(${email}) LIMIT 1`);
     
     if (linkResult.rows.length > 0) {
-      return (linkResult.rows[0] as Record<string, unknown>).primary_email as string;
+      return (linkResult.rows[0] as unknown as EmailLookupRow).primary_email as string;
     }
     
     const manualLinkResult = await db.execute(sql`SELECT email FROM users 
@@ -150,13 +168,13 @@ export async function resolveLinkedEmail(email: string): Promise<string> {
        LIMIT 1`);
     
     if (manualLinkResult.rows.length > 0) {
-      return (manualLinkResult.rows[0] as Record<string, unknown>).email as string;
+      return (manualLinkResult.rows[0] as unknown as EmailLookupRow).email as string;
     }
     
     const trackmanEmailResult = await db.execute(sql`SELECT email FROM users WHERE LOWER(trackman_email) = LOWER(${email}) LIMIT 1`);
     
     if (trackmanEmailResult.rows.length > 0) {
-      return (trackmanEmailResult.rows[0] as Record<string, unknown>).email as string;
+      return (trackmanEmailResult.rows[0] as unknown as EmailLookupRow).email as string;
     }
     
     return email;
@@ -179,12 +197,12 @@ export async function findMemberByEmail(email: string): Promise<{
        LIMIT 1`);
     
     if (result.rows.length > 0) {
-      const row = result.rows[0] as Record<string, unknown>;
+      const row = result.rows[0] as unknown as MemberRow;
       return {
-        id: row.id as number,
-        email: row.email as string,
-        firstName: row.first_name as string,
-        lastName: row.last_name as string,
+        id: row.id,
+        email: row.email,
+        firstName: row.first_name,
+        lastName: row.last_name,
       };
     }
     

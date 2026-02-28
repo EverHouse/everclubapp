@@ -204,8 +204,8 @@ async function createSupabaseToken(user: { id: string, email: string, role: stri
       return null;
     }
     
-    if ((linkData?.properties as Record<string, unknown>)?.access_token) {
-      return (linkData.properties as Record<string, unknown>).access_token as string;
+    if ((linkData?.properties as { access_token?: string })?.access_token) {
+      return (linkData.properties as { access_token?: string }).access_token as string;
     }
     
     const hashedToken = linkData?.properties?.hashed_token;

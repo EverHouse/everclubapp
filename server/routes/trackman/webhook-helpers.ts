@@ -107,6 +107,7 @@ export interface TrackmanV2WebhookPayload {
 }
 
 export interface TrackmanWebhookPayload {
+  id?: string | number;
   event_type?: string;
   eventType?: string;
   data?: TrackmanBookingPayload;
@@ -153,12 +154,12 @@ export function extractBookingData(payload: TrackmanWebhookPayload): TrackmanBoo
 
 export function isTrackmanV2Payload(payload: unknown): payload is TrackmanV2WebhookPayload {
   if (!payload || typeof payload !== 'object') return false;
-  const p = payload as Record<string, unknown>;
-  const booking = p.booking as Record<string, unknown> | undefined;
+  const p = payload as TrackmanV2WebhookPayload;
+  const booking = p.booking;
   return !!booking?.start && 
          !!booking?.end && 
          typeof booking?.id === 'number' &&
-         !!(p.venue || (booking?.bay as Record<string, unknown>)?.ref);
+         !!(p.venue || booking?.bay?.ref);
 }
 
 export function parseISOToPacific(isoStr: string): { date: string; time: string } {
@@ -334,7 +335,7 @@ export function parseDateTime(dateTimeStr: string | undefined, dateStr: string |
 export function redactPII(payload: unknown): unknown {
   if (!payload || typeof payload !== 'object') return payload;
   
-  const redacted: Record<string, unknown> = Array.isArray(payload) ? Object.fromEntries(payload.map((v, i) => [String(i), v])) : { ...(payload as Record<string, unknown>) };
+  const redacted: Record<string, unknown> = Array.isArray(payload) ? Object.fromEntries(payload.map((v, i) => [String(i), v])) : { ...(payload as object) };
   const sensitiveFields = ['email', 'phone', 'phoneNumber', 'mobile', 'customer_email', 'customerEmail'];
   
   for (const key of Object.keys(redacted)) {

@@ -28,6 +28,69 @@ interface HubSpotApiObject {
   [key: string]: unknown;
 }
 
+interface HubSpotErrorObject {
+  response?: { statusCode?: number; body?: { category?: string } };
+  status?: number;
+  code?: number;
+  body?: { category?: string };
+}
+
+interface EmailCountRow {
+  email: string;
+  count: number;
+}
+
+interface DbUserRow {
+  id: string;
+  email: string;
+  join_date: string | null;
+  joined_on: string | null;
+  mindbody_client_id: string | null;
+  manually_linked_emails: string[] | null;
+}
+
+interface LastActivityRow {
+  email: string;
+  last_activity: string | Date | null;
+}
+
+interface BillingProviderMemberRow {
+  email: string;
+  membership_status: string | null;
+  billing_provider: string | null;
+  tier: string | null;
+  hubspot_id: string | null;
+  first_name: string | null;
+  last_name: string | null;
+}
+
+interface HubSpotContact {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  company: string;
+  lifecycleStage: string;
+  status: string;
+  tier: string | null;
+  rawTier: string | null;
+  tags: string[];
+  membershipStartDate: string | null;
+  createdAt: string | undefined;
+  lastModified: string | undefined;
+  dateOfBirth: string | null;
+  isActiveMember: boolean;
+  isFormerMember: boolean;
+  wasEverMember: boolean;
+  isNonMemberLead: boolean;
+  lifetimeVisits?: number;
+  joinDate?: string | null;
+  mindbodyClientId?: string | null;
+  manuallyLinkedEmails?: string[] | null;
+  lastBookingDate?: string | null;
+}
+
 /**
  * Cutoff date for HubSpot batch import.
  * Contacts created on or before this date were batch-imported, so their real join date
@@ -202,7 +265,7 @@ function validateHubSpotWebhookSignature(req: Request): boolean {
 const router = Router();
 
 // Shared cache for all HubSpot contacts (used by both active and former member views)
-let allContactsCache: { data: Record<string, unknown>[] | null; timestamp: number; lastModifiedCheck: number } = { data: null, timestamp: 0, lastModifiedCheck: 0 };
+let allContactsCache: { data: HubSpotContact[] | null; timestamp: number; lastModifiedCheck: number } = { data: null, timestamp: 0, lastModifiedCheck: 0 };
 const ALL_CONTACTS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes for full refresh
 const INCREMENTAL_SYNC_INTERVAL = 5 * 60 * 1000; // Check for updates every 5 minutes
 
@@ -214,9 +277,8 @@ let backgroundRefreshInProgress = false;
  */
 function isRateLimitError(error: unknown): boolean {
   const errorMsg = error instanceof Error ? getErrorMessage(error) : String(error);
-  const errObj = error as Record<string, unknown>;
-  const response = errObj?.response as Record<string, unknown> | undefined;
-  const statusCode = response?.statusCode || errObj?.status || errObj?.code;
+  const errObj = error as unknown as HubSpotErrorObject;
+  const statusCode = errObj?.response?.statusCode || errObj?.status || errObj?.code;
   
   return (
     statusCode === 429 ||
@@ -272,7 +334,7 @@ const HUBSPOT_CONTACT_PROPERTIES = [
 /**
  * Transform a raw HubSpot contact into our normalized format
  */
-function transformHubSpotContact(contact: Record<string, unknown>): Record<string, unknown> {
+function transformHubSpotContact(contact: HubSpotApiObject): HubSpotContact {
   const props = contact.properties as Record<string, string | null | undefined>;
   const lifecycleStage = (props.lifecyclestage || '').toLowerCase();
   const membershipStatus = (props.membership_status || '').toLowerCase();
@@ -318,7 +380,7 @@ function transformHubSpotContact(contact: Record<string, unknown>): Record<strin
  * Fetch only contacts modified since the given timestamp using HubSpot Search API
  * This is much more efficient than fetching all contacts when we only need updates
  */
-async function fetchRecentlyModifiedContacts(sinceTimestamp: number): Promise<Record<string, unknown>[]> {
+async function fetchRecentlyModifiedContacts(sinceTimestamp: number): Promise<HubSpotContact[]> {
   const hubspot = await getHubSpotClient();
   
   let modifiedContacts: HubSpotApiObject[] = [];
@@ -342,7 +404,7 @@ async function fetchRecentlyModifiedContacts(sinceTimestamp: number): Promise<Re
       hubspot.crm.contacts.searchApi.doSearch(searchRequest)
     );
     
-    modifiedContacts = modifiedContacts.concat(response.results as HubSpotApiObject[]);
+    modifiedContacts = modifiedContacts.concat(response.results as unknown as HubSpotApiObject[]);
     after = response.paging?.next?.after;
   } while (after);
   
@@ -354,7 +416,7 @@ async function fetchRecentlyModifiedContacts(sinceTimestamp: number): Promise<Re
  * - Full refresh: Every 30 minutes or on force refresh
  * - Incremental sync: Every 5 minutes, only fetches recently modified contacts
  */
-async function fetchAllHubSpotContacts(forceRefresh: boolean = false): Promise<Record<string, unknown>[]> {
+async function fetchAllHubSpotContacts(forceRefresh: boolean = false): Promise<HubSpotContact[]> {
   const now = Date.now();
   
   // If we have cache and it's within TTL, check if we need incremental sync
@@ -369,7 +431,7 @@ async function fetchAllHubSpotContacts(forceRefresh: boolean = false): Promise<R
           const enrichedModified = await enrichContactsWithDbData(modifiedContacts);
           
           // Now merge enriched contacts into cache, preserving existing enriched data for unchanged contacts
-          const contactMap = new Map(allContactsCache.data.map((c: Record<string, unknown>) => [c.id, c]));
+          const contactMap = new Map(allContactsCache.data.map((c) => [c.id, c]));
           for (const contact of enrichedModified) {
             contactMap.set(contact.id, contact);
           }
@@ -400,7 +462,7 @@ async function fetchAllHubSpotContacts(forceRefresh: boolean = false): Promise<R
     const response = await retryableHubSpotRequest(() => 
       hubspot.crm.contacts.basicApi.getPage(100, after, HUBSPOT_CONTACT_PROPERTIES)
     );
-    allContacts = allContacts.concat(response.results as HubSpotApiObject[]);
+    allContacts = allContacts.concat(response.results as unknown as HubSpotApiObject[]);
     after = response.paging?.next?.after;
   } while (after);
   
@@ -421,12 +483,12 @@ async function fetchAllHubSpotContacts(forceRefresh: boolean = false): Promise<R
 /**
  * Enrich contacts with additional data from the database (visits, join dates, etc.)
  */
-async function enrichContactsWithDbData(contacts: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
-  const emails = contacts.map((c: Record<string, unknown>) => (c.email as string).toLowerCase()).filter(Boolean);
+async function enrichContactsWithDbData(contacts: HubSpotContact[]): Promise<HubSpotContact[]> {
+  const emails = contacts.map((c) => c.email.toLowerCase()).filter(Boolean);
   
   if (emails.length === 0) return contacts;
   
-  let dbUserMap: Record<string, Record<string, unknown>> = {};
+  let dbUserMap: Record<string, DbUserRow> = {};
   let lastActivityMap: Record<string, string> = {};
   let pastBookingsMap: Record<string, number> = {};
   let eventVisitsMap: Record<string, number> = {};
@@ -436,7 +498,8 @@ async function enrichContactsWithDbData(contacts: Record<string, unknown>[]): Pr
   const dbResult = await db.execute(sql`SELECT id, email, join_date, joined_on, mindbody_client_id, manually_linked_emails 
      FROM users WHERE LOWER(email) IN (${sql.join(emails.map(e => sql`${e}`), sql`, `)})`);
   for (const row of dbResult.rows) {
-    dbUserMap[((row as Record<string, unknown>).email as string).toLowerCase()] = row as Record<string, unknown>;
+    const r = row as unknown as DbUserRow;
+    dbUserMap[r.email.toLowerCase()] = r;
   }
   
   // Get last visit date - most recent PAST date from bookings or experiences
@@ -457,10 +520,10 @@ async function enrichContactsWithDbData(contacts: Record<string, unknown>[]): Pr
     ) combined
     GROUP BY email`);
   for (const row of lastActivityResult.rows) {
-    if (row.last_activity) {
-      const r = row as Record<string, unknown>;
+    const r = row as unknown as LastActivityRow;
+    if (r.last_activity) {
       const date = r.last_activity instanceof Date ? r.last_activity : new Date(r.last_activity as string);
-      lastActivityMap[r.email as string] = date.toISOString().split('T')[0];
+      lastActivityMap[r.email] = date.toISOString().split('T')[0];
     }
   }
   
@@ -472,7 +535,8 @@ async function enrichContactsWithDbData(contacts: Record<string, unknown>[]): Pr
        AND status NOT IN ('cancelled', 'declined', 'cancellation_pending')
      GROUP BY LOWER(user_email)`);
   for (const row of pastBookingsResult.rows) {
-    pastBookingsMap[(row as Record<string, unknown>).email as string] = (row as Record<string, unknown>).count as number;
+    const r = row as unknown as EmailCountRow;
+    pastBookingsMap[r.email] = r.count;
   }
   
   // Count past event RSVPs (excluding cancelled) - include both email and matched_user_id
@@ -485,7 +549,8 @@ async function enrichContactsWithDbData(contacts: Record<string, unknown>[]): Pr
        AND e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
      GROUP BY u.email`);
   for (const row of eventVisitsResult.rows) {
-    eventVisitsMap[((row as Record<string, unknown>).email as string).toLowerCase()] = (row as Record<string, unknown>).count as number;
+    const r = row as unknown as EmailCountRow;
+    eventVisitsMap[r.email.toLowerCase()] = r.count;
   }
   
   // Count past wellness enrollments (excluding cancelled)
@@ -497,7 +562,8 @@ async function enrichContactsWithDbData(contacts: Record<string, unknown>[]): Pr
        AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
      GROUP BY LOWER(we.user_email)`);
   for (const row of wellnessVisitsResult.rows) {
-    wellnessVisitsMap[(row as Record<string, unknown>).email as string] = (row as Record<string, unknown>).count as number;
+    const r = row as unknown as EmailCountRow;
+    wellnessVisitsMap[r.email] = r.count;
   }
   
   const walkInCountResult = await db.execute(sql`
@@ -507,13 +573,14 @@ async function enrichContactsWithDbData(contacts: Record<string, unknown>[]): Pr
   `);
   const walkInCounts: Record<string, number> = {};
   for (const row of walkInCountResult.rows) {
-    walkInCounts[(row as Record<string, unknown>).email as string] = (row as Record<string, unknown>).count as number;
+    const r = row as unknown as EmailCountRow;
+    walkInCounts[r.email] = r.count;
   }
 
   // Merge contact data with database data
   // Join date logic handles batch-import vs post-import contacts differently
-  return contacts.map((contact: Record<string, unknown>) => {
-    const emailLower = (contact.email as string).toLowerCase();
+  return contacts.map((contact) => {
+    const emailLower = contact.email.toLowerCase();
     const dbUser = dbUserMap[emailLower];
     const pastBookings = pastBookingsMap[emailLower] || 0;
     const eventVisits = eventVisitsMap[emailLower] || 0;
@@ -523,7 +590,7 @@ async function enrichContactsWithDbData(contacts: Record<string, unknown>[]): Pr
     
     // Define formerStatuses for classification checks
     const formerStatuses = ['expired', 'terminated', 'former_member', 'cancelled', 'canceled', 'inactive', 'churned', 'declined', 'suspended', 'frozen', 'froze', 'pending', 'non-member'];
-    const contactStatus = String((contact.status || '')).toLowerCase();
+    const contactStatus = (contact.status || '').toLowerCase();
     const hasFormerStatus = formerStatuses.includes(contactStatus);
     
     // Recalculate wasEverMember considering both HubSpot membershipStartDate AND DB join_date
@@ -568,8 +635,8 @@ router.get('/api/hubspot/contacts', isStaffOrAdmin, async (req, res) => {
   const page = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
   const limit = isNaN(limitParam) ? 50 : Math.min(Math.max(limitParam, 1), 100); // Default 50, max 100
   
-  const filterContacts = (contacts: Record<string, unknown>[]) => {
-    let filtered = contacts.filter((contact: Record<string, unknown>) => {
+  const filterContacts = (contacts: HubSpotContact[]) => {
+    let filtered = contacts.filter((contact) => {
       if (statusFilter === 'active') return contact.isActiveMember;
       if (statusFilter === 'former') return contact.isFormerMember;
       return true;
@@ -578,10 +645,10 @@ router.get('/api/hubspot/contacts', isStaffOrAdmin, async (req, res) => {
     // Apply search filter if provided - supports multi-word queries like "nick luu"
     if (searchQuery) {
       const searchWords = searchQuery.split(/\s+/).filter(Boolean);
-      filtered = filtered.filter((contact: Record<string, unknown>) => {
-        const firstName = String((contact.firstName || '')).toLowerCase();
-        const lastName = String((contact.lastName || '')).toLowerCase();
-        const email = String((contact.email || '')).toLowerCase();
+      filtered = filtered.filter((contact) => {
+        const firstName = (contact.firstName || '').toLowerCase();
+        const lastName = (contact.lastName || '').toLowerCase();
+        const email = (contact.email || '').toLowerCase();
         const fullName = `${firstName} ${lastName}`.trim();
         
         // All words in the search query must match somewhere in name or email
@@ -597,7 +664,7 @@ router.get('/api/hubspot/contacts', isStaffOrAdmin, async (req, res) => {
     return filtered;
   };
   
-  const buildResponse = (allFilteredContacts: Record<string, unknown>[], stale: boolean, refreshing: boolean) => {
+  const buildResponse = (allFilteredContacts: HubSpotContact[], stale: boolean, refreshing: boolean) => {
     const total = allFilteredContacts.length;
     
     // If pagination is requested, slice the results
@@ -1134,7 +1201,7 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
       const response = await retryableHubSpotRequest(() => 
         hubspot.crm.contacts.basicApi.getPage(100, after, properties)
       );
-      allContacts = allContacts.concat(response.results as HubSpotApiObject[]);
+      allContacts = allContacts.concat(response.results as unknown as HubSpotApiObject[]);
       after = response.paging?.next?.after;
     } while (after);
     
@@ -1299,9 +1366,8 @@ router.put('/api/hubspot/contacts/:id/tier', isStaffOrAdmin, async (req, res) =>
       .set({
         tier: tierData.tier,
         tierId: tierData.tier_id,
-        membershipTier: tierData.tier,
         membershipStatus: 'active',
-      } as Record<string, unknown>)
+      })
       .where(eq(users.id, localUser.id));
     
     logger.info('[Tier Update] Updated local database for', { extra: { contactEmail } });
@@ -1609,11 +1675,11 @@ router.post('/api/hubspot/sync-billing-providers', isStaffOrAdmin, async (req, r
     };
     
     for (const member of membersResult.rows) {
-      const m = member as Record<string, unknown>;
-      const email: string = m.email as string;
-      const status: string = (m.membership_status as string) || 'active';
-      const billingProvider: string = (m.billing_provider as string) || 'manual';
-      const tier: string = m.tier as string;
+      const m = member as unknown as BillingProviderMemberRow;
+      const email = m.email;
+      const status = m.membership_status || 'active';
+      const billingProvider = m.billing_provider || 'manual';
+      const tier = m.tier || '';
       
       if (dryRun) {
         results.details.push({
@@ -1697,7 +1763,7 @@ router.get('/api/hubspot/products', isStaffOrAdmin, async (req, res) => {
       const response = await retryableHubSpotRequest(() => 
         hubspot.crm.products.basicApi.getPage(100, after, properties)
       );
-      allProducts = allProducts.concat(response.results as HubSpotApiObject[]);
+      allProducts = allProducts.concat(response.results as unknown as HubSpotApiObject[]);
       after = response.paging?.next?.after;
     } while (after);
     
@@ -1715,11 +1781,9 @@ router.get('/api/hubspot/products', isStaffOrAdmin, async (req, res) => {
     
     res.json({ products, count: products.length });
   } catch (error: unknown) {
-    const errObj = error as Record<string, unknown>;
-    const response = errObj?.response as Record<string, unknown> | undefined;
-    const body = response?.body as Record<string, unknown> | undefined;
-    const statusCode = response?.statusCode || errObj?.status || errObj?.code;
-    const category = body?.category || (errObj?.body as Record<string, unknown> | undefined)?.category;
+    const errObj = error as unknown as HubSpotErrorObject;
+    const statusCode = errObj?.response?.statusCode || errObj?.status || errObj?.code;
+    const category = errObj?.response?.body?.category || errObj?.body?.category;
     if (statusCode === 403 || category === 'MISSING_SCOPES') {
       return res.status(403).json({ error: 'HubSpot API returned 403 for products. Check that the HubSpot Private App token is valid — update it at /api/admin/hubspot/set-forms-token-page' });
     }

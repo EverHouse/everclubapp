@@ -185,13 +185,13 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
       )
     ]);
     
-    const pastBookingsCount = Number((pastBookingsResult as { rows?: Record<string, unknown>[] }).rows?.[0]?.count || 0);
+    const pastBookingsCount = Number((pastBookingsResult as unknown as { rows?: { count: number }[] }).rows?.[0]?.count || 0);
     const pastEventsCount = Number(pastEventsResult[0]?.count || 0);
     const pastWellnessCount = Number(pastWellnessResult[0]?.count || 0);
-    const walkInCount = (walkInResult as { rows?: Record<string, unknown>[] }).rows?.[0]?.count || 0;
+    const walkInCount = (walkInResult as unknown as { rows?: { count: number }[] }).rows?.[0]?.count || 0;
     const totalLifetimeVisits = Number(pastBookingsCount) + pastEventsCount + pastWellnessCount + Number(walkInCount);
     
-    const lastBookingDateRaw = (lastActivityResult as { rows?: Record<string, unknown>[] }).rows?.[0]?.last_date;
+    const lastBookingDateRaw = (lastActivityResult as unknown as { rows?: { last_date: string | Date | null }[] }).rows?.[0]?.last_date;
     const lastBookingDate = lastBookingDateRaw 
       ? (lastBookingDateRaw instanceof Date ? lastBookingDateRaw.toISOString().split('T')[0] : String(lastBookingDateRaw).split('T')[0])
       : null;
@@ -376,12 +376,13 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
         FULL OUTER JOIN guest_counts gc ON mc.session_id = gc.session_id
       `);
       
-      for (const row of (batchCountsResult as { rows?: Record<string, unknown>[] }).rows || []) {
-        countsMap.set(row.session_id as number, {
-          memberSlotsCount: (row.member_slots_count as number) || 0,
-          additionalMemberCount: (row.additional_member_count as number) || 0,
-          guestCount: (row.guest_count as number) || 0,
-          isPrimaryViaMemberSlot: (row.is_primary_via_member_slot as boolean) || false
+      interface BatchCountRow { session_id: number; member_slots_count: number; additional_member_count: number; guest_count: number; is_primary_via_member_slot: boolean }
+      for (const row of (batchCountsResult as unknown as { rows?: BatchCountRow[] }).rows || []) {
+        countsMap.set(row.session_id, {
+          memberSlotsCount: row.member_slots_count || 0,
+          additionalMemberCount: row.additional_member_count || 0,
+          guestCount: row.guest_count || 0,
+          isPrimaryViaMemberSlot: row.is_primary_via_member_slot || false
         });
       }
     }
@@ -529,7 +530,8 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
       ORDER BY created_at DESC
     `);
 
-    const walkInItems = walkInResult.rows.map((v: Record<string, unknown>) => ({
+    interface WalkInRow { id: number; member_email: string; checked_in_by_name: string | null; created_at: string }
+    const walkInItems = (walkInResult.rows as unknown as WalkInRow[]).map((v) => ({
       id: `walkin-${v.id}`,
       bookingDate: v.created_at,
       startTime: null,
@@ -632,7 +634,7 @@ router.put('/api/members/:id/role', isAdmin, async (req, res) => {
           id: id as string,
           role: role || 'member',
           tags: tags || []
-        } as Record<string, unknown>)
+        } as typeof users.$inferInsert)
         .onConflictDoUpdate({
           target: users.id,
           set: {
@@ -680,7 +682,7 @@ router.get('/api/members/:email/cascade-preview', isStaffOrAdmin, async (req, re
       )
       AND br.archived_at IS NULL
     `);
-    const bookingsCount = Number((bookingsResult as { rows?: Record<string, unknown>[] }).rows?.[0]?.count || 0);
+    const bookingsCount = Number((bookingsResult as unknown as { rows?: { count: number }[] }).rows?.[0]?.count || 0);
     
     const rsvpsResult = await db.select({ count: sql<number>`count(*)::int` })
       .from(eventRsvps)

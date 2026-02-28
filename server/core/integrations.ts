@@ -2,15 +2,41 @@ import { Client } from '@hubspot/api-client';
 import { google } from 'googleapis';
 
 import { logger } from './logger';
-let hubspotConnectionSettings: Record<string, unknown> | null = null;
-let googleCalendarConnectionSettings: Record<string, unknown> | null = null;
+
+interface OAuthCredentials {
+  access_token?: string;
+  refresh_token?: string;
+  expires_at?: number | string;
+}
+
+interface IntegrationSettings {
+  access_token?: string;
+  expires_at?: number | string;
+  oauth?: {
+    credentials?: OAuthCredentials;
+  };
+}
+
+interface ConnectionItem {
+  id?: string;
+  settings?: IntegrationSettings;
+}
+
+interface ConnectorApiResponse {
+  items?: ConnectionItem[];
+  error?: string;
+  message?: string;
+}
+
+let hubspotConnectionSettings: ConnectionItem | null = null;
+let googleCalendarConnectionSettings: ConnectionItem | null = null;
 
 export async function getHubSpotAccessToken() {
   const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
   
   if (hubspotConnectionSettings) {
-    const hsSettings = hubspotConnectionSettings.settings as Record<string, unknown> | undefined;
-    const hsOauth = (hsSettings?.oauth as Record<string, unknown>)?.credentials as Record<string, unknown> | undefined;
+    const hsSettings = hubspotConnectionSettings.settings;
+    const hsOauth = hsSettings?.oauth?.credentials;
     const expiresAt = hsSettings?.expires_at || hsOauth?.expires_at;
     const cachedToken = hsSettings?.access_token || hsOauth?.access_token;
     
@@ -41,9 +67,8 @@ export async function getHubSpotAccessToken() {
     }
   );
   
-  const data = await response.json();
+  const data: ConnectorApiResponse = await response.json();
   
-  // Debug logging to understand what's coming back
   if (!data.items || data.items.length === 0) {
     logger.error('[HubSpot] Connector API response:', { extra: { detail: JSON.stringify({ 
       status: response.status,
@@ -66,8 +91,8 @@ export async function getHubSpotAccessToken() {
     throw new Error('HubSpot connection found but not authenticated - please reconnect in Integrations panel');
   }
   
-  const hsSettings2 = hubspotConnectionSettings.settings as Record<string, unknown> | undefined;
-  const hsOauth2 = (hsSettings2?.oauth as Record<string, unknown>)?.credentials as Record<string, unknown> | undefined;
+  const hsSettings2 = hubspotConnectionSettings.settings;
+  const hsOauth2 = hsSettings2?.oauth?.credentials;
   const accessToken = hsSettings2?.access_token || hsOauth2?.access_token;
 
   if (!accessToken) {
@@ -112,8 +137,8 @@ async function getGoogleCalendarAccessToken() {
   const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
   
   if (googleCalendarConnectionSettings) {
-    const gcSettings = googleCalendarConnectionSettings.settings as Record<string, unknown> | undefined;
-    const gcOauth = (gcSettings?.oauth as Record<string, unknown>)?.credentials as Record<string, unknown> | undefined;
+    const gcSettings = googleCalendarConnectionSettings.settings;
+    const gcOauth = gcSettings?.oauth?.credentials;
     const expiresAt = gcSettings?.expires_at || gcOauth?.expires_at;
     const cachedToken = gcSettings?.access_token || gcOauth?.access_token;
     
@@ -142,10 +167,10 @@ async function getGoogleCalendarAccessToken() {
         'X_REPLIT_TOKEN': xReplitToken
       }
     }
-  ).then(res => res.json()).then((data: Record<string, unknown>) => (data.items as Record<string, unknown>[] | undefined)?.[0] ?? null);
+  ).then(res => res.json()).then((data: ConnectorApiResponse) => data.items?.[0] ?? null);
 
-  const gcSettings2 = googleCalendarConnectionSettings?.settings as Record<string, unknown> | undefined;
-  const gcOauth2 = (gcSettings2?.oauth as Record<string, unknown>)?.credentials as Record<string, unknown> | undefined;
+  const gcSettings2 = googleCalendarConnectionSettings?.settings;
+  const gcOauth2 = gcSettings2?.oauth?.credentials;
   const accessToken = gcSettings2?.access_token || gcOauth2?.access_token;
 
   if (!googleCalendarConnectionSettings || !accessToken) {

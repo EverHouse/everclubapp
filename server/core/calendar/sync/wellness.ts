@@ -133,8 +133,30 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
                 reviewed_at, last_synced_at, review_dismissed, needs_review
          FROM wellness_classes WHERE google_calendar_id = ${googleEventId}`);
       
+      interface WellnessDbRow {
+        id: number;
+        locally_edited: boolean;
+        app_last_modified_at: string | null;
+        google_event_updated_at: string | null;
+        image_url: string | null;
+        external_url: string | null;
+        spots: string | null;
+        status: string | null;
+        title: string;
+        time: string;
+        instructor: string | null;
+        duration: string;
+        category: string | null;
+        date: Date | string;
+        description: string | null;
+        reviewed_at: string | null;
+        last_synced_at: string | null;
+        review_dismissed: boolean;
+        needs_review: boolean;
+      }
+
       if (existing.rows.length > 0) {
-        const dbRow = existing.rows[0] as Record<string, unknown>;
+        const dbRow = existing.rows[0] as unknown as WellnessDbRow;
         const appModifiedAt = dbRow.app_last_modified_at ? new Date(dbRow.app_last_modified_at as string) : null;
         
         if (dbRow.locally_edited === true && appModifiedAt) {
@@ -280,9 +302,10 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
     
     const existingClasses = await db.execute(sql`SELECT id, google_calendar_id FROM wellness_classes WHERE google_calendar_id IS NOT NULL AND is_active = true`);
     
-    const idsToDeactivate = (existingClasses.rows as Array<Record<string, unknown>>)
-      .filter((dbClass: Record<string, unknown>) => cancelledEventIds.has(dbClass.google_calendar_id as string) || !fetchedEventIds.has(dbClass.google_calendar_id as string))
-      .map((dbClass: Record<string, unknown>) => dbClass.id as number);
+    interface WellnessClassIdRow { id: number; google_calendar_id: string }
+    const idsToDeactivate = (existingClasses.rows as unknown as WellnessClassIdRow[])
+      .filter((dbClass) => cancelledEventIds.has(dbClass.google_calendar_id) || !fetchedEventIds.has(dbClass.google_calendar_id))
+      .map((dbClass) => dbClass.id);
     let deleted = 0;
     if (idsToDeactivate.length > 0) {
       const idsToDeactivateLiteral = toIntArrayLiteral(idsToDeactivate);

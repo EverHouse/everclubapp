@@ -571,9 +571,10 @@ export async function previewRosterFees(
       db.execute(sql`SELECT id, total_cents FROM booking_fee_snapshots WHERE session_id = ${booking.session_id} AND status IN ('completed', 'paid') ORDER BY created_at DESC LIMIT 1`),
     ]);
 
-    const paidCount = parseInt((paidCheck.rows[0] as Record<string, string>)?.paid_count || '0');
-    const totalWithFees = parseInt((paidCheck.rows[0] as Record<string, string>)?.total_with_fees || '0');
-    const pendingCount = parseInt((paidCheck.rows[0] as Record<string, string>)?.pending_count || '0');
+    interface PaidCheckRow { paid_count: string; total_with_fees: string; pending_count: string }
+    const paidCount = parseInt((paidCheck.rows[0] as unknown as PaidCheckRow)?.paid_count || '0');
+    const totalWithFees = parseInt((paidCheck.rows[0] as unknown as PaidCheckRow)?.total_with_fees || '0');
+    const pendingCount = parseInt((paidCheck.rows[0] as unknown as PaidCheckRow)?.pending_count || '0');
     const hasCompletedFeeSnapshot = feeSnapshotCheck.rows.length > 0;
     const hasPaidFees = paidCount > 0;
     const hasOriginalFees = totalWithFees > 0;
@@ -1129,8 +1130,9 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
           WHERE id = ${matchingGuestId} AND session_id = ${sessionId} AND participant_type = 'guest' LIMIT 1
         `);
 
+        interface GuestParticipantRow { id: number; display_name: string; used_guest_pass: boolean }
         if (guestCheckResult.rows.length > 0) {
-          const guestToRemove = guestCheckResult.rows[0] as Record<string, unknown>;
+          const guestToRemove = guestCheckResult.rows[0] as unknown as GuestParticipantRow;
           logger.info('[rosterService] Removing matching guest after successful member add', {
             extra: {
               bookingId,
@@ -1142,10 +1144,10 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
           });
 
           await tx.delete(bookingParticipants)
-            .where(eq(bookingParticipants.id, guestToRemove.id as number));
+            .where(eq(bookingParticipants.id, guestToRemove.id));
 
           if (guestToRemove.used_guest_pass === true) {
-            deferredGuestPassRefund = { ownerEmail: booking.owner_email, guestName: guestToRemove.display_name as string || undefined };
+            deferredGuestPassRefund = { ownerEmail: booking.owner_email, guestName: guestToRemove.display_name || undefined };
           }
         } else {
           logger.info('[rosterService] Matching guest already removed or changed, skipping delete', {
@@ -1539,8 +1541,9 @@ export async function updateDeclaredPlayerCount(params: UpdatePlayerCountParams)
       throw createServiceError('Booking not found', 404);
     }
 
-    const booking = bookingResult.rows[0] as Record<string, unknown>;
-    const previousCount = (booking.declared_player_count as number) || 1;
+    interface PlayerCountBookingRow { id: number; declared_player_count: number | null; session_id: number | null; user_email: string; status: string | null }
+    const booking = bookingResult.rows[0] as unknown as PlayerCountBookingRow;
+    const previousCount = booking.declared_player_count || 1;
 
     await tx.update(bookingRequests)
       .set({ declaredPlayerCount: playerCount })
@@ -1730,7 +1733,8 @@ export async function applyRosterBatch(params: BatchRosterUpdateParams): Promise
               break;
             }
 
-            const participant = partResult.rows[0] as Record<string, unknown>;
+            interface BatchParticipantRow { id: number; user_id: string | null; guest_id: number | null; participant_type: string; display_name: string; used_guest_pass: boolean | null }
+            const participant = partResult.rows[0] as unknown as BatchParticipantRow;
 
             if (participant.participant_type === 'owner') {
               operationResults.push({ type: op.type, success: false, error: 'Cannot remove the booking owner' });
@@ -1738,7 +1742,7 @@ export async function applyRosterBatch(params: BatchRosterUpdateParams): Promise
             }
 
             if (participant.participant_type === 'guest' && participant.used_guest_pass === true) {
-              deferredBatchRefunds.push({ ownerEmail: booking.owner_email, guestName: participant.display_name as string || undefined });
+              deferredBatchRefunds.push({ ownerEmail: booking.owner_email, guestName: participant.display_name || undefined });
             }
 
             await tx.delete(bookingParticipants)
@@ -1833,12 +1837,13 @@ export async function applyRosterBatch(params: BatchRosterUpdateParams): Promise
               `);
 
               if (guestCheckResult.rows.length > 0) {
-                const guestToRemove = guestCheckResult.rows[0] as Record<string, unknown>;
+                interface BatchGuestRow { id: number; display_name: string; used_guest_pass: boolean | null }
+                const guestToRemove = guestCheckResult.rows[0] as unknown as BatchGuestRow;
                 await tx.delete(bookingParticipants)
-                  .where(eq(bookingParticipants.id, guestToRemove.id as number));
+                  .where(eq(bookingParticipants.id, guestToRemove.id));
 
                 if (guestToRemove.used_guest_pass === true) {
-                  deferredBatchRefunds.push({ ownerEmail: booking.owner_email, guestName: guestToRemove.display_name as string || undefined });
+                  deferredBatchRefunds.push({ ownerEmail: booking.owner_email, guestName: guestToRemove.display_name || undefined });
                 }
               }
             }

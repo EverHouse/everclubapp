@@ -15,6 +15,35 @@ import { notifyMember, notifyAllStaff } from './notificationService';
 import { sendOutstandingBalanceEmail } from '../emails/paymentEmails';
 
 import { logger } from './logger';
+
+interface SyncExclusionRow {
+  email: string;
+}
+
+interface HubSpotCallRecord {
+  id: string;
+  properties: {
+    hs_timestamp?: string;
+    hs_call_body?: string;
+    hs_call_direction?: string;
+    hs_call_status?: string;
+    hs_call_duration?: string;
+    hs_call_title?: string;
+    [key: string]: string | undefined;
+  };
+}
+
+interface HubSpotCommunicationRecord {
+  id: string;
+  properties: {
+    hs_timestamp?: string;
+    hs_communication_body?: string;
+    hs_communication_channel_type?: string;
+    hs_communication_logged_from?: string;
+    [key: string]: string | undefined;
+  };
+}
+
 // Check if a tier string represents a valid/recognized tier (not blank/unknown)
 function isRecognizedTier(tierString: string | null | undefined): boolean {
   if (!tierString || typeof tierString !== 'string') return false;
@@ -235,14 +264,14 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
     
     do {
       const response = await hubspot.crm.contacts.basicApi.getPage(100, after, properties);
-      allContacts = allContacts.concat(response.results as HubSpotContact[]);
+      allContacts = allContacts.concat(response.results as unknown as HubSpotContact[]);
       after = response.paging?.next?.after;
     } while (after);
     
     if (!isProduction) logger.info(`[MemberSync] Fetched ${allContacts.length} contacts from HubSpot`);
     
     const exclusionResult = await db.execute(sql`SELECT email FROM sync_exclusions`);
-    const excludedEmails = new Set((exclusionResult.rows as Record<string, unknown>[]).map(r => (r.email as string)?.toLowerCase()));
+    const excludedEmails = new Set((exclusionResult.rows as unknown as SyncExclusionRow[]).map(r => r.email?.toLowerCase()));
     
     const tierCache = new Map<string, number>();
     const tierResults = await db.select({ id: membershipTiers.id, name: membershipTiers.name }).from(membershipTiers);
@@ -839,14 +868,14 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
       };
       
       const response = await hubspot.crm.contacts.searchApi.doSearch(searchRequest);
-      allContacts = allContacts.concat(response.results as HubSpotContact[]);
+      allContacts = allContacts.concat(response.results as unknown as HubSpotContact[]);
       after = response.paging?.next?.after;
     } while (after);
     
     logger.info(`[MemberSync] Focused sync: fetched ${allContacts.length} relevant contacts from HubSpot`);
     
     const exclusionResult = await db.execute(sql`SELECT email FROM sync_exclusions`);
-    const excludedEmails = new Set((exclusionResult.rows as Record<string, unknown>[]).map(r => (r.email as string)?.toLowerCase()));
+    const excludedEmails = new Set((exclusionResult.rows as unknown as SyncExclusionRow[]).map(r => r.email?.toLowerCase()));
     
     const tierCache = new Map<string, number>();
     const tierResults = await db.select({ id: membershipTiers.id, name: membershipTiers.name }).from(membershipTiers);
@@ -1399,7 +1428,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
       'hubspot_owner_id'
     ];
     
-    let allCalls: Record<string, unknown>[] = [];
+    let allCalls: HubSpotCallRecord[] = [];
     let after: string | undefined = undefined;
     
     // Limit to last 90 days of calls to avoid processing too much data
@@ -1415,9 +1444,8 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
         );
         
         // Filter to recent calls only
-        const recentCalls = (response as unknown as { results: Array<Record<string, unknown>> }).results.filter((call: Record<string, unknown>) => {
-          const callProps = call.properties as Record<string, unknown> | undefined;
-          const timestamp = callProps?.hs_timestamp as string | undefined;
+        const recentCalls = (response as unknown as { results: HubSpotCallRecord[] }).results.filter((call) => {
+          const timestamp = call.properties?.hs_timestamp;
           if (!timestamp) return false;
           return new Date(timestamp) >= ninetyDaysAgo;
         });
@@ -1452,8 +1480,8 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
         batch.map(call =>
           callLimit(async () => {
             try {
-              const callId = call.id as string;
-              const props = (call.properties || {}) as Record<string, unknown>;
+              const callId = call.id;
+              const props = call.properties || {};
               
               // Check if this call already exists
               const existingLog = await db.select({ id: communicationLogs.id })
@@ -1562,7 +1590,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
     
     // Also fetch SMS/communications if available (HubSpot Communications object)
     try {
-      let allComms: Record<string, unknown>[] = [];
+      let allComms: HubSpotCommunicationRecord[] = [];
       let commAfter: string | undefined = undefined;
       
       const commProperties = [
@@ -1583,10 +1611,9 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
           const data = await response.json();
           
           // Filter to SMS/text messages and recent ones
-          const recentComms = (data.results || []).filter((comm: Record<string, unknown>) => {
-            const commProps = comm.properties as Record<string, unknown> | undefined;
-            const channelType = commProps?.hs_communication_channel_type;
-            const timestamp = commProps?.hs_timestamp as string | undefined;
+          const recentComms = (data.results || []).filter((comm: HubSpotCommunicationRecord) => {
+            const channelType = comm.properties?.hs_communication_channel_type;
+            const timestamp = comm.properties?.hs_timestamp;
             if (!timestamp) return false;
             return (channelType === 'SMS' || channelType === 'WHATS_APP') &&
                    new Date(timestamp) >= ninetyDaysAgo;
@@ -1615,8 +1642,8 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
       let hubspotCommAssocFailCount = 0;
       for (const comm of allComms) {
         try {
-          const commId = comm.id as string;
-          const props = (comm.properties || {}) as Record<string, unknown>;
+          const commId = comm.id;
+          const props = comm.properties || {};
           
           // Check if already synced
           const existingSms = await db.select({ id: communicationLogs.id })

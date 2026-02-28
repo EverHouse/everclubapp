@@ -146,7 +146,7 @@ export async function fetchHubSpotProducts(): Promise<HubSpotProduct[]> {
       recurringPeriod: product.properties.hs_recurring_billing_period || null,
     }));
   } catch (error: unknown) {
-    const errorBody = error && typeof error === 'object' && 'body' in error ? (error as { body: Record<string, unknown> }).body : undefined;
+    const errorBody = error && typeof error === 'object' && 'body' in error ? (error as { body: { category?: string } }).body : undefined;
     if (getErrorCode(error) === '403' && errorBody?.category === 'MISSING_SCOPES') {
       logger.error('[Stripe Products] HubSpot returned 403 for products. Check that the HubSpot Private App token is valid and not expired.');
       throw new Error('HubSpot products API returned 403. Check that your Private App token is valid — scopes are already configured.');
@@ -1437,7 +1437,7 @@ function buildFeatureKeysForTier(tier: TierRecord): Array<{ lookupKey: string; n
   ];
 
   for (const { field, key, name } of booleanMap) {
-    if ((tier as Record<string, unknown>)[field]) {
+    if (tier[field as keyof typeof tier]) {
       features.push({ lookupKey: key, name });
     }
   }
@@ -1637,17 +1637,17 @@ export async function syncCafeItemsToStripe(): Promise<{
   try {
     const stripe = await getStripeClient();
     const cafeItemResult = await db.execute(sql`SELECT id, name, description, price, category, stripe_product_id, stripe_price_id FROM cafe_items WHERE is_active = true ORDER BY category, sort_order`);
-    const cafeItemRows = cafeItemResult.rows as unknown as Array<Record<string, unknown>>;
+    const cafeItemRows = cafeItemResult.rows as Array<{ id: number; name: string; description: string | null; price: string; category: string; stripe_product_id: string | null; stripe_price_id: string | null }>;
 
     logger.info(`[Cafe Sync] Starting sync for ${cafeItemRows.length} active cafe items`);
 
     for (const item of cafeItemRows) {
       try {
-        const itemName = String(item.name);
+        const itemName = item.name;
         const itemId = String(item.id);
-        const itemDescription = item.description ? String(item.description) : undefined;
-        const itemCategory = String(item.category || '');
-        const priceCents = Math.round(parseFloat(String(item.price)) * 100);
+        const itemDescription = item.description || undefined;
+        const itemCategory = item.category || '';
+        const priceCents = Math.round(parseFloat(item.price) * 100);
         if (priceCents <= 0) {
           logger.info(`[Cafe Sync] Skipping ${itemName}: No price`);
           skipped++;
@@ -1880,7 +1880,7 @@ export async function pullTierFeaturesFromStripe(): Promise<{
           continue;
         }
 
-        (update as Record<string, unknown>).updatedAt = new Date();
+        (update as Record<string, boolean | number | Date>).updatedAt = new Date();
 
         await db.update(membershipTiers)
           .set(update)

@@ -141,7 +141,7 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       FROM visitor_data
       WHERE 1=1 ${typeClauseCount}
     `);
-    const totalCount = (countResult.rows[0] as Record<string, unknown>)?.total || 0;
+    const totalCount = (countResult.rows[0] as { total: number })?.total || 0;
     
     const visitorsWithPurchases = await db.execute(sql`
       WITH 
@@ -240,7 +240,7 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       OFFSET ${pageOffset}
     `);
     
-    const getSource = (row: Record<string, unknown>): 'mindbody' | 'hubspot' | 'stripe' | 'app' => {
+    const getSource = (row: VisitorRow): 'mindbody' | 'hubspot' | 'stripe' | 'app' => {
       if (row.data_source === 'APP') return 'app';
       const hasMindbodyData = row.mindbody_client_id || row.legacy_source === 'mindbody_import';
       const hasStripeData = !!row.stripe_customer_id;
@@ -257,7 +257,7 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
     };
     
     type VisitorTypeValue = 'NEW' | 'classpass' | 'sim_walkin' | 'private_lesson' | 'day_pass' | 'guest' | 'lead';
-    const getType = (row: Record<string, unknown>): VisitorTypeValue => {
+    const getType = (row: VisitorRow): VisitorTypeValue => {
       if (row.effective_type) {
         const et = row.effective_type as string;
         if (et === 'NEW') return 'NEW';
@@ -284,7 +284,35 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       return 'lead';
     };
     
-    const visitors = (visitorsWithPurchases.rows as Record<string, unknown>[]).map((row: Record<string, unknown>) => ({
+    interface VisitorRow {
+      id: number;
+      email: string;
+      first_name: string | null;
+      last_name: string | null;
+      phone: string | null;
+      purchase_count: string;
+      total_spent_cents: string;
+      last_purchase_date: string | null;
+      guest_count: string;
+      last_guest_date: string | null;
+      membership_status: string | null;
+      role: string | null;
+      stripe_customer_id: string | null;
+      hubspot_id: string | null;
+      mindbody_client_id: string | null;
+      legacy_source: string | null;
+      billing_provider: string | null;
+      visitor_type: string | null;
+      last_activity_at: string | null;
+      last_activity_source: string | null;
+      created_at: string;
+      data_source: string | null;
+      archived_at: string | null;
+      archived_by: string | null;
+      effective_type: string | null;
+      computed_type: string | null;
+    }
+    const visitors = (visitorsWithPurchases.rows as unknown as VisitorRow[]).map((row: VisitorRow) => ({
       id: row.id,
       email: row.email,
       firstName: row.first_name,
@@ -440,7 +468,7 @@ router.patch('/api/guests/:guestId/email', isStaffOrAdmin, async (req, res) => {
     res.json({
       success: true,
       guest: result.rows[0],
-      message: `Email updated for ${(result.rows[0] as Record<string, unknown>).name}`
+      message: `Email updated for ${(result.rows[0] as { id: number; name: string; email: string }).name}`
     });
   } catch (error: unknown) {
     logger.error('[Update Guest Email] Error', { error: error instanceof Error ? error : new Error(String(error)) });
@@ -471,7 +499,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
     }
     
     if (existingUser.rows.length > 0) {
-      const user = existingUser.rows[0] as Record<string, unknown>;
+      const user = existingUser.rows[0] as { id: string; email: string; role: string | null; membership_status: string | null; first_name: string | null; last_name: string | null; phone: string | null; stripe_customer_id: string | null };
       
       const isNonMemberOrLead = ['non-member', 'visitor', 'lead'].includes(user.membership_status as string) || 
                                 ['visitor', 'lead'].includes(user.role as string);
@@ -557,7 +585,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
     }
     
     const visitorExclusionCheck = await db.execute(sql`SELECT 1 FROM sync_exclusions WHERE email = ${normalizedEmail}`);
-    if ((visitorExclusionCheck.rows as Record<string, unknown>[]).length > 0) {
+    if (visitorExclusionCheck.rows.length > 0) {
       return res.status(400).json({ error: 'This email belongs to a previously removed member and cannot be re-used.' });
     }
 
@@ -569,7 +597,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
       RETURNING id, email, first_name, last_name, phone, role, membership_status, visitor_type, data_source
     `);
     
-    const newUser = insertResult.rows[0] as Record<string, unknown>;
+    const newUser = insertResult.rows[0] as { id: string; email: string; first_name: string | null; last_name: string | null; phone: string | null; role: string; membership_status: string; visitor_type: string | null; data_source: string | null };
 
     let stripeCustomerId: string | null = null;
     let stripeCreated = false;
