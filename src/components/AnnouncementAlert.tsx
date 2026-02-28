@@ -131,7 +131,7 @@ const AnnouncementAlert: React.FC = () => {
           </div>
           
           <div className="flex items-center justify-between mt-2">
-            <span className={`text-[10px] uppercase font-bold tracking-widest ${labelColor}`}>
+            <span className={`text-[11px] uppercase font-semibold tracking-[0.2em] ${labelColor}`} style={{ fontFamily: 'var(--font-label)' }}>
               {labelText}
             </span>
             <span className={`text-xs font-medium flex items-center gap-1 ${isDark ? 'text-white/70' : 'text-gray-600'}`}>

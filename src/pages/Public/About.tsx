@@ -39,7 +39,7 @@ const About: React.FC = () => {
         style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'var(--header-offset)' }}
       >
         <section className="px-6 pt-8 md:pt-12 pb-10 text-center animate-content-enter">
-          <h1 className="text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>
             About Ever Club
           </h1>
           <p className="text-base text-primary/70 dark:text-white/70 font-medium max-w-md mx-auto leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>
@@ -52,7 +52,7 @@ const About: React.FC = () => {
             <h2 className="text-2xl text-primary dark:text-white mb-4 leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>
               Our Story
             </h2>
-            <div className="space-y-4 text-sm text-primary/70 dark:text-white/70 leading-relaxed">
+            <div className="space-y-4 text-base text-primary/70 dark:text-white/70 leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>
               <p>
                 Ever Club, formerly known as Even House, is a private members club located in Tustin, in the heart of Orange County, California. Founded to create a refined third space where ambitious professionals come together, the club offers an experience unlike any other in the region.
               </p>

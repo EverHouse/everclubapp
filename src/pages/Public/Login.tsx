@@ -484,7 +484,7 @@ const Login: React.FC = () => {
                     <button
                       type="submit"
                       disabled={loading || !password}
-                      className="tactile-btn flex w-full justify-center items-center gap-3 rounded-xl bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
+                      className="tactile-btn flex w-full justify-center items-center gap-3 rounded-[4px] bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
                     >
                       {loading ? <Spinner /> : <span className="material-symbols-outlined">login</span>}
                       {loading ? 'Signing in...' : 'Sign In'}
@@ -493,7 +493,7 @@ const Login: React.FC = () => {
                     <button
                       type="submit"
                       disabled={loading || !email.includes('@')}
-                      className="tactile-btn flex w-full justify-center items-center gap-3 rounded-xl bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
+                      className="tactile-btn flex w-full justify-center items-center gap-3 rounded-[4px] bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
                     >
                       {loading ? <Spinner /> : <span className="material-symbols-outlined">dialpad</span>}
                       {loading ? 'Sending...' : 'Send Verification Code'}
@@ -528,7 +528,7 @@ const Login: React.FC = () => {
                       type="button"
                       onClick={handleRequestOTP}
                       disabled={loading}
-                      className="tactile-btn flex w-full justify-center items-center gap-2 rounded-xl bg-gray-100 dark:bg-white/5 px-3 py-3 text-sm font-bold leading-6 text-primary dark:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-all duration-fast active:scale-[0.98] disabled:opacity-50 mt-4"
+                      className="tactile-btn flex w-full justify-center items-center gap-2 rounded-[4px] bg-gray-100 dark:bg-white/5 px-3 py-3 text-sm font-bold leading-6 text-primary dark:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-all duration-fast active:scale-[0.98] disabled:opacity-50 mt-4"
                     >
                       <span className="material-symbols-outlined text-lg">dialpad</span>
                       Use Verification Code Instead
@@ -543,7 +543,7 @@ const Login: React.FC = () => {
                       type="button"
                       onClick={() => handleDevLogin()}
                       disabled={devLoading || devMemberLoading}
-                      className="tactile-btn flex w-full justify-center items-center gap-2 rounded-xl bg-amber-500 px-3 py-3 text-sm font-bold leading-6 text-white hover:bg-amber-600 transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
+                      className="tactile-btn flex w-full justify-center items-center gap-2 rounded-[4px] bg-amber-500 px-3 py-3 text-sm font-bold leading-6 text-white hover:bg-amber-600 transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
                     >
                       <span className="material-symbols-outlined text-lg">developer_mode</span>
                       {devLoading ? 'Logging in...' : 'Dev Login (Nick)'}
@@ -555,7 +555,7 @@ const Login: React.FC = () => {
                       type="button"
                       onClick={() => handleDevLogin('nicholasallanluu@gmail.com')}
                       disabled={devLoading || devMemberLoading}
-                      className="tactile-btn flex w-full justify-center items-center gap-2 rounded-xl bg-purple-500 px-3 py-3 text-sm font-bold leading-6 text-white hover:bg-purple-600 transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
+                      className="tactile-btn flex w-full justify-center items-center gap-2 rounded-[4px] bg-purple-500 px-3 py-3 text-sm font-bold leading-6 text-white hover:bg-purple-600 transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
                     >
                       <span className="material-symbols-outlined text-lg">person</span>
                       {devMemberLoading ? 'Logging in...' : 'Dev Login (Nick Luu Member)'}

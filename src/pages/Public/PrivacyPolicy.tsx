@@ -7,10 +7,10 @@ const PrivacyPolicy: React.FC = () => {
     <div className="min-h-screen bg-bone dark:bg-[#141414] text-primary dark:text-bone pt-24 pb-12">
       <SEO title="Privacy Policy | Ever Club" description="Ever Club privacy policy. Learn how we collect, use, and protect your personal information at our Tustin, CA indoor golf & social club." url="/privacy" />
       <div className="max-w-4xl mx-auto px-6">
-        <h1 className="text-5xl mb-8 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Privacy Policy</h1>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl mb-8 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Privacy Policy</h1>
         <p className="text-sm opacity-60 mb-12">Last updated: January 20, 2026</p>
 
-        <div className="space-y-8 leading-relaxed font-sans text-lg">
+        <div className="space-y-8 leading-relaxed text-base" style={{ fontFamily: 'var(--font-body)' }}>
           <section>
             <p>
               This Privacy Policy describes how everclub.app and related Ever Members Club services (the "Site," "we," "us," or "our") collect, use, and disclose your personal information when you visit our website, contact us, use our services, or make a purchase.

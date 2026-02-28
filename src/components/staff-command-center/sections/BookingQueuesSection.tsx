@@ -40,7 +40,7 @@ const PendingRequestsCard = memo<PendingRequestsCardProps>(({
     >
       <div className="flex items-center justify-between mb-4 flex-shrink-0 px-4">
         <div className="flex items-center gap-2">
-          <h3 className={`font-bold text-primary dark:text-white ${variant === 'desktop' ? 'text-sm' : ''}`} style={{ fontFamily: 'var(--font-headline)' }}>Booking Requests</h3>
+          <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Booking Requests</h3>
           {pendingRequests.length > 0 && (
             <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-[4px]">
               Action Required
@@ -217,7 +217,7 @@ const UpcomingBookingsCard = memo<UpcomingBookingsCardProps>(({
       aria-label={hasUnmatchedBookings ? "Today's Bookings - some need member assignment" : "Today's Bookings"}
     >
       <div className="flex items-center justify-between mb-4 flex-shrink-0 px-4">
-        <h3 className="font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Today's Bookings</h3>
+        <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Today's Bookings</h3>
         <button onClick={() => navigateToTab('simulator')} className="tactile-btn text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
       </div>
       <div className="space-y-3">

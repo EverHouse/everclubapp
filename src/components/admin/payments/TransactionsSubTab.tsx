@@ -143,7 +143,7 @@ const DailySummaryCard: React.FC<SectionProps> = ({ onClose, variant = 'modal' }
       ) : summary ? (
         <>
           <div className="text-center">
-            <p className="text-sm font-medium text-primary/60 dark:text-white/60 uppercase tracking-widest">
+            <p className="text-[11px] font-semibold text-primary/60 dark:text-white/60 uppercase tracking-[0.2em]" style={{ fontFamily: 'var(--font-label)' }}>
               {formatDate(summary.date)}
             </p>
             <p className="text-4xl font-bold text-green-600 dark:text-green-400 mt-1">
@@ -1031,7 +1031,7 @@ const QuickInvoiceCard: React.FC = () => {
       </p>
       <a
         href="/admin/financials"
-        className="block w-full py-3 rounded-full bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-medium text-center hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
+        className="block w-full py-3 rounded-[4px] bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-medium text-center hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
       >
         Open Invoice Creator
       </a>

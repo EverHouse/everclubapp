@@ -293,7 +293,7 @@ const ApplicationPipeline: React.FC = () => {
           <button
             key={tab.id}
             onClick={() => setActiveStatus(tab.id)}
-            className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-all duration-fast flex-shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-[4px] text-[10px] sm:text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-all duration-fast flex-shrink-0 ${
               activeStatus === tab.id
                 ? 'bg-primary dark:bg-lavender text-white shadow-md'
                 : 'bg-white dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'

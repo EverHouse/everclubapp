@@ -207,7 +207,7 @@ const EmailTemplatesTab: React.FC = () => {
               <span className="material-symbols-outlined text-primary dark:text-white">mail</span>
             </div>
             <div className="text-left">
-              <h3 className="text-lg font-bold text-primary dark:text-white">Email Controls</h3>
+              <h3 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Email Controls</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">Enable or disable email categories</p>
             </div>
           </div>
@@ -234,7 +234,7 @@ const EmailTemplatesTab: React.FC = () => {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium text-primary dark:text-white">{cat.label}</p>
                         {!enabled && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/50">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/50">
                             Disabled
                           </span>
                         )}
@@ -341,14 +341,14 @@ const EmailTemplatesTab: React.FC = () => {
             <div className="bg-white/80 dark:bg-white/[0.05] backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-xl shadow-lg overflow-hidden">
               <div className="px-5 py-4 border-b border-primary/5 dark:border-white/5 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-primary dark:text-white">
+                  <h2 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>
                     {selectedTemplate.name}
                   </h2>
                   <p className="text-xs text-primary/50 dark:text-white/40 mt-0.5">
                     {selectedTemplate.description}
                   </p>
                 </div>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-accent/20 text-primary dark:text-accent">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-[4px] text-xs font-medium bg-accent/20 text-primary dark:text-accent">
                   {selectedTemplate.category}
                 </span>
               </div>

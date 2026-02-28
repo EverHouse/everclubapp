@@ -23,7 +23,7 @@ const NoticeBoardCard = memo<NoticeBoardCardProps>(({
 }) => (
   <div className={`${variant === 'desktop' ? 'h-full' : ''} bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-xl pt-4 shadow-liquid dark:shadow-liquid-dark overflow-hidden ${variant === 'desktop' ? 'flex flex-col' : ''}`}>
     <div className="flex items-center justify-between mb-3 lg:mb-4 px-4">
-      <h3 className="font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Internal Notice Board</h3>
+      <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Internal Notice Board</h3>
       <button onClick={() => navigateToTab('blocks')} className="text-xs text-primary/80 dark:text-white/80 hover:underline tactile-btn">Manage</button>
     </div>
     {closures.length === 0 && announcements.length === 0 ? (
@@ -148,7 +148,7 @@ const FacilityStatusCard = memo<FacilityStatusCardProps>(({
 }) => (
   <div className="bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-xl p-4 shadow-liquid dark:shadow-liquid-dark">
     <div className="flex items-center justify-between mb-3 lg:mb-4">
-      <h3 className="font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Facility Status</h3>
+      <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Facility Status</h3>
       <div className="flex items-center gap-3 text-xs text-primary/80 dark:text-white/80">
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" />Available</span>
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" />Booked</span>
@@ -295,7 +295,7 @@ export const NoticeBoardWidget: React.FC<{
   return (
     <div className="h-full min-h-[140px] bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-xl p-4 shadow-liquid dark:shadow-liquid-dark flex flex-col">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Internal Notice Board</h3>
+        <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Internal Notice Board</h3>
         <button onClick={() => navigateToTab('blocks')} className="text-xs text-primary/80 dark:text-white/80 hover:underline tactile-btn">Manage</button>
       </div>
       {closures.length === 0 && announcements.length === 0 ? (

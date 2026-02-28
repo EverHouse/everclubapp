@@ -87,7 +87,7 @@ const FAQ: React.FC = () => {
       style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'var(--header-offset)' }}
     >
       <div className="px-6 pt-4 md:pt-2 pb-4 animate-content-enter">
-        <h1 className="text-5xl text-primary dark:text-white mb-2 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Frequently Asked Questions</h1>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-2 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Frequently Asked Questions</h1>
         <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>Common questions about membership, amenities, and policies.</p>
       </div>
 
@@ -96,7 +96,7 @@ const FAQ: React.FC = () => {
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-6 px-6 scrollbar-hide scroll-fade-right">
             <button
               onClick={() => setSelectedCategory(null)}
-              className={`tactile-btn flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-fast ${
+              className={`tactile-btn flex-shrink-0 px-4 py-2 rounded-[4px] text-sm font-semibold transition-all duration-fast ${
                 selectedCategory === null
                   ? 'bg-primary text-white'
                   : 'bg-white/60 dark:bg-white/5 text-primary/70 dark:text-white/70 hover:bg-white/80 dark:hover:bg-white/10'
@@ -108,7 +108,7 @@ const FAQ: React.FC = () => {
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`tactile-btn flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-fast whitespace-nowrap ${
+                className={`tactile-btn flex-shrink-0 px-4 py-2 rounded-[4px] text-sm font-semibold transition-all duration-fast whitespace-nowrap ${
                   selectedCategory === category
                     ? 'bg-primary text-white'
                     : 'bg-white/60 dark:bg-white/5 text-primary/70 dark:text-white/70 hover:bg-white/80 dark:hover:bg-white/10'

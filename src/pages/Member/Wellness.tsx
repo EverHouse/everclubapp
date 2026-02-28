@@ -544,7 +544,7 @@ const MedSpaView: React.FC<{isDark?: boolean}> = ({ isDark = true }) => (
       
       <MedSpaCard title="Wellness Shots" isDark={isDark}>
         <div className="mb-4">
-          <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Essentials & Energy</h4>
+          <h4 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Essentials & Energy</h4>
           <MenuItem name="B12" price="$15" isDark={isDark} />
           <MenuItem name="Glutathione" price="$25" isDark={isDark} />
           <MenuItem name="Folic Acid" price="$20" isDark={isDark} />
@@ -553,14 +553,14 @@ const MedSpaView: React.FC<{isDark?: boolean}> = ({ isDark = true }) => (
           <MenuItem name="MIC B12" price="$20" isDark={isDark} />
         </div>
         <div className="mb-4">
-          <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Amarie x EverClub Signature Shots</h4>
+          <h4 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Amarie x EverClub Signature Shots</h4>
           <MenuItem name="The Beauty Trio" price="$30" isDark={isDark} />
           <MenuItem name="Boost Me Up" price="$30" isDark={isDark} />
           <MenuItem name="The Happy Shot" price="$30" isDark={isDark} />
           <MenuItem name="Immuniglow" price="$30" isDark={isDark} />
         </div>
         <div>
-          <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Peptides</h4>
+          <h4 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Peptides</h4>
           <MenuItem name="BPC-157" price="$85" isDark={isDark} />
           <MenuItem name="GHK-Cu" price="$110" isDark={isDark} />
           <MenuItem name="Thymosin Beta-4" price="$115" isDark={isDark} />
@@ -575,26 +575,26 @@ const MedSpaView: React.FC<{isDark?: boolean}> = ({ isDark = true }) => (
 
       <MedSpaCard title="Injectables" isDark={isDark}>
         <div className="mb-4">
-          <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Neurotoxins</h4>
+          <h4 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Neurotoxins</h4>
           <MenuItem name="Botox" price="$10/unit" isDark={isDark} />
           <MenuItem name="Dysport" price="$10/unit" isDark={isDark} />
           <MenuItem name="Lip Flip" price="$50" isDark={isDark} />
           <MenuItem name="Masseters" price="Varies" isDark={isDark} />
         </div>
         <div>
-          <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Dermal Fillers</h4>
+          <h4 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Dermal Fillers</h4>
           <p className={`text-xs ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Special pricing for Ever Club members. Consultation required.</p>
         </div>
       </MedSpaCard>
 
       <MedSpaCard title="Medical Weightloss" isDark={isDark}>
         <div className="mb-4">
-          <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Semaglutide GLP-1</h4>
+          <h4 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Semaglutide GLP-1</h4>
           <MenuItem name="1 Month" price="$299" isDark={isDark} />
           <MenuItem name="3 Months" price="$799" isDark={isDark} />
         </div>
         <div>
-          <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Tirzepatide GLP-1/GIP</h4>
+          <h4 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Tirzepatide GLP-1/GIP</h4>
           <MenuItem name="1 Month" price="$399" isDark={isDark} />
           <MenuItem name="3 Months" price="$999" isDark={isDark} />
         </div>
@@ -718,7 +718,7 @@ const ClassCard: React.FC<ClassCardProps> = ({ title, date, time, instructor, du
       <div className="flex gap-4 items-start">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${isDark ? 'bg-lavender/20 text-lavender' : 'bg-brand-green/20 text-brand-green'}`} style={{ fontFamily: 'var(--font-label)' }}>{category}</span>
+            <span className={`w-fit px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-widest ${isDark ? 'bg-lavender/20 text-lavender' : 'bg-brand-green/20 text-brand-green'}`} style={{ fontFamily: 'var(--font-label)' }}>{category}</span>
             <span className={`text-xs font-bold ${isDark ? 'text-white/80' : 'text-primary/80'}`}>• {duration}</span>
             {getStatusBadge()}
           </div>

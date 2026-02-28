@@ -92,7 +92,7 @@ const TourCard: React.FC<TourCardProps> = ({ tour, isToday = false, isPast = fal
             <button
               onClick={() => onCheckIn(tour)}
               disabled={isCheckingIn}
-              className="px-4 py-2 rounded-full bg-accent text-primary text-xs font-bold hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50"
+              className="px-4 py-2 rounded-[4px] bg-accent text-primary text-xs font-bold hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50"
             >
               {isCheckingIn ? (
                 <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
@@ -105,7 +105,7 @@ const TourCard: React.FC<TourCardProps> = ({ tour, isToday = false, isPast = fal
             <button
               onClick={() => onStatusMenuToggle(isMenuOpen ? null : tour.id)}
               disabled={isUpdating}
-              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-fast ${config.colors} ${isUpdating ? 'opacity-50' : 'hover:ring-2 hover:ring-primary/20 dark:hover:ring-white/20 cursor-pointer'}`}
+              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-[4px] text-xs font-medium transition-all duration-fast ${config.colors} ${isUpdating ? 'opacity-50' : 'hover:ring-2 hover:ring-primary/20 dark:hover:ring-white/20 cursor-pointer'}`}
             >
               {isUpdating ? (
                 <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin"></div>
@@ -213,7 +213,7 @@ const ToursTab: React.FC = () => {
 
       {toursData.todayTours.length > 0 && (
         <div>
-          <h3 className="text-sm font-bold uppercase tracking-wider text-primary/70 dark:text-white/70 mb-3 flex items-center gap-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/70 dark:text-white/70 mb-3 flex items-center gap-2" style={{ fontFamily: 'var(--font-label)' }}>
             <span aria-hidden="true" className="material-symbols-outlined text-lg">today</span>
             Today's Tours ({toursData.todayTours.length})
           </h3>
@@ -234,7 +234,7 @@ const ToursTab: React.FC = () => {
 
       {toursData.upcomingTours.length > 0 && (
         <div>
-          <h3 className="text-sm font-bold uppercase tracking-wider text-primary/70 dark:text-white/70 mb-3 flex items-center gap-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/70 dark:text-white/70 mb-3 flex items-center gap-2" style={{ fontFamily: 'var(--font-label)' }}>
             <span aria-hidden="true" className="material-symbols-outlined text-lg">upcoming</span>
             Upcoming Tours ({toursData.upcomingTours.length})
           </h3>

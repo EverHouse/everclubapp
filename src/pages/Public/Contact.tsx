@@ -70,7 +70,7 @@ const Contact: React.FC = () => {
     <SEO title="Contact Us | Ever Club — Tustin, OC" description="Contact Ever Club at 15771 Red Hill Ave, Ste 500, Tustin, CA 92780. Membership inquiries, private events, tours & questions. (949) 545-5855." url="/contact" />
     <div className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden">
       <div className="px-6 pt-4 md:pt-2 pb-6 text-center animate-content-enter">
-        <h1 className="text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Get in Touch</h1>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Get in Touch</h1>
         <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed max-w-xs mx-auto" style={{ fontFamily: 'var(--font-body)' }}>
            We look forward to hearing from you. Please fill out the form below or visit us in Tustin.
         </p>
@@ -213,7 +213,7 @@ const Contact: React.FC = () => {
                 <button 
                     type="submit" 
                     disabled={loading}
-                    className="tactile-btn w-full flex justify-center items-center gap-2 rounded-lg bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 transition-colors disabled:opacity-70 disabled:cursor-not-allowed mt-2"
+                    className="tactile-btn w-full flex justify-center items-center gap-2 rounded-[4px] bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 transition-colors disabled:opacity-70 disabled:cursor-not-allowed mt-2"
                 >
                     {loading ? (
                         <>Sending...</>

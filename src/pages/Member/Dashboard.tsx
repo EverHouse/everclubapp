@@ -835,7 +835,7 @@ const Dashboard: React.FC = () => {
         
         <div className="mb-6 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
           <div className="flex items-center gap-3">
-            <h1 className={`text-5xl font-bold leading-none ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)', fontOpticalSizing: 'auto', letterSpacing: '-0.03em' }}>
+            <h1 className={`text-3xl sm:text-4xl md:text-5xl leading-none translate-y-[1px] ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)', fontOpticalSizing: 'auto', letterSpacing: '-0.03em' }}>
               {getGreeting()}, {user?.name.split(' ')[0]}
             </h1>
           </div>

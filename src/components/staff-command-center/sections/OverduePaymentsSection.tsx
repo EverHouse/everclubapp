@@ -101,7 +101,7 @@ export const OverduePaymentsSection: React.FC<OverduePaymentsSectionProps> = ({ 
       >
         <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0 px-4">
           <div className="flex items-center gap-2">
-            <h3 className="font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Overdue Payments</h3>
+            <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Overdue Payments</h3>
             {count > 0 && (
               <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 rounded-[4px] flex items-center gap-1">
                 <span className="material-symbols-outlined text-xs">warning</span>

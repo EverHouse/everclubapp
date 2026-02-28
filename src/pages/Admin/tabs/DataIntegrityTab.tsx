@@ -1730,7 +1730,7 @@ const DataIntegrityTab: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white text-[24px]">monitoring</span>
-            <h3 className="text-lg font-bold text-primary dark:text-white">System Health</h3>
+            <h3 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>System Health</h3>
           </div>
           <button
             onClick={handleCheckHealth}

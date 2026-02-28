@@ -46,7 +46,7 @@ const MetricCard: React.FC<MetricCardProps> = ({ icon, label, value, subtext, is
     >
       {icon}
     </span>
-    <div className={`text-xs font-medium uppercase tracking-wide ${isDark ? 'text-white/60' : 'text-brand-green/60'}`}>
+    <div className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${isDark ? 'text-white/60' : 'text-brand-green/60'}`} style={{ fontFamily: 'var(--font-label)' }}>
       {label}
     </div>
     <div className={`text-lg font-bold mt-0.5 leading-tight text-left ${isDark ? 'text-white' : 'text-brand-green'}`}>

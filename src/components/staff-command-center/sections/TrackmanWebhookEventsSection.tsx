@@ -357,7 +357,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
         onClick={handleToggle}
         className="w-full flex items-center justify-between"
       >
-        <h2 className="text-base md:text-lg font-bold text-primary dark:text-white flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
+        <h2 className="text-2xl leading-tight font-bold text-primary dark:text-white flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
           <TrackmanIcon size={22} />
           Trackman Bookings Synced
           {webhookStats?.webhookStats?.total_events > 0 && (

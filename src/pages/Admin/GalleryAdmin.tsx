@@ -264,7 +264,7 @@ const GalleryAdmin: React.FC = () => {
     return (
         <div className="animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
             <div className="flex justify-between items-center mb-4 animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
-                <h2 className="text-xl font-bold text-primary dark:text-white">Gallery Images</h2>
+                <h2 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Gallery Images</h2>
             </div>
 
             {reorderError && (

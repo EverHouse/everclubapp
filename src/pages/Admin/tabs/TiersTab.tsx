@@ -524,7 +524,7 @@ const TiersTab: React.FC = () => {
                         {oneTimePasses.length > 0 && (
                             <div>
                                 <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
                                         Day Passes & Guest Passes
                                     </h3>
                                     <span className="text-xs text-gray-400 dark:text-gray-500">
@@ -568,7 +568,7 @@ const TiersTab: React.FC = () => {
                             </div>
                         )}
                         <div>
-                            <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">
+                            <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 mb-4">
                                 HubSpot Fee Products
                             </h3>
                             <ProductsSubTab activeSubTab="fees" />
@@ -621,7 +621,7 @@ const TiersTab: React.FC = () => {
                         const isMembershipTier = selectedTier?.product_type !== 'one_time';
                         return (
                     <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">{isMembershipTier ? 'MEMBERSHIP PAGE CARD' : 'PRODUCT DETAILS'}</h4>
+                        <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 mb-1">{isMembershipTier ? 'MEMBERSHIP PAGE CARD' : 'PRODUCT DETAILS'}</h4>
                         <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-4">{isMembershipTier ? 'Controls what appears on the membership page pricing cards.' : 'Basic product information.'}</p>
                         <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-3">
@@ -696,10 +696,10 @@ const TiersTab: React.FC = () => {
                                         />
                                     </label>
                                     <div className="mt-2">
-                                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">
+                                        <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 mb-3">
                                             Card Features
                                             {selectedTier?.stripe_product_id ? (
-                                                <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] normal-case font-semibold">
+                                                <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] normal-case font-semibold">
                                                     <span aria-hidden="true" className="material-symbols-outlined text-xs">cloud</span>
                                                     Managed by Stripe
                                                 </span>
@@ -760,11 +760,11 @@ const TiersTab: React.FC = () => {
                     })()} 
 
                     <div className="border-t-2 border-gray-200 dark:border-white/15 pt-6">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">STRIPE-MANAGED SETTINGS</h4>
+                        <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 mb-1">STRIPE-MANAGED SETTINGS</h4>
                         <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-4">These values sync from Stripe. When linked to a Stripe product, edit them in the Stripe Dashboard.</p>
                         <div className="space-y-6">
                             <div>
-                                <h5 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Stripe Pricing</h5>
+                                <h5 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 mb-3">Stripe Pricing</h5>
                                 <div className="space-y-3">
                                     {selectedTier?.stripe_price_id ? (
                                         <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-500/30">
@@ -863,10 +863,10 @@ const TiersTab: React.FC = () => {
                                 return isMembershipTier && (
                                     <>
                                         <div>
-                                            <h5 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">
+                                            <h5 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 mb-3">
                                                 Booking Limits
                                                 {selectedTier?.stripe_product_id && (
-                                                    <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] normal-case font-semibold">
+                                                    <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] normal-case font-semibold">
                                                         <span aria-hidden="true" className="material-symbols-outlined text-xs">cloud</span>
                                                         Managed by Stripe
                                                     </span>
@@ -933,10 +933,10 @@ const TiersTab: React.FC = () => {
                                         </div>
 
                                         <div>
-                                            <h5 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">
+                                            <h5 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 mb-3">
                                                 Access Permissions
                                                 {selectedTier?.stripe_product_id && (
-                                                    <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] normal-case font-semibold">
+                                                    <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] normal-case font-semibold">
                                                         <span aria-hidden="true" className="material-symbols-outlined text-xs">cloud</span>
                                                         Managed by Stripe
                                                     </span>
@@ -975,7 +975,7 @@ const TiersTab: React.FC = () => {
                         const isMembershipTier = selectedTier?.product_type !== 'one_time';
                         return isMembershipTier && (
                     <div className="border-t-2 border-gray-200 dark:border-white/15 pt-6">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">COMPARE TABLE</h4>
+                        <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 mb-1">COMPARE TABLE</h4>
                         <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-4">Controls what appears in the feature comparison table on the compare page.</p>
                         <div className="space-y-6">
                             <label className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/25 cursor-pointer hover:bg-gray-100 dark:hover:bg-black/30 transition-colors">
@@ -989,7 +989,7 @@ const TiersTab: React.FC = () => {
 
                             <div>
                                 <div className="flex items-center justify-between mb-3">
-                                    <h5 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    <h5 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
                                         Feature Values
                                         {featuresLoading && (
                                             <span className="ml-2 text-gray-400">Loading...</span>
@@ -1161,12 +1161,12 @@ const TiersTab: React.FC = () => {
                 return (
                 <>
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
                             Membership Tiers
                         </h3>
                         <div className="flex items-center gap-2">
                             {stripeConnection?.mode && (
-                                <span className={`flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full ${
+                                <span className={`flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-[4px] ${
                                     stripeConnection.mode === 'live' 
                                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
                                         : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'

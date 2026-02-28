@@ -114,7 +114,7 @@ const Gallery: React.FC = () => {
         style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'var(--header-offset)' }}
       >
         <div className="px-5 pt-4 md:pt-2 pb-6 animate-content-enter">
-          <h1 className="text-5xl text-primary dark:text-white leading-none" style={{ fontFamily: 'var(--font-display)' }}>Gallery</h1>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white leading-none" style={{ fontFamily: 'var(--font-display)' }}>Gallery</h1>
           <p className="text-base text-primary/70 dark:text-white/70 mt-2 leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>Explore the exclusive spaces of Ever Club.</p>
         </div>
 

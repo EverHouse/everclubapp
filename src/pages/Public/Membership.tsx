@@ -134,7 +134,7 @@ const MembershipOverview: React.FC = () => {
     <div className="px-4 pt-4 pb-0 flex flex-col gap-8 bg-bone dark:bg-[#141414] min-h-screen overflow-x-hidden">
       <div className="text-center px-2 animate-content-enter">
         <p className="text-primary/40 dark:text-white/40 text-[10px] font-bold uppercase tracking-[0.3em] mb-2">Est. 2025</p>
-        <h1 className="text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Your Office. Your Course. Your Club.</h1>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Your Office. Your Course. Your Club.</h1>
         <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed max-w-[320px] mx-auto" style={{ fontFamily: 'var(--font-body)' }}>
           Select the membership that fits how you work, play, and connect.
         </p>
@@ -386,7 +386,7 @@ const Corporate: React.FC = () => {
                     For the team
                 </span>
             </div>
-            <h1 className="text-5xl text-primary dark:text-white leading-none mt-4" style={{ fontFamily: 'var(--font-display)' }}>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white leading-none mt-4" style={{ fontFamily: 'var(--font-display)' }}>
                 Corporate <br/>Membership
             </h1>
             <p className="text-primary/70 dark:text-white/70 text-base font-light leading-relaxed max-w-xs mt-2">
@@ -586,7 +586,7 @@ const CompareFeatures: React.FC = () => {
     <AnimatedPage>
     <div className="flex flex-col gap-6 pt-6 px-4 pb-12 bg-bone dark:bg-[#141414] min-h-screen">
        <div className="text-center px-2 pt-4 animate-content-enter">
-        <h2 className="text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Compare Features</h2>
+        <h2 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Compare Features</h2>
         <p className="text-primary/70 dark:text-white/70 text-base font-light leading-relaxed max-w-[320px] mx-auto">
           Select up to 3 memberships to compare side-by-side.
         </p>

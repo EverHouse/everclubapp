@@ -58,7 +58,7 @@ const PrivateHire: React.FC = () => {
          </div>
          
          <div className="relative z-10 flex flex-col items-center text-center">
-           <h1 className="text-5xl leading-none mb-4 text-white text-shadow-sm animate-hero-headline" style={{ fontFamily: 'var(--font-display)' }}>
+           <h1 className="text-3xl sm:text-4xl md:text-5xl leading-none mb-4 text-white text-shadow-sm animate-hero-headline" style={{ fontFamily: 'var(--font-display)' }}>
              Curated spaces for <br/> unforgettable moments.
            </h1>
            <p className="text-sm sm:text-base text-white/80 mb-4 sm:mb-5 max-w-md tracking-wide leading-relaxed animate-hero-tagline">

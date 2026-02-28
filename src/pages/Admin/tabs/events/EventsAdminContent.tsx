@@ -39,7 +39,7 @@ const NeedsReviewSection: React.FC<NeedsReviewSectionProps> = ({ events, isLoadi
                     <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">
                         rate_review
                     </span>
-                    <span className="text-sm font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300" style={{ fontFamily: 'var(--font-label)' }}>
                         Needs Review
                     </span>
                     {count > 0 && (
@@ -129,7 +129,7 @@ const NeedsReviewSection: React.FC<NeedsReviewSectionProps> = ({ events, isLoadi
                                     <div className="flex items-center gap-2 pt-2">
                                         <button
                                             onClick={() => onEditEvent(event)}
-                                            className="flex-1 px-3 py-2 rounded-full bg-accent text-primary text-xs font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-1"
+                                            className="flex-1 px-3 py-2 rounded-[4px] bg-accent text-primary text-xs font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-1"
                                         >
                                             <span className="material-symbols-outlined text-sm">edit</span>
                                             Edit Event
@@ -485,7 +485,7 @@ export const EventsAdminContent: React.FC = () => {
                     <button
                         key={tab.id}
                         onClick={() => setActiveCategory(tab.id)}
-                        className={`tactile-btn flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-all duration-fast flex-shrink-0 ${
+                        className={`tactile-btn flex items-center gap-1.5 px-3 py-2 rounded-[4px] text-[10px] sm:text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-all duration-fast flex-shrink-0 ${
                             activeCategory === tab.id 
                                 ? 'bg-primary text-white shadow-md' 
                                 : 'bg-white dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
@@ -778,7 +778,7 @@ export const EventsAdminContent: React.FC = () => {
                         <div className="animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
                             <div className="flex items-center gap-2 mb-3">
                                 <span aria-hidden="true" className="material-symbols-outlined text-green-500">schedule</span>
-                                <h3 className="font-bold text-primary dark:text-white">Upcoming ({upcomingEvents.length})</h3>
+                                <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Upcoming ({upcomingEvents.length})</h3>
                             </div>
                             <div ref={upcomingEventsRef} className="grid grid-cols-1 gap-4">
                                 {upcomingEvents.map((event, index) => {
@@ -863,7 +863,7 @@ export const EventsAdminContent: React.FC = () => {
                                 className="flex items-center gap-2 mb-3 w-full text-left group"
                             >
                                 <span aria-hidden="true" className="material-symbols-outlined text-gray-600 dark:text-gray-500">history</span>
-                                <h3 className="font-bold text-gray-500 dark:text-gray-400">Past ({pastEvents.length})</h3>
+                                <h3 className="text-2xl leading-tight font-bold text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-headline)' }}>Past ({pastEvents.length})</h3>
                                 <span aria-hidden="true" className={`material-symbols-outlined text-gray-400 dark:text-gray-500 text-[18px] transition-transform ${showPastEvents ? 'rotate-180' : ''}`}>expand_more</span>
                             </button>
                             {showPastEvents && (

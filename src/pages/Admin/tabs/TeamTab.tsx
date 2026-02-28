@@ -346,7 +346,7 @@ const TeamTab: React.FC = () => {
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-primary/10 dark:border-white/20 animate-content-enter-delay-1">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-bold text-primary dark:text-white">Manage Team</h3>
+            <h3 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Manage Team</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Add, edit, and manage staff portal access
             </p>

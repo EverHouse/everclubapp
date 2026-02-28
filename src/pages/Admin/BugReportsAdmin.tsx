@@ -219,7 +219,7 @@ const BugReportsAdmin: React.FC = () => {
                                             <span className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-primary'}`}>
                                                 {report.userName || report.userEmail}
                                             </span>
-                                            <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full ${getRoleColor(report.userRole)}`}>
+                                            <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-[4px] ${getRoleColor(report.userRole)}`}>
                                                 {report.userRole || 'member'}
                                             </span>
                                         </div>
@@ -227,7 +227,7 @@ const BugReportsAdmin: React.FC = () => {
                                             {report.description}
                                         </p>
                                         <div className="flex items-center gap-2 mt-3">
-                                            <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full ${getBugReportStatusColor(report.status)}`}>
+                                            <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-[4px] ${getBugReportStatusColor(report.status)}`}>
                                                 {formatStatusLabel(report.status)}
                                             </span>
                                             <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
@@ -264,7 +264,7 @@ const BugReportsAdmin: React.FC = () => {
                                 </p>
                                 <p className={`text-sm ${isDark ? 'text-white/80' : 'text-primary/80'}`}>{selectedReport.userEmail}</p>
                             </div>
-                            <span className={`ml-auto px-2 py-0.5 text-[10px] font-bold uppercase rounded-full ${getRoleColor(selectedReport.userRole)}`}>
+                            <span className={`ml-auto px-2 py-0.5 text-[10px] font-bold uppercase rounded-[4px] ${getRoleColor(selectedReport.userRole)}`}>
                                 {selectedReport.userRole || 'member'}
                             </span>
                         </div>

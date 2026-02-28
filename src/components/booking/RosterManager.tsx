@@ -409,7 +409,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
       <div className={`glass-card rounded-xl overflow-hidden ${isDark ? 'border-white/10' : 'border-black/5'}`}>
         <div className={`px-5 py-4 border-b ${isDark ? 'border-white/10' : 'border-black/5'}`}>
           <div className="flex items-center justify-between">
-            <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-[#293515]'}`}>
+            <h3 className={`text-2xl ${isDark ? 'text-white' : 'text-[#293515]'} leading-tight`} style={{ fontFamily: 'var(--font-headline)' }}>
               {canManage ? 'Manage Players' : 'Players'}
             </h3>
             <span className={`text-sm font-medium ${isDark ? 'text-white/60' : 'text-[#293515]/60'}`}>
@@ -474,14 +474,14 @@ const RosterManager: React.FC<RosterManagerProps> = ({
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowAddMemberModal(true)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#293515] text-white font-semibold text-sm transition-all duration-fast hover:bg-[#3a4a20] active:scale-[0.98] tactile-btn"
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-[4px] bg-[#293515] text-white font-semibold text-sm transition-all duration-fast hover:bg-[#3a4a20] active:scale-[0.98] tactile-btn"
                 >
                   <span className="material-symbols-outlined text-lg">person_add</span>
                   Add Member
                 </button>
                 <button
                   onClick={() => setShowGuestPaymentChoiceModal(true)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all duration-fast active:scale-[0.98] bg-[#CCB8E4] text-[#293515] hover:bg-[#baa6d6] tactile-btn"
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-[4px] font-semibold text-sm transition-all duration-fast active:scale-[0.98] bg-[#CCB8E4] text-[#293515] hover:bg-[#baa6d6] tactile-btn"
                 >
                   <span className="material-symbols-outlined text-lg">group_add</span>
                   Add Guest
@@ -509,7 +509,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
 
         {feePreview && (
           <div className={`px-5 py-4 border-t ${isDark ? 'border-white/10 bg-white/[0.02]' : 'border-black/5 bg-black/[0.01]'}`}>
-            <h4 className={`text-sm font-bold mb-3 ${isDark ? 'text-white/80' : 'text-[#293515]/80'}`}>
+            <h4 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/80' : 'text-[#293515]/80'}`} style={{ fontFamily: 'var(--font-label)' }}>
               Time Allocation
             </h4>
             

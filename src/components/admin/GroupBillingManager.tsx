@@ -356,7 +356,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
             {!showCreateForm ? (
               <button
                 onClick={() => setShowCreateForm(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary dark:bg-accent text-white dark:text-primary font-medium rounded-lg hover:opacity-90 transition-opacity tactile-btn"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary dark:bg-accent text-white dark:text-primary font-medium rounded-[4px] hover:opacity-90 transition-opacity tactile-btn"
               >
                 <span className="material-symbols-outlined text-lg">add</span>
                 Create Billing Group with This Member as Primary
@@ -394,7 +394,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                   <button
                     onClick={handleCreateGroup}
                     disabled={isCreatingGroup}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 tactile-btn"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary font-medium rounded-[4px] hover:opacity-90 transition-opacity disabled:opacity-50 tactile-btn"
                   >
                     {isCreatingGroup ? (
                       <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
@@ -408,7 +408,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                       setShowCreateForm(false);
                       setGroupName('');
                     }}
-                    className="px-4 py-2.5 border border-gray-200 dark:border-white/20 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors tactile-btn"
+                    className="px-4 py-2.5 border border-gray-200 dark:border-white/20 rounded-[4px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors tactile-btn"
                   >
                     Cancel
                   </button>
@@ -714,7 +714,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                       <button
                         onClick={handleAddCorporateMember}
                         disabled={isAddingMember || !corporateEmail.trim()}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 tactile-btn"
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary font-medium rounded-[4px] hover:opacity-90 transition-opacity disabled:opacity-50 tactile-btn"
                       >
                         {isAddingMember ? (
                           <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
@@ -732,7 +732,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                           setCorporatePhone('');
                           setCorporateDob('');
                         }}
-                        className="px-4 py-2.5 border border-gray-200 dark:border-white/20 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors tactile-btn"
+                        className="px-4 py-2.5 border border-gray-200 dark:border-white/20 rounded-[4px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors tactile-btn"
                       >
                         Cancel
                       </button>
@@ -797,7 +797,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                       <button
                         onClick={handleAddMember}
                         disabled={isAddingMember || !selectedNewMember || !selectedTier}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 tactile-btn"
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary font-medium rounded-[4px] hover:opacity-90 transition-opacity disabled:opacity-50 tactile-btn"
                       >
                         {isAddingMember ? (
                           <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
@@ -813,7 +813,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                           setSelectedTier('');
                           setSelectedRelationship('');
                         }}
-                        className="px-4 py-2.5 border border-gray-200 dark:border-white/20 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors tactile-btn"
+                        className="px-4 py-2.5 border border-gray-200 dark:border-white/20 rounded-[4px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors tactile-btn"
                       >
                         Cancel
                       </button>

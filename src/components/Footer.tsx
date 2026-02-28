@@ -26,7 +26,7 @@ export const Footer: React.FC<FooterProps> = ({ hideCta = false }) => (
         </div>
 
         <div className="relative flex flex-col items-center text-xs">
-            <span className="font-bold uppercase tracking-widest text-[#E7E7DC] mb-2">Hours</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#E7E7DC] mb-2" style={{ fontFamily: 'var(--font-label)' }}>Hours</span>
             <div className="space-y-1 text-[#E7E7DC]/70 text-center">
                 <p>Mon: Closed</p>
                 <p>Tue–Thu: 8:30 AM–8 PM</p>

@@ -159,7 +159,7 @@ const SettingsTab: React.FC = () => {
             <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">tune</span>
           </div>
           <div>
-            <h3 className="text-lg font-bold text-primary dark:text-white">App Display Settings</h3>
+            <h3 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>App Display Settings</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">Configure how the app appears to users</p>
           </div>
         </div>
@@ -223,7 +223,7 @@ const SettingsTab: React.FC = () => {
             <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">category</span>
           </div>
           <div>
-            <h3 className="text-lg font-bold text-primary dark:text-white">Purchase Category Labels</h3>
+            <h3 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Purchase Category Labels</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">Customize display names for purchase categories</p>
           </div>
         </div>
@@ -263,7 +263,7 @@ const SettingsTab: React.FC = () => {
             <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">notifications</span>
           </div>
           <div>
-            <h3 className="text-lg font-bold text-primary dark:text-white">Notification Settings</h3>
+            <h3 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Notification Settings</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">Configure system notification preferences</p>
           </div>
         </div>
@@ -307,7 +307,7 @@ const SettingsTab: React.FC = () => {
             <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">nfc</span>
           </div>
           <div>
-            <h3 className="text-lg font-bold text-primary dark:text-white">NFC Check-In Setup</h3>
+            <h3 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>NFC Check-In Setup</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">Generate URLs for NFC tag programming</p>
           </div>
         </div>

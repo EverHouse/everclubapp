@@ -736,7 +736,7 @@ const BlocksTab: React.FC = () => {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setShowClosureReasonsSection(!showClosureReasonsSection)}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border transition-all duration-fast tactile-btn ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-xs font-medium backdrop-blur-sm border transition-all duration-fast tactile-btn ${
                                 showClosureReasonsSection
                                     ? 'bg-primary/10 dark:bg-white/15 border-primary/30 dark:border-white/20 text-primary dark:text-white'
                                     : 'bg-white/60 dark:bg-white/10 border-gray-200/50 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/15 text-gray-600 dark:text-white/70'
@@ -744,13 +744,13 @@ const BlocksTab: React.FC = () => {
                         >
                             <span aria-hidden="true" className="material-symbols-outlined text-sm">settings</span>
                             Closure Reasons
-                            <span className="bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-1.5 py-0.5 rounded-full text-[10px]">
+                            <span className="bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-1.5 py-0.5 rounded-[4px] text-[10px]">
                                 {closureReasons.filter(r => r.isActive).length}
                             </span>
                         </button>
                         <button
                             onClick={() => setShowNoticeTypesSection(!showNoticeTypesSection)}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border transition-all duration-fast tactile-btn ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-xs font-medium backdrop-blur-sm border transition-all duration-fast tactile-btn ${
                                 showNoticeTypesSection
                                     ? 'bg-primary/10 dark:bg-white/15 border-primary/30 dark:border-white/20 text-primary dark:text-white'
                                     : 'bg-white/60 dark:bg-white/10 border-gray-200/50 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/15 text-gray-600 dark:text-white/70'
@@ -758,7 +758,7 @@ const BlocksTab: React.FC = () => {
                         >
                             <span aria-hidden="true" className="material-symbols-outlined text-sm">category</span>
                             Notice Types
-                            <span className="bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-1.5 py-0.5 rounded-full text-[10px]">
+                            <span className="bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-1.5 py-0.5 rounded-[4px] text-[10px]">
                                 {noticeTypes.length}
                             </span>
                         </button>
@@ -945,7 +945,7 @@ const BlocksTab: React.FC = () => {
                     <div className="flex items-center gap-2">
                         <span aria-hidden="true" className="material-symbols-outlined text-cyan-500">rate_review</span>
                         <h3 className="font-semibold text-primary dark:text-white">Needs Review</h3>
-                        <span className="text-xs bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 px-2 py-0.5 rounded-full">{needsReviewClosures.length}</span>
+                        <span className="text-xs bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 px-2 py-0.5 rounded-[4px]">{needsReviewClosures.length}</span>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-white/60">
                         These calendar events were imported and need to be configured before members can see them.
@@ -1174,7 +1174,7 @@ const BlocksTab: React.FC = () => {
                         <div className="flex items-center gap-2">
                             <span aria-hidden="true" className="material-symbols-outlined text-gray-500 dark:text-white/60">history</span>
                             <span className="font-semibold text-gray-600 dark:text-white/80">Past Notices</span>
-                            <span className="text-xs bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-2 py-0.5 rounded-full">
+                            <span className="text-xs bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-2 py-0.5 rounded-[4px]">
                                 {pastClosures.length}
                             </span>
                         </div>

@@ -488,7 +488,7 @@ const TrackmanTab: React.FC = () => {
   return (
     <div className="px-6 pb-4 space-y-6">
       <div className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25">
-        <h2 className="text-lg font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
+        <h2 className="text-2xl leading-tight text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
           <span aria-hidden="true" className="material-symbols-outlined">upload_file</span>
           Import Trackman Bookings
         </h2>
@@ -578,7 +578,7 @@ const TrackmanTab: React.FC = () => {
 
       {importRuns.length > 0 && (
         <div className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25">
-          <h2 className="text-lg font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
+          <h2 className="text-2xl leading-tight text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
             <span aria-hidden="true" className="material-symbols-outlined">history</span>
             Import History
           </h2>
@@ -604,7 +604,7 @@ const TrackmanTab: React.FC = () => {
 
       <div ref={unmatchedSectionRef} className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-primary dark:text-white flex items-center gap-2">
+          <h2 className="text-2xl leading-tight text-primary dark:text-white flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
             <span aria-hidden="true" className="material-symbols-outlined">warning</span>
             Unmatched Bookings ({unmatchedTotalCount})
           </h2>
@@ -815,7 +815,7 @@ const TrackmanTab: React.FC = () => {
 
       {needsPlayersBookings.length > 0 && (
         <div ref={needsPlayersSectionRef} className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25">
-          <h2 className="text-lg font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
+          <h2 className="text-2xl leading-tight text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
             <span aria-hidden="true" className="material-symbols-outlined">group_add</span>
             Needs Players ({needsPlayersTotalCount})
           </h2>

@@ -804,7 +804,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
             <div className="mt-4 flex gap-2">
               <button
                 onClick={() => onViewAs(member)}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity tactile-btn"
+                className="flex-1 py-2.5 px-4 rounded-[4px] bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity tactile-btn"
               >
                 <span className="material-symbols-outlined text-lg">visibility</span>
                 View As This Member
@@ -816,7 +816,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     setSelectedMergeTarget(null);
                     setMergePreview(null);
                   }}
-                  className="py-2.5 px-4 rounded-xl bg-indigo-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors tactile-btn"
+                  className="py-2.5 px-4 rounded-[4px] bg-indigo-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors tactile-btn"
                   title="Merge with another user"
                 >
                   <span className="material-symbols-outlined text-lg">merge</span>
@@ -824,7 +824,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
               )}
               <button
                 onClick={() => setShowDeleteModal(true)}
-                className="py-2.5 px-4 rounded-xl bg-red-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-red-700 transition-colors tactile-btn"
+                className="py-2.5 px-4 rounded-[4px] bg-red-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-red-700 transition-colors tactile-btn"
                 title="Permanently delete member (for testing)"
               >
                 <span className="material-symbols-outlined text-lg">delete_forever</span>
@@ -937,7 +937,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                       }
                     }}
                     disabled={sendingPaymentLink || !selectedTierId}
-                    className="py-2.5 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 tactile-btn"
+                    className="py-2.5 px-4 rounded-[4px] bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 tactile-btn"
                     title="Send payment link for selected tier"
                   >
                     {sendingPaymentLink ? (
@@ -955,7 +955,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     setSelectedMergeTarget(null);
                     setMergePreview(null);
                   }}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors tactile-btn"
+                  className="flex-1 py-2.5 px-4 rounded-[4px] bg-indigo-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors tactile-btn"
                   title="Merge visitor records into a member account"
                 >
                   <span className="material-symbols-outlined text-lg">merge</span>
@@ -963,7 +963,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 </button>
                 <button
                   onClick={() => setShowDeleteModal(true)}
-                  className="py-2.5 px-4 rounded-xl bg-red-600/10 text-red-600 dark:text-red-400 font-medium flex items-center justify-center gap-2 hover:bg-red-600/20 transition-colors tactile-btn"
+                  className="py-2.5 px-4 rounded-[4px] bg-red-600/10 text-red-600 dark:text-red-400 font-medium flex items-center justify-center gap-2 hover:bg-red-600/20 transition-colors tactile-btn"
                   title="Permanently delete visitor"
                 >
                   <span className="material-symbols-outlined text-lg">delete_forever</span>
@@ -993,7 +993,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     alert('Failed to send reactivation link');
                   }
                 }}
-                className={`w-full py-2.5 px-4 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors tactile-btn ${
+                className={`w-full py-2.5 px-4 rounded-[4px] font-medium flex items-center justify-center gap-2 transition-colors tactile-btn ${
                   isDark 
                     ? 'bg-amber-600/20 text-amber-400 border border-amber-600/30 hover:bg-amber-600/30'
                     : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
@@ -1049,7 +1049,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 <button
                   onClick={() => setShowDeleteModal(false)}
                   disabled={isDeleting}
-                  className={`flex-1 py-2.5 px-4 rounded-xl font-medium tactile-btn ${
+                  className={`flex-1 py-2.5 px-4 rounded-[4px] font-medium tactile-btn ${
                     isDark ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                   } transition-colors`}
                 >
@@ -1058,7 +1058,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 <button
                   onClick={handlePermanentDelete}
                   disabled={isDeleting}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 tactile-btn"
+                  className="flex-1 py-2.5 px-4 rounded-[4px] bg-red-600 text-white font-medium hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 tactile-btn"
                 >
                   {isDeleting ? (
                     <>
@@ -1329,7 +1329,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     setMergePreview(null);
                   }}
                   disabled={isMerging}
-                  className={`flex-1 py-2.5 px-4 rounded-xl font-medium ${
+                  className={`flex-1 py-2.5 px-4 rounded-[4px] font-medium ${
                     isDark ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                   } transition-colors`}
                 >
@@ -1369,7 +1369,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     }
                   }}
                   disabled={isMerging || !selectedMergeTarget || !mergePreview}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 px-4 rounded-[4px] bg-red-600 text-white font-medium hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isMerging ? (
                     <>

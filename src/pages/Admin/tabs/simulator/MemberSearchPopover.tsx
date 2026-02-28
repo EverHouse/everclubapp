@@ -364,7 +364,7 @@ const ManualBookingModal: React.FC<{
                                                         )}
                                                     </div>
                                                     {member.tier && (
-                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-accent/20 text-primary dark:text-accent font-medium">
+                                                        <span className="text-xs px-2 py-0.5 rounded-[4px] bg-accent/20 text-primary dark:text-accent font-medium">
                                                             {member.tier}
                                                         </span>
                                                     )}

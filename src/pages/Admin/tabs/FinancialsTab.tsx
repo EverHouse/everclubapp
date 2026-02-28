@@ -326,7 +326,7 @@ const SubscriptionsSubTab: React.FC = () => {
               <div className="w-16 h-16 rounded-full bg-primary/10 dark:bg-lavender/20 flex items-center justify-center">
                 <span className="material-symbols-outlined text-4xl text-primary dark:text-lavender">subscriptions</span>
               </div>
-              <h3 className="text-xl font-bold text-primary dark:text-white">No subscriptions found</h3>
+              <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>No subscriptions found</h3>
               <p className="text-sm text-primary/60 dark:text-white/60">
                 {searchQuery || statusFilter !== 'all' 
                   ? 'Try adjusting your search or filter criteria.' 
@@ -680,7 +680,7 @@ const InvoicesSubTab: React.FC = () => {
               <div className="w-16 h-16 rounded-full bg-primary/10 dark:bg-lavender/20 flex items-center justify-center">
                 <span className="material-symbols-outlined text-4xl text-primary dark:text-lavender">description</span>
               </div>
-              <h3 className="text-xl font-bold text-primary dark:text-white">No invoices found</h3>
+              <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>No invoices found</h3>
               <p className="text-sm text-primary/60 dark:text-white/60">
                 {searchQuery || statusFilter !== 'all' || startDate || endDate
                   ? 'Try adjusting your search or filter criteria.' 

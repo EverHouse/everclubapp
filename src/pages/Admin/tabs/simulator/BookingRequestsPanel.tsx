@@ -115,7 +115,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                 <div className="animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
                     <div className="flex flex-col gap-2 mb-4">
                         <div className="flex items-center justify-between">
-                            <h3 className="font-bold text-primary dark:text-white flex items-center gap-2">
+                            <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
                                 <span aria-hidden="true" className="material-symbols-outlined text-yellow-500">pending</span>
                                 Queue ({queueItems.length})
                             </h3>
@@ -368,7 +368,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                 </div>
 
                 <div className="animate-slide-up-stagger" style={{ '--stagger-index': 2 } as React.CSSProperties}>
-                    <h3 className="font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
+                    <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
                         <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-accent">calendar_today</span>
                         Scheduled ({scheduledBookings.length})
                     </h3>
@@ -378,7 +378,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                             <button
                                 key={filter}
                                 onClick={() => setScheduledFilter(filter)}
-                                className={`tactile-btn flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-fast ${
+                                className={`tactile-btn flex-shrink-0 px-3 py-1.5 rounded-[4px] text-xs font-semibold transition-all duration-fast ${
                                     scheduledFilter === filter 
                                         ? 'bg-primary dark:bg-lavender text-white shadow-md' 
                                         : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15'

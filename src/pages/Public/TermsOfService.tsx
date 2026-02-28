@@ -7,10 +7,10 @@ const TermsOfService: React.FC = () => {
     <div className="min-h-screen bg-bone dark:bg-[#141414] text-primary dark:text-bone pt-24 pb-12">
       <SEO title="Terms of Service | Ever Club" description="Ever Club terms of service and conditions for membership at our indoor golf & social club in Tustin, Orange County." url="/terms" />
       <div className="max-w-4xl mx-auto px-6">
-        <h1 className="text-5xl mb-8 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Membership Terms & Conditions</h1>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl mb-8 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Membership Terms & Conditions</h1>
         <p className="text-sm opacity-60 mb-12">Effective Date: January 20, 2026</p>
 
-        <div className="space-y-8 leading-relaxed font-sans text-lg">
+        <div className="space-y-8 leading-relaxed text-base" style={{ fontFamily: 'var(--font-body)' }}>
           <section>
             <h2 className="text-2xl mb-4 leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>1. Agreement Overview</h2>
             <p>

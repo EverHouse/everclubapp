@@ -103,8 +103,8 @@ const CafeTab: React.FC = () => {
         <div className="animate-slide-up-stagger backdrop-blur-sm" style={{ '--stagger-index': 0 } as React.CSSProperties}>
             <div className="flex justify-between items-center mb-4 animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
                 <div>
-                    <h2 className="text-xl font-bold text-primary dark:text-white">Menu Items</h2>
-                    <p className="text-xs text-purple-600 dark:text-purple-400 flex items-center gap-1 mt-0.5">
+                    <h2 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Menu Items</h2>
+                    <p className="text-sm text-purple-600 dark:text-purple-400 flex items-center gap-1 mt-0.5" style={{ fontFamily: 'var(--font-body)' }}>
                         <span aria-hidden="true" className="material-symbols-outlined text-xs">cloud</span>
                         Prices and items managed in Stripe Dashboard
                     </p>
@@ -112,7 +112,7 @@ const CafeTab: React.FC = () => {
                 <button 
                     onClick={handlePullFromStripe} 
                     disabled={pullMutation.isPending}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded-[4px] hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors disabled:opacity-50"
                 >
                     <span aria-hidden="true" className={`material-symbols-outlined text-sm ${pullMutation.isPending ? 'animate-spin' : ''}`}>
                         {pullMutation.isPending ? 'progress_activity' : 'cloud_download'}
@@ -125,7 +125,7 @@ const CafeTab: React.FC = () => {
                     <button
                         key={cat}
                         onClick={() => setActiveCategory(cat)}
-                        className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-fast ${activeCategory === cat ? 'bg-primary dark:bg-lavender text-white shadow-md' : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15'}`}
+                        className={`flex-shrink-0 px-4 py-2 rounded-[4px] text-xs font-semibold transition-all duration-fast ${activeCategory === cat ? 'bg-primary dark:bg-lavender text-white shadow-md' : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15'}`}
                     >
                         {cat}
                     </button>
@@ -202,8 +202,8 @@ const CafeTab: React.FC = () => {
                     </div>
                     <textarea className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast resize-none" placeholder="Description" rows={3} value={newItem.desc || ''} onChange={e => setNewItem({...newItem, desc: e.target.value})} />
                     <div className="flex gap-3 justify-end pt-2">
-                        <button onClick={() => setIsEditing(false)} className="px-5 py-2.5 text-gray-500 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors">Cancel</button>
-                        <button onClick={handleSave} disabled={isLoading} className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50">Save</button>
+                        <button onClick={() => setIsEditing(false)} className="px-5 py-2.5 text-gray-500 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-[4px] transition-colors">Cancel</button>
+                        <button onClick={handleSave} disabled={isLoading} className="px-6 py-2.5 bg-primary text-white rounded-[4px] font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50">Save</button>
                     </div>
                 </div>
             </ModalShell>
@@ -219,7 +219,7 @@ const CafeTab: React.FC = () => {
                                 <h4 className="font-bold text-gray-900 dark:text-white truncate flex-1">{item.name}</h4>
                                 <span className="font-bold text-primary dark:text-white whitespace-nowrap">${item.price}</span>
                             </div>
-                            <span className="inline-block text-[10px] font-bold uppercase tracking-wider bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/80 px-1.5 py-0.5 rounded mt-1 mb-1">{item.category}</span>
+                            <span className="inline-block text-[11px] font-semibold uppercase tracking-widest w-fit bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/80 px-2 py-0.5 rounded-[4px] mt-1 mb-1" style={{ fontFamily: 'var(--font-label)' }}>{item.category}</span>
                             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.desc}</p>
                         </div>
                     </div>

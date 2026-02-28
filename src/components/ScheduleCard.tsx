@@ -55,7 +55,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
         {status && (
           <div className="flex items-center gap-2">
             <span className={`w-2.5 h-2.5 rounded-full ${statusColor || 'bg-green-500'} ring-2 ${isDark ? 'ring-white/10' : 'ring-primary/10'}`} />
-            <span className={`text-[11px] font-extrabold uppercase tracking-widest ${isDark ? 'text-white/60' : 'text-primary/50'}`}>
+            <span className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${isDark ? 'text-white/60' : 'text-primary/50'}`} style={{ fontFamily: 'var(--font-label)' }}>
               {status}
             </span>
           </div>
@@ -65,7 +65,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
         </div>
       </div>
 
-      <h4 className={`text-xl font-bold leading-tight mb-1.5 ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-headline)', fontOpticalSizing: 'auto' }}>
+      <h4 className={`text-2xl leading-tight mb-1.5 ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-headline)', fontOpticalSizing: 'auto' }}>
         {title}
       </h4>
 

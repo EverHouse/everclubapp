@@ -171,10 +171,10 @@ const OnboardingChecklist: React.FC = () => {
     <div className="mb-6 glass-card rounded-xl p-5 backdrop-blur-xl bg-white/30 dark:bg-white/5 border border-white/20 animate-pop-in">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h3 className="text-lg font-bold text-primary dark:text-white">
+          <h3 className="text-2xl text-primary dark:text-white leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>
             {celebrating ? 'You\'re all set!' : 'Get started with Ever Club'}
           </h3>
-          <p className="text-sm text-primary/60 dark:text-white/60 mt-0.5">
+          <p className="text-base text-primary/60 dark:text-white/60 mt-0.5 leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>
             {celebrating
               ? 'You\'ve completed all the steps. Enjoy your membership!'
               : `${status.completedCount} of ${status.totalSteps} steps complete`}
@@ -182,7 +182,7 @@ const OnboardingChecklist: React.FC = () => {
         </div>
         <button
           onClick={handleDismiss}
-          className="p-1 rounded-lg hover:bg-primary/10 dark:hover:bg-white/10 transition-colors tactile-btn"
+          className="p-1 rounded-[4px] hover:bg-primary/10 dark:hover:bg-white/10 transition-colors tactile-btn"
           aria-label="Dismiss checklist"
         >
           <span className="material-symbols-outlined text-primary/40 dark:text-white/40 text-xl">close</span>

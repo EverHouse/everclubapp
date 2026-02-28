@@ -807,7 +807,7 @@ const ChangelogTab: React.FC = () => {
                                         v{entry.version}
                                     </span>
                                     {entry.isMajor && (
-                                        <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/10 dark:bg-accent/20 text-primary dark:text-accent px-2 py-0.5 rounded">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider w-fit bg-primary/10 dark:bg-accent/20 text-primary dark:text-accent px-2 py-0.5 rounded-[4px]">
                                             Major Release
                                         </span>
                                     )}

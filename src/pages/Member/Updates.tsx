@@ -473,7 +473,7 @@ const MemberUpdates: React.FC = () => {
           {/* Active Now Section */}
           {activeNotices.length > 0 && (
             <div>
-              <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+              <h3 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 flex items-center gap-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`} style={{ fontFamily: 'var(--font-label)' }}>
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                 Active Now
               </h3>
@@ -488,7 +488,7 @@ const MemberUpdates: React.FC = () => {
           {/* Upcoming Section */}
           {upcomingNotices.length > 0 && (
             <div>
-              <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+              <h3 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 flex items-center gap-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`} style={{ fontFamily: 'var(--font-label)' }}>
                 <span className="material-symbols-outlined text-sm">schedule</span>
                 Coming Up
               </h3>
@@ -728,7 +728,7 @@ const MemberUpdates: React.FC = () => {
   return (
     <SwipeablePage className="px-6 relative overflow-hidden">
       <section className="mb-4 pt-4 md:pt-2">
-        <h1 className={`text-3xl font-bold leading-tight drop-shadow-md ${isDark ? 'text-white' : 'text-primary'}`}>Updates</h1>
+        <h1 className={`text-3xl sm:text-4xl md:text-5xl leading-none drop-shadow-md ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}>Updates</h1>
         <p className={`text-sm font-medium mt-1 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Stay in the loop with what's happening.</p>
       </section>
 

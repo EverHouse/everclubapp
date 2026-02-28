@@ -75,7 +75,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
         <section className={`rounded-xl p-4 border glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className={`text-xs font-bold uppercase tracking-widest ${isDark ? 'text-white/80' : 'text-primary/80'}`}>How many players?</span>
+              <span className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>How many players?</span>
             </div>
           </div>
           <div className={`flex gap-2 p-1 rounded-xl border ${isDark ? 'bg-black/20 border-white/20' : 'bg-black/5 border-black/5'}`}>
@@ -84,7 +84,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                 key={count}
                 onClick={() => onPlayerCountChange(count)}
                 aria-pressed={playerCount === count}
-                className={`flex-1 py-3 rounded-lg transition-all duration-fast active:scale-95 focus:ring-2 focus:ring-accent focus:outline-none ${
+                className={`flex-1 py-3 rounded-[4px] transition-all duration-fast active:scale-95 focus:ring-2 focus:ring-accent focus:outline-none ${
                   playerCount === count
                     ? 'bg-accent text-[#293515] shadow-glow'
                     : (isDark ? 'text-white/80 hover:bg-white/5 hover:text-white' : 'text-primary/80 hover:bg-black/5 hover:text-primary')
@@ -101,7 +101,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
       {slots.length > 0 && (
         <section className={`rounded-xl p-4 border glass-card relative z-10 overflow-hidden ${isDark ? 'border-white/25' : 'border-black/10'}`}>
           <div className="flex items-center gap-2 mb-3">
-            <span className={`text-xs font-bold uppercase tracking-widest ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Additional Players</span>
+            <span className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>Additional Players</span>
             <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>(Optional)</span>
           </div>
 

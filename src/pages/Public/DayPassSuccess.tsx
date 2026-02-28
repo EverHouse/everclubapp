@@ -49,7 +49,7 @@ const DayPassSuccess: React.FC = () => {
             
             <button
               onClick={() => { startNavigation(); navigate('/day-pass'); }}
-              className="tactile-btn w-full flex justify-center items-center gap-2 rounded-xl bg-white dark:bg-white/5 border border-primary/20 dark:border-white/10 px-4 py-3.5 text-sm font-bold text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/10 transition-all duration-fast"
+              className="tactile-btn w-full flex justify-center items-center gap-2 rounded-[4px] bg-white dark:bg-white/5 border border-primary/20 dark:border-white/10 px-4 py-3.5 text-sm font-bold text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/10 transition-all duration-fast"
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
               Buy Another Pass

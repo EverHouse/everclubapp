@@ -341,7 +341,7 @@ const History: React.FC = () => {
                       
                       return (
                         <div key={monthKey} className="animate-slide-up-stagger" style={{ '--stagger-index': monthIndex } as React.CSSProperties}>
-                          <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-white/60' : 'text-primary/60'}`}>
+                          <h3 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/60' : 'text-primary/60'}`} style={{ fontFamily: 'var(--font-label)' }}>
                             {monthLabel}
                           </h3>
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">

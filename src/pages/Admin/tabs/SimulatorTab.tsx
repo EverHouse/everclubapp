@@ -1228,7 +1228,7 @@ const SimulatorTab: React.FC = () => {
                         <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center mx-auto mb-3">
                             <span aria-hidden="true" className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-2xl">sports_golf</span>
                         </div>
-                        <h3 className="text-lg font-bold text-primary dark:text-white mb-2">Trackman Confirmation</h3>
+                        <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white mb-2" style={{ fontFamily: 'var(--font-headline)' }}>Trackman Confirmation</h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                             Have you created this booking in Trackman?
                         </p>
@@ -1418,7 +1418,7 @@ const SimulatorTab: React.FC = () => {
                         </span>
                       </div>
                     </div>
-                    <h3 className="text-xl font-bold text-center text-primary dark:text-white mb-2">
+                    <h3 className="text-2xl leading-tight font-bold text-center text-primary dark:text-white mb-2" style={{ fontFamily: 'var(--font-headline)' }}>
                       Cancel Booking?
                     </h3>
                     <p className="text-sm text-center text-gray-600 dark:text-gray-300 mb-4">
@@ -1470,7 +1470,7 @@ const SimulatorTab: React.FC = () => {
                         <span className="material-symbols-outlined text-3xl text-green-600 dark:text-green-400">check_circle</span>
                       </div>
                     </div>
-                    <h3 className="text-xl font-bold text-center text-primary dark:text-white mb-2">
+                    <h3 className="text-2xl leading-tight font-bold text-center text-primary dark:text-white mb-2" style={{ fontFamily: 'var(--font-headline)' }}>
                       Booking Cancelled
                     </h3>
                     <p className="text-sm text-center text-gray-600 dark:text-gray-300 mb-4">

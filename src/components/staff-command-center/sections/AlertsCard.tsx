@@ -107,7 +107,7 @@ export const AlertsCard: React.FC<AlertsCardProps> = ({ notifications, onAlertCl
     <div className="flex-1 min-h-[200px] bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-xl pt-4 shadow-liquid dark:shadow-liquid-dark flex flex-col overflow-hidden">
       <div className="flex items-center justify-between mb-3 px-4">
         <div className="flex items-center gap-2">
-          <h3 className="font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Alerts</h3>
+          <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Alerts</h3>
           {unreadCount > 0 && (
             <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">
               {unreadCount > 9 ? '9+' : unreadCount}

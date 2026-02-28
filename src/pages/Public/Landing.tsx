@@ -6,6 +6,7 @@ import { usePageReady } from '../../contexts/PageReadyContext';
 import { useData } from '../../contexts/DataContext';
 import { useParallax } from '../../hooks/useParallax';
 import EditorialSection from '../../components/layout/EditorialSection';
+import EditorialShowcase from '../../components/layout/EditorialShowcase';
 import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
 
@@ -222,10 +223,12 @@ const Landing: React.FC = () => {
           reversed={false}
         />
         
-        <EditorialSection
+        <EditorialShowcase
+          overline="Chef-Driven Cafe"
+          title={<>Farm-to-Table <em className="not-italic" style={{ fontStyle: 'italic' }}>Dining</em></>}
+          description="Thoughtfully crafted dishes and specialty coffee in a relaxed atmosphere. From morning espresso to afternoon bites, fuel your day with locally-sourced ingredients and a menu designed for both quick visits and lingering conversations."
           image="/images/cafe-bar-optimized.webp"
-          title="Farm-to-Table Cafe"
-          description="Our chef-driven cafe serves thoughtfully crafted dishes and specialty coffee in a relaxed atmosphere. From morning espresso to afternoon bites, fuel your day with locally-sourced ingredients and a menu designed for both quick visits and lingering conversations."
+          imageAlt="Ever Club farm-to-table cafe and bar"
           ctaLabel="View Menu"
           ctaLink="/menu"
           reversed={true}

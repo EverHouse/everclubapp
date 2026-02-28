@@ -955,7 +955,7 @@ const BookGolf: React.FC = () => {
 
           <section className={`rounded-xl p-4 border glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
             <div className="flex items-center justify-between mb-3">
-              <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Date & Duration</span>
+              <span className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>Date & Duration</span>
             </div>
             <div className="space-y-4">
               <DatePickerStrip
@@ -1243,7 +1243,7 @@ const BookGolf: React.FC = () => {
           {(!existingDayBooking || activeTab !== 'simulator') && !existingBookingCheck?.hasExisting && (activeTab !== 'simulator' || !isAtDailyLimit) && (
           <>
           <section ref={timeSlotsRef} className="min-h-[120px]">
-            <h3 className={`text-sm font-bold uppercase tracking-wider mb-3 pl-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Available Times</h3>
+            <h3 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 pl-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>Available Times</h3>
             
             {isLoading && (
                 <div className="space-y-2">
@@ -1356,7 +1356,7 @@ const BookGolf: React.FC = () => {
 
           {selectedSlot && (
             <section ref={baySelectionRef} className="animate-pop-in">
-              <h3 className={`text-sm font-bold uppercase tracking-wider mb-3 pl-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
+              <h3 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 pl-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>
                 Select {activeTab === 'simulator' ? 'Bay' : 'Room'}
               </h3>
               <div ref={resourcesRef} className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -1389,7 +1389,7 @@ const BookGolf: React.FC = () => {
 
           {selectedResource && (
             <section className="animate-pop-in pb-64">
-              <h3 className={`text-sm font-bold uppercase tracking-wider mb-3 pl-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
+              <h3 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 pl-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>
                 Notes for Staff <span className="font-normal opacity-60">(optional)</span>
               </h3>
               <div className={`rounded-xl border overflow-hidden ${isDark ? 'border-white/20 bg-black/20' : 'border-black/10 bg-white'}`}>

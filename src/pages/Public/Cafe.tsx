@@ -103,7 +103,7 @@ const PublicCafe: React.FC = () => {
       style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'var(--header-offset)' }}
     >
       <section className="px-6 pt-4 md:pt-2 pb-6 bg-[#EAEBE6] dark:bg-[#141414] animate-content-enter">
-        <h1 className="text-5xl text-primary dark:text-white mb-4 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Cafe Menu</h1>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-4 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Cafe Menu</h1>
         <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed max-w-[90%]" style={{ fontFamily: 'var(--font-body)' }}>
           Curated bites and beverages at the House. From artisan coffee to light fare.
         </p>

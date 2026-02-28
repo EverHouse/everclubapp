@@ -151,7 +151,7 @@ interface WellnessCardProps {
 const WellnessCard: React.FC<WellnessCardProps> = ({ isDesktopGrid, isDesktop, upcomingWellness, today, onNavigateToWellness }) => (
   <div className={`${isDesktopGrid ? 'h-full min-h-[280px]' : 'min-h-[200px]'} flex flex-col bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-xl pt-4 shadow-liquid dark:shadow-liquid-dark overflow-hidden`}>
     <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0 px-4">
-      <h3 className="font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Upcoming Wellness</h3>
+      <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Upcoming Wellness</h3>
       <button onClick={onNavigateToWellness} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
     </div>
     {upcomingWellness.length === 0 ? (
@@ -192,7 +192,7 @@ interface EventsCardProps {
 const EventsCard: React.FC<EventsCardProps> = ({ isDesktopGrid, isDesktop, upcomingEvents, today, onNavigateToEvents }) => (
   <div className={`${isDesktopGrid ? 'h-full min-h-[280px]' : 'min-h-[200px]'} flex flex-col bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-xl pt-4 shadow-liquid dark:shadow-liquid-dark overflow-hidden`}>
     <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0 px-4">
-      <h3 className="font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Upcoming Events</h3>
+      <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Upcoming Events</h3>
       <button onClick={onNavigateToEvents} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
     </div>
     {upcomingEvents.length === 0 ? (

@@ -369,7 +369,7 @@ export const WellnessAdminContent: React.FC = () => {
                     <button
                         key={tab.id}
                         onClick={() => setActiveCategory(tab.id)}
-                        className={`tactile-btn flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-all duration-fast flex-shrink-0 ${
+                        className={`tactile-btn flex items-center gap-1.5 px-3 py-2 rounded-[4px] text-[10px] sm:text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-all duration-fast flex-shrink-0 ${
                             activeCategory === tab.id 
                                 ? 'bg-primary text-white shadow-md' 
                                 : 'bg-white dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
@@ -406,8 +406,8 @@ export const WellnessAdminContent: React.FC = () => {
                     <div className="bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-sm border border-amber-200 dark:border-amber-700/50 rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-3">
                             <span aria-hidden="true" className="material-symbols-outlined text-amber-500">rate_review</span>
-                            <h3 className="font-bold text-amber-700 dark:text-amber-400">Needs Review</h3>
-                            <span className="ml-auto bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{needsReviewClasses.length}</span>
+                            <h3 className="text-2xl leading-tight font-bold text-amber-700 dark:text-amber-400" style={{ fontFamily: 'var(--font-headline)' }}>Needs Review</h3>
+                            <span className="ml-auto bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-[4px]">{needsReviewClasses.length}</span>
                         </div>
                         <p className="text-xs text-amber-600 dark:text-amber-400/80 mb-3">
                             These classes were imported from calendar with incomplete or ambiguous data.
@@ -474,7 +474,7 @@ export const WellnessAdminContent: React.FC = () => {
                         <div className="animate-content-enter-delay-2">
                             <div className="flex items-center gap-2 mb-3">
                                 <span aria-hidden="true" className="material-symbols-outlined text-green-500">schedule</span>
-                                <h3 className="font-bold text-primary dark:text-white">Upcoming ({upcomingClasses.length})</h3>
+                                <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Upcoming ({upcomingClasses.length})</h3>
                             </div>
                             <div ref={upcomingClassesRef} className="grid grid-cols-1 gap-4">
                                 {upcomingClasses.slice(0, showAllUpcoming ? upcomingClasses.length : INITIAL_DISPLAY_COUNT).map((cls, index) => (
@@ -527,7 +527,7 @@ export const WellnessAdminContent: React.FC = () => {
                                 className="flex items-center gap-2 mb-3 w-full text-left group"
                             >
                                 <span aria-hidden="true" className="material-symbols-outlined text-gray-600 dark:text-gray-500">history</span>
-                                <h3 className="font-bold text-gray-500 dark:text-gray-400">Past ({pastClasses.length})</h3>
+                                <h3 className="text-2xl leading-tight font-bold text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-headline)' }}>Past ({pastClasses.length})</h3>
                                 <span aria-hidden="true" className={`material-symbols-outlined text-gray-400 dark:text-gray-500 text-[18px] transition-transform ${showPastClasses ? 'rotate-180' : ''}`}>expand_more</span>
                             </button>
                             {showPastClasses && (

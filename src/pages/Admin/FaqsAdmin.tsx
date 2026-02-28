@@ -257,7 +257,7 @@ const FaqsAdmin: React.FC = () => {
     return (
         <div className="animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
             <div className="flex justify-between items-center mb-4 animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
-                <h2 className="text-xl font-bold text-primary dark:text-white">FAQs ({faqs.length})</h2>
+                <h2 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>FAQs ({faqs.length})</h2>
                 {faqs.length === 0 && (
                     <button
                         onClick={handleSeedFaqs}

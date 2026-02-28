@@ -474,7 +474,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <h4 className="font-bold text-primary dark:text-white text-sm leading-tight">{block.resource_name}</h4>
-                                                            <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${getBlockTypeColor(block.block_type)}`}>
+                                                            <span className={`text-[10px] font-bold uppercase tracking-wider w-fit px-1.5 py-0.5 rounded-[4px] ${getBlockTypeColor(block.block_type)}`}>
                                                                 {getBlockTypeLabel(block.block_type)}
                                                             </span>
                                                         </div>

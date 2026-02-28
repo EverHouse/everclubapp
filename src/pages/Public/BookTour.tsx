@@ -184,7 +184,7 @@ const BookTour: React.FC = () => {
       <div className="px-4 pb-12">
         <div className="max-w-xl mx-auto">
           <div className="text-center mb-8">
-            <h1 className="text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>
               Book Your Private Tour
             </h1>
             <p className="text-primary/60 dark:text-white/60 text-sm md:text-base">
