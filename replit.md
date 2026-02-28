@@ -68,7 +68,7 @@ The Ever Club Members App is a private members club application for golf and wel
 
 ### POS Register Features
 - **Quick Guest Checkout**: Staff can skip customer info entirely for walk-in sales. Activates via "Quick Guest" button, restricts payment to terminal-only, and shows a post-payment email capture dialog to optionally send a receipt and retroactively link the payment to a Stripe customer/visitor record.
-- **Guest Fee Product**: $25 "Guest Fee" one-off product in the Passes section alongside Day Pass products (Stripe product: `prod_TvPiDx3od1F7xY`).
+- **Guest Fee Product**: $25 "Guest Fee" one-off product in the Passes section alongside Day Pass products. Pass products are loaded dynamically from the `membership_tiers` table by slug (`day-pass-coworking`, `day-pass-golf-sim`, `guest-pass`), so product IDs resolve automatically per Stripe environment.
 - **Backend Endpoints**: `POST /api/stripe/staff/quick-charge` accepts `guestCheckout: true` to create a bare PaymentIntent (no customer). `POST /api/stripe/staff/quick-charge/attach-email` retroactively links an email to a guest payment (creates/finds Stripe customer, updates PaymentIntent, creates visitor record, syncs HubSpot).
 
 ## External Dependencies

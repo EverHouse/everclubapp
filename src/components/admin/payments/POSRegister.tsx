@@ -26,11 +26,13 @@ interface CartItem {
 type PaymentMethodType = 'online_card' | 'terminal' | 'saved_card';
 type CategoryTab = 'all' | 'passes' | 'cafe' | 'merch';
 
-const PASS_PRODUCTS = [
-  { productId: 'prod_TvPiZ9a7L3BqZX', name: 'Day Pass - Coworking', priceCents: 3500, icon: 'workspace_premium' },
-  { productId: 'prod_TvPiHiafkZcoKR', name: 'Day Pass - Golf Sim', priceCents: 5000, icon: 'sports_golf' },
-  { productId: 'prod_TvPiDx3od1F7xY', name: 'Guest Fee', priceCents: 2500, icon: 'person_add' },
-];
+const PASS_PRODUCT_SLUGS = ['day-pass-coworking', 'day-pass-golf-sim', 'guest-pass'];
+
+const PASS_SLUG_ICONS: Record<string, string> = {
+  'day-pass-coworking': 'workspace_premium',
+  'day-pass-golf-sim': 'sports_golf',
+  'guest-pass': 'person_add',
+};
 
 const CAFE_CATEGORY_ICONS: Record<string, string> = {
   Breakfast: 'breakfast_dining',
@@ -69,6 +71,39 @@ const POSRegister: React.FC = () => {
   const isDark = effectiveTheme === 'dark';
   const isMobile = useIsMobile();
   const { data: cafeItems, isLoading: cafeLoading } = useCafeMenu();
+
+  const [passProducts, setPassProducts] = useState<{ productId: string; name: string; priceCents: number; icon: string }[]>([]);
+  const [passProductsLoading, setPassProductsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/membership-tiers?active=true');
+        if (!res.ok) throw new Error('Failed to fetch tiers');
+        const tiers = await res.json();
+        const products = PASS_PRODUCT_SLUGS
+          .map(slug => {
+            const tier = tiers.find((t: { slug: string }) => t.slug === slug);
+            if (!tier || !tier.stripe_product_id) return null;
+            return {
+              productId: tier.stripe_product_id,
+              name: tier.name,
+              priceCents: tier.price_cents || 0,
+              icon: PASS_SLUG_ICONS[slug] || 'confirmation_number',
+            };
+          })
+          .filter(Boolean) as { productId: string; name: string; priceCents: number; icon: string }[];
+        if (!cancelled) {
+          setPassProducts(products);
+          setPassProductsLoading(false);
+        }
+      } catch {
+        if (!cancelled) setPassProductsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const stripePromise = useMemo(() => loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || ''), []);
 
@@ -595,7 +630,11 @@ const POSRegister: React.FC = () => {
                 </h4>
               )}
               <div className={`grid ${gridCols} gap-2`}>
-                {PASS_PRODUCTS.map(renderProductCard)}
+                {passProductsLoading
+                  ? Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="h-20 rounded-xl bg-surface/50 dark:bg-white/5 animate-pulse" />
+                    ))
+                  : passProducts.map(renderProductCard)}
               </div>
             </div>
           )}

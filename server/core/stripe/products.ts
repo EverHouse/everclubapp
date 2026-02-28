@@ -998,6 +998,12 @@ export async function ensureGuestPassProduct(): Promise<{
       logger.info(`[Guest Pass Product] Created database record: ${GUEST_PASS_NAME}`);
     } else {
       tierId = existing[0].id;
+      if (existing[0].name !== GUEST_PASS_NAME) {
+        await db.update(membershipTiers)
+          .set({ name: GUEST_PASS_NAME })
+          .where(eq(membershipTiers.id, tierId));
+        logger.info(`[Guest Pass Product] Renamed DB record: ${existing[0].name} -> ${GUEST_PASS_NAME}`);
+      }
     }
     
     if (!stripeProductId) {
@@ -1016,6 +1022,16 @@ export async function ensureGuestPassProduct(): Promise<{
       });
       stripeProductId = product.id;
       logger.info(`[Guest Pass Product] Created Stripe product: ${stripeProductId}`);
+    } else {
+      try {
+        const existingProduct = await stripe.products.retrieve(stripeProductId);
+        if (existingProduct.name !== GUEST_PASS_NAME) {
+          await stripe.products.update(stripeProductId, { name: GUEST_PASS_NAME, description: GUEST_PASS_DESCRIPTION });
+          logger.info(`[Guest Pass Product] Renamed Stripe product: ${existingProduct.name} -> ${GUEST_PASS_NAME}`);
+        }
+      } catch (renameErr: unknown) {
+        logger.warn('[Guest Pass Product] Could not sync Stripe product name', { error: renameErr });
+      }
     }
     
     if (!stripePriceId) {
