@@ -8,8 +8,8 @@ interface PullToRefreshProps {
   className?: string;
 }
 
-const PULL_THRESHOLD = 130;
-const MAX_PULL = 200;
+const PULL_THRESHOLD = 160;
+const MAX_PULL = 240;
 const HEADER_HEIGHT = 72;
 const DESKTOP_SETTLE_DELAY = 300;
 
@@ -234,7 +234,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, disabled = fals
       const diff = currentY - startYRef.current;
 
       if (diff > 0) {
-        const resistance = 0.4;
+        const resistance = 0.33;
         const distance = Math.min(diff * resistance, MAX_PULL);
         setPullDistance(distance);
 
