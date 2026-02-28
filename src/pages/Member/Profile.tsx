@@ -569,10 +569,10 @@ const Profile: React.FC = () => {
                 <Row icon="mail" label="Email" value={user.email} isDark={isDark} />
                 <Row icon="call" label="Phone" value={formatPhoneNumber(staffDetails?.phone || user.phone)} isDark={isDark} />
                 {!isStaffOrAdminProfile && (
-                  <div className="p-3 flex justify-end">
+                  <div className="px-4 pb-4 pt-1">
                     <button
                       onClick={handleStartEdit}
-                      className={`tactile-btn flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                      className={`tactile-btn w-full flex items-center justify-center gap-1.5 px-4 py-3 rounded-[4px] text-sm font-bold transition-colors ${
                         isDark 
                           ? 'bg-white/10 text-white hover:bg-white/20' 
                           : 'bg-primary/10 text-primary hover:bg-primary/20'
