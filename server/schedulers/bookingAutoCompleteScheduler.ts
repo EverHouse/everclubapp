@@ -30,7 +30,7 @@ async function autoCompletePastBookings(): Promise<void> {
               br.request_date AS "requestDate", br.start_time AS "startTime"
        FROM booking_requests br
        WHERE br.status IN ('approved', 'confirmed')
-         AND br.request_date < $1::date - INTERVAL '2 days'
+         AND br.request_date < $1::date
          AND br.session_id IS NOT NULL
          AND EXISTS (
            SELECT 1 FROM booking_participants bp
@@ -67,7 +67,22 @@ async function autoCompletePastBookings(): Promise<void> {
          AND status NOT IN ('attended', 'checked_in')
          AND (
            request_date < $1::date - INTERVAL '1 day'
-           OR (request_date = $1::date - INTERVAL '1 day' AND end_time < $2::time)
+           OR (
+             request_date = $1::date - INTERVAL '1 day'
+             AND CASE
+               WHEN end_time IS NOT NULL AND end_time < start_time
+                 THEN end_time <= ($2::time - interval '30 minutes')
+               WHEN end_time IS NOT NULL
+                 THEN true
+               ELSE true
+             END
+           )
+           OR (
+             request_date = $1::date
+             AND end_time IS NOT NULL
+             AND end_time >= start_time
+             AND end_time <= ($2::time - interval '30 minutes')
+           )
          )
          AND (
            session_id IS NULL
@@ -185,20 +200,20 @@ export function startBookingAutoCompleteScheduler(): void {
     return;
   }
 
-  logger.info('[Startup] Booking auto-complete scheduler enabled (runs every 2 hours)');
+  logger.info('[Startup] Booking auto-complete scheduler enabled (runs every 30 minutes)');
 
   intervalId = setInterval(() => {
     guardedAutoComplete().catch((err: unknown) => {
       logger.error('[Booking Auto-Complete] Uncaught error:', { error: err as Error });
     });
-  }, 2 * 60 * 60 * 1000);
+  }, 30 * 60 * 1000);
 
   initialTimeoutId = setTimeout(() => {
     initialTimeoutId = null;
     guardedAutoComplete().catch((err: unknown) => {
       logger.error('[Booking Auto-Complete] Initial run error:', { error: err as Error });
     });
-  }, 120000);
+  }, 30000);
 }
 
 export function stopBookingAutoCompleteScheduler(): void {
@@ -230,7 +245,22 @@ export async function runManualBookingAutoComplete(): Promise<{ markedCount: num
        AND status NOT IN ('attended', 'checked_in')
        AND (
          request_date < $1::date - INTERVAL '1 day'
-         OR (request_date = $1::date - INTERVAL '1 day' AND end_time < $2::time)
+         OR (
+           request_date = $1::date - INTERVAL '1 day'
+           AND CASE
+             WHEN end_time IS NOT NULL AND end_time < start_time
+               THEN end_time <= ($2::time - interval '30 minutes')
+             WHEN end_time IS NOT NULL
+               THEN true
+             ELSE true
+           END
+         )
+         OR (
+           request_date = $1::date
+           AND end_time IS NOT NULL
+           AND end_time >= start_time
+           AND end_time <= ($2::time - interval '30 minutes')
+         )
        )
        AND (
          session_id IS NULL
