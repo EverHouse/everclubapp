@@ -157,9 +157,8 @@ const Wellness: React.FC = () => {
     <AnimatedPage>
     <SwipeablePage className="px-6 relative overflow-hidden">
       <section className="mb-4 pt-6 md:pt-4 animate-content-enter-delay-1">
-        <h1 className={`leading-none mb-3 ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)' }}>
-          <span className="block text-4xl md:text-5xl">Rest &</span>
-          <span className="block text-4xl md:text-5xl italic">Recovery</span>
+        <h1 className={`leading-none mb-3 text-4xl md:text-5xl ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)' }}>
+          Rest & <span className="italic">Recovery</span>
         </h1>
         <p className={`text-base leading-relaxed max-w-md ${isDark ? 'text-white/60' : 'text-primary/60'}`} style={{ fontFamily: 'var(--font-body)' }}>Performance demands recovery. Browse upcoming classes or explore our MedSpa menu, then reserve your session directly from the schedule below.</p>
       </section>
