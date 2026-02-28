@@ -6,11 +6,11 @@ import { useToast } from '../Toast';
 import { haptic } from '../../utils/haptics';
 import ModalShell from '../ModalShell';
 import Avatar from '../Avatar';
-import Input from '../Input';
 import MemberPaymentModal from './MemberPaymentModal';
 import GuestPaymentChoiceModal from './GuestPaymentChoiceModal';
 import { usePricing } from '../../hooks/usePricing';
 import WalkingGolferSpinner from '../WalkingGolferSpinner';
+import { MemberSearchInput, type SelectedMember } from '../shared/MemberSearchInput';
 
 export interface RosterParticipant {
   id: number;
@@ -117,13 +117,6 @@ interface FeePreviewResponse {
   allPaid?: boolean;
 }
 
-interface Member {
-  id: string;
-  name: string;
-  emailRedacted: string;
-  tier?: string;
-}
-
 export interface RosterManagerProps {
   bookingId: number;
   declaredPlayerCount: number;
@@ -153,9 +146,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [removingId, setRemovingId] = useState<number | null>(null);
 
-  const [memberSearch, setMemberSearch] = useState('');
-  const [searchResults, setSearchResults] = useState<Member[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
   const [addingMember, setAddingMember] = useState(false);
   const [apiDeclaredPlayerCount, setApiDeclaredPlayerCount] = useState<number>(declaredPlayerCount);
   const [apiRemainingSlots, setApiRemainingSlots] = useState<number>(Math.max(0, declaredPlayerCount - 1));
@@ -206,40 +196,12 @@ const RosterManager: React.FC<RosterManagerProps> = ({
     fetchAllBookingData();
   }, [fetchAllBookingData]);
 
-  const searchMembers = useCallback(async (query: string) => {
-    if (query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    
-    setSearchLoading(true);
-    try {
-      const { ok, data } = await apiRequest<Member[]>(
-        `/api/members/search?query=${encodeURIComponent(query)}&limit=10`
-      );
-      
-      if (ok && data) {
-        const existingIds = new Set(participants.map(p => p.userId));
-        const filtered = data.filter(m => !existingIds.has(m.id));
-        setSearchResults(filtered);
-      }
-    } catch (err: unknown) {
-      console.error('[RosterManager] Error searching members:', err);
-    } finally {
-      setSearchLoading(false);
-    }
-  }, [participants]);
+  const existingUserIds = useMemo(() =>
+    participants.filter(p => p.userId).map(p => p.userId as string),
+    [participants]
+  );
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (memberSearch) {
-        searchMembers(memberSearch);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [memberSearch, searchMembers]);
-
-  const handleAddMember = async (member: Member) => {
+  const handleAddMember = async (member: SelectedMember) => {
     setAddingMember(true);
     haptic.light();
     
@@ -261,8 +223,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({
         haptic.success();
         showToast(`${member.name} added to booking`, 'success');
         setShowAddMemberModal(false);
-        setMemberSearch('');
-        setSearchResults([]);
         await fetchAllBookingData();
         onUpdate?.();
       } else {
@@ -648,75 +608,22 @@ const RosterManager: React.FC<RosterManagerProps> = ({
 
       <ModalShell
         isOpen={showAddMemberModal}
-        onClose={() => {
-          setShowAddMemberModal(false);
-          setMemberSearch('');
-          setSearchResults([]);
-        }}
+        onClose={() => setShowAddMemberModal(false)}
         title="Add Member"
         size="md"
       >
         <div className="p-4 space-y-4">
-          <Input
-            label="Search Members"
+          <MemberSearchInput
+            forceApiSearch
+            privacyMode
+            showTier
+            excludeIds={existingUserIds}
+            onSelect={handleAddMember}
             placeholder="Search by name or email..."
-            value={memberSearch}
-            onChange={(e) => setMemberSearch(e.target.value)}
-            icon="search"
+            label="Search Members"
+            autoFocus
+            disabled={addingMember}
           />
-          
-          {searchLoading && (
-            <div className="flex items-center justify-center py-6">
-              <WalkingGolferSpinner size="sm" />
-            </div>
-          )}
-          
-          {!searchLoading && searchResults.length > 0 && (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {searchResults.map(member => (
-                <button
-                  key={member.id}
-                  onClick={() => handleAddMember(member)}
-                  disabled={addingMember}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl transition-colors ${
-                    isDark 
-                      ? 'hover:bg-white/10 active:bg-white/15' 
-                      : 'hover:bg-black/5 active:bg-black/10'
-                  } ${addingMember ? 'opacity-50' : ''}`}
-                >
-                  <Avatar name={member.name} size="md" />
-                  <div className="flex-1 text-left min-w-0">
-                    <p className={`font-semibold truncate ${isDark ? 'text-white' : 'text-[#293515]'}`}>
-                      {member.name}
-                    </p>
-                    <p className={`text-sm truncate ${isDark ? 'text-white/60' : 'text-[#293515]/60'}`}>
-                      {member.emailRedacted}
-                    </p>
-                  </div>
-                  <span className="material-symbols-outlined text-[#8B6FA8] dark:text-[#CCB8E4]">add_circle</span>
-                </button>
-              ))}
-            </div>
-          )}
-          
-          {!searchLoading && memberSearch.length >= 2 && searchResults.length === 0 && (
-            <div className="text-center py-6">
-              <span className={`material-symbols-outlined text-4xl mb-2 ${isDark ? 'text-white/30' : 'text-[#293515]/30'}`}>
-                search_off
-              </span>
-              <p className={`text-sm ${isDark ? 'text-white/50' : 'text-[#293515]/50'}`}>
-                No members found
-              </p>
-            </div>
-          )}
-          
-          {!searchLoading && memberSearch.length < 2 && (
-            <div className="text-center py-6">
-              <p className={`text-sm ${isDark ? 'text-white/50' : 'text-[#293515]/50'}`}>
-                Type at least 2 characters to search
-              </p>
-            </div>
-          )}
         </div>
       </ModalShell>
 

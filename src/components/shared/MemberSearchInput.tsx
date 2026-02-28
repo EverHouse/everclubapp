@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback, useId } from 'react';
+import { createPortal } from 'react-dom';
 import { useData } from '../../contexts/DataContext';
 
 export interface SelectedMember {
@@ -10,12 +11,10 @@ export interface SelectedMember {
   membershipStatus?: string;
 }
 
-// Helper to search by multiple words (e.g., "nick luu" matches "Nick Luu")
 const matchesMultiWordQuery = (text: string | undefined, query: string): boolean => {
   if (!text) return false;
   const lowerText = text.toLowerCase();
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  // All words must appear somewhere in the text
   return words.every(word => lowerText.includes(word));
 };
 
@@ -31,6 +30,7 @@ interface MemberSearchInputProps {
   autoFocus?: boolean;
   privacyMode?: boolean;
   excludeEmails?: string[];
+  excludeIds?: string[];
   includeVisitors?: boolean;
   includeFormer?: boolean;
   forceApiSearch?: boolean;
@@ -57,6 +57,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
   autoFocus = false,
   privacyMode = false,
   excludeEmails = [],
+  excludeIds = [],
   includeVisitors = false,
   includeFormer = false,
   forceApiSearch = false
@@ -71,13 +72,13 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number; direction: 'below' | 'above' }>({ top: 0, left: 0, width: 0, direction: 'below' });
   const instanceId = useId();
   const listboxId = `member-search-listbox-${instanceId}`;
   const getOptionId = (index: number) => `member-search-option-${instanceId}-${index}`;
 
   const useApiSearch = forceApiSearch || includeVisitors || includeFormer;
 
-  // Create stable, collision-safe key for excludeEmails
   const excludeEmailsKey = useMemo(() => 
     JSON.stringify([...excludeEmails].map(e => e.toLowerCase()).sort()),
     [excludeEmails]
@@ -89,8 +90,18 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
     [excludeEmailsKey]
   );
 
-  // Create a stable filter key to detect when filters change
-  const filterKey = `${includeFormer}-${includeVisitors}-${excludeEmailsKey}`;
+  const excludeIdsKey = useMemo(() =>
+    JSON.stringify([...excludeIds].sort()),
+    [excludeIds]
+  );
+
+  const excludeIdsSet = useMemo(() =>
+    new Set(excludeIds),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [excludeIdsKey]
+  );
+
+  const filterKey = `${includeFormer}-${includeVisitors}-${excludeEmailsKey}-${excludeIdsKey}`;
   
   const searchApi = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim()) {
@@ -111,7 +122,10 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
       if (res.ok) {
         const data = await res.json();
         const results: SelectedMember[] = data
-          .filter((r: { id: string | number; email?: string; emailRedacted?: string; name?: string; tier?: string; membershipStatus?: string }) => !excludeEmailsLower.includes(r.email?.toLowerCase() || ''))
+          .filter((r: { id: string | number; email?: string; emailRedacted?: string; name?: string; tier?: string; membershipStatus?: string }) =>
+            !excludeEmailsLower.includes(r.email?.toLowerCase() || '') &&
+            !excludeIdsSet.has(String(r.id))
+          )
           .map((r: { id: string | number; email?: string; emailRedacted?: string; name?: string; tier?: string; membershipStatus?: string }) => ({
             id: r.id,
             email: r.email || r.emailRedacted || '',
@@ -126,7 +140,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
     } finally {
       setIsSearching(false);
     }
-  }, [includeFormer, includeVisitors, excludeEmailsLower]);
+  }, [includeFormer, includeVisitors, excludeEmailsLower, excludeIdsSet]);
 
   useEffect(() => {
     if (useApiSearch && query.trim()) {
@@ -137,7 +151,6 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
         searchApi(query);
       }, 250);
     } else if (useApiSearch) {
-      // Clear results when query is empty
       setApiResults([]);
     }
     return () => {
@@ -145,7 +158,6 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
         clearTimeout(searchTimeoutRef.current);
       }
     };
-    // Include filterKey to re-run search when filters change
   }, [query, useApiSearch, filterKey, searchApi]);
 
   const filteredMembers = useMemo(() => {
@@ -155,7 +167,8 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
     if (!query.trim()) return [];
     return members.filter(m => 
       (matchesMultiWordQuery(m.name, query) || matchesMultiWordQuery(m.email, query)) &&
-      !excludeEmailsLower.includes(m.email.toLowerCase())
+      !excludeEmailsLower.includes(m.email.toLowerCase()) &&
+      !excludeIdsSet.has(String(m.id))
     ).slice(0, 8).map(m => ({
       id: m.id,
       email: m.email,
@@ -163,7 +176,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
       tier: m.tier || null,
       stripeCustomerId: m.stripeCustomerId || null
     }));
-  }, [useApiSearch, apiResults, members, query, excludeEmailsLower]);
+  }, [useApiSearch, apiResults, members, query, excludeEmailsLower, excludeIdsSet]);
 
   useEffect(() => {
     if (selectedMember) {
@@ -179,26 +192,50 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
     setHighlightedIndex(0);
   }, [filteredMembers.length]);
 
+  const updateDropdownPosition = useCallback(() => {
+    if (!inputRef.current) return;
+    const rect = inputRef.current.getBoundingClientRect();
+    const maxDropdownHeight = 256;
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const spaceAbove = rect.top - 8;
+    const direction = spaceBelow >= maxDropdownHeight || spaceBelow >= spaceAbove ? 'below' : 'above';
+
+    setDropdownPos({
+      top: direction === 'below' ? rect.bottom + 4 : rect.top - 4,
+      left: rect.left,
+      width: rect.width,
+      direction,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    updateDropdownPosition();
+
+    const handleScrollOrResize = () => {
+      requestAnimationFrame(updateDropdownPosition);
+    };
+
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [isOpen, updateDropdownPosition]);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        containerRef.current && 
-        !containerRef.current.contains(e.target as Node)
-      ) {
+      const target = e.target as Node;
+      const insideContainer = containerRef.current?.contains(target);
+      const insideDropdown = dropdownRef.current?.contains(target);
+      if (!insideContainer && !insideDropdown) {
         setIsOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  useEffect(() => {
-    if (isOpen && filteredMembers.length > 0 && dropdownRef.current) {
-      setTimeout(() => {
-        dropdownRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 100);
-    }
-  }, [isOpen, filteredMembers.length]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -243,10 +280,78 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
     inputRef.current?.focus();
   };
 
+  const showDropdown = isOpen && (filteredMembers.length > 0 || (query.trim() && !isSearching) || (isSearching && filteredMembers.length === 0));
+
+  const dropdownContent = showDropdown ? (
+    <div
+      ref={dropdownRef}
+      id={listboxId}
+      role="listbox"
+      style={{
+        position: 'fixed',
+        top: dropdownPos.direction === 'below' ? dropdownPos.top : undefined,
+        bottom: dropdownPos.direction === 'above' ? window.innerHeight - dropdownPos.top : undefined,
+        left: dropdownPos.left,
+        width: dropdownPos.width,
+        zIndex: 99999,
+      }}
+      className="bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto"
+    >
+      {filteredMembers.length > 0 ? (
+        filteredMembers.map((member, index) => {
+          const isVisitor = member.membershipStatus === 'visitor' || member.membershipStatus === 'non-member';
+          return (
+            <button
+              key={member.email}
+              id={getOptionId(index)}
+              type="button"
+              role="option"
+              aria-selected={index === highlightedIndex}
+              onClick={() => handleSelect(member)}
+              onMouseEnter={() => setHighlightedIndex(index)}
+              className={`tactile-row w-full px-4 py-3 flex items-center gap-3 border-b border-primary/5 dark:border-white/5 last:border-0 transition-colors ${
+                index === highlightedIndex 
+                  ? 'bg-primary/10 dark:bg-white/10' 
+                  : 'hover:bg-primary/5 dark:hover:bg-white/5'
+              }`}
+            >
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                isVisitor ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-primary/10 dark:bg-white/10'
+              }`}>
+                <span className={`material-symbols-outlined text-base ${
+                  isVisitor ? 'text-amber-600 dark:text-amber-400' : 'text-primary dark:text-white'
+                }`}>{isVisitor ? 'person_outline' : 'person'}</span>
+              </div>
+              <div className="text-left flex-1 min-w-0">
+                <p className="font-medium text-primary dark:text-white truncate">
+                  {member.name}
+                  {isVisitor && (
+                    <span className="ml-2 text-xs font-normal px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">Visitor</span>
+                  )}
+                </p>
+                <p className="text-xs text-primary/60 dark:text-white/60 truncate">
+                  {showTier && member.tier ? `${member.tier} • ` : ''}{privacyMode ? redactEmail(member.email) : member.email}
+                </p>
+              </div>
+            </button>
+          );
+        })
+      ) : isSearching ? (
+        <div className="p-4 text-center">
+          <p className="text-sm text-primary/60 dark:text-white/60">Searching...</p>
+        </div>
+      ) : query.trim() ? (
+        <div className="p-4 text-center">
+          <p className="text-sm text-primary/60 dark:text-white/60">No {includeVisitors ? 'users' : 'members'} found</p>
+        </div>
+      ) : null}
+    </div>
+  ) : null;
+
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       {label && (
-        <label htmlFor="member-search-input" className="block text-sm font-medium text-primary dark:text-white mb-2">
+        <label htmlFor={`member-search-input-${instanceId}`} className="block text-sm font-medium text-primary dark:text-white mb-2">
           {label}
         </label>
       )}
@@ -259,7 +364,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
           {selectedMember ? 'check_circle' : 'search'}
         </span>
         <input
-          id="member-search-input"
+          id={`member-search-input-${instanceId}`}
           ref={inputRef}
           type="text"
           role="combobox"
@@ -292,70 +397,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
         )}
       </div>
 
-      {/* Dropdown positioned absolutely within the container - moves naturally with scroll */}
-      {isOpen && filteredMembers.length > 0 && (
-        <div 
-          ref={dropdownRef}
-          id={listboxId}
-          role="listbox"
-          className="absolute left-0 right-0 top-full mt-1 z-[9999] bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto"
-        >
-          {filteredMembers.map((member, index) => {
-            const isVisitor = member.membershipStatus === 'visitor' || member.membershipStatus === 'non-member';
-            return (
-              <button
-                key={member.email}
-                id={getOptionId(index)}
-                type="button"
-                role="option"
-                aria-selected={index === highlightedIndex}
-                onClick={() => handleSelect(member)}
-                onMouseEnter={() => setHighlightedIndex(index)}
-                className={`tactile-row w-full px-4 py-3 flex items-center gap-3 border-b border-primary/5 dark:border-white/5 last:border-0 transition-colors ${
-                  index === highlightedIndex 
-                    ? 'bg-primary/10 dark:bg-white/10' 
-                    : 'hover:bg-primary/5 dark:hover:bg-white/5'
-                }`}
-              >
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  isVisitor ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-primary/10 dark:bg-white/10'
-                }`}>
-                  <span className={`material-symbols-outlined text-base ${
-                    isVisitor ? 'text-amber-600 dark:text-amber-400' : 'text-primary dark:text-white'
-                  }`}>{isVisitor ? 'person_outline' : 'person'}</span>
-                </div>
-                <div className="text-left flex-1 min-w-0">
-                  <p className="font-medium text-primary dark:text-white truncate">
-                    {member.name}
-                    {isVisitor && (
-                      <span className="ml-2 text-xs font-normal px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">Visitor</span>
-                    )}
-                  </p>
-                  <p className="text-xs text-primary/60 dark:text-white/60 truncate">
-                    {showTier && member.tier ? `${member.tier} • ` : ''}{privacyMode ? redactEmail(member.email) : member.email}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {isOpen && query.trim() && filteredMembers.length === 0 && !isSearching && (
-        <div 
-          className="absolute left-0 right-0 top-full mt-1 z-[9999] bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-lg p-4 text-center"
-        >
-          <p className="text-sm text-primary/60 dark:text-white/60">No {includeVisitors ? 'users' : 'members'} found</p>
-        </div>
-      )}
-
-      {isOpen && isSearching && filteredMembers.length === 0 && (
-        <div 
-          className="absolute left-0 right-0 top-full mt-1 z-[9999] bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-lg p-4 text-center"
-        >
-          <p className="text-sm text-primary/60 dark:text-white/60">Searching...</p>
-        </div>
-      )}
+      {dropdownContent && createPortal(dropdownContent, document.body)}
 
       <div aria-live="polite" className="sr-only">
         {isOpen && filteredMembers.length > 0

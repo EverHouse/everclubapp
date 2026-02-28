@@ -25,7 +25,7 @@ The Ever Club Members App is a private members club application for golf and wel
 - **Technology Stack**: React 19, Vite, and state management using Zustand/TanStack libraries.
 - **Component Design**: Sheets and modals follow a Header, scrollable Body, and Sticky Footer structure. Button hierarchy differentiates primary, secondary, and destructive actions.
 - **Accessibility**: Adheres to WCAG conventions including skip navigation, focus trapping, proper roles/attributes, form labels, and image alt text. Specific color token usage for accessibility.
-- **M3 Components**: Custom `SegmentedButton`, `Chip`, `SearchBar` (with mobile full-viewport expansion), and `ErrorFallback` components supporting M3 design principles, light/dark mode, and touch targets.
+- **M3 Components**: Custom `SegmentedButton` (used on BookGolf, History, Wellness pages), `Chip`, `SearchBar` (with mobile full-viewport expansion), and `ErrorFallback` components supporting M3 design principles, light/dark mode, and touch targets. `TabButton` is only used on Events.tsx (10 category filters).
 - **Extended FAB**: `FloatingActionButton` supports `extended` prop for icon+text pill shape that collapses to icon-only on scroll.
 - **Bottom Sheet Variants**: `SlideUpDrawer` supports `variant="modal"` (default, with scrim/focus trap) and `variant="standard"` (no scrim, page remains interactive).
 - **Navigation Rail**: Staff portal uses `StaffNavigationRail` at tablet breakpoint (md-lg), full sidebar at desktop (lg+), bottom nav on mobile.
@@ -35,6 +35,7 @@ The Ever Club Members App is a private members club application for golf and wel
 - **Prefetch System**: Route-level prefetch via `src/lib/prefetch.ts`, plus detail-level prefetch on hover/focus via `usePrefetchOnHover` hook for booking cards and directory rows.
 - **Connection Health**: `OfflineBanner` monitors both network status and WebSocket health. Staff header shows green/amber/red connection dot. Cache invalidation on reconnection.
 - **Error Boundaries**: Three-tier system (Global → Page → Feature) using standardized `ErrorFallback` component with Liquid Glass styling.
+- **MemberSearchInput Portal**: `MemberSearchInput` renders its dropdown via `createPortal` to `document.body` with `position: fixed`, preventing clipping inside modals/drawers/cards. All member search UIs (AddMemberModal, RosterManager, ManualBookingModal) use this shared component.
 
 ### Core Domain Features
 - **Booking & Scheduling**: "Request & Hold" model, unified participant management, calendar synchronization, and auto-complete scheduler. Handles booking conflicts and auto-updates from Trackman webhooks.

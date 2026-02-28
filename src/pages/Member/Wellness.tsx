@@ -6,7 +6,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import { useToast } from '../../components/Toast';
 import { apiRequest } from '../../lib/apiRequest';
-import TabButton from '../../components/TabButton';
+import { SegmentedButton } from '../../components/ui/SegmentedButton';
 import SwipeablePage from '../../components/SwipeablePage';
 import { MotionList, MotionListItem, AnimatedPage } from '../../components/motion';
 import { TabTransition } from '../../components/motion/TabTransition';
@@ -163,11 +163,16 @@ const Wellness: React.FC = () => {
         <p className={`text-base leading-relaxed max-w-md ${isDark ? 'text-white/60' : 'text-primary/60'}`} style={{ fontFamily: 'var(--font-body)' }}>Performance demands recovery. Browse upcoming classes or explore our MedSpa menu, then reserve your session directly from the schedule below.</p>
       </section>
 
-      <section className={`mb-8 border-b -mx-6 px-6 animate-content-enter-delay-2 ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-        <div className="flex gap-6 overflow-x-auto pb-0 scrollbar-hide scroll-fade-right" role="tablist">
-          <TabButton label="Upcoming" active={activeTab === 'classes'} onClick={() => setActiveTab('classes')} isDark={isDark} />
-          <TabButton label="MedSpa" active={activeTab === 'medspa'} onClick={() => setActiveTab('medspa')} isDark={isDark} />
-        </div>
+      <section className={`mb-8 -mx-6 px-6 animate-content-enter-delay-2`}>
+        <SegmentedButton
+          options={[
+            { value: 'classes' as const, label: 'Upcoming' },
+            { value: 'medspa' as const, label: 'MedSpa' },
+          ]}
+          value={activeTab}
+          onChange={setActiveTab}
+          aria-label="Wellness view"
+        />
       </section>
 
       <TabTransition activeKey={activeTab}>

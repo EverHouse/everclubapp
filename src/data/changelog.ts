@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.50.0",
+    date: "2026-02-28",
+    title: "Search Portal Fix & Component Unification",
+    changes: [
+      "Fix: Member search dropdown no longer clips behind modals, drawers, or scrollable containers — results now render via a portal overlay that floats above all page content",
+      "Improvement: Add Member modal, Roster Manager, and Manual Booking modal now use the shared member search component instead of independent implementations — consistent search behavior and portaled results everywhere",
+      "Improvement: Book Golf, History, and Wellness pages now use M3 Segmented Button for tab switching instead of underline-style tabs — better touch targets and visual consistency",
+    ]
+  },
+  {
     version: "8.49.0",
     date: "2026-02-28",
     title: "Phase 3: Architecture & Advanced Patterns",

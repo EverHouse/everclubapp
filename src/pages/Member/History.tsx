@@ -5,7 +5,7 @@ import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
-import TabButton from '../../components/TabButton';
+import { SegmentedButton } from '../../components/ui/SegmentedButton';
 import SwipeablePage from '../../components/SwipeablePage';
 import MemberBottomNav from '../../components/MemberBottomNav';
 import { BottomSentinel } from '../../components/layout/BottomSentinel';
@@ -141,11 +141,16 @@ const History: React.FC = () => {
           <p className={`text-base leading-relaxed max-w-md ${isDark ? 'text-white/60' : 'text-primary/60'}`} style={{ fontFamily: 'var(--font-body)' }}>Every session, every event, every transaction — all in one place. Switch between visits and payments to review your complete membership history.</p>
         </section>
 
-        <section className={`mb-6 border-b -mx-6 px-6 animate-content-enter-delay-2 ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-          <div className="flex gap-6 overflow-x-auto pb-0 scrollbar-hide scroll-fade-right" role="tablist">
-            <TabButton label="Visits" active={activeTab === 'visits'} onClick={() => setActiveTab('visits')} isDark={isDark} />
-            <TabButton label="Payments" icon="payments" active={activeTab === 'payments'} onClick={() => setActiveTab('payments')} isDark={isDark} />
-          </div>
+        <section className={`mb-6 -mx-6 px-6 animate-content-enter-delay-2`}>
+          <SegmentedButton
+            options={[
+              { value: 'visits' as const, label: 'Visits' },
+              { value: 'payments' as const, label: 'Payments' },
+            ]}
+            value={activeTab}
+            onChange={setActiveTab}
+            aria-label="History view"
+          />
         </section>
 
         <TabTransition activeKey={activeTab}>

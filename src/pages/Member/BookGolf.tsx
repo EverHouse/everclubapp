@@ -8,7 +8,7 @@ import { useToast } from '../../components/Toast';
 import { bookingEvents } from '../../lib/bookingEvents';
 import { fetchWithCredentials, postWithCredentials, putWithCredentials } from '../../hooks/queries/useFetch';
 import { usePricing } from '../../hooks/usePricing';
-import TabButton from '../../components/TabButton';
+import { SegmentedButton } from '../../components/ui/SegmentedButton';
 import SwipeablePage from '../../components/SwipeablePage';
 import { haptic } from '../../utils/haptics';
 import { playSound } from '../../utils/sounds';
@@ -941,21 +941,16 @@ const BookGolf: React.FC = () => {
         </section>
       ) : (
         <>
-        <section className={`mb-8 border-b -mx-6 px-6 ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-          <div className="flex gap-6 overflow-x-auto pb-0 scrollbar-hide scroll-fade-right" role="tablist">
-            <TabButton 
-              label="Golf Simulator" 
-              active={activeTab === 'simulator'} 
-              onClick={() => setActiveTab('simulator')} 
-              isDark={isDark} 
-            />
-            <TabButton 
-              label="Conference Room" 
-              active={activeTab === 'conference'} 
-              onClick={() => setActiveTab('conference')} 
-              isDark={isDark} 
-            />
-          </div>
+        <section className={`mb-8 -mx-6 px-6`}>
+          <SegmentedButton
+            options={[
+              { value: 'simulator' as const, label: 'Golf Simulator' },
+              { value: 'conference' as const, label: 'Conference Room' },
+            ]}
+            value={activeTab}
+            onChange={setActiveTab}
+            aria-label="Booking type"
+          />
         </section>
 
         {activeTab === 'simulator' && isTierLoaded && !canBookSimulators ? (
