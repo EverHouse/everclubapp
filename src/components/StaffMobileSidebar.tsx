@@ -139,17 +139,17 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
       >
         <button 
           onClick={handleHomeClick}
-          className="flex items-center gap-3 px-4 py-5 flex-shrink-0 hover:opacity-80 transition-opacity w-full text-left border-b border-white/10"
+          className="flex items-center gap-3 px-6 py-6 flex-shrink-0 hover:opacity-80 transition-opacity w-full text-left border-b border-white/10"
           aria-label="Go to home"
         >
           <img 
             src="/assets/logos/mascot-white.webp" 
             alt="Ever Club logo" 
-            className="h-10 w-auto object-contain"
+            className="h-8 w-auto object-contain"
           />
           <div>
-            <h1 className="text-white font-bold text-lg leading-tight" style={{ fontFamily: 'var(--font-body)' }}>Staff Portal</h1>
-            <p className="text-white/50 text-xs" style={{ fontFamily: 'var(--font-body)' }}>Ever Club</p>
+            <h1 className="text-[10px] text-white/40 uppercase tracking-[0.4em] leading-none" style={{ fontFamily: 'var(--font-label)' }}>Staff Portal</h1>
+            <p className="text-[9px] text-white/25 uppercase tracking-[0.3em] mt-1.5" style={{ fontFamily: 'var(--font-label)' }}>Ever Club</p>
           </div>
         </button>
 

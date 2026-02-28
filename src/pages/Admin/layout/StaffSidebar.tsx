@@ -101,17 +101,17 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")` }}></div>
       <button 
         onClick={() => { startNavigation(); navigate('/'); }}
-        className="flex items-center gap-3 px-4 py-5 flex-shrink-0 hover:opacity-80 transition-opacity w-full text-left"
+        className="flex items-center gap-3 px-6 py-6 flex-shrink-0 hover:opacity-80 transition-opacity w-full text-left"
         aria-label="Go to home"
       >
         <img 
           src="/assets/logos/mascot-white.webp" 
           alt="Ever Club" 
-          className="h-10 w-auto object-contain"
+          className="h-8 w-auto object-contain"
         />
         <div>
-          <h1 className="text-white font-bold text-lg leading-tight" style={{ fontFamily: 'var(--font-body)' }}>Staff Portal</h1>
-          <p className="text-white/50 text-xs" style={{ fontFamily: 'var(--font-body)' }}>Ever Club</p>
+          <h1 className="text-[10px] text-white/40 uppercase tracking-[0.4em] leading-none" style={{ fontFamily: 'var(--font-label)' }}>Staff Portal</h1>
+          <p className="text-[9px] text-white/25 uppercase tracking-[0.3em] mt-1.5" style={{ fontFamily: 'var(--font-label)' }}>Ever Club</p>
         </div>
       </button>
 
