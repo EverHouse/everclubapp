@@ -211,7 +211,7 @@ const InquiriesAdmin: React.FC = () => {
     };
 
     return (
-        <div className="animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+        <div className="animate-page-enter">
             {syncResult && (
                 <div className={`mb-3 px-4 py-3 rounded-xl text-sm font-semibold flex items-center gap-2 animate-content-enter ${
                     syncResult.type === 'success'
@@ -225,7 +225,7 @@ const InquiriesAdmin: React.FC = () => {
                 </div>
             )}
 
-            <div className="flex items-center justify-end mb-3 animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
+            <div className="flex items-center justify-end mb-3 animate-content-enter-delay-1">
                 <button
                     onClick={handleSyncFromHubSpot}
                     disabled={isSyncing}
@@ -241,7 +241,7 @@ const InquiriesAdmin: React.FC = () => {
                 </button>
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-4 mb-2 scrollbar-hide -mx-4 px-4 animate-slide-up-stagger scroll-fade-right" style={{ '--stagger-index': 2 } as React.CSSProperties}>
+            <div className="flex gap-2 overflow-x-auto pb-4 mb-2 scrollbar-hide -mx-4 px-4 animate-content-enter-delay-2 scroll-fade-right">
                 {STATUS_TABS.map(tab => (
                     <button
                         key={tab.id}
@@ -258,7 +258,7 @@ const InquiriesAdmin: React.FC = () => {
                 ))}
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide -mx-4 px-4 animate-slide-up-stagger scroll-fade-right" style={{ '--stagger-index': 3 } as React.CSSProperties}>
+            <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide -mx-4 px-4 animate-content-enter-delay-3 scroll-fade-right">
                 {FORM_TYPE_CHIPS.map(chip => (
                     <button
                         key={chip.id}
@@ -401,19 +401,18 @@ const InquiriesAdmin: React.FC = () => {
                     <p className="text-gray-600 dark:text-gray-300">No form submissions match your current filters.</p>
                 </div>
             ) : (
-                <div ref={inquiriesRef} className="space-y-3 animate-slide-up-stagger" style={{ '--stagger-index': 3 } as React.CSSProperties}>
+                <div ref={inquiriesRef} className="space-y-3 animate-content-enter-delay-4">
                     {inquiries.map((inquiry, index) => (
                         <button
                             key={inquiry.id}
                             onClick={() => openDetail(inquiry)}
-                            className={`w-full text-left bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border cursor-pointer hover:border-primary/30 transition-colors tactile-card animate-slide-up-stagger ${
+                            className={`w-full text-left bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border cursor-pointer hover:border-primary/30 transition-colors tactile-card ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
                                 inquiry.status === 'new' 
                                     ? 'border-blue-200 dark:border-blue-800/30' 
                                     : inquiry.status === 'archived'
                                         ? 'border-gray-200 dark:border-white/20 opacity-60'
                                         : 'border-gray-200 dark:border-white/20'
                             }`}
-                            style={{ '--stagger-index': index + 4 } as React.CSSProperties}
                         >
                             <div className="flex items-start gap-3">
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${

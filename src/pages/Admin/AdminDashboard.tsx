@@ -594,7 +594,7 @@ const StaffTrainingGuide: React.FC = () => {
     }
 
     return (
-        <div className="space-y-6 animate-pop-in pb-32">
+        <div className="space-y-6 animate-page-enter pb-32">
             <div className="mb-6">
                 <p className="text-sm text-primary/80 dark:text-white/80 mb-2">
                     A complete guide to using the Ever Club Staff Portal. Tap any section to expand and view detailed instructions.

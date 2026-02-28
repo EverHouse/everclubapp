@@ -272,7 +272,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
           {coupons.map((coupon, index) => (
             <div 
               key={coupon.id} 
-              className={`p-4 rounded-xl border transition-colors animate-pop-in tactile-row ${
+              className={`p-4 rounded-xl border transition-colors tactile-row ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
                 coupon.valid 
                   ? 'bg-white dark:bg-surface-dark border-gray-200 dark:border-white/20' 
                   : 'bg-gray-50 dark:bg-surface-dark/50 border-gray-200 dark:border-white/10 opacity-60'

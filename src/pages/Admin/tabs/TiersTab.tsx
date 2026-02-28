@@ -495,7 +495,7 @@ const TiersTab: React.FC = () => {
     }
 
     return (
-        <div className="animate-pop-in">
+        <div className="animate-content-enter">
             {/* Sub-tabs navigation */}
             <div className="flex gap-1 p-1 bg-gray-100 dark:bg-black/30 rounded-xl mb-6 overflow-x-auto scrollbar-hide">
                 {SUB_TABS.map(tab => (
@@ -539,8 +539,7 @@ const TiersTab: React.FC = () => {
                                             tabIndex={0}
                                             onClick={() => openEdit(pass)}
                                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(pass); } }}
-                                            className="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-all duration-fast animate-slide-up-stagger"
-                                            style={{ '--stagger-index': index } as React.CSSProperties}
+                                            className={`bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-all duration-fast ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
                                         >
                                             <div className="flex items-start justify-between">
                                                 <div>
@@ -1206,13 +1205,12 @@ const TiersTab: React.FC = () => {
                             variant="compact"
                         />
                     ) : (
-                        <div ref={tiersRef} className="space-y-3 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+                        <div ref={tiersRef} className="space-y-3 animate-content-enter">
                             {subscriptionTiers.map((tier, index) => (
                                 <div 
                                     key={tier.id} 
                                     onClick={() => openEdit(tier)}
-                                    className="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-colors tactile-card animate-slide-up-stagger"
-                                    style={{ '--stagger-index': index + 1 } as React.CSSProperties}
+                                    className={`bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-colors tactile-card ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
                                 >
                                     <div className="flex items-start justify-between mb-3">
                                         <div>

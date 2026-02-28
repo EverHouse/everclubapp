@@ -187,7 +187,7 @@ const EmailTemplatesTab: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 animate-pop-in pb-32">
+    <div className="space-y-6 animate-page-enter pb-32">
       {savedToast && (
         <div className="fixed top-4 right-4 z-50 animate-pop-in">
           <div className="px-4 py-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-xl text-green-700 dark:text-green-400 text-sm font-medium flex items-center gap-2 shadow-lg backdrop-blur-lg">
@@ -197,7 +197,7 @@ const EmailTemplatesTab: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-xl border border-primary/10 dark:border-white/20 overflow-hidden">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-xl border border-primary/10 dark:border-white/20 overflow-hidden animate-content-enter-delay-1">
         <button
           onClick={() => setControlsOpen(!controlsOpen)}
           className="tactile-btn w-full px-6 py-4 flex items-center justify-between"
@@ -266,7 +266,7 @@ const EmailTemplatesTab: React.FC = () => {
         )}
       </div>
 
-      <div className="mb-2">
+      <div className="mb-2 animate-content-enter-delay-2">
         <p className="text-sm text-primary/70 dark:text-white/70">
           Preview all email templates sent to members. Select a template to see its rendered HTML.
         </p>
@@ -291,7 +291,7 @@ const EmailTemplatesTab: React.FC = () => {
         </select>
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex gap-6 animate-content-enter-delay-3">
         <div className="hidden lg:block w-72 flex-shrink-0">
           <div className="bg-white/80 dark:bg-white/[0.05] backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-xl shadow-lg overflow-hidden sticky top-32">
             <div className="max-h-[calc(100vh-180px)] overflow-y-auto">

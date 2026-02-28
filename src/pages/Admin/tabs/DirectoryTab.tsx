@@ -1552,8 +1552,7 @@ const DirectoryTab: React.FC = () => {
                                         tabIndex={0}
                                         onClick={() => openVisitorDetails(v)}
                                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openVisitorDetails(v); } }}
-                                        className="tactile-row bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98] animate-slide-up-stagger"
-                                        style={{ '--stagger-index': index } as React.CSSProperties}
+                                        className={`tactile-row bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98] ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
                                     >
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="flex-1">
@@ -1808,8 +1807,7 @@ const DirectoryTab: React.FC = () => {
                                         tabIndex={0}
                                         onClick={() => openTeamMemberDetails(member)}
                                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTeamMemberDetails(member); } }}
-                                        className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98] animate-slide-up-stagger"
-                                        style={{ '--stagger-index': index } as React.CSSProperties}
+                                        className={`bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98] ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
                                     >
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="flex-1">
@@ -1886,8 +1884,7 @@ const DirectoryTab: React.FC = () => {
                                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetailsModal(m); } }}
                                             onMouseEnter={() => prefetchMemberProfile(m.email)}
                                             onFocus={() => prefetchMemberProfile(m.email)}
-                                            className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98] animate-slide-up-stagger"
-                                            style={{ '--stagger-index': Math.min(index, 10) } as React.CSSProperties}
+                                            className={`bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98] ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
                                         >
                                             <div className="flex justify-between items-start mb-2">
                                                 <div className="flex-1">

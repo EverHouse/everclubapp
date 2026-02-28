@@ -130,8 +130,7 @@ const PrivateHire: React.FC = () => {
              ].map((feature, i) => (
                <div
                  key={feature.title}
-                 className="flex flex-col p-6 bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/60 dark:border-white/10 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] animate-slide-up-stagger"
-                 style={{ '--stagger-index': i } as React.CSSProperties}
+                 className={`flex flex-col p-6 bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/60 dark:border-white/10 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] ${i < 10 ? `animate-list-item-delay-${i}` : 'animate-list-item'}`}
                >
                  <span className="material-symbols-outlined text-3xl text-primary dark:text-white mb-3">{feature.icon}</span>
                  <h4 className="text-lg font-bold text-primary dark:text-white mb-2">{feature.title}</h4>
@@ -143,7 +142,7 @@ const PrivateHire: React.FC = () => {
        </section>
 
        <div className="px-4 pb-8 space-y-6">
-          <div className="flex items-center justify-between px-2 pb-2 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+          <div className="flex items-center justify-between px-2 pb-2 animate-content-enter">
              <h3 className="text-lg font-bold text-primary dark:text-white">Available Spaces</h3>
              <span className="text-xs font-bold text-primary/50 dark:text-white/50 bg-[#E8E8E0] dark:bg-white/5 px-2 py-1 rounded uppercase tracking-widest">Select One</span>
           </div>

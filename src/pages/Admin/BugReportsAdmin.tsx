@@ -162,7 +162,7 @@ const BugReportsAdmin: React.FC = () => {
     return (
         <div className="min-h-screen pb-32">
             <div className="px-4 pt-6">
-                <div className="flex items-center justify-between mb-6 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+                <div className="flex items-center justify-between mb-6 animate-content-enter">
                     <div>
                         <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-primary'}`}>Bug Reports</h1>
                         <p className={`text-sm mt-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
@@ -174,7 +174,7 @@ const BugReportsAdmin: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-hide animate-slide-up-stagger scroll-fade-right" style={{ '--stagger-index': 1 } as React.CSSProperties}>
+                <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-hide animate-content-enter-delay-1 scroll-fade-right">
                     {STATUS_TABS.map(tab => (
                         <button
                             key={tab.id}
@@ -210,8 +210,7 @@ const BugReportsAdmin: React.FC = () => {
                             <button
                                 key={report.id}
                                 onClick={() => openDetail(report)}
-                                className={`w-full text-left p-4 rounded-xl transition-colors tactile-card animate-slide-up-stagger ${isDark ? 'glass-card hover:bg-white/5' : 'bg-white border border-black/5 hover:shadow-md'}`}
-                                style={{ '--stagger-index': idx } as React.CSSProperties}
+                                className={`w-full text-left p-4 rounded-xl transition-colors tactile-card ${idx < 10 ? `animate-list-item-delay-${idx}` : 'animate-list-item'} ${isDark ? 'glass-card hover:bg-white/5' : 'bg-white border border-black/5 hover:shadow-md'}`}
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex-1 min-w-0">

@@ -259,7 +259,7 @@ const ApplicationPipeline: React.FC = () => {
   }, {} as Record<string, number>);
 
   return (
-    <div className="animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+    <div className="animate-page-enter">
       {toast && (
         <div className={`mb-3 px-4 py-3 rounded-xl text-sm font-semibold flex items-center gap-2 animate-content-enter ${
           toast.type === 'success'
@@ -273,7 +273,7 @@ const ApplicationPipeline: React.FC = () => {
         </div>
       )}
 
-      <div className="flex items-center justify-end mb-3 animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
+      <div className="flex items-center justify-end mb-3 animate-content-enter-delay-1">
         <button
           onClick={handleSyncFromHubSpot}
           disabled={isSyncing}
@@ -289,7 +289,7 @@ const ApplicationPipeline: React.FC = () => {
         </button>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide -mx-4 px-4 animate-slide-up-stagger scroll-fade-right" style={{ '--stagger-index': 2 } as React.CSSProperties}>
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide -mx-4 px-4 animate-content-enter-delay-2 scroll-fade-right">
         {STATUS_TABS.map(tab => (
           <button
             key={tab.id}
@@ -470,12 +470,12 @@ const ApplicationPipeline: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-300">No membership applications match your current filter.</p>
         </div>
       ) : (
-        <div ref={applicationsRef} className="space-y-3 animate-slide-up-stagger" style={{ '--stagger-index': 3 } as React.CSSProperties}>
+        <div ref={applicationsRef} className="space-y-3 animate-content-enter-delay-3">
           {filteredApplications.map((app, index) => (
             <button
               key={app.id}
               onClick={() => openDetail(app)}
-              className={`w-full text-left bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border cursor-pointer hover:border-primary/30 transition-colors tactile-card animate-slide-up-stagger ${
+              className={`w-full text-left bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border cursor-pointer hover:border-primary/30 transition-colors tactile-card ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
                 app.status === 'new'
                   ? 'border-blue-200 dark:border-blue-800/30'
                   : app.status === 'archived'

@@ -775,7 +775,7 @@ export const EventsAdminContent: React.FC = () => {
             ) : (
                 <div key={activeCategory} className="space-y-6 animate-content-enter">
                     {upcomingEvents.length > 0 && (
-                        <div className="animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+                        <div className="animate-content-enter-delay-1">
                             <div className="flex items-center gap-2 mb-3">
                                 <span aria-hidden="true" className="material-symbols-outlined text-green-500">schedule</span>
                                 <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Upcoming ({upcomingEvents.length})</h3>
@@ -785,11 +785,11 @@ export const EventsAdminContent: React.FC = () => {
                                     const isPending = pendingEventIds.has(event.id);
                                     const isOptimistic = event.id < 0;
                                     return (
-                                    <div key={event.id} onClick={() => !isOptimistic && openEdit(event)} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border flex flex-col gap-3 relative overflow-hidden transition-colors animate-slide-up-stagger ${
+                                    <div key={event.id} onClick={() => !isOptimistic && openEdit(event)} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border flex flex-col gap-3 relative overflow-hidden transition-colors ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
                                         isPending || isOptimistic 
                                             ? 'border-brand-green/50 animate-pulse cursor-wait' 
                                             : 'border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-transform active:scale-[0.98]'
-                                    }`} style={{ '--stagger-index': index + 1 } as React.CSSProperties}>
+                                    }`}>
                                         {(isPending || isOptimistic) && (
                                             <div className="absolute top-0 left-0 bg-brand-green text-white text-[8px] font-bold uppercase px-2 py-1 rounded-br-lg z-10 flex items-center gap-1">
                                                 <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[10px]">progress_activity</span>
@@ -857,7 +857,7 @@ export const EventsAdminContent: React.FC = () => {
                     )}
                     
                     {pastEvents.length > 0 && (
-                        <div className="animate-slide-up-stagger" style={{ '--stagger-index': upcomingEvents.length + 2 } as React.CSSProperties}>
+                        <div className="animate-content-enter-delay-2">
                             <button 
                                 onClick={() => setShowPastEvents(!showPastEvents)}
                                 className="flex items-center gap-2 mb-3 w-full text-left group"
@@ -872,9 +872,9 @@ export const EventsAdminContent: React.FC = () => {
                                 {pastEvents.slice(0, showAllPastEvents ? pastEvents.length : 20).map((event, index) => {
                                     const isPending = pendingEventIds.has(event.id);
                                     return (
-                                    <div key={event.id} onClick={() => openEdit(event)} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border flex flex-col gap-3 relative overflow-hidden transition-colors animate-slide-up-stagger ${
+                                    <div key={event.id} onClick={() => openEdit(event)} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border flex flex-col gap-3 relative overflow-hidden transition-colors ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
                                         isPending ? 'border-brand-green/50 animate-pulse cursor-wait' : 'border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-transform active:scale-[0.98]'
-                                    }`} style={{ '--stagger-index': upcomingEvents.length + index + 3 } as React.CSSProperties}>
+                                    }`}>
                                         {isPending && (
                                             <div className="absolute top-0 left-0 bg-brand-green text-white text-[8px] font-bold uppercase px-2 py-1 rounded-br-lg z-10 flex items-center gap-1">
                                                 <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[10px]">progress_activity</span>

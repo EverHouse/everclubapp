@@ -21,8 +21,7 @@ const ActivityTab: React.FC<ActivityTabProps> = ({
 }) => {
   return (
     <div 
-      className="animate-slide-up-stagger"
-      style={{ '--stagger-index': 0 } as React.CSSProperties}
+      className="animate-content-enter"
     >
       <MemberActivityTab
         memberEmail={memberEmail}

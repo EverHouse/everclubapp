@@ -111,8 +111,8 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
         >
             <div className="hidden lg:block absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none rounded-t-xl" />
             <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none rounded-b-xl" />
-            <div className="space-y-6 p-5 animate-slide-up-stagger h-full overflow-y-auto pb-10" style={{ '--stagger-index': 0 } as React.CSSProperties}>
-                <div className="animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
+            <div className="space-y-6 p-5 animate-content-enter h-full overflow-y-auto pb-10">
+                <div className="animate-content-enter-delay-1">
                     <div className="flex flex-col gap-2 mb-4">
                         <div className="flex items-center justify-between">
                             <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
@@ -158,8 +158,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                     return (
                                         <div 
                                             key={`cancel-${item.id}`}
-                                            className="bg-red-50/80 dark:bg-red-500/10 p-4 rounded-xl border-2 border-red-300 dark:border-red-500/30 animate-slide-up-stagger shadow-sm hover:shadow-md hover:bg-red-100/80 dark:hover:bg-red-500/20 hover:scale-[1.01] active:scale-[0.98] transition-colors duration-fast cursor-pointer"
-                                            style={{ '--stagger-index': index + 2 } as React.CSSProperties}
+                                            className={`bg-red-50/80 dark:bg-red-500/10 p-4 rounded-xl border-2 border-red-300 dark:border-red-500/30 shadow-sm hover:shadow-md hover:bg-red-100/80 dark:hover:bg-red-500/20 hover:scale-[1.01] active:scale-[0.98] transition-colors duration-fast cursor-pointer ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
                                             onClick={() => setBookingSheet({
                                                 isOpen: true,
                                                 trackmanBookingId: item.trackman_booking_id || null,
@@ -272,7 +271,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                 const actionState = actionInProgress[actionKey];
                                 const isActionPending = !!actionState;
                                 return (
-                                    <div key={`${req.source || 'request'}-${req.id}`} className={`bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/25 animate-slide-up-stagger shadow-sm hover:shadow-md hover:bg-gray-100 dark:hover:bg-white/10 transition-colors duration-fast cursor-pointer active:scale-[0.98] ${isActionPending ? 'opacity-60 pointer-events-none' : ''}`} style={{ '--stagger-index': index + 2 } as React.CSSProperties}>
+                                    <div key={`${req.source || 'request'}-${req.id}`} className={`bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/25 shadow-sm hover:shadow-md hover:bg-gray-100 dark:hover:bg-white/10 transition-colors duration-fast cursor-pointer active:scale-[0.98] ${isActionPending ? 'opacity-60 pointer-events-none' : ''} ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}>
                                         {isActionPending && (
                                             <div className="flex items-center gap-2 mb-2 text-sm text-primary/70 dark:text-white/70">
                                                 <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -367,7 +366,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                     )}
                 </div>
 
-                <div className="animate-slide-up-stagger" style={{ '--stagger-index': 2 } as React.CSSProperties}>
+                <div className="animate-content-enter-delay-2">
                     <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
                         <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-accent">calendar_today</span>
                         Scheduled ({scheduledBookings.length})
@@ -434,7 +433,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                     ]}
                                                 >
                                                     <div 
-                                                        className={`p-4 rounded-xl animate-pop-in cursor-pointer shadow-sm ${
+                                                        className={`p-4 rounded-xl animate-content-enter cursor-pointer shadow-sm ${
                                                             isOptimisticNew
                                                                 ? 'bg-green-50/80 dark:bg-green-500/10 border-2 border-dashed border-green-300 dark:border-green-500/30 opacity-70'
                                                                 : isActionPending

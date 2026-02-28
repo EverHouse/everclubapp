@@ -837,7 +837,7 @@ const Dashboard: React.FC = () => {
         
         <OnboardingChecklist />
         
-        <div className="mb-6 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+        <div className="mb-6 animate-content-enter">
           <div className="flex items-center gap-3">
             <h1 className={`text-3xl sm:text-4xl md:text-5xl leading-none translate-y-[1px] ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)', fontOpticalSizing: 'auto', letterSpacing: '-0.03em' }}>
               {getGreeting()}, {user?.name.split(' ')[0]}
@@ -866,8 +866,7 @@ const Dashboard: React.FC = () => {
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsCardOpen(true); } }}
-                  className={`relative h-56 lg:h-full lg:min-h-56 w-full rounded-xl overflow-hidden cursor-pointer transition-all duration-emphasis ease-out group animate-slide-up-stagger active:scale-[0.98] hover:scale-[1.015] hover:shadow-2xl ${isExpired ? 'grayscale-[30%]' : ''}`}
-                  style={{ '--stagger-index': 2 } as React.CSSProperties}
+                  className={`relative h-56 lg:h-full lg:min-h-56 w-full rounded-xl overflow-hidden cursor-pointer transition-all duration-emphasis ease-out group animate-content-enter-delay-2 active:scale-[0.98] hover:scale-[1.015] hover:shadow-2xl ${isExpired ? 'grayscale-[30%]' : ''}`}
                 >
                   <div className="absolute inset-0" style={{ backgroundColor: cardBgColor }}></div>
                   <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 100%)' }}></div>
@@ -917,7 +916,7 @@ const Dashboard: React.FC = () => {
             })()}
 
             {/* Quick Links Metrics Grid */}
-            <div className="h-full animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
+            <div className="h-full animate-content-enter-delay-1">
               <MetricsGrid
                 simulatorMinutesUsed={simMinutesToday}
                 simulatorMinutesAllowed={tierPermissions.dailySimulatorMinutes}
@@ -942,7 +941,7 @@ const Dashboard: React.FC = () => {
       ) : (
         <>
           {/* Your Schedule - Combined Bookings, Events & Wellness */}
-          <div className="animate-slide-up-stagger" style={{ '--stagger-index': 4 } as React.CSSProperties}>
+          <div className="animate-content-enter-delay-4">
             <div className="flex justify-between items-center mb-4 px-1">
               <h3 className={`text-2xl leading-tight ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-headline)' }}>Your Schedule</h3>
               <button

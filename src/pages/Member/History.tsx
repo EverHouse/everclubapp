@@ -348,7 +348,7 @@ const History: React.FC = () => {
                       const monthLabel = new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'America/Los_Angeles' });
                       
                       return (
-                        <div key={monthKey} className="animate-slide-up-stagger" style={{ '--stagger-index': monthIndex } as React.CSSProperties}>
+                        <div key={monthKey} className={monthIndex < 10 ? `animate-content-enter-delay-${monthIndex}` : 'animate-content-enter'}>
                           <h3 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/60' : 'text-primary/60'}`} style={{ fontFamily: 'var(--font-label)' }}>
                             {monthLabel}
                           </h3>

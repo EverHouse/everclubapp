@@ -1726,8 +1726,8 @@ const DataIntegrityTab: React.FC = () => {
   const hasIssues = results.some(r => r.issues.length > 0);
 
   return (
-    <div className="space-y-6 animate-slide-up-stagger pb-32" style={{ '--stagger-index': 0 } as React.CSSProperties}>
-      <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-6">
+    <div className="space-y-6 animate-page-enter pb-32">
+      <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-6 animate-content-enter-delay-1">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white text-[24px]">monitoring</span>

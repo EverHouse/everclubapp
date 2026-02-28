@@ -772,7 +772,7 @@ const BlocksTab: React.FC = () => {
 
             {activeSubTab === 'notices' && (
             <>
-            <div className="flex items-center gap-3 py-2 text-[10px] flex-wrap animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+            <div className="flex items-center gap-3 py-2 text-[10px] flex-wrap animate-content-enter">
                 <div className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
                     <span className="text-gray-500 dark:text-white/60">Blocks</span>
@@ -941,7 +941,7 @@ const BlocksTab: React.FC = () => {
             )}
 
             {needsReviewClosures.length > 0 && (
-                <div className="space-y-3 animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
+                <div className="space-y-3 animate-content-enter-delay-1">
                     <div className="flex items-center gap-2">
                         <span aria-hidden="true" className="material-symbols-outlined text-cyan-500">rate_review</span>
                         <h3 className="font-semibold text-primary dark:text-white">Needs Review</h3>
@@ -957,8 +957,7 @@ const BlocksTab: React.FC = () => {
                                 <div 
                                     key={closure.id}
                                     onClick={() => handleEditClosure(closure)}
-                                    className="bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-white/80 dark:border-white/10 border-l-4 border-l-cyan-500 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-colors duration-fast overflow-hidden group animate-slide-up-stagger cursor-pointer tactile-card"
-                                    style={{ '--stagger-index': index } as React.CSSProperties}
+                                    className={`bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-white/80 dark:border-white/10 border-l-4 border-l-cyan-500 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-colors duration-fast overflow-hidden group cursor-pointer tactile-card ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
                                 >
                                     <div className="p-4 flex items-start justify-between gap-3">
                                         <div className="flex-1 min-w-0">
@@ -1014,12 +1013,11 @@ const BlocksTab: React.FC = () => {
                         return (
                             <div 
                                 key={closure.id} 
-                                className={`bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-white/80 dark:border-white/10 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-colors duration-fast overflow-hidden group animate-pop-in tactile-card ${
+                                className={`bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-white/80 dark:border-white/10 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-colors duration-fast overflow-hidden group tactile-card ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
                                     blocking 
                                         ? 'border-l-4 border-l-red-500'
                                         : 'border-l-4 border-l-amber-500'
                                 }`}
-                                style={{ '--stagger-index': index } as React.CSSProperties}
                             >
                                 <div className="w-full p-4 text-left">
                                     <div className="flex items-start justify-between gap-3">

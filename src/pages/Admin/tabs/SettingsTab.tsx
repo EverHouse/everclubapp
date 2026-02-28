@@ -138,22 +138,22 @@ const SettingsTab: React.FC = () => {
   const errorMessage = error instanceof Error ? error.message : (saveMutation.error instanceof Error ? saveMutation.error.message : null);
 
   return (
-    <div className="animate-pop-in space-y-6 pb-32 backdrop-blur-sm">
+    <div className="animate-page-enter space-y-6 pb-32 backdrop-blur-sm">
       {success && (
-        <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg text-green-700 dark:text-green-400 text-sm flex items-center gap-2">
+        <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg text-green-700 dark:text-green-400 text-sm flex items-center gap-2 animate-content-enter">
           <span aria-hidden="true" className="material-symbols-outlined text-lg">check_circle</span>
           {success}
         </div>
       )}
 
       {errorMessage && (
-        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 text-sm flex items-center gap-2">
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 text-sm flex items-center gap-2 animate-content-enter">
           <span aria-hidden="true" className="material-symbols-outlined text-lg">error</span>
           {errorMessage}
         </div>
       )}
 
-      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-primary/10 dark:border-white/20">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-primary/10 dark:border-white/20 animate-content-enter-delay-1">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-white/10 flex items-center justify-center">
             <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">tune</span>
@@ -217,7 +217,7 @@ const SettingsTab: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-primary/10 dark:border-white/20">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-primary/10 dark:border-white/20 animate-content-enter-delay-2">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-white/10 flex items-center justify-center">
             <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">category</span>
@@ -257,7 +257,7 @@ const SettingsTab: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-primary/10 dark:border-white/20">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-primary/10 dark:border-white/20 animate-content-enter-delay-3">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-white/10 flex items-center justify-center">
             <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">notifications</span>
@@ -301,7 +301,7 @@ const SettingsTab: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-primary/10 dark:border-white/20">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-primary/10 dark:border-white/20 animate-content-enter-delay-4">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-white/10 flex items-center justify-center">
             <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">nfc</span>

@@ -83,7 +83,7 @@ const EventsTab: React.FC = () => {
     });
     
     return (
-            <div className="animate-pop-in backdrop-blur-sm">
+            <div className="animate-page-enter backdrop-blur-sm">
                 {syncMessage && (
                     <div className={`mb-4 px-4 py-2 rounded-lg text-sm font-medium ${
                         syncMessage.startsWith('Error') || syncMessage.startsWith('Failed') || syncMessage.startsWith('Some syncs') || syncMessage.includes('failed')
@@ -94,7 +94,7 @@ const EventsTab: React.FC = () => {
                     </div>
                 )}
 
-                <div className="flex gap-2 mb-4 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+                <div className="flex gap-2 mb-4 animate-content-enter-delay-1">
                     <button
                         type="button"
                         onClick={() => setActiveSubTab('events')}

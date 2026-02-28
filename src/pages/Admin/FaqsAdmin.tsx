@@ -255,8 +255,8 @@ const FaqsAdmin: React.FC = () => {
     }
 
     return (
-        <div className="animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
-            <div className="flex justify-between items-center mb-4 animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
+        <div className="animate-page-enter">
+            <div className="flex justify-between items-center mb-4 animate-content-enter-delay-1">
                 <h2 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>FAQs ({faqs.length})</h2>
                 {faqs.length === 0 && (
                     <button
@@ -392,7 +392,7 @@ const FaqsAdmin: React.FC = () => {
                     </button>
                 </div>
             ) : (
-                <div ref={faqsRef} className="space-y-3 animate-slide-up-stagger" style={{ '--stagger-index': 2 } as React.CSSProperties}>
+                <div ref={faqsRef} className="space-y-3 animate-content-enter-delay-2">
                     {displayFaqs.map((faq) => {
                         const isDragging = faq.id === draggedItemId;
                         return (

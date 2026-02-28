@@ -1428,7 +1428,7 @@ const BookGolf: React.FC = () => {
                 {resources
                   .filter(r => selectedSlot.requestedResourceDbIds.includes(r.dbId) && !selectedSlot.availableResourceDbIds.includes(r.dbId))
                   .map((resource, index) => (
-                  <div key={`requested-${resource.id}`} className="animate-slide-up-stagger" style={{ '--stagger-index': getAvailableResourcesForSlot(selectedSlot).length + index, animationFillMode: 'both' } as React.CSSProperties}>
+                  <div key={`requested-${resource.id}`} className={index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}>
                     <ResourceCard
                       resource={resource}
                       selected={false}
@@ -1443,7 +1443,7 @@ const BookGolf: React.FC = () => {
           )}
 
           {selectedResource && (
-            <section className="animate-pop-in pb-64">
+            <section className="animate-content-enter pb-64">
               <h3 className={`text-[11px] font-bold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>
                 Notes for Staff <span className="font-normal opacity-60">(optional)</span>
               </h3>

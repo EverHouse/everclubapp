@@ -210,7 +210,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
     };
 
     return (
-        <div className="animate-pop-in">
+        <div className="animate-content-enter">
             <SlideUpDrawer 
                 isOpen={isEditing} 
                 onClose={() => setIsEditing(false)} 
@@ -302,7 +302,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                 </div>
             </SlideUpDrawer>
 
-            <div className="space-y-4 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+            <div className="space-y-4 animate-content-enter-delay-1">
                 {/* Tools Bar */}
                 <div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-white/20 p-4 space-y-4">
                     <div className="flex items-center justify-between">
@@ -412,7 +412,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                     const idB = parseInt(b.id) || 0;
                     return idB - idA;
                 }).map((item, index) => (
-                    <div key={item.id} onClick={() => openEdit(item)} className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm flex justify-between items-start cursor-pointer hover:border-primary/30 transition-all duration-fast animate-slide-up-stagger tactile-row" style={{ '--stagger-index': index + 1 } as React.CSSProperties}>
+                    <div key={item.id} onClick={() => openEdit(item)} className={`bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm flex justify-between items-start cursor-pointer hover:border-primary/30 transition-all duration-fast tactile-row ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}>
                         <div>
                             <div className="flex items-center gap-2 mb-1.5">
                                 <span className="w-2 h-2 rounded-full bg-accent"></span>

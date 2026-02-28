@@ -486,8 +486,8 @@ const TrackmanTab: React.FC = () => {
   }
 
   return (
-    <div className="px-6 pb-4 space-y-6">
-      <div className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25">
+    <div className="px-6 pb-4 space-y-6 animate-page-enter">
+      <div className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25 animate-content-enter">
         <h2 className="text-2xl leading-tight text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
           <span aria-hidden="true" className="material-symbols-outlined">upload_file</span>
           Import Trackman Bookings
@@ -577,14 +577,14 @@ const TrackmanTab: React.FC = () => {
       </div>
 
       {importRuns.length > 0 && (
-        <div className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25">
+        <div className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25 animate-content-enter-delay-1">
           <h2 className="text-2xl leading-tight text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
             <span aria-hidden="true" className="material-symbols-outlined">history</span>
             Import History
           </h2>
           <div className="space-y-2">
             {importRuns.slice(0, 5).map((run: ImportRun, idx: number) => (
-              <div key={run.id} className="p-3 bg-white/50 dark:bg-white/5 rounded-xl animate-slide-up-stagger" style={{ '--stagger-index': idx } as React.CSSProperties}>
+              <div key={run.id} className={`p-3 bg-white/50 dark:bg-white/5 rounded-xl ${idx < 10 ? `animate-list-item-delay-${idx}` : 'animate-list-item'}`}>
                 <div className="flex flex-col gap-1">
                   <p className="font-medium text-primary dark:text-white text-sm truncate">{formatImportLabel(run.filename, run.createdAt)}</p>
                   <p className="text-xs text-primary/80 dark:text-white/80">
@@ -602,7 +602,7 @@ const TrackmanTab: React.FC = () => {
         </div>
       )}
 
-      <div ref={unmatchedSectionRef} className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25">
+      <div ref={unmatchedSectionRef} className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25 animate-content-enter-delay-2">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl leading-tight text-primary dark:text-white flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
             <span aria-hidden="true" className="material-symbols-outlined">warning</span>
@@ -660,12 +660,11 @@ const TrackmanTab: React.FC = () => {
                   return (
                     <div 
                       key={booking.id} 
-                      className={`rounded-xl p-4 border animate-slide-up-stagger transition-all duration-normal ${
+                      className={`rounded-xl p-4 border transition-all duration-normal ${
                         isLinking 
                           ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/30 opacity-75' 
                           : 'bg-white/50 dark:bg-white/5 border-primary/10 dark:border-white/10'
-                      }`}
-                      style={{ '--stagger-index': idx } as React.CSSProperties}
+                      } ${idx < 10 ? `animate-list-item-delay-${idx}` : 'animate-list-item'}`}
                     >
                       {isLinking && (
                         <div className="flex items-center gap-2 mb-3 p-2 bg-green-100 dark:bg-green-500/20 rounded-lg">
@@ -748,12 +747,11 @@ const TrackmanTab: React.FC = () => {
                       return (
                         <tr 
                           key={booking.id} 
-                          className={`tactile-row transition-colors animate-slide-up-stagger ${
+                          className={`tactile-row transition-colors ${
                             isLinking 
                               ? 'bg-green-50 dark:bg-green-500/10' 
                               : 'bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
-                          }`} 
-                          style={{ '--stagger-index': idx } as React.CSSProperties}
+                          }`}
                         >
                           <td className="py-2 px-3 hidden lg:table-cell">
                             <span className="text-xs font-mono text-primary/70 dark:text-white/70">

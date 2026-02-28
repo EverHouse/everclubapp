@@ -212,7 +212,7 @@ const ToursTab: React.FC = () => {
       )}
 
       {toursData.todayTours.length > 0 && (
-        <div>
+        <div className="animate-content-enter-delay-2">
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/70 dark:text-white/70 mb-3 flex items-center gap-2" style={{ fontFamily: 'var(--font-label)' }}>
             <span aria-hidden="true" className="material-symbols-outlined text-lg">today</span>
             Today's Tours ({toursData.todayTours.length})
@@ -226,14 +226,14 @@ const ToursTab: React.FC = () => {
       )}
 
       {toursData.todayTours.length === 0 && (
-        <div className="text-center py-8 bg-white/40 dark:bg-white/5 rounded-xl">
+        <div className="text-center py-8 bg-white/40 dark:bg-white/5 rounded-xl animate-content-enter-delay-2">
           <span aria-hidden="true" className="material-symbols-outlined text-4xl text-primary/30 dark:text-white/70 mb-2">event_available</span>
           <p className="text-primary/80 dark:text-white/80 text-sm">No tours scheduled for today</p>
         </div>
       )}
 
       {toursData.upcomingTours.length > 0 && (
-        <div>
+        <div className="animate-content-enter-delay-3">
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/70 dark:text-white/70 mb-3 flex items-center gap-2" style={{ fontFamily: 'var(--font-label)' }}>
             <span aria-hidden="true" className="material-symbols-outlined text-lg">upcoming</span>
             Upcoming Tours ({toursData.upcomingTours.length})
@@ -256,7 +256,7 @@ const ToursTab: React.FC = () => {
       )}
 
       {toursData.pastTours.length > 0 && (
-        <div>
+        <div className="animate-content-enter-delay-4">
           <h3 className="text-sm font-bold uppercase tracking-wider text-primary/70 dark:text-white/70 mb-3 flex items-center gap-2">
             <span aria-hidden="true" className="material-symbols-outlined text-lg">history</span>
             Past Tours ({toursData.pastTours.length})

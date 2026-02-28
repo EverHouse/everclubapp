@@ -228,7 +228,7 @@ const UpdatesTab: React.FC = () => {
     };
 
     const renderAlertsTab = () => (
-        <div className="animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+        <div className="animate-content-enter">
             {notifications.length > 0 && (
                 <div className="flex justify-end gap-2 mb-4">
                     {unreadCount > 0 && (
@@ -272,7 +272,7 @@ const UpdatesTab: React.FC = () => {
                         <div
                             key={notif.id}
                             onClick={() => handleNotificationClick(notif)}
-                            className={`tactile-row rounded-xl transition-colors cursor-pointer overflow-hidden animate-pop-in ${
+                            className={`tactile-row rounded-xl transition-colors cursor-pointer overflow-hidden ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
                                 notif.is_read 
                                     ? 'bg-white hover:bg-gray-50 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]' 
                                     : 'bg-accent/10 hover:bg-accent/15 border border-accent/30 dark:border-accent/20'

@@ -202,7 +202,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
 
     return (
         <div ref={calendarColRef} className={`flex-1 lg:flex lg:flex-col ${activeView === 'calendar' ? 'block' : 'hidden lg:flex'}`}>
-            <div className="bg-gray-50 dark:bg-white/5 py-3 shrink-0 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+            <div className="bg-gray-50 dark:bg-white/5 py-3 shrink-0 animate-content-enter">
                 <div className="flex items-center justify-center px-2 relative">
                     <div className="flex items-center gap-2 relative">
                         <button
@@ -328,7 +328,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                 </div>
             </div>
             
-            <div className="flex-1 relative animate-slide-up-stagger overflow-x-auto scroll-smooth" style={{ '--stagger-index': 1 } as React.CSSProperties}>
+            <div className="flex-1 relative animate-content-enter-delay-1 overflow-x-auto scroll-smooth">
                 <div className="w-full px-1 sm:px-2 pb-4">
                     <div className="w-full">
                     <div className="grid gap-0.5 w-full" style={{ gridTemplateColumns: `minmax(32px, 0.6fr) repeat(${resources.length}, minmax(0, 1fr))` }}>

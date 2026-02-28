@@ -779,7 +779,7 @@ const ChangelogTab: React.FC = () => {
     };
 
     const renderUpdatesTab = () => (
-        <div ref={changelogRef} className="space-y-6 animate-pop-in">
+        <div ref={changelogRef} className="space-y-6 animate-content-enter">
             <div className="text-sm text-primary/80 dark:text-white/80 mb-6">
                 A complete history of updates, improvements, and new features added to the Ever Club app.
             </div>
@@ -857,8 +857,8 @@ const ChangelogTab: React.FC = () => {
         }
 
         return (
-            <div className="animate-pop-in">
-                <div className="flex flex-wrap gap-2 mb-4">
+            <div className="animate-page-enter">
+                <div className="flex flex-wrap gap-2 mb-4 animate-content-enter">
                     {FILTER_CATEGORIES.map(cat => (
                         <button
                             key={cat.key}
@@ -919,8 +919,7 @@ const ChangelogTab: React.FC = () => {
                             return (
                                 <div
                                     key={entry.id}
-                                    className="rounded-xl bg-white dark:bg-white/[0.03] shadow-layered dark:shadow-layered-dark overflow-hidden animate-slide-up-stagger tactile-row"
-                                    style={{ '--stagger-index': index } as React.CSSProperties}
+                                    className={`rounded-xl bg-white dark:bg-white/[0.03] shadow-layered dark:shadow-layered-dark overflow-hidden tactile-row ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
                                 >
                                     <div className="flex gap-3 p-4">
                                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${actionInfo.color}`}>
