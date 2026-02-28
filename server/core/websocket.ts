@@ -1220,7 +1220,7 @@ export function broadcastBookingRosterUpdate(data: {
 export function broadcastBookingInvoiceUpdate(data: {
   bookingId: number;
   sessionId?: number;
-  action: 'invoice_created' | 'invoice_updated' | 'invoice_finalized' | 'invoice_paid' | 'invoice_voided' | 'invoice_deleted' | 'payment_confirmed' | 'fees_waived' | 'payment_voided';
+  action: 'invoice_created' | 'invoice_updated' | 'invoice_finalized' | 'invoice_paid' | 'invoice_voided' | 'invoice_deleted' | 'payment_confirmed' | 'payment_requires_action' | 'fees_waived' | 'payment_voided';
   memberEmail?: string;
   invoiceId?: string;
   totalCents?: number;

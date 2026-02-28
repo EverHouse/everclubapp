@@ -1,28 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
-const taglines = [
-  "Your second home.",
-  "Rooted in golf, built for community.",
-  "Where design meets lifestyle.",
-  "Elevate your everyday experience.",
-  "Come in, settle down, stay awhile.",
-  "A place to focus, meet, and connect.",
-  "Step onto the green.",
-  "Golf all year.",
-  "Where every day feels like a day on the course.",
-  "Practice with purpose.",
-  "Tour-level data, right here at home.",
-  "Inspire. Engage. Elevate.",
-  "Effortless balance.",
-  "Play through.",
-  "Refined leisure.",
-  "Always open.",
-  "A welcoming community.",
-  "More than a sport.",
-  "Productivity meets leisure."
-];
-
 interface PullToRefreshProps {
   children: React.ReactNode;
   onRefresh?: () => Promise<void> | void;
@@ -46,7 +24,6 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, disabled = fals
   const [isFillingScreen, setIsFillingScreen] = useState(false);
   const [isSpringBack, setIsSpringBack] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [tagline] = useState(() => taglines[Math.floor(Math.random() * taglines.length)]);
   const [isTouchCapable] = useState(() => isTouchDevice());
   const containerRef = useRef<HTMLDivElement>(null);
   const startYRef = useRef<number | null>(null);
@@ -448,81 +425,12 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, disabled = fals
       )}
 
       {isRefreshing && createPortal(
-        <div className="ptr-loader-overlay">
-          <div className="ptr-loader-content">
-            <div className="ptr-mascot">
-              <img 
-                src="/assets/logos/walking-mascot-white.gif" 
-                alt="Animated loading indicator" 
-                className="ptr-mascot-image"
-              />
-            </div>
-            <p className="ptr-tagline">{tagline}</p>
-          </div>
-
-          <style>{`
-            .ptr-loader-overlay {
-              position: fixed;
-              inset: 0;
-              z-index: 99999;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              background-color: #293515;
-              will-change: transform;
-            }
-
-            .ptr-loader-content {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              gap: 1.5rem;
-              will-change: opacity, transform;
-              animation: ptrContentFadeIn 0.3s ease-out forwards;
-            }
-
-            @keyframes ptrContentFadeIn {
-              from {
-                opacity: 0;
-                transform: scale(0.9);
-              }
-              to {
-                opacity: 1;
-                transform: scale(1);
-              }
-            }
-
-            .ptr-mascot-image {
-              width: 120px;
-              height: auto;
-            }
-
-            .ptr-tagline {
-              font-family: 'Newsreader', serif;
-              color: white;
-              font-size: 1rem;
-              text-align: center;
-              margin: 0;
-              padding: 0 2rem;
-            }
-
-            .ptr-mascot {
-              display: flex;
-              justify-content: center;
-              align-items: center;
-            }
-
-            @media (prefers-reduced-motion: reduce) {
-              .ptr-fill-overlay,
-              .ptr-loader-overlay,
-              .ptr-loader-content {
-                animation: none !important;
-                opacity: 1 !important;
-                transform: none !important;
-              }
-            }
-          `}</style>
-        </div>,
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 99999,
+          backgroundColor: '#293515',
+        }} />,
         document.body
       )}
 
