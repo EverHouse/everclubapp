@@ -89,25 +89,30 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   const fabContent = (
     <button
       onClick={onClick}
-      className={`fixed right-5 md:right-8 bottom-8 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:scale-110 active:scale-95 fab-button animate-fab-bounce-in ${colorClasses[color]} ${
+      className={`fixed right-5 md:right-8 bottom-8 shadow-lg flex items-center justify-center hover:scale-[1.04] active:scale-[0.97] fab-button animate-fab-bounce-in ${colorClasses[color]} ${
         isExpanded
-          ? 'min-h-[56px] px-4 gap-3 rounded-2xl'
+          ? 'min-h-[56px] px-4 gap-2 rounded-2xl'
           : 'w-14 h-14 rounded-full'
       }`}
       style={{ 
         zIndex: 'var(--z-fab)',
         '--fab-mobile-bottom': mobileBottom,
+        transition: 'width 0.35s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.35s cubic-bezier(0.4, 0, 0.2, 1), padding 0.35s cubic-bezier(0.4, 0, 0.2, 1), gap 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s ease, box-shadow 0.2s ease',
       } as React.CSSProperties}
       aria-label={isExpanded && text ? text : label || 'Add new item'}
     >
       {iconContent}
       {extended && (
         <span
-          className={`text-sm font-semibold whitespace-nowrap overflow-hidden transition-all duration-200 ease-out ${
-            isExpanded ? 'max-w-[200px] opacity-100' : 'max-w-0 opacity-0'
-          }`}
+          className="text-sm font-semibold whitespace-nowrap overflow-hidden"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: isExpanded ? '1fr' : '0fr',
+            opacity: isExpanded ? 1 : 0,
+            transition: 'grid-template-columns 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
         >
-          {text}
+          <span className="overflow-hidden">{text}</span>
         </span>
       )}
     </button>
