@@ -871,7 +871,7 @@ const BookGolf: React.FC = () => {
         <h1 className={`leading-none mb-3 text-4xl md:text-5xl ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)' }}>
           Your <span className="italic">{activeTab === 'simulator' ? 'Session' : 'Room'}</span>
         </h1>
-        <p className={`text-base leading-relaxed max-w-md ${isDark ? 'text-white/60' : 'text-primary/60'}`} style={{ fontFamily: 'var(--font-body)' }}>{activeTab === 'simulator' ? 'Choose your party size, select a date, and reserve your preferred bay from the availability grid below. Requests are reviewed and confirmed by the House.' : 'Select your date, duration, and preferred conference space below. Conference rooms are confirmed instantly upon booking.'}</p>
+        <p className={`text-base leading-relaxed max-w-md ${isDark ? 'text-white/60' : 'text-primary/60'}`} style={{ fontFamily: 'var(--font-body)' }}>{activeTab === 'simulator' ? 'Choose your party size, select a date, and reserve your preferred bay from the availability grid below. Requests are reviewed and confirmed by Concierge.' : 'Select your date, duration, and preferred conference space below. Conference rooms are confirmed instantly upon booking.'}</p>
       </section>
 
       {effectiveUser?.status && !['active', 'trialing'].includes(effectiveUser.status.toLowerCase()) ? (
