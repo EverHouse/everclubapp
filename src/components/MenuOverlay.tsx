@@ -83,14 +83,14 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
       ></div>
 
       <div 
-        className={`relative w-[85%] md:w-[320px] lg:w-[320px] h-full flex flex-col overflow-hidden rounded-tr-[2rem] border-l-0 ${isDark ? 'bg-[#141414]' : 'bg-[#F2F2EC]'} backdrop-blur-xl ${isClosing ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}
+        className={`relative w-[85%] md:w-[320px] lg:w-[320px] h-full flex flex-col overflow-hidden rounded-tr-xl border-l-0 ${isDark ? 'bg-[#141414]' : 'bg-[#F2F2EC]'} backdrop-blur-xl ${isClosing ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}
       >
         
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-multiply"></div>
 
-        <div className={`relative z-10 flex flex-col lg:w-[320px] py-8 safe-area-inset-menu pb-[calc(2rem+env(safe-area-inset-bottom,0px)+100px)] ${isDark ? 'text-[#F2F2EC]' : 'text-[#293515]'}`} style={{ height: 'calc(100% - 100px)' }}>
+        <div className={`relative z-10 flex flex-col lg:w-[320px] py-8 px-8 safe-area-inset-menu pb-[calc(2rem+env(safe-area-inset-bottom,0px)+100px)] ${isDark ? 'text-[#F2F2EC]' : 'text-[#293515]'}`} style={{ height: 'calc(100% - 100px)' }}>
             
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-10">
                 <button 
                   onClick={() => handleNav('/')}
                   aria-label="Go to home"
@@ -111,7 +111,7 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
                 </button>
             </div>
             
-            <nav className="flex flex-col gap-4 flex-1 overflow-y-auto scrollbar-hide py-2">
+            <nav className="flex flex-col gap-0 flex-1 overflow-y-auto scrollbar-hide py-4">
                 <MenuLink label="Membership" onClick={() => handleNav('/membership')} staggerIndex={0} isDark={isDark} />
                 <MenuLink label="Cafe" onClick={() => handleNav('/menu')} staggerIndex={1} isDark={isDark} />
                 <MenuLink label="Host Events" onClick={() => handleNav('/private-hire')} staggerIndex={2} isDark={isDark} />
@@ -123,9 +123,10 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
             <div className={`mt-4 pt-6 border-t animate-slide-up-stagger ${isDark ? 'border-[#F2F2EC]/10' : 'border-[#293515]/10'}`} style={{ '--stagger-index': 6 } as React.CSSProperties}>
                 <button 
                     onClick={() => handleNav('/contact')}
+                    style={{ fontFamily: 'var(--font-label)' }}
                     className={`w-full group flex items-center justify-between px-4 py-3 min-h-[44px] rounded-[4px] glass-button border tactile-btn ${isDark ? 'border-white/20' : 'border-black/20'}`}
                 >
-                    <span className={`text-xl font-bold ${isDark ? 'text-[#F2F2EC]' : 'text-[#293515]'}`}>Contact Us</span>
+                    <span className={`text-sm uppercase tracking-[0.3em] font-semibold ${isDark ? 'text-[#F2F2EC]' : 'text-[#293515]'}`}>Contact Us</span>
                     <span className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full glass-button flex items-center justify-center group-hover:scale-110 transition-all duration-[400ms] ease-in-out">
                         <span className={`material-symbols-outlined ${isDark ? 'text-[#F2F2EC]' : 'text-[#293515]'}`}>arrow_forward</span>
                     </span>
@@ -160,8 +161,8 @@ const MenuLink: React.FC<MenuLinkProps> = ({ label, onClick, staggerIndex, isDar
       type="button"
       onClick={onClick}
       onPointerUp={handlePointerUp}
-      style={{ '--stagger-index': staggerIndex, touchAction: 'manipulation', animationFillMode: 'both' } as React.CSSProperties}
-      className={`text-left text-[24px] font-display font-medium transition-all duration-normal tracking-tight animate-slide-up-stagger leading-tight min-h-[44px] hoverable-translate active:translate-x-2 tactile-row ${isDark ? 'text-[#F2F2EC] hover:text-[#F2F2EC]/80' : 'text-[#293515] hover:text-[#293515]/80'}`}
+      style={{ '--stagger-index': staggerIndex, touchAction: 'manipulation', animationFillMode: 'both', fontFamily: 'var(--font-label)' } as React.CSSProperties}
+      className={`text-left text-sm uppercase tracking-[0.3em] font-medium py-4 transition-all duration-normal animate-slide-up-stagger leading-none min-h-[44px] hoverable-translate active:translate-x-2 tactile-row ${isDark ? 'text-[#F2F2EC]/70 hover:text-[#F2F2EC]' : 'text-[#293515]/70 hover:text-[#293515]'}`}
     >
       {label}
     </button>
