@@ -85,7 +85,7 @@ function SegmentedButtonInner<T extends string>({
               style={{ touchAction: 'manipulation' }}
               className={`tactile-btn relative flex items-center justify-center gap-1.5 font-medium transition-all duration-fast focus:ring-2 focus:ring-inset focus:ring-accent focus:outline-none ${sizeStyles} ${
                 isSelected
-                  ? 'bg-primary/10 text-primary dark:bg-white/10 dark:text-bone'
+                  ? 'bg-primary/10 text-primary dark:bg-white/15 dark:text-white'
                   : 'bg-transparent text-primary/70 dark:text-white/70 hover:bg-primary/5 dark:hover:bg-white/5'
               } ${index === 0 ? 'rounded-l-[11px]' : ''} ${index === options.length - 1 ? 'rounded-r-[11px]' : ''}`}
             >
