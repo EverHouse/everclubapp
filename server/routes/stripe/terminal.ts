@@ -132,7 +132,10 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
     const stripe = await getStripeClient();
     
     let customerId: string | undefined;
-    if (metadata?.userId && metadata?.ownerEmail) {
+    const isGuestCheckout = metadata?.guestCheckout === 'true' || metadata?.guestCheckout === true;
+    if (isGuestCheckout) {
+      logger.info('[Terminal] Guest checkout mode — skipping customer creation', { extra: { readerId, amount } });
+    } else if (metadata?.userId && metadata?.ownerEmail) {
       try {
         const { getOrCreateStripeCustomer } = await import('../../core/stripe/customers');
         const result = await getOrCreateStripeCustomer(
@@ -363,13 +366,14 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
       });
     }
     
-    if (customerId || metadata?.ownerEmail) {
+    if (customerId || metadata?.ownerEmail || isGuestCheckout) {
       try {
         const bookingIdVal = isBookingFee && metadata?.bookingId ? parseInt(metadata.bookingId) || null : null;
         const sessionIdVal = isBookingFee && metadata?.sessionId ? parseInt(metadata.sessionId) || null : null;
+        const userId = isGuestCheckout ? `guest-pos-${Date.now()}` : (metadata?.userId || `guest-${customerId || 'terminal'}`);
         await db.execute(sql`INSERT INTO stripe_payment_intents 
            (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, description, status, product_id, product_name, booking_id, session_id)
-           VALUES (${metadata?.userId || `guest-${customerId || 'terminal'}`}, ${paymentIntent.id}, ${customerId || null}, ${Math.round(amount)}, ${isBookingFee ? 'booking_fee' : 'one_time_purchase'}, ${finalDescription}, 'pending', ${null}, ${metadata?.items || null}, ${bookingIdVal}, ${sessionIdVal})
+           VALUES (${userId}, ${paymentIntent.id}, ${customerId || null}, ${Math.round(amount)}, ${isBookingFee ? 'booking_fee' : 'one_time_purchase'}, ${finalDescription}, 'pending', ${null}, ${metadata?.items || null}, ${bookingIdVal}, ${sessionIdVal})
            ON CONFLICT (stripe_payment_intent_id) DO NOTHING`);
       } catch (dbErr: unknown) {
         logger.warn('[Terminal] Non-blocking: Could not save local payment record', { extra: { dbErr: getErrorMessage(dbErr) } });

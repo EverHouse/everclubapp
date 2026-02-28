@@ -29,6 +29,7 @@ type CategoryTab = 'all' | 'passes' | 'cafe' | 'merch';
 const PASS_PRODUCTS = [
   { productId: 'prod_TvPiZ9a7L3BqZX', name: 'Day Pass - Coworking', priceCents: 3500, icon: 'workspace_premium' },
   { productId: 'prod_TvPiHiafkZcoKR', name: 'Day Pass - Golf Sim', priceCents: 5000, icon: 'sports_golf' },
+  { productId: 'prod_SimGuestFee25', name: 'Guest Fee - Simulator', priceCents: 2500, icon: 'person_add' },
 ];
 
 const CAFE_CATEGORY_ICONS: Record<string, string> = {
@@ -76,6 +77,7 @@ const POSRegister: React.FC = () => {
   const [description, setDescription] = useState('');
   const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
   const [useNewCustomer, setUseNewCustomer] = useState(false);
+  const [useGuestCheckout, setUseGuestCheckout] = useState(false);
   const [newCustomerFirstName, setNewCustomerFirstName] = useState('');
   const [newCustomerLastName, setNewCustomerLastName] = useState('');
   const [newCustomerEmail, setNewCustomerEmail] = useState('');
@@ -96,6 +98,8 @@ const POSRegister: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [receiptSent, setReceiptSent] = useState(false);
   const [receiptSending, setReceiptSending] = useState(false);
+  const [guestReceiptEmail, setGuestReceiptEmail] = useState('');
+  const [attachingEmail, setAttachingEmail] = useState(false);
 
   const [savedCard, setSavedCard] = useState<{ hasSavedCard: boolean; cardLast4?: string; cardBrand?: string } | null>(null);
   const [checkingSavedCard, setCheckingSavedCard] = useState(false);
@@ -178,6 +182,15 @@ const POSRegister: React.FC = () => {
   const clearCart = () => setCartItems([]);
 
   const getCustomerInfo = () => {
+    if (useGuestCheckout) {
+      return {
+        email: '',
+        name: 'Guest',
+        isNewCustomer: false as const,
+        isGuestCheckout: true as const,
+        id: null as string | null,
+      };
+    }
     if (useNewCustomer) {
       return {
         email: newCustomerEmail,
@@ -186,6 +199,7 @@ const POSRegister: React.FC = () => {
         lastName: newCustomerLastName,
         phone: newCustomerPhone || undefined,
         isNewCustomer: true as const,
+        isGuestCheckout: false as const,
         id: null as string | null,
       };
     }
@@ -194,12 +208,14 @@ const POSRegister: React.FC = () => {
           email: selectedMember.email,
           name: selectedMember.name,
           isNewCustomer: false as const,
+          isGuestCheckout: false as const,
           id: selectedMember.id as string | null,
         }
       : null;
   };
 
   const isCustomerValid = () => {
+    if (useGuestCheckout) return true;
     if (useNewCustomer) {
       return !!(newCustomerFirstName.trim() && newCustomerLastName.trim() && newCustomerEmail.trim());
     }
@@ -224,18 +240,23 @@ const POSRegister: React.FC = () => {
 
   const createPaymentIntent = async () => {
     const customer = getCustomerInfo();
-    if (!customer || totalCents <= 0) return;
+    if ((!customer && !useGuestCheckout) || totalCents <= 0) return;
 
     setIsCreatingIntent(true);
     setError(null);
 
     try {
       const payload: Record<string, unknown> = {
-        memberEmail: customer.email,
-        memberName: customer.name,
         amountCents: totalCents,
         description: buildDescription(),
       };
+
+      if (useGuestCheckout) {
+        payload.guestCheckout = true;
+      } else if (customer) {
+        payload.memberEmail = customer.email;
+        payload.memberName = customer.name;
+      }
 
       if (cartItems.length === 1) {
         payload.productId = cartItems[0].productId;
@@ -250,12 +271,12 @@ const POSRegister: React.FC = () => {
         }));
       }
 
-      if (customer.isNewCustomer) {
+      if (customer && 'isNewCustomer' in customer && customer.isNewCustomer) {
         payload.isNewCustomer = true;
-        payload.firstName = customer.firstName;
-        payload.lastName = customer.lastName;
-        if (customer.phone) {
-          payload.phone = customer.phone;
+        payload.firstName = (customer as { firstName?: string }).firstName;
+        payload.lastName = (customer as { lastName?: string }).lastName;
+        if ((customer as { phone?: string }).phone) {
+          payload.phone = (customer as { phone?: string }).phone;
         }
       }
 
@@ -364,9 +385,11 @@ const POSRegister: React.FC = () => {
     }
   };
 
-  const handleSendReceipt = async () => {
+  const handleSendReceipt = async (overrideEmail?: string) => {
     const customer = getCustomerInfo();
-    if (!customer) return;
+    const email = overrideEmail || customer?.email;
+    const name = customer?.name || 'Guest';
+    if (!email) return;
 
     setReceiptSending(true);
     try {
@@ -380,8 +403,8 @@ const POSRegister: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          email: customer.email,
-          memberName: customer.name,
+          email,
+          memberName: name,
           items: cartItems.map(item => ({
             name: item.name,
             quantity: item.quantity,
@@ -407,11 +430,41 @@ const POSRegister: React.FC = () => {
     }
   };
 
+  const handleGuestReceiptSubmit = async () => {
+    const email = guestReceiptEmail.trim().toLowerCase();
+    if (!email || !paymentIntentId) return;
+
+    setAttachingEmail(true);
+    setError(null);
+
+    try {
+      const attachRes = await fetch('/api/stripe/staff/quick-charge/attach-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ paymentIntentId, email }),
+      });
+
+      if (!attachRes.ok) {
+        const data = await attachRes.json().catch(() => ({}));
+        console.warn('[POS] Could not attach email to payment:', data.error);
+      }
+
+      await handleSendReceipt(email);
+    } catch (err: unknown) {
+      console.error('[POS] Guest receipt submit error:', err);
+      setError('Failed to send receipt');
+    } finally {
+      setAttachingEmail(false);
+    }
+  };
+
   const resetForm = () => {
     setCartItems([]);
     setDescription('');
     setSelectedMember(null);
     setUseNewCustomer(false);
+    setUseGuestCheckout(false);
     setNewCustomerFirstName('');
     setNewCustomerLastName('');
     setNewCustomerEmail('');
@@ -428,6 +481,8 @@ const POSRegister: React.FC = () => {
     setReceiptSent(false);
     setReceiptSending(false);
     setScannedIdImage(null);
+    setGuestReceiptEmail('');
+    setAttachingEmail(false);
   };
 
   const handleIdScanComplete = useCallback((data: {
@@ -666,6 +721,31 @@ const POSRegister: React.FC = () => {
   };
 
   const renderCustomerSection = () => {
+    if (useGuestCheckout) {
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30">
+            <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">bolt</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Quick Guest Checkout</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">No customer info needed — terminal only</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setUseGuestCheckout(false);
+              setUseNewCustomer(false);
+            }}
+            className="text-sm text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white flex items-center gap-1"
+          >
+            <span className="material-symbols-outlined text-base">search</span>
+            Search existing
+          </button>
+        </div>
+      );
+    }
+
     if (!useNewCustomer) {
       return (
         <div className="space-y-2">
@@ -678,17 +758,32 @@ const POSRegister: React.FC = () => {
             includeVisitors={true}
             includeFormer={true}
           />
-          <button
-            type="button"
-            onClick={() => {
-              setUseNewCustomer(true);
-              setSelectedMember(null);
-            }}
-            className="text-sm text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white flex items-center gap-1"
-          >
-            <span className="material-symbols-outlined text-base">person_add</span>
-            New Customer
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setUseNewCustomer(true);
+                setSelectedMember(null);
+              }}
+              className="text-sm text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-base">person_add</span>
+              New Customer
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUseGuestCheckout(true);
+                setUseNewCustomer(false);
+                setSelectedMember(null);
+                setSavedCard(null);
+              }}
+              className="text-sm text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 flex items-center gap-1 font-medium"
+            >
+              <span className="material-symbols-outlined text-base">bolt</span>
+              Quick Guest
+            </button>
+          </div>
         </div>
       );
     }
@@ -720,6 +815,24 @@ const POSRegister: React.FC = () => {
             >
               <span className="material-symbols-outlined text-base">search</span>
               Search existing
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUseGuestCheckout(true);
+                setUseNewCustomer(false);
+                setSelectedMember(null);
+                setSavedCard(null);
+                setNewCustomerFirstName('');
+                setNewCustomerLastName('');
+                setNewCustomerEmail('');
+                setNewCustomerPhone('');
+                setScannedIdImage(null);
+              }}
+              className="text-sm text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 flex items-center gap-1 font-medium"
+            >
+              <span className="material-symbols-outlined text-base">bolt</span>
+              Quick Guest
             </button>
           </div>
         </div>
@@ -785,6 +898,70 @@ const POSRegister: React.FC = () => {
 
   const renderDrawerContent = () => {
     if (success) {
+      if (useGuestCheckout) {
+        return (
+          <div className="flex flex-col items-center justify-center py-8 gap-4 px-5">
+            <AnimatedCheckmark size={64} color={isDark ? '#4ade80' : '#16a34a'} />
+            <p className="text-xl font-bold text-primary dark:text-white">
+              Payment of {totalFormatted} successful!
+            </p>
+            {error && (
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/30 rounded-xl text-red-700 dark:text-red-300 text-sm w-full max-w-xs">
+                {error}
+              </div>
+            )}
+            {!receiptSent ? (
+              <div className="w-full max-w-xs mt-4 space-y-3">
+                <div className={`p-4 rounded-xl border ${isDark ? 'border-white/10 bg-white/5' : 'border-primary/10 bg-primary/5'}`}>
+                  <p className="text-sm font-semibold text-primary dark:text-white mb-1">Email receipt?</p>
+                  <p className="text-xs text-primary/60 dark:text-white/60 mb-3">Enter customer's email to send receipt</p>
+                  <input
+                    type="email"
+                    value={guestReceiptEmail}
+                    onChange={(e) => setGuestReceiptEmail(e.target.value)}
+                    placeholder="customer@example.com"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/80 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm mb-3"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && guestReceiptEmail.trim()) {
+                        handleGuestReceiptSubmit();
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={handleGuestReceiptSubmit}
+                    disabled={!guestReceiptEmail.trim() || attachingEmail || receiptSending}
+                    className="w-full py-3 px-6 rounded-xl font-semibold bg-primary dark:bg-lavender text-white transition-colors hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-lg">email</span>
+                    {attachingEmail || receiptSending ? 'Sending...' : 'Send Receipt'}
+                  </button>
+                </div>
+                <button
+                  onClick={resetForm}
+                  className="w-full py-3 px-6 rounded-xl font-semibold bg-white/60 dark:bg-white/5 border border-primary/20 dark:border-white/20 text-primary dark:text-white transition-colors hover:bg-white/80 dark:hover:bg-white/10 flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-lg">close</span>
+                  No Thanks
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 w-full max-w-xs mt-4">
+                <div className="flex items-center justify-center gap-2 py-3 text-emerald-600 dark:text-emerald-400">
+                  <span className="material-symbols-outlined">check_circle</span>
+                  <span className="font-semibold text-sm">Receipt sent to {guestReceiptEmail}</span>
+                </div>
+                <button
+                  onClick={resetForm}
+                  className="w-full py-3 px-6 rounded-xl font-semibold bg-primary dark:bg-lavender text-white transition-colors hover:opacity-90"
+                >
+                  New Sale
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      }
+
       return (
         <div className="flex flex-col items-center justify-center py-8 gap-4 px-5">
           <AnimatedCheckmark size={64} color={isDark ? '#4ade80' : '#16a34a'} />
@@ -798,7 +975,7 @@ const POSRegister: React.FC = () => {
           )}
           <div className="flex flex-col gap-3 w-full max-w-xs mt-4">
             <button
-              onClick={handleSendReceipt}
+              onClick={() => handleSendReceipt()}
               disabled={receiptSent || receiptSending}
               className={`w-full py-3 px-6 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors ${
                 receiptSent
@@ -858,23 +1035,48 @@ const POSRegister: React.FC = () => {
           </div>
         </div>
 
-        <div>
-          <h4 className="text-sm font-semibold text-primary/60 dark:text-white/60 uppercase tracking-wider mb-2">
-            Customer
-          </h4>
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-primary/5'}`}>
-            <span className="material-symbols-outlined text-primary/60 dark:text-white/60">person</span>
-            <div>
-              <p className="text-sm font-medium text-primary dark:text-white">{getCustomerInfo()?.name}</p>
-              <p className="text-xs text-primary/60 dark:text-white/60">{getCustomerInfo()?.email}</p>
+        {!useGuestCheckout && (
+          <div>
+            <h4 className="text-sm font-semibold text-primary/60 dark:text-white/60 uppercase tracking-wider mb-2">
+              Customer
+            </h4>
+            <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-primary/5'}`}>
+              <span className="material-symbols-outlined text-primary/60 dark:text-white/60">person</span>
+              <div>
+                <p className="text-sm font-medium text-primary dark:text-white">{getCustomerInfo()?.name}</p>
+                <p className="text-xs text-primary/60 dark:text-white/60">{getCustomerInfo()?.email}</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {useGuestCheckout && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30">
+            <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">bolt</span>
+            <div>
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Guest Checkout</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">Terminal payment only</p>
+            </div>
+          </div>
+        )}
 
         <div>
           <h4 className="text-sm font-semibold text-primary/60 dark:text-white/60 uppercase tracking-wider mb-3">
             Payment Method
           </h4>
+          {useGuestCheckout ? (
+            <button
+              onClick={() => handleSelectPaymentMethod('terminal')}
+              className={`w-full flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium transition-colors ${
+                selectedPaymentMethod === 'terminal'
+                  ? 'bg-primary dark:bg-lavender text-white shadow-sm'
+                  : 'bg-white/60 dark:bg-white/5 text-primary dark:text-white border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10'
+              }`}
+            >
+              <span className="material-symbols-outlined text-xl">contactless</span>
+              Card Reader
+            </button>
+          ) : (
           <div className={`grid gap-2 ${savedCard?.hasSavedCard && !useNewCustomer ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <button
               onClick={() => handleSelectPaymentMethod('online_card')}
@@ -912,6 +1114,7 @@ const POSRegister: React.FC = () => {
               </button>
             )}
           </div>
+          )}
           {checkingSavedCard && (
             <p className="text-xs text-primary/40 dark:text-white/40 mt-2 flex items-center gap-1">
               <span className="animate-spin inline-block w-3 h-3 border border-primary/30 dark:border-white/30 border-t-transparent rounded-full" />
@@ -958,11 +1161,12 @@ const POSRegister: React.FC = () => {
             paymentMetadata={{
               source: 'pos',
               items: cartItems.map(i => `${i.name} x${i.quantity}`).join(', '),
+              ...(useGuestCheckout ? { guestCheckout: 'true' } : {}),
               ...(getCustomerInfo()?.id ? { userId: getCustomerInfo()!.id! } : {}),
-              ...(getCustomerInfo()?.email ? { ownerEmail: getCustomerInfo()!.email } : {}),
-              ...(getCustomerInfo()?.name ? { ownerName: getCustomerInfo()!.name } : {}),
+              ...(!useGuestCheckout && getCustomerInfo()?.email ? { ownerEmail: getCustomerInfo()!.email } : {}),
+              ...(!useGuestCheckout && getCustomerInfo()?.name ? { ownerName: getCustomerInfo()!.name } : {}),
             }}
-            cartItems={cartItems.map(item => ({
+            cartItems={useGuestCheckout ? undefined : cartItems.map(item => ({
               productId: item.productId,
               name: item.name,
               priceCents: item.priceCents,

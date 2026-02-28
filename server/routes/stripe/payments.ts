@@ -771,11 +771,15 @@ router.get('/api/billing/members/search', isStaffOrAdmin, async (req: Request, r
 
 router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { memberEmail: rawEmail, memberName, amountCents, description, productId, isNewCustomer, firstName, lastName, phone, dob, tierSlug, tierName, createUser, streetAddress, city, state, zipCode, cartItems } = req.body;
+    const { memberEmail: rawEmail, memberName, amountCents, description, productId, isNewCustomer, firstName, lastName, phone, dob, tierSlug, tierName, createUser, streetAddress, city, state, zipCode, cartItems, guestCheckout } = req.body;
     const memberEmail = rawEmail?.trim()?.toLowerCase();
     const { sessionUser, staffEmail } = getStaffInfo(req);
 
-    if (!memberEmail || amountCents === undefined || amountCents === null) {
+    if (amountCents === undefined || amountCents === null) {
+      return res.status(400).json({ error: 'Missing required field: amountCents' });
+    }
+
+    if (!guestCheckout && !memberEmail) {
       return res.status(400).json({ error: 'Missing required fields: memberEmail, amountCents' });
     }
 
@@ -791,8 +795,74 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
     if (numericAmount > 99999999) {
       return res.status(400).json({ error: 'Amount exceeds maximum allowed' });
     }
+
+    if (guestCheckout) {
+      const finalDescription = description || 'Guest POS sale';
+      const stripe = await getStripeClient();
+
+      const guestMetadata: Record<string, string> = {
+        staffInitiated: 'true',
+        staffEmail: staffEmail,
+        chargeType: 'guest_pos_sale',
+        guestCheckout: 'true',
+        source: 'pos_guest_checkout',
+      };
+      if (productId) guestMetadata.productId = productId;
+
+      let finalProductName: string | undefined;
+      if (productId) {
+        try {
+          const product = await stripe.products.retrieve(productId);
+          finalProductName = product.name;
+          if (product.name) guestMetadata.productName = product.name;
+        } catch (productError: unknown) {
+          logger.warn('[Stripe] Could not retrieve product for guest checkout', { extra: { productId, error: getErrorMessage(productError) } });
+        }
+      }
+
+      if (Array.isArray(cartItems) && cartItems.length > 0) {
+        const itemNames = cartItems.map((item: { name?: string; quantity?: number }) =>
+          item.quantity && item.quantity > 1 ? `${item.name || 'Item'} x${item.quantity}` : (item.name || 'Item')
+        ).join(', ');
+        guestMetadata.items = itemNames.substring(0, 490);
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(numericAmount),
+        currency: 'usd',
+        description: finalDescription,
+        metadata: guestMetadata,
+        payment_method_types: ['card_present', 'card'],
+      }, {
+        idempotencyKey: `guest_pos_${staffEmail}_${numericAmount}_${Date.now()}`
+      });
+
+      try {
+        await db.execute(sql`INSERT INTO stripe_payment_intents 
+           (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, description, status, product_id, product_name)
+           VALUES (${'guest-pos-' + Date.now()}, ${paymentIntent.id}, ${null}, ${Math.round(numericAmount)}, 'one_time_purchase', ${finalDescription}, 'pending', ${productId || null}, ${finalProductName || null})
+           ON CONFLICT (stripe_payment_intent_id) DO NOTHING`);
+      } catch (dbErr: unknown) {
+        logger.warn('[GuestCheckout] Non-blocking: Could not save local payment record', { extra: { dbErr: getErrorMessage(dbErr) } });
+      }
+
+      logFromRequest(req, 'initiate_charge', 'payment', paymentIntent.id, 'guest-checkout', {
+        amountCents: numericAmount,
+        description: finalDescription,
+        productId: productId || null,
+        productName: finalProductName || null,
+        source: 'pos_guest_checkout'
+      });
+
+      logger.info('[Stripe] Guest checkout PaymentIntent created', { extra: { paymentIntentId: paymentIntent.id, amount: numericAmount } });
+
+      return res.json({
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        guestCheckout: true
+      });
+    }
     
-    // Prevent creating Stripe customers for placeholder emails
     if (isPlaceholderEmail(memberEmail)) {
       return res.status(400).json({ error: 'Cannot charge placeholder emails. Please use a real email address.' });
     }
@@ -1084,6 +1154,104 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, async (req
       error: 'Payment confirmation failed. Please try again.',
       retryable: true
     });
+  }
+});
+
+router.post('/api/stripe/staff/quick-charge/attach-email', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { paymentIntentId, email: rawEmail } = req.body;
+    const email = rawEmail?.trim()?.toLowerCase();
+    const { staffEmail } = getStaffInfo(req);
+
+    if (!paymentIntentId || !email) {
+      return res.status(400).json({ error: 'Missing required fields: paymentIntentId, email' });
+    }
+
+    if (isPlaceholderEmail(email)) {
+      return res.status(400).json({ error: 'Cannot attach placeholder emails' });
+    }
+
+    const stripe = await getStripeClient();
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (!paymentIntent) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+
+    const { resolveUserByEmail, getOrCreateStripeCustomer } = await import('../../core/stripe/customers');
+    const resolved = await resolveUserByEmail(email);
+    let stripeCustomerId: string;
+    let userId: string | null = null;
+
+    if (resolved) {
+      const custResult = await getOrCreateStripeCustomer(resolved.userId, email, email.split('@')[0]);
+      stripeCustomerId = custResult.customerId;
+      userId = resolved.userId;
+    } else {
+      const custResult = await getOrCreateStripeCustomer(email, email, email.split('@')[0]);
+      stripeCustomerId = custResult.customerId;
+
+      try {
+        const existingUser = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${email})`);
+        if (existingUser.rows.length > 0) {
+          userId = (existingUser.rows[0] as { id: string }).id;
+          await db.execute(sql`UPDATE users SET stripe_customer_id = COALESCE(stripe_customer_id, ${stripeCustomerId}), updated_at = NOW() WHERE id = ${userId}`);
+        } else {
+          const exclusionCheck = await db.execute(sql`SELECT 1 FROM sync_exclusions WHERE email = ${email}`);
+          if (exclusionCheck.rows.length === 0) {
+            const crypto = await import('crypto');
+            userId = crypto.randomUUID();
+            await db.execute(sql`INSERT INTO users (id, email, membership_status, stripe_customer_id, data_source, visitor_type, role, created_at, updated_at)
+               VALUES (${userId}, ${email}, 'visitor', ${stripeCustomerId}, 'APP', 'day_pass', 'visitor', NOW(), NOW())
+               ON CONFLICT (email) DO UPDATE SET
+                 stripe_customer_id = COALESCE(users.stripe_customer_id, EXCLUDED.stripe_customer_id),
+                 updated_at = NOW()`);
+            logger.info('[AttachEmail] Created visitor record for guest checkout', { extra: { email } });
+
+            findOrCreateHubSpotContact(email, '', '', undefined, undefined, { role: 'visitor' }).catch((err) => {
+              logger.error('[AttachEmail] Background HubSpot sync failed', { error: err instanceof Error ? err : new Error(String(err)) });
+            });
+          }
+        }
+      } catch (visitorErr: unknown) {
+        logger.warn('[AttachEmail] Could not create visitor record (non-blocking)', { extra: { visitorErr: getErrorMessage(visitorErr) } });
+      }
+    }
+
+    try {
+      await stripe.paymentIntents.update(paymentIntentId, {
+        customer: stripeCustomerId,
+        receipt_email: email,
+        metadata: {
+          ...paymentIntent.metadata,
+          attachedEmail: email,
+          attachedBy: staffEmail,
+        },
+      });
+      logger.info('[AttachEmail] Attached customer to PaymentIntent', { extra: { paymentIntentId, email, stripeCustomerId } });
+    } catch (stripeErr: unknown) {
+      logger.warn('[AttachEmail] Could not update PaymentIntent customer (non-blocking)', { extra: { stripeErr: getErrorMessage(stripeErr) } });
+    }
+
+    try {
+      await db.execute(sql`UPDATE stripe_payment_intents 
+         SET stripe_customer_id = ${stripeCustomerId}, 
+             user_id = COALESCE(${userId}, user_id),
+             updated_at = NOW()
+         WHERE stripe_payment_intent_id = ${paymentIntentId}`);
+    } catch (dbErr: unknown) {
+      logger.warn('[AttachEmail] Could not update local payment record (non-blocking)', { extra: { dbErr: getErrorMessage(dbErr) } });
+    }
+
+    logFromRequest(req, 'attach_email_to_payment', 'payment', paymentIntentId, email, {
+      stripeCustomerId,
+      source: 'pos_guest_checkout'
+    });
+
+    res.json({ success: true, stripeCustomerId });
+  } catch (error: unknown) {
+    logger.error('[Stripe] Error attaching email to payment', { error: error instanceof Error ? error : new Error(String(error)) });
+    res.status(500).json({ error: 'Failed to attach email to payment' });
   }
 });
 
