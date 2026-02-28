@@ -478,7 +478,7 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
         
         <MotionList ref={wellnessParent} className="space-y-3 -mx-6 px-3">
             {sortedClasses.length > 0 ? (
-                sortedClasses.map((cls) => {
+                sortedClasses.map((cls, index) => {
                     const isExpanded = expandedId === cls.id;
                     const enrolled = isEnrolled(cls.id);
                     const waitlisted = isOnWaitlist(cls.id);
@@ -486,7 +486,7 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
                     const isRsvping = loadingRsvp === cls.id;
                     const isFull = cls.spotsRemaining !== null && cls.spotsRemaining <= 0;
                     return (
-                    <MotionListItem key={cls.id}>
+                    <MotionListItem key={cls.id} index={index}>
                         <ClassCard 
                             {...cls}
                             date={formatDateForDisplay(cls.date)}

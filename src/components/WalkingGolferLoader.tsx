@@ -91,7 +91,7 @@ const WalkingGolferLoader: React.FC<WalkingGolferLoaderProps> = ({ isVisible = t
         }
 
         .loader-exit {
-          animation: minimizeToStatusBar 0.55s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+          animation: minimizeToStatusBar 0.55s var(--m3-standard-accel) forwards;
           pointer-events: none;
         }
 
@@ -115,7 +115,7 @@ const WalkingGolferLoader: React.FC<WalkingGolferLoaderProps> = ({ isVisible = t
         }
 
         .content-exit {
-          animation: contentFadeOut 0.3s cubic-bezier(0.4, 0, 1, 1) forwards;
+          animation: contentFadeOut 0.3s var(--m3-standard-accel) forwards;
         }
 
         @keyframes contentFadeOut {

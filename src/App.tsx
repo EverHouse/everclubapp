@@ -751,7 +751,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         style={{ 
           zIndex: 'var(--z-header)',
           transform: `translateY(-50%) translateX(${isEdgeSwipeActive ? Math.min(edgeSwipeProgress * 60, 50) : -40}px) scale(${0.8 + edgeSwipeProgress * 0.3})`,
-          transition: isEdgeSwipeActive ? 'none' : 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+          transition: isEdgeSwipeActive ? 'none' : 'all 0.3s var(--spring-bounce)'
         }}
       >
         <div 

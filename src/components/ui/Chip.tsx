@@ -52,7 +52,7 @@ export const Chip: React.FC<ChipProps> = ({
   };
 
   const baseStyles =
-    'inline-flex items-center justify-center rounded-full border font-medium transition-all duration-fast focus:ring-2 focus:ring-offset-1 focus:ring-accent focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed tactile-btn select-none';
+    'inline-flex items-center justify-center rounded-full border font-medium transition-all duration-fast focus:ring-2 focus:ring-offset-1 focus:ring-accent focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed tactile-btn select-none active:bg-primary/10 dark:active:bg-white/10';
 
   const unselectedBorder = 'border-primary/20 dark:border-white/20';
   const selectedBorder = 'border-primary/30 dark:border-white/30';

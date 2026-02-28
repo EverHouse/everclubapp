@@ -21,7 +21,7 @@ The Ever Club Members App is a private members club application for golf and wel
 - **Member Dashboard**: Features a chronological card layout for bookings, events, and wellness sessions with "Add to Calendar" functionality.
 
 ### UI/UX & Frontend
-- **Design System**: Liquid Glass UI system using Tailwind CSS v4, supporting dark mode, with spring-physics motion and drag-to-dismiss functionality.
+- **Design System**: Liquid Glass UI system using Tailwind CSS v4, supporting dark mode, with M3-compliant motion tokens and drag-to-dismiss functionality. Motion system uses Material Design 3 easing curves (`--m3-standard`, `--m3-standard-decel`, `--m3-standard-accel`, `--m3-emphasized-decel`, `--m3-emphasized-accel`) and a 10-step duration scale (`--duration-short-1` through `--duration-long-2`). Legacy spring tokens (`--spring-bounce`, `--spring-smooth`) preserved for brand flourishes. All animations use CSS custom property tokens — no raw `cubic-bezier` values in component code.
 - **Technology Stack**: React 19, Vite, and state management using Zustand/TanStack libraries.
 - **Component Design**: Sheets and modals follow a Header, scrollable Body, and Sticky Footer structure. Button hierarchy differentiates primary, secondary, and destructive actions.
 - **Accessibility**: Adheres to WCAG conventions including skip navigation, focus trapping, proper roles/attributes, form labels, and image alt text. Specific color token usage for accessibility.
@@ -29,7 +29,7 @@ The Ever Club Members App is a private members club application for golf and wel
 - **Extended FAB**: `FloatingActionButton` supports `extended` prop for icon+text pill shape that collapses to icon-only on scroll.
 - **Bottom Sheet Variants**: `SlideUpDrawer` supports `variant="modal"` (default, with scrim/focus trap) and `variant="standard"` (no scrim, page remains interactive).
 - **Navigation Rail**: Staff portal uses `StaffNavigationRail` at tablet breakpoint (md-lg), full sidebar at desktop (lg+), bottom nav on mobile.
-- **Interaction Polish**: Enhanced visual feedback for interactive elements like `SwipeableListItem`, `SlideUpDrawer`, `Toggle`, and `ConfirmDialog`.
+- **Interaction Polish**: Enhanced visual feedback for interactive elements like `SwipeableListItem`, `SlideUpDrawer`, `Toggle`, and `ConfirmDialog`. M3 motion patterns: Tab Fade Through (90ms exit / 210ms enter with scale), SegmentedButton sliding indicator, FAB exit animation, dialog scale-in, drawer content entrance, and staggered list entry (45ms intervals for list items, 60ms for content).
 - **Mutation Patterns**: `useAppMutation` hook provides automatic success/error toasts, haptic feedback, optimistic updates with rollback, and query invalidation. Error messages are mapped to user-friendly strings. Profile edits, SMS preferences, and booking submissions use optimistic UI.
 - **Form Persistence**: `useFormPersistence` hook persists form data to sessionStorage. `useUnsavedChanges` hook blocks navigation with `useBlocker` and shows `ConfirmDialog` when form has unsaved changes.
 - **Prefetch System**: Route-level prefetch via `src/lib/prefetch.ts`, plus detail-level prefetch on hover/focus via `usePrefetchOnHover` hook for booking cards and directory rows.

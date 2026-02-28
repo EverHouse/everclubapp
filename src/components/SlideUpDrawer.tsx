@@ -113,7 +113,7 @@ export function SlideUpDrawer({
     setIsClosing(true);
     setTimeout(() => {
       onCloseRef.current();
-    }, 250);
+    }, 300);
   }, [dismissible]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -195,6 +195,10 @@ export function SlideUpDrawer({
     ? Math.max(0, dragState.currentY - dragState.startY) 
     : 0;
 
+  const dragOpacity = dragState.isDragging
+    ? Math.max(0.5, 1 - (dragOffset / 500))
+    : 1;
+
   if (!isOpen) return null;
 
   const drawerContent = (
@@ -223,10 +227,14 @@ export function SlideUpDrawer({
         aria-labelledby={title ? 'drawer-title' : undefined}
         aria-label={title ? undefined : 'Dialog'}
         tabIndex={-1}
-        className={`fixed inset-x-0 bottom-0 flex flex-col pointer-events-auto ${maxHeightClasses[maxHeight]} ${isDark ? 'bg-[#1a1d15]' : 'bg-white'} rounded-t-3xl shadow-2xl transition-transform duration-normal ease-spring-smooth ${isClosing ? 'translate-y-full' : 'animate-slide-up-drawer'} ${className}`}
+        className={`fixed inset-x-0 bottom-0 flex flex-col pointer-events-auto ${maxHeightClasses[maxHeight]} ${isDark ? 'bg-[#1a1d15]' : 'bg-white'} rounded-t-3xl transition-transform duration-normal ease-spring-smooth ${isClosing ? 'translate-y-full' : 'animate-slide-up-drawer'} ${className}`}
         style={{
           transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
           transition: dragState.isDragging ? 'none' : undefined,
+          boxShadow: dragState.isDragging
+            ? `0 ${Math.max(2, 8 - dragOffset * 0.05)}px ${Math.max(8, 24 - dragOffset * 0.1)}px rgba(0, 0, 0, ${Math.max(0.05, 0.15 - dragOffset * 0.001)})`
+            : undefined,
+          opacity: dragOpacity,
         }}
         onKeyDown={handleKeyDown}
         onTouchStart={handleTouchStart}
@@ -273,7 +281,11 @@ export function SlideUpDrawer({
           }}
           onScroll={onContentScroll}
         >
-          {children}
+          <div
+            className={isClosing ? '' : 'animate-drawer-content-enter'}
+          >
+            {children}
+          </div>
         </div>
         
         {stickyFooter && (

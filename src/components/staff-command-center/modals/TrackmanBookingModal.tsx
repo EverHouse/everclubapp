@@ -423,7 +423,7 @@ export function TrackmanBookingModal({
               <div
                 className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center"
                 style={{
-                  animation: showSuccessOverlay ? 'trackmanCheckScale 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : 'none'
+                  animation: showSuccessOverlay ? 'trackmanCheckScale 0.5s var(--spring-bounce) forwards' : 'none'
                 }}
               >
                 <span

@@ -468,7 +468,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
               bottom: 0;
               background-color: #293515;
               z-index: 99999;
-              animation: ptrFillScreen 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+              animation: ptrFillScreen 0.35s var(--m3-standard) forwards;
             }
 
             @keyframes ptrFillScreen {
@@ -510,7 +510,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
             }
 
             .ptr-loader-exit {
-              animation: ptrSlideUp 0.55s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+              animation: ptrSlideUp 0.55s var(--m3-standard-accel) forwards;
               pointer-events: none;
             }
 
@@ -544,7 +544,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
             }
 
             .ptr-content-exit {
-              animation: ptrContentFadeOut 0.3s cubic-bezier(0.4, 0, 1, 1) forwards;
+              animation: ptrContentFadeOut 0.3s var(--m3-standard-accel) forwards;
             }
 
             @keyframes ptrContentFadeOut {

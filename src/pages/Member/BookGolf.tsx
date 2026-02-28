@@ -69,6 +69,10 @@ const BookGolf: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [resourcesRef] = useAutoAnimate();
+  const [errorRef] = useAutoAnimate();
+  const [playerSlotRef] = useAutoAnimate();
+  const [feeRef] = useAutoAnimate();
+  const [timeSlotsAnimRef] = useAutoAnimate();
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const isSubmittingRef = useRef(false);
@@ -985,7 +989,7 @@ const BookGolf: React.FC = () => {
         </section>
 ) : (
         <TabTransition activeKey={activeTab}>
-        <div className="relative z-10 animate-content-enter space-y-6">
+        <div ref={playerSlotRef} className="relative z-10 animate-content-enter space-y-6">
           {activeTab === 'simulator' && (
             <PlayerSlotEditor
               playerCount={playerCount}
@@ -1099,12 +1103,14 @@ const BookGolf: React.FC = () => {
 
           <div className={`border-t my-2 ${isDark ? 'border-white/10' : 'border-black/5'}`} />
 
+          <div ref={errorRef}>
           {error && (
             <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm flex items-center gap-3">
               <span className="material-symbols-outlined">error</span>
               {error}
             </div>
           )}
+          </div>
 
           {activeClosures.length > 0 && (
             <div className="space-y-3">
@@ -1302,7 +1308,7 @@ const BookGolf: React.FC = () => {
                 </div>
             )}
               <div className={`transition-opacity duration-normal ${isLoading ? 'opacity-0 hidden' : 'opacity-100'}`}>
-              <div className="space-y-2">
+              <div ref={timeSlotsAnimRef} className="space-y-2">
                 {slotsByHour.map((hourGroup, groupIndex) => {
                   const isExpanded = expandedHour === hourGroup.hour24;
                   const hasSelectedSlot = hourGroup.slots.some(s => selectedSlot?.id === s.id);
@@ -1468,6 +1474,7 @@ const BookGolf: React.FC = () => {
 
       {canBook && (
         <div ref={requestButtonRef} className="fixed bottom-24 left-0 right-0 z-20 px-4 sm:px-6 flex flex-col items-center w-full max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto animate-in slide-in-from-bottom-4 duration-normal gap-2">
+          <div ref={feeRef} className="w-full flex flex-col gap-2">
           {activeTab === 'conference' && conferencePaymentRequired && conferenceOverageFee > 0 && (
             <div className={`w-full px-3 sm:px-4 py-3 rounded-xl backdrop-blur-md border flex items-start gap-3 ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
               <span className={`material-symbols-outlined text-lg flex-shrink-0 mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>payments</span>
@@ -1498,6 +1505,7 @@ const BookGolf: React.FC = () => {
             isDark={isDark}
             guestsWithoutInfo={estimatedFees.guestCount - guestsWithInfo > 0 ? estimatedFees.guestCount - guestsWithInfo : undefined}
           />
+          </div>
           <button 
             onClick={() => { haptic.heavy(); handleConfirm(); }}
             disabled={isBooking}

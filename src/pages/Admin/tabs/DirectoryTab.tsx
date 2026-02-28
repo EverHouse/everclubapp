@@ -1045,7 +1045,7 @@ const DirectoryTab: React.FC = () => {
                             >
                                 <span className="material-symbols-outlined text-[20px]">swap_vert</span>
                             </button>
-                            <div className={`absolute right-0 top-full mt-1 glass-panel rounded-xl p-2 z-30 min-w-[180px] !bg-[#f5f5f0] dark:!bg-[#1a1a1a] transition-[opacity,transform] duration-[250ms] ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                            <div className={`absolute right-0 top-full mt-1 glass-panel rounded-xl p-2 z-30 min-w-[180px] !bg-[#f5f5f0] dark:!bg-[#1a1a1a] transition-[opacity,transform] duration-[250ms] ease-m3-emphasized-decel ${
                                     sortOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-1 scale-[0.97] pointer-events-none'
                                 }`}>
                                     <div className="flex items-center justify-between px-2 py-1 mb-1">
@@ -1090,7 +1090,7 @@ const DirectoryTab: React.FC = () => {
                             {activeFilterCount > 0 && <span className="sm:hidden min-w-[18px] h-[18px] rounded-full bg-primary dark:bg-lavender text-white text-[10px] font-bold flex items-center justify-center">{activeFilterCount}</span>}
                         </button>
 
-                        <div className={`absolute left-0 right-0 top-full mt-1 glass-panel rounded-xl p-4 space-y-3 z-30 !bg-[#f5f5f0] dark:!bg-[#1a1a1a] transition-[opacity,transform] duration-[250ms] ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                        <div className={`absolute left-0 right-0 top-full mt-1 glass-panel rounded-xl p-4 space-y-3 z-30 !bg-[#f5f5f0] dark:!bg-[#1a1a1a] transition-[opacity,transform] duration-[250ms] ease-m3-emphasized-decel ${
                                 filtersOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-1 scale-[0.97] pointer-events-none'
                             }`}>
                                 <div className="flex items-center justify-between">
@@ -1394,7 +1394,7 @@ const DirectoryTab: React.FC = () => {
                                 {activeFilterCount > 0 && <span className="sm:hidden min-w-[18px] h-[18px] rounded-full bg-primary dark:bg-lavender text-white text-[10px] font-bold flex items-center justify-center">{activeFilterCount}</span>}
                             </button>
 
-                            <div className={`absolute left-0 right-0 top-full mt-1 glass-panel rounded-xl p-4 space-y-3 z-30 !bg-[#f5f5f0] dark:!bg-[#1a1a1a] transition-[opacity,transform] duration-[250ms] ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                            <div className={`absolute left-0 right-0 top-full mt-1 glass-panel rounded-xl p-4 space-y-3 z-30 !bg-[#f5f5f0] dark:!bg-[#1a1a1a] transition-[opacity,transform] duration-[250ms] ease-m3-emphasized-decel ${
                                     filtersOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-1 scale-[0.97] pointer-events-none'
                                 }`}>
                                     <div className="flex items-center justify-between">

@@ -53,7 +53,7 @@ const Toggle: React.FC<ToggleProps> = ({
       onClick={handleClick}
       className={`
         relative inline-flex items-center ${track} shrink-0 rounded-full p-[2px]
-        border-2 transition-colors duration-fast ease-in-out tactile-btn
+        border-2 transition-colors duration-[100ms] ease-[var(--m3-standard)] tactile-btn
         focus:outline-none focus-visible:ring-2 focus-visible:ring-[#34C759]/50 focus-visible:ring-offset-2
         ${disabled ? 'opacity-40 cursor-not-allowed' : loading ? 'opacity-60 pointer-events-none' : 'cursor-pointer'}
         ${checked ? 'bg-[#34C759] border-[#34C759]' : 'bg-[#E5E5EA] border-[#E5E5EA]'}
@@ -64,7 +64,7 @@ const Toggle: React.FC<ToggleProps> = ({
       <span
         className={`
           pointer-events-none inline-block ${thumb} rounded-full 
-          bg-white shadow-[0_2px_4px_rgba(0,0,0,0.12)] transition-transform duration-fast ease-in-out
+          bg-white shadow-[0_2px_4px_rgba(0,0,0,0.12)] transition-transform duration-[100ms] ease-[var(--m3-standard)]
           ${checked ? translate : 'translate-x-0'}
         `}
       />

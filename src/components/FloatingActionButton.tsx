@@ -35,6 +35,8 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
 }) => {
   const { isAtBottom, drawerOpen } = useBottomNav();
   const [collapsed, setCollapsed] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
+  const [shouldRender, setShouldRender] = useState(!drawerOpen);
   const lastScrollY = useRef(0);
   const rafId = useRef<number>(0);
 
@@ -68,8 +70,22 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
       document.body.classList.remove('has-fab');
     };
   }, []);
-  
-  if (drawerOpen) return null;
+
+  useEffect(() => {
+    if (drawerOpen) {
+      setIsExiting(true);
+      const timer = setTimeout(() => {
+        setShouldRender(false);
+        setIsExiting(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    } else {
+      setShouldRender(true);
+      setIsExiting(false);
+    }
+  }, [drawerOpen]);
+
+  if (!shouldRender) return null;
   
   const mobileBottom = isAtBottom 
     ? 'calc(24px + env(safe-area-inset-bottom, 0px))' 
@@ -89,7 +105,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   const fabContent = (
     <button
       onClick={onClick}
-      className={`fixed right-5 md:right-8 bottom-8 shadow-lg flex items-center justify-center hover:scale-[1.04] active:scale-[0.97] fab-button animate-fab-bounce-in ${colorClasses[color]} ${
+      className={`fixed right-5 md:right-8 bottom-8 shadow-lg flex items-center justify-center hover:shadow-xl hover:bg-white/[0.08] active:scale-[0.97] fab-button ${isExiting ? '' : 'animate-fab-bounce-in'} ${colorClasses[color]} ${
         isExpanded
           ? 'min-h-[56px] px-4 gap-2 rounded-2xl'
           : 'w-14 h-14 rounded-full'
@@ -97,7 +113,8 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
       style={{ 
         zIndex: 'var(--z-fab)',
         '--fab-mobile-bottom': mobileBottom,
-        transition: 'width 0.35s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.35s cubic-bezier(0.4, 0, 0.2, 1), padding 0.35s cubic-bezier(0.4, 0, 0.2, 1), gap 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s ease, box-shadow 0.2s ease',
+        transition: 'width 0.35s var(--m3-standard), border-radius 0.35s var(--m3-standard), padding 0.35s var(--m3-standard), gap 0.35s var(--m3-standard), transform 0.1s var(--m3-standard), box-shadow 0.2s var(--m3-standard), opacity 0.1s var(--m3-standard)',
+        ...(isExiting ? { transform: 'scale(0.8)', opacity: 0 } : {}),
       } as React.CSSProperties}
       aria-label={isExpanded && text ? text : label || 'Add new item'}
     >
@@ -109,7 +126,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
             display: 'grid',
             gridTemplateColumns: isExpanded ? '1fr' : '0fr',
             opacity: isExpanded ? 1 : 0,
-            transition: 'grid-template-columns 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'grid-template-columns 0.35s var(--m3-standard), opacity 0.25s var(--m3-standard)',
           }}
         >
           <span className="overflow-hidden">{text}</span>

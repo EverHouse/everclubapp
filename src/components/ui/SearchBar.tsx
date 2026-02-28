@@ -33,6 +33,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 }) => {
   const [internalValue, setInternalValue] = useState(value);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+  const [isMobileVisible, setIsMobileVisible] = useState(false);
+  const [isMobileClosing, setIsMobileClosing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -83,22 +85,30 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         if (internalValue) {
           handleClear();
         } else if (isMobileExpanded) {
-          setIsMobileExpanded(false);
+          handleMobileClose();
         }
       }
     },
-    [internalValue, handleClear, isMobileExpanded],
+    [internalValue, handleClear, isMobileExpanded, handleMobileClose],
   );
 
   const handleFocus = useCallback(() => {
     if (expandOnMobile && isMobile) {
       setIsMobileExpanded(true);
+      requestAnimationFrame(() => {
+        setIsMobileVisible(true);
+      });
     }
   }, [expandOnMobile, isMobile]);
 
   const handleMobileClose = useCallback(() => {
     haptic.light();
-    setIsMobileExpanded(false);
+    setIsMobileClosing(true);
+    setTimeout(() => {
+      setIsMobileExpanded(false);
+      setIsMobileVisible(false);
+      setIsMobileClosing(false);
+    }, 200);
   }, []);
 
   const handleSuggestionSelect = useCallback(
@@ -118,7 +128,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     extraClass?: string,
   ) => (
     <div
-      className={`group relative flex items-center gap-2 min-h-[48px] rounded-full bg-primary/5 dark:bg-white/5 border border-transparent focus-within:border-primary/30 dark:focus-within:border-white/30 focus-within:shadow-md transition-all duration-200 px-4 ${extraClass ?? ''} ${className}`}
+      className={`group relative flex items-center gap-2 min-h-[48px] rounded-full bg-primary/5 dark:bg-white/5 border border-transparent focus-within:border-primary/30 dark:focus-within:border-white/30 focus-within:shadow-md transition-all duration-[100ms] px-4 ${extraClass ?? ''} ${className}`}
     >
       <span
         className="material-symbols-outlined text-[20px] text-primary/50 dark:text-white/50 shrink-0"
@@ -144,7 +154,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           type="button"
           onClick={handleClear}
           aria-label="Clear search"
-          className="inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-primary/10 dark:hover:bg-white/10 transition-colors shrink-0"
+          className="animate-pop-in inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-primary/10 dark:hover:bg-white/10 transition-colors shrink-0"
         >
           <span
             className="material-symbols-outlined text-[18px] text-primary/60 dark:text-white/60"
@@ -176,8 +186,17 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   );
 
   if (isMobileExpanded) {
+    const mobileAnimClass = isMobileClosing
+      ? 'opacity-0 scale-95'
+      : isMobileVisible
+        ? 'opacity-100 scale-100'
+        : 'opacity-0 scale-95';
+
     return (
-      <div className="fixed inset-0 z-[100] bg-bone dark:bg-primary flex flex-col" style={{ overflow: 'hidden' }}>
+      <div
+        className={`fixed inset-0 z-[100] bg-bone dark:bg-primary flex flex-col transition-all duration-[200ms] ease-[var(--m3-emphasized-decel)] ${mobileAnimClass}`}
+        style={{ overflow: 'hidden', transformOrigin: 'top center' }}
+      >
           <div className="flex items-center gap-2 px-3 pt-safe-top">
             <button
               type="button"

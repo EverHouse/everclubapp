@@ -772,6 +772,7 @@ const Dashboard: React.FC = () => {
         <ClosureAlert />
         <AnnouncementAlert />
         
+        <SmoothReveal isLoaded={!!bannerAnnouncement && !bannerDismissed} delay={50}>
         {bannerAnnouncement && !bannerDismissed && (
           <div className={`mb-4 py-3 px-4 rounded-xl flex items-start justify-between gap-3 animate-pop-in ${isDark ? 'bg-lavender/20 border border-lavender/30' : 'bg-lavender/30 border border-lavender/40'}`}>
             <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -816,7 +817,9 @@ const Dashboard: React.FC = () => {
             </button>
           </div>
         )}
+        </SmoothReveal>
         
+        <SmoothReveal isLoaded={!!user?.status && user.status.toLowerCase() !== 'active'} delay={100}>
         {user?.status && user.status.toLowerCase() !== 'active' && (
           <div className="mb-4 p-4 rounded-xl bg-red-500/90 border border-red-600 animate-pop-in">
             <div className="flex items-center gap-3">
@@ -830,6 +833,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         )}
+        </SmoothReveal>
         
         <OnboardingChecklist />
         
@@ -845,6 +849,7 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Member Card + Quick Actions - side by side on desktop, stacked on mobile */}
+        <SmoothReveal isLoaded={!isStaffOrAdminProfile && !isLoading} delay={150}>
         {!isStaffOrAdminProfile && (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
             {/* Membership Card */}
@@ -926,7 +931,9 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         )}
+        </SmoothReveal>
 
+        <SmoothReveal isLoaded={!isLoading} delay={200}>
         {error ? (
         <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm flex items-center gap-3 mb-6">
           <span className="material-symbols-outlined">error</span>
@@ -1209,6 +1216,7 @@ const Dashboard: React.FC = () => {
           </div>
         </>
       )}
+      </SmoothReveal>
       </div>
     </div>
 

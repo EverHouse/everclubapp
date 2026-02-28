@@ -146,7 +146,7 @@ function ConfirmDialogComponent({
     setIsClosing(true);
     setTimeout(() => {
       onConfirm();
-    }, 250);
+    }, 200);
   }, [isLoading, onConfirm]);
 
   const handleCancel = useCallback(() => {
@@ -154,7 +154,7 @@ function ConfirmDialogComponent({
     setIsClosing(true);
     setTimeout(() => {
       onCancel();
-    }, 250);
+    }, 200);
   }, [isLoading, onCancel]);
 
   if (!isOpen) return null;
@@ -186,7 +186,7 @@ function ConfirmDialogComponent({
           aria-labelledby="confirm-dialog-title"
           aria-describedby="confirm-dialog-message"
           className={`relative w-full max-w-sm transform transition-all duration-normal ease-spring-smooth ${
-            isClosing ? 'scale-95 opacity-0' : 'animate-modal-slide-up'
+            isClosing ? 'scale-95 opacity-0' : 'animate-dialog-scale-in'
           }`}
         >
           <div

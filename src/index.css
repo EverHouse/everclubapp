@@ -31,17 +31,17 @@
 .animate-checkmark-circle {
   stroke-dasharray: 166;
   stroke-dashoffset: 166;
-  animation: checkmarkCircle 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+  animation: checkmarkCircle 0.6s var(--m3-standard-decel) forwards;
 }
 
 .animate-checkmark-check {
   stroke-dasharray: 48;
   stroke-dashoffset: 48;
-  animation: checkmarkCheck 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.5s forwards;
+  animation: checkmarkCheck 0.3s var(--m3-standard-decel) 0.5s forwards;
 }
 
 .animate-checkmark-container {
-  animation: checkmarkScale 0.35s ease-in-out 0.8s;
+  animation: checkmarkScale 0.35s var(--m3-standard) 0.8s;
 }
 
 /* Card Removal Animation */
@@ -78,12 +78,12 @@
 }
 
 .animate-card-remove {
-  animation: cardSlideOut 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: cardSlideOut 0.35s var(--m3-standard-accel) forwards;
   overflow: hidden;
 }
 
 .animate-card-fade-out {
-  animation: cardFadeOut 0.25s ease-out forwards;
+  animation: cardFadeOut 0.25s var(--m3-standard-accel) forwards;
 }
 
 /* Animated Counter */
@@ -100,7 +100,7 @@
 }
 
 .animate-counter-change {
-  animation: counterPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: counterPop 0.3s var(--spring-bounce);
 }
 
 /* Notification Badge Pulse */
@@ -143,7 +143,7 @@
 }
 
 .animate-badge-attention {
-  animation: badgeAttention 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: badgeAttention 0.5s var(--spring-bounce);
 }
 
 :root {
@@ -196,18 +196,38 @@
   --font-size-3xl: 1.875rem;
   --font-size-4xl: 2.25rem;
 
-  /* Motion Duration Scale */
-  --duration-instant: 100ms;
-  --duration-fast: 150ms;
-  --duration-normal: 250ms;
-  --duration-slow: 350ms;
-  --duration-emphasis: 500ms;
+  /* M3 Motion Duration Scale */
+  --duration-short-1: 50ms;
+  --duration-short-2: 100ms;
+  --duration-short-3: 150ms;
+  --duration-short-4: 200ms;
+  --duration-medium-1: 250ms;
+  --duration-medium-2: 300ms;
+  --duration-medium-3: 350ms;
+  --duration-medium-4: 400ms;
+  --duration-long-1: 450ms;
+  --duration-long-2: 500ms;
 
-  /* Easing Tokens (Spring Physics) */
+  /* Legacy duration aliases (mapped to M3 scale) */
+  --duration-instant: var(--duration-short-2);
+  --duration-fast: var(--duration-short-3);
+  --duration-normal: var(--duration-medium-1);
+  --duration-slow: var(--duration-medium-3);
+  --duration-emphasis: var(--duration-long-2);
+
+  /* M3 Easing Tokens */
+  --m3-standard: cubic-bezier(0.2, 0, 0, 1);
+  --m3-standard-decel: cubic-bezier(0, 0, 0, 1);
+  --m3-standard-accel: cubic-bezier(0.3, 0, 1, 1);
+  --m3-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --m3-emphasized-decel: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --m3-emphasized-accel: cubic-bezier(0.3, 0, 0.8, 0.15);
+
+  /* Legacy Easing Tokens (preserved for backward compat, prefer M3 tokens) */
   --spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   --spring-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-standard: var(--m3-standard);
 
   /* Tap Tokens */
   --tap-scale: 0.98;
@@ -235,7 +255,7 @@
   --liquid-glass-inner-shadow-dark: inset 0 1px 2px rgba(255, 255, 255, 0.15), inset 0 -1px 2px rgba(0, 0, 0, 0.2);
   --liquid-glass-outer-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05);
   --liquid-glass-outer-shadow-dark: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
-  --liquid-transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out, border-color 0.3s ease-in-out, transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+  --liquid-transition: background-color 0.3s var(--m3-standard), color 0.3s var(--m3-standard), border-color 0.3s var(--m3-standard), transform 0.3s var(--m3-standard), opacity 0.3s var(--m3-standard);
   --liquid-radius: 12px;
 }
 
@@ -1465,35 +1485,35 @@ html.dark .border-accessible {
   }
 }
 
-/* Tab Content Transitions */
+/* Tab Content Transitions — Fade Through (M3) */
 @keyframes tabFadeIn {
   0% {
     opacity: 0;
-    transform: translateX(8px);
+    transform: scale(0.92);
   }
   100% {
     opacity: 1;
-    transform: translateX(0);
+    transform: scale(1);
   }
 }
 
 @keyframes tabFadeOut {
   0% {
     opacity: 1;
-    transform: translateX(0);
+    transform: scale(1);
   }
   100% {
     opacity: 0;
-    transform: translateX(-8px);
+    transform: scale(0.92);
   }
 }
 
 .animate-tab-enter {
-  animation: tabFadeIn 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: tabFadeIn 210ms var(--m3-standard-decel) forwards;
 }
 
 .animate-tab-exit {
-  animation: tabFadeOut 0.15s ease-out forwards;
+  animation: tabFadeOut 90ms var(--m3-standard-accel) forwards;
 }
 
 /* Dynamic stagger with CSS variable - use style={{ '--stagger-index': index }} */
@@ -1625,6 +1645,17 @@ html.dark .border-accessible {
 }
 
 /* Pop In Animation - Used across the app (horizontal-aligned, no vertical offset) */
+@keyframes segmentCheckIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @keyframes popIn {
   0% {
     opacity: 0;
@@ -1638,7 +1669,7 @@ html.dark .border-accessible {
 
 .animate-pop-in {
   opacity: 0;
-  animation: popIn 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: popIn 0.25s var(--m3-standard-decel) forwards;
 }
 
 @keyframes fabEnter {
@@ -1653,7 +1684,7 @@ html.dark .border-accessible {
 }
 
 .animate-fab-bounce-in {
-  animation: fabEnter 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  animation: fabEnter 0.3s var(--m3-standard-decel) forwards;
 }
 
 /* Pop Out Animation - Exit animation for toasts and modals */
@@ -1669,7 +1700,7 @@ html.dark .border-accessible {
 }
 
 .animate-pop-out {
-  animation: popOut 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: popOut 0.25s var(--m3-standard-accel) forwards;
 }
 
 @keyframes toastSlideIn {
@@ -1714,11 +1745,11 @@ html.dark .border-accessible {
 }
 
 .toast-slide-in {
-  animation: toastSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: toastSlideIn 0.5s var(--m3-emphasized-decel) forwards;
 }
 
 .toast-slide-out {
-  animation: toastSlideOut 0.3s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+  animation: toastSlideOut 0.3s var(--m3-emphasized-accel) forwards;
 }
 
 /* Fade Out Animation - Alternative exit animation for elements */
@@ -1732,7 +1763,7 @@ html.dark .border-accessible {
 }
 
 .animate-fade-out {
-  animation: fadeOut 0.25s ease-out forwards;
+  animation: fadeOut 0.25s var(--m3-standard-accel) forwards;
 }
 
 /* Modal Animations */
@@ -1746,7 +1777,7 @@ html.dark .border-accessible {
 }
 
 .animate-backdrop-fade-in {
-  animation: backdropFadeIn 0.2s ease-out forwards;
+  animation: backdropFadeIn 0.2s var(--m3-standard-decel) forwards;
 }
 
 @keyframes modalSlideUp {
@@ -1761,7 +1792,22 @@ html.dark .border-accessible {
 }
 
 .animate-modal-slide-up {
-  animation: modalSlideUp 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: modalSlideUp 0.25s var(--m3-standard-decel) forwards;
+}
+
+@keyframes dialogScaleIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-dialog-scale-in {
+  animation: dialogScaleIn 0.25s var(--m3-emphasized-decel) forwards;
 }
 
 @keyframes slideUpDrawer {
@@ -1774,11 +1820,26 @@ html.dark .border-accessible {
 }
 
 .animate-slide-up-drawer {
-  animation: slideUpDrawer 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  animation: slideUpDrawer 0.3s var(--m3-emphasized-decel) forwards;
+}
+
+@keyframes drawerContentEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-drawer-content-enter {
+  animation: drawerContentEnter 0.2s var(--m3-standard-decel) 0.05s both;
 }
 
 .animate-modal-backdrop {
-  animation: backdropFadeIn 0.2s ease-out forwards;
+  animation: backdropFadeIn 0.2s var(--m3-standard-decel) forwards;
 }
 
 /* Hero Section Animations - Cinematic entrance for full-bleed hero sections */
@@ -1815,27 +1876,27 @@ html.dark .border-accessible {
 
 .animate-hero-bg {
   opacity: 0;
-  animation: heroBackgroundEnter 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: heroBackgroundEnter 1.2s var(--m3-emphasized-decel) forwards;
 }
 
 .animate-hero-overlay {
   opacity: 0;
-  animation: heroOverlayEnter 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.3s forwards;
+  animation: heroOverlayEnter 0.8s var(--m3-emphasized-decel) 0.3s forwards;
 }
 
 .animate-hero-headline {
   opacity: 0;
-  animation: heroTextEnter 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.4s forwards;
+  animation: heroTextEnter 0.8s var(--m3-emphasized-decel) 0.4s forwards;
 }
 
 .animate-hero-tagline {
   opacity: 0;
-  animation: heroTextEnter 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.55s forwards;
+  animation: heroTextEnter 0.8s var(--m3-emphasized-decel) 0.55s forwards;
 }
 
 .animate-hero-cta {
   opacity: 0;
-  animation: heroTextEnter 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.7s forwards;
+  animation: heroTextEnter 0.8s var(--m3-emphasized-decel) 0.7s forwards;
 }
 
 /* Page Enter Animation - Quick fade for smooth navigation */
@@ -1852,12 +1913,12 @@ html.dark .border-accessible {
 
 .animate-page-enter {
   opacity: 0;
-  animation: pageEnter 0.35s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  animation: pageEnter 0.35s var(--m3-standard-decel) forwards;
 }
 
 .page-fade-in {
   opacity: 0;
-  animation: pageEnter 0.35s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  animation: pageEnter 0.35s var(--m3-standard-decel) forwards;
 }
 
 /* Page Content Animation - Staggered fade + slide for page elements */
@@ -1874,34 +1935,34 @@ html.dark .border-accessible {
 
 .animate-content-enter {
   opacity: 0;
-  animation: pageContentEnter 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: pageContentEnter 0.4s var(--m3-standard-decel) forwards;
 }
 
 .animate-content-enter-delay-1 {
   opacity: 0;
-  animation: pageContentEnter 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.1s forwards;
+  animation: pageContentEnter 0.4s var(--m3-standard-decel) 60ms forwards;
 }
 
 .animate-content-enter-delay-2 {
   opacity: 0;
-  animation: pageContentEnter 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.2s forwards;
+  animation: pageContentEnter 0.4s var(--m3-standard-decel) 120ms forwards;
 }
 
 .animate-content-enter-delay-3 {
   opacity: 0;
-  animation: pageContentEnter 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.3s forwards;
+  animation: pageContentEnter 0.4s var(--m3-standard-decel) 180ms forwards;
 }
 
-/* Extended stagger delays for lists (4-12) */
-.animate-content-enter-delay-4 { opacity: 0; animation: pageContentEnter 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.4s forwards; }
-.animate-content-enter-delay-5 { opacity: 0; animation: pageContentEnter 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.5s forwards; }
-.animate-content-enter-delay-6 { opacity: 0; animation: pageContentEnter 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.6s forwards; }
-.animate-content-enter-delay-7 { opacity: 0; animation: pageContentEnter 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.7s forwards; }
-.animate-content-enter-delay-8 { opacity: 0; animation: pageContentEnter 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.8s forwards; }
-.animate-content-enter-delay-9 { opacity: 0; animation: pageContentEnter 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.9s forwards; }
-.animate-content-enter-delay-10 { opacity: 0; animation: pageContentEnter 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 1s forwards; }
-.animate-content-enter-delay-11 { opacity: 0; animation: pageContentEnter 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 1.1s forwards; }
-.animate-content-enter-delay-12 { opacity: 0; animation: pageContentEnter 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 1.2s forwards; }
+/* Extended stagger delays for lists (4-12) — 60ms intervals, max 8 steps = 480ms */
+.animate-content-enter-delay-4 { opacity: 0; animation: pageContentEnter 0.4s var(--m3-standard-decel) 240ms forwards; }
+.animate-content-enter-delay-5 { opacity: 0; animation: pageContentEnter 0.4s var(--m3-standard-decel) 300ms forwards; }
+.animate-content-enter-delay-6 { opacity: 0; animation: pageContentEnter 0.4s var(--m3-standard-decel) 360ms forwards; }
+.animate-content-enter-delay-7 { opacity: 0; animation: pageContentEnter 0.4s var(--m3-standard-decel) 420ms forwards; }
+.animate-content-enter-delay-8 { opacity: 0; animation: pageContentEnter 0.4s var(--m3-standard-decel) 480ms forwards; }
+.animate-content-enter-delay-9 { opacity: 0; animation: pageContentEnter 0.4s var(--m3-standard-decel) 540ms forwards; }
+.animate-content-enter-delay-10 { opacity: 0; animation: pageContentEnter 0.4s var(--m3-standard-decel) 600ms forwards; }
+.animate-content-enter-delay-11 { opacity: 0; animation: pageContentEnter 0.4s var(--m3-standard-decel) 660ms forwards; }
+.animate-content-enter-delay-12 { opacity: 0; animation: pageContentEnter 0.4s var(--m3-standard-decel) 720ms forwards; }
 
 /* List item stagger with slide - for lists/cards that need vertical motion */
 @keyframes listItemEnter {
@@ -1917,19 +1978,19 @@ html.dark .border-accessible {
 
 .animate-list-item {
   opacity: 0;
-  animation: listItemEnter 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: listItemEnter 0.35s var(--m3-standard-decel) forwards;
 }
 
-.animate-list-item-delay-1 { opacity: 0; animation: listItemEnter 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.08s forwards; }
-.animate-list-item-delay-2 { opacity: 0; animation: listItemEnter 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.16s forwards; }
-.animate-list-item-delay-3 { opacity: 0; animation: listItemEnter 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.24s forwards; }
-.animate-list-item-delay-4 { opacity: 0; animation: listItemEnter 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.32s forwards; }
-.animate-list-item-delay-5 { opacity: 0; animation: listItemEnter 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.4s forwards; }
-.animate-list-item-delay-6 { opacity: 0; animation: listItemEnter 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.48s forwards; }
-.animate-list-item-delay-7 { opacity: 0; animation: listItemEnter 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.56s forwards; }
-.animate-list-item-delay-8 { opacity: 0; animation: listItemEnter 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.64s forwards; }
-.animate-list-item-delay-9 { opacity: 0; animation: listItemEnter 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.72s forwards; }
-.animate-list-item-delay-10 { opacity: 0; animation: listItemEnter 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.8s forwards; }
+.animate-list-item-delay-1 { opacity: 0; animation: listItemEnter 0.35s var(--m3-standard-decel) 45ms forwards; }
+.animate-list-item-delay-2 { opacity: 0; animation: listItemEnter 0.35s var(--m3-standard-decel) 90ms forwards; }
+.animate-list-item-delay-3 { opacity: 0; animation: listItemEnter 0.35s var(--m3-standard-decel) 135ms forwards; }
+.animate-list-item-delay-4 { opacity: 0; animation: listItemEnter 0.35s var(--m3-standard-decel) 180ms forwards; }
+.animate-list-item-delay-5 { opacity: 0; animation: listItemEnter 0.35s var(--m3-standard-decel) 225ms forwards; }
+.animate-list-item-delay-6 { opacity: 0; animation: listItemEnter 0.35s var(--m3-standard-decel) 270ms forwards; }
+.animate-list-item-delay-7 { opacity: 0; animation: listItemEnter 0.35s var(--m3-standard-decel) 315ms forwards; }
+.animate-list-item-delay-8 { opacity: 0; animation: listItemEnter 0.35s var(--m3-standard-decel) 360ms forwards; }
+.animate-list-item-delay-9 { opacity: 0; animation: listItemEnter 0.35s var(--m3-standard-decel) 405ms forwards; }
+.animate-list-item-delay-10 { opacity: 0; animation: listItemEnter 0.35s var(--m3-standard-decel) 450ms forwards; }
 
 /* FAB expanding menu item animations */
 @keyframes fabItemEnter {
@@ -1943,12 +2004,12 @@ html.dark .border-accessible {
   }
 }
 
-.animate-fab-item-1 { opacity: 0; animation: fabItemEnter 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) 0.02s forwards; }
-.animate-fab-item-2 { opacity: 0; animation: fabItemEnter 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) 0.06s forwards; }
-.animate-fab-item-3 { opacity: 0; animation: fabItemEnter 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s forwards; }
-.animate-fab-item-4 { opacity: 0; animation: fabItemEnter 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) 0.14s forwards; }
-.animate-fab-item-5 { opacity: 0; animation: fabItemEnter 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) 0.18s forwards; }
-.animate-fab-item-6 { opacity: 0; animation: fabItemEnter 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) 0.22s forwards; }
+.animate-fab-item-1 { opacity: 0; animation: fabItemEnter 0.2s var(--spring-bounce) 0.02s forwards; }
+.animate-fab-item-2 { opacity: 0; animation: fabItemEnter 0.2s var(--spring-bounce) 0.06s forwards; }
+.animate-fab-item-3 { opacity: 0; animation: fabItemEnter 0.2s var(--spring-bounce) 0.1s forwards; }
+.animate-fab-item-4 { opacity: 0; animation: fabItemEnter 0.2s var(--spring-bounce) 0.14s forwards; }
+.animate-fab-item-5 { opacity: 0; animation: fabItemEnter 0.2s var(--spring-bounce) 0.18s forwards; }
+.animate-fab-item-6 { opacity: 0; animation: fabItemEnter 0.2s var(--spring-bounce) 0.22s forwards; }
 
 /* Skeleton crossfade - fades out skeleton while content fades in */
 @keyframes skeletonFadeOut {
@@ -1962,18 +2023,18 @@ html.dark .border-accessible {
 }
 
 .animate-skeleton-out {
-  animation: skeletonFadeOut 0.25s ease-out forwards;
+  animation: skeletonFadeOut 0.25s var(--m3-standard-accel) forwards;
 }
 
 /* Content fade-in after skeleton (slight delay to overlap with skeleton exit) */
 .animate-content-in {
   opacity: 0;
-  animation: fadeIn 0.3s ease-out 0.1s forwards;
+  animation: fadeIn 0.3s var(--m3-standard-decel) 0.1s forwards;
 }
 
 /* Button active/pressed state utility */
 .btn-pressable {
-  transition: transform 0.1s ease-out, opacity 0.1s ease-out;
+  transition: transform 0.1s var(--m3-standard), opacity 0.1s var(--m3-standard);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -1984,7 +2045,7 @@ html.dark .border-accessible {
 
 /* Card pressable - slightly less scale for larger elements */
 .card-pressable {
-  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+  transition: transform 0.15s var(--m3-standard), box-shadow 0.15s var(--m3-standard);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -1994,7 +2055,7 @@ html.dark .border-accessible {
 
 /* Input focus animation */
 .input-animated {
-  transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out, background-color 0.2s ease-out;
+  transition: border-color 0.2s var(--m3-standard), box-shadow 0.2s var(--m3-standard), background-color 0.2s var(--m3-standard);
 }
 
 .input-animated:focus {
@@ -2062,11 +2123,11 @@ html.dark .border-accessible {
 }
 
 .animate-slide-in-left {
-  animation: slideInLeft 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: slideInLeft 0.25s var(--m3-standard-decel) forwards;
 }
 
 .animate-slide-out-left {
-  animation: slideOutLeft 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: slideOutLeft 0.25s var(--m3-standard-accel) forwards;
 }
 
 /* Slide In/Out Right Animation - Drawer panels */
@@ -2089,11 +2150,11 @@ html.dark .border-accessible {
 }
 
 .animate-slide-in-right {
-  animation: slideInRight 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: slideInRight 0.3s var(--m3-emphasized-decel) forwards;
 }
 
 .animate-slide-out-right {
-  animation: slideOutRight 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: slideOutRight 0.3s var(--m3-emphasized-accel) forwards;
 }
 
 /* Backdrop Fade Animation */
@@ -2691,7 +2752,7 @@ html.dark .border-accessible {
 /* Optimized Transitions - Use transform/opacity only */
 .transition-gpu {
   transition-property: transform, opacity;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-timing-function: var(--m3-standard);
   transition-duration: 200ms;
 }
 
@@ -2931,5 +2992,5 @@ body[data-ptr-active="true"]:has(.ptr-loader-overlay) header[role="banner"] {
   top: 0;
   pointer-events: none;
   z-index: 99999;
-  animation: confettiSpread 3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: confettiSpread 3s var(--m3-emphasized-decel) forwards;
 }

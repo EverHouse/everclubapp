@@ -11,7 +11,7 @@ import MemberBottomNav from '../../components/MemberBottomNav';
 import { BottomSentinel } from '../../components/layout/BottomSentinel';
 import { formatTime12Hour, getRelativeDateLabel } from '../../utils/dateUtils';
 import InvoicePaymentModal from '../../components/billing/InvoicePaymentModal';
-import { AnimatedPage } from '../../components/motion';
+import { AnimatedPage, MotionListItem } from '../../components/motion';
 import { TabTransition } from '../../components/motion/TabTransition';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 
@@ -177,9 +177,10 @@ const History: React.FC = () => {
                     const isConferenceRoom = visit.category === 'Conference Room';
                     
                     return (
-                    <div 
+                    <MotionListItem 
                       key={`${visit.type}-${visit.id}`} 
-                      className={`rounded-xl p-4 border glass-card animate-list-item-delay-${Math.min(index, 10)} ${isDark ? 'border-white/25' : 'border-black/10'}`}
+                      index={index}
+                      className={`rounded-xl p-4 border glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div>
@@ -239,7 +240,7 @@ const History: React.FC = () => {
                           Instructor: {visit.invitedBy}
                         </p>
                       )}
-                    </div>
+                    </MotionListItem>
                   );})}
                 </div>
               )}
@@ -353,10 +354,10 @@ const History: React.FC = () => {
                           </h3>
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                             {monthPurchases.map((purchase, index) => (
-                              <div 
+                              <MotionListItem 
                                 key={purchase.id} 
-                                className={`rounded-xl p-4 border glass-card animate-slide-up-stagger ${isDark ? 'border-white/25' : 'border-black/10'}`}
-                                style={{ '--stagger-index': monthIndex + index + 1 } as React.CSSProperties}
+                                index={monthIndex + index + 1}
+                                className={`rounded-xl p-4 border glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex-1">
@@ -427,7 +428,7 @@ const History: React.FC = () => {
                                     )}
                                   </div>
                                 </div>
-                              </div>
+                              </MotionListItem>
                             ))}
                           </div>
                         </div>
