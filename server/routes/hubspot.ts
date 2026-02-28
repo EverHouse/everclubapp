@@ -1483,7 +1483,8 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
                       : email;
                     const memberTier = existingUser?.tier || 'Unknown';
 
-                    if (prevStatus && prevStatus !== 'non-member' && newStatus === 'non-member') {
+                    const nonNotifiableStatuses = ['non-member', 'visitor', 'lead'];
+                    if (prevStatus && !nonNotifiableStatuses.includes(prevStatus) && newStatus === 'non-member') {
                       await notifyAllStaff(
                         'Member Status Changed',
                         `${hubspotMemberName} (${email}) status changed to non-member via MindBody (was ${prevStatus}).`,
