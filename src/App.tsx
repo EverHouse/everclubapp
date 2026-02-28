@@ -45,18 +45,17 @@ const isInitialLandingLoad = () => {
   return window.location.pathname === '/';
 };
 
-const isPtrReload = () => {
-  if (typeof window === 'undefined') return false;
-  const flag = sessionStorage.getItem('ptr-reload');
-  if (flag) {
-    sessionStorage.removeItem('ptr-reload');
-    return true;
-  }
-  return false;
-};
-
 const InitialLoadingScreen: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const shouldShowLoader = isInitialLandingLoad() || isPtrReload();
+  const [shouldShowLoader] = React.useState(() => {
+    if (typeof window !== 'undefined') {
+      const ptrFlag = sessionStorage.getItem('ptr-reload');
+      if (ptrFlag) {
+        sessionStorage.removeItem('ptr-reload');
+        return true;
+      }
+    }
+    return isInitialLandingLoad();
+  });
   const [showLoader, setShowLoader] = React.useState(shouldShowLoader);
   const [hasHiddenLoader, setHasHiddenLoader] = React.useState(!shouldShowLoader);
 

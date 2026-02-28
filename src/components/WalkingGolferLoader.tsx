@@ -161,12 +161,27 @@ const WalkingGolferLoader: React.FC<WalkingGolferLoaderProps> = ({ isVisible = t
           display: flex;
           justify-content: center;
           align-items: center;
+          opacity: 0;
+          transform: scale(0.85);
+          animation: mascotFadeIn 0.5s ease-out 0.1s forwards;
+        }
+
+        @keyframes mascotFadeIn {
+          from {
+            opacity: 0;
+            transform: scale(0.85);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {
           .loader-exit,
           .content-exit,
-          .tagline-text {
+          .tagline-text,
+          .walking-mascot {
             animation: none !important;
             opacity: 1 !important;
             transform: none !important;
