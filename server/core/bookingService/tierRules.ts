@@ -130,21 +130,8 @@ export async function enforceSocialTierRules(
       return { allowed: true };
     }
     
-    const limits = await getTierLimits(ownerTier);
-    
-    // Check if Social tier has 0 guest passes and participants include guests
-    if (limits.guest_passes_per_month === 0) {
-      const hasGuests = participants.some(p => p.type === 'guest');
-      
-      if (hasGuests) {
-        return {
-          allowed: false,
-          reason: 'Social tier members cannot bring guests to simulator bookings. Your membership includes 0 guest passes per month.'
-        };
-      }
-    }
-    
-    // Social hosts CAN have other members in their booking
+    // Social hosts CAN have guests — they just pay guest fees since they have 0 complimentary passes.
+    // The fee calculation system (unifiedFeeService) handles charging guest fees automatically.
     return { allowed: true };
   } catch (error: unknown) {
     logger.error('[enforceSocialTierRules] Error:', { error });
