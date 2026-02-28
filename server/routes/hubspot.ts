@@ -1870,5 +1870,338 @@ r.textContent=JSON.stringify(data,null,2);}catch(e){r.style.background='#f8d7da'
 }</script></body></html>`);
 });
 
+interface MarketingContactAuditRow {
+  email: string;
+  membership_status: string | null;
+  role: string | null;
+  tier: string | null;
+  billing_provider: string | null;
+  hubspot_id: string | null;
+}
+
+interface MarketingAuditContact {
+  hubspotId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  membershipStatus: string;
+  lifecycleStage: string;
+  tier: string | null;
+  createdAt: string | null;
+  lastModified: string | null;
+  isMarketingContact: boolean;
+  category: 'safe_to_remove' | 'review' | 'keep';
+  reasons: string[];
+  inLocalDb: boolean;
+  localDbStatus: string | null;
+  localDbRole: string | null;
+  lastBookingDate: string | null;
+  lastEmailOpen: string | null;
+  emailBounced: boolean;
+}
+
+const MARKETING_AUDIT_PROPERTIES = [
+  'firstname',
+  'lastname',
+  'email',
+  'phone',
+  'lifecyclestage',
+  'createdate',
+  'lastmodifieddate',
+  'membership_tier',
+  'membership_status',
+  'membership_start_date',
+  'hs_marketable_status',
+  'hs_marketable_reason_id',
+  'hs_marketable_reason_type',
+  'hs_email_optout',
+  'hs_email_hard_bounce_reason_enum',
+  'hs_email_bounce',
+  'hs_email_last_open_date',
+  'hs_email_last_click_date',
+  'hs_email_last_send_timestamp',
+  'hs_email_sends_since_last_engagement',
+  'hs_lifecyclestage_lead_date',
+  'hs_lifecyclestage_customer_date',
+  'notes_last_updated',
+  'num_conversion_events',
+  'hs_email_delivered',
+  'hs_email_open',
+  'hs_sa_first_engagement_date',
+  'hs_last_sales_activity_date',
+];
+
+router.get('/api/admin/hubspot/marketing-contacts-audit', isAdmin, async (_req: Request, res: Response) => {
+  try {
+    const hubspot = await getHubSpotClient();
+
+    let allContacts: HubSpotApiObject[] = [];
+    let after: string | undefined = undefined;
+
+    do {
+      const response = await retryableHubSpotRequest(() =>
+        hubspot.crm.contacts.basicApi.getPage(100, after, MARKETING_AUDIT_PROPERTIES)
+      );
+      allContacts = allContacts.concat(response.results as unknown as HubSpotApiObject[]);
+      after = response.paging?.next?.after;
+    } while (after);
+
+    const emails = allContacts
+      .map(c => (c.properties?.email || '').toLowerCase())
+      .filter(Boolean);
+
+    let dbMemberMap: Record<string, MarketingContactAuditRow> = {};
+    if (emails.length > 0) {
+      const batchSize = 500;
+      for (let i = 0; i < emails.length; i += batchSize) {
+        const batch = emails.slice(i, i + batchSize);
+        const dbResult = await db.execute(
+          sql`SELECT LOWER(email) as email, membership_status, role, tier, billing_provider, hubspot_id
+              FROM users WHERE LOWER(email) IN (${sql.join(batch.map(e => sql`${e}`), sql`, `)})`
+        );
+        for (const row of dbResult.rows) {
+          const r = row as unknown as MarketingContactAuditRow;
+          dbMemberMap[r.email] = r;
+        }
+      }
+    }
+
+    let lastActivityMap: Record<string, string> = {};
+    if (emails.length > 0) {
+      const batchSize = 500;
+      for (let i = 0; i < emails.length; i += batchSize) {
+        const batch = emails.slice(i, i + batchSize);
+        const activityResult = await db.execute(
+          sql`SELECT email, MAX(activity_date)::text as last_activity FROM (
+                SELECT LOWER(user_email) as email, request_date as activity_date
+                FROM booking_requests
+                WHERE LOWER(user_email) IN (${sql.join(batch.map(e => sql`${e}`), sql`, `)})
+                  AND status NOT IN ('cancelled', 'declined', 'cancellation_pending')
+              ) combined GROUP BY email`
+        );
+        for (const row of activityResult.rows) {
+          const r = row as unknown as LastActivityRow;
+          if (r.last_activity) {
+            lastActivityMap[r.email] = String(r.last_activity).split('T')[0];
+          }
+        }
+      }
+    }
+
+    const now = new Date();
+    const sixMonthsAgo = new Date(now);
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const twelveMonthsAgo = new Date(now);
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+    const auditContacts: MarketingAuditContact[] = allContacts.map(contact => {
+      const props = contact.properties as Record<string, string | null | undefined>;
+      const email = (props.email || '').toLowerCase();
+      const membershipStatus = (props.membership_status || '').toLowerCase();
+      const lifecycleStage = (props.lifecyclestage || '').toLowerCase();
+      const dbMember = dbMemberMap[email];
+
+      const isMarketingContact =
+        (props.hs_marketable_status || '').toLowerCase() !== 'false';
+
+      const emailBounced =
+        !!(props.hs_email_hard_bounce_reason_enum) ||
+        (props.hs_email_bounce || '').toLowerCase() === 'true';
+
+      const lastEmailOpen = props.hs_email_last_open_date || null;
+      const lastEmailClick = props.hs_email_last_click_date || null;
+      const lastBooking = lastActivityMap[email] || null;
+
+      const reasons: string[] = [];
+      let category: 'safe_to_remove' | 'review' | 'keep' = 'keep';
+
+      const activeStatuses = ['active', 'trialing', 'past_due'];
+      const terminatedStatuses = ['terminated', 'cancelled', 'non-member', 'expired', 'declined'];
+
+      const localStatus = dbMember?.membership_status?.toLowerCase() || null;
+      const isActiveInDb = localStatus ? activeStatuses.includes(localStatus) : false;
+      const isActiveInHubSpot = activeStatuses.includes(membershipStatus);
+
+      if (isActiveInDb || isActiveInHubSpot) {
+        category = 'keep';
+        reasons.push('Active member');
+      } else if (emailBounced) {
+        category = 'safe_to_remove';
+        reasons.push('Email has hard bounced');
+      } else if (terminatedStatuses.includes(membershipStatus)) {
+        const hasRecentEngagement = checkRecentEngagement(lastEmailOpen, lastEmailClick, sixMonthsAgo);
+
+        if (!hasRecentEngagement && !lastBooking) {
+          category = 'safe_to_remove';
+          reasons.push(`Membership status: ${membershipStatus}`);
+          reasons.push('No booking history');
+          reasons.push('No recent email engagement');
+        } else if (!hasRecentEngagement) {
+          category = 'safe_to_remove';
+          reasons.push(`Membership status: ${membershipStatus}`);
+          reasons.push('No recent email engagement (6+ months)');
+          if (lastBooking) reasons.push(`Last booking: ${lastBooking}`);
+        } else {
+          category = 'review';
+          reasons.push(`Membership status: ${membershipStatus}`);
+          reasons.push('Has recent email engagement');
+          if (lastBooking) reasons.push(`Last booking: ${lastBooking}`);
+        }
+      } else if (lifecycleStage === 'lead' && !membershipStatus) {
+        const hasRecentEngagement = checkRecentEngagement(lastEmailOpen, lastEmailClick, sixMonthsAgo);
+        const createdAt = props.createdate ? new Date(props.createdate) : null;
+        const isOldLead = createdAt && createdAt < twelveMonthsAgo;
+
+        if (!hasRecentEngagement && isOldLead) {
+          category = 'safe_to_remove';
+          reasons.push('Non-member lead');
+          reasons.push('Created over 12 months ago');
+          reasons.push('No recent email engagement');
+        } else if (!hasRecentEngagement) {
+          category = 'review';
+          reasons.push('Non-member lead');
+          reasons.push('No recent email engagement');
+        } else {
+          category = 'review';
+          reasons.push('Non-member lead with some engagement');
+        }
+      } else if (!membershipStatus && lifecycleStage !== 'customer') {
+        const hasRecentEngagement = checkRecentEngagement(lastEmailOpen, lastEmailClick, sixMonthsAgo);
+        if (!hasRecentEngagement) {
+          category = 'review';
+          reasons.push('No membership status set');
+          reasons.push('Not a customer lifecycle stage');
+          reasons.push('No recent email engagement');
+        } else {
+          category = 'keep';
+          reasons.push('Has recent email engagement');
+        }
+      }
+
+      return {
+        hubspotId: contact.id,
+        email,
+        firstName: props.firstname || '',
+        lastName: props.lastname || '',
+        membershipStatus: membershipStatus || 'unknown',
+        lifecycleStage: lifecycleStage || 'unknown',
+        tier: props.membership_tier || null,
+        createdAt: props.createdate || null,
+        lastModified: props.lastmodifieddate || null,
+        isMarketingContact,
+        category,
+        reasons,
+        inLocalDb: !!dbMember,
+        localDbStatus: localStatus,
+        localDbRole: dbMember?.role || null,
+        lastBookingDate: lastBooking,
+        lastEmailOpen: lastEmailOpen ? normalizeDateToYYYYMMDD(lastEmailOpen) : null,
+        emailBounced,
+      };
+    });
+
+    const marketingContacts = auditContacts.filter(c => c.isMarketingContact);
+    const safeToRemove = marketingContacts.filter(c => c.category === 'safe_to_remove');
+    const needsReview = marketingContacts.filter(c => c.category === 'review');
+    const keep = marketingContacts.filter(c => c.category === 'keep');
+
+    res.json({
+      summary: {
+        totalContacts: allContacts.length,
+        totalMarketingContacts: marketingContacts.length,
+        totalNonMarketing: allContacts.length - marketingContacts.length,
+        safeToRemoveCount: safeToRemove.length,
+        needsReviewCount: needsReview.length,
+        keepCount: keep.length,
+        potentialSavings: safeToRemove.length + needsReview.length,
+      },
+      safeToRemove: safeToRemove.sort((a, b) => a.email.localeCompare(b.email)),
+      needsReview: needsReview.sort((a, b) => a.email.localeCompare(b.email)),
+      keep: keep.sort((a, b) => a.email.localeCompare(b.email)),
+    });
+  } catch (error: unknown) {
+    logger.error('[HubSpot MarketingAudit] Failed to audit marketing contacts', {
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
+    res.status(500).json({ error: 'Failed to audit marketing contacts' });
+  }
+});
+
+function checkRecentEngagement(
+  lastOpen: string | null | undefined,
+  lastClick: string | null | undefined,
+  cutoffDate: Date
+): boolean {
+  if (lastOpen) {
+    const openDate = new Date(lastOpen);
+    if (!isNaN(openDate.getTime()) && openDate > cutoffDate) return true;
+  }
+  if (lastClick) {
+    const clickDate = new Date(lastClick);
+    if (!isNaN(clickDate.getTime()) && clickDate > cutoffDate) return true;
+  }
+  return false;
+}
+
+router.post('/api/admin/hubspot/remove-marketing-contacts', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const { contactIds } = req.body as { contactIds: string[] };
+    if (!contactIds || !Array.isArray(contactIds) || contactIds.length === 0) {
+      return res.status(400).json({ error: 'contactIds array is required' });
+    }
+
+    if (contactIds.length > 500) {
+      return res.status(400).json({ error: 'Maximum 500 contacts per batch' });
+    }
+
+    const hubspot = await getHubSpotClient();
+    const batchSize = 100;
+    let successCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < contactIds.length; i += batchSize) {
+      const batch = contactIds.slice(i, i + batchSize);
+      try {
+        await retryableHubSpotRequest(() =>
+          hubspot.apiRequest({
+            method: 'POST',
+            path: '/contacts/v1/contacts/set-marketing-status',
+            body: {
+              vids: batch.map(id => parseInt(id, 10)),
+              eligible: false,
+            },
+          })
+        );
+        successCount += batch.length;
+      } catch (batchError: unknown) {
+        failCount += batch.length;
+        errors.push(`Batch starting at index ${i}: ${getErrorMessage(batchError)}`);
+      }
+    }
+
+    const sessionUser = getSessionUser(req);
+    logger.info('[HubSpot MarketingAudit] Marketing contacts removed', {
+      extra: {
+        removedCount: successCount,
+        failedCount: failCount,
+        performedBy: sessionUser?.email || 'unknown',
+      },
+    });
+
+    res.json({
+      success: true,
+      removed: successCount,
+      failed: failCount,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error: unknown) {
+    logger.error('[HubSpot MarketingAudit] Failed to remove marketing contacts', {
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
+    res.status(500).json({ error: 'Failed to remove marketing contacts' });
+  }
+});
+
 export { fetchAllHubSpotContacts };
 export default router;

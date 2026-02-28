@@ -33,6 +33,7 @@ import AutoApprovePanel from './dataIntegrity/AutoApprovePanel';
 import AuditLogPanel from './dataIntegrity/AuditLogPanel';
 import StripeTerminalPanel from './dataIntegrity/StripeTerminalPanel';
 import EmailHealthPanel from './dataIntegrity/EmailHealthPanel';
+import MarketingContactsAuditPanel from './dataIntegrity/MarketingContactsAuditPanel';
 import IgnoreModals from './dataIntegrity/IgnoreModals';
 
 
@@ -223,6 +224,7 @@ const DataIntegrityTab: React.FC = () => {
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [showStripeTerminal, setShowStripeTerminal] = useState(false);
   const [showEmailHealth, setShowEmailHealth] = useState(false);
+  const [showMarketingAudit, setShowMarketingAudit] = useState(false);
   const [resyncEmail, setResyncEmail] = useState('');
   const [resyncResult, setResyncResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -2214,6 +2216,11 @@ const DataIntegrityTab: React.FC = () => {
       <EmailHealthPanel
         isOpen={showEmailHealth}
         onToggle={() => setShowEmailHealth(!showEmailHealth)}
+      />
+
+      <MarketingContactsAuditPanel
+        isOpen={showMarketingAudit}
+        onToggle={() => setShowMarketingAudit(!showMarketingAudit)}
       />
 
       <IgnoreModals
