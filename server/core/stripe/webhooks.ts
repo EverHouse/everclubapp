@@ -1134,6 +1134,8 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: S
                 bookingId: String(bookingId),
                 overpaymentCents: String(overpaymentCents),
               }
+            }, {
+              idempotencyKey: `refund_overpayment_full_${id}_${bookingId}`
             });
             logger.info(`[Stripe Webhook] Full auto-refund issued for duplicate payment`, { extra: { refundId: refund.id, paymentIntentId: id, amountCents: amount } });
           } catch (refundError: unknown) {
@@ -1157,6 +1159,8 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: S
                 bookingId: String(bookingId),
                 overpaymentCents: String(overpaymentCents),
               }
+            }, {
+              idempotencyKey: `refund_overpayment_partial_${id}_${bookingId}_${overpaymentCents}`
             });
             logger.info(`[Stripe Webhook] Partial auto-refund issued for overpayment`, { extra: { refundId: refund.id, paymentIntentId: id, refundedCents: overpaymentCents } });
           } catch (refundError: unknown) {
@@ -3784,7 +3788,7 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
           // Update all active sub-members to past_due status
           // Guard: only update sub-members whose billing_provider is stripe or unset (protect mindbody/manual members)
           const subMembersResult = await client.query(
-            `UPDATE users u SET membership_status = 'past_due', billing_provider = 'stripe', updated_at = NOW()
+            `UPDATE users u SET membership_status = 'past_due', updated_at = NOW()
              FROM group_members gm
              WHERE gm.billing_group_id = $1 
              AND gm.is_active = true
@@ -3897,7 +3901,7 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
           // Suspend all active sub-members
           // Guard: only update sub-members whose billing_provider is stripe or unset (protect mindbody/manual members)
           const subMembersResult = await client.query(
-            `UPDATE users u SET membership_status = 'suspended', billing_provider = 'stripe', updated_at = NOW()
+            `UPDATE users u SET membership_status = 'suspended', updated_at = NOW()
              FROM group_members gm
              WHERE gm.billing_group_id = $1 
              AND gm.is_active = true

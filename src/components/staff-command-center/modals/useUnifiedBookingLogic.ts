@@ -820,7 +820,6 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
 
   const handleManageModeUnlinkMember = async (slotId: number) => {
     if (!bookingId) return;
-    membersSnapshotRef.current = rosterData ? [...rosterData.members] : [];
     setUnlinkingSlotId(slotId);
     try {
       const res = await fetch(`/api/admin/booking/${bookingId}/members/${slotId}/unlink`, {
@@ -835,9 +834,6 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       await fetchRosterData();
     } catch (err: unknown) {
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to unlink member', 'error');
-      if (rosterData) {
-        setRosterData({ ...rosterData, members: membersSnapshotRef.current });
-      }
     } finally {
       setUnlinkingSlotId(null);
     }
