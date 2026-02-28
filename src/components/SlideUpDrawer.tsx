@@ -4,6 +4,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
 
 const BASE_DRAWER_Z_INDEX = 10000;
+const STANDARD_DRAWER_Z_INDEX = 5000;
 const Z_INDEX_INCREMENT = 10;
 const DRAG_THRESHOLD = 100;
 const VELOCITY_THRESHOLD = 0.5;
@@ -20,6 +21,7 @@ interface SlideUpDrawerProps {
   hideHandle?: boolean;
   stickyFooter?: ReactNode;
   onContentScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+  variant?: 'modal' | 'standard';
 }
 
 const maxHeightClasses = {
@@ -40,8 +42,10 @@ export function SlideUpDrawer({
   className = '',
   hideHandle = false,
   stickyFooter,
-  onContentScroll
+  onContentScroll,
+  variant = 'modal'
 }: SlideUpDrawerProps) {
+  const isModal = variant === 'modal';
   const { effectiveTheme } = useTheme();
   const isDark = effectiveTheme === 'dark';
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -49,7 +53,7 @@ export function SlideUpDrawer({
   const previousActiveElement = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
   const dismissibleRef = useRef(dismissible);
-  const [drawerZIndex, setDrawerZIndex] = useState(BASE_DRAWER_Z_INDEX);
+  const [drawerZIndex, setDrawerZIndex] = useState(isModal ? BASE_DRAWER_Z_INDEX : STANDARD_DRAWER_Z_INDEX);
   const [isClosing, setIsClosing] = useState(false);
   
   const [dragState, setDragState] = useState({
@@ -64,7 +68,7 @@ export function SlideUpDrawer({
     dismissibleRef.current = dismissible;
   });
 
-  useScrollLockManager(isOpen, dismissible ? onClose : undefined);
+  useScrollLockManager(isOpen && isModal, isModal && dismissible ? onClose : undefined);
 
   useEffect(() => {
     if (!isOpen) {
@@ -72,31 +76,37 @@ export function SlideUpDrawer({
       return;
     }
 
-    previousActiveElement.current = document.activeElement as HTMLElement;
-    
-    const currentCount = parseInt(document.body.getAttribute('data-modal-count') || '0', 10);
-    const newZIndex = BASE_DRAWER_Z_INDEX + (currentCount * Z_INDEX_INCREMENT);
-    setDrawerZIndex(newZIndex);
-    document.body.setAttribute('data-modal-count', String(currentCount + 1));
-    
-    setTimeout(() => {
-      drawerRef.current?.focus();
-    }, 50);
+    if (isModal) {
+      previousActiveElement.current = document.activeElement as HTMLElement;
+      
+      const currentCount = parseInt(document.body.getAttribute('data-modal-count') || '0', 10);
+      const newZIndex = BASE_DRAWER_Z_INDEX + (currentCount * Z_INDEX_INCREMENT);
+      setDrawerZIndex(newZIndex);
+      document.body.setAttribute('data-modal-count', String(currentCount + 1));
+      
+      setTimeout(() => {
+        drawerRef.current?.focus();
+      }, 50);
+    } else {
+      setDrawerZIndex(STANDARD_DRAWER_Z_INDEX);
+    }
 
     return () => {
-      const currentCount = parseInt(document.body.getAttribute('data-modal-count') || '0', 10);
-      if (currentCount <= 1) {
-        document.body.removeAttribute('data-modal-count');
-      } else {
-        document.body.setAttribute('data-modal-count', String(currentCount - 1));
-      }
-      
-      if (previousActiveElement.current) {
-        previousActiveElement.current.focus();
-        previousActiveElement.current = null;
+      if (isModal) {
+        const currentCount = parseInt(document.body.getAttribute('data-modal-count') || '0', 10);
+        if (currentCount <= 1) {
+          document.body.removeAttribute('data-modal-count');
+        } else {
+          document.body.setAttribute('data-modal-count', String(currentCount - 1));
+        }
+        
+        if (previousActiveElement.current) {
+          previousActiveElement.current.focus();
+          previousActiveElement.current = null;
+        }
       }
     };
-  }, [isOpen]);
+  }, [isOpen, isModal]);
 
   const handleClose = useCallback(() => {
     if (!dismissible) return;
@@ -113,7 +123,7 @@ export function SlideUpDrawer({
       return;
     }
 
-    if (e.key === 'Tab') {
+    if (isModal && e.key === 'Tab') {
       const focusableSelectors = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
       const focusableElements = drawerRef.current?.querySelectorAll<HTMLElement>(focusableSelectors);
       if (!focusableElements || focusableElements.length === 0) return;
@@ -133,7 +143,7 @@ export function SlideUpDrawer({
         }
       }
     }
-  }, [dismissible, handleClose]);
+  }, [dismissible, handleClose, isModal]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!dismissible) return;
@@ -189,27 +199,34 @@ export function SlideUpDrawer({
 
   const drawerContent = (
     <div 
-      className={`fixed inset-0 ${isDark ? 'dark' : ''}`}
-      style={{ overscrollBehavior: 'contain', touchAction: 'none', zIndex: drawerZIndex, height: '100dvh' }}
+      className={`fixed ${isModal ? 'inset-0' : 'inset-x-0 bottom-0 pointer-events-none'} ${isDark ? 'dark' : ''}`}
+      style={{ 
+        overscrollBehavior: 'contain', 
+        touchAction: isModal ? 'none' : undefined, 
+        zIndex: drawerZIndex, 
+        height: isModal ? '100dvh' : undefined,
+      }}
     >
-      <div 
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-normal ${isClosing ? 'opacity-0' : 'animate-backdrop-fade-in'}`}
-        aria-hidden="true"
-        style={{ touchAction: 'none', height: '100dvh' }}
-        onClick={dismissible ? handleClose : undefined}
-      />
+      {isModal && (
+        <div 
+          className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-normal ${isClosing ? 'opacity-0' : 'animate-backdrop-fade-in'}`}
+          aria-hidden="true"
+          style={{ touchAction: 'none', height: '100dvh' }}
+          onClick={dismissible ? handleClose : undefined}
+        />
+      )}
       
       <div 
         ref={drawerRef}
         role="dialog"
-        aria-modal="true"
+        aria-modal={isModal ? 'true' : undefined}
         aria-labelledby={title ? 'drawer-title' : undefined}
         aria-label={title ? undefined : 'Dialog'}
         tabIndex={-1}
-        className={`fixed inset-x-0 bottom-0 flex flex-col ${maxHeightClasses[maxHeight]} ${isDark ? 'bg-[#1a1d15]' : 'bg-white'} rounded-t-3xl shadow-2xl transition-transform duration-normal ease-spring-smooth ${isClosing ? 'translate-y-full' : 'animate-slide-up-drawer'} ${className}`}
+        className={`fixed inset-x-0 bottom-0 flex flex-col pointer-events-auto ${maxHeightClasses[maxHeight]} ${isDark ? 'bg-[#1a1d15]' : 'bg-white'} rounded-t-3xl shadow-2xl transition-transform duration-normal ease-spring-smooth ${isClosing ? 'translate-y-full' : 'animate-slide-up-drawer'} ${className}`}
         style={{
           transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
-          transition: dragState.isDragging ? 'none' : undefined
+          transition: dragState.isDragging ? 'none' : undefined,
         }}
         onKeyDown={handleKeyDown}
         onTouchStart={handleTouchStart}

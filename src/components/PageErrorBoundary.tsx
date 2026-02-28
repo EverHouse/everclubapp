@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { ErrorFallback } from './ui/ErrorFallback';
 
 interface Props {
   children: ReactNode;
@@ -292,37 +293,19 @@ class PageErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="flex items-center justify-center min-h-[50vh] p-6">
-          <div className="text-center max-w-sm">
-            <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-2xl text-red-400">
-                {isNetworkError ? 'wifi_off' : 'error'}
-              </span>
-            </div>
-            <h2 className="text-lg font-semibold mb-2 text-primary dark:text-white">
-              {isNetworkError ? 'Connection Issue' : 'Unable to load'}
-            </h2>
-            <p className="text-gray-600 dark:text-white/60 text-sm mb-4">
-              {isNetworkError 
-                ? 'Please check your connection and try again.'
-                : 'Something went wrong loading this section.'}
-            </p>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={this.handleRetry}
-                className="px-5 py-2.5 bg-accent text-brand-green rounded-xl font-medium text-sm hover:opacity-90 transition-opacity"
-              >
-                Try Again
-              </button>
-              <a
-                href="sms:9495455855"
-                className="px-5 py-2.5 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white/80 rounded-xl font-medium text-sm hover:bg-gray-200 dark:hover:bg-white/20 transition-colors text-center"
-              >
-                Contact Support
-              </a>
-            </div>
-          </div>
-        </div>
+        <ErrorFallback
+          variant="page"
+          icon={isNetworkError ? 'wifi_off' : 'error'}
+          title={isNetworkError ? 'Connection Issue' : 'Unable to load'}
+          description={
+            isNetworkError
+              ? 'Please check your connection and try again.'
+              : 'Something went wrong loading this section.'
+          }
+          onRetry={this.handleRetry}
+          retryLabel="Try Again"
+          showSupport
+        />
       );
     }
 

@@ -3,6 +3,7 @@ import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import ModalShell from '../../components/ModalShell';
 import { formatRelativeTime } from '../../utils/dateUtils';
+import { ApplicationPipelineSkeleton } from '../../components/skeletons';
 
 interface MembershipTier {
   id: number;
@@ -461,9 +462,7 @@ const ApplicationPipeline: React.FC = () => {
       </ModalShell>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <span className="material-symbols-outlined animate-spin text-3xl text-gray-500 dark:text-gray-400" aria-hidden="true">progress_activity</span>
-        </div>
+        <ApplicationPipelineSkeleton />
       ) : filteredApplications.length === 0 ? (
         <div className="bg-white dark:bg-surface-dark rounded-xl p-8 text-center shadow-sm border border-gray-200 dark:border-white/20">
           <span className="material-symbols-outlined text-5xl text-gray-500 dark:text-gray-500 mb-3 block" aria-hidden="true">how_to_reg</span>

@@ -1,47 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { TabType, tabToPath } from './types';
+import { TabType, NavItemData, tabToPath, MAIN_NAV_ITEMS, ADMIN_NAV_ITEMS } from './types';
 import { useNavigationLoading } from '../../../contexts/NavigationLoadingContext';
 import { getLatestVersion } from '../../../data/changelog-version';
 import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../../../lib/prefetch';
-
-interface NavItem {
-  id: TabType;
-  icon: string;
-  label: string;
-}
 
 interface StaffSidebarProps {
   activeTab: TabType;
   isAdmin?: boolean;
 }
-
-const MAIN_NAV_ITEMS: NavItem[] = [
-  { id: 'home', icon: 'dashboard', label: 'Dashboard' },
-  { id: 'simulator', icon: 'event_note', label: 'Bookings' },
-  { id: 'financials', icon: 'point_of_sale', label: 'Financials' },
-  { id: 'tours', icon: 'directions_walk', label: 'Tours' },
-  { id: 'events', icon: 'calendar_month', label: 'Calendar' },
-  { id: 'blocks', icon: 'domain', label: 'Facility' },
-  { id: 'updates', icon: 'campaign', label: 'Updates' },
-  { id: 'directory', icon: 'group', label: 'Directory' },
-  { id: 'training', icon: 'school', label: 'Training Guide' },
-];
-
-const ADMIN_ITEMS: NavItem[] = [
-  { id: 'tiers', icon: 'storefront', label: 'Products & Pricing' },
-  { id: 'team', icon: 'badge', label: 'Manage Team' },
-  { id: 'gallery', icon: 'photo_library', label: 'Gallery' },
-  { id: 'faqs', icon: 'help_outline', label: 'FAQs' },
-  { id: 'inquiries', icon: 'mail', label: 'Inquiries' },
-  { id: 'applications', icon: 'how_to_reg', label: 'Applications' },
-  { id: 'bugs', icon: 'bug_report', label: 'Bug Reports' },
-  { id: 'email-templates', icon: 'forward_to_inbox', label: 'Email Templates' },
-  { id: 'changelog', icon: 'history', label: 'Changelog' },
-  { id: 'data-integrity', icon: 'fact_check', label: 'Data Integrity' },
-  { id: 'settings', icon: 'settings', label: 'Settings' },
-];
 
 export const StaffSidebar: React.FC<StaffSidebarProps> = ({ 
   activeTab, 
@@ -73,7 +41,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
     }
   }, [navigate, startNavigation, activeTab]);
   
-  const NavButton: React.FC<{ item: NavItem }> = ({ item }) => {
+  const NavButton: React.FC<{ item: NavItemData }> = ({ item }) => {
     const isActive = displayActiveTab === item.id;
     return (
       <button
@@ -128,7 +96,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
               Admin
             </p>
             <div className="space-y-0.5">
-              {ADMIN_ITEMS.map(item => (
+              {ADMIN_NAV_ITEMS.map(item => (
                 <NavButton key={item.id} item={item} />
               ))}
             </div>

@@ -4,6 +4,7 @@ import { formatTime12Hour, getTodayPacific } from '../../../../utils/dateUtils';
 import type { BookingRequest, Resource, CalendarClosure, AvailabilityBlock } from './simulatorTypes';
 import { formatDateShortAdmin, getClosureForSlot, getBlockForSlot } from './simulatorUtils';
 import { useFeeEstimate } from '../../../../hooks/queries/useBookingsQueries';
+import { prefetchBookingDetail } from '../../../../lib/prefetch';
 
 export interface CalendarGridProps {
     resources: Resource[];
@@ -408,6 +409,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                         <div
                                             key={`${resource.id}-${slot}`}
                                             title={closure ? `CLOSED: ${closure.title}` : eventBlock ? `EVENT BLOCK: ${eventBlock.closureTitle || eventBlock.blockType || 'Blocked'}` : booking ? `${bookingDisplayName}${isUnmatched ? ' (UNMATCHED - Click to assign member)' : isInactiveMember ? ' (Inactive Member)' : ''} - Click for details` : pendingRequest ? `PENDING: ${pendingRequest.user_name || 'Request'} - Awaiting Trackman sync` : isConference ? undefined : `${resource.name} - ${formatTime12Hour(slot)}`}
+                                            onMouseEnter={booking ? () => prefetchBookingDetail(booking.id) : undefined}
                                             onClick={closure || eventBlock ? undefined : isEmptyCell ? (isConference ? () => {
                                                 setStaffManualBookingDefaults({
                                                     startTime: slot,

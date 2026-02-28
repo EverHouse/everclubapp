@@ -12,6 +12,7 @@ import {
 import { getSubscriptionStatusBadge, getInvoiceStatusBadge } from '../../../utils/statusColors';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
+import { FinancialsSubTabSkeleton } from '../../../components/skeletons';
 
 interface SubscriptionListItem {
   id: string;
@@ -234,14 +235,7 @@ const SubscriptionsSubTab: React.FC = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center gap-3">
-          <WalkingGolferSpinner size="md" variant="auto" />
-          <p className="text-sm text-primary/60 dark:text-white/60">Loading subscriptions...</p>
-        </div>
-      </div>
-    );
+    return <FinancialsSubTabSkeleton />;
   }
 
   return (
@@ -587,14 +581,7 @@ const InvoicesSubTab: React.FC = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center gap-3">
-          <WalkingGolferSpinner size="md" variant="auto" />
-          <p className="text-sm text-primary/60 dark:text-white/60">Loading invoices...</p>
-        </div>
-      </div>
-    );
+    return <FinancialsSubTabSkeleton />;
   }
 
   return (

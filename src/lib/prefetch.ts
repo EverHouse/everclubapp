@@ -107,3 +107,19 @@ export const prefetchAdjacentStaffRoutes = (currentPath: string) => {
   if (idx > 0) prefetchStaffRoute(navOrder[idx - 1]);
   if (idx < navOrder.length - 1) prefetchStaffRoute(navOrder[idx + 1]);
 };
+
+export const prefetchMemberProfile = (email: string) => {
+  const key = `member-profile:${email}`;
+  if (prefetchedAPIs.has(key)) return;
+  prefetchedAPIs.add(key);
+  const encoded = encodeURIComponent(email);
+  fetch(`/api/members/${encoded}/history`, { credentials: 'include' }).catch(() => {});
+  fetch(`/api/members/${encoded}/notes`, { credentials: 'include' }).catch(() => {});
+};
+
+export const prefetchBookingDetail = (bookingId: number | string) => {
+  const key = `booking-detail:${bookingId}`;
+  if (prefetchedAPIs.has(key)) return;
+  prefetchedAPIs.add(key);
+  fetch(`/api/admin/booking/${bookingId}/members`, { credentials: 'include' }).catch(() => {});
+};

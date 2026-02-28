@@ -35,6 +35,7 @@ import StripeTerminalPanel from './dataIntegrity/StripeTerminalPanel';
 import EmailHealthPanel from './dataIntegrity/EmailHealthPanel';
 import MarketingContactsAuditPanel from './dataIntegrity/MarketingContactsAuditPanel';
 import IgnoreModals from './dataIntegrity/IgnoreModals';
+import { DataIntegritySkeleton } from '../../../components/skeletons';
 
 
 interface HubspotSyncMember {
@@ -1852,10 +1853,7 @@ const DataIntegrityTab: React.FC = () => {
       </div>
 
       {isLoadingCached && !meta && (
-        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-8 text-center">
-          <span aria-hidden="true" className="material-symbols-outlined animate-spin text-3xl text-primary/40 dark:text-white/40 mb-2">progress_activity</span>
-          <p className="text-sm text-primary/60 dark:text-white/60">Loading cached results...</p>
-        </div>
+        <DataIntegritySkeleton />
       )}
 
       {meta && (

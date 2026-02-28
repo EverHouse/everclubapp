@@ -353,11 +353,61 @@ const BookGolf: React.FC = () => {
       guardian_phone?: string;
       guardian_consent?: boolean;
     }) => postWithCredentials<{ id: number; invoicePayment?: { paidInFull: boolean; status: string; clientSecret: string | null; amountFromBalance: number } }>('/api/booking-requests', bookingData),
-    onMutate: async () => {
+    onMutate: async (bookingData) => {
       await queryClient.cancelQueries({ queryKey: bookGolfKeys.all });
+
+      const dashboardKey = ['member', 'dashboard-data', effectiveUser?.email];
+      await queryClient.cancelQueries({ queryKey: dashboardKey });
+      const previousDashboard = queryClient.getQueryData(dashboardKey);
+
+      const startTimeParts = bookingData.start_time.split(':').map(Number);
+      const endTotalMinutes = (startTimeParts[0] * 60 + startTimeParts[1]) + bookingData.duration_minutes;
+      const endH = Math.floor(endTotalMinutes / 60) % 24;
+      const endM = endTotalMinutes % 60;
+      const endTime = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+
+      const optimisticRequest = {
+        id: -Date.now(),
+        user_email: bookingData.user_email,
+        user_name: bookingData.user_name,
+        resource_id: bookingData.resource_id,
+        resource_name: selectedResource?.name || 'Simulator',
+        bay_name: selectedResource?.name || null,
+        resource_preference: null,
+        request_date: bookingData.request_date,
+        start_time: bookingData.start_time,
+        end_time: endTime,
+        duration_minutes: bookingData.duration_minutes,
+        notes: bookingData.notes,
+        status: 'pending' as const,
+        staff_notes: null,
+        suggested_time: null,
+        created_at: new Date().toISOString(),
+        declared_player_count: bookingData.declared_player_count,
+      };
+
+      queryClient.setQueryData(dashboardKey, (old: Record<string, unknown> | undefined) => {
+        if (!old) return old;
+        const existingRequests = (old.bookingRequests || []) as Array<Record<string, unknown>>;
+        return {
+          ...old,
+          bookingRequests: [...existingRequests, optimisticRequest],
+        };
+      });
+
+      return { previousDashboard, dashboardKey };
     },
-    onSettled: () => {
+    onError: (_err: unknown, _vars: unknown, context: { previousDashboard?: unknown; dashboardKey?: string[] } | undefined) => {
+      if (context?.previousDashboard && context?.dashboardKey) {
+        queryClient.setQueryData(context.dashboardKey, context.previousDashboard);
+      }
+    },
+    onSettled: (_data: unknown, _err: unknown, _vars: unknown, context: { dashboardKey?: string[] } | undefined) => {
       queryClient.invalidateQueries({ queryKey: bookGolfKeys.all });
+      if (context?.dashboardKey) {
+        queryClient.invalidateQueries({ queryKey: context.dashboardKey });
+      }
+      queryClient.invalidateQueries({ queryKey: ['member', 'dashboard-data'] });
     },
   });
 

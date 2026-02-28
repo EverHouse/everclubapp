@@ -522,6 +522,146 @@ export const TrackmanTabSkeleton: React.FC<SkeletonCardProps> = ({ isDark = fals
   );
 };
 
+export const DataIntegritySkeleton: React.FC<SkeletonCardProps> = ({ isDark = false }) => {
+  const bg = isDark ? bgDark : bgAuto;
+  return (
+    <div className="space-y-6 pb-32">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className={`${shimmerClass} ${bg} w-6 h-6 rounded`} />
+            <div className={`${shimmerClass} ${bg} h-7 w-40 rounded`} />
+          </div>
+          <div className={`${shimmerClass} ${bg} h-10 w-32 rounded-lg`} />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="border border-gray-200 dark:border-white/10 rounded-lg p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className={`${shimmerClass} ${bg} w-5 h-5 rounded`} />
+                <div className={`${shimmerClass} ${bg} h-4 w-16 rounded`} />
+              </div>
+              <div className={`${shimmerClass} ${bg} h-3 w-12 rounded`} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <div className={`${shimmerClass} ${bg} flex-1 h-12 rounded-xl`} />
+        <div className={`${shimmerClass} ${bg} h-12 w-36 rounded-xl`} />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="bg-white/60 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-4 text-center space-y-2">
+            <div className={`${shimmerClass} ${bg} h-8 w-12 rounded mx-auto`} />
+            <div className={`${shimmerClass} ${bg} h-3 w-16 rounded mx-auto`} />
+          </div>
+        ))}
+      </div>
+
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className={`${shimmerClass} ${bg} w-6 h-6 rounded`} />
+              <div className={`${shimmerClass} ${bg} h-5 w-32 rounded`} />
+            </div>
+            <div className={`${shimmerClass} ${bg} w-6 h-6 rounded`} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export const FinancialsSubTabSkeleton: React.FC<SkeletonCardProps> = ({ isDark = false }) => {
+  const bg = isDark ? bgDark : bgAuto;
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className={`${shimmerClass} ${bg} flex-1 h-11 rounded-xl`} />
+        <div className="flex gap-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className={`${shimmerClass} ${bg} h-10 w-24 rounded-full`} />
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl overflow-hidden">
+        <div className="p-4 border-b border-primary/10 dark:border-white/10">
+          <div className="grid grid-cols-6 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className={`${shimmerClass} ${bg} h-4 rounded`} />
+            ))}
+          </div>
+        </div>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="p-4 border-b border-primary/5 dark:border-white/5">
+            <div className="grid grid-cols-6 gap-4 items-center">
+              <div className="space-y-1.5">
+                <div className={`${shimmerClass} ${bg} h-4 w-28 rounded`} />
+                <div className={`${shimmerClass} ${bg} h-3 w-36 rounded`} />
+              </div>
+              <div className={`${shimmerClass} ${bg} h-4 w-24 rounded`} />
+              <div className={`${shimmerClass} ${bg} h-4 w-16 rounded`} />
+              <div className={`${shimmerClass} ${bg} h-6 w-16 rounded-[4px]`} />
+              <div className={`${shimmerClass} ${bg} h-4 w-20 rounded`} />
+              <div className="flex justify-end gap-2">
+                <div className={`${shimmerClass} ${bg} h-8 w-16 rounded-lg`} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className={`${shimmerClass} ${bg} h-4 w-48 rounded`} />
+        <div className={`${shimmerClass} ${bg} h-4 w-16 rounded`} />
+      </div>
+    </div>
+  );
+};
+
+export const ApplicationPipelineSkeleton: React.FC<SkeletonCardProps> = ({ isDark = false }) => {
+  const bg = isDark ? bgDark : bgAuto;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-end mb-3">
+        <div className={`${shimmerClass} ${bg} h-9 w-40 rounded-lg`} />
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-4">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className={`${shimmerClass} ${bg} h-11 w-24 rounded-[4px] flex-shrink-0`} />
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="bg-white dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/20">
+            <div className="flex items-start gap-3">
+              <div className={`${shimmerClass} ${bg} w-10 h-10 rounded-full flex-shrink-0`} />
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className={`${shimmerClass} ${bg} h-5 w-32 rounded`} />
+                  <div className={`${shimmerClass} ${bg} h-5 w-16 rounded`} />
+                </div>
+                <div className={`${shimmerClass} ${bg} h-3.5 w-44 rounded`} />
+                <div className="flex items-center gap-2 pt-1">
+                  <div className={`${shimmerClass} ${bg} h-3 w-24 rounded`} />
+                  <div className={`${shimmerClass} ${bg} h-3 w-20 rounded`} />
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export const ToursTabSkeleton: React.FC<SkeletonCardProps> = ({ isDark = false }) => {
   const bg = isDark ? bgDark : bgAuto;
   return (

@@ -19,7 +19,7 @@ import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import PullToRefresh from '../../components/PullToRefresh';
 import CheckInConfirmationModal from '../../components/staff-command-center/modals/CheckInConfirmationModal';
 
-import { TabType, StaffBottomNav, StaffSidebar, usePendingCounts, useUnreadNotifications, getTabFromPathname, tabToPath } from './layout';
+import { TabType, StaffBottomNav, StaffSidebar, StaffNavigationRail, usePendingCounts, useUnreadNotifications, getTabFromPathname, tabToPath } from './layout';
 
 // Loading fallback for lazy-loaded tabs - matches app aesthetic
 const TabLoadingFallback = () => (
@@ -147,11 +147,11 @@ const AdminDashboard: React.FC = () => {
   };
 
   const headerContent = (
-    <header className="fixed top-0 left-0 right-0 lg:left-64 h-20 flex items-center justify-between px-4 md:px-6 mt-[env(safe-area-inset-top,0px)] bg-[#293515] shadow-md transition-all duration-fast text-[#F2F2EC] pointer-events-auto" style={{ zIndex: 'var(--z-header)' }}>
-      <div className="flex items-center flex-shrink-0 w-[88px] lg:w-0 h-full">
+    <header className="fixed top-0 left-0 right-0 md:left-20 lg:left-64 h-20 flex items-center justify-between px-4 md:px-6 mt-[env(safe-area-inset-top,0px)] bg-[#293515] shadow-md transition-all duration-fast text-[#F2F2EC] pointer-events-auto" style={{ zIndex: 'var(--z-header)' }}>
+      <div className="flex items-center flex-shrink-0 w-[88px] md:w-0 h-full">
         <button 
           onClick={() => setIsMobileSidebarOpen(true)}
-          className="tactile-btn flex items-center justify-center min-w-[44px] min-h-[44px] hover:opacity-70 transition-opacity lg:hidden"
+          className="tactile-btn flex items-center justify-center min-w-[44px] min-h-[44px] hover:opacity-70 transition-opacity md:hidden"
           aria-label="Open menu"
         >
           <span className="material-symbols-outlined text-[24px]">menu</span>
@@ -178,13 +178,38 @@ const AdminDashboard: React.FC = () => {
             </span>
           )}
         </button>
-        <button 
-          onClick={() => navigate('/profile')}
-          className="tactile-btn flex items-center justify-center min-w-[44px] min-h-[44px] hover:opacity-70 transition-opacity rounded-full"
-          aria-label="View profile"
-        >
-          <Avatar name={actualUser?.name} email={actualUser?.email} size="md" />
-        </button>
+        <div className="relative">
+          <button 
+            onClick={() => navigate('/profile')}
+            className="tactile-btn flex items-center justify-center min-w-[44px] min-h-[44px] hover:opacity-70 transition-opacity rounded-full"
+            aria-label="View profile"
+          >
+            <Avatar name={actualUser?.name} email={actualUser?.email} size="md" />
+          </button>
+          <span
+            className={`absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#293515] transition-colors duration-200 ${
+              !navigator.onLine
+                ? 'bg-red-500'
+                : staffWsConnected
+                  ? 'bg-emerald-400'
+                  : 'bg-amber-400 animate-pulse'
+            }`}
+            aria-label={
+              !navigator.onLine
+                ? 'Offline'
+                : staffWsConnected
+                  ? 'All connections healthy'
+                  : 'Live updates degraded'
+            }
+            title={
+              !navigator.onLine
+                ? 'Offline'
+                : staffWsConnected
+                  ? 'All connections healthy'
+                  : 'Live updates degraded — reconnecting'
+            }
+          />
+        </div>
       </div>
     </header>
   );
@@ -196,6 +221,11 @@ const AdminDashboard: React.FC = () => {
         activeTab={activeTab} 
         isAdmin={actualUser?.role === 'admin'} 
       />
+
+      <StaffNavigationRail
+        activeTab={activeTab}
+        isAdmin={actualUser?.role === 'admin'}
+      />
       
       <StaffMobileSidebar
         isOpen={isMobileSidebarOpen}
@@ -206,7 +236,7 @@ const AdminDashboard: React.FC = () => {
       
       {createPortal(headerContent, document.body)}
 
-      <main className="flex-1 px-4 md:px-8 pt-[max(112px,calc(env(safe-area-inset-top)+96px))] relative z-0 lg:ml-64 w-full lg:w-auto">
+      <main className="flex-1 px-4 md:px-8 pt-[max(112px,calc(env(safe-area-inset-top)+96px))] relative z-0 md:ml-20 lg:ml-64 w-full md:w-auto">
         <PullToRefresh onRefresh={handleAdminRefresh}>
           <TabTransition activeKey={activeTab} className="animate-content-enter">
             {activeTab === 'training' ? (
@@ -223,7 +253,7 @@ const AdminDashboard: React.FC = () => {
         </PullToRefresh>
       </main>
 
-      <div className="lg:hidden">
+      <div className="md:hidden">
         <StaffBottomNav 
           activeTab={activeTab} 
           isAdmin={actualUser?.role === 'admin'}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import { triggerHaptic } from '../../utils/haptics';
@@ -6,6 +6,9 @@ import { formatPhoneNumber } from '../../utils/phoneFormat';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import SEO from '../../components/SEO';
+import ConfirmDialogComponent from '../../components/ConfirmDialog';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
+import { useFormPersistence } from '../../hooks/useFormPersistence';
 
 const getHubspotCookie = (): string | null => {
   const cookies = document.cookie.split(';');
@@ -26,6 +29,16 @@ const TIER_OPTIONS = [
   'Not sure yet'
 ];
 
+const INITIAL_FORM_DATA = {
+  firstname: '',
+  lastname: '',
+  email: '',
+  phone: '',
+  consent: false,
+  membership_tier: '',
+  message: ''
+};
+
 const MembershipApply: React.FC = () => {
   const { setPageReady } = usePageReady();
   const [step, setStep] = useState(1);
@@ -33,15 +46,29 @@ const MembershipApply: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const [persistedData, setPersistData, clearPersistedData] = useFormPersistence('membership-apply', INITIAL_FORM_DATA);
   
-  const [formData, setFormData] = useState({
-    firstname: '',
-    lastname: '',
-    email: '',
-    phone: '',
-    consent: false,
-    membership_tier: '',
-    message: ''
+  const [formData, setFormData] = useState(persistedData);
+  const initialDataRef = useRef(persistedData);
+
+  const isDirty = useMemo(() => {
+    if (success) return false;
+    const initial = initialDataRef.current;
+    return (
+      formData.firstname !== initial.firstname ||
+      formData.lastname !== initial.lastname ||
+      formData.email !== initial.email ||
+      formData.phone !== initial.phone ||
+      formData.membership_tier !== initial.membership_tier ||
+      formData.message !== initial.message ||
+      formData.consent !== initial.consent
+    );
+  }, [formData, success]);
+
+  const { showDialog, dialogTitle, dialogMessage, confirmDiscard, cancelDiscard } = useUnsavedChanges({
+    isDirty,
+    message: 'You have unsaved changes. Discard changes?'
   });
 
   useEffect(() => {
@@ -49,7 +76,11 @@ const MembershipApply: React.FC = () => {
   }, [setPageReady]);
 
   const handleChange = (name: string, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      setPersistData(updated);
+      return updated;
+    });
   };
 
   const validateStep1 = () => {
@@ -126,6 +157,7 @@ const MembershipApply: React.FC = () => {
       }
 
       triggerHaptic('success');
+      clearPersistedData();
       setSuccess(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: unknown) {
@@ -415,6 +447,17 @@ const MembershipApply: React.FC = () => {
       </div>
 
       <Footer />
+
+      <ConfirmDialogComponent
+        isOpen={showDialog}
+        title={dialogTitle}
+        message={dialogMessage}
+        confirmText="Discard"
+        cancelText="Keep Editing"
+        variant="warning"
+        onConfirm={confirmDiscard}
+        onCancel={cancelDiscard}
+      />
     </div>
   );
 };

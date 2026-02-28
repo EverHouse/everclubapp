@@ -8,6 +8,25 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.49.0",
+    date: "2026-02-28",
+    title: "Phase 3: Architecture & Advanced Patterns",
+    isMajor: true,
+    changes: [
+      "New: Extended FAB — primary action buttons now show icon + text label, collapsing to icon-only on scroll for cleaner mobile UX",
+      "New: M3 Search Bar component with pill-shaped design, debounced search, and full-viewport mobile expansion with recent searches and suggestions",
+      "New: Bottom Sheet standard variant — non-blocking drawers that let you interact with content behind them, for filter panels and quick details",
+      "New: Navigation Rail for tablet screens — a compact vertical icon bar replaces the hamburger menu on tablet-width screens for faster staff navigation",
+      "New: ErrorFallback component with page, card, and inline variants — all error states now use consistent Liquid Glass styling with retry and support actions",
+      "New: Unsaved changes warning — navigating away from partially-filled forms now shows a confirmation dialog, and form data persists across page refreshes",
+      "New: Detail-level prefetch — hovering over booking cards or directory rows now pre-loads their detail data for instant navigation",
+      "New: WebSocket health indicator — staff portal header shows a connection status dot, and a banner appears when live updates are paused or restored",
+      "Improvement: Optimistic UI for profile edits, SMS preferences, and booking submissions — changes appear instantly with automatic rollback on errors",
+      "Improvement: Admin skeleton loaders — Data Integrity, Financials, and Application Pipeline tabs now show structural loading placeholders instead of spinners",
+      "Improvement: Dark mode glass readability — increased glass surface opacity and ensured body text on glass panels meets WCAG AA contrast standards",
+    ]
+  },
+  {
     version: "8.48.0",
     date: "2026-02-27",
     title: "Marketing Contacts Audit Panel",

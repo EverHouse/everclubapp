@@ -18,6 +18,7 @@ import { AnimatedPage } from '../../../components/motion';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
 import { useToast } from '../../../components/Toast';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
+import { prefetchMemberProfile } from '../../../lib/prefetch';
 
 const TIER_OPTIONS = ['All', 'Social', 'Core', 'Premium', 'Corporate', 'VIP'] as const;
 const ASSIGNABLE_TIERS = ['Social', 'Core', 'Premium', 'Corporate', 'VIP'] as const;
@@ -1882,6 +1883,8 @@ const DirectoryTab: React.FC = () => {
                                             tabIndex={0}
                                             onClick={() => openDetailsModal(m)}
                                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetailsModal(m); } }}
+                                            onMouseEnter={() => prefetchMemberProfile(m.email)}
+                                            onFocus={() => prefetchMemberProfile(m.email)}
                                             className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98] animate-slide-up-stagger"
                                             style={{ '--stagger-index': Math.min(index, 10) } as React.CSSProperties}
                                         >
@@ -1996,6 +1999,8 @@ const DirectoryTab: React.FC = () => {
                                         tabIndex={0}
                                         onClick={() => openDetailsModal(m)}
                                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetailsModal(m); } }}
+                                        onMouseEnter={() => prefetchMemberProfile(m.email)}
+                                        onFocus={() => prefetchMemberProfile(m.email)}
                                         className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
                                     >
                                         <div style={{ width: '14%' }} className="p-3 font-medium text-primary dark:text-white truncate">{m.name}</div>
