@@ -476,7 +476,7 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
             ))}
         </div>
         
-        <MotionList ref={wellnessParent} className="space-y-4">
+        <MotionList ref={wellnessParent} className="space-y-3">
             {sortedClasses.length > 0 ? (
                 sortedClasses.map((cls) => {
                     const isExpanded = expandedId === cls.id;
@@ -720,9 +720,9 @@ const ClassCard: React.FC<ClassCardProps> = ({ title, date, time, instructor, du
       onClick={onToggle}
       aria-expanded={isExpanded}
       aria-label={`${title} on ${date} at ${formattedTime.time} ${formattedTime.period}. ${isExpanded ? 'Collapse' : 'Expand'} for details`}
-      className={`w-full p-4 cursor-pointer transition-all duration-fast text-left ${isExpanded ? '' : 'active:scale-[0.98]'}`}
+      className={`w-full px-4 pt-4 pb-3 cursor-pointer transition-all duration-fast text-left ${isExpanded ? '' : 'active:scale-[0.98]'}`}
     >
-      <div className="flex gap-4 items-start">
+      <div className="flex gap-3 items-start">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className={`w-fit px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-widest ${isDark ? 'bg-lavender/20 text-lavender' : 'bg-brand-green/20 text-brand-green'}`} style={{ fontFamily: 'var(--font-label)' }}>{category}</span>
@@ -736,6 +736,9 @@ const ClassCard: React.FC<ClassCardProps> = ({ title, date, time, instructor, du
           <span className={`text-lg md:text-xl font-bold ${isDark ? 'text-white' : 'text-primary'}`}>{formattedTime.time}</span>
           <span className={`text-xs md:text-sm font-medium ${isDark ? 'text-white/70' : 'text-primary/70'}`}>{formattedTime.period}</span>
         </div>
+      </div>
+      <div className={`flex items-center justify-center mt-2 transition-transform duration-fast ${isExpanded ? 'rotate-180' : ''}`}>
+        <span className={`material-symbols-outlined text-base ${isDark ? 'text-white/30' : 'text-primary/30'}`}>expand_more</span>
       </div>
     </button>
     <div className={`accordion-content ${isExpanded ? 'is-open' : ''}`}>
