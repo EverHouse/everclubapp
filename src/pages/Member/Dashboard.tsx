@@ -835,11 +835,11 @@ const Dashboard: React.FC = () => {
         
         <div className="mb-6 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
           <div className="flex items-center gap-3">
-            <h1 className={`text-3xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-primary'}`}>
+            <h1 className={`text-4xl lg:text-5xl font-bold leading-none ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)', fontOpticalSizing: 'auto', letterSpacing: '-0.03em' }}>
               {getGreeting()}, {user?.name.split(' ')[0]}
             </h1>
           </div>
-          <p className={`text-sm font-medium mt-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
+          <p className={`text-sm lg:text-base font-medium mt-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
             {new Date().toLocaleDateString('en-US', { timeZone: CLUB_TIMEZONE, weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </div>
