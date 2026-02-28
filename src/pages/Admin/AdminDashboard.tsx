@@ -158,7 +158,7 @@ const AdminDashboard: React.FC = () => {
         </button>
       </div>
       
-      <h1 className="text-4xl lg:text-5xl font-bold text-[#F2F2EC] text-center truncate flex-1 leading-none translate-y-[8px]" style={{ fontFamily: 'var(--font-display)', fontOpticalSizing: 'auto', letterSpacing: '-0.03em' }}>
+      <h1 className="text-4xl font-bold text-[#F2F2EC] text-center truncate flex-1 leading-none translate-y-[4px]" style={{ fontFamily: 'var(--font-display)', fontOpticalSizing: 'auto', letterSpacing: '-0.03em' }}>
         {getTabTitle()}
       </h1>
 

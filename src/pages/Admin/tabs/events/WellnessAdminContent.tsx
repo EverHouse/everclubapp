@@ -476,7 +476,7 @@ export const WellnessAdminContent: React.FC = () => {
                                 <span aria-hidden="true" className="material-symbols-outlined text-green-500">schedule</span>
                                 <h3 className="font-bold text-primary dark:text-white">Upcoming ({upcomingClasses.length})</h3>
                             </div>
-                            <div ref={upcomingClassesRef} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div ref={upcomingClassesRef} className="grid grid-cols-1 gap-4">
                                 {upcomingClasses.slice(0, showAllUpcoming ? upcomingClasses.length : INITIAL_DISPLAY_COUNT).map((cls, index) => (
                                     <div key={cls.id} onClick={() => openEdit(cls)} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 flex flex-col gap-3 relative overflow-hidden cursor-pointer hover:border-primary/30 transition-colors animate-list-item-delay-${Math.min(index + 1, 10)}`}>
                                         <div className="flex gap-4">
@@ -489,10 +489,10 @@ export const WellnessAdminContent: React.FC = () => {
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-bold text-lg text-primary dark:text-white leading-tight mb-1 truncate">{cls.title}</h4>
-                                                <span className="inline-block text-[10px] font-bold uppercase tracking-wider bg-[#CCB8E4]/20 text-[#293515] dark:text-[#CCB8E4] px-1.5 py-0.5 rounded mb-2">{cls.category}</span>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(cls.date)} • {cls.time}</p>
+                                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                <h4 className="font-bold text-xl text-primary dark:text-white leading-none truncate translate-y-[1px]" style={{ fontFamily: 'var(--font-headline)', fontOpticalSizing: 'auto', letterSpacing: '-0.02em' }}>{cls.title}</h4>
+                                                <span className="w-fit inline-block text-[10px] font-bold uppercase tracking-wider bg-[#CCB8E4]/20 text-[#293515] dark:text-[#CCB8E4] px-2 py-0.5 rounded mt-1.5" style={{ fontFamily: 'var(--font-label)' }}>{cls.category}</span>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formatDate(cls.date)} • {cls.time}</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-white/20 mt-auto">
@@ -532,7 +532,7 @@ export const WellnessAdminContent: React.FC = () => {
                             </button>
                             {showPastClasses && (
                             <>
-                            <div ref={pastClassesRef} className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-70">
+                            <div ref={pastClassesRef} className="grid grid-cols-1 gap-4 opacity-70">
                                 {pastClasses.slice(0, showAllPast ? pastClasses.length : INITIAL_DISPLAY_COUNT).map((cls, index) => (
                                     <div key={cls.id} onClick={() => openEdit(cls)} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 flex flex-col gap-3 relative overflow-hidden cursor-pointer hover:border-primary/30 transition-colors animate-list-item-delay-${Math.min(index + 1, 10)}`}>
                                         <div className="flex gap-4">
@@ -545,10 +545,10 @@ export const WellnessAdminContent: React.FC = () => {
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-bold text-lg text-primary dark:text-white leading-tight mb-1 truncate">{cls.title}</h4>
-                                                <span className="inline-block text-[10px] font-bold uppercase tracking-wider bg-[#CCB8E4]/20 text-[#293515] dark:text-[#CCB8E4] px-1.5 py-0.5 rounded mb-2">{cls.category}</span>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(cls.date)} • {cls.time}</p>
+                                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                <h4 className="font-bold text-xl text-primary dark:text-white leading-none truncate translate-y-[1px]" style={{ fontFamily: 'var(--font-headline)', fontOpticalSizing: 'auto', letterSpacing: '-0.02em' }}>{cls.title}</h4>
+                                                <span className="w-fit inline-block text-[10px] font-bold uppercase tracking-wider bg-[#CCB8E4]/20 text-[#293515] dark:text-[#CCB8E4] px-2 py-0.5 rounded mt-1.5" style={{ fontFamily: 'var(--font-label)' }}>{cls.category}</span>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formatDate(cls.date)} • {cls.time}</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-white/20 mt-auto">

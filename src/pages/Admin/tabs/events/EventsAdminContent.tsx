@@ -780,7 +780,7 @@ export const EventsAdminContent: React.FC = () => {
                                 <span aria-hidden="true" className="material-symbols-outlined text-green-500">schedule</span>
                                 <h3 className="font-bold text-primary dark:text-white">Upcoming ({upcomingEvents.length})</h3>
                             </div>
-                            <div ref={upcomingEventsRef} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div ref={upcomingEventsRef} className="grid grid-cols-1 gap-4">
                                 {upcomingEvents.map((event, index) => {
                                     const isPending = pendingEventIds.has(event.id);
                                     const isOptimistic = event.id < 0;
@@ -812,9 +812,9 @@ export const EventsAdminContent: React.FC = () => {
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                                <h4 className="font-bold text-2xl text-primary dark:text-white leading-none mb-1 truncate translate-y-[2px]" style={{ fontFamily: 'var(--font-headline)', fontOpticalSizing: 'auto', letterSpacing: '-0.02em' }}>{event.title}</h4>
-                                                <span className="inline-block text-[10px] font-bold uppercase tracking-wider bg-primary/10 dark:bg-white/10 text-primary/80 dark:text-white/80 px-1.5 py-0.5 rounded mb-2">{event.category}</span>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(event.event_date)} • {formatTime(event.start_time)}</p>
+                                                <h4 className="font-bold text-xl text-primary dark:text-white leading-none truncate translate-y-[1px]" style={{ fontFamily: 'var(--font-headline)', fontOpticalSizing: 'auto', letterSpacing: '-0.02em' }}>{event.title}</h4>
+                                                <span className="w-fit inline-block text-[10px] font-bold uppercase tracking-wider bg-primary/10 dark:bg-white/10 text-primary/80 dark:text-white/80 px-2 py-0.5 rounded mt-1.5" style={{ fontFamily: 'var(--font-label)' }}>{event.category}</span>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formatDate(event.event_date)} • {formatTime(event.start_time)}</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-white/20 mt-auto">
@@ -868,7 +868,7 @@ export const EventsAdminContent: React.FC = () => {
                             </button>
                             {showPastEvents && (
                             <>
-                            <div ref={pastEventsRef} className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-70">
+                            <div ref={pastEventsRef} className="grid grid-cols-1 gap-4 opacity-70">
                                 {pastEvents.slice(0, showAllPastEvents ? pastEvents.length : 20).map((event, index) => {
                                     const isPending = pendingEventIds.has(event.id);
                                     return (
@@ -897,9 +897,9 @@ export const EventsAdminContent: React.FC = () => {
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                                <h4 className="font-bold text-2xl text-primary dark:text-white leading-none mb-1 truncate translate-y-[2px]" style={{ fontFamily: 'var(--font-headline)', fontOpticalSizing: 'auto', letterSpacing: '-0.02em' }}>{event.title}</h4>
-                                                <span className="inline-block text-[10px] font-bold uppercase tracking-wider bg-primary/10 dark:bg-white/10 text-primary/80 dark:text-white/80 px-1.5 py-0.5 rounded mb-2">{event.category}</span>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(event.event_date)} • {formatTime(event.start_time)}</p>
+                                                <h4 className="font-bold text-xl text-primary dark:text-white leading-none truncate translate-y-[1px]" style={{ fontFamily: 'var(--font-headline)', fontOpticalSizing: 'auto', letterSpacing: '-0.02em' }}>{event.title}</h4>
+                                                <span className="w-fit inline-block text-[10px] font-bold uppercase tracking-wider bg-primary/10 dark:bg-white/10 text-primary/80 dark:text-white/80 px-2 py-0.5 rounded mt-1.5" style={{ fontFamily: 'var(--font-label)' }}>{event.category}</span>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formatDate(event.event_date)} • {formatTime(event.start_time)}</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-white/20 mt-auto">
