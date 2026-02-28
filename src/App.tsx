@@ -640,7 +640,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const headerBtnClasses = "text-white hover:opacity-70 active:scale-95 transition-opacity duration-fast";
 
   const headerContent = showHeader ? (
-    <header className={`fixed top-0 left-0 right-0 h-20 flex items-center px-4 sm:px-6 mt-[env(safe-area-inset-top,0px)] pointer-events-auto transition-[box-shadow,border-color] duration-normal ${headerClasses}`} style={{ zIndex: 'var(--z-header)' }} role="banner">
+    <header className={`fixed top-0 left-0 right-0 h-20 flex items-center px-4 sm:px-6 pointer-events-auto transition-[box-shadow,border-color] duration-normal ${headerClasses}`} style={{ zIndex: 'var(--z-header)', paddingTop: 'env(safe-area-inset-top, 0px)', boxSizing: 'content-box' }} role="banner">
       {/* Left section - flex-1 for symmetric spacing with right */}
       <div className="flex-1 flex justify-start">
         {isMemberRoute ? (
@@ -774,7 +774,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
             <main 
                 id="main-content"
-                className={`relative h-auto overflow-visible dark:bg-[#141414] ${showHeader && !isFullBleedHeroPage ? 'pt-[max(88px,calc(env(safe-area-inset-top)+72px))]' : ''}`}
+                className={`relative h-auto overflow-visible dark:bg-[#141414] ${showHeader && !isFullBleedHeroPage ? 'pt-[calc(env(safe-area-inset-top,0px)+88px)]' : ''}`}
             >
                 <PullToRefresh onRefresh={handleLayoutRefresh}>
                   {children}

@@ -149,7 +149,7 @@
 :root {
   /* Header Offset - centralized calculation for header height + safe area */
   --header-height: 80px;
-  --header-offset: calc(max(96px, calc(env(safe-area-inset-top, 0px) + var(--header-height))));
+  --header-offset: calc(env(safe-area-inset-top, 0px) + var(--header-height) + 8px);
   
   /* Safe Area / Nav Clearance */
   --nav-bottom-offset: 2rem; /* bottom-8 = 32px = 2rem */
