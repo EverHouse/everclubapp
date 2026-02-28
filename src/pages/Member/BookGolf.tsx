@@ -867,9 +867,12 @@ const BookGolf: React.FC = () => {
   return (
     <AnimatedPage>
     <SwipeablePage className="px-6 lg:px-8 xl:px-12 relative">
-      <section className="mb-6 pt-4 md:pt-2 animate-content-enter-delay-1">
-        <h1 className={`text-2xl leading-tight ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-headline)' }}>Book</h1>
-        <p className={`text-base leading-relaxed mt-1 ${isDark ? 'text-white/70' : 'text-primary/70'}`} style={{ fontFamily: 'var(--font-body)' }}>Reserve simulators or conference room.</p>
+      <section className="mb-8 pt-6 md:pt-4 animate-content-enter-delay-1">
+        <h1 className={`leading-none mb-3 ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)' }}>
+          <span className="block text-4xl md:text-5xl">Book</span>
+          <span className="block text-4xl md:text-5xl">{activeTab === 'simulator' ? 'Simulator' : 'Conference'}</span>
+        </h1>
+        <p className={`text-base leading-relaxed ${isDark ? 'text-white/60' : 'text-primary/60'}`} style={{ fontFamily: 'var(--font-body)' }}>Reserve simulators or conference room.</p>
       </section>
 
       {effectiveUser?.status && !['active', 'trialing'].includes(effectiveUser.status.toLowerCase()) ? (
@@ -953,9 +956,9 @@ const BookGolf: React.FC = () => {
             />
           )}
 
-          <section className={`rounded-xl p-4 border glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-            <div className="flex items-center justify-between mb-3">
-              <span className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>Date & Duration</span>
+          <section>
+            <div className="flex items-center justify-between mb-1">
+              <span className={`text-[11px] font-bold uppercase tracking-[0.2em] ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>Date & Duration</span>
             </div>
             <div className="space-y-4">
               <DatePickerStrip
@@ -1016,12 +1019,12 @@ const BookGolf: React.FC = () => {
                         key={mins}
                         onClick={() => { haptic.selection(); setDuration(mins); setExpandedHour(null); setHasUserSelectedDuration(true); }}
                         aria-pressed={duration === mins}
-                        className={`relative p-3 rounded-xl border transition-all duration-fast ease-spring-smooth active:scale-95 focus:ring-2 focus:ring-accent focus:outline-none ${
+                        className={`relative p-3 rounded-[4px] border transition-all duration-fast ease-spring-smooth active:scale-95 focus:ring-2 focus:ring-accent focus:outline-none ${
                           duration === mins
-                            ? 'bg-accent text-primary border-accent shadow-glow'
+                            ? (isDark ? 'bg-white text-primary border-white' : 'bg-primary text-white border-primary')
                             : isLowTime
                               ? (isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700')
-                              : (isDark ? 'bg-black/20 border-white/20 text-white/80 hover:bg-white/5' : 'bg-white border-black/10 text-primary/80 hover:bg-black/5')
+                              : (isDark ? 'bg-transparent border-white/20 text-white/80 hover:bg-white/5' : 'bg-white border-black/10 text-primary/80 hover:bg-black/5')
                         }`}
                       >
                         <div className="text-lg font-bold">{mins}m</div>
@@ -1049,6 +1052,8 @@ const BookGolf: React.FC = () => {
               </div>
             </div>
           </section>
+
+          <div className={`border-t my-2 ${isDark ? 'border-white/10' : 'border-black/5'}`} />
 
           {error && (
             <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm flex items-center gap-3">
@@ -1243,7 +1248,7 @@ const BookGolf: React.FC = () => {
           {(!existingDayBooking || activeTab !== 'simulator') && !existingBookingCheck?.hasExisting && (activeTab !== 'simulator' || !isAtDailyLimit) && (
           <>
           <section ref={timeSlotsRef} className="min-h-[120px]">
-            <h3 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 pl-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>Available Times</h3>
+            <h3 className={`text-[11px] font-bold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>Available Times</h3>
             
             {isLoading && (
                 <div className="space-y-2">
@@ -1271,10 +1276,10 @@ const BookGolf: React.FC = () => {
                         }}
                         className={`w-full p-4 rounded-xl border text-left transition-all duration-fast active:scale-[0.99] flex items-center justify-between ${
                           hasSelectedSlot
-                            ? 'bg-accent/20 border-accent/50'
+                            ? (isDark ? 'bg-white/10 border-white/30' : 'bg-primary/5 border-primary/20')
                             : isExpanded
-                              ? (isDark ? 'glass-card border-white/20 bg-white/10' : 'bg-white border-black/20')
-                              : (isDark ? 'glass-card border-white/25 hover:bg-white/5' : 'bg-white border-black/10 hover:bg-black/5 shadow-sm')
+                              ? (isDark ? 'border-white/20 bg-white/10' : 'bg-white border-black/20')
+                              : (isDark ? 'bg-transparent border-white/15 hover:bg-white/5' : 'bg-white border-black/10 hover:bg-black/5')
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -1327,10 +1332,10 @@ const BookGolf: React.FC = () => {
                               setSelectedResource(null);
                             }}
                             aria-pressed={selectedSlot?.id === slot.id}
-                            className={`p-3 rounded-xl border text-left transition-all duration-fast active:scale-[0.98] focus:ring-2 focus:ring-accent focus:outline-none ${
+                            className={`p-3 rounded-[4px] border text-left transition-all duration-fast active:scale-[0.98] focus:ring-2 focus:ring-accent focus:outline-none ${
                               selectedSlot?.id === slot.id
-                              ? 'bg-accent text-primary border-accent shadow-glow'
-                              : (isDark ? 'glass-card text-white hover:bg-white/10 border-white/25' : 'bg-white text-primary hover:bg-black/5 border-black/10 shadow-sm')
+                              ? (isDark ? 'bg-white text-primary border-white' : 'bg-primary text-white border-primary')
+                              : (isDark ? 'bg-transparent text-white hover:bg-white/10 border-white/15' : 'bg-white text-primary hover:bg-black/5 border-black/10')
                             }`}
                             style={{ '--stagger-index': slotIndex } as React.CSSProperties}
                           >
@@ -1356,8 +1361,8 @@ const BookGolf: React.FC = () => {
 
           {selectedSlot && (
             <section ref={baySelectionRef} className="animate-pop-in">
-              <h3 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 pl-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>
-                Select {activeTab === 'simulator' ? 'Bay' : 'Room'}
+              <h3 className={`text-[11px] font-bold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>
+                {activeTab === 'simulator' ? 'Facility' : 'Select Room'}
               </h3>
               <div ref={resourcesRef} className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
                 {getAvailableResourcesForSlot(selectedSlot).map((resource, index) => (
@@ -1389,7 +1394,7 @@ const BookGolf: React.FC = () => {
 
           {selectedResource && (
             <section className="animate-pop-in pb-64">
-              <h3 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 pl-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>
+              <h3 className={`text-[11px] font-bold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>
                 Notes for Staff <span className="font-normal opacity-60">(optional)</span>
               </h3>
               <div className={`rounded-xl border overflow-hidden ${isDark ? 'border-white/20 bg-black/20' : 'border-black/10 bg-white'}`}>
