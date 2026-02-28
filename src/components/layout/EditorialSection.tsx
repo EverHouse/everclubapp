@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 interface EditorialSectionProps {
   image: string;
-  title: string;
+  title: React.ReactNode;
   description: string;
   ctaLabel?: string;
   ctaLink?: string;
@@ -28,7 +28,7 @@ const EditorialSection: React.FC<EditorialSectionProps> = ({
           <div className="overflow-hidden rounded-xl group">
             <img
               src={image}
-              alt={title}
+              alt={typeof title === 'string' ? title : ''}
               className="w-full h-auto aspect-[4/3] object-cover transition-transform duration-emphasis ease-out group-hover:scale-105"
               loading="lazy"
             />

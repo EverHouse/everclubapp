@@ -207,7 +207,7 @@ const Landing: React.FC = () => {
       <div>
         <EditorialSection
           image="/images/golf-sims-optimized.webp"
-          title="Trackman Golf Simulators"
+          title={<>Trackman Golf <em style={{ fontStyle: 'italic' }}>Simulators</em></>}
           description="Four state-of-the-art Trackman 4 bays for year-round play. Practice your swing, play world-class courses, or compete with friends — rain or shine. No tee time needed."
           ctaLabel="Get a Day Pass"
           ctaLink="/checkout?type=day-pass-golf-sim"
@@ -216,7 +216,7 @@ const Landing: React.FC = () => {
 
         <EditorialSection
           image="/images/private-dining-optimized.webp"
-          title="Curated Events & Wellness"
+          title={<>Curated Events & <em style={{ fontStyle: 'italic' }}>Wellness</em></>}
           description="From intimate tastings to golf socials and wellness workshops, discover experiences designed to inspire and connect."
           ctaLabel="See What's On"
           ctaLink="/whats-on"
@@ -236,7 +236,7 @@ const Landing: React.FC = () => {
         
         <EditorialSection
           image="/images/gallery/gallery-l1050509.webp"
-          title="Luxury Workspaces"
+          title={<>Luxury <em style={{ fontStyle: 'italic' }}>Workspaces</em></>}
           description="Thoughtfully designed spaces where productivity meets comfort. High-speed wifi, private conference rooms, and an inspiring atmosphere."
           ctaLabel="View Gallery"
           ctaLink="/gallery"
