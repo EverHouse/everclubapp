@@ -279,6 +279,8 @@ Subscription status changes cascade to sub-members in billing groups:
 
 Each cascade respects the billing provider guard — sub-members with non-Stripe billing are not affected.
 
+**RULE (v8.51.0): Cascade UPDATEs must NOT overwrite sub-member `billing_provider`.** Sub-members may have `billing_provider = 'family_addon'` or `'corporate'`. The cascade only changes `membership_status` and `updated_at` — never forces `billing_provider = 'stripe'` on sub-members. Doing so destroys their billing type label and causes data integrity check failures (Stripe billing provider with no subscription ID).
+
 ## Invoice Grace Period System
 
 `handleInvoicePaymentFailed` starts a grace period:
@@ -443,6 +445,8 @@ When `handlePaymentIntentSucceeded` processes a fee snapshot payment, it checks 
 
 Both refund paths run as deferred actions (after COMMIT). If the refund fails (e.g., Stripe error), the session is flagged `needs_review = true` with the error details for staff manual resolution.
 
+Both refund calls include deterministic idempotency keys (v8.51.0): `refund_overpayment_full_${paymentIntentId}_${bookingId}` and `refund_overpayment_partial_${paymentIntentId}_${bookingId}_${overpaymentCents}`. This prevents duplicate refunds if the webhook retries after a network timeout.
+
 **Rule:** When a webhook payment handler detects that work is already done (participant already paid, subscription already active, etc.), it must UNDO the financial side effect (refund), not just skip the database update.
 
 ### Day Pass Deferred Action Pattern (v8.26.7, Bug 18)
@@ -474,6 +478,16 @@ Three gaps were closed in day pass financial reporting:
 ### Booking Fee Row Locking (Feb 2026)
 
 The `booking_participants` fallback query in `handlePaymentIntentSucceeded` now includes `FOR UPDATE` to prevent concurrent webhook retries from racing on the same booking fee record.
+
+### Lock Ordering Rule (v8.51.0)
+
+**RULE: All webhook handlers must lock `users` before `hubspot_deals`.** When `subscription.created` and `invoice.payment_succeeded` fire simultaneously for the same member, both handlers run in parallel transactions. If they update tables in opposite order, PostgreSQL detects a deadlock and kills one transaction. Standardized order: `users` first, then `hubspot_deals`.
+
+`handleInvoicePaymentSucceeded` was fixed in v8.51.0 — previously updated `hubspot_deals` before `users`. Now updates `users` first (grace period clearing, billing provider) then `hubspot_deals` (payment status).
+
+### Deferred Variable Scoping Rule (v8.51.0)
+
+**RULE: Deferred action closures must capture finalized canonical variables, not raw payload variables.** In `handleSubscriptionCreated`, the canonical variables (`email`, `first_name`, `last_name`) are assigned from different sources depending on whether the user exists. Deferred actions must reference these finalized values (set after both code paths merge), not the intermediate `customerEmail`/`firstName`/`lastName` variables from the Stripe payload. This prevents silent sync mismatches if email normalization or name resolution logic changes.
 
 ## Key References
 

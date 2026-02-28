@@ -8,6 +8,22 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.51.0",
+    date: "2026-02-28",
+    title: "Critical Webhook & Billing Safety Fixes",
+    isMajor: true,
+    changes: [
+      "Fix: Stripe invoice idempotency key now uses deterministic booking + session IDs instead of timestamps — prevents duplicate invoices and double-charges on network retries",
+      "Fix: Coupon retrieval during membership activation moved outside the database transaction — prevents connection pool exhaustion when Stripe API is slow during batch signups",
+      "Fix: Trackman unmatched booking saves no longer crash on missing email, name, or reason fields — undefined values are properly coalesced to null for the database",
+      "Fix: Stripe webhook lock ordering standardized — users table is always updated before hubspot_deals, eliminating a deadlock risk when subscription.created and invoice.payment_succeeded fire simultaneously",
+      "Fix: Group billing status cascades no longer overwrite sub-member billing provider labels — family_addon and corporate members retain their correct billing type instead of being forced to 'stripe'",
+      "Fix: Auto-refund calls for overpayment detection now include deterministic idempotency keys — prevents duplicate refunds if the webhook retries after a network timeout",
+      "Fix: Deferred webhook actions in subscription creation now reference finalized member data instead of raw Stripe payload variables — prevents silent HubSpot sync mismatches if email normalization logic changes",
+      "Improvement: Removed dead optimistic rollback code from the roster unlink flow — the snapshot was never used for optimistic UI and gave a false sense of protection",
+    ]
+  },
+  {
     version: "8.50.0",
     date: "2026-02-28",
     title: "Search Portal Fix, Card Layout & Component Unification",

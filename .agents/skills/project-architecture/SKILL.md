@@ -145,7 +145,7 @@ All `stripe.*.create()` calls MUST include an `idempotencyKey` parameter with a 
 Never use `pool.connect()` inside `Promise.race()` without ensuring the connection is released regardless of which promise wins. Always use try/finally for connection release. The `safeDbTransaction()` helper handles this correctly. The WebSocket session verification pool uses `max: 20` to handle reconnection storms during deploys.
 
 ### 16. Drizzle SQL Null Coalescing
-All optional/nullable values interpolated in Drizzle `sql` template literals MUST use `?? null` coalescing. When `undefined` is passed to a `sql` template literal, Drizzle produces an empty SQL placeholder (e.g., `$7, , $8`) causing syntax errors. Pattern: `sql\`... VALUES (${optionalValue ?? null})\``. This was discovered via production Trackman webhook failures (Feb 2026).
+All optional/nullable values interpolated in Drizzle `sql` template literals MUST use `?? null` coalescing. When `undefined` is passed to a `sql` template literal, Drizzle produces an empty SQL placeholder (e.g., `$7, , $8`) causing syntax errors. Pattern: `sql\`... VALUES (${optionalValue ?? null})\``. This was discovered via production Trackman webhook failures (Feb 2026). Fixed files include: `webhook-handlers.ts` (`saveToUnmatchedBookings`), `webhook-billing.ts` (`updateBaySlotCache`), and `webhook-validation.ts` (`logWebhookEvent`).
 
 ### 16a. Closure Cache Pruning (v8.26.7)
 The `closureCache` Map in `bookingValidation.ts` has a 10-minute pruning interval (`setInterval`) that removes expired entries. The cache TTL is 2 minutes. Without pruning, expired entries accumulate indefinitely. The pruning logs how many entries were removed and how many remain.
@@ -169,6 +169,10 @@ Database query results may return `Date` objects for date columns. Any function 
 - **Stripe Item Tracking**: Both add and remove operations track `newStripeItemId` to enable compensating Stripe rollbacks on subsequent failures.
 - **Lock Ordering**: Always lock `billing_groups` FOR UPDATE before `group_members` FOR UPDATE to prevent deadlocks.
 - **Group Creation Atomicity**: `createBillingGroup` and `createCorporateBillingGroupFromSubscription` MUST wrap the INSERT into `billing_groups` + UPDATE of `users.billing_group_id` in a single `db.transaction()`. Without this, a connection drop between the two queries creates an orphaned group with no user linked to it.
+- **Cascade Provider Preservation (v8.51.0)**: Group billing status cascades (past_due, suspended) must NOT set `billing_provider = 'stripe'` on sub-members. Sub-members retain their own billing provider (`family_addon`, `corporate`, etc.). Overwriting it breaks data integrity checks.
+
+### 19a. Transaction Lock Ordering (v8.51.0)
+When multiple webhook handlers can run concurrently for the same member, they MUST update tables in a consistent order to prevent PostgreSQL deadlocks. The canonical order is: `users` first, then `hubspot_deals`, then other dependent tables. This was fixed in `handleInvoicePaymentSucceeded` which previously locked `hubspot_deals` before `users`.
 
 ### 20. Frontend Async Race Protection (v8.26.7)
 All async fetches in React hooks MUST use one of these patterns to prevent stale responses from overwriting current state:

@@ -45,8 +45,8 @@ The Ever Club Members App is a private members club application for golf and wel
 - **Authentication**: All mutating API routes require authentication.
 - **Rate Limiting**: Public endpoints creating database records are rate-limited.
 - **Scheduler Robustness**: Schedulers use `isRunning` flags, catch-up windows, and claim slots to prevent concurrent execution, with alerts for failures.
-- **Stripe Integration Specifics**: Includes webhook safety, payment handler logic (auto-refunds, idempotency keys), coupon application, and specific requirements for `trial_end` and $0 subscriptions. Daily refund reconciliation mechanism.
-- **Data Integrity and Consistency**: Prevents double-charging, ensures orphaned invoice cleanup, uses optimistic locking for booking status transitions, and maintains atomicity for critical operations. Strict validation for numeric parameters and cart items. `usage_ledger` has `ON DELETE CASCADE` to `booking_sessions`.
+- **Stripe Integration Specifics**: Includes webhook safety, payment handler logic (auto-refunds with deterministic idempotency keys, invoice idempotency), coupon application, and specific requirements for `trial_end` and $0 subscriptions. Daily refund reconciliation mechanism. Transaction lock ordering: always `users` before `hubspot_deals` to prevent deadlocks. Group billing cascades preserve sub-member billing provider labels.
+- **Data Integrity and Consistency**: Prevents double-charging, ensures orphaned invoice cleanup, uses optimistic locking for booking status transitions, and maintains atomicity for critical operations. Strict validation for numeric parameters and cart items. `usage_ledger` has `ON DELETE CASCADE` to `booking_sessions`. Deferred webhook actions capture finalized canonical variables, not raw payload variables.
 - **Tier Hierarchy Validation**: Startup validates DB membership tier slugs against `TIER_NAMES`.
 - **Deferred Webhook Actions**: Post-commit webhook side-effects log event context for debuggability.
 - **WebSocket Robustness**: Features periodic session revalidation, cryptographic verification, reconnect jitter, and guards against duplicate socket registrations.
