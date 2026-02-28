@@ -1,3 +1,4 @@
+import { type ReactNode } from 'react';
 import { haptic } from '../../utils/haptics';
 
 interface ErrorFallbackProps {
@@ -9,6 +10,7 @@ interface ErrorFallbackProps {
   retryLabel?: string;
   showSupport?: boolean;
   className?: string;
+  extraActions?: ReactNode;
 }
 
 function ErrorFallback({
@@ -20,6 +22,7 @@ function ErrorFallback({
   retryLabel,
   showSupport = true,
   className = '',
+  extraActions,
 }: ErrorFallbackProps) {
   const handleRetry = () => {
     haptic.medium();
@@ -110,6 +113,7 @@ function ErrorFallback({
               {retryLabel || 'Try Again'}
             </button>
           )}
+          {extraActions}
           {showSupport && (
             <a
               href="sms:9495455855"

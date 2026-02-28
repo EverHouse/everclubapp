@@ -220,7 +220,7 @@ const UpcomingBookingsCard = memo<UpcomingBookingsCardProps>(({
         <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Today's Bookings</h3>
         <button onClick={() => navigateToTab('simulator')} className="tactile-btn text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
       </div>
-      <div className="space-y-3">
+      <div>
         {mergedUpcomingBookings.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-8">
             <EmptyState icon="calendar_today" title="No bookings today" variant="compact" />

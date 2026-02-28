@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { ErrorFallback } from './ui/ErrorFallback';
 
 interface Props {
   children: ReactNode;
@@ -101,37 +102,25 @@ class ErrorBoundary extends Component<Props, State> {
       const hitReloadLimit = this.state.reloadAttempts >= MAX_GLOBAL_RELOADS;
 
       return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-bone dark:bg-[#141414] text-primary dark:text-white p-6">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-red-500/10 dark:bg-red-500/20 backdrop-blur-xl border border-red-500/10 dark:border-red-500/15 flex items-center justify-center">
-            <span className="material-symbols-outlined text-3xl text-red-400">error</span>
-          </div>
-          <h1 className="text-xl font-semibold mb-2 text-center">Something went wrong</h1>
-          <p className="text-gray-600 dark:text-white/60 mb-6 text-center max-w-sm">
-            {hitReloadLimit
+        <ErrorFallback
+          variant="page"
+          title="Something went wrong"
+          description={
+            hitReloadLimit
               ? "We're having trouble loading the app. Try clearing the cache or contact support if this continues."
-              : "The app encountered an unexpected error."}
-          </p>
-          <div className="flex flex-col gap-3 w-full max-w-xs">
-            <button
-              onClick={this.handleReload}
-              className="px-6 py-3 bg-accent text-brand-green font-semibold rounded-full hover:opacity-90 transition-opacity"
-            >
-              Reload App
-            </button>
+              : 'The app encountered an unexpected error. Please try again.'
+          }
+          onRetry={this.handleReload}
+          retryLabel="Reload App"
+          extraActions={
             <button
               onClick={this.handleClearCache}
               className="px-6 py-3 bg-black/5 dark:bg-white/10 text-gray-700 dark:text-white font-medium rounded-full hover:bg-black/10 dark:hover:bg-white/20 transition-colors text-sm"
             >
               Clear Cache & Reload
             </button>
-            <a
-              href="sms:9495455855"
-              className="px-6 py-3 text-gray-500 dark:text-white/60 hover:text-gray-700 dark:hover:text-white transition-colors text-sm text-center"
-            >
-              Contact Support — (949) 545-5855
-            </a>
-          </div>
-        </div>
+          }
+        />
       );
     }
 

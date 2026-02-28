@@ -76,7 +76,7 @@ const NoticeBoardCard = memo<NoticeBoardCardProps>(({
         </div>
       )
     ) : (
-      <div className={`space-y-3 ${variant === 'desktop' ? 'flex-1' : ''}`}>
+      <div className={`space-y-3 px-4 pb-4 ${variant === 'desktop' ? 'flex-1' : ''}`}>
         {closures.slice(0, 3).map((closure, index) => {
           const blocking = isBlockingClosure(closure.affectedAreas);
           return (
