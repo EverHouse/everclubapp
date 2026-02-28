@@ -716,18 +716,13 @@ const ClassCard: React.FC<ClassCardProps> = ({ title, date, time, instructor, du
       className={`w-full p-4 cursor-pointer transition-all duration-fast text-left ${isExpanded ? '' : 'active:scale-[0.98]'}`}
     >
       <div className="flex gap-4 items-start">
-        <div className={`w-14 h-14 flex-shrink-0 rounded-xl flex items-center justify-center transition-all duration-fast ${isDark ? 'bg-lavender/20' : 'bg-lavender/30'} ${isPending ? 'animate-pulse' : ''}`}>
-          <span className="material-symbols-outlined text-2xl text-lavender">
-            {getCategoryIcon(category)}
-          </span>
-        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${isDark ? 'bg-lavender/20 text-lavender' : 'bg-brand-green/20 text-brand-green'}`}>{category}</span>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${isDark ? 'bg-lavender/20 text-lavender' : 'bg-brand-green/20 text-brand-green'}`} style={{ fontFamily: 'var(--font-label)' }}>{category}</span>
             <span className={`text-xs font-bold ${isDark ? 'text-white/80' : 'text-primary/80'}`}>• {duration}</span>
             {getStatusBadge()}
           </div>
-          <h3 className={`text-lg md:text-xl font-bold ${isDark ? 'text-white' : 'text-primary'}`}>{title}</h3>
+          <h3 className={`text-xl font-bold leading-none translate-y-[1px] ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-headline)', fontOpticalSizing: 'auto', letterSpacing: '-0.02em' }}>{title}</h3>
         </div>
         <div className="flex flex-col items-end flex-shrink-0">
           <span className={`text-sm md:text-base font-bold ${isDark ? 'text-accent' : 'text-primary'}`}>{date}</span>

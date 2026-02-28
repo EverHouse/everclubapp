@@ -314,20 +314,11 @@ const MemberEvents: React.FC = () => {
                       className={`w-full p-4 cursor-pointer transition-all duration-fast text-left ${isExpanded ? '' : 'active:scale-[0.98]'}`}
                     >
                       <div className="flex gap-4 items-start">
-                        <div className={`w-14 h-14 flex-shrink-0 rounded-xl flex items-center justify-center ${isDark ? 'bg-lavender/20' : 'bg-primary/10'}`}>
-                          <span className={`material-symbols-outlined text-2xl ${isDark ? 'text-lavender' : 'text-primary'}`}>
-                            {event.category === 'Golf' ? 'golf_course' : 
-                             event.category === 'Wellness' ? 'spa' : 
-                             event.category === 'Social' ? 'groups' : 
-                             event.category === 'Tournaments' ? 'emoji_events' :
-                             event.category === 'Dining' ? 'restaurant' : 'event'}
-                          </span>
-                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${isDark ? 'bg-lavender/20 text-lavender' : 'bg-brand-green/20 text-brand-green'}`}>{event.category}</span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${isDark ? 'bg-lavender/20 text-lavender' : 'bg-brand-green/20 text-brand-green'}`} style={{ fontFamily: 'var(--font-label)' }}>{event.category}</span>
                             {event.source === 'eventbrite' && (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-[#F05537]/20 text-[#F05537]">Eventbrite</span>
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-[#F05537]/20 text-[#F05537]" style={{ fontFamily: 'var(--font-label)' }}>Eventbrite</span>
                             )}
                             {isPendingRsvp ? (
                               <span className="text-[10px] font-bold uppercase tracking-wider bg-accent/60 text-brand-green px-1.5 py-0.5 rounded-md whitespace-nowrap animate-pulse flex items-center gap-1">
@@ -347,7 +338,7 @@ const MemberEvents: React.FC = () => {
                               <span className="text-[10px] font-bold uppercase tracking-wider bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-md whitespace-nowrap">Open</span>
                             )}
                           </div>
-                          <h3 className={`text-2xl md:text-3xl font-bold leading-none translate-y-[2px] ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-headline)', fontOpticalSizing: 'auto', letterSpacing: '-0.02em' }}>{event.title}</h3>
+                          <h3 className={`text-xl font-bold leading-none translate-y-[1px] ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-headline)', fontOpticalSizing: 'auto', letterSpacing: '-0.02em' }}>{event.title}</h3>
                         </div>
                         <div className="flex flex-col items-end flex-shrink-0">
                           <span className={`text-sm md:text-base font-bold ${isDark ? 'text-accent' : 'text-primary'}`}>{event.date}</span>
