@@ -88,7 +88,7 @@ export const StaffBottomNav: React.FC<StaffBottomNavProps> = ({
                 </span>
               )}
             </div>
-            <span className={`text-[11px] tracking-wide transition-colors duration-normal ${isActive ? 'font-semibold' : 'font-medium'}`}>
+            <span className={`text-[10px] uppercase tracking-[0.12em] transition-colors duration-normal ${isActive ? 'font-semibold' : 'font-normal'}`} style={{ fontFamily: 'var(--font-label)' }}>
               {item.label}
             </span>
           </button>

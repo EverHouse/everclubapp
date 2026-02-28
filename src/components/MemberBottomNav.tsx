@@ -91,7 +91,7 @@ const MemberBottomNav: React.FC<MemberBottomNavProps> = ({ currentPath, isDarkTh
                 <span className={`material-symbols-outlined text-[22px] transition-transform duration-normal pointer-events-none ${shouldFill ? 'filled' : ''} ${isActive ? 'scale-110' : ''}`}>
                   {item.icon}
                 </span>
-                <span className={`text-[10px] tracking-wide transition-colors duration-normal pointer-events-none ${isActive ? 'font-bold' : 'font-medium'}`}>
+                <span className={`text-[10px] uppercase tracking-[0.12em] transition-colors duration-normal pointer-events-none ${isActive ? 'font-semibold' : 'font-normal'}`} style={{ fontFamily: 'var(--font-label)' }}>
                   {item.label}
                 </span>
               </button>
