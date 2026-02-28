@@ -32,6 +32,7 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
       originalBgRef.current = document.body.style.backgroundColor || '';
       document.documentElement.style.backgroundColor = menuBgColor;
       document.body.style.backgroundColor = menuBgColor;
+      document.querySelectorAll('meta[name="theme-color"]').forEach(el => el.setAttribute('content', menuBgColor));
       setIsVisible(true);
       setIsClosing(false);
     } else if (isVisible) {
@@ -41,6 +42,10 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
           document.documentElement.style.backgroundColor = originalBgRef.current;
           document.body.style.backgroundColor = originalBgRef.current;
         }
+        const metaLight = document.querySelector('meta[name="theme-color"][media*="light"]');
+        const metaDark = document.querySelector('meta[name="theme-color"][media*="dark"]');
+        if (metaLight) metaLight.setAttribute('content', '#293515');
+        if (metaDark) metaDark.setAttribute('content', '#1a2310');
         setIsVisible(false);
         setIsClosing(false);
         timerRef.current = null;
