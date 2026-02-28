@@ -308,7 +308,7 @@ const MemberEvents: React.FC = () => {
                   <MotionListItem 
                     key={event.id}
                     index={index}
-                    className={`rounded-xl overflow-hidden transition-all duration-fast glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}
+                    className={`rounded-xl overflow-hidden transition-all duration-fast glass-card p-0 ${isDark ? 'border-white/25' : 'border-black/10'}`}
                   >
                     <button 
                       onClick={() => handleCardClick(event.id)}
