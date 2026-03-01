@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { formatDateDisplayWithDay, getTodayPacific } from '../../../utils/dateUtils';
 import EmptyState from '../../../components/EmptyState';
 import { useToast } from '../../../components/Toast';
@@ -43,9 +43,12 @@ const BLOCK_TYPES = [
 
 const AvailabilityBlocksContent: React.FC = () => {
     const { showToast } = useToast();
-    const [blocks, setBlocks] = useState<AvailabilityBlock[]>([]);
+    const [upcomingBlocks, setUpcomingBlocks] = useState<AvailabilityBlock[]>([]);
+    const [pastBlocks, setPastBlocks] = useState<AvailabilityBlock[]>([]);
     const [resources, setResources] = useState<Resource[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isPastLoading, setIsPastLoading] = useState(false);
+    const [pastLoaded, setPastLoaded] = useState(false);
     const [error, setError] = useState<string | null>(null);
     
     const [filterResource, setFilterResource] = useState<string>('');
@@ -72,10 +75,16 @@ const AvailabilityBlocksContent: React.FC = () => {
     const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
     const [showPastAccordion, setShowPastAccordion] = useState(false);
     const [visibleDayCount, setVisibleDayCount] = useState(10);
+    const pastAbortRef = useRef<AbortController | null>(null);
 
     useEffect(() => {
-        fetchResources();
-        fetchBlocks();
+        const controller = new AbortController();
+        fetchResources(controller.signal);
+        fetchUpcomingBlocks(controller.signal);
+        return () => {
+            controller.abort();
+            pastAbortRef.current?.abort();
+        };
     }, []);
 
     useEffect(() => {
@@ -84,34 +93,36 @@ const AvailabilityBlocksContent: React.FC = () => {
         return () => window.removeEventListener('openBlockCreate', handleOpenCreate);
     }, []);
 
-    const fetchResources = async () => {
+    const fetchResources = async (signal?: AbortSignal) => {
         try {
-            const res = await fetch('/api/resources', { credentials: 'include' });
+            const res = await fetch('/api/resources', { credentials: 'include', signal });
             if (res.ok) {
                 const data = await res.json();
                 setResources(data);
             }
         } catch (err: unknown) {
+            if (err instanceof DOMException && err.name === 'AbortError') return;
             console.error('Failed to fetch resources:', err);
         }
     };
 
-    const fetchBlocks = async () => {
+    const fetchUpcomingBlocks = async (signal?: AbortSignal) => {
         try {
             setIsLoading(true);
             setError(null);
             
+            const today = getTodayPacific();
             const params = new URLSearchParams();
-            if (filterStartDate) params.append('start_date', filterStartDate);
+            params.append('start_date', filterStartDate || today);
             if (filterEndDate) params.append('end_date', filterEndDate);
             if (filterResource) params.append('resource_id', filterResource);
             
-            const url = `/api/availability-blocks${params.toString() ? '?' + params.toString() : ''}`;
-            const res = await fetch(url, { credentials: 'include' });
+            const url = `/api/availability-blocks?${params.toString()}`;
+            const res = await fetch(url, { credentials: 'include', signal });
             
             if (res.ok) {
                 const data = await res.json();
-                setBlocks(data);
+                setUpcomingBlocks(data);
             } else if (res.status === 401) {
                 setError('Session expired. Please refresh the page to log in again.');
             } else if (res.status === 429) {
@@ -122,6 +133,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                 setError('Failed to fetch availability blocks. Try refreshing the page.');
             }
         } catch (err: unknown) {
+            if (err instanceof DOMException && err.name === 'AbortError') return;
             console.error('Failed to fetch blocks:', err);
             setError('Network error. Check your connection and try again.');
         } finally {
@@ -129,9 +141,44 @@ const AvailabilityBlocksContent: React.FC = () => {
         }
     };
 
+    const fetchPastBlocks = async () => {
+        if (pastLoaded) return;
+        pastAbortRef.current?.abort();
+        const controller = new AbortController();
+        pastAbortRef.current = controller;
+        try {
+            setIsPastLoading(true);
+            const today = getTodayPacific();
+            const params = new URLSearchParams();
+            params.append('end_date', today);
+            if (filterResource) params.append('resource_id', filterResource);
+            
+            const url = `/api/availability-blocks?${params.toString()}`;
+            const res = await fetch(url, { credentials: 'include', signal: controller.signal });
+            
+            if (res.ok) {
+                const data: AvailabilityBlock[] = await res.json();
+                const todayStr = today;
+                setPastBlocks(data.filter(b => {
+                    const d = b.block_date?.includes('T') ? b.block_date.split('T')[0] : b.block_date;
+                    return d < todayStr;
+                }));
+                setPastLoaded(true);
+            }
+        } catch (err: unknown) {
+            if (err instanceof DOMException && err.name === 'AbortError') return;
+            console.error('Failed to fetch past blocks:', err);
+        } finally {
+            setIsPastLoading(false);
+        }
+    };
+
     const handleFilter = () => {
         setVisibleDayCount(10);
-        fetchBlocks();
+        setPastLoaded(false);
+        setPastBlocks([]);
+        setShowPastAccordion(false);
+        fetchUpcomingBlocks();
     };
 
     const handleReset = () => {
@@ -139,7 +186,10 @@ const AvailabilityBlocksContent: React.FC = () => {
         setFilterStartDate('');
         setFilterEndDate('');
         setVisibleDayCount(10);
-        setTimeout(() => fetchBlocks(), 0);
+        setPastLoaded(false);
+        setPastBlocks([]);
+        setShowPastAccordion(false);
+        setTimeout(() => fetchUpcomingBlocks(), 0);
     };
 
     const openCreate = () => {
@@ -203,11 +253,17 @@ const AvailabilityBlocksContent: React.FC = () => {
 
             if (res.ok) {
                 const savedItem = await res.json();
+                const today = getTodayPacific();
+                const savedDate = savedItem.block_date?.includes('T') ? savedItem.block_date.split('T')[0] : savedItem.block_date;
+                const isPast = savedDate < today;
                 
                 if (editId) {
-                    setBlocks(prev => prev.map(b => b.id === editId ? savedItem : b));
+                    setUpcomingBlocks(prev => prev.map(b => b.id === editId ? savedItem : b));
+                    setPastBlocks(prev => prev.map(b => b.id === editId ? savedItem : b));
+                } else if (isPast) {
+                    setPastBlocks(prev => [savedItem, ...prev]);
                 } else {
-                    setBlocks(prev => [savedItem, ...prev]);
+                    setUpcomingBlocks(prev => [savedItem, ...prev]);
                 }
                 
                 showToast(editId ? 'Block updated' : 'Block created', 'success');
@@ -231,10 +287,12 @@ const AvailabilityBlocksContent: React.FC = () => {
     const confirmDelete = async () => {
         if (!blockToDelete) return;
         
-        const snapshot = [...blocks];
+        const upcomingSnapshot = [...upcomingBlocks];
+        const pastSnapshot = [...pastBlocks];
         const deletedId = blockToDelete.id;
         
-        setBlocks(prev => prev.filter(b => b.id !== deletedId));
+        setUpcomingBlocks(prev => prev.filter(b => b.id !== deletedId));
+        setPastBlocks(prev => prev.filter(b => b.id !== deletedId));
         setShowDeleteConfirm(false);
         setBlockToDelete(null);
 
@@ -248,11 +306,13 @@ const AvailabilityBlocksContent: React.FC = () => {
             if (res.ok) {
                 showToast('Block deleted', 'success');
             } else {
-                setBlocks(snapshot);
+                setUpcomingBlocks(upcomingSnapshot);
+                setPastBlocks(pastSnapshot);
                 showToast('Failed to delete block', 'error');
             }
         } catch (err: unknown) {
-            setBlocks(snapshot);
+            setUpcomingBlocks(upcomingSnapshot);
+            setPastBlocks(pastSnapshot);
             showToast('Failed to delete block', 'error');
         } finally {
             setIsDeleting(false);
@@ -314,26 +374,7 @@ const AvailabilityBlocksContent: React.FC = () => {
         });
     };
 
-    const { upcomingBlocks, pastBlocks } = useMemo(() => {
-        const today = getTodayPacific();
-        const upcoming: AvailabilityBlock[] = [];
-        const past: AvailabilityBlock[] = [];
-        
-        blocks.forEach(block => {
-            const blockDate = block.block_date?.includes('T') 
-                ? block.block_date.split('T')[0] 
-                : block.block_date;
-            if (blockDate < today) {
-                past.push(block);
-            } else {
-                upcoming.push(block);
-            }
-        });
-        
-        return { upcomingBlocks: upcoming, pastBlocks: past };
-    }, [blocks]);
-
-    const groupedUpcoming = groupBlocksByDate(upcomingBlocks);
+    const groupedUpcoming = useMemo(() => groupBlocksByDate(upcomingBlocks), [upcomingBlocks]);
     const groupedPast = useMemo(() => {
         const grouped = groupBlocksByDate(pastBlocks);
         return grouped.reverse();
@@ -376,7 +417,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                             <p className="text-red-700 dark:text-red-400 text-sm font-medium">{error}</p>
                             <div className="flex gap-2 mt-3">
                                 <button
-                                    onClick={() => fetchBlocks()}
+                                    onClick={() => fetchUpcomingBlocks()}
                                     className="tactile-btn px-3 py-1.5 bg-red-100 dark:bg-red-800/30 text-red-700 dark:text-red-300 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-700/40 transition-colors"
                                 >
                                     Try Again
@@ -404,17 +445,11 @@ const AvailabilityBlocksContent: React.FC = () => {
                 <div className="flex items-center justify-center py-12">
                     <span aria-hidden="true" className="material-symbols-outlined animate-spin text-2xl text-gray-600 dark:text-gray-500">progress_activity</span>
                 </div>
-            ) : upcomingBlocks.length === 0 && pastBlocks.length === 0 ? (
-                <EmptyState
-                    icon="block"
-                    title="No availability blocks found"
-                    description="Use the + button to add a new block"
-                    variant="compact"
-                />
             ) : upcomingBlocks.length === 0 ? (
                 <EmptyState
                     icon="event_available"
                     title="No upcoming blocks"
+                    description="Check past blocks below, or use the + button to add a new block"
                     variant="compact"
                 />
             ) : (
@@ -509,18 +544,25 @@ const AvailabilityBlocksContent: React.FC = () => {
                 </div>
             )}
 
-            {pastBlocks.length > 0 && (
-                <div className="mt-6 rounded-xl border border-gray-200 dark:border-white/20 overflow-hidden">
+            <div className="mt-6 rounded-xl border border-gray-200 dark:border-white/20 overflow-hidden">
                     <button
-                        onClick={() => setShowPastAccordion(!showPastAccordion)}
+                        onClick={() => {
+                            const willOpen = !showPastAccordion;
+                            setShowPastAccordion(willOpen);
+                            if (willOpen && !pastLoaded) {
+                                fetchPastBlocks();
+                            }
+                        }}
                         className="tactile-row w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                     >
                         <div className="flex items-center gap-2">
                             <span aria-hidden="true" className="material-symbols-outlined text-gray-500 dark:text-white/60">history</span>
                             <span className="font-semibold text-gray-600 dark:text-white/80">Past Blocks</span>
-                            <span className="text-xs bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-2 py-0.5 rounded-full">
-                                {pastBlocks.length}
-                            </span>
+                            {pastLoaded && (
+                                <span className="text-xs bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-2 py-0.5 rounded-full">
+                                    {pastBlocks.length}
+                                </span>
+                            )}
                         </div>
                         <span aria-hidden="true" className={`material-symbols-outlined text-gray-400 transition-transform ${showPastAccordion ? 'rotate-180' : ''}`}>
                             expand_more
@@ -529,6 +571,14 @@ const AvailabilityBlocksContent: React.FC = () => {
                     
                     {showPastAccordion && (
                         <div className="p-4 space-y-3 bg-gray-50/50 dark:bg-black/20">
+                            {isPastLoading && (
+                                <div className="flex items-center justify-center py-8">
+                                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-xl text-gray-500 dark:text-gray-400">progress_activity</span>
+                                </div>
+                            )}
+                            {!isPastLoading && pastLoaded && pastBlocks.length === 0 && (
+                                <p className="text-center text-sm text-gray-500 dark:text-gray-400 py-4">No past blocks found</p>
+                            )}
                             {groupedPast.map(({ date, blocks: dayBlocks }, groupIndex) => {
                                 const isExpanded = expandedDays.has(`past-${date}`);
                                 return (
@@ -593,7 +643,6 @@ const AvailabilityBlocksContent: React.FC = () => {
                         </div>
                     )}
                 </div>
-            )}
 
             <ModalShell isOpen={isEditing} onClose={() => { setIsEditing(false); setFormError(null); }} title={editId ? 'Edit Block' : 'Add Availability Block'} showCloseButton={false}>
                 <div className="p-6 space-y-4">
