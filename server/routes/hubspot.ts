@@ -1497,7 +1497,7 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
                           : dataSource === 'APP'
                             ? 'via App'
                             : 'via HubSpot sync';
-                    if (prevStatus && !nonNotifiableStatuses.includes(prevStatus) && newStatus === 'non-member') {
+                    if (prevStatus && typeof prevStatus === 'string' && !nonNotifiableStatuses.includes(prevStatus) && newStatus === 'non-member') {
                       await notifyAllStaff(
                         'Member Status Changed',
                         `${hubspotMemberName} (${email}) status changed to non-member ${changeSource} (was ${prevStatus}).`,

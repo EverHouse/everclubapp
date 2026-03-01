@@ -401,12 +401,12 @@ const BookGolf: React.FC = () => {
 
       return { previousDashboard, dashboardKey };
     },
-    onError: (_err: unknown, _vars: unknown, context: { previousDashboard?: unknown; dashboardKey?: string[] } | undefined) => {
+    onError: (_err, _vars, context) => {
       if (context?.previousDashboard && context?.dashboardKey) {
         queryClient.setQueryData(context.dashboardKey, context.previousDashboard);
       }
     },
-    onSettled: (_data: unknown, _err: unknown, _vars: unknown, context: { dashboardKey?: string[] } | undefined) => {
+    onSettled: (_data, _err, _vars, context) => {
       queryClient.invalidateQueries({ queryKey: bookGolfKeys.all });
       if (context?.dashboardKey) {
         queryClient.invalidateQueries({ queryKey: context.dashboardKey });

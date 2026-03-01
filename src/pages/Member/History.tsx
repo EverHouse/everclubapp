@@ -152,7 +152,7 @@ const History: React.FC = () => {
               { value: 'payments' as const, label: 'Payments' },
             ]}
             value={activeTab}
-            onChange={setActiveTab}
+            onChange={(value: "payments" | "visits") => setActiveTab(value)}
             aria-label="History view"
           />
         </section>

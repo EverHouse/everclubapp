@@ -79,6 +79,16 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     mobileInputRef.current?.focus();
   }, [onChange, onClear]);
 
+  const handleMobileClose = useCallback(() => {
+    haptic.light();
+    setIsMobileClosing(true);
+    setTimeout(() => {
+      setIsMobileExpanded(false);
+      setIsMobileVisible(false);
+      setIsMobileClosing(false);
+    }, 200);
+  }, []);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Escape') {
@@ -100,16 +110,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       });
     }
   }, [expandOnMobile, isMobile]);
-
-  const handleMobileClose = useCallback(() => {
-    haptic.light();
-    setIsMobileClosing(true);
-    setTimeout(() => {
-      setIsMobileExpanded(false);
-      setIsMobileVisible(false);
-      setIsMobileClosing(false);
-    }, 200);
-  }, []);
 
   const handleSuggestionSelect = useCallback(
     (text: string) => {

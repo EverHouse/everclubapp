@@ -176,6 +176,7 @@ export type AuditAction =
   | 'placeholder_scan'
   | 'fix_orphaned_participants'
   | 'convert_participant_to_guest'
+  | 'attach_email_to_payment'
   | 'approve_review_item'
   | 'delete_review_item'
   | 'approve_all_review_items'
