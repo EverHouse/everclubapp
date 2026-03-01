@@ -6,8 +6,8 @@ import { useScrollLockManager } from '../hooks/useScrollLockManager';
 const BASE_DRAWER_Z_INDEX = 10000;
 const STANDARD_DRAWER_Z_INDEX = 5000;
 const Z_INDEX_INCREMENT = 10;
-const DRAG_THRESHOLD = 100;
-const VELOCITY_THRESHOLD = 0.5;
+const DRAG_THRESHOLD = 180;
+const VELOCITY_THRESHOLD = 0.8;
 
 interface SlideUpDrawerProps {
   isOpen: boolean;
@@ -55,6 +55,7 @@ export function SlideUpDrawer({
   const dismissibleRef = useRef(dismissible);
   const [drawerZIndex, setDrawerZIndex] = useState(isModal ? BASE_DRAWER_Z_INDEX : STANDARD_DRAWER_Z_INDEX);
   const [isClosing, setIsClosing] = useState(false);
+  const [hasAnimatedIn, setHasAnimatedIn] = useState(false);
   
   const [dragState, setDragState] = useState({
     isDragging: false,
@@ -74,6 +75,7 @@ export function SlideUpDrawer({
   useEffect(() => {
     if (!isOpen) {
       setIsClosing(false);
+      setHasAnimatedIn(false);
       closingFromDrag.current = false;
       if (drawerRef.current) {
         drawerRef.current.style.transform = '';
@@ -81,6 +83,8 @@ export function SlideUpDrawer({
       }
       return;
     }
+
+    const timer = setTimeout(() => setHasAnimatedIn(true), 350);
 
     if (isModal) {
       previousActiveElement.current = document.activeElement as HTMLElement;
@@ -98,6 +102,7 @@ export function SlideUpDrawer({
     }
 
     return () => {
+      clearTimeout(timer);
       if (isModal) {
         const currentCount = parseInt(document.body.getAttribute('data-modal-count') || '0', 10);
         if (currentCount <= 1) {
@@ -239,13 +244,10 @@ export function SlideUpDrawer({
         aria-labelledby={title ? 'drawer-title' : undefined}
         aria-label={title ? undefined : 'Dialog'}
         tabIndex={-1}
-        className={`fixed inset-x-0 bottom-0 flex flex-col pointer-events-auto ${maxHeightClasses[maxHeight]} ${isDark ? 'bg-[#1a1d15]' : 'bg-white'} rounded-t-3xl transition-transform duration-normal ease-spring-smooth ${isClosing ? 'translate-y-full' : 'animate-slide-up-drawer'} ${className}`}
+        className={`fixed inset-x-0 bottom-0 flex flex-col pointer-events-auto ${maxHeightClasses[maxHeight]} ${isDark ? 'bg-[#1a1d15]' : 'bg-white'} rounded-t-3xl transition-transform duration-normal ease-spring-smooth ${isClosing ? 'translate-y-full' : hasAnimatedIn ? '' : 'animate-slide-up-drawer'} ${className}`}
         style={{
           transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
           transition: dragState.isDragging ? 'none' : undefined,
-          boxShadow: dragState.isDragging
-            ? `0 ${Math.max(2, 8 - dragOffset * 0.05)}px ${Math.max(8, 24 - dragOffset * 0.1)}px rgba(0, 0, 0, ${Math.max(0.05, 0.15 - dragOffset * 0.001)})`
-            : undefined,
         }}
         onKeyDown={handleKeyDown}
         onTouchStart={handleTouchStart}
@@ -253,8 +255,25 @@ export function SlideUpDrawer({
         onTouchEnd={handleTouchEnd}
       >
         {!hideHandle && (
-          <div className="flex justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing">
-            <div className={`h-1 rounded-full transition-all duration-200 ease-out ${dragState.isDragging ? 'w-14 bg-[#CCB8E4]' : `w-10 ${isDark ? 'bg-white/20' : 'bg-gray-300'}`}`} />
+          <div className="flex flex-col items-center pt-3 pb-1 cursor-grab active:cursor-grabbing">
+            <div className={`h-1 rounded-full transition-all duration-200 ease-out w-10 ${isDark ? 'bg-white/20' : 'bg-gray-300'}`} />
+            {dismissible && dragOffset > 0 && (
+              <div 
+                className="mt-1.5 flex items-center gap-1 select-none"
+                style={{ opacity: Math.min(1, dragOffset / DRAG_THRESHOLD) }}
+              >
+                <span 
+                  className={`material-symbols-outlined text-sm transition-colors duration-150 ${dragOffset >= DRAG_THRESHOLD ? (isDark ? 'text-white' : 'text-primary') : (isDark ? 'text-white/40' : 'text-gray-400')}`}
+                >
+                  keyboard_arrow_down
+                </span>
+                <span 
+                  className={`text-xs font-medium tracking-wide uppercase transition-colors duration-150 ${dragOffset >= DRAG_THRESHOLD ? (isDark ? 'text-white' : 'text-primary') : (isDark ? 'text-white/40' : 'text-gray-400')}`}
+                >
+                  {dragOffset >= DRAG_THRESHOLD ? 'release to close' : 'close'}
+                </span>
+              </div>
+            )}
           </div>
         )}
         
