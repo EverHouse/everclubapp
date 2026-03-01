@@ -32,11 +32,6 @@ const EVENT_DEDUP_WINDOW_DAYS = 7;
 
 type DeferredAction = () => Promise<void>;
 
-interface StripeSubscriptionWithPeriods extends Stripe.Subscription {
-  current_period_start: number;
-  current_period_end: number;
-}
-
 type StripeProductWithMarketingFeatures = Stripe.Product & {
   marketing_features?: Array<{ name: string }>;
 };

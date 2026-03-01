@@ -2,10 +2,6 @@ import { logger } from '../core/logger';
 import { Router } from 'express';
 import Stripe from 'stripe';
 
-interface StripeSubscriptionExpanded extends Stripe.Subscription {
-  current_period_end: number;
-}
-
 interface SessionWithPassport {
   passport?: { user?: { email?: string } };
   user?: { email?: string; role?: string };

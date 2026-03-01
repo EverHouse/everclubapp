@@ -97,6 +97,8 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
       smsPromoOptIn: users.smsPromoOptIn,
       smsTransactionalOptIn: users.smsTransactionalOptIn,
       smsRemindersOptIn: users.smsRemindersOptIn,
+      waiverVersion: users.waiverVersion,
+      waiverSignedAt: users.waiverSignedAt,
     })
       .from(users)
       .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
@@ -223,6 +225,8 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
       smsPromoOptIn: user.smsPromoOptIn,
       smsTransactionalOptIn: user.smsTransactionalOptIn,
       smsRemindersOptIn: user.smsRemindersOptIn,
+      waiverVersion: user.waiverVersion || null,
+      waiverSignedAt: user.waiverSignedAt || null,
     });
   } catch (error: unknown) {
     logger.error('API error fetching member details', { error: error instanceof Error ? error : new Error(String(error)) });

@@ -13,11 +13,6 @@ interface StripeInvoiceExpanded extends Stripe.Invoice {
   payment_intent: string | Stripe.PaymentIntent | null;
 }
 
-interface StripeSubscriptionExpanded extends Stripe.Subscription {
-  current_period_end: number;
-  customer: string | Stripe.Customer | Stripe.DeletedCustomer;
-}
-
 import { getErrorMessage } from '../utils/errorUtils';
 import { logFromRequest, type AuditAction } from '../core/auditLog';
 

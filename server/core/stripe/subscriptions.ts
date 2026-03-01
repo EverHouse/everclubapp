@@ -5,11 +5,6 @@ import { getErrorMessage, isStripeError } from '../../utils/errorUtils';
 
 import { logger } from '../logger';
 
-interface StripeSubscriptionWithPeriods extends Stripe.Subscription {
-  current_period_start: number;
-  current_period_end: number;
-}
-
 interface InvoiceWithPaymentIntent extends Stripe.Invoice {
   payment_intent: string | Stripe.PaymentIntent | null;
 }

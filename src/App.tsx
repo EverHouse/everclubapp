@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useContext, ErrorInfo, useMemo, useRef, lazy, Suspense, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { QueryClientProvider, useQueryClient, useQuery } from '@tanstack/react-query';
 import { queryClient } from './lib/queryClient';
 import { DataProvider, useData } from './contexts/DataContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
@@ -34,6 +34,7 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { useSupabaseRealtime } from './hooks/useSupabaseRealtime';
 import { StaffBookingToast } from './components/StaffBookingToast';
 import UpdateNotification from './components/UpdateNotification';
+import WaiverModal from './components/WaiverModal';
 import { StaffWebSocketProvider } from './contexts/StaffWebSocketContext';
 import { StaffMobileSidebar } from './components/StaffMobileSidebar';
 import PullToRefresh from './components/PullToRefresh';
@@ -298,21 +299,57 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+const WaiverGate: React.FC = () => {
+  const { user } = useData();
+  const [showWaiverModal, setShowWaiverModal] = useState(false);
+  const [currentVersion, setCurrentVersion] = useState('1.0');
+
+  const { data: waiverStatus } = useQuery({
+    queryKey: ['waiverStatus'],
+    queryFn: async () => {
+      const res = await fetch('/api/waivers/status', { credentials: 'include' });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!user?.email,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (waiverStatus?.needsWaiverUpdate) {
+      setCurrentVersion(waiverStatus.currentVersion || '1.0');
+      setShowWaiverModal(true);
+    }
+  }, [waiverStatus]);
+
+  if (!showWaiverModal) return null;
+
+  return (
+    <WaiverModal
+      isOpen={showWaiverModal}
+      onComplete={() => setShowWaiverModal(false)}
+      currentVersion={currentVersion}
+    />
+  );
+};
+
 // Members Portal route guard - redirects staff/admin to Staff Portal (unless viewing as member or on profile page)
 const MemberPortalRoute: React.FC<{ children: React.ReactNode; allowStaffAccess?: boolean }> = ({ children, allowStaffAccess }) => {
   const { user, actualUser, isViewingAs, sessionChecked } = useData();
-  // Only block rendering until initial session check completes
   if (!sessionChecked) return <div className="min-h-screen" />;
   if (!user) return <Navigate to="/login" replace />;
   
-  // If staff/admin is NOT viewing as a member, redirect to Staff Portal
-  // Exception: allow staff access to profile page for sign out
   const isStaffOrAdmin = actualUser?.role === 'admin' || actualUser?.role === 'staff';
   if (isStaffOrAdmin && !isViewingAs && !allowStaffAccess) {
     return <Navigate to="/admin" replace />;
   }
   
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {!isStaffOrAdmin && <WaiverGate />}
+    </>
+  );
 };
 
 const AdminProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {

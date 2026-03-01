@@ -76,6 +76,8 @@ export interface MemberProfile {
   emailOptIn?: boolean | null;
   smsOptIn?: boolean | null;
   firstLoginAt?: string | null;
+  waiverVersion?: string | null;
+  waiverSignedAt?: string | null;
 }
 
 export interface Booking {

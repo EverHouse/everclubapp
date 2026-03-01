@@ -2,10 +2,6 @@ import { logger } from '../core/logger';
 import { Router, Request, Response, NextFunction } from 'express';
 import Stripe from 'stripe';
 
-interface StripeSubscriptionExpanded extends Stripe.Subscription {
-  current_period_end: number;
-}
-
 interface StripeInvoiceExpanded extends Stripe.Invoice {
   number: string | null;
 }

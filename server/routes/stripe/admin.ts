@@ -6,10 +6,6 @@ import { sql } from 'drizzle-orm';
 import { getStripeClient } from '../../core/stripe/client';
 import Stripe from 'stripe';
 
-interface StripeSubscriptionExpanded extends Stripe.Subscription {
-  current_period_end: number;
-}
-
 import { CustomerSyncResult } from '../../core/stripe/customerSync';
 import {
   getStripeProducts,

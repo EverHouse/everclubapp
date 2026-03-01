@@ -358,6 +358,34 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
         </div>
       )}
 
+      <div 
+        className="animate-slide-up-stagger"
+        style={{ '--stagger-index': 2.5 } as React.CSSProperties}
+      >
+        <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+          <div className="flex items-center justify-between">
+            <h4 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              <span className="material-symbols-outlined text-[18px]">description</span>
+              Waiver
+            </h4>
+            {member?.waiverSignedAt ? (
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[14px] text-green-500">check_circle</span>
+                <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Signed {formatDatePacific(member.waiverSignedAt)}
+                  {member.waiverVersion ? ` (v${member.waiverVersion})` : ''}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[14px] text-amber-500">warning</span>
+                <span className={`text-xs font-medium text-amber-500`}>Not signed</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {(member?.dateOfBirth || member?.companyName || hasAddress || member?.emailOptIn !== null || member?.smsOptIn !== null) && (
         <div 
           className="animate-slide-up-stagger"
