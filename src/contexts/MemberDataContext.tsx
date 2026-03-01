@@ -106,10 +106,9 @@ export const MemberDataProvider: React.FC<{children: ReactNode}> = ({ children }
 
   useEffect(() => {
     const fetchInitialMembers = async () => {
-      if (!sessionChecked) return;
-      const currentUser = actualUserRef.current;
-      if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'staff')) return;
-      const currentRole = currentUser.role;
+      if (!sessionChecked || !actualUser) return;
+      if (actualUser.role !== 'admin' && actualUser.role !== 'staff') return;
+      const currentRole = actualUser.role;
       if (initialMembersFetchedRef.current && membersFetchUserRoleRef.current === currentRole) return;
 
       setIsFetchingMembers(true);
@@ -138,7 +137,7 @@ export const MemberDataProvider: React.FC<{children: ReactNode}> = ({ children }
       }
     };
     fetchInitialMembers();
-  }, [sessionChecked]);
+  }, [sessionChecked, actualUser]);
 
   const fetchFormerMembers = useCallback(async (forceRefresh = false) => {
     const currentUser = actualUserRef.current;
