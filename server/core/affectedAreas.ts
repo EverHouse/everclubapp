@@ -21,7 +21,8 @@ export async function getConferenceRoomId(): Promise<number | null> {
   return result.rows.length > 0 ? (result.rows[0] as unknown as ResourceIdRow).id : null;
 }
 
-export async function parseAffectedAreas(affectedAreas: string): Promise<number[]> {
+export async function parseAffectedAreas(affectedAreas: string | null | undefined): Promise<number[]> {
+  if (!affectedAreas) return [];
   const normalized = affectedAreas.toLowerCase().trim();
   
   if (normalized === '' || normalized === 'none') {

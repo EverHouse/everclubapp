@@ -605,10 +605,10 @@ const SimulatorTab: React.FC = () => {
                     const reqStartMins = parseInt(selectedRequest.start_time.split(':')[0]) * 60 + parseInt(selectedRequest.start_time.split(':')[1]);
                     const reqEndMins = parseInt(selectedRequest.end_time.split(':')[0]) * 60 + parseInt(selectedRequest.end_time.split(':')[1]);
                     
-                    const closure = allClosures.find((c: { startDate: string; endDate: string; affectedAreas: string; startTime?: string; endTime?: string; title: string }) => {
+                    const closure = allClosures.find((c: { startDate: string; endDate: string; affectedAreas: string | null; startTime?: string; endTime?: string; title: string }) => {
                         if (c.startDate > reqDate || c.endDate < reqDate) return false;
                         
-                        const areas = c.affectedAreas;
+                        const areas = c.affectedAreas || '';
                         const affectsResource = areas === 'entire_facility' || 
                             areas === 'all_bays' || 
                             areas.includes(String(selectedBayId));

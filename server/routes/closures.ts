@@ -62,7 +62,8 @@ async function getConferenceRoomId(): Promise<number | null> {
   return result.length > 0 ? result[0].id : null;
 }
 
-async function getAffectedBayIds(affectedAreas: string): Promise<number[]> {
+async function getAffectedBayIds(affectedAreas: string | null | undefined): Promise<number[]> {
+  if (!affectedAreas) return [];
   const idSet = new Set<number>();
   
   if (affectedAreas === 'entire_facility') {
@@ -165,7 +166,8 @@ function getDatesBetween(startDate: string, endDate: string): string[] {
   return dates;
 }
 
-async function formatAffectedAreasForDisplay(affectedAreas: string): Promise<string> {
+async function formatAffectedAreasForDisplay(affectedAreas: string | null | undefined): Promise<string> {
+  if (!affectedAreas) return 'No booking restrictions';
   if (affectedAreas === 'entire_facility') return 'Entire Facility';
   if (affectedAreas === 'all_bays') return 'All Simulator Bays';
   if (affectedAreas === 'conference_room') return 'Conference Room';

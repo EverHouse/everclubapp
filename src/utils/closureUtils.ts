@@ -2,7 +2,7 @@ interface ClosureLike {
   title: string;
   reason: string | null;
   noticeType: string | null;
-  affectedAreas: string;
+  affectedAreas: string | null;
 }
 
 export function isBlockingClosure(affectedAreas: string | null | undefined): boolean {

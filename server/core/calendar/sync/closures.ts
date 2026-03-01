@@ -104,7 +104,8 @@ async function getAllResourceIds(): Promise<number[]> {
   return Array.from(idSet);
 }
 
-async function getResourceIdsForAffectedAreas(affectedAreas: string): Promise<number[]> {
+async function getResourceIdsForAffectedAreas(affectedAreas: string | null | undefined): Promise<number[]> {
+  if (!affectedAreas) return [];
   const idSet = new Set<number>();
   
   const normalized = affectedAreas.toLowerCase().trim();
