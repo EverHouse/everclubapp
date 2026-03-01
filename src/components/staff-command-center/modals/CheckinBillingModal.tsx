@@ -41,7 +41,6 @@ interface ParticipantFee {
   dailyAllowance?: number;
   minutesUsed?: number;
   guestPassUsed?: boolean;
-  waiverNeedsReview?: boolean;
   prepaidOnline?: boolean;
   cachedFeeCents?: number | null;
 }
@@ -347,30 +346,6 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     }
   };
 
-  const handleMarkWaiversReviewed = async () => {
-    setActionInProgress('mark-reviewed');
-    try {
-      const res = await fetch(`/api/bookings/${bookingId}/mark-all-waivers-reviewed`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
-      if (res.ok) {
-        const data = await res.json();
-        showToast(`${data.updatedCount} waiver(s) marked as reviewed`, 'success');
-        await fetchContext();
-        onCheckinComplete();
-        onClose();
-      } else {
-        showToast('Failed to mark waivers as reviewed', 'error');
-      }
-    } catch (err: unknown) {
-      console.error('Failed to mark waivers as reviewed:', err);
-      showToast('Failed to mark waivers as reviewed', 'error');
-    } finally {
-      setActionInProgress(null);
-    }
-  };
 
   const handleStripePaymentSuccess = async (paymentIntentId?: string) => {
     showToast('Payment successful - syncing...', 'success');
@@ -447,8 +422,6 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   ) || [];
   const hasPendingPayments = unpaidParticipants.length > 0;
   
-  const hasUnreviewedWaivers = context?.participants.some(p => p.waiverNeedsReview) || false;
-
   const handleClose = () => {
     onClose();
   };
@@ -534,15 +507,6 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                 </div>
               )}
             </>
-          ) : hasUnreviewedWaivers ? (
-            <button
-              onClick={handleMarkWaiversReviewed}
-              disabled={actionInProgress !== null}
-              className="tactile-btn w-full py-3 bg-amber-600 text-white font-semibold rounded-xl hover:bg-amber-700 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              <span className="material-symbols-outlined">check_circle</span>
-              {actionInProgress === 'mark-reviewed' ? 'Processing...' : 'Mark Waivers as Reviewed'}
-            </button>
           ) : context?.hasUnpaidBalance ? (
             <div className="w-full p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-center flex items-center justify-center gap-2">
               <span className="material-symbols-outlined text-red-500">warning</span>
@@ -822,11 +786,6 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium bg-lavender/20 dark:bg-lavender/20 text-primary dark:text-lavender rounded-full">
                               <span className="material-symbols-outlined text-xs">credit_card</span>
                               Prepaid online
-                            </span>
-                          )}
-                          {p.waiverNeedsReview && (
-                            <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded">
-                              Needs Review
                             </span>
                           )}
                         </div>

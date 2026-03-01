@@ -305,7 +305,6 @@ interface ParticipantFee {
   tierAtBooking: string | null;
   dailyAllowance?: number;
   minutesUsed?: number;
-  waiverNeedsReview?: boolean;
   guestPassUsed?: boolean;
   prepaidOnline?: boolean;
   cachedFeeCents?: number | null;
@@ -519,12 +518,6 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
         const tierAtBooking = breakdownItem?.tierName || null;
         const dailyAllowance = breakdownItem?.dailyAllowance ?? undefined;
         
-        const waiverNeedsReview = 
-          p.participant_type === 'guest' && 
-          p.payment_status === 'waived' && 
-          !p.used_guest_pass &&
-          !p.waiver_reviewed_at;
-        
         const rawCachedFee = p.cached_total_fee === null ? null : parseFloat(p.cached_total_fee);
         const cachedFeeCentsValue = rawCachedFee === null ? null : Math.round(rawCachedFee * 100);
         const minutesUsed = breakdownItem?.usedMinutesToday ?? undefined;
@@ -541,7 +534,6 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           tierAtBooking,
           dailyAllowance,
           minutesUsed,
-          waiverNeedsReview,
           guestPassUsed: p.used_guest_pass || false,
           prepaidOnline: prepaidParticipantIds.has(p.participant_id),
           cachedFeeCents: cachedFeeCentsValue
