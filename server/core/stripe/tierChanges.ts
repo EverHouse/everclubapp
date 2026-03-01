@@ -89,7 +89,7 @@ export async function previewTierChange(
           newAmountCents: newPrice.unit_amount || 0,
           prorationAmountCents: 0,
           nextInvoiceAmountCents: newPrice.unit_amount || 0,
-          effectiveDate: new Date((sub as unknown as Stripe.Subscription & { current_period_end: number }).current_period_end * 1000),
+          effectiveDate: new Date((sub.items.data[0]?.current_period_end || 0) * 1000),
           isImmediate: false,
         }
       };

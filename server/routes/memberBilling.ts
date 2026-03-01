@@ -584,7 +584,7 @@ router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, async (req, res
 
     const now = new Date();
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const currentPeriodEnd = new Date((subscription as StripeSubscriptionExpanded).current_period_end * 1000);
+    const currentPeriodEnd = new Date((subscription.items.data[0]?.current_period_end || 0) * 1000);
     
     let cancelAtTimestamp: number;
     let effectiveDate: Date;

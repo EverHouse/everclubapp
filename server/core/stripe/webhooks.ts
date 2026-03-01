@@ -2799,8 +2799,8 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
     const planName = subscription.items?.data?.[0]?.price?.nickname || 
                      subscription.items?.data?.[0]?.plan?.nickname || 
                      'Membership';
-    const subscriptionPeriodEnd = (subscription as StripeSubscriptionWithPeriods).current_period_end 
-      ? new Date((subscription as StripeSubscriptionWithPeriods).current_period_end * 1000) 
+    const subscriptionPeriodEnd = subscription.items?.data?.[0]?.current_period_end 
+      ? new Date(subscription.items.data[0].current_period_end * 1000) 
       : null;
 
     // First try to find user by stripe_customer_id
@@ -3469,8 +3469,8 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
     if (subscription.items?.data?.length === 0) {
       logger.warn('[Stripe Webhook] subscription.updated has empty items array, tier update skipped', { extra: { subscriptionId: subscription.id, customerId: String(customerId) } });
     }
-    const subscriptionPeriodEnd = (subscription as StripeSubscriptionWithPeriods).current_period_end 
-      ? new Date((subscription as StripeSubscriptionWithPeriods).current_period_end * 1000) 
+    const subscriptionPeriodEnd = subscription.items?.data?.[0]?.current_period_end 
+      ? new Date(subscription.items.data[0].current_period_end * 1000) 
       : null;
 
     if (previousAttributes?.items?.data) {
@@ -4106,8 +4106,8 @@ async function handleSubscriptionResumed(client: PoolClient, subscription: Strip
   const deferredActions: DeferredAction[] = [];
   try {
     const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id;
-    const subscriptionPeriodEnd = (subscription as StripeSubscriptionWithPeriods).current_period_end
-      ? new Date((subscription as StripeSubscriptionWithPeriods).current_period_end * 1000)
+    const subscriptionPeriodEnd = subscription.items?.data?.[0]?.current_period_end
+      ? new Date(subscription.items.data[0].current_period_end * 1000)
       : null;
 
     const userResult = await client.query(

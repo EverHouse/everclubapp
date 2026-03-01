@@ -750,7 +750,7 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
         currency: price?.currency || 'usd',
         interval: price?.recurring?.interval || 'month',
         status: sub.status,
-        currentPeriodEnd: (sub as unknown as { current_period_end: number }).current_period_end || 0,
+        currentPeriodEnd: sub.items.data[0]?.current_period_end || 0,
         cancelAtPeriodEnd: sub.cancel_at_period_end,
       };
     });
@@ -805,7 +805,7 @@ router.post('/api/financials/subscriptions/:subscriptionId/send-reminder', isSta
       memberName: customer.name || 'Member',
       amount,
       description: `${product?.name || 'Membership'} subscription payment is past due`,
-      dueDate: new Date((subscription as unknown as StripeSubscriptionExpanded).current_period_end * 1000).toLocaleDateString('en-US', {
+      dueDate: new Date((subscription.items.data[0]?.current_period_end || 0) * 1000).toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',

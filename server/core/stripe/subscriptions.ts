@@ -134,7 +134,7 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
       subscription: {
         subscriptionId: subscription.id,
         status: subscription.status,
-        currentPeriodEnd: new Date((subscription as unknown as StripeSubscriptionWithPeriods).current_period_end * 1000),
+        currentPeriodEnd: new Date((subscription.items.data[0]?.current_period_end || 0) * 1000),
         clientSecret,
         amountDue: invoiceAmountDue,
       },
@@ -268,7 +268,7 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
           const typedPendingUpdate = sub.pending_update as SubscriptionPendingUpdate | null;
           const effectiveTimestamp = typedPendingUpdate?.billing_cycle_anchor 
             || typedPendingUpdate?.expires_at 
-            || (sub as StripeSubscriptionWithPeriods).current_period_end;
+            || sub.items.data[0]?.current_period_end;
             
           if (pendingPriceId && effectiveTimestamp) {
             pendingUpdate = {
@@ -302,8 +302,8 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
           planAmount: price?.unit_amount || 0,
           currency: price?.currency || 'usd',
           interval: price?.recurring?.interval || 'month',
-          currentPeriodStart: new Date((sub as StripeSubscriptionWithPeriods).current_period_start * 1000),
-          currentPeriodEnd: new Date((sub as StripeSubscriptionWithPeriods).current_period_end * 1000),
+          currentPeriodStart: new Date((sub.items.data[0]?.current_period_start || 0) * 1000),
+          currentPeriodEnd: new Date((sub.items.data[0]?.current_period_end || 0) * 1000),
           cancelAtPeriodEnd: sub.cancel_at_period_end,
           cancelAt: sub.cancel_at ? new Date(sub.cancel_at * 1000) : null,
           isPaused: !!(sub.pause_collection && sub.pause_collection.behavior),
@@ -371,8 +371,8 @@ export async function getSubscription(subscriptionId: string): Promise<{
         priceId: price?.id || '',
         productId: product?.id || '',
         productName: product?.name || '',
-        currentPeriodStart: new Date((subscription as unknown as StripeSubscriptionWithPeriods).current_period_start * 1000),
-        currentPeriodEnd: new Date((subscription as unknown as StripeSubscriptionWithPeriods).current_period_end * 1000),
+        currentPeriodStart: new Date((subscription.items.data[0]?.current_period_start || 0) * 1000),
+        currentPeriodEnd: new Date((subscription.items.data[0]?.current_period_end || 0) * 1000),
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
         canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
       },
