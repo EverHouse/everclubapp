@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useData } from '../../../contexts/DataContext';
 import { useToast } from '../../../components/Toast';
@@ -85,21 +84,7 @@ const BlocksTab: React.FC = () => {
     const { actualUser } = useData();
     const { showToast } = useToast();
     const queryClient = useQueryClient();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const subtabParam = searchParams.get('subtab');
-    const activeSubTab: 'notices' | 'blocks' = subtabParam === 'blocks' ? 'blocks' : 'notices';
-    
-    const setActiveSubTab = (tab: 'notices' | 'blocks') => {
-        setSearchParams(params => {
-            const newParams = new URLSearchParams(params);
-            if (tab === 'notices') {
-                newParams.delete('subtab');
-            } else {
-                newParams.set('subtab', tab);
-            }
-            return newParams;
-        });
-    };
+    const [activeSubTab, setActiveSubTab] = useState<'notices' | 'blocks'>('notices');
     
     const [isClosureModalOpen, setIsClosureModalOpen] = useState(false);
     const [editingClosureId, setEditingClosureId] = useState<number | null>(null);
