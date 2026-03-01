@@ -15,17 +15,7 @@ const CACHEABLE_API_ENDPOINTS = ['events', 'wellness-classes', 'cafe-menu', 'hou
 self.addEventListener('install', function(event) {
   console.log('[SW] Installing new version:', BUILD_VERSION);
   event.waitUntil(
-    caches.keys().then(keys => {
-      return Promise.all(
-        keys.filter(key => key.startsWith('ever-club-') || key.startsWith('ever-house-') || key.startsWith('api-cache-'))
-          .map(key => {
-            console.log('[SW] Pre-clearing cache during install:', key);
-            return caches.delete(key);
-          })
-      );
-    }).then(() => {
-      return caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS));
-    })
+    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
   );
 });
 
@@ -67,24 +57,24 @@ self.addEventListener('message', function(event) {
 });
 
 self.addEventListener('fetch', function(event) {
-  const { request } = event;
-  const url = new URL(request.url);
+  var request = event.request;
+  var url = new URL(request.url);
 
   if (request.method !== 'GET') return;
 
   if (url.pathname.startsWith('/api/')) {
-    if (CACHEABLE_API_ENDPOINTS.some(ep => url.pathname.includes(ep))) {
+    if (CACHEABLE_API_ENDPOINTS.some(function(ep) { return url.pathname.includes(ep); })) {
       event.respondWith(
-        fetch(request).then(response => {
+        fetch(request).then(function(response) {
           if (response.ok) {
-            const contentType = response.headers.get('content-type');
+            var contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
-              const clone = response.clone();
-              caches.open(API_CACHE).then(cache => cache.put(request, clone));
+              var clone = response.clone();
+              caches.open(API_CACHE).then(function(cache) { cache.put(request, clone); });
             }
           }
           return response;
-        }).catch(() => caches.match(request))
+        }).catch(function() { return caches.match(request); })
       );
     }
     return;
@@ -92,20 +82,20 @@ self.addEventListener('fetch', function(event) {
 
   if (request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html') {
     event.respondWith(
-      fetch(request)
-        .then(response => {
+      fetch(request, { cache: 'no-store' })
+        .then(function(response) {
           if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+            var clone = response.clone();
+            caches.open(CACHE_NAME).then(function(cache) { cache.put(request, clone); });
           }
           return response;
         })
-        .catch(() => {
-          return caches.match(request).then(cachedResponse => {
+        .catch(function() {
+          return caches.match(request).then(function(cachedResponse) {
             if (cachedResponse) {
               return cachedResponse;
             }
-            return caches.match('/').then(fallback => {
+            return caches.match('/').then(function(fallback) {
               return fallback || new Response('App offline. Please refresh when online.', {
                 status: 503,
                 headers: { 'Content-Type': 'text/plain' }
@@ -120,14 +110,14 @@ self.addEventListener('fetch', function(event) {
   if (url.pathname.startsWith('/assets/')) {
     event.respondWith(
       fetch(request)
-        .then(response => {
+        .then(function(response) {
           if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+            var clone = response.clone();
+            caches.open(CACHE_NAME).then(function(cache) { cache.put(request, clone); });
           }
           return response;
         })
-        .catch(() => caches.match(request))
+        .catch(function() { return caches.match(request); })
     );
     return;
   }
@@ -138,8 +128,8 @@ self.addEventListener('push', function(event) {
     return;
   }
 
-  const data = event.data.json();
-  const options = {
+  var data = event.data.json();
+  var options = {
     body: data.body || 'You have a new notification',
     icon: '/favicon.ico',
     badge: '/favicon.ico',
@@ -160,12 +150,13 @@ self.addEventListener('push', function(event) {
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
 
-  const urlToOpen = event.notification.data?.url || '/';
+  var urlToOpen = event.notification.data && event.notification.data.url ? event.notification.data.url : '/';
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(function(clientList) {
-        for (const client of clientList) {
+        for (var i = 0; i < clientList.length; i++) {
+          var client = clientList[i];
           if (client.url.includes(urlToOpen) && 'focus' in client) {
             return client.focus();
           }

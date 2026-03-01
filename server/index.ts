@@ -917,7 +917,9 @@ async function initializeApp() {
         const meta = SEO_META[routePath];
 
         res.setHeader('Content-Type', 'text/html');
-        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         res.setHeader('Link', '</images/hero-lounge-optimized.webp>; rel=preload; as=image; type=image/webp');
 
         if (meta) {
