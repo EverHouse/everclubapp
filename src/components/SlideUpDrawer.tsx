@@ -6,8 +6,8 @@ import { useScrollLockManager } from '../hooks/useScrollLockManager';
 const BASE_DRAWER_Z_INDEX = 10000;
 const STANDARD_DRAWER_Z_INDEX = 5000;
 const Z_INDEX_INCREMENT = 10;
-const DRAG_THRESHOLD = 180;
-const VELOCITY_THRESHOLD = 0.8;
+const DRAG_THRESHOLD = 260;
+const VELOCITY_THRESHOLD = 1.2;
 
 interface SlideUpDrawerProps {
   isOpen: boolean;
