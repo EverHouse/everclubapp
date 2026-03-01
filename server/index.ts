@@ -477,9 +477,10 @@ async function initializeApp() {
         immutable: true,
         etag: true,
         setHeaders: (res, filePath) => {
-          if (filePath.endsWith('.html')) {
+          const fileName = filePath.replace(/\.(br|gz)$/, '');
+          if (fileName.endsWith('.html')) {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-          } else if (filePath.endsWith('sw.js') || filePath.endsWith('manifest.webmanifest')) {
+          } else if (fileName.endsWith('sw.js') || fileName.endsWith('manifest.webmanifest')) {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
           } else if (filePath.includes('/assets/')) {
             res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');

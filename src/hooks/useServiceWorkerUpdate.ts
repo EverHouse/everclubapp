@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface ServiceWorkerUpdateState {
   updateAvailable: boolean;
@@ -7,13 +7,31 @@ interface ServiceWorkerUpdateState {
   dismissUpdate: () => void;
 }
 
+const UPDATE_CHECK_INTERVAL = 10 * 60 * 1000;
+const DISMISS_COOLDOWN_KEY = 'sw-update-dismissed-at';
+const DISMISS_COOLDOWN_MS = 30 * 60 * 1000;
+
 export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+  const visibilityHandlerRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
+
+    const isDismissCooldown = () => {
+      const dismissedAt = sessionStorage.getItem(DISMISS_COOLDOWN_KEY);
+      if (!dismissedAt) return false;
+      return Date.now() - parseInt(dismissedAt, 10) < DISMISS_COOLDOWN_MS;
+    };
+
+    const showUpdate = (worker: ServiceWorker) => {
+      if (isDismissCooldown()) return;
+      console.log('[App] Update available, showing notification');
+      setWaitingWorker(worker);
+      setUpdateAvailable(true);
+    };
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'SW_UPDATED') {
@@ -25,45 +43,70 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
 
     navigator.serviceWorker.addEventListener('message', handleMessage);
 
-    navigator.serviceWorker.ready.then(registration => {
-      if (registration.waiting) {
-        setWaitingWorker(registration.waiting);
-        setUpdateAvailable(true);
+    const detectWaiting = (registration: ServiceWorkerRegistration) => {
+      if (registration.waiting && registration.waiting.state === 'installed') {
+        showUpdate(registration.waiting);
       }
+    };
 
+    const listenForUpdate = (registration: ServiceWorkerRegistration) => {
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
         if (!newWorker) return;
 
         newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            console.log('[App] New service worker installed, update available');
-            setWaitingWorker(newWorker);
-            setUpdateAvailable(true);
+          if (newWorker.state === 'installed') {
+            if (navigator.serviceWorker.controller) {
+              showUpdate(newWorker);
+            } else {
+              console.log('[App] First SW install, no update prompt needed');
+            }
           }
         });
       });
-    });
-
-    const checkForUpdates = () => {
-      navigator.serviceWorker.ready.then(registration => {
-        registration.update().catch(console.error);
-      });
     };
 
-    checkForUpdates();
+    const setupRegistration = async () => {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        detectWaiting(registration);
+        listenForUpdate(registration);
+        registration.update().catch(() => {});
+      } catch (e) {
+        console.error('[App] SW ready failed:', e);
+      }
+    };
 
-    const intervalId = setInterval(checkForUpdates, 60 * 60 * 1000);
+    setupRegistration();
 
-    document.addEventListener('visibilitychange', () => {
+    const checkForUpdates = async () => {
+      try {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) {
+          await registration.update();
+          detectWaiting(registration);
+        }
+      } catch (e) {
+        // Silently fail update checks
+      }
+    };
+
+    const intervalId = setInterval(checkForUpdates, UPDATE_CHECK_INTERVAL);
+
+    const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         checkForUpdates();
       }
-    });
+    };
+    visibilityHandlerRef.current = onVisibilityChange;
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     return () => {
       navigator.serviceWorker.removeEventListener('message', handleMessage);
       clearInterval(intervalId);
+      if (visibilityHandlerRef.current) {
+        document.removeEventListener('visibilitychange', visibilityHandlerRef.current);
+      }
     };
   }, []);
 
@@ -71,18 +114,29 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
     if (!waitingWorker) return;
 
     setIsUpdating(true);
-    waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    sessionStorage.removeItem(DISMISS_COOLDOWN_KEY);
 
     let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
+    const onControllerChange = () => {
       if (refreshing) return;
       refreshing = true;
       window.location.reload();
-    });
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+
+    waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+
+    setTimeout(() => {
+      if (!refreshing) {
+        console.log('[App] Controller change timeout, forcing reload');
+        window.location.reload();
+      }
+    }, 5000);
   }, [waitingWorker]);
 
   const dismissUpdate = useCallback(() => {
     setUpdateAvailable(false);
+    sessionStorage.setItem(DISMISS_COOLDOWN_KEY, Date.now().toString());
   }, []);
 
   return {
