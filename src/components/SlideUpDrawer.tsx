@@ -62,6 +62,7 @@ export function SlideUpDrawer({
     currentY: 0,
     startTime: 0
   });
+  const closingFromDrag = useRef(false);
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -73,6 +74,11 @@ export function SlideUpDrawer({
   useEffect(() => {
     if (!isOpen) {
       setIsClosing(false);
+      closingFromDrag.current = false;
+      if (drawerRef.current) {
+        drawerRef.current.style.transform = '';
+        drawerRef.current.style.transition = '';
+      }
       return;
     }
 
@@ -180,7 +186,17 @@ export function SlideUpDrawer({
     const velocity = deltaY / deltaTime;
     
     if (deltaY > DRAG_THRESHOLD || velocity > VELOCITY_THRESHOLD) {
-      handleClose();
+      closingFromDrag.current = true;
+      setIsClosing(true);
+      const el = drawerRef.current;
+      if (el) {
+        el.style.transition = 'transform 300ms cubic-bezier(0.22, 1, 0.36, 1)';
+        el.style.transform = 'translateY(100%)';
+      }
+      setTimeout(() => {
+        onCloseRef.current();
+        closingFromDrag.current = false;
+      }, 300);
     }
     
     setDragState({
@@ -189,15 +205,11 @@ export function SlideUpDrawer({
       currentY: 0,
       startTime: 0
     });
-  }, [dragState, handleClose]);
+  }, [dragState]);
 
   const dragOffset = dragState.isDragging 
     ? Math.max(0, dragState.currentY - dragState.startY) 
     : 0;
-
-  const dragOpacity = dragState.isDragging
-    ? Math.max(0.5, 1 - (dragOffset / 500))
-    : 1;
 
   if (!isOpen) return null;
 
@@ -234,7 +246,6 @@ export function SlideUpDrawer({
           boxShadow: dragState.isDragging
             ? `0 ${Math.max(2, 8 - dragOffset * 0.05)}px ${Math.max(8, 24 - dragOffset * 0.1)}px rgba(0, 0, 0, ${Math.max(0.05, 0.15 - dragOffset * 0.001)})`
             : undefined,
-          opacity: dragOpacity,
         }}
         onKeyDown={handleKeyDown}
         onTouchStart={handleTouchStart}
