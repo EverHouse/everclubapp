@@ -63,7 +63,8 @@ export const groupBookingsByDate = (bookings: BookingRequest[]): Map<string, Boo
     return grouped;
 };
 
-export const parseAffectedBayIds = (affectedAreas: string, resources: Resource[]): number[] => {
+export const parseAffectedBayIds = (affectedAreas: string | null | undefined, resources: Resource[]): number[] => {
+    if (!affectedAreas) return [];
     if (affectedAreas === 'entire_facility') {
         return resources.map(r => r.id);
     }

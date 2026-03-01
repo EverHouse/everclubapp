@@ -52,7 +52,7 @@ interface CalendarClosure {
   endDate: string;
   startTime: string | null;
   endTime: string | null;
-  affectedAreas: string;
+  affectedAreas: string | null;
   reason: string | null;
 }
 
