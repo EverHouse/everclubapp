@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useData } from '../../../contexts/DataContext';
 import { usePageReady } from '../../../contexts/PageReadyContext';
-import { getTodayPacific, addDaysToPacificDate, formatTime12Hour } from '../../../utils/dateUtils';
+import { getTodayPacific, formatTime12Hour } from '../../../utils/dateUtils';
 import { usePricing } from '../../../hooks/usePricing';
 import ModalShell from '../../../components/ModalShell';
 import { useToast } from '../../../components/Toast';
@@ -71,11 +71,10 @@ const SimulatorTab: React.FC = () => {
     const { data: closuresData = [] } = useCalendarClosures();
     
     const today = getTodayPacific();
-    const baseDate = activeView === 'calendar' ? calendarDate : today;
-    const startDate = addDaysToPacificDate(baseDate, -60);
-    const endDate = addDaysToPacificDate(baseDate, 30);
+    const calendarStartDate = calendarDate;
+    const calendarEndDate = calendarDate;
     
-    const { data: approvedBookingsData = [], isLoading: approvedLoading } = useApprovedBookings(startDate, endDate);
+    const { data: approvedBookingsData = [], isLoading: approvedLoading } = useApprovedBookings(calendarStartDate, calendarEndDate);
     const { data: availabilityBlocksData = [] } = useAvailabilityBlocks(calendarDate);
     
     const isLoading = resourcesLoading || baysLoading || requestsLoading || approvedLoading;
@@ -83,7 +82,7 @@ const SimulatorTab: React.FC = () => {
     const resources: Resource[] = resourcesData;
     const bays: Bay[] = baysData;
     const closures: CalendarClosure[] = closuresData.filter((c: CalendarClosure) => 
-        c.startDate <= endDate && c.endDate >= startDate
+        c.startDate <= calendarEndDate && c.endDate >= calendarStartDate
     );
     
     const availabilityBlocks: AvailabilityBlock[] = useMemo(() => 
@@ -422,16 +421,16 @@ const SimulatorTab: React.FC = () => {
         }
         
         await queryClient.cancelQueries({ queryKey: simulatorKeys.allRequests() });
-        await queryClient.cancelQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
+        await queryClient.cancelQueries({ queryKey: simulatorKeys.approvedBookings(calendarStartDate, calendarEndDate) });
         const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
-        const previousApproved = queryClient.getQueryData(simulatorKeys.approvedBookings(startDate, endDate));
+        const previousApproved = queryClient.getQueryData(simulatorKeys.approvedBookings(calendarStartDate, calendarEndDate));
         
         queryClient.setQueryData(simulatorKeys.allRequests(), (old: BookingRequest[] | undefined) => 
             (old || []).map(r => 
                 r.id === booking.id ? { ...r, status: newStatus } : r
             )
         );
-        queryClient.setQueryData(simulatorKeys.approvedBookings(startDate, endDate), (old: BookingRequest[] | undefined) => 
+        queryClient.setQueryData(simulatorKeys.approvedBookings(calendarStartDate, calendarEndDate), (old: BookingRequest[] | undefined) => 
             (old || []).map(b => 
                 b.id === booking.id ? { ...b, status: newStatus } : b
             )
@@ -442,7 +441,7 @@ const SimulatorTab: React.FC = () => {
             
             if (!result.success) {
                 queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
-                queryClient.setQueryData(simulatorKeys.approvedBookings(startDate, endDate), previousApproved);
+                queryClient.setQueryData(simulatorKeys.approvedBookings(calendarStartDate, calendarEndDate), previousApproved);
                 
                 if (result.requiresRoster) {
                     setBookingSheet({
@@ -466,18 +465,18 @@ const SimulatorTab: React.FC = () => {
             }
             
             queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
-            queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
+            queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(calendarStartDate, calendarEndDate) });
             return true;
         } catch (err: unknown) {
             queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
-            queryClient.setQueryData(simulatorKeys.approvedBookings(startDate, endDate), previousApproved);
+            queryClient.setQueryData(simulatorKeys.approvedBookings(calendarStartDate, calendarEndDate), previousApproved);
             showToast((err instanceof Error ? err.message : String(err)) || 'Failed to update status', 'error');
             if (newStatus === 'attended') {
                 checkinInProgressRef.current.delete(bookingId);
             }
             return false;
         }
-    }, [queryClient, startDate, endDate, showToast, checkInWithToast]);
+    }, [queryClient, calendarStartDate, calendarEndDate, showToast, checkInWithToast]);
 
     const showCancelConfirmation = useCallback((booking: BookingRequest) => {
         const hasTrackman = !!(booking.trackman_booking_id) || 
@@ -501,9 +500,9 @@ const SimulatorTab: React.FC = () => {
         setActionInProgress(prev => ({ ...prev, [bookingKey]: 'cancelling' }));
         
         await queryClient.cancelQueries({ queryKey: simulatorKeys.allRequests() });
-        await queryClient.cancelQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
+        await queryClient.cancelQueries({ queryKey: simulatorKeys.approvedBookings(calendarStartDate, calendarEndDate) });
         const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
-        const previousApproved = queryClient.getQueryData(simulatorKeys.approvedBookings(startDate, endDate));
+        const previousApproved = queryClient.getQueryData(simulatorKeys.approvedBookings(calendarStartDate, calendarEndDate));
         
         queryClient.setQueryData(simulatorKeys.allRequests(), (old: BookingRequest[] | undefined) => 
             (old || []).map(r => 
@@ -512,7 +511,7 @@ const SimulatorTab: React.FC = () => {
                     : r
             )
         );
-        queryClient.setQueryData(simulatorKeys.approvedBookings(startDate, endDate), (old: BookingRequest[] | undefined) => 
+        queryClient.setQueryData(simulatorKeys.approvedBookings(calendarStartDate, calendarEndDate), (old: BookingRequest[] | undefined) => 
             (old || []).filter(b => 
                 !(b.id === booking.id && b.source === booking.source)
             )
@@ -544,7 +543,7 @@ const SimulatorTab: React.FC = () => {
             }
         } catch (err: unknown) {
             queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
-            queryClient.setQueryData(simulatorKeys.approvedBookings(startDate, endDate), previousApproved);
+            queryClient.setQueryData(simulatorKeys.approvedBookings(calendarStartDate, calendarEndDate), previousApproved);
             showToast((err instanceof Error ? err.message : String(err)) || 'Failed to cancel booking', 'error');
             setCancelConfirmModal({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
         } finally {
@@ -554,7 +553,7 @@ const SimulatorTab: React.FC = () => {
                 return next;
             });
         }
-    }, [cancelConfirmModal.booking, cancelConfirmModal.hasTrackman, queryClient, startDate, endDate, actualUser?.email, showToast]);
+    }, [cancelConfirmModal.booking, cancelConfirmModal.hasTrackman, queryClient, calendarStartDate, calendarEndDate, actualUser?.email, showToast]);
 
     const cancelBookingOptimistic = useCallback(async (
         booking: BookingRequest
@@ -993,8 +992,8 @@ const SimulatorTab: React.FC = () => {
                         guestFeeDollars={guestFeeDollars}
                         overageRatePerBlockDollars={overageRatePerBlockDollars}
                         tierMinutes={tierMinutes}
-                        startDate={startDate}
-                        endDate={endDate}
+                        startDate={calendarStartDate}
+                        endDate={calendarEndDate}
                         queryClient={queryClient as unknown as { setQueryData: (key: unknown, updater: unknown) => void; invalidateQueries: (opts: { queryKey: unknown }) => void }}
                         simulatorKeys={simulatorKeys as unknown as { allRequests: () => string[]; approvedBookings: (start: string, end: string) => string[] }}
                         activeView={activeView}
@@ -1308,7 +1307,7 @@ const SimulatorTab: React.FC = () => {
                                 created_at: new Date().toISOString(),
                                 source: 'booking'
                             };
-                            queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
+                            queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(calendarStartDate, calendarEndDate) });
                         }
                         
                         window.dispatchEvent(new CustomEvent('booking-action-completed'));

@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom';
 import { formatTime12Hour, getTodayPacific } from '../../../../utils/dateUtils';
 import type { BookingRequest, Resource, CalendarClosure, AvailabilityBlock } from './simulatorTypes';
 import { formatDateShortAdmin, getClosureForSlot, getBlockForSlot } from './simulatorUtils';
-import { useFeeEstimate } from '../../../../hooks/queries/useBookingsQueries';
 import { prefetchBookingDetail } from '../../../../lib/prefetch';
 
 export interface CalendarGridProps {
@@ -37,14 +36,12 @@ export interface CalendarGridProps {
 }
 
 function CalendarFeeIndicator({
-    bookingId,
     bookingDisplayName,
     declaredPlayerCount,
     filledPlayerCount,
     isConference,
     isUnmatched,
     isInactiveMember,
-    snapshotPaid,
     dbOwed,
     hasUnpaidFeesFlag,
     bookingStatus,
@@ -52,14 +49,12 @@ function CalendarFeeIndicator({
     endTime,
     showHoverTooltip,
 }: {
-    bookingId: number;
     bookingDisplayName: string;
     declaredPlayerCount: number;
     filledPlayerCount: number;
     isConference: boolean;
     isUnmatched: boolean;
     isInactiveMember: boolean;
-    snapshotPaid: boolean;
     dbOwed: number;
     hasUnpaidFeesFlag: boolean;
     bookingStatus: string;
@@ -68,9 +63,6 @@ function CalendarFeeIndicator({
     showHoverTooltip?: boolean;
 }) {
     const isCheckedIn = bookingStatus === 'attended';
-    const skipFeeEstimate = snapshotPaid || isConference || isCheckedIn;
-
-    const { data, isLoading, isError } = useFeeEstimate(bookingId, { enabled: !skipFeeEstimate });
 
     const isCancellationPending = bookingStatus === 'cancellation_pending';
     const isPartialRoster = !isConference && declaredPlayerCount > 1 && filledPlayerCount < declaredPlayerCount;
@@ -86,19 +78,8 @@ function CalendarFeeIndicator({
             ? 'text-blue-700 dark:text-blue-300'
             : 'text-green-700 dark:text-green-300';
 
-    let hasUnpaidFees = false;
-    let totalOwed = 0;
-
-    if (hasUnpaidFeesFlag || dbOwed > 0) {
-        hasUnpaidFees = true;
-        totalOwed = dbOwed;
-    }
-
-    if (!skipFeeEstimate && !isLoading && !isError && data) {
-        const serverFee = data.totalFee ?? 0;
-        if (serverFee > 0) hasUnpaidFees = true;
-        totalOwed = Math.max(totalOwed, serverFee);
-    }
+    const hasUnpaidFees = hasUnpaidFeesFlag || dbOwed > 0;
+    const totalOwed = dbOwed;
 
     return (
         <>
@@ -191,6 +172,45 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
         }
         return slots;
     }, []);
+
+    const sortedResources = useMemo(() => 
+        [...resources].sort((a, b) => {
+            if (a.type === 'conference_room' && b.type !== 'conference_room') return 1;
+            if (a.type !== 'conference_room' && b.type === 'conference_room') return -1;
+            return 0;
+        }),
+        [resources]
+    );
+
+    const bookingSlotMap = useMemo(() => {
+        const map = new Map<string, BookingRequest>();
+        for (const b of approvedBookings) {
+            if (b.request_date !== calendarDate || !b.resource_id) continue;
+            const [bh, bm] = b.start_time.split(':').map(Number);
+            const [eh, em] = b.end_time.split(':').map(Number);
+            const bookStart = bh * 60 + bm;
+            const bookEnd = eh * 60 + em;
+            for (let t = bookStart; t < bookEnd; t += 15) {
+                map.set(`${b.resource_id}:${t}`, b);
+            }
+        }
+        return map;
+    }, [approvedBookings, calendarDate]);
+
+    const pendingSlotMap = useMemo(() => {
+        const map = new Map<string, BookingRequest>();
+        for (const pr of pendingRequests) {
+            if (pr.request_date !== calendarDate || !pr.resource_id) continue;
+            const [prh, prm] = pr.start_time.split(':').map(Number);
+            const [preh, prem] = pr.end_time.split(':').map(Number);
+            const prStart = prh * 60 + prm;
+            const prEnd = preh * 60 + prem;
+            for (let t = prStart; t < prEnd; t += 15) {
+                map.set(`${pr.resource_id}:${t}`, pr);
+            }
+        }
+        return map;
+    }, [pendingRequests, calendarDate]);
 
     const getClosureForSlotLocal = (resourceId: number, date: string, slotStart: number, slotEnd: number) => {
         return getClosureForSlot(resourceId, date, slotStart, slotEnd, closures, resources);
@@ -336,11 +356,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                             <span className="hidden sm:inline">Time</span>
                             <span className="sm:hidden">T</span>
                         </div>
-                        {[...resources].sort((a, b) => {
-                            if (a.type === 'conference_room' && b.type !== 'conference_room') return 1;
-                            if (a.type !== 'conference_room' && b.type === 'conference_room') return -1;
-                            return 0;
-                        }).map(resource => (
+                        {sortedResources.map(resource => (
                             <div key={resource.id} className={`h-8 sm:h-10 flex items-center justify-center font-bold text-[10px] sm:text-xs text-primary dark:text-white text-center rounded-t-lg border border-gray-200 dark:border-white/25 px-0.5 shadow-[0_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-fast ${resource.type === 'conference_room' ? 'bg-purple-100 dark:bg-purple-900/50 hover:bg-purple-150 dark:hover:bg-purple-900/60' : 'bg-white dark:bg-[#1a1f1a]'}`}>
                                 <span className="hidden sm:inline">{resource.type === 'conference_room' ? 'Conf' : resource.name.replace('Simulator Bay ', 'Bay ')}</span>
                                 <span className="sm:hidden">{resource.type === 'conference_room' ? 'CR' : resource.name.replace('Simulator Bay ', 'B')}</span>
@@ -356,11 +372,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                     <span className="hidden sm:inline">{formatTime12Hour(slot)}</span>
                                     <span className="sm:hidden">{formatTime12Hour(slot).replace(':00', '').replace(' AM', 'a').replace(' PM', 'p')}</span>
                                 </div>
-                                {[...resources].sort((a, b) => {
-                                    if (a.type === 'conference_room' && b.type !== 'conference_room') return 1;
-                                    if (a.type !== 'conference_room' && b.type === 'conference_room') return -1;
-                                    return 0;
-                                }).map(resource => {
+                                {sortedResources.map(resource => {
                                     const [slotHourNum, slotMin] = slot.split(':').map(Number);
                                     const slotStart = slotHourNum * 60 + slotMin;
                                     const slotEnd = slotStart + 15;
@@ -368,23 +380,10 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                     const closure = getClosureForSlotLocal(resource.id, calendarDate, slotStart, slotEnd);
                                     const eventBlock = !closure ? getBlockForSlotLocal(resource.id, calendarDate, slotStart, slotEnd) : null;
                                     
-                                    const booking = approvedBookings.find(b => {
-                                        if (b.resource_id !== resource.id || b.request_date !== calendarDate) return false;
-                                        const [bh, bm] = b.start_time.split(':').map(Number);
-                                        const [eh, em] = b.end_time.split(':').map(Number);
-                                        const bookStart = bh * 60 + bm;
-                                        const bookEnd = eh * 60 + em;
-                                        return slotStart < bookEnd && slotEnd > bookStart;
-                                    });
+                                    const slotKey = `${resource.id}:${slotStart}`;
+                                    const booking = bookingSlotMap.get(slotKey);
                                     
-                                    const pendingRequest = !booking ? pendingRequests.find(pr => {
-                                        if (pr.resource_id !== resource.id || pr.request_date !== calendarDate) return false;
-                                        const [prh, prm] = pr.start_time.split(':').map(Number);
-                                        const [preh, prem] = pr.end_time.split(':').map(Number);
-                                        const prStart = prh * 60 + prm;
-                                        const prEnd = preh * 60 + prem;
-                                        return slotStart < prEnd && slotEnd > prStart;
-                                    }) : null;
+                                    const pendingRequest = !booking ? pendingSlotMap.get(slotKey) : undefined;
                                     
                                     const isConference = resource.type === 'conference_room';
                                     const bookingEmail = booking?.user_email?.toLowerCase() || '';
@@ -482,14 +481,12 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                             ) : booking ? (
                                                 <div className="px-0.5 sm:px-1 h-full flex items-center justify-center sm:justify-start relative">
                                                     <CalendarFeeIndicator
-                                                        bookingId={Number(booking.id)}
                                                         bookingDisplayName={bookingDisplayName}
                                                         declaredPlayerCount={declaredPlayers}
                                                         filledPlayerCount={filledSlots}
                                                         isConference={isConference}
                                                         isUnmatched={!!isUnmatched}
                                                         isInactiveMember={!!isInactiveMember}
-                                                        snapshotPaid={booking?.fee_snapshot_paid === true}
                                                         dbOwed={Number(booking?.total_owed) || 0}
                                                         hasUnpaidFeesFlag={booking?.has_unpaid_fees === true}
                                                         bookingStatus={booking?.status || 'approved'}
