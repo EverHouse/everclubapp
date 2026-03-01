@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useData } from '../../contexts/DataContext';
@@ -15,7 +15,6 @@ import { playSound } from '../../utils/sounds';
 import { formatDateDisplayWithDay } from '../../utils/dateUtils';
 import { bookingEvents } from '../../lib/bookingEvents';
 import { WellnessCardSkeleton, SkeletonList } from '../../components/skeletons';
-import { useAutoAnimate } from '@formkit/auto-animate/react';
 
 interface WellnessEnrollment {
   class_id: number;
@@ -208,7 +207,9 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
   const [loadingRsvp, setLoadingRsvp] = useState<number | null>(null);
   const [recentlyEnrolled, setRecentlyEnrolled] = useState<Set<number>>(new Set());
   const recentlyEnrolledTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
-  const [wellnessParent] = useAutoAnimate();
+  const INITIAL_DISPLAY_COUNT = 20;
+  const LOAD_MORE_COUNT = 20;
+  const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
   const categories = ['All', 'Classes', 'MedSpa', 'Recovery', 'Therapy', 'Nutrition', 'Personal Training', 'Mindfulness', 'Outdoors', 'General'];
   
   const onRefreshCompleteRef = useRef(onRefreshComplete);
@@ -268,6 +269,7 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
 
   useEffect(() => {
     if (refreshKey > prevRefreshKeyRef.current) {
+      setDisplayCount(INITIAL_DISPLAY_COUNT);
       Promise.all([refetchClasses(), refetchEnrollments()]).then(() => {
         onRefreshCompleteRef.current?.();
       });
@@ -418,16 +420,28 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
     setLoadingRsvp(null);
   };
 
-  const isEnrolled = (classId: number) => enrollments.some(e => e.class_id === classId);
-  const isOnWaitlist = (classId: number) => enrollments.find(e => e.class_id === classId)?.is_waitlisted || false;
+  const enrolledSet = useMemo(() => new Set(enrollments.map(e => e.class_id)), [enrollments]);
+  const waitlistMap = useMemo(() => {
+    const map = new Map<number, boolean>();
+    for (const e of enrollments) {
+      map.set(e.class_id, !!e.is_waitlisted);
+    }
+    return map;
+  }, [enrollments]);
+  const isEnrolled = (classId: number) => enrolledSet.has(classId);
+  const isOnWaitlist = (classId: number) => waitlistMap.get(classId) || false;
 
-  const sortedClasses = classes
+  const sortedClasses = useMemo(() => classes
     .filter(cls => selectedFilter === 'All' || cls.category === selectedFilter)
     .sort((a, b) => {
-      const dateA = new Date(a.date + ' ' + a.time);
-      const dateB = new Date(b.date + ' ' + b.time);
-      return dateA.getTime() - dateB.getTime();
-    });
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return (a.time || '').localeCompare(b.time || '');
+    }),
+    [classes, selectedFilter]
+  );
+
+  const displayedClasses = useMemo(() => sortedClasses.slice(0, displayCount), [sortedClasses, displayCount]);
+  const hasMore = sortedClasses.length > displayCount;
 
   if (isLoading) {
     return (
@@ -470,15 +484,15 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
                 key={cat} 
                 label={cat} 
                 active={selectedFilter === cat} 
-                onClick={() => setSelectedFilter(cat)} 
+                onClick={() => { setSelectedFilter(cat); setDisplayCount(INITIAL_DISPLAY_COUNT); }} 
                 isDark={isDark} 
               />
             ))}
         </div>
         
-        <MotionList ref={wellnessParent} className="space-y-3 -mx-6 px-3">
-            {sortedClasses.length > 0 ? (
-                sortedClasses.map((cls, index) => {
+        <MotionList className="space-y-3 -mx-6 px-3">
+            {displayedClasses.length > 0 ? (
+                displayedClasses.map((cls, index) => {
                     const isExpanded = expandedId === cls.id;
                     const enrolled = isEnrolled(cls.id);
                     const waitlisted = isOnWaitlist(cls.id);
@@ -509,6 +523,16 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
                 })
             ) : (
                 <EmptyEvents message="No classes scheduled yet. Check back soon!" />
+            )}
+            {hasMore && (
+              <div className="flex justify-center pt-2 pb-4">
+                <button
+                  onClick={() => setDisplayCount(prev => prev + LOAD_MORE_COUNT)}
+                  className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-fast active:scale-[0.98] ${isDark ? 'bg-white/10 text-white hover:bg-white/15 border border-white/20' : 'bg-primary/5 text-primary hover:bg-primary/10 border border-primary/15'}`}
+                >
+                  Show More ({sortedClasses.length - displayCount} remaining)
+                </button>
+              </div>
             )}
         </MotionList>
         </section>
@@ -667,7 +691,7 @@ interface ClassCardProps {
   externalUrl?: string;
 }
 
-const ClassCard: React.FC<ClassCardProps> = ({ title, date, time, instructor, duration, category, spots, spotsRemaining, enrolledCount, status, description, isExpanded, onToggle, onBook, onCancel, isEnrolled, isOnWaitlist, isCancelling, isRsvping, isCancelDisabled = false, isDark = true, isMembershipInactive = false, isFull = false, capacity, waitlistEnabled, waitlistCount = 0, externalUrl }) => {
+const ClassCard: React.FC<ClassCardProps> = React.memo(({ title, date, time, instructor, duration, category, spots, spotsRemaining, enrolledCount, status, description, isExpanded, onToggle, onBook, onCancel, isEnrolled, isOnWaitlist, isCancelling, isRsvping, isCancelDisabled = false, isDark = true, isMembershipInactive = false, isFull = false, capacity, waitlistEnabled, waitlistCount = 0, externalUrl }) => {
   const formattedTime = formatTimeTo12Hour(time);
   const showJoinWaitlist = isFull && waitlistEnabled && !isEnrolled;
   const showFullNoWaitlist = isFull && !waitlistEnabled && !isEnrolled;
@@ -798,7 +822,7 @@ const ClassCard: React.FC<ClassCardProps> = ({ title, date, time, instructor, du
     </div>
   </div>
   );
-};
+});
 
 const MedSpaCard: React.FC<{title: string; subtitle?: string; children: React.ReactNode; isDark?: boolean}> = ({ title, subtitle, children, isDark = true }) => (
   <div className={`rounded-xl p-5 border glass-card ${isDark ? 'border-white/20' : 'border-black/10'}`}>

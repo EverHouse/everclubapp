@@ -361,7 +361,7 @@ router.post('/api/wellness-classes/:id/mark-reviewed', isStaffOrAdmin, async (re
 
 router.get('/api/wellness-classes', async (req, res) => {
   try {
-    const { active_only, include_archived } = req.query;
+    const { active_only, include_archived, end_date } = req.query;
     const sqlConditions: ReturnType<typeof sql>[] = [];
     
     if (include_archived !== 'true') {
@@ -370,7 +370,16 @@ router.get('/api/wellness-classes', async (req, res) => {
     
     if (active_only === 'true') {
       sqlConditions.push(sql`wc.is_active = true`);
-      sqlConditions.push(sql`wc.date >= ${getTodayPacific()}`);
+      const today = getTodayPacific();
+      sqlConditions.push(sql`wc.date >= ${today}`);
+      if (end_date && typeof end_date === 'string') {
+        sqlConditions.push(sql`wc.date <= ${end_date}`);
+      } else {
+        const cutoff = new Date(today);
+        cutoff.setDate(cutoff.getDate() + 60);
+        const cutoffStr = cutoff.toISOString().split('T')[0];
+        sqlConditions.push(sql`wc.date <= ${cutoffStr}`);
+      }
     }
     
     const baseQuery = sql`SELECT wc.*, 
