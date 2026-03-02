@@ -21,6 +21,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx}\" \"server/**/*.ts\" \"shared/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"server/**/*.ts\" \"shared/**/*.ts\"",
     "type-check": "tsc --noEmit",
+    "docs:api": "echo 'API docs are at docs/API.md — manually maintained'",
     "stripe:cleanup": "tsx server/scripts/cleanup-stripe-duplicates.ts",
     "stripe:cleanup:execute": "tsx server/scripts/cleanup-stripe-duplicates.ts --execute"
   },

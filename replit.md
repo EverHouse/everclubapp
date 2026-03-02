@@ -87,6 +87,8 @@ The Ever Club Members App is a private members club application for golf and wel
 - **Editor Config**: `.editorconfig` for consistent indentation and line endings.
 - **Env Template**: `.env.example` documents all required and optional environment variables grouped by service.
 - **Ghost Column Guard**: Custom `scripts/check-ghost-columns.sh` runs during `npm run build` to prevent invalid DB column references.
+- **Input Validation**: Shared Zod schemas in `shared/validators/` (booking, roster, payments, members) with reusable `validateBody` middleware (`server/middleware/validate.ts`). Wired into key mutating endpoints.
+- **API Documentation**: Comprehensive endpoint reference at `docs/API.md` covering 400+ endpoints across 59 domains with auth requirements.
 
 ## External Dependencies
 - **Stripe**: Payment processing, subscriptions, and webhooks.

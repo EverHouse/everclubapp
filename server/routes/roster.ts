@@ -17,6 +17,8 @@ import {
 } from '../core/bookingService/rosterService';
 import { getSessionParticipants } from '../core/bookingService/sessionManager';
 import { invalidateCachedFees, recalculateSessionFees } from '../core/billing/unifiedFeeService';
+import { validateBody } from '../middleware/validate';
+import { addParticipantSchema, batchRosterSchema } from '../../shared/validators/roster';
 
 interface OwnerRow {
   id: string;
@@ -138,7 +140,7 @@ router.get('/api/bookings/:bookingId/participants', async (req: Request, res: Re
   }
 });
 
-router.post('/api/bookings/:bookingId/participants', async (req: Request, res: Response) => {
+router.post('/api/bookings/:bookingId/participants', validateBody(addParticipantSchema), async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {
@@ -152,17 +154,8 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
 
     const { type, userId, guest, rosterVersion } = req.body;
 
-    if (!type || !['member', 'guest'].includes(type)) {
-      return res.status(400).json({ error: 'Invalid participant type. Must be "member" or "guest"' });
-    }
     if (type === 'member' && !userId) {
       return res.status(400).json({ error: 'userId is required for member participants' });
-    }
-    if (type === 'guest' && (!guest || !guest.name)) {
-      return res.status(400).json({ error: 'Guest name is required' });
-    }
-    if (type === 'guest' && (!guest.email || !guest.email.trim())) {
-      return res.status(400).json({ error: 'Guest email is required' });
     }
 
     const userEmail = sessionUser.email?.toLowerCase() || '';
@@ -282,7 +275,7 @@ router.patch('/api/admin/booking/:bookingId/player-count', isStaffOrAdmin, async
   }
 });
 
-router.post('/api/admin/booking/:bookingId/roster/batch', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/admin/booking/:bookingId/roster/batch', isStaffOrAdmin, validateBody(batchRosterSchema), async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {
@@ -295,14 +288,6 @@ router.post('/api/admin/booking/:bookingId/roster/batch', isStaffOrAdmin, async 
     }
 
     const { rosterVersion, operations } = req.body;
-
-    if (typeof rosterVersion !== 'number') {
-      return res.status(400).json({ error: 'rosterVersion must be a number' });
-    }
-
-    if (!Array.isArray(operations) || operations.length === 0) {
-      return res.status(400).json({ error: 'operations must be a non-empty array' });
-    }
 
     const staffEmail = sessionUser.email?.toLowerCase() || '';
 

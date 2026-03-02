@@ -26,6 +26,8 @@ import { getErrorMessage } from '../../utils/errorUtils';
 import { cancelPendingPaymentIntentsForBooking } from '../../core/billing/paymentIntentCleanup';
 import { normalizeToISODate } from '../../utils/dateNormalize';
 import { bookingRateLimiter } from '../../middleware/rateLimiting';
+import { validateBody } from '../../middleware/validate';
+import { createBookingRequestSchema } from '../../../shared/validators/booking';
 
 interface SanitizedParticipant {
   email: string;
@@ -430,7 +432,7 @@ router.get('/api/booking-requests', async (req, res) => {
   }
 });
 
-router.post('/api/booking-requests', bookingRateLimiter, async (req, res) => {
+router.post('/api/booking-requests', bookingRateLimiter, validateBody(createBookingRequestSchema), async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     
@@ -443,10 +445,6 @@ router.post('/api/booking-requests', bookingRateLimiter, async (req, res) => {
       duration_minutes, notes, user_tier, declared_player_count, member_notes,
       guardian_name, guardian_relationship, guardian_phone, guardian_consent, request_participants
     } = req.body;
-    
-    if (!user_email || !request_date || !start_time || !duration_minutes) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
     
     const parsedDate = new Date(request_date + 'T00:00:00');
     if (isNaN(parsedDate.getTime())) {

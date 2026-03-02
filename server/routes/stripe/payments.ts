@@ -46,6 +46,8 @@ import { getErrorMessage, getErrorCode, safeErrorDetail } from '../../utils/erro
 import { normalizeTierName } from '../../utils/tierUtils';
 import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { getBookingInvoiceId, finalizeAndPayInvoice, createDraftInvoiceForBooking, finalizeInvoicePaidOutOfBand, recreateDraftInvoiceFromBooking } from '../../core/billing/bookingInvoiceService';
+import { validateBody } from '../../middleware/validate';
+import { createPaymentIntentSchema, quickChargeSchema, markBookingPaidSchema } from '../../../shared/validators/payments';
 
 interface DbMemberRow {
   id: string;
@@ -164,7 +166,7 @@ router.get('/api/stripe/prices/recurring', isStaffOrAdmin, async (req: Request, 
   }
 });
 
-router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, validateBody(createPaymentIntentSchema), async (req: Request, res: Response) => {
   try {
     const { 
       userId, 
@@ -177,12 +179,6 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
       description,
       participantFees
     } = req.body;
-
-    if (!email || !amountCents || !purpose || !description) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: email, amountCents, purpose, description' 
-      });
-    }
 
     let finalDescription = description;
     let trackmanId: unknown = null;
@@ -769,31 +765,14 @@ router.get('/api/billing/members/search', isStaffOrAdmin, async (req: Request, r
   }
 });
 
-router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, validateBody(quickChargeSchema), async (req: Request, res: Response) => {
   try {
     const { memberEmail: rawEmail, memberName, amountCents, description, productId, isNewCustomer, firstName, lastName, phone, dob, tierSlug, tierName, createUser, streetAddress, city, state, zipCode, cartItems, guestCheckout } = req.body;
     const memberEmail = rawEmail?.trim()?.toLowerCase();
     const { sessionUser, staffEmail } = getStaffInfo(req);
 
-    if (amountCents === undefined || amountCents === null) {
-      return res.status(400).json({ error: 'Missing required field: amountCents' });
-    }
-
     if (!guestCheckout && !memberEmail) {
       return res.status(400).json({ error: 'Missing required fields: memberEmail, amountCents' });
-    }
-
-    const numericAmount = Number(amountCents);
-    if (isNaN(numericAmount) || !Number.isFinite(numericAmount)) {
-      return res.status(400).json({ error: 'amountCents must be a valid number' });
-    }
-
-    if (numericAmount < 50) {
-      return res.status(400).json({ error: 'Minimum charge amount is $0.50' });
-    }
-
-    if (numericAmount > 99999999) {
-      return res.status(400).json({ error: 'Amount exceeds maximum allowed' });
     }
 
     if (guestCheckout) {
@@ -1560,14 +1539,10 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
   }
 });
 
-router.post('/api/stripe/staff/mark-booking-paid', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/staff/mark-booking-paid', isStaffOrAdmin, validateBody(markBookingPaidSchema), async (req: Request, res: Response) => {
   try {
     const { bookingId, sessionId, participantIds, paymentMethod: paidVia } = req.body;
     const { staffEmail, staffName } = getStaffInfo(req);
-
-    if (!bookingId || !participantIds || !Array.isArray(participantIds) || participantIds.length === 0) {
-      return res.status(400).json({ error: 'Missing required fields: bookingId, participantIds' });
-    }
 
     const oobResult = await finalizeInvoicePaidOutOfBand({
       bookingId,

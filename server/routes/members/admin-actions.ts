@@ -20,20 +20,18 @@ import { previewMerge, executeMerge, findPotentialDuplicates } from '../../core/
 import { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
 import { invalidateCache } from '../../core/queryCache';
 import type { TierChangeResult } from '../../core/hubspot/members';
+import { validateBody } from '../../middleware/validate';
+import { tierChangeSchema, createMemberSchema } from '../../../shared/validators/members';
 
 const router = Router();
 
-router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
+router.patch('/api/members/:email/tier', isStaffOrAdmin, validateBody(tierChangeSchema), async (req, res) => {
   try {
     const { email } = req.params;
     const { tier, immediate = false } = req.body;
     const sessionUser = getSessionUser(req);
     
     const normalizedTier = tier === '' || tier === null || tier === undefined ? null : tier;
-    
-    if (normalizedTier !== null && !(TIER_NAMES as readonly string[]).includes(normalizedTier)) {
-      return res.status(400).json({ error: `Invalid tier. Must be one of: ${TIER_NAMES.join(', ')} or empty to clear` });
-    }
     
     const normalizedEmail = decodeURIComponent(email as string).trim().toLowerCase();
     
@@ -912,44 +910,14 @@ router.get('/api/members/add-options', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-router.post('/api/members', isStaffOrAdmin, async (req, res) => {
+router.post('/api/members', isStaffOrAdmin, validateBody(createMemberSchema), async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const { firstName, lastName, email: rawEmail, phone, tier, startDate, discountReason } = req.body;
-    const email = rawEmail?.trim()?.toLowerCase();
-    
-    if (!firstName || typeof firstName !== 'string' || firstName.trim().length === 0) {
-      return res.status(400).json({ error: 'First name is required' });
-    }
-    if (!lastName || typeof lastName !== 'string' || lastName.trim().length === 0) {
-      return res.status(400).json({ error: 'Last name is required' });
-    }
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
-      return res.status(400).json({ error: 'Valid email is required' });
-    }
-    if (!tier || !(TIER_NAMES as readonly string[]).includes(tier)) {
-      return res.status(400).json({ error: `Invalid tier. Must be one of: ${TIER_NAMES.join(', ')}` });
-    }
-    
-    if (startDate) {
-      if (typeof startDate !== 'string') {
-        return res.status(400).json({ error: 'Start date must be a string in YYYY-MM-DD format' });
-      }
-      
-      const dateFormatRegex = /^\d{4}-\d{2}-\d{2}$/;
-      if (!dateFormatRegex.test(startDate)) {
-        return res.status(400).json({ error: 'Start date must be in YYYY-MM-DD format' });
-      }
-      
-      const dateObj = new Date(`${startDate}T00:00:00Z`);
-      if (isNaN(dateObj.getTime())) {
-        return res.status(400).json({ error: 'Start date is not a valid date' });
-      }
-    }
+    const { firstName, lastName, email, phone, tier, startDate, discountReason } = req.body;
     
     const memberInput = {
       firstName: firstName.trim(),
