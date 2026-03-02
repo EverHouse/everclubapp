@@ -1,0 +1,13 @@
+dist
+node_modules
+.cache
+public/sw.js
+drizzle
+attached_assets
+package-lock.json
+*.webp
+*.png
+*.gif
+*.ico
+*.woff2
+*.ttf

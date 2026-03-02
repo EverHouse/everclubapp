@@ -79,6 +79,15 @@ The Ever Club Members App is a private members club application for golf and wel
 ### Notification Source Attribution
 - **Status Change Notifications**: Staff notifications for member status changes include the source of the change (e.g., "via MindBody", "via Stripe", "via Quick Guest Checkout", "via App", "via HubSpot sync", or implicitly by Stripe event type). Staff admin actions are audit-logged with the performing staff member's email.
 
+### Developer Experience & Tooling
+- **Linting**: ESLint v9 flat config (`eslint.config.js`) with `typescript-eslint`, `react-hooks`, and `react-refresh` plugins. Run `npm run lint` or `npm run lint:fix`.
+- **Formatting**: Prettier (`.prettierrc`) with `eslint-config-prettier` to avoid conflicts. Run `npm run format` or `npm run format:check`.
+- **Type Checking**: `npm run type-check` runs `tsc --noEmit` for full project type validation (Vite/esbuild skips type checking during dev/build).
+- **Unit Testing**: Vitest (`vitest.config.ts`) with `@vitest-environment node` for server tests. Tests in `tests/` directory covering fee calculation, tier rules, and usage allocation. Run `npm run test`, `npm run test:watch`, or `npm run test:ui`.
+- **Editor Config**: `.editorconfig` for consistent indentation and line endings.
+- **Env Template**: `.env.example` documents all required and optional environment variables grouped by service.
+- **Ghost Column Guard**: Custom `scripts/check-ghost-columns.sh` runs during `npm run build` to prevent invalid DB column references.
+
 ## External Dependencies
 - **Stripe**: Payment processing, subscriptions, and webhooks.
 - **HubSpot**: Two-way data synchronization for membership and profile data.
