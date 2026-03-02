@@ -90,6 +90,16 @@
 | POST | `/api/auth/dev-login` | 🔓 | Dev-only: bypass login |
 | POST | `/api/auth/test-welcome-email` | 🛡️ | Dev-only: trigger welcome email |
 
+### Google Auth
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/auth/google/verify` | 🔓 | Verify Google OAuth token |
+| POST | `/api/auth/google/callback` | 🔓 | Handle Google OAuth callback |
+| POST | `/api/auth/google/link` | 👤 | Link Google account to profile |
+| POST | `/api/auth/google/unlink` | 👤 | Unlink Google account |
+| GET | `/api/auth/google/status` | 👤 | Check Google link status |
+
 ---
 
 ## Bookings & Bays
