@@ -90,7 +90,10 @@ router.post('/api/member/conference/prepay/estimate', isAuthenticated, async (re
 
     const normalizedEmail = normalizeEmail(memberEmail);
     
-    if (normalizedEmail.toLowerCase() !== sessionUser.email.toLowerCase()) {
+    const isStaff = sessionUser.role === 'admin' || sessionUser.role === 'staff';
+    const isOwnEmail = normalizedEmail.toLowerCase() === sessionUser.email.toLowerCase();
+    
+    if (!isOwnEmail && !isStaff) {
       return res.status(403).json({ error: 'Can only estimate prepayment for your own bookings' });
     }
 
@@ -152,7 +155,10 @@ router.post('/api/member/conference/prepay/create-intent', isAuthenticated, asyn
 
     const normalizedEmail = normalizeEmail(memberEmail);
     
-    if (normalizedEmail.toLowerCase() !== sessionUser.email.toLowerCase()) {
+    const isStaff = sessionUser.role === 'admin' || sessionUser.role === 'staff';
+    const isOwnEmail = normalizedEmail.toLowerCase() === sessionUser.email.toLowerCase();
+    
+    if (!isOwnEmail && !isStaff) {
       return res.status(403).json({ error: 'Can only create prepayment for your own bookings' });
     }
 
@@ -436,7 +442,8 @@ router.post('/api/member/conference/prepay/:id/confirm', isAuthenticated, async 
 
     const prepayment = prepaymentResult.rows[0] as unknown as PrepaymentDetailRow;
 
-    if (prepayment.member_email.toLowerCase() !== sessionUser.email.toLowerCase()) {
+    const isStaff = sessionUser.role === 'admin' || sessionUser.role === 'staff';
+    if (prepayment.member_email.toLowerCase() !== sessionUser.email.toLowerCase() && !isStaff) {
       return res.status(403).json({ error: 'Not authorized to confirm this prepayment' });
     }
 
@@ -505,7 +512,8 @@ router.get('/api/member/conference/prepay/:id', isAuthenticated, async (req: Req
 
     const prepayment = prepaymentResult.rows[0] as unknown as PrepaymentDetailRow;
 
-    if (prepayment.member_email.toLowerCase() !== sessionUser.email.toLowerCase()) {
+    const isStaff = sessionUser.role === 'admin' || sessionUser.role === 'staff';
+    if (prepayment.member_email.toLowerCase() !== sessionUser.email.toLowerCase() && !isStaff) {
       return res.status(403).json({ error: 'Not authorized to view this prepayment' });
     }
 
