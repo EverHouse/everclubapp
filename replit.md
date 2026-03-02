@@ -83,7 +83,8 @@ The Ever Club Members App is a private members club application for golf and wel
 - **Linting**: ESLint v9 flat config (`eslint.config.js`) with `typescript-eslint`, `react-hooks`, and `react-refresh` plugins. Run `npm run lint` or `npm run lint:fix`.
 - **Formatting**: Prettier (`.prettierrc`) with `eslint-config-prettier` to avoid conflicts. Run `npm run format` or `npm run format:check`.
 - **Type Checking**: `npm run type-check` runs `tsc --noEmit` for full project type validation (Vite/esbuild skips type checking during dev/build).
-- **Unit Testing**: Vitest (`vitest.config.ts`) with `@vitest-environment node` for server tests. Tests in `tests/` directory covering fee calculation, tier rules, and usage allocation. Run `npm run test`, `npm run test:watch`, or `npm run test:ui`.
+- **Unit Testing**: Vitest (`vitest.config.ts`) with `@vitest-environment node` for server tests. 204 tests in `tests/` directory covering fee calculation, tier rules, usage allocation, booking validation, conflict detection, booking state transitions, guest pass logic, availability guard, and date utilities. Run `npm run test`, `npm run test:watch`, or `npm run test:ui`.
+- **Route Index**: Auto-generated route-to-file lookup at `docs/ROUTE_INDEX.md`. Lists every Express endpoint with method, path, file, line number, and auth level. Regenerate with `npm run docs:routes`.
 - **Editor Config**: `.editorconfig` for consistent indentation and line endings.
 - **Env Template**: `.env.example` documents all required and optional environment variables grouped by service.
 - **Ghost Column Guard**: Custom `scripts/check-ghost-columns.sh` runs during `npm run build` to prevent invalid DB column references.

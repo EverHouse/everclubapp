@@ -22,6 +22,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"server/**/*.ts\" \"shared/**/*.ts\"",
     "type-check": "tsc --noEmit",
     "docs:api": "echo 'API docs are at docs/API.md — manually maintained'",
+    "docs:routes": "npx tsx scripts/generate-route-index.ts",
     "stripe:cleanup": "tsx server/scripts/cleanup-stripe-duplicates.ts",
     "stripe:cleanup:execute": "tsx server/scripts/cleanup-stripe-duplicates.ts --execute"
   },
