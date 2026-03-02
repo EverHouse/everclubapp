@@ -1114,8 +1114,10 @@ const Dashboard: React.FC = () => {
                   const chips: { icon: string; label: string }[] = [];
                   if (item.type === 'booking' || item.type === 'booking_request') {
                     const raw = item.raw as DBBookingRequest;
-                    const playerCount = raw.declared_player_count || 1;
-                    chips.push({ icon: 'group', label: `${playerCount} Player${playerCount !== 1 ? 's' : ''}` });
+                    if (item.resourceType !== 'conference_room') {
+                      const playerCount = raw.declared_player_count || 1;
+                      chips.push({ icon: 'group', label: `${playerCount} Player${playerCount !== 1 ? 's' : ''}` });
+                    }
                     if (raw.duration_minutes) {
                       const hrs = Math.floor(raw.duration_minutes / 60);
                       const mins = raw.duration_minutes % 60;
