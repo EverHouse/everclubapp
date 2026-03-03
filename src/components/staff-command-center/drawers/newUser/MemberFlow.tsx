@@ -90,10 +90,7 @@ export function MemberFlow({
       setStripeInstance(stripe);
 
       if (form.joinExistingGroup && form.existingGroupId) {
-        const discount = discounts.find(d => d.code === form.discountCode);
-        const discountPercent = discount?.percentOff || 0;
-        const primaryPrice = Math.round(selectedTier.priceCents * 0.8);
-        const discountedPrice = Math.round(primaryPrice * (1 - discountPercent / 100));
+        const discountedPrice = Math.round(selectedTier.priceCents * 0.8);
         
         const res = await fetch('/api/stripe/staff/quick-charge', {
           method: 'POST',
@@ -423,7 +420,11 @@ export function MemberFlow({
           phone: form.phone || undefined,
           dob: form.dob || undefined,
           tierSlug: selectedTier.slug,
-          couponId: discount?.stripeCouponId || undefined
+          couponId: discount?.stripeCouponId || undefined,
+          streetAddress: form.streetAddress || undefined,
+          city: form.city || undefined,
+          state: form.state || undefined,
+          zipCode: form.zipCode || undefined,
         })
       });
       
@@ -493,7 +494,11 @@ export function MemberFlow({
           phone: form.phone || undefined,
           dob: form.dob || undefined,
           tierSlug: selectedTier.slug,
-          couponId: discount?.stripeCouponId || undefined
+          couponId: discount?.stripeCouponId || undefined,
+          streetAddress: form.streetAddress || undefined,
+          city: form.city || undefined,
+          state: form.state || undefined,
+          zipCode: form.zipCode || undefined,
         })
       });
       
@@ -817,30 +822,39 @@ export function MemberFlow({
                 </div>
               </button>
 
-              <button
-                onClick={() => setPaymentPath('link')}
-                className={`p-4 rounded-lg border-2 text-left transition-colors tactile-btn ${
-                  isDark
-                    ? 'border-white/10 hover:border-emerald-500/50 hover:bg-white/5'
-                    : 'border-gray-200 hover:border-emerald-500/50 hover:bg-emerald-50/50'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    isDark ? 'bg-blue-600/20' : 'bg-blue-100'
-                  }`}>
-                    <span className="material-symbols-outlined text-blue-600">link</span>
+              {(!form.joinExistingGroup && (!form.addGroupMembers || form.groupMembers.length === 0)) && (
+                <button
+                  onClick={() => setPaymentPath('link')}
+                  className={`p-4 rounded-lg border-2 text-left transition-colors tactile-btn ${
+                    isDark
+                      ? 'border-white/10 hover:border-emerald-500/50 hover:bg-white/5'
+                      : 'border-gray-200 hover:border-emerald-500/50 hover:bg-emerald-50/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      isDark ? 'bg-blue-600/20' : 'bg-blue-100'
+                    }`}>
+                      <span className="material-symbols-outlined text-blue-600">link</span>
+                    </div>
+                    <div>
+                      <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        Send Payment Link
+                      </p>
+                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Email a checkout link to the member
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      Send Payment Link
-                    </p>
-                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Email a checkout link to the member
-                    </p>
-                  </div>
+                </button>
+              )}
+
+              {(form.joinExistingGroup || (form.addGroupMembers && form.groupMembers.length > 0)) && (
+                <div className={`p-3 rounded-lg text-sm text-center ${isDark ? 'bg-white/5 text-gray-400' : 'bg-emerald-50/50 text-gray-600 border border-gray-200'}`}>
+                  <span className="material-symbols-outlined text-sm align-middle mr-1">info</span>
+                  Payment links are for individual memberships. To process a group membership, please use "Collect Payment Now".
                 </div>
-              </button>
+              )}
             </div>
 
             <button

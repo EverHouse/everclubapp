@@ -965,6 +965,19 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, as
     }
     
     logger.info('[Activation Link] Created checkout session for', { extra: { checkoutSessionId: checkoutSession.id, email } });
+
+    if (couponId) {
+      try {
+        const stripeClient = await getStripeClient();
+        const coupon = await stripeClient.coupons.retrieve(couponId);
+        const couponName = coupon.name || couponId;
+        await db.execute(
+          sql`UPDATE users SET discount_code = ${couponName}, updated_at = NOW() WHERE id = ${userId}`
+        );
+      } catch (couponErr: unknown) {
+        logger.warn('[Stripe] Failed to set discount_code from coupon', { extra: { couponId, error: getErrorMessage(couponErr) } });
+      }
+    }
     
     const expiresAt = new Date(checkoutSession.expires_at * 1000);
     const emailResult = await sendMembershipActivationEmail(email, {
