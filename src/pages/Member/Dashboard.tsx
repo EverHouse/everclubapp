@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
@@ -314,7 +314,7 @@ const Dashboard: React.FC = () => {
     return () => window.removeEventListener('member-notification', handleCheckinNotification);
   }, [user?.name, user?.tier]);
 
-  const allItems = [
+  const allItems = useMemo(() => [
     ...dbBookings.map(b => {
       const isLinkedMember = user?.email ? b.user_email?.toLowerCase() !== user.email.toLowerCase() : false;
       const primaryBookerName = isLinkedMember && b.user_email 
@@ -424,7 +424,7 @@ const Dashboard: React.FC = () => {
         raw: c,
         source: 'calendar'
       }))
-  ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  ].sort((a, b) => a.sortKey.localeCompare(b.sortKey)), [dbBookings, dbBookingRequests, dbRSVPs, dbWellnessEnrollments, dbConferenceRoomBookings, user?.email]);
 
   const todayStr = getTodayString();
   const nowTime = getNowTimePacific();

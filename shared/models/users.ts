@@ -10,7 +10,7 @@ export const userSchema = z.object({
   // Corporate & HubSpot Fields (camelCase to match Drizzle model in auth-session.ts)
   companyName: z.string().nullable().optional(),
   jobTitle: z.string().nullable().optional(),
-  hubspotContactId: z.string().nullable().optional(),
+  hubspotId: z.string().nullable().optional(),
   hubspotCompanyId: z.string().nullable().optional(),
 
   // Billing group reference
