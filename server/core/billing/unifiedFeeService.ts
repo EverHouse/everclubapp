@@ -69,16 +69,62 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
   try {
     let sessionResult;
     
-    if (sessionId) {
+    if (sessionId && bookingId) {
       sessionResult = await db.execute(sql`
         SELECT 
           bs.id as session_id,
           br.id as booking_id,
           bs.session_date,
-          COALESCE(bs.start_time, br.start_time) as start_time,
-          GREATEST(
-            COALESCE(EXTRACT(EPOCH FROM (bs.end_time - bs.start_time)) / 60, 0),
-            COALESCE(br.duration_minutes, 0)
+          COALESCE(br.start_time, bs.start_time) as start_time,
+          COALESCE(br.duration_minutes, 
+            EXTRACT(EPOCH FROM (br.end_time::time - br.start_time::time)) / 60,
+            EXTRACT(EPOCH FROM (bs.end_time - bs.start_time)) / 60,
+            60
+          )::int as duration_minutes,
+          COALESCE(br.declared_player_count, br.trackman_player_count, br.guest_count + 1, 1) as declared_player_count,
+          br.user_email as host_email,
+          COALESCE(r.type, 'simulator') as resource_type
+        FROM booking_sessions bs
+        JOIN booking_requests br ON br.session_id = bs.id
+        LEFT JOIN resources r ON br.resource_id = r.id
+        WHERE bs.id = ${sessionId} AND br.id = ${bookingId}
+        LIMIT 1
+      `);
+      if (sessionResult.rows.length === 0) {
+        sessionResult = await db.execute(sql`
+          SELECT 
+            bs.id as session_id,
+            br.id as booking_id,
+            bs.session_date,
+            COALESCE(br.start_time, bs.start_time) as start_time,
+            COALESCE(br.duration_minutes,
+              EXTRACT(EPOCH FROM (br.end_time::time - br.start_time::time)) / 60,
+              EXTRACT(EPOCH FROM (bs.end_time - bs.start_time)) / 60,
+              60
+            )::int as duration_minutes,
+            COALESCE(br.declared_player_count, br.trackman_player_count, br.guest_count + 1, 1) as declared_player_count,
+            br.user_email as host_email,
+            COALESCE(r.type, 'simulator') as resource_type
+          FROM booking_sessions bs
+          JOIN booking_requests br ON br.session_id = bs.id
+          LEFT JOIN resources r ON br.resource_id = r.id
+          WHERE bs.id = ${sessionId}
+            AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
+          ORDER BY br.duration_minutes DESC
+          LIMIT 1
+        `);
+      }
+    } else if (sessionId) {
+      sessionResult = await db.execute(sql`
+        SELECT 
+          bs.id as session_id,
+          br.id as booking_id,
+          bs.session_date,
+          COALESCE(br.start_time, bs.start_time) as start_time,
+          COALESCE(br.duration_minutes,
+            EXTRACT(EPOCH FROM (br.end_time::time - br.start_time::time)) / 60,
+            EXTRACT(EPOCH FROM (bs.end_time - bs.start_time)) / 60,
+            60
           )::int as duration_minutes,
           COALESCE(br.declared_player_count, br.trackman_player_count, br.guest_count + 1, 1) as declared_player_count,
           br.user_email as host_email,
@@ -87,9 +133,32 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
         JOIN booking_requests br ON br.session_id = bs.id
         LEFT JOIN resources r ON br.resource_id = r.id
         WHERE bs.id = ${sessionId}
+          AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
         ORDER BY br.duration_minutes DESC
         LIMIT 1
       `);
+      if (sessionResult.rows.length === 0) {
+        sessionResult = await db.execute(sql`
+          SELECT 
+            bs.id as session_id,
+            br.id as booking_id,
+            bs.session_date,
+            COALESCE(br.start_time, bs.start_time) as start_time,
+            GREATEST(
+              COALESCE(EXTRACT(EPOCH FROM (bs.end_time - bs.start_time)) / 60, 0),
+              COALESCE(br.duration_minutes, 0)
+            )::int as duration_minutes,
+            COALESCE(br.declared_player_count, br.trackman_player_count, br.guest_count + 1, 1) as declared_player_count,
+            br.user_email as host_email,
+            COALESCE(r.type, 'simulator') as resource_type
+          FROM booking_sessions bs
+          JOIN booking_requests br ON br.session_id = bs.id
+          LEFT JOIN resources r ON br.resource_id = r.id
+          WHERE bs.id = ${sessionId}
+          ORDER BY br.duration_minutes DESC
+          LIMIT 1
+        `);
+      }
     } else {
       sessionResult = await db.execute(sql`
         SELECT 

@@ -1980,7 +1980,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       const nonGuestMembers = membersWithFees.filter(m => !m.guestInfo);
       filledMemberSlots = nonGuestMembers.filter(m => m.userEmail).length;
       const guestSlotCount = guestParticipants.length;
-      effectiveGuestCount = guestSlotCount > 0 ? guestSlotCount : (legacyGuestCount as number);
+      effectiveGuestCount = guestSlotCount;
       totalMemberSlots = membersWithFees.length;
       actualPlayerCount = filledMemberSlots + Number(effectiveGuestCount);
       playerCountMismatch = actualPlayerCount !== expectedPlayerCount;
@@ -2689,9 +2689,11 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
       if (req.body.deferFeeRecalc !== true) {
         await recalculateSessionFees(sessionId, 'roster_update');
       }
-    }
 
-    await db.execute(sql`UPDATE booking_requests SET guest_count = COALESCE(guest_count, 0) + 1, updated_at = NOW() WHERE id = ${bookingId}`);
+      await db.execute(sql`UPDATE booking_requests SET guest_count = COALESCE(guest_count, 0) + 1, updated_at = NOW() WHERE id = ${bookingId}`);
+    } else {
+      await db.execute(sql`UPDATE booking_requests SET guest_count = COALESCE(guest_count, 0) + 1, updated_at = NOW() WHERE id = ${bookingId}`);
+    }
 
     let guestPassesRemaining = 0;
     if (ownerEmail) {

@@ -42,7 +42,7 @@ The Ever Club Members App is a private members club application for golf and wel
 
 ### Core Domain Features
 - **Booking & Scheduling**: "Request & Hold" model, unified participant management, calendar synchronization, auto-complete scheduler, and conflict resolution. Integrates with Trackman webhooks. Handles social member guest fees and overage fees.
-- **Fees & Billing**: Unified fee service, dynamic pricing, prepayment, and guest fees based on a "one invoice per booking" architecture. Supports dual payment paths and existing payments. Roster changes trigger fee recalculation, and payment locks the roster.
+- **Fees & Billing**: Unified fee service, dynamic pricing, prepayment, and guest fees based on a "one invoice per booking" architecture. Supports dual payment paths and existing payments. Roster changes trigger fee recalculation, and payment locks the roster. `loadSessionData` in `unifiedFeeService.ts` filters out cancelled/declined bookings when multiple bookings share a session, and prefers the specific `bookingId` when provided to avoid using stale cancelled booking parameters for fee calculation.
 - **Member Lifecycle**: Membership tiers, QR/NFC check-in, and onboarding processes. QR scans intelligently route to booking check-in or walk-in.
 - **Walk-In Visit Tracking**: Walk-in visits are recorded via QR/NFC scan, incrementing `lifetime_visits`, syncing to HubSpot, sending push notifications, and broadcasting WebSocket events. Dashboard shows unified lifetime visit count.
 - **Error Handling**: Prohibits empty catch blocks; all must re-throw, log, or use `safeDbOperation()`.
