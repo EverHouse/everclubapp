@@ -51,6 +51,9 @@ export function TerminalPayment({
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const paymentIntentIdRef = useRef<string | null>(null);
+  const selectedReaderRef = useRef<string>('');
+  const processingRef = useRef(false);
+  const setupIntentIdRef = useRef<string | null>(null);
   const [creatingSimulated, setCreatingSimulated] = useState(false);
 
   const isSaveCard = mode === 'save_card';
@@ -88,6 +91,7 @@ export function TerminalPayment({
       setStatus('error');
       setStatusMessage('Reader timed out. No card was presented within 2 minutes.');
       setProcessing(false);
+      processingRef.current = false;
     }, 120000);
   }, [clearTimeoutRef, clearPollingRef, selectedReader]);
 
@@ -104,6 +108,7 @@ export function TerminalPayment({
       const onlineReaders = (data.readers || []).filter((r: TerminalReader) => r.status === 'online');
       if (onlineReaders.length === 1) {
         setSelectedReader(onlineReaders[0].id);
+        selectedReaderRef.current = onlineReaders[0].id;
       }
     } catch (err: unknown) {
       console.error('Error fetching readers:', err);
@@ -118,6 +123,16 @@ export function TerminalPayment({
     return () => {
       clearPollingRef();
       clearTimeoutRef();
+      if (processingRef.current && selectedReaderRef.current) {
+        const readerId = selectedReaderRef.current;
+        const piId = paymentIntentIdRef.current;
+        fetch('/api/stripe/terminal/cancel-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ readerId, paymentIntentId: piId })
+        }).catch(() => {});
+      }
     };
   }, [fetchReaders, clearPollingRef, clearTimeoutRef]);
 
@@ -152,6 +167,7 @@ export function TerminalPayment({
       if (data.status === 'succeeded') {
         clearPollingRef();
         clearTimeoutRef();
+        processingRef.current = false;
         setStatus('success');
         setStatusMessage('Payment successful!');
         setTimeout(() => {
@@ -163,6 +179,7 @@ export function TerminalPayment({
         setStatus('error');
         setStatusMessage('Payment was canceled');
         setProcessing(false);
+        processingRef.current = false;
       } else if (data.status === 'requires_payment_method' && data.lastPaymentError) {
         clearPollingRef();
         clearTimeoutRef();
@@ -171,6 +188,7 @@ export function TerminalPayment({
           ? `Card declined: ${data.lastPaymentError.declineCode.replace(/_/g, ' ')}`
           : (data.lastPaymentError.message || 'Payment was declined'));
         setProcessing(false);
+        processingRef.current = false;
       }
     } catch (err: unknown) {
       console.error('Error polling payment status:', err);
@@ -188,6 +206,7 @@ export function TerminalPayment({
       if (data.status === 'succeeded') {
         clearPollingRef();
         clearTimeoutRef();
+        processingRef.current = false;
         try {
           const confirmRes = await fetch('/api/stripe/terminal/confirm-save-card', {
             method: 'POST',
@@ -204,6 +223,7 @@ export function TerminalPayment({
             setStatus('error');
             setStatusMessage(confirmData.error || 'Card was read but could not be saved. Please try again.');
             setProcessing(false);
+            processingRef.current = false;
             return;
           }
         } catch (err: unknown) {
@@ -211,6 +231,7 @@ export function TerminalPayment({
           setStatus('error');
           setStatusMessage('Card was read but could not be saved. Please try again.');
           setProcessing(false);
+          processingRef.current = false;
           return;
         }
         setStatus('success');
@@ -224,6 +245,7 @@ export function TerminalPayment({
         setStatus('error');
         setStatusMessage('Card save was canceled');
         setProcessing(false);
+        processingRef.current = false;
       }
     } catch (err: unknown) {
       console.error('Error polling setup status:', err);
@@ -242,6 +264,7 @@ export function TerminalPayment({
     }
 
     setProcessing(true);
+    processingRef.current = true;
     setStatus('waiting');
     setStatusMessage(isSaveCard ? 'Present card on reader to save...' : 'Waiting for card on reader...');
 
@@ -334,6 +357,7 @@ export function TerminalPayment({
       setStatus('error');
       setStatusMessage((err instanceof Error ? err.message : String(err)));
       setProcessing(false);
+      processingRef.current = false;
     }
   };
 
@@ -370,6 +394,7 @@ export function TerminalPayment({
 
     setCanceling(false);
     setProcessing(false);
+    processingRef.current = false;
     setStatus('idle');
     setStatusMessage('');
     setPaymentIntentId(null);
@@ -436,7 +461,7 @@ export function TerminalPayment({
             </label>
             <select
               value={selectedReader}
-              onChange={(e) => setSelectedReader(e.target.value)}
+              onChange={(e) => { setSelectedReader(e.target.value); selectedReaderRef.current = e.target.value; }}
               className={`w-full px-3 py-2.5 rounded-lg border ${
                 isDark 
                   ? 'bg-white/5 border-white/20 text-white' 
