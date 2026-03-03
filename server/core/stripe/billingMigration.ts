@@ -194,7 +194,9 @@ export async function executePendingMigration(userId: string, email: string): Pr
         logger.info(`${prefix} Creating subscription with immediate billing for ${email}`);
       }
 
-      const subscription = await stripe.subscriptions.create(subscriptionParams as Parameters<typeof stripe.subscriptions.create>[0]);
+      const subscription = await stripe.subscriptions.create(subscriptionParams as Parameters<typeof stripe.subscriptions.create>[0], {
+        idempotencyKey: `migration_sub_${userId}_${stripePriceId}_${Math.floor(Date.now() / 300000)}`
+      });
 
       logger.info(`${prefix} Subscription created: ${subscription.id} for ${email} (status: ${subscription.status})`);
 

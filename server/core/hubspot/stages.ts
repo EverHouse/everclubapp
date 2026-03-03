@@ -253,7 +253,7 @@ export async function syncMemberToHubSpot(
     
     if (memberSince) {
       const date = memberSince instanceof Date ? memberSince : new Date(memberSince);
-      const midnightUtc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      const midnightUtc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
       properties.membership_start_date = midnightUtc.getTime().toString();
       updated.memberSince = true;
     }
@@ -266,7 +266,7 @@ export async function syncMemberToHubSpot(
       }
       if (input.stripeCreatedDate) {
         const date = input.stripeCreatedDate instanceof Date ? input.stripeCreatedDate : new Date(input.stripeCreatedDate);
-        const midnightUtc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const midnightUtc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
         properties.stripe_created_date = midnightUtc.getTime().toString();
       }
       if (input.stripeDelinquent !== undefined) {

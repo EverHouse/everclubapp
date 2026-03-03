@@ -285,8 +285,9 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
       billingInfo.outstandingBalanceDollars = totalCents / 100;
     } catch (outstandingErr) {
       logger.error('[MemberBilling] Error fetching outstanding balance', { extra: { outstandingErr } });
-      billingInfo.outstandingBalanceCents = 0;
-      billingInfo.outstandingBalanceDollars = 0;
+      billingInfo.outstandingBalanceCents = null;
+      billingInfo.outstandingBalanceDollars = null;
+      billingInfo.outstandingBalanceError = true;
     }
 
     res.json(billingInfo);

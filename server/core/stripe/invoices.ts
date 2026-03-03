@@ -306,11 +306,12 @@ export async function chargeOneTimeFee(params: {
     const finalizedInvoice = await stripe.invoices.finalizeInvoice(invoice.id);
 
     // If there's still an amount due after balance is applied, pay it
+    let paymentFailed = false;
     if (finalizedInvoice.amount_due > 0 && finalizedInvoice.status === 'open') {
       try {
         await stripe.invoices.pay(invoice.id);
       } catch (payError: unknown) {
-        // Payment might fail if no card on file - invoice remains open
+        paymentFailed = true;
         logger.warn(`[Stripe Invoices] Auto-pay failed for invoice ${invoice.id}: ${getErrorMessage(payError)}`);
       }
     }
@@ -326,10 +327,11 @@ export async function chargeOneTimeFee(params: {
     const amountFromBalance = Math.max(0, Math.abs(startingBalance) - Math.abs(endingBalance));
     const amountCharged = paidInvoice.amount_paid - amountFromBalance;
 
-    logger.info(`[Stripe Invoices] Charged one-time fee ${invoice.id}: $${(amountCents / 100).toFixed(2)} (balance: $${(amountFromBalance / 100).toFixed(2)}, card: $${(amountCharged / 100).toFixed(2)})`);
+    logger.info(`[Stripe Invoices] Charged one-time fee ${invoice.id}: $${(amountCents / 100).toFixed(2)} (balance: $${(amountFromBalance / 100).toFixed(2)}, card: $${(amountCharged / 100).toFixed(2)}, paymentFailed: ${paymentFailed})`);
 
     return {
       success: true,
+      paymentFailed,
       invoice: mapInvoice(paidInvoice),
       amountFromBalance,
       amountCharged: Math.max(0, amountCharged),

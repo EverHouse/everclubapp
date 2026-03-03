@@ -59,7 +59,18 @@ router.get('/api/bookings/check-existing', async (req, res) => {
     const { user_email, date, resource_type } = req.query;
     
     const sessionUser = getSessionUser(req);
-    const effectiveEmail = (user_email as string)?.trim()?.toLowerCase() || sessionUser?.email?.toLowerCase();
+    if (!sessionUser) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const requestedEmail = (user_email as string)?.trim()?.toLowerCase();
+    const sessionEmail = sessionUser.email?.toLowerCase();
+    
+    if (requestedEmail && requestedEmail !== sessionEmail && sessionUser.role !== 'admin' && sessionUser.role !== 'staff') {
+      return res.status(403).json({ error: 'Cannot check bookings for another member' });
+    }
+    
+    const effectiveEmail = requestedEmail || sessionEmail;
     
     if (!effectiveEmail || !date) {
       return res.status(400).json({ error: 'Missing required parameters: user_email, date' });
