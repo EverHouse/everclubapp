@@ -25,7 +25,7 @@ import { sendMembershipActivationEmail } from '../../emails/membershipEmails';
 import { findOrCreateHubSpotContact } from '../../core/hubspot/members';
 import { randomUUID } from 'crypto';
 import { checkSyncCooldown } from './helpers';
-import { sensitiveActionRateLimiter } from '../../middleware/rateLimiting';
+import { sensitiveActionRateLimiter, subscriptionCreationRateLimiter, acquireSubscriptionLock, releaseSubscriptionLock } from '../../middleware/rateLimiting';
 import { getErrorMessage, getErrorCode, safeErrorDetail } from '../../utils/errorUtils';
 
 const router = Router();
@@ -183,7 +183,7 @@ router.post('/api/stripe/sync-subscriptions', isStaffOrAdmin, sensitiveActionRat
   }
 });
 
-router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subscriptionCreationRateLimiter, async (req: Request, res: Response) => {
   try {
     const { memberEmail: rawMemberEmail, tierName, couponId } = req.body;
     const memberEmail = rawMemberEmail?.trim()?.toLowerCase();
@@ -191,6 +191,11 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async
     
     if (!memberEmail || !tierName) {
       return res.status(400).json({ error: 'memberEmail and tierName are required' });
+    }
+
+    if (!acquireSubscriptionLock(memberEmail)) {
+      logger.warn('[Stripe] Subscription creation already in progress', { extra: { memberEmail } });
+      return res.status(409).json({ error: 'A subscription is already being created for this member. Please wait for the current request to complete.' });
     }
     
     const memberResult = await db.select({
@@ -370,10 +375,13 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async
   } catch (error: unknown) {
     logger.error('[Stripe] Error creating subscription for member', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to create subscription', details: safeErrorDetail(error) });
+  } finally {
+    const emailToRelease = req.body?.memberEmail?.trim()?.toLowerCase();
+    if (emailToRelease) releaseSubscriptionLock(emailToRelease);
   }
 });
 
-router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, subscriptionCreationRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email: rawEmail, firstName, lastName, phone, dob, tierSlug, couponId, streetAddress, city, state, zipCode } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
@@ -381,6 +389,11 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
     
     if (!email || !tierSlug) {
       return res.status(400).json({ error: 'email and tierSlug are required' });
+    }
+
+    if (!acquireSubscriptionLock(email)) {
+      logger.warn('[Stripe] Subscription creation already in progress for new member', { extra: { email } });
+      return res.status(409).json({ error: 'A subscription is already being created for this email. Please wait for the current request to complete.' });
     }
     
     const { resolveUserByEmail } = await import('../../core/stripe/customers');
@@ -661,6 +674,9 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
   } catch (error: unknown) {
     logger.error('[Stripe] Error creating new member subscription', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to create subscription', details: safeErrorDetail(error) });
+  } finally {
+    const emailToRelease = req.body?.email?.trim()?.toLowerCase();
+    if (emailToRelease) releaseSubscriptionLock(emailToRelease);
   }
 });
 

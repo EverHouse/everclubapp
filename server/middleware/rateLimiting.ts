@@ -130,6 +130,48 @@ export const checkoutRateLimiter = rateLimit({
   }
 });
 
+export const subscriptionCreationRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getClientKey,
+  validate: false,
+  handler: (req: Request, res: Response) => {
+    logger.warn(`[RateLimit] Subscription creation limit exceeded for ${getClientKey(req)} on ${req.path}`);
+    res.status(429).json({ error: 'Too many subscription creation attempts. Please wait a moment before trying again.' });
+  }
+});
+
+const subscriptionLocks = new Map<string, number>();
+
+const LOCK_TIMEOUT_MS = 120_000;
+
+function cleanExpiredLocks() {
+  const now = Date.now();
+  for (const [key, timestamp] of subscriptionLocks) {
+    if (now - timestamp > LOCK_TIMEOUT_MS) {
+      subscriptionLocks.delete(key);
+    }
+  }
+}
+
+setInterval(cleanExpiredLocks, 60_000);
+
+export function acquireSubscriptionLock(email: string): boolean {
+  const key = email.toLowerCase();
+  const existing = subscriptionLocks.get(key);
+  if (existing && Date.now() - existing < LOCK_TIMEOUT_MS) {
+    return false;
+  }
+  subscriptionLocks.set(key, Date.now());
+  return true;
+}
+
+export function releaseSubscriptionLock(email: string): void {
+  subscriptionLocks.delete(email.toLowerCase());
+}
+
 export const memberLookupRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,

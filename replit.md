@@ -1,7 +1,7 @@
 # Ever Club Members App
 
 ## Overview
-The Ever Club Members App is a private members club application for golf and wellness centers. Its primary purpose is to serve as a central digital hub for managing golf simulator bookings, wellness service appointments, and club events. The project aims to enhance member satisfaction and operational efficiency through comprehensive membership management, facility booking, and community-building tools.
+The Ever Club Members App is a private members club application designed for golf and wellness centers. Its primary purpose is to serve as a central digital hub for managing golf simulator bookings, wellness service appointments, and club events. The project aims to enhance member satisfaction and operational efficiency through comprehensive membership management, facility booking, and community-building tools, ultimately creating a seamless digital experience for club members and staff.
 
 ## User Preferences
 - **Communication Style**: The founder is non-technical. Always explain changes in plain English, focusing on the business/member impact. Avoid unnecessary technical jargon.
@@ -10,86 +10,84 @@ The Ever Club Members App is a private members club application for golf and wel
 ## System Architecture
 
 ### Core Architecture
-- **Naming Conventions**: `snake_case` for PostgreSQL tables/columns; `camelCase` for Drizzle schemas, API JSON payloads, and React/TypeScript frontend. Raw database rows must not be exposed in API responses.
-- **Type Safety**: Strict TypeScript with zero errors, disallowing `as any` and similar constructs. All raw SQL results must be typed.
+- **Naming Conventions**: `snake_case` for PostgreSQL; `camelCase` for Drizzle schemas, API JSON, and React/TypeScript frontend. Raw database rows are not exposed in API responses.
+- **Type Safety**: Strict TypeScript with zero errors; no `as any`. All raw SQL results are typed.
 - **Database Interaction**: Drizzle ORM query builders or parameterized `sql` template literals are mandatory.
-- **Timezone**: All date/time operations must explicitly use Pacific Time (`America/Los_Angeles`).
-- **Audit Logging**: All staff actions must be logged.
-- **API/Frontend Consistency**: API response field names must align exactly with frontend TypeScript interfaces.
+- **Timezone**: All date/time operations explicitly use Pacific Time (`America/Los_Angeles`).
+- **Audit Logging**: All staff actions are logged.
+- **API/Frontend Consistency**: API response field names align with frontend TypeScript interfaces.
 - **Database & Data Integrity**: PostgreSQL, Supabase Realtime, and Drizzle ORM with CASCADE constraints.
-- **Real-time Updates**: WebSocket broadcasting for booking and invoice changes, powered by Supabase Realtime subscriptions. Staff Command Center uses React Query with WebSocket-driven cache invalidation. Safety-net polling uses 120s intervals with visibility-aware pausing (no polling when tab is hidden). `usePendingCounts` derives data from `useCommandCenter` via `command-center-data` CustomEvent to avoid duplicate API calls. Data integrity panels use `refetchIntervalInBackground: false`.
+- **Real-time Updates**: WebSocket broadcasting for booking and invoice changes via Supabase Realtime. React Query with WebSocket-driven cache invalidation is used for the Staff Command Center.
 - **Member Dashboard**: Features a chronological card layout for bookings, events, and wellness sessions with "Add to Calendar" functionality.
 
 ### UI/UX & Frontend
-- **Design System**: Liquid Glass UI system using Tailwind CSS v4, supporting dark mode, with M3-compliant motion tokens and drag-to-dismiss functionality. Animations use CSS custom property tokens.
+- **Design System**: Liquid Glass UI system using Tailwind CSS v4, supporting dark mode and M3-compliant motion tokens.
 - **Technology Stack**: React 19, Vite, and state management using Zustand/TanStack libraries.
-- **Component Design**: Sheets and modals follow a Header, scrollable Body, and Sticky Footer structure. Button hierarchy differentiates primary, secondary, and destructive actions.
-- **Accessibility**: Adheres to WCAG conventions including skip navigation, focus trapping, proper roles/attributes, form labels, and image alt text. `prefers-reduced-motion` is respected for animations.
-- **M3 Components**: Custom `SegmentedButton`, `Chip`, `SearchBar`, `ErrorFallback`, `TabButton`, and `FloatingActionButton` components supporting M3 design principles, light/dark mode, and touch targets.
-- **Bottom Sheet Variants**: `SlideUpDrawer` supports `variant="modal"` (default, with scrim/focus trap) and `variant="standard"` (no scrim, page remains interactive).
-- **Navigation Rail**: Staff portal uses `StaffNavigationRail` at tablet breakpoint (md-lg), full sidebar at desktop (lg+), bottom nav on mobile.
-- **Interaction Polish**: Enhanced visual feedback for interactive elements. M3 motion patterns are implemented for transitions and element interactions.
-- **Pull-to-Refresh**: `PullToRefresh` component wraps the app, triggers a hard reload, and displays a branded `WalkingGolferLoader` for a minimum duration. `prefers-reduced-motion` is respected.
-- **Mobile Status Bar Blending**: Uses `viewport-fit=cover`, `apple-mobile-web-app-status-bar-style: black-translucent`, and `theme-color` with `safe-area-inset-top` for header padding and background blending.
-- **Mutation Patterns**: `useAppMutation` hook provides automatic success/error toasts, haptic feedback, optimistic updates with rollback, and query invalidation. Error messages are user-friendly.
-- **Form Persistence**: `useFormPersistence` persists form data to sessionStorage. `useUnsavedChanges` uses `beforeunload` only (no popstate/history manipulation).
-- **Auto-Animate Safety Rule**: `useAutoAnimate` refs must NEVER be attached to elements inside conditional blocks (`{condition && <div ref={ref}>}`). Refs must always stay mounted while the hook is alive — or remove `useAutoAnimate` entirely and rely on CSS `animate-list-item` / `animate-content-enter` classes. Remaining safe usages exist in standalone pages and sub-components that fully mount/unmount. Additionally, `useAutoAnimate` must NEVER be on elements with large unbounded lists — causes layout thrashing.
-- **Large List Pattern**: Large lists need: server-side limit + client progressive rendering (20 at a time with "Show More" button) + memoized sort + O(1) lookup maps (Set/Map). Examples: Wellness page, History page visits/payments.
-- **Prefetch System**: Route-level prefetch via `src/lib/prefetch.ts`, plus detail-level prefetch on hover/focus via `usePrefetchOnHover` hook.
-- **Connection Health**: `OfflineBanner` monitors network and WebSocket health. Staff header shows connection status. Cache invalidation on reconnection.
-- **Error Boundaries**: Three-tier system (Global → Page → Feature) using standardized `ErrorFallback` component.
-- **MemberSearchInput Portal**: `MemberSearchInput` renders its dropdown via `createPortal` to `document.body` to prevent clipping.
+- **Component Design**: Sheets and modals follow a Header, scrollable Body, and Sticky Footer structure. Button hierarchy differentiates actions.
+- **Accessibility**: Adheres to WCAG conventions, including skip navigation, focus trapping, and proper roles/attributes. `prefers-reduced-motion` is respected.
+- **M3 Components**: Custom components like `SegmentedButton`, `Chip`, `SearchBar`, and `FloatingActionButton` support M3 design principles.
+- **Bottom Sheet Variants**: `SlideUpDrawer` supports `modal` (default) and `standard` variants.
+- **Navigation Rail**: Staff portal uses `StaffNavigationRail` for tablet/desktop, bottom nav for mobile.
+- **Interaction Polish**: Enhanced visual feedback and M3 motion patterns for transitions.
+- **Pull-to-Refresh**: `PullToRefresh` component triggers a hard reload with a branded `WalkingGolferLoader`.
+- **Mobile Status Bar Blending**: Uses `viewport-fit=cover` and `safe-area-inset-top` for seamless integration.
+- **Mutation Patterns**: `useAppMutation` hook provides automatic toasts, haptic feedback, optimistic updates, and query invalidation.
+- **Form Persistence**: `useFormPersistence` persists form data to sessionStorage. `useUnsavedChanges` uses `beforeunload`.
+- **Large List Pattern**: Large lists use server-side limits, client progressive rendering, memoized sorting, and O(1) lookup maps.
+- **Prefetch System**: Route-level prefetch via `src/lib/prefetch.ts` and detail-level prefetch on hover/focus via `usePrefetchOnHover`.
+- **Connection Health**: `OfflineBanner` monitors network and WebSocket health; staff header shows status.
+- **Error Boundaries**: Three-tier system (Global → Page → Feature) using `ErrorFallback`.
+- **MemberSearchInput Portal**: `MemberSearchInput` renders its dropdown via `createPortal` to `document.body`.
 
 ### Core Domain Features
-- **Booking & Scheduling**: "Request & Hold" model, unified participant management, calendar synchronization, auto-complete scheduler, and conflict resolution. Integrates with Trackman webhooks. Handles social member guest fees and overage fees. `request_participants` are saved during booking request creation (members by userId+email, guests by email). Participants are linked to `booking_participants` on approval via `approvalService` or via `linkAndNotifyParticipants` on Trackman webhook auto-approve. Both owner and added members receive notifications on booking confirmation.
-- **Fees & Billing**: Unified fee service, dynamic pricing, prepayment, and guest fees based on a "one invoice per booking" architecture. Supports dual payment paths and existing payments. Roster changes trigger fee recalculation, and payment locks the roster. `loadSessionData` in `unifiedFeeService.ts` filters out cancelled/declined bookings when multiple bookings share a session, and prefers the specific `bookingId` when provided to avoid using stale cancelled booking parameters for fee calculation.
-- **Member Lifecycle**: Membership tiers, QR/NFC check-in, and onboarding processes. QR scans intelligently route to booking check-in or walk-in.
-- **Walk-In Visit Tracking**: Walk-in visits are recorded via QR/NFC scan, incrementing `lifetime_visits`, syncing to HubSpot, sending push notifications, and broadcasting WebSocket events. Dashboard shows unified lifetime visit count.
+- **Booking & Scheduling**: "Request & Hold" model, unified participant management, calendar synchronization, auto-complete scheduler, and conflict resolution. Integrates with Trackman webhooks and handles guest/overage fees.
+- **Fees & Billing**: Unified fee service, dynamic pricing, prepayment, and guest fees based on a "one invoice per booking" architecture. Supports dual payment paths and existing payments. Roster changes trigger fee recalculation; payment locks the roster.
+- **Member Lifecycle**: Membership tiers, QR/NFC check-in, and onboarding processes. QR scans route to booking check-in or walk-in.
+- **Walk-In Visit Tracking**: Walk-in visits are recorded via QR/NFC scan, syncing to HubSpot and broadcasting WebSocket events.
 - **Error Handling**: Prohibits empty catch blocks; all must re-throw, log, or use `safeDbOperation()`.
 - **Authentication**: All mutating API routes require authentication.
-- **Rate Limiting**: Public endpoints creating database records are rate-limited.
-- **Scheduler Robustness**: Schedulers use `isRunning` flags, catch-up windows, and claim slots to prevent concurrent execution, with alerts for failures. Recurring staff alerts (e.g., stuck unpaid fees) use a 6-hour dedup window checked against the `notifications` table to prevent repeat notifications across scheduler runs.
-- **Stripe Integration Specifics**: Includes webhook safety, payment handler logic (auto-refunds with deterministic idempotency keys), coupon application, and specific requirements for `trial_end` and $0 subscriptions. Daily refund reconciliation. Transaction lock ordering and group billing cascade. Terminal payment refunds resolve `paymentIntentId` from metadata. Financial operations must execute in the main webhook handler with idempotency keys.
-- **Data Integrity and Consistency**: Prevents double-charging, ensures orphaned invoice cleanup, uses optimistic locking for booking status transitions, and maintains atomicity for critical operations. Strict validation for numeric parameters and cart items. `usage_ledger` has `ON DELETE CASCADE`. Deferred webhook actions capture finalized canonical variables. Guest pass hold-to-usage conversion logic. Trackman integrations (`tryAutoApproveBooking`, `handleBookingModification`) use `db.transaction()` for atomicity.
+- **Rate Limiting**: Public endpoints creating database records are rate-limited. Subscription creation endpoints have a dedicated `subscriptionCreationRateLimiter` and an in-memory per-email operation lock.
+- **Scheduler Robustness**: Schedulers use `isRunning` flags, catch-up windows, and claim slots.
+- **Stripe Integration Specifics**: Includes webhook safety, payment handler logic, coupon application, and specific requirements for `trial_end` and $0 subscriptions.
+- **Data Integrity and Consistency**: Prevents double-charging, ensures orphaned invoice cleanup, uses optimistic locking for booking status transitions, and maintains atomicity for critical operations. `usage_ledger` has `ON DELETE CASCADE`.
 - **Tier Hierarchy Validation**: Startup validates DB membership tier slugs against `TIER_NAMES`.
-- **Deferred Webhook Actions**: Post-commit webhook side-effects log event context for debuggability.
-- **WebSocket Robustness**: Features periodic session revalidation, cryptographic verification, reconnect jitter, and guards against duplicate socket registrations.
-- **Supabase Hardening**: Frontend client configures `eventsPerSecond`. Realtime hook uses refs. Server-side Supabase network calls are wrapped with `Promise.race` / `withTimeout()`. Limited and controlled `createClient()` calls.
+- **Deferred Webhook Actions**: Post-commit webhook side-effects log event context.
+- **WebSocket Robustness**: Features periodic session revalidation, cryptographic verification, and reconnect jitter.
+- **Supabase Hardening**: Frontend client configures `eventsPerSecond`; server-side calls are wrapped with `Promise.race` / `withTimeout()`.
 
 ### Web Performance & Security
-- **Google Fonts**: Newsreader and Instrument Sans loaded non-render-blocking with `font-display: swap`.
-- **Typography Hierarchy**: Defined hierarchy for page titles, hero titles, section headers, and body text.
-- **Edge-to-Edge Hover Pattern**: Consistent styling for card wrappers and interactive rows.
-- **Geometry Standards**: Standardized `rounded-xl` for cards/panels, `rounded-[4px]` for buttons/tags, header bar height, and vertical rhythm.
-- **Sidebar Navigation**: Consistent font treatment, ALL CAPS, and active state styling.
-- **Material Symbols**: Icon font lazy-loaded via JavaScript with `requestAnimationFrame`.
-- **Splash Screen**: Required walking golfer GIF with random tagline, 2-second minimum display.
+- **Google Fonts**: Newsreader and Instrument Sans loaded non-render-blocking.
+- **Typography Hierarchy**: Defined hierarchy for titles, headers, and body text.
+- **Edge-to-Edge Hover Pattern**: Consistent styling for cards and interactive rows.
+- **Geometry Standards**: Standardized `rounded-xl` for cards/panels, `rounded-[4px]` for buttons/tags.
+- **Material Symbols**: Icon font lazy-loaded via JavaScript.
+- **Splash Screen**: Walking golfer GIF with random tagline, 2-second minimum display.
 - **Hero Image**: Preloaded in `index.html` with `fetchpriority="high"`.
 - **HubSpot**: Script deferred via `requestIdleCallback`.
-- **PWA & Service Worker**: Versioned cache, Network-First for navigation/API, immutable for hashed assets. `sw.js`, `index.html`, and `manifest.webmanifest` served with `no-cache, no-store, must-revalidate`. Stale asset middleware returns a reload script. `useServiceWorkerUpdate` hook checks for updates; `UpdateNotification` component prompts user to refresh.
+- **PWA & Service Worker**: Versioned cache, Network-First for navigation/API, immutable for hashed assets. `sw.js`, `index.html`, and `manifest.webmanifest` served with `no-cache`.
 - **Security Headers**: HSTS, CSP with `upgrade-insecure-requests`, COOP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy.
 - **robots.txt**: Static file and server route kept in sync with disallow rules.
 - **Crawler Navigation**: Hidden navigation links for search engine indexing.
 
 ### POS Register Features
-- **Quick Guest Checkout**: Staff can skip customer info for walk-in sales. Restricts payment to terminal-only, and shows a post-payment email capture dialog. Email validation applied.
-- **Dynamic Pass Products**: Pass products are loaded dynamically from `membership_tiers` table by slug. Server startup functions `ensure*Product()` check/create DB records, sync product names, and ensure corresponding Stripe Product + Price exists. Product IDs and pricing resolve automatically per Stripe environment.
-- **Backend Endpoints**: `POST /api/stripe/staff/quick-charge` accepts `guestCheckout: true` to create a bare PaymentIntent. `POST /api/stripe/staff/quick-charge/attach-email` retroactively links an email to a guest payment.
+- **Quick Guest Checkout**: Staff can skip customer info for walk-in sales; restricts payment to terminal-only.
+- **Dynamic Pass Products**: Pass products loaded from `membership_tiers` table by slug, with server startup functions ensuring DB records and Stripe Product + Price synchronization.
+- **Backend Endpoints**: `POST /api/stripe/staff/quick-charge` and `POST /api/stripe/staff/quick-charge/attach-email` for guest checkout and email linking.
 
 ### Notification Source Attribution
-- **Status Change Notifications**: Staff notifications for member status changes include the source of the change (e.g., "via MindBody", "via Stripe", "via Quick Guest Checkout", "via App", "via HubSpot sync", or implicitly by Stripe event type). Staff admin actions are audit-logged with the performing staff member's email.
+- **Status Change Notifications**: Staff notifications for member status changes include the source of the change. Staff admin actions are audit-logged with the performing staff member's email.
 
 ### Developer Experience & Tooling
-- **Linting**: ESLint v9 flat config (`eslint.config.js`) with `typescript-eslint`, `react-hooks`, and `react-refresh` plugins. Run `npm run lint` or `npm run lint:fix`.
-- **Formatting**: Prettier (`.prettierrc`) with `eslint-config-prettier` to avoid conflicts. Run `npm run format` or `npm run format:check`.
-- **Type Checking**: `npm run type-check` runs `tsc --noEmit` for full project type validation (Vite/esbuild skips type checking during dev/build).
-- **Unit Testing**: Vitest (`vitest.config.ts`) with `@vitest-environment node` for server tests. 204 tests in `tests/` directory covering fee calculation, tier rules, usage allocation, booking validation, conflict detection, booking state transitions, guest pass logic, availability guard, and date utilities. Run `npm run test`, `npm run test:watch`, or `npm run test:ui`.
-- **Route Index**: Auto-generated route-to-file lookup at `docs/ROUTE_INDEX.md`. Lists every Express endpoint with method, path, file, line number, and auth level. Regenerate with `npm run docs:routes`.
-- **Editor Config**: `.editorconfig` for consistent indentation and line endings.
-- **Env Template**: `.env.example` documents all required and optional environment variables grouped by service.
-- **Ghost Column Guard**: Custom `scripts/check-ghost-columns.sh` runs during `npm run build` to prevent invalid DB column references.
-- **Input Validation**: Shared Zod schemas in `shared/validators/` (booking, roster, payments, members) with reusable `validateBody` middleware (`server/middleware/validate.ts`). Wired into key mutating endpoints.
-- **API Documentation**: Comprehensive endpoint reference at `docs/API.md` covering 400+ endpoints across 59 domains with auth requirements.
+- **Linting**: ESLint v9 flat config with `typescript-eslint`, `react-hooks`, and `react-refresh`.
+- **Formatting**: Prettier with `eslint-config-prettier`.
+- **Type Checking**: `tsc --noEmit` for full project type validation.
+- **Unit Testing**: Vitest with `@vitest-environment node` for server tests, covering various core functionalities.
+- **Route Index**: Auto-generated route-to-file lookup at `docs/ROUTE_INDEX.md`.
+- **Editor Config**: `.editorconfig` for consistent indentation.
+- **Env Template**: `.env.example` documents environment variables.
+- **Ghost Column Guard**: Custom script `scripts/check-ghost-columns.sh` prevents invalid DB column references.
+- **Input Validation**: Shared Zod schemas in `shared/validators/` with `validateBody` middleware.
+- **API Documentation**: Comprehensive endpoint reference at `docs/API.md`.
 
 ## External Dependencies
 - **Stripe**: Payment processing, subscriptions, and webhooks.
