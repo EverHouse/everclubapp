@@ -724,6 +724,18 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         tierName = await getMemberTierByEmail(memberEmail);
       }
       const tierLimits = tierName ? await getTierLimits(tierName) : null;
+
+      if (!tierLimits && !memberEmail && !participant.userId && params.source === 'preview') {
+        lineItem.overageCents = 0;
+        lineItem.totalCents = 0;
+        logger.info('[FeeBreakdown] Estimated member with no identity — skipping overage in preview (unknown tier)', {
+          extra: { displayName: participant.displayName, source: params.source }
+        });
+        lineItems.push(lineItem);
+        participantIdx++;
+        continue;
+      }
+
       // Use conference room minutes for conference room bookings, simulator minutes otherwise
       const dailyAllowance = isConferenceRoom 
         ? (tierLimits?.daily_conf_room_minutes ?? 0)
