@@ -48,12 +48,25 @@ async function autoCompletePastBookings(): Promise<void> {
         .join('\n');
       const stuckMore = stuckPendingPayments.rows.length > 5 ? `\n...and ${stuckPendingPayments.rows.length - 5} more` : '';
       logger.warn(`[Booking Auto-Complete] ${stuckPendingPayments.rows.length} booking(s) stuck with unpaid fees, skipped auto-complete`);
-      await notifyAllStaff(
-        'Bookings Stuck — Unpaid Fees',
-        `${stuckPendingPayments.rows.length} past booking(s) cannot be auto checked-in because they have unpaid fees. Please collect payment or waive fees:\n\n${stuckSummary}${stuckMore}`,
-        'system',
-        { sendPush: false }
+
+      const stuckIds = stuckPendingPayments.rows.map(b => b.id).sort((a, b) => a - b).join(',');
+      const recentDup = await queryWithRetry<{ id: number }>(
+        `SELECT id FROM notifications
+         WHERE title = 'Bookings Stuck — Unpaid Fees'
+           AND created_at > NOW() - INTERVAL '6 hours'
+         LIMIT 1`
       );
+
+      if (recentDup.rows.length === 0) {
+        await notifyAllStaff(
+          'Bookings Stuck — Unpaid Fees',
+          `${stuckPendingPayments.rows.length} past booking(s) cannot be auto checked-in because they have unpaid fees. Please collect payment or waive fees:\n\n${stuckSummary}${stuckMore}`,
+          'system',
+          { sendPush: false }
+        );
+      } else {
+        logger.info(`[Booking Auto-Complete] Skipping duplicate stuck-fees notification — sent within last 6h (bookings: ${stuckIds})`);
+      }
     }
 
     const markedBookings = await queryWithRetry<AutoCompletedBookingResult>(

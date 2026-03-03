@@ -1859,6 +1859,10 @@ async function checkBookingsWithoutSessions(): Promise<IntegrityCheckResult> {
       AND (br.session_id IS NULL OR bs.id IS NULL)
       AND (br.is_unmatched = false OR br.is_unmatched IS NULL)
       AND br.user_email NOT IN ('private-event@resolved', 'private-event@club')
+      AND (
+        br.status = 'attended'
+        OR br.request_date < CURRENT_DATE
+      )
     ORDER BY br.request_date DESC
     LIMIT 100
   `);
