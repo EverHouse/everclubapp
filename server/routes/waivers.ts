@@ -135,6 +135,8 @@ router.post('/api/waivers/update-version', isStaffOrAdmin, async (req, res) => {
       .values({
         key: 'current_waiver_version',
         value: version,
+        category: 'waivers',
+        updatedBy: sessionUser?.email || 'system',
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({

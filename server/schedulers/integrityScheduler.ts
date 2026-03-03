@@ -19,6 +19,8 @@ async function tryClaimIntegritySlot(todayStr: string): Promise<boolean> {
       .values({
         key: INTEGRITY_SETTING_KEY,
         value: todayStr,
+        category: 'scheduler',
+        updatedBy: 'system',
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({

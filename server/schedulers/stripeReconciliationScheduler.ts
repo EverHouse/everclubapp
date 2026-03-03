@@ -16,6 +16,8 @@ async function tryClaimReconciliationSlot(todayStr: string): Promise<boolean> {
       .values({
         key: RECONCILIATION_SETTING_KEY,
         value: todayStr,
+        category: 'scheduler',
+        updatedBy: 'system',
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({

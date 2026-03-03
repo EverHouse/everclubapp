@@ -157,7 +157,7 @@ export async function createAnnouncementSheet(): Promise<string> {
   });
 
   await db.insert(systemSettings)
-    .values({ key: 'announcements_google_sheet_id', value: spreadsheetId })
+    .values({ key: 'announcements_google_sheet_id', value: spreadsheetId, category: 'google_sheets', updatedBy: 'system' })
     .onConflictDoUpdate({
       target: systemSettings.key,
       set: { value: spreadsheetId, updatedAt: new Date() }

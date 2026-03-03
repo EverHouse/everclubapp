@@ -16,6 +16,8 @@ async function tryClaimMorningSlot(todayStr: string): Promise<boolean> {
       .values({
         key: MORNING_SETTING_KEY,
         value: todayStr,
+        category: 'scheduler',
+        updatedBy: 'system',
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({

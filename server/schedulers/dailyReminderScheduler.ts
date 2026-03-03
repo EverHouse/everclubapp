@@ -16,6 +16,8 @@ async function tryClaimReminderSlot(todayStr: string): Promise<boolean> {
       .values({
         key: REMINDER_SETTING_KEY,
         value: todayStr,
+        category: 'scheduler',
+        updatedBy: 'system',
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({

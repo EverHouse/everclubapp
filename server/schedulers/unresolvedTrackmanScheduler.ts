@@ -16,6 +16,8 @@ async function tryClaimUnresolvedTrackmanSlot(todayStr: string): Promise<boolean
       .values({
         key: UNRESOLVED_TRACKMAN_SETTING_KEY,
         value: todayStr,
+        category: 'scheduler',
+        updatedBy: 'system',
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
