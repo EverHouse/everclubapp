@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect, type ErrorInfo } from 'react';
 import { createPortal } from 'react-dom';
+import FeatureErrorBoundary from '../../../components/FeatureErrorBoundary';
 import EmptyState from '../../../components/EmptyState';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -2198,4 +2199,33 @@ const DirectoryTab: React.FC = () => {
     );
 };
 
-export default DirectoryTab;
+function handleDirectoryError(error: Error, errorInfo: ErrorInfo) {
+    const isError306 = error.message?.includes('306') || error.message?.includes('Minified React error');
+    try {
+        fetch('/api/client-error', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                page: 'DirectoryTab',
+                error: error.message,
+                stack: error.stack?.substring(0, 2000),
+                componentStack: errorInfo.componentStack?.substring(0, 2000),
+                isError306,
+            })
+        }).catch(() => {});
+    } catch {}
+}
+
+function DirectoryTabWithBoundary() {
+    return (
+        <FeatureErrorBoundary
+            featureName="Member Directory"
+            onError={handleDirectoryError}
+        >
+            <DirectoryTab />
+        </FeatureErrorBoundary>
+    );
+}
+
+export default DirectoryTabWithBoundary;
