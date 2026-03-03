@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.61.0",
+    date: "2026-03-03",
+    title: "Booking Participant Fix & Billing Diagnostics",
+    changes: [
+      "Fix: Members can now add other members to simulator booking requests without the 'Invalid participant email' error — redacted emails (privacy mode) are no longer sent as participant data; the server resolves member info from userId instead",
+      "Improvement: MindBody member billing lookups now log Stripe environment mode and payment method count for faster troubleshooting",
+      "Improvement: Warning logged when a MindBody member has no Stripe customer ID linked, with guidance to use the 'Link Stripe Customer' button",
+    ]
+  },
+  {
     version: "8.60.0",
     date: "2026-03-03",
     title: "Cleaner Booking Request Flow",

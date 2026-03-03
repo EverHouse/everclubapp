@@ -767,12 +767,15 @@ const BookGolf: React.FC = () => {
       const requestParticipants = activeTab === 'simulator' && playerSlots.length > 0
         ? playerSlots
             .filter(slot => slot.selectedId || (slot.email && slot.email.includes('@')))
-            .map(slot => ({ 
-              email: slot.email && slot.email.includes('@') ? slot.email : undefined, 
-              type: slot.type,
-              userId: slot.selectedId,
-              name: slot.selectedId ? slot.selectedName : (slot.name || slot.selectedName),
-            }))
+            .map(slot => {
+              const hasValidEmail = slot.email && slot.email.includes('@') && !slot.email.includes('*');
+              return { 
+                email: hasValidEmail ? slot.email : undefined, 
+                type: slot.type,
+                userId: slot.selectedId,
+                name: slot.selectedId ? slot.selectedName : (slot.name || slot.selectedName),
+              };
+            })
         : undefined;
 
       // Use full playerCount since all guest slots are charged the guest fee rate

@@ -5,6 +5,7 @@ import { useData } from '../../contexts/DataContext';
 export interface SelectedMember {
   id: string;
   email: string;
+  emailRedacted?: string;
   name: string;
   tier: string | null;
   stripeCustomerId?: string | null;
@@ -128,7 +129,8 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
           )
           .map((r: { id: string | number; email?: string; emailRedacted?: string; name?: string; tier?: string; membershipStatus?: string }) => ({
             id: r.id,
-            email: r.email || r.emailRedacted || '',
+            email: r.email || '',
+            emailRedacted: r.emailRedacted || '',
             name: r.name || 'Unknown',
             tier: r.tier || null,
             membershipStatus: r.membershipStatus
@@ -330,7 +332,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
                   )}
                 </p>
                 <p className="text-xs text-primary/60 dark:text-white/60 truncate">
-                  {showTier && member.tier ? `${member.tier} • ` : ''}{privacyMode ? redactEmail(member.email) : member.email}
+                  {showTier && member.tier ? `${member.tier} • ` : ''}{privacyMode ? (member.emailRedacted || redactEmail(member.email)) : member.email}
                 </p>
               </div>
             </button>
