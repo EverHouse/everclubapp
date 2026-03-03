@@ -301,6 +301,19 @@ See [references/tier-changes.md](references/tier-changes.md) for the full tier c
 6. Clear grace period fields for all synced members
 7. Sync each user to HubSpot (create contact + sync stage/status)
 
+## Subscription Creation Safeguards (v8.58.0)
+
+Multiple layers prevent duplicate membership creation:
+
+1. **Rate limiter** (`subscriptionCreationRateLimiter`): Limits subscription creation requests per IP to prevent rapid-fire submissions.
+2. **Per-email operation lock** (`emailOperationLock` in `server/core/stripe/subscriptions.ts`): In-memory Map-based lock that prevents concurrent subscription creation for the same email. Lock is acquired before processing and released in a `finally` block. If a lock is already held, the request is rejected with 409 Conflict.
+3. **Idempotency keys**: Stripe API calls use deterministic idempotency keys to prevent duplicate charges on network retries.
+4. **Existing subscription reuse**: `POST /api/stripe/refresh-payment-intent` allows reusing an existing incomplete subscription instead of creating a new one.
+
+### Reactivation Behavior (v8.58.0)
+
+When a member is reactivated via any Stripe flow (webhook, subscription sync, or manual), the `archived` flag is now cleared along with `archived_at`. This prevents members from being stuck in an archived state after reactivation. The activation notification is delayed until payment is actually confirmed.
+
 ## Startup Backfills
 
 On server startup (`server/loaders/startup.ts`):

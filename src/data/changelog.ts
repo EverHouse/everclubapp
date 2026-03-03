@@ -8,6 +8,48 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.59.0",
+    date: "2026-03-03",
+    title: "Application Pipeline & Booking Request Fixes",
+    changes: [
+      "Fix: Application pipeline no longer shows 'Feb NaN' for form submission dates — date formatter now correctly handles PostgreSQL timestamp format",
+      "Fix: Members can now request bookings with other members — participant email validation no longer rejects members selected from the directory when their email isn't required (userId is sufficient)",
+    ]
+  },
+  {
+    version: "8.58.0",
+    date: "2026-03-02",
+    title: "Subscription & Payment Safety",
+    isMajor: true,
+    changes: [
+      "Fix: Duplicate membership creation prevented — per-email operation locks ensure only one membership can be created at a time for the same member",
+      "Fix: Duplicate subscription creation prevented — rate limiter and in-memory lock mechanism block concurrent submission attempts for the same email",
+      "Fix: Existing Stripe subscriptions can now be reused instead of creating duplicates — new endpoint refreshes payment intents with idempotency keys",
+      "Fix: Terminal payment processing now uses refs to accurately track processing state, cancels terminal reader on unmount, and syncs cleanup correctly",
+      "Fix: Member reactivation now properly clears archived status across all Stripe-related flows — reactivated members are no longer stuck as archived",
+      "Fix: Membership activation notifications are now delayed until payment is confirmed — prevents premature welcome messages",
+      "Fix: Stripe customer management improved for billing and card saving operations — more reliable customer lookup and creation",
+    ]
+  },
+  {
+    version: "8.57.0",
+    date: "2026-03-01",
+    title: "Billing, Notifications & Data Integrity Fixes",
+    isMajor: true,
+    changes: [
+      "Fix: Booking fee calculation now correctly filters out cancelled bookings and prioritizes specific booking IDs in financial summary",
+      "Fix: Booking participant validation allows members without email when userId is provided — Zod schema updated to prevent data loss",
+      "Fix: Marketing contact removal now instantly updates counts and properly logs webhook events",
+      "Fix: Waiver review notifications now use persistent database-level deduplication with a 6-hour window — prevents repeated alerts",
+      "Fix: 'Bookings Stuck — Unpaid Fees' notifications use 6-hour deduplication and only flag past bookings with 'attended' status",
+      "Fix: Fee calculations correctly handle members without identified tiers in preview mode",
+      "Fix: Invoices are now ensured for all attended bookings — prevents missing billing records",
+      "Fix: Multiple data integrity fixes for booking refunds, dashboard queries, and data synchronization",
+      "Fix: System settings inserts now include required category and updatedBy fields",
+      "Feature: Staff can now view and manage conference room prepayments on behalf of other members",
+    ]
+  },
+  {
     version: "8.56.0",
     date: "2026-03-01",
     title: "Performance & Crash Fixes — Wellness, Dashboard, History",

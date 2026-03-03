@@ -25,6 +25,7 @@ Member submits via `POST /api/booking-requests`. The route:
    - Resolve userId → email for directory-selected members (userId set but email missing).
    - Reject participants with `membershipStatus = 'inactive' | 'cancelled'`.
    - Deduplicate by email and userId sets; owner email always added first.
+   - **Validation (v8.59.0):** Participant email uses `z.preprocess` to treat empty strings as undefined. Members only need `email` OR `userId` (not both). Frontend sends email only if it contains `@`, preventing invalid email validation errors for directory-selected members.
 5. Determine initial status:
    - **Conference rooms** → `confirmed` (auto-approve, skip staff review).
    - **Golf simulators** → `pending` (require staff approval).

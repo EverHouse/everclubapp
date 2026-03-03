@@ -29,7 +29,7 @@ All schedulers registered in `initSchedulers()`:
 | Integrity Check | integrityScheduler.ts | 30 min | Midnight Pacific | Run data integrity checks, send alert emails |
 | Auto-Fix Tiers | integrityScheduler.ts | 4 hr | None | Sub-task of Integrity Scheduler: Fix missing tiers, normalize membership_status case |
 | Abandoned Pending Cleanup | integrityScheduler.ts | 6 hr | None | Sub-task of Integrity Scheduler: Delete abandoned pending users (24h+ old, no subscription) |
-| Waiver Review | waiverReviewScheduler.ts | 4 hr | None | Check for waivers pending staff review > 12 hours |
+| Waiver Review | waiverReviewScheduler.ts | 4 hr | None | Check for waivers pending staff review > 12 hours. Uses persistent database-level deduplication (6-hour window) to prevent repeated notifications (v8.57.0). |
 | Stripe Reconciliation | stripeReconciliationScheduler.ts | 1 hr | 5 AM Pacific | Reconcile Stripe subscriptions and payments with DB |
 | Fee Snapshot Reconciliation | feeSnapshotReconciliationScheduler.ts | 15 min | None | Reconcile pending fee snapshots, cancel abandoned payment intents |
 | Grace Period | gracePeriodScheduler.ts | 1 hr | 10 AM Pacific | Process membership grace periods, send reminder emails, terminate |

@@ -768,7 +768,7 @@ const BookGolf: React.FC = () => {
         ? playerSlots
             .filter(slot => slot.selectedId || (slot.email && slot.email.includes('@')))
             .map(slot => ({ 
-              email: slot.email || undefined, 
+              email: slot.email && slot.email.includes('@') ? slot.email : undefined, 
               type: slot.type,
               userId: slot.selectedId,
               name: slot.selectedId ? slot.selectedName : (slot.name || slot.selectedName),

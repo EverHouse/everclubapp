@@ -1,7 +1,10 @@
 import { z } from 'zod';
 
 const participantSchema = z.object({
-  email: z.string().email('Invalid participant email').optional(),
+  email: z.preprocess(
+    (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+    z.string().email('Invalid participant email').optional()
+  ),
   type: z.enum(['member', 'guest']),
   name: z.string().max(200).optional(),
   userId: z.string().optional(),

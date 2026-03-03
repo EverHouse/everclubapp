@@ -46,10 +46,12 @@ The Ever Club Members App is a private members club application designed for gol
 - **Walk-In Visit Tracking**: Walk-in visits are recorded via QR/NFC scan, syncing to HubSpot and broadcasting WebSocket events.
 - **Error Handling**: Prohibits empty catch blocks; all must re-throw, log, or use `safeDbOperation()`.
 - **Authentication**: All mutating API routes require authentication.
-- **Rate Limiting**: Public endpoints creating database records are rate-limited. Subscription creation endpoints have a dedicated `subscriptionCreationRateLimiter` and an in-memory per-email operation lock.
-- **Scheduler Robustness**: Schedulers use `isRunning` flags, catch-up windows, and claim slots.
+- **Rate Limiting**: Public endpoints creating database records are rate-limited. Subscription creation endpoints have a dedicated `subscriptionCreationRateLimiter` and an in-memory per-email operation lock (v8.58.0).
+- **Subscription Creation Safety**: Per-email operation locks prevent duplicate membership creation. Existing incomplete subscriptions can be reused via payment intent refresh. Idempotency keys prevent duplicate Stripe charges.
+- **Scheduler Robustness**: Schedulers use `isRunning` flags, catch-up windows, claim slots, and persistent notification deduplication (6-hour windows for waiver review and stuck booking alerts).
 - **Stripe Integration Specifics**: Includes webhook safety, payment handler logic, coupon application, and specific requirements for `trial_end` and $0 subscriptions.
 - **Data Integrity and Consistency**: Prevents double-charging, ensures orphaned invoice cleanup, uses optimistic locking for booking status transitions, and maintains atomicity for critical operations. `usage_ledger` has `ON DELETE CASCADE`.
+- **Participant Validation**: Booking participant emails use `z.preprocess` to normalize empty strings. Members need email OR userId (not both). Frontend only sends email when it contains `@`.
 - **Tier Hierarchy Validation**: Startup validates DB membership tier slugs against `TIER_NAMES`.
 - **Deferred Webhook Actions**: Post-commit webhook side-effects log event context.
 - **WebSocket Robustness**: Features periodic session revalidation, cryptographic verification, and reconnect jitter.

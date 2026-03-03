@@ -125,6 +125,7 @@ The system uses multiple mechanisms to prevent alert storms:
 3. **Per-key cooldown** — 4-hour cooldown between identical alert types (`errorAlerts.ts`). 30-minute cooldown for data alerts (`dataAlerts.ts`). 4-hour cooldown for integrity alerts specifically.
 4. **Daily cap** — Maximum 3 email alerts per 24-hour period, tracked in `system_settings` table (key: `alert_rate_limits`) for persistence across restarts.
 5. **Fingerprint deduplication** — Integrity alerts compare a fingerprint of current issues against the last-sent fingerprint. Suppress re-notification if issues have not changed and cooldown has not expired.
+6. **Scheduler notification deduplication (v8.57.0)** — Waiver review and "Bookings Stuck — Unpaid Fees" notifications use persistent database-level deduplication with a 6-hour window. The stuck bookings check now only flags past bookings with `attended` status.
 
 ## How Checks Run
 
