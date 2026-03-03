@@ -50,14 +50,25 @@ export async function checkStaleWaivers(): Promise<{
     let notificationSent = false;
 
     if (staleWaivers.length > 0) {
-      await notifyAllStaff(
-        'Waivers Need Review',
-        `${staleWaivers.length} waiver(s) pending review for more than 12 hours`,
-        'system',
-        { relatedType: 'waiver_review', sendPush: false }
-      );
-      notificationSent = true;
-      logger.info(`[Waiver Review] Staff notification sent for ${staleWaivers.length} stale waiver(s)`);
+      const recentDup = await db.execute(sql`
+        SELECT id FROM notifications
+        WHERE title = 'Waivers Need Review'
+          AND created_at > NOW() - INTERVAL '6 hours'
+        LIMIT 1
+      `);
+
+      if (recentDup.rows.length === 0) {
+        await notifyAllStaff(
+          'Waivers Need Review',
+          `${staleWaivers.length} waiver(s) pending review for more than 12 hours`,
+          'system',
+          { relatedType: 'waiver_review', sendPush: false }
+        );
+        notificationSent = true;
+        logger.info(`[Waiver Review] Staff notification sent for ${staleWaivers.length} stale waiver(s)`);
+      } else {
+        logger.info(`[Waiver Review] Skipping duplicate notification — sent within last 6h`);
+      }
     }
 
     return {
