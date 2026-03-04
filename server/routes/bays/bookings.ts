@@ -1314,6 +1314,7 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
                   });
                   refundedAmountCents += refund.amount;
                   refundType = refundType === 'none' ? 'guest_fees' : 'both';
+                  await db.execute(sql`UPDATE booking_participants SET payment_status = 'refunded', refunded_at = NOW() WHERE id = ${rawParticipant.id}`);
                   logger.info('[Member Cancel] Refunded guest fee for : $, refund', { extra: { participantDisplay_name: rawParticipant.display_name, participantCached_fee_cents_100_ToFixed_2: (Number(rawParticipant.cached_fee_cents) / 100).toFixed(2), refundId: refund.id } });
                 }
               } catch (refundErr: unknown) {

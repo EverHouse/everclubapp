@@ -109,8 +109,6 @@ export async function ensureSessionForBooking(params: {
   source: 'member_request' | 'staff_manual' | 'trackman_import' | 'trackman_webhook';
   createdBy: string;
 }, client?: PoolClient): Promise<{ sessionId: number; created: boolean; error?: string }> {
-  const q = client || pool;
-
   const attemptSessionCreation = async (): Promise<{ sessionId: number; created: boolean }> => {
     let sessionId: number | null = null;
     let created = false;
@@ -118,7 +116,7 @@ export async function ensureSessionForBooking(params: {
     const lockClient = client || await pool.connect();
     const manageLockClient = !client;
     try {
-      const lockKey = `${params.resourceId}:${params.sessionDate}:${params.startTime}`;
+      const lockKey = `${params.resourceId}:${params.sessionDate}`;
       let hash = 0;
       for (let i = 0; i < lockKey.length; i++) {
         hash = ((hash << 5) - hash + lockKey.charCodeAt(i)) | 0;
@@ -127,7 +125,7 @@ export async function ensureSessionForBooking(params: {
       try {
 
     if (params.trackmanBookingId) {
-      const trackmanMatch = await q.query(
+      const trackmanMatch = await lockClient.query(
         `SELECT id FROM booking_sessions
          WHERE trackman_booking_id = $1
          LIMIT 1`,
@@ -139,7 +137,7 @@ export async function ensureSessionForBooking(params: {
     }
 
     if (!sessionId) {
-      const existingSession = await q.query(
+      const existingSession = await lockClient.query(
         `SELECT id FROM booking_sessions
          WHERE resource_id = $1 AND session_date = $2 AND start_time = $3
          LIMIT 1`,
@@ -151,7 +149,7 @@ export async function ensureSessionForBooking(params: {
     }
 
     if (!sessionId && params.startTime !== params.endTime) {
-      const overlapSession = await q.query(
+      const overlapSession = await lockClient.query(
         `SELECT id FROM booking_sessions
          WHERE resource_id = $1 AND session_date = $2
          AND tsrange(
@@ -176,7 +174,7 @@ export async function ensureSessionForBooking(params: {
     }
 
     if (!sessionId) {
-      const insertResult = await q.query(
+      const insertResult = await lockClient.query(
         `INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
          ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL
@@ -188,7 +186,7 @@ export async function ensureSessionForBooking(params: {
       created = true;
     }
 
-    const existingOwner = await q.query(
+    const existingOwner = await lockClient.query(
       `SELECT id FROM booking_participants
        WHERE session_id = $1 AND participant_type = 'owner'
        LIMIT 1`,
@@ -200,7 +198,7 @@ export async function ensureSessionForBooking(params: {
       let resolvedUserId: string | null = params.ownerUserId || null;
 
       if (!resolvedUserId || !ownerDisplayName || ownerDisplayName.includes('@')) {
-        const nameResult = await q.query(
+        const nameResult = await lockClient.query(
           `SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
           [params.ownerEmail]
         );
@@ -229,14 +227,14 @@ export async function ensureSessionForBooking(params: {
         if (slotDuration <= 0) slotDuration = 60;
       } catch (err) { logger.warn('[Booking] Non-critical slot duration calculation failed:', err); }
 
-      await q.query(
+      await lockClient.query(
         `INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, invited_at)
          VALUES ($1, $2, 'owner', $3, $4, NOW())`,
         [sessionId, resolvedUserId, ownerDisplayName || params.ownerEmail, slotDuration]
       );
     }
 
-    await q.query(
+    await lockClient.query(
       `UPDATE booking_requests SET session_id = $1, updated_at = NOW() WHERE id = $2`,
       [sessionId, params.bookingId]
     );

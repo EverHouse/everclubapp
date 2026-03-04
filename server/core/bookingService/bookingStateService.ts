@@ -15,6 +15,7 @@ import { getCalendarIdByName, deleteCalendarEvent } from '../calendar/index';
 import { releaseGuestPassHold } from '../billing/guestPassHoldService';
 import { voidBookingInvoice } from '../billing/bookingInvoiceService';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import Stripe from 'stripe';
 
 interface CancelResult {
@@ -268,6 +269,11 @@ export class BookingStateService {
             ),
           ));
 
+        if (paidParticipants.length > 0) {
+          const paidParticipantIds = paidParticipants.map(p => p.id);
+          await tx.execute(sql`UPDATE booking_participants SET payment_status = 'refund_pending' WHERE id = ANY(${toIntArrayLiteral(paidParticipantIds)}::int[])`);
+        }
+
         const guestParticipants = await tx.select({
           id: bookingParticipants.id,
           displayName: bookingParticipants.displayName,
@@ -517,6 +523,11 @@ export class BookingStateService {
           }
         }
 
+        if (paidParticipants.length > 0) {
+          const paidParticipantIds = paidParticipants.map(p => p.id);
+          await tx.execute(sql`UPDATE booking_participants SET payment_status = 'refund_pending' WHERE id = ANY(${toIntArrayLiteral(paidParticipantIds)}::int[])`);
+        }
+
         const balancePaymentRecords = await tx.execute(sql`
           SELECT stripe_payment_intent_id, stripe_customer_id, amount_cents
           FROM stripe_payment_intents
@@ -696,12 +707,15 @@ export class BookingStateService {
             refundId: refund.id,
             amountCents: refundedCents,
           });
+          await db.execute(sql`UPDATE booking_participants SET payment_status = 'refunded', refunded_at = NOW() WHERE stripe_payment_intent_id = ${snapshotRefund.paymentIntentId} AND payment_status = 'refund_pending'`);
         } else if (['requires_payment_method', 'requires_confirmation', 'requires_action', 'requires_capture', 'processing'].includes(pi.status)) {
           await stripe.paymentIntents.cancel(snapshotRefund.paymentIntentId);
           logger.info('[BookingStateService] Cancelled pending snapshot payment', { extra: { paymentIntentId: snapshotRefund.paymentIntentId } });
           await PaymentStatusService.markPaymentCancelled({ paymentIntentId: snapshotRefund.paymentIntentId });
+          await db.execute(sql`UPDATE booking_participants SET payment_status = 'refunded', refunded_at = NOW() WHERE stripe_payment_intent_id = ${snapshotRefund.paymentIntentId} AND payment_status = 'refund_pending'`);
         } else if (pi.status === 'canceled') {
           await PaymentStatusService.markPaymentCancelled({ paymentIntentId: snapshotRefund.paymentIntentId });
+          await db.execute(sql`UPDATE booking_participants SET payment_status = 'refunded', refunded_at = NOW() WHERE stripe_payment_intent_id = ${snapshotRefund.paymentIntentId} AND payment_status = 'refund_pending'`);
         }
       } catch (err: unknown) {
         const msg = `Failed to handle snapshot refund ${snapshotRefund.paymentIntentId.substring(0, 12)}: ${getErrorMessage(err)}`;
@@ -720,6 +734,7 @@ export class BookingStateService {
             await cancelPaymentIntent(refundItem.paymentIntentId);
             logger.info('[BookingStateService] Cancelled payment intent', { extra: { paymentIntentId: refundItem.paymentIntentId } });
           }
+          await db.execute(sql`UPDATE booking_participants SET payment_status = 'refunded', refunded_at = NOW() WHERE stripe_payment_intent_id = ${refundItem.paymentIntentId} AND payment_status = 'refund_pending'`);
         } else if (pi.status === 'succeeded' && pi.latest_charge) {
           const chargeId = typeof pi.latest_charge === 'string' ? pi.latest_charge : (pi.latest_charge as Stripe.Charge).id;
           const refundAmount = refundItem.amountCents && refundItem.amountCents < pi.amount
@@ -740,8 +755,10 @@ export class BookingStateService {
             refundId: refund.id,
             amountCents: refundedCents,
           });
+          await db.execute(sql`UPDATE booking_participants SET payment_status = 'refunded', refunded_at = NOW() WHERE stripe_payment_intent_id = ${refundItem.paymentIntentId} AND payment_status = 'refund_pending'`);
         } else if (pi.status === 'canceled') {
           await PaymentStatusService.markPaymentCancelled({ paymentIntentId: refundItem.paymentIntentId });
+          await db.execute(sql`UPDATE booking_participants SET payment_status = 'refunded', refunded_at = NOW() WHERE stripe_payment_intent_id = ${refundItem.paymentIntentId} AND payment_status = 'refund_pending'`);
         }
       } catch (err: unknown) {
         const msg = `Failed to handle refund ${refundItem.paymentIntentId.substring(0, 12)}: ${getErrorMessage(err)}`;

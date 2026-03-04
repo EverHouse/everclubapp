@@ -607,13 +607,22 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
 
   // Helper function to look up usage by BOTH userId and email
   function getUsageForParticipant(userId: string | null, email: string | null): number {
-    if (userId && usageMap.has(userId.toLowerCase())) {
-      return usageMap.get(userId.toLowerCase())!;
+    let total = 0;
+    const countedKeys = new Set<string>();
+    if (userId) {
+      const key = userId.toLowerCase();
+      if (usageMap.has(key)) {
+        total += usageMap.get(key)!;
+        countedKeys.add(key);
+      }
     }
-    if (email && usageMap.has(email.toLowerCase())) {
-      return usageMap.get(email.toLowerCase())!;
+    if (email) {
+      const key = email.toLowerCase();
+      if (!countedKeys.has(key) && usageMap.has(key)) {
+        total += usageMap.get(key)!;
+      }
     }
-    return 0;
+    return total;
   }
   
   const lineItems: FeeLineItem[] = [];
@@ -945,13 +954,37 @@ export async function applyFeeBreakdownToParticipants(
       const passesToUpdate = participantsWithIds.map(p => p.guestPassUsed || false);
 
       if (idsToUpdate.length > 0) {
-        await tx.execute(
-          sql`UPDATE booking_participants bp
-           SET cached_fee_cents = t.fee,
-               used_guest_pass = t.used_pass
-           FROM unnest(${toIntArrayLiteral(idsToUpdate)}::int[], ${toIntArrayLiteral(feesToUpdate)}::int[], ${toBoolArrayLiteral(passesToUpdate)}::boolean[]) AS t(id, fee, used_pass)
-           WHERE bp.id = t.id`
+        const paidCheck = await tx.execute(
+          sql`SELECT id, cached_fee_cents FROM booking_participants
+           WHERE id = ANY(${toIntArrayLiteral(idsToUpdate)}::int[])
+           AND payment_status = 'paid'`
         );
+        const paidIds = new Set((paidCheck.rows as { id: number; cached_fee_cents: number }[]).map(r => r.id));
+
+        for (const paidRow of paidCheck.rows as { id: number; cached_fee_cents: number }[]) {
+          const idx = idsToUpdate.indexOf(paidRow.id);
+          if (idx !== -1 && feesToUpdate[idx] !== paidRow.cached_fee_cents) {
+            logger.warn('[UnifiedFeeService] Skipping fee update for already-paid participant — fee changed, manual review needed', {
+              participantId: paidRow.id,
+              sessionId,
+              previousCents: paidRow.cached_fee_cents,
+              newComputedCents: feesToUpdate[idx]
+            });
+          }
+        }
+
+        const safeIds = idsToUpdate.filter(id => !paidIds.has(id));
+        const safeFees = idsToUpdate.map((id, i) => ({ id, fee: feesToUpdate[i], pass: passesToUpdate[i] })).filter(e => !paidIds.has(e.id));
+
+        if (safeIds.length > 0) {
+          await tx.execute(
+            sql`UPDATE booking_participants bp
+             SET cached_fee_cents = t.fee,
+                 used_guest_pass = t.used_pass
+             FROM unnest(${toIntArrayLiteral(safeIds)}::int[], ${toIntArrayLiteral(safeFees.map(e => e.fee))}::int[], ${toBoolArrayLiteral(safeFees.map(e => e.pass))}::boolean[]) AS t(id, fee, used_pass)
+             WHERE bp.id = t.id`
+          );
+        }
       }
     });
     logger.info('[UnifiedFeeService] Applied fee breakdown to participants', {

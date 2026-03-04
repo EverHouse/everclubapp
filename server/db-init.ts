@@ -404,6 +404,14 @@ export async function ensureDatabaseConstraints() {
       }
       logger.info('[DB Init] booking_source enum values synced');
 
+      for (const val of ['refund_pending']) {
+        try {
+          await db.execute(sql.raw(`ALTER TYPE participant_payment_status ADD VALUE IF NOT EXISTS '${val}'`));
+        } catch {
+        }
+      }
+      logger.info('[DB Init] participant_payment_status enum values synced');
+
       await db.execute(sql`ALTER TABLE users ALTER COLUMN billing_provider SET DEFAULT 'stripe'`);
       logger.info('[DB Init] billing_provider column default set to stripe');
 
