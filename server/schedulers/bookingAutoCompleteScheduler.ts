@@ -84,7 +84,7 @@ async function autoCompletePastBookings(): Promise<void> {
              request_date = $1::date - INTERVAL '1 day'
              AND CASE
                WHEN end_time IS NOT NULL AND end_time < start_time
-                 THEN end_time <= ($2::time - interval '30 minutes')
+                 THEN $2::time >= '00:30:00'::time AND end_time <= ($2::time - interval '30 minutes')
                WHEN end_time IS NOT NULL
                  THEN true
                ELSE true
@@ -94,6 +94,7 @@ async function autoCompletePastBookings(): Promise<void> {
              request_date = $1::date
              AND end_time IS NOT NULL
              AND end_time >= start_time
+             AND $2::time >= '00:30:00'::time
              AND end_time <= ($2::time - interval '30 minutes')
            )
          )
@@ -262,7 +263,7 @@ export async function runManualBookingAutoComplete(): Promise<{ markedCount: num
            request_date = $1::date - INTERVAL '1 day'
            AND CASE
              WHEN end_time IS NOT NULL AND end_time < start_time
-               THEN end_time <= ($2::time - interval '30 minutes')
+               THEN $2::time >= '00:30:00'::time AND end_time <= ($2::time - interval '30 minutes')
              WHEN end_time IS NOT NULL
                THEN true
              ELSE true
@@ -272,6 +273,7 @@ export async function runManualBookingAutoComplete(): Promise<{ markedCount: num
            request_date = $1::date
            AND end_time IS NOT NULL
            AND end_time >= start_time
+           AND $2::time >= '00:30:00'::time
            AND end_time <= ($2::time - interval '30 minutes')
          )
        )
