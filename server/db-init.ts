@@ -487,7 +487,6 @@ export async function ensureDatabaseConstraints() {
       { name: 'idx_notifications_user_read', query: sql`CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_email, is_read)` },
       { name: 'idx_users_email_lower', query: sql`CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(LOWER(email))` },
       { name: 'idx_users_membership_status', query: sql`CREATE INDEX IF NOT EXISTS idx_users_membership_status ON users(membership_status)` },
-      { name: 'idx_booking_requests_date_status', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_date_status ON booking_requests(start_time, status)` },
       { name: 'idx_booking_participants_session_id', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_participants_session_id ON booking_participants(session_id)` },
       { name: 'idx_stripe_payment_intents_booking_id', query: sql`CREATE INDEX IF NOT EXISTS idx_stripe_payment_intents_booking_id ON stripe_payment_intents(booking_id)` },
       { name: 'idx_usage_ledger_member_id', query: sql`CREATE INDEX IF NOT EXISTS idx_usage_ledger_member_id ON usage_ledger(member_id)` },
