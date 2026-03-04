@@ -217,6 +217,32 @@ export async function handleBookingModification(
 
       if (sessionId) {
         if (bayChanged || timeChanged || dateChanged) {
+          const conflictingSessions = await tx.execute(sql`SELECT bs.id, 
+               (SELECT COUNT(*) FROM booking_requests br WHERE br.session_id = bs.id AND br.status NOT IN ('cancelled', 'rejected')) AS linked_bookings
+             FROM booking_sessions bs
+             WHERE bs.resource_id = ${newResourceId}
+               AND bs.session_date = ${newDate}
+               AND bs.start_time = ${newStartTime}
+               AND bs.end_time = ${newEndTime}
+               AND bs.id != ${sessionId}`);
+          if (conflictingSessions.rows.length > 0) {
+            for (const row of conflictingSessions.rows) {
+              const r = row as { id: number; linked_bookings: string };
+              const linkedCount = parseInt(r.linked_bookings, 10) || 0;
+              if (linkedCount === 0) {
+                logger.warn('[Trackman Webhook] Deleting orphan conflicting session at destination slot', {
+                  extra: { bookingId, sessionId, conflictSessionId: r.id, newResourceId, newDate, newStartTime, newEndTime }
+                });
+                await tx.execute(sql`DELETE FROM booking_sessions WHERE id = ${r.id}`);
+              } else {
+                logger.error('[Trackman Webhook] Conflicting session has linked bookings — unlinking and deleting (Trackman is source of truth, cascades to participants)', {
+                  extra: { bookingId, sessionId, conflictSessionId: r.id, linkedCount, newResourceId, newDate, newStartTime, newEndTime }
+                });
+                await tx.execute(sql`UPDATE booking_requests SET session_id = NULL WHERE session_id = ${r.id}`);
+                await tx.execute(sql`DELETE FROM booking_sessions WHERE id = ${r.id}`);
+              }
+            }
+          }
           await tx.execute(sql`UPDATE booking_sessions
              SET start_time = ${newStartTime},
                  end_time = ${newEndTime},

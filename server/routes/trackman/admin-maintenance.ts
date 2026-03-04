@@ -1,7 +1,7 @@
 import { logger } from '../../core/logger';
 import { Router } from 'express';
 import { isStaffOrAdmin } from '../../core/middleware';
-import { pool } from '../../core/db';
+import { pool, safeRelease } from '../../core/db';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { logFromRequest } from '../../core/auditLog';
@@ -181,7 +181,7 @@ router.delete('/api/admin/trackman/reset-data', isStaffOrAdmin, async (req, res)
     logger.error('Trackman reset error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to reset Trackman data', details: safeErrorDetail(error) });
   } finally {
-    client.release();
+    safeRelease(client);
   }
 });
 
@@ -412,7 +412,7 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
     
     res.status(500).json({ error: 'Failed to backfill sessions', details: safeErrorDetail(error) });
   } finally {
-    client.release();
+    safeRelease(client);
   }
 });
 
@@ -520,7 +520,7 @@ router.post('/api/admin/trackman/cleanup-duplicates', isStaffOrAdmin, async (req
     logger.error('[Trackman Cleanup Duplicates] Error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to cleanup duplicates', details: safeErrorDetail(error) });
   } finally {
-    client.release();
+    safeRelease(client);
   }
 });
 

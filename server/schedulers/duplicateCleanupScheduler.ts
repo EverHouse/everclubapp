@@ -1,5 +1,5 @@
 import { schedulerTracker } from '../core/schedulerTracker';
-import { pool } from '../core/db';
+import { pool, safeRelease } from '../core/db';
 import { getPacificHour, getTodayPacific } from '../utils/dateUtils';
 import { logger } from '../core/logger';
 
@@ -56,7 +56,7 @@ async function cleanupDuplicateTrackmanBookings(): Promise<{ deletedCount: numbe
     await client.query('ROLLBACK');
     throw error;
   } finally {
-    client.release();
+    safeRelease(client);
   }
 }
 

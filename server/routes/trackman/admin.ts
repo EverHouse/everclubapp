@@ -1,7 +1,7 @@
 import { logger } from '../../core/logger';
 import { Router } from 'express';
 import { isStaffOrAdmin } from '../../core/middleware';
-import { pool } from '../../core/db';
+import { pool, safeRelease } from '../../core/db';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
@@ -318,7 +318,7 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
     logger.error('Reassign matched booking error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to reassign booking' });
   } finally {
-    client.release();
+    safeRelease(client);
   }
 });
 

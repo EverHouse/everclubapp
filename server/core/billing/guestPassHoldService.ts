@@ -1,4 +1,4 @@
-import { pool } from '../db';
+import { pool, safeRelease } from '../db';
 import { PoolClient } from 'pg';
 
 import { logger } from '../logger';
@@ -62,7 +62,7 @@ export async function getAvailableGuestPasses(
     return available;
   } finally {
     if (!externalClient) {
-      client.release();
+      safeRelease(client);
     }
   }
 }
@@ -143,7 +143,7 @@ export async function createGuestPassHold(
     };
   } finally {
     if (!externalClient) {
-      client.release();
+      safeRelease(client);
     }
   }
 }
@@ -167,7 +167,7 @@ export async function releaseGuestPassHold(
     logger.error('[GuestPassHoldService] Error releasing hold:', { error: error });
     return { success: false, passesReleased: 0 };
   } finally {
-    client.release();
+    safeRelease(client);
   }
 }
 
@@ -234,7 +234,7 @@ export async function convertHoldToUsage(
     logger.error('[GuestPassHoldService] Error converting hold:', { error: error });
     return { success: false, passesConverted: 0 };
   } finally {
-    client.release();
+    safeRelease(client);
   }
 }
 
@@ -252,6 +252,6 @@ export async function cleanupExpiredHolds(): Promise<number> {
     }
     return deleted;
   } finally {
-    client.release();
+    safeRelease(client);
   }
 }

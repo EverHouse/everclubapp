@@ -5,7 +5,7 @@ import { notifyMember, notifyAllStaff } from '../../../notificationService';
 import { broadcastBillingUpdate } from '../../../websocket';
 import { logSystemAction } from '../../../auditLog';
 import { handlePrimarySubscriptionCancelled } from '../../groupBilling';
-import { pool } from '../../../db';
+import { pool, safeRelease } from '../../../db';
 import { logger } from '../../../logger';
 import { sendTrialWelcomeWithQrEmail } from '../../../../emails/trialWelcomeEmail';
 import type { PoolClient } from 'pg';
@@ -602,7 +602,7 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
                     break;
                   }
                 } finally {
-                  deferredClient.release();
+                  safeRelease(deferredClient);
                 }
               }
             }

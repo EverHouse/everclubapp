@@ -2,7 +2,7 @@ import { logger } from '../core/logger';
 import { Router } from 'express';
 import { isAdmin } from '../core/middleware';
 import { runAllIntegrityChecks, getIntegritySummary, getIntegrityHistory, resolveIssue, getAuditLog, syncPush, syncPull, createIgnoreRule, createBulkIgnoreRules, removeIgnoreRule, getIgnoredIssues, getCachedIntegrityResults, runDataCleanup } from '../core/dataIntegrity';
-import { isProduction, pool } from '../core/db';
+import { isProduction, pool, safeRelease } from '../core/db';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { broadcastDataIntegrityUpdate } from '../core/websocket';
@@ -552,7 +552,7 @@ router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, validate
           results.localDatabaseFailed++;
           results.localDatabaseErrors.push(`${odUserId}: ${getErrorMessage(error)}`);
         } finally {
-          client.release();
+          safeRelease(client);
         }
       }
     }
@@ -951,7 +951,7 @@ router.post('/api/data-integrity/fix/delete-empty-session', isAdmin, validateBod
     logger.error('[DataIntegrity] Delete empty session error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
   } finally {
-    client.release();
+    safeRelease(client);
   }
 });
 
@@ -1064,7 +1064,7 @@ router.post('/api/data-integrity/fix/assign-session-owner', isAdmin, validateBod
     logger.error('[DataIntegrity] Assign session owner error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
   } finally {
-    client.release();
+    safeRelease(client);
   }
 });
 

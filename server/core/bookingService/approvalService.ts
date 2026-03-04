@@ -1,5 +1,5 @@
 import { db } from '../../db';
-import { pool } from '../db';
+import { pool, safeRelease } from '../db';
 import { bookingRequests, resources, notifications, users, bookingParticipants, stripePaymentIntents } from '../../../shared/schema';
 import { eq, and, or, gt, lt, lte, gte, ne, sql, isNull, isNotNull } from 'drizzle-orm';
 import { sendPushNotification } from '../../routes/push';
@@ -1540,7 +1540,7 @@ export async function revertToApproved(params: { bookingId: number; staffEmail: 
     await client.query('ROLLBACK');
     throw err;
   } finally {
-    client.release();
+    safeRelease(client);
   }
 
   logger.info('[RevertToApproved] Booking reverted to approved', {

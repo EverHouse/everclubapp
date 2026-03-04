@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../../db';
-import { pool } from '../../core/db';
+import { pool, safeRelease } from '../../core/db';
 import { bookingRequests, resources, users, bookingParticipants, notifications } from '../../../shared/schema';
 import { eq, and, or, ne, desc, sql, SQL, inArray } from 'drizzle-orm';
 import { sendPushNotification } from '../push';
@@ -775,7 +775,7 @@ router.post('/api/booking-requests', bookingRateLimiter, validateBody(createBook
       await client.query('ROLLBACK');
       throw error;
     } finally {
-      try { client.release(); } catch (releaseErr: unknown) { logger.warn('[Booking] Client release failed:', { extra: { error: releaseErr } }); }
+      safeRelease(client);
     }
     
     // Ensure session exists for auto-confirmed conference room bookings

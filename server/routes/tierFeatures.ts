@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { pool, isProduction } from '../core/db';
+import { pool, isProduction, safeRelease } from '../core/db';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { isAdmin } from '../core/middleware';
@@ -194,7 +194,7 @@ router.post('/api/tier-features', isAdmin, async (req, res) => {
     }
     res.status(500).json({ error: 'Failed to create tier feature' });
   } finally {
-    client.release();
+    safeRelease(client);
   }
 });
 

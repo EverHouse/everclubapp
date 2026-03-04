@@ -1,4 +1,4 @@
-import { pool } from './db';
+import { pool, safeRelease } from './db';
 import { alertOnScheduledTaskFailure } from './dataAlerts';
 import { PoolClient } from 'pg';
 
@@ -42,6 +42,6 @@ export async function safeDbTransaction<T>(
     }
     throw error;
   } finally {
-    client.release();
+    safeRelease(client);
   }
 }

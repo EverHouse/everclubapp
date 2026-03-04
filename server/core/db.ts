@@ -114,3 +114,11 @@ export function getPoolStatus() {
     waiting: pool.waitingCount
   };
 }
+
+export function safeRelease(client: PoolClient): void {
+  try {
+    client.release();
+  } catch {
+    // Already released or pool destroyed — safe to ignore
+  }
+}

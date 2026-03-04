@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { pool } from '../../core/db';
+import { pool, safeRelease } from '../../core/db';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { notifyAllStaff } from '../../core/notificationService';
 import { broadcastAvailabilityUpdate } from '../../core/websocket';
@@ -308,7 +308,7 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
       await client.query('ROLLBACK');
       throw error;
     } finally {
-      client.release();
+      safeRelease(client);
     }
     
     let resourceName = 'Bay';

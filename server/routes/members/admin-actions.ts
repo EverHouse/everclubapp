@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { eq, sql, and } from 'drizzle-orm';
 import { db } from '../../db';
 import { users, membershipTiers, wellnessEnrollments, eventRsvps, staffUsers } from '../../../shared/schema';
-import { isProduction, pool } from '../../core/db';
+import { isProduction, pool, safeRelease } from '../../core/db';
 import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
 import { getSessionUser } from '../../types/session';
 import { TIER_NAMES } from '../../../shared/constants/tiers';
@@ -92,7 +92,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, validateBody(tierChange
       await client.query('ROLLBACK');
       throw txError;
     } finally {
-      client.release();
+      safeRelease(client);
     }
 
     const performedBy = sessionUser?.email || 'unknown';
@@ -269,7 +269,7 @@ router.post('/api/members/:id/suspend', isStaffOrAdmin, async (req, res) => {
         await client.query('ROLLBACK');
         throw txError;
       } finally {
-        client.release();
+        safeRelease(client);
       }
       
       return res.json({ 
@@ -298,7 +298,7 @@ router.post('/api/members/:id/suspend', isStaffOrAdmin, async (req, res) => {
         await client.query('ROLLBACK');
         throw txError;
       } finally {
-        client.release();
+        safeRelease(client);
       }
 
       await notifyMember({
@@ -430,7 +430,7 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
       await client.query('ROLLBACK');
       throw txError;
     } finally {
-      client.release();
+      safeRelease(client);
     }
 
     invalidateCache('members_directory');

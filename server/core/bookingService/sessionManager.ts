@@ -1,7 +1,7 @@
 import { db } from '../../db';
 import { getErrorCode, getErrorMessage } from '../../utils/errorUtils';
 import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
-import { pool } from '../db';
+import { pool, safeRelease } from '../db';
 import type { PoolClient } from 'pg';
 import { 
   bookingSessions, 
@@ -262,7 +262,7 @@ export async function ensureSessionForBooking(params: {
       }
     } finally {
       if (manageLockClient) {
-        lockClient.release();
+        safeRelease(lockClient);
       }
     }
   };
@@ -651,7 +651,7 @@ async function deductGuestPassesInternal(
     logger.error('[deductGuestPasses] Error:', { error });
     return { success: false, passesDeducted: 0 };
   } finally {
-    if (manageTransaction) client.release();
+    if (manageTransaction) safeRelease(client);
   }
 }
 
@@ -1255,7 +1255,7 @@ export async function createSessionWithUsageTracking(
     }
     } finally {
       if (lockClient) {
-        lockClient.release();
+        safeRelease(lockClient);
       }
     }
   } catch (error: unknown) {

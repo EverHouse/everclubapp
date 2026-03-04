@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { getStripeSync, getStripeClient } from '../client';
 import { updateFamilyDiscountPercent } from '../../billing/pricingConfig';
-import { pool } from '../../db';
+import { pool, safeRelease } from '../../db';
 import { logger } from '../../logger';
 import type { DeferredAction, StripeProductWithMarketingFeatures, InvoiceWithLegacyFields } from './types';
 import {
@@ -218,7 +218,7 @@ export async function processStripeWebhook(
     logger.error(`[Stripe Webhook] Handler failed for ${event.type} (${event.id}), rolled back:`, { error: handlerError });
     throw handlerError;
   } finally {
-    client.release();
+    safeRelease(client);
   }
 }
 
@@ -363,6 +363,6 @@ export async function replayStripeEvent(
     logger.error(`[Stripe Webhook Replay] Handler failed for ${event.type} (${event.id}), rolled back:`, { error: handlerError });
     throw handlerError;
   } finally {
-    client.release();
+    safeRelease(client);
   }
 }

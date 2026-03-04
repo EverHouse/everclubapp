@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { pool } from '../../core/db';
+import { pool, safeRelease } from '../../core/db';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../../core/middleware';
@@ -374,7 +374,7 @@ router.post('/api/staff/conference-room/booking', isStaffOrAdmin, async (req: Re
       await client.query('ROLLBACK');
       throw error;
     } finally {
-      client.release();
+      safeRelease(client);
     }
   } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to create conference room booking', error);
