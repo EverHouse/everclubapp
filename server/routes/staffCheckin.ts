@@ -29,9 +29,6 @@ interface SettleParticipantRow {
   cached_fee_cents: number;
 }
 
-interface StripeCustomerRow {
-  stripe_customer_id: string;
-}
 
 interface BookingContextRow {
   booking_id: number;
@@ -262,25 +259,33 @@ async function settleBookingInvoiceAfterCheckin(bookingId: number, sessionId: nu
     
     if (anyPaid) {
       try {
-        const userResult = await db.execute(
-          sql`SELECT u.stripe_customer_id FROM users u 
-           JOIN booking_requests br ON LOWER(u.email) = LOWER(br.user_email) 
-           WHERE br.id = ${bookingId} LIMIT 1`
-        );
-        const customerId = (userResult.rows as unknown as StripeCustomerRow[])[0]?.stripe_customer_id;
-        if (customerId) {
-          await finalizeInvoicePaidOutOfBand({
-            bookingId,
-            paidVia: 'cash',
-          });
+        const oobResult = await finalizeInvoicePaidOutOfBand({
+          bookingId,
+          paidVia: 'cash',
+        });
+        if (oobResult.success) {
           logger.info('[StaffCheckin] Finalized invoice as paid OOB after check-in confirm', {
             extra: { bookingId, invoiceId }
           });
           broadcastBookingInvoiceUpdate({ bookingId, sessionId, action: 'invoice_finalized', memberEmail: ownerEmail });
+        } else {
+          logger.warn('[StaffCheckin] Failed to finalize invoice OOB, deleting draft instead', {
+            extra: { bookingId, invoiceId, error: oobResult.error }
+          });
+          voidBookingInvoice(bookingId).catch((err: unknown) => {
+            logger.warn('[StaffCheckin] Non-blocking: Failed to void invoice after OOB failure', {
+              extra: { bookingId, error: (err as Error).message }
+            });
+          });
         }
       } catch (finalizeErr: unknown) {
-        logger.warn('[StaffCheckin] Non-blocking: Failed to finalize invoice OOB', {
+        logger.warn('[StaffCheckin] Non-blocking: Failed to finalize invoice OOB, voiding draft', {
           extra: { bookingId, invoiceId, error: (finalizeErr as Error).message }
+        });
+        voidBookingInvoice(bookingId).catch((err: unknown) => {
+          logger.warn('[StaffCheckin] Non-blocking: Failed to void invoice after OOB exception', {
+            extra: { bookingId, error: (err as Error).message }
+          });
         });
       }
     } else {

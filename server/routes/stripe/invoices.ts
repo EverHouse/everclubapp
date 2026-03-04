@@ -177,6 +177,14 @@ router.post('/api/stripe/invoices/:invoiceId/void', isStaffOrAdmin, async (req: 
     if (!result.success) {
       return res.status(500).json({ error: result.error || 'Failed to void invoice' });
     }
+
+    try {
+      await db.execute(
+        sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE stripe_invoice_id = ${invoiceId}`
+      );
+    } catch (clearErr) {
+      logger.warn('[Stripe] Failed to clear booking invoice reference after void', { extra: { invoiceId, error: clearErr } });
+    }
     
     try {
       if (customerId) {

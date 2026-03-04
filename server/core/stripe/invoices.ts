@@ -247,9 +247,19 @@ export async function voidInvoice(invoiceId: string): Promise<{
   try {
     const stripe = await getStripeClient();
 
-    await stripe.invoices.voidInvoice(invoiceId);
+    const invoice = await stripe.invoices.retrieve(invoiceId);
 
-    logger.info(`[Stripe Invoices] Voided invoice ${invoiceId}`);
+    if (invoice.status === 'draft') {
+      await stripe.invoices.del(invoiceId);
+      logger.info(`[Stripe Invoices] Deleted draft invoice ${invoiceId}`);
+    } else if (invoice.status === 'open') {
+      await stripe.invoices.voidInvoice(invoiceId);
+      logger.info(`[Stripe Invoices] Voided open invoice ${invoiceId}`);
+    } else if (invoice.status === 'void') {
+      logger.info(`[Stripe Invoices] Invoice ${invoiceId} already voided`);
+    } else {
+      return { success: false, error: `Cannot void invoice in status: ${invoice.status}` };
+    }
 
     return { success: true };
   } catch (error: unknown) {
