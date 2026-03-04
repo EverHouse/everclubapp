@@ -240,7 +240,7 @@ export async function handleBookingModification(
                 });
                 await tx.execute(sql`UPDATE booking_requests 
                    SET session_id = NULL, 
-                       status = CASE WHEN status = 'approved' THEN 'needs_review' ELSE status END,
+                       status = CASE WHEN status IN ('pending', 'pending_approval', 'approved', 'confirmed') THEN 'needs_review' ELSE status END,
                        notes = COALESCE(notes, '') || ' [Displaced by Trackman modification of booking #' || ${String(bookingId)} || ' — needs staff review]'
                    WHERE session_id = ${r.id}`);
                 await tx.execute(sql`DELETE FROM booking_sessions WHERE id = ${r.id}`);
