@@ -575,8 +575,17 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
            ),
            ghost_usage AS (
              SELECT LOWER(br.user_email) as identifier, 
-                    COALESCE(SUM(FLOOR(br.duration_minutes::float / GREATEST(1, COALESCE(br.declared_player_count, 1)))), 0) as mins
+                    COALESCE(SUM(
+                      FLOOR(br.duration_minutes::float / GREATEST(1, COALESCE(br.declared_player_count, 1)))
+                      * GREATEST(1, COALESCE(br.declared_player_count, 1) - COALESCE(mc.member_count, 0))
+                    ), 0) as mins
              FROM booking_requests br
+             LEFT JOIN LATERAL (
+               SELECT COUNT(*)::int as member_count
+               FROM booking_participants bp
+               WHERE bp.session_id = br.session_id
+               AND bp.participant_type = 'member'
+             ) mc ON true
              WHERE LOWER(br.user_email) = ANY(${identifiersLiteral}::text[])
                AND br.request_date = ${sessionDate}
                AND br.status IN ('approved', 'confirmed', 'attended')
@@ -837,7 +846,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
     participantIdx++;
   }
   
-  const actualGuestCount = participants.filter(p => p.participantType === 'guest').length;
+  const actualGuestCount = participants.filter(p => p.participantType === 'guest' && !p.userId).length;
   const actualMemberCount = participants.filter(p => p.participantType === 'member').length;
   const ownerCount = participants.filter(p => p.participantType === 'owner').length;
   const emptySlots = Math.max(0, effectivePlayerCount - ownerCount - actualMemberCount - actualGuestCount);
@@ -1008,7 +1017,7 @@ export async function recalculateSessionFees(
           JOIN booking_requests br ON br.session_id = bs.id
           WHERE LOWER(br.user_email) = LOWER(${sess.user_email})
             AND bs.session_date = ${sess.session_date}
-            AND br.start_time > ${sess.start_time}
+            AND br.start_time >= ${sess.start_time}
             AND br.status IN ('approved', 'confirmed', 'attended')
             AND bs.id != ${sessionId}
           ORDER BY br.start_time ASC

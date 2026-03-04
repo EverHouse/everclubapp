@@ -20,7 +20,7 @@ import { getGuestPassesRemaining, refundGuestPass } from '../guestPasses';
 import { computeFeeBreakdown, getEffectivePlayerCount, applyFeeBreakdownToParticipants, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { voidBookingInvoice, syncBookingInvoice, finalizeAndPayInvoice } from '../../core/billing/bookingInvoiceService';
 import { PRICING } from '../../core/billing/pricingConfig';
-import { createGuestPassHold, releaseGuestPassHold } from '../../core/billing/guestPassHoldService';
+import { createGuestPassHold } from '../../core/billing/guestPassHoldService';
 import { ensureSessionForBooking, createSessionWithUsageTracking } from '../../core/bookingService/sessionManager';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { cancelPendingPaymentIntentsForBooking } from '../../core/billing/paymentIntentCleanup';
@@ -1221,22 +1221,40 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       staffNotes = staffNotes ? `${staffNotes}\n${cancelNote}` : cancelNote;
     }
     
-    await releaseGuestPassHold(bookingId);
+    const guestPassRecipientsToRefund: Array<{ displayName: string | null }> = [];
     
-    if (existing.sessionId) {
-      try {
-        const guestParticipants = await db.execute(sql`SELECT display_name FROM booking_participants
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`DELETE FROM guest_pass_holds WHERE booking_id = ${bookingId}`);
+      
+      if (existing.sessionId) {
+        const guestParticipants = await tx.execute(sql`SELECT display_name FROM booking_participants
            WHERE session_id = ${existing.sessionId} AND participant_type = 'guest' AND used_guest_pass = true`);
         for (const guest of guestParticipants.rows as Array<Record<string, unknown>>) {
-          try {
-            await refundGuestPass(existing.userEmail, (guest.display_name as string) || undefined, false);
-            logger.info('[Member Cancel] Refunded guest pass for participant', { extra: { bookingId, guestName: guest.display_name, ownerEmail: existing.userEmail } });
-          } catch (refundErr: unknown) {
-            logger.error('[Member Cancel] Failed to refund guest pass (non-blocking)', { extra: { bookingId, guestName: guest.display_name, error: getErrorMessage(refundErr) } });
-          }
+          guestPassRecipientsToRefund.push({ displayName: (guest.display_name as string) || null });
         }
-      } catch (guestPassErr: unknown) {
-        logger.error('[Member Cancel] Failed to query guest participants for pass refund (non-blocking)', { extra: { bookingId, error: getErrorMessage(guestPassErr) } });
+        
+        await tx.execute(sql`UPDATE booking_participants 
+           SET cached_fee_cents = 0, payment_status = 'waived'
+           WHERE session_id = ${existing.sessionId} 
+           AND payment_status = 'pending'`);
+        logger.info('[Member Cancel] Cleared pending fees for session', { extra: { sessionId: existing.sessionId } });
+      }
+      
+      await tx.update(bookingRequests)
+        .set({
+          status: 'cancelled',
+          staffNotes: staffNotes || undefined,
+          updatedAt: new Date()
+        })
+        .where(eq(bookingRequests.id, bookingId));
+    });
+    
+    for (const guest of guestPassRecipientsToRefund) {
+      try {
+        await refundGuestPass(existing.userEmail, guest.displayName || undefined, false);
+        logger.info('[Member Cancel] Refunded guest pass for participant', { extra: { bookingId, guestName: guest.displayName, ownerEmail: existing.userEmail } });
+      } catch (refundErr: unknown) {
+        logger.error('[Member Cancel] Failed to refund guest pass (non-blocking)', { extra: { bookingId, guestName: guest.displayName, error: getErrorMessage(refundErr) } });
       }
     }
     
@@ -1302,27 +1320,6 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     } else {
       refundSkippedDueToLateCancel = true;
     }
-    
-    try {
-      if (existing.sessionId) {
-        await db.execute(sql`UPDATE booking_participants 
-           SET cached_fee_cents = 0, payment_status = 'waived'
-           WHERE session_id = ${existing.sessionId} 
-           AND payment_status = 'pending'`);
-        logger.info('[Member Cancel] Cleared pending fees for session', { extra: { sessionId: existing.sessionId } });
-      }
-    } catch (feeCleanupErr: unknown) {
-      logger.error('[Member Cancel] Failed to clear pending fees (non-blocking)', { extra: { feeCleanupErr } });
-    }
-    
-    const [updated] = await db.update(bookingRequests)
-      .set({
-        status: 'cancelled',
-        staffNotes: staffNotes || undefined,
-        updatedAt: new Date()
-      })
-      .where(eq(bookingRequests.id, bookingId))
-      .returning();
     
     logFromRequest(req, 'cancel_booking', 'booking', id, undefined, {
       member_email: existing.userEmail
