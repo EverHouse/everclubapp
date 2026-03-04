@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { formatTime12Hour, getTodayPacific } from '../../../../utils/dateUtils';
 import type { BookingRequest, Resource, CalendarClosure, AvailabilityBlock } from './simulatorTypes';
@@ -33,6 +33,56 @@ export interface CalendarGridProps {
     guestFeeDollars?: number;
     overageRatePerBlockDollars?: number;
     tierMinutes?: Record<string, number>;
+}
+
+function CurrentTimeIndicator({ gridRef, nowMinutes, gridStartMinutes, totalColumns }: {
+    gridRef: React.RefObject<HTMLDivElement>;
+    nowMinutes: number;
+    gridStartMinutes: number;
+    totalColumns: number;
+}) {
+    const [topPx, setTopPx] = useState<number | null>(null);
+
+    useEffect(() => {
+        const grid = gridRef.current;
+        if (!grid) return;
+
+        const measure = () => {
+            const rows = grid.children;
+            const headerCols = totalColumns;
+            const slotIndex = Math.floor((nowMinutes - gridStartMinutes) / 15);
+            const fractional = ((nowMinutes - gridStartMinutes) % 15) / 15;
+
+            const rowStartIndex = headerCols + slotIndex * totalColumns;
+            const firstCellOfRow = rows[rowStartIndex] as HTMLElement | undefined;
+            if (!firstCellOfRow) return;
+
+            const gridRect = grid.getBoundingClientRect();
+            const cellRect = firstCellOfRow.getBoundingClientRect();
+            const cellTop = cellRect.top - gridRect.top;
+            const cellHeight = cellRect.height;
+            setTopPx(cellTop + cellHeight * fractional);
+        };
+
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(grid);
+        return () => observer.disconnect();
+    }, [gridRef, nowMinutes, gridStartMinutes, totalColumns]);
+
+    if (topPx === null) return null;
+
+    return (
+        <div
+            className="absolute left-0 right-0 pointer-events-none"
+            style={{ top: `${topPx}px`, zIndex: 30 }}
+        >
+            <div className="relative flex items-center">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500 dark:bg-red-400 -ml-1 shrink-0 shadow-sm" />
+                <div className="flex-1 h-[2px] bg-red-500/80 dark:bg-red-400/80" />
+            </div>
+        </div>
+    );
 }
 
 function CalendarFeeIndicator({
@@ -220,6 +270,27 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
         return getBlockForSlot(resourceId, date, slotStart, slotEnd, availabilityBlocks);
     };
 
+    const isToday = calendarDate === getTodayPacific();
+
+    const [nowMinutes, setNowMinutes] = useState(() => {
+        const parts = new Date().toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour12: false, hour: '2-digit', minute: '2-digit' }).split(':');
+        return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    });
+
+    useEffect(() => {
+        if (!isToday) return;
+        const interval = setInterval(() => {
+            const parts = new Date().toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour12: false, hour: '2-digit', minute: '2-digit' }).split(':');
+            setNowMinutes(parseInt(parts[0]) * 60 + parseInt(parts[1]));
+        }, 60_000);
+        return () => clearInterval(interval);
+    }, [isToday]);
+
+    const gridRef = useRef<HTMLDivElement>(null);
+    const GRID_START_MINUTES = 8 * 60 + 30;
+    const GRID_END_MINUTES = 22 * 60;
+    const showTimeLine = isToday && nowMinutes >= GRID_START_MINUTES && nowMinutes <= GRID_END_MINUTES;
+
     return (
         <div ref={calendarColRef} className={`flex-1 lg:flex lg:flex-col ${activeView === 'calendar' ? 'block' : 'hidden lg:flex'}`}>
             <div className="bg-gray-50 dark:bg-white/5 py-3 shrink-0 animate-content-enter">
@@ -351,7 +422,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
             <div className="flex-1 relative animate-content-enter-delay-1 overflow-x-auto scroll-smooth">
                 <div className="w-full px-1 sm:px-2 pb-4">
                     <div className="w-full">
-                    <div className="grid gap-0.5 w-full" style={{ gridTemplateColumns: `minmax(32px, 0.6fr) repeat(${resources.length}, minmax(0, 1fr))` }}>
+                    <div ref={gridRef} className="grid gap-0.5 w-full relative" style={{ gridTemplateColumns: `minmax(32px, 0.6fr) repeat(${resources.length}, minmax(0, 1fr))` }}>
                         <div className="h-8 sm:h-10 bg-white dark:bg-[#1a1f1a] flex items-center justify-center text-[10px] sm:text-xs font-bold text-primary dark:text-white rounded-t-lg border border-gray-200 dark:border-white/25 shadow-[0_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
                             <span className="hidden sm:inline">Time</span>
                             <span className="sm:hidden">T</span>
@@ -522,6 +593,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                             </React.Fragment>
                             )
                         })}
+                        {showTimeLine && <CurrentTimeIndicator gridRef={gridRef} nowMinutes={nowMinutes} gridStartMinutes={GRID_START_MINUTES} totalColumns={resources.length + 1} />}
                     </div>
                     </div>
                 </div>
