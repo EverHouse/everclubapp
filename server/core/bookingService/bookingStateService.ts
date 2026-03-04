@@ -682,10 +682,10 @@ export class BookingStateService {
 
   private static async executeSideEffects(manifest: SideEffectsManifest): Promise<{ errors: string[] }> {
     const errors: string[] = [];
+    const stripe = await getStripeClient();
 
-    for (const snapshotRefund of manifest.stripeSnapshotRefunds) {
+    await Promise.all(manifest.stripeSnapshotRefunds.map(async (snapshotRefund) => {
       try {
-        const stripe = await getStripeClient();
         const pi = await stripe.paymentIntents.retrieve(snapshotRefund.paymentIntentId);
 
         if (pi.status === 'succeeded') {
@@ -722,11 +722,10 @@ export class BookingStateService {
         errors.push(msg);
         logger.error('[BookingStateService] Snapshot refund failed', { extra: { paymentIntentId: snapshotRefund.paymentIntentId, error: getErrorMessage(err) } });
       }
-    }
+    }));
 
-    for (const refundItem of manifest.stripeRefunds) {
+    await Promise.all(manifest.stripeRefunds.map(async (refundItem) => {
       try {
-        const stripe = await getStripeClient();
         const pi = await stripe.paymentIntents.retrieve(refundItem.paymentIntentId);
 
         if (refundItem.type === 'cancel' || ['requires_payment_method', 'requires_confirmation', 'requires_action', 'requires_capture', 'processing'].includes(pi.status)) {
@@ -765,11 +764,10 @@ export class BookingStateService {
         errors.push(msg);
         logger.error('[BookingStateService] Stripe refund failed', { extra: { paymentIntentId: refundItem.paymentIntentId, error: getErrorMessage(err) } });
       }
-    }
+    }));
 
-    for (const balanceRefund of manifest.balanceRefunds) {
+    await Promise.all(manifest.balanceRefunds.map(async (balanceRefund) => {
       try {
-        const stripe = await getStripeClient();
         const balanceTxn = await stripe.customers.createBalanceTransaction(
           balanceRefund.stripeCustomerId,
           {
@@ -793,7 +791,7 @@ export class BookingStateService {
         errors.push(msg);
         logger.error('[BookingStateService] Balance refund failed', { extra: { ...balanceRefund, error: getErrorMessage(err) } });
       }
-    }
+    }));
 
     if (manifest.invoiceVoid) {
       try {

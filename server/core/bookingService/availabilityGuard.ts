@@ -14,7 +14,7 @@ import {
   parseTimeToMinutes,
   hasTimeOverlap
 } from '../bookingValidation';
-import { parseAffectedAreas } from '../affectedAreas';
+import { parseAffectedAreasBatch } from '../affectedAreas';
 
 export interface AvailabilityResult {
   available: boolean;
@@ -317,15 +317,10 @@ export async function isResourceAvailableForDate(
     `);
     
     const closureRows = closures.rows as Array<{ id: number; affected_areas: string | null }>;
-    const parsePromises = closureRows.map(async (closure) => {
-      if (closure.affected_areas) {
-        const affectedIds = await parseAffectedAreas(closure.affected_areas);
-        return affectedIds.includes(resourceId);
-      }
-      return false;
-    });
+    const affectedAreasList = closureRows.map(c => c.affected_areas);
+    const batchResults = await parseAffectedAreasBatch(affectedAreasList);
 
-    const results = await Promise.all(parsePromises);
+    const results = batchResults.map(affectedIds => affectedIds.includes(resourceId));
     if (results.some(hasConflict => hasConflict)) {
       return false;
     }

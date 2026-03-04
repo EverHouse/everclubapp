@@ -28,11 +28,11 @@ export function useCommandCenterData(userEmail?: string) {
   const hubspotQuery = useCommandCenterHubSpotContacts();
   const announcementsQuery = useCommandCenterAnnouncements();
 
-  const memberNameByEmail = hubspotQuery.data ?? new Map<string, string>();
+  const memberNameByEmail = hubspotQuery.data ?? {};
 
   const getDisplayName = useCallback((email: string | null | undefined, originalName: string | null): string => {
     if (email && typeof email === 'string') {
-      const hubspotName = memberNameByEmail.get(email.toLowerCase());
+      const hubspotName = memberNameByEmail[email.toLowerCase()];
       if (hubspotName) return hubspotName;
     }
     return originalName || 'Guest';

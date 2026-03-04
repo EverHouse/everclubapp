@@ -21,6 +21,113 @@ export async function getConferenceRoomId(): Promise<number | null> {
   return result.rows.length > 0 ? (result.rows[0] as unknown as ResourceIdRow).id : null;
 }
 
+interface ResourceCache {
+  allResourceIds?: number[];
+  allBayIds?: number[];
+  conferenceRoomId?: number | null;
+}
+
+async function resolveTokenWithCache(token: string, cache: ResourceCache): Promise<number[]> {
+  const t = token.toLowerCase().trim();
+
+  if (t === 'entire_facility') {
+    if (cache.allResourceIds === undefined) {
+      cache.allResourceIds = await getAllResourceIds();
+    }
+    return cache.allResourceIds;
+  }
+  if (t === 'all_bays') {
+    if (cache.allBayIds === undefined) {
+      cache.allBayIds = await getAllActiveBayIds();
+    }
+    return cache.allBayIds;
+  }
+  if (t === 'conference_room' || t === 'conference room') {
+    if (cache.conferenceRoomId === undefined) {
+      cache.conferenceRoomId = await getConferenceRoomId();
+    }
+    return cache.conferenceRoomId ? [cache.conferenceRoomId] : [];
+  }
+  if (t.startsWith('bay_')) {
+    const bayId = parseInt(t.replace('bay_', ''));
+    if (!isNaN(bayId)) return [bayId];
+  }
+  const parsed = parseInt(t);
+  if (!isNaN(parsed)) return [parsed];
+  return [];
+}
+
+export async function parseAffectedAreasBatch(
+  affectedAreasList: (string | null | undefined)[]
+): Promise<number[][]> {
+  const cache: ResourceCache = {};
+  const results: number[][] = [];
+
+  for (const affectedAreas of affectedAreasList) {
+    if (!affectedAreas) {
+      results.push([]);
+      continue;
+    }
+    const normalized = affectedAreas.toLowerCase().trim();
+    if (normalized === '' || normalized === 'none') {
+      results.push([]);
+      continue;
+    }
+
+    const idSet = new Set<number>();
+
+    if (normalized === 'entire_facility' || normalized === 'all_bays' ||
+        normalized === 'conference_room' || normalized === 'conference room') {
+      const ids = await resolveTokenWithCache(normalized, cache);
+      results.push(ids);
+      continue;
+    }
+
+    if (normalized.startsWith('bay_') && !normalized.includes(',') && !normalized.includes('[')) {
+      const bayId = parseInt(normalized.replace('bay_', ''));
+      if (!isNaN(bayId)) {
+        results.push([bayId]);
+        continue;
+      }
+    }
+
+    try {
+      const parsed = JSON.parse(affectedAreas);
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (typeof item === 'number') {
+            idSet.add(item);
+          } else if (typeof item === 'string') {
+            const ids = await resolveTokenWithCache(item, cache);
+            ids.forEach(id => idSet.add(id));
+          }
+        }
+        if (idSet.size > 0) {
+          results.push(Array.from(idSet));
+          continue;
+        }
+      }
+    } catch (_err) {
+      // fall through to comma/token parsing
+    }
+
+    if (affectedAreas.includes(',')) {
+      const parts = affectedAreas.split(',').map(s => s.trim());
+      for (const part of parts) {
+        const ids = await resolveTokenWithCache(part, cache);
+        ids.forEach(id => idSet.add(id));
+      }
+    } else {
+      const ids = await resolveTokenWithCache(affectedAreas, cache);
+      ids.forEach(id => idSet.add(id));
+    }
+
+    results.push(Array.from(idSet));
+  }
+
+  return results;
+}
+
 export async function parseAffectedAreas(affectedAreas: string | null | undefined): Promise<number[]> {
   if (!affectedAreas) return [];
   const normalized = affectedAreas.toLowerCase().trim();
