@@ -40,7 +40,7 @@ Use `ensureSessionForBooking()` from `sessionManager.ts` for ALL session creatio
 2. Match by `resource_id + session_date + start_time` (exact)
 3. Match by `resource_id + session_date + time range overlap` (tsrange intersection)
 
-Only INSERT if all 3 lookups fail. The INSERT uses `ON CONFLICT (trackman_booking_id)` to handle race conditions. On failure, write `[SESSION_CREATION_FAILED]` to the booking's `staff_notes`. When called with a `client` (transaction), throw immediately on failure (no retry). The 500ms retry only applies when using the default pool connection.
+Only INSERT if all 3 lookups fail. The INSERT uses `ON CONFLICT (trackman_booking_id)` to handle race conditions. On failure, write `[SESSION_CREATION_FAILED]` with a truncated error message to the booking's `staff_notes` for observability (v8.69.0). When called with a `client` (transaction), uses `pg_advisory_xact_lock` (auto-released on COMMIT/ROLLBACK) and throws immediately on failure (no retry). When using the default pool connection, uses session-level `pg_advisory_lock` with explicit unlock and a 500ms retry on failure (v8.69.0).
 
 **NEVER** write raw `INSERT INTO booking_sessions` anywhere outside this function. Every entry point that creates or links a booking must call `ensureSessionForBooking()`.
 

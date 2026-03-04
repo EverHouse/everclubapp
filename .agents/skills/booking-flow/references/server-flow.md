@@ -259,7 +259,7 @@ ensureSessionForBooking({ bookingId, resourceId, sessionDate, startTime, endTime
   ├── Retry logic (when not inside an external transaction):
   │   ├── First attempt fails → wait 500ms, retry once
   │   └── Retry also fails → flag booking for staff review:
-  │       └── UPDATE booking_requests SET staff_notes += '[SESSION_CREATION_FAILED] ...'
+  │       └── UPDATE booking_requests SET staff_notes += '[SESSION_CREATION_FAILED] ... : {truncated error} ...'
   │       └── Return { sessionId: 0, created: false, error }
   │
   └── Return { sessionId, created: true/false }

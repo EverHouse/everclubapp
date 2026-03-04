@@ -152,7 +152,7 @@ The overdue payments endpoint (`GET /api/bookings/overdue-payments`) catches boo
 `computeFeeBreakdown` returns $0 for bookings with status `cancelled`, `declined`, or `cancellation_pending`.
 
 ### Missing Session
-If a booking has no session at check-in time, `ensureSessionForBooking` creates one. If creation fails after retry, it flags the booking with a staff note (`[SESSION_CREATION_FAILED]`) for manual resolution.
+If a booking has no session at check-in time, `ensureSessionForBooking` creates one. If creation fails after retry, it flags the booking with a staff note (`[SESSION_CREATION_FAILED]`) including the truncated error message for manual resolution (v8.69.0).
 
 ### Duplicate Check-In (QR)
 QR walk-in check-in deduplicates within a 2-minute window. A second scan within 2 minutes returns HTTP 409 with `alreadyCheckedIn: true`.
