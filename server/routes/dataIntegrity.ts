@@ -1357,24 +1357,53 @@ router.post('/api/data-integrity/fix/bulk-cancel-stale-bookings', isAdmin, async
     const count = result.rowCount || 0;
 
     const invoiceRows = (result.rows as { id: number; stripe_invoice_id: string | null }[]).filter(r => r.stripe_invoice_id);
+
+    logFromRequest(req, 'bulk_cancel_stale_bookings', 'booking_request', undefined, `Bulk cancelled ${count} stale bookings via data integrity`, { cancelledCount: count, invoicesToVoid: invoiceRows.length });
+
+    res.json({ success: true, message: `Cancelled ${count} stale bookings (${invoiceRows.length} invoices voiding in background)`, cancelledCount: count });
+
     if (invoiceRows.length > 0) {
       const { voidBookingInvoice } = await import('../core/billing/bookingInvoiceService');
+      let voided = 0;
       for (const row of invoiceRows) {
         try {
           await voidBookingInvoice(row.id);
+          voided++;
         } catch (voidErr: unknown) {
           logger.warn('[DataIntegrity] Failed to void invoice during bulk stale cancel', {
             extra: { bookingId: row.id, invoiceId: row.stripe_invoice_id, error: getErrorMessage(voidErr) }
           });
         }
       }
+      logger.info(`[DataIntegrity] Bulk stale cancel invoice cleanup complete: ${voided}/${invoiceRows.length} voided`);
     }
-
-    logFromRequest(req, 'bulk_cancel_stale_bookings', 'booking_request', undefined, `Bulk cancelled ${count} stale bookings via data integrity`, { cancelledCount: count, invoicesVoided: invoiceRows.length });
-
-    res.json({ success: true, message: `Cancelled ${count} stale bookings`, cancelledCount: count });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Bulk cancel stale bookings error', { extra: { error: getErrorMessage(error) } });
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    }
+  }
+});
+
+router.post('/api/data-integrity/fix/bulk-attend-stale-bookings', isAdmin, async (req: Request, res) => {
+  try {
+    const result = await db.execute(sql`
+      UPDATE booking_requests
+      SET status = 'attended', updated_at = NOW()
+      WHERE status IN ('pending', 'approved')
+        AND (request_date + start_time::time) < ((NOW() AT TIME ZONE 'America/Los_Angeles') - INTERVAL '24 hours')
+        AND request_date >= CURRENT_DATE - INTERVAL '7 days'
+        AND user_email NOT LIKE '%@trackman.local'
+      RETURNING id
+    `);
+
+    const count = result.rowCount || 0;
+
+    logFromRequest(req, 'bulk_attend_stale_bookings', 'booking_request', undefined, `Bulk marked ${count} stale bookings as attended via data integrity`, { attendedCount: count });
+
+    res.json({ success: true, message: `Marked ${count} stale bookings as attended`, attendedCount: count });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Bulk attend stale bookings error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
   }
 });

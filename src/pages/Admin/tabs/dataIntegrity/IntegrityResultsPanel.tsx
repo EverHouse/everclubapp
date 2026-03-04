@@ -788,7 +788,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
         return (
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
             <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
-              <strong>Quick Fix:</strong> Bulk cancel all stale bookings that are past their start time by more than 24 hours
+              <strong>Quick Fix:</strong> Bulk cancel or mark as attended all stale bookings that are past their start time by more than 24 hours
             </p>
             <div className="flex flex-wrap gap-2">
               <button
@@ -804,6 +804,20 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 {fixIssueMutation.isPending && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
                 <span className="material-symbols-outlined text-[14px]">cancel</span>
                 Cancel All Stale Bookings
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('Mark ALL stale pending/approved bookings as attended? This will resolve all stale booking alerts.')) {
+                    fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/bulk-attend-stale-bookings', body: {} });
+                  }
+                }}
+                disabled={fixIssueMutation.isPending}
+                className="tactile-btn px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {fixIssueMutation.isPending && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                Mark All as Attended
               </button>
             </div>
           </div>
