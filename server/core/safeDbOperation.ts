@@ -24,17 +24,20 @@ export async function safeDbTransaction<T>(
   callback: (client: PoolClient) => Promise<T>,
   critical: boolean = true
 ): Promise<T> {
-  const client = await pool.connect();
+  let client: PoolClient | null = null;
   try {
+    client = await pool.connect();
     await client.query('BEGIN');
     const result = await callback(client);
     await client.query('COMMIT');
     return result;
   } catch (error: unknown) {
-    try {
-      await client.query('ROLLBACK');
-    } catch (err) {
-      logger.warn('[safeDbTransaction] ROLLBACK failed, reporting original error', { error: err });
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (err) {
+        logger.warn('[safeDbTransaction] ROLLBACK failed, reporting original error', { error: err });
+      }
     }
     logger.error(`[safeDbTransaction] ${label}:`, { error: error });
     if (critical) {
@@ -42,6 +45,6 @@ export async function safeDbTransaction<T>(
     }
     throw error;
   } finally {
-    safeRelease(client);
+    if (client) safeRelease(client);
   }
 }

@@ -156,7 +156,7 @@ function cleanExpiredLocks() {
   }
 }
 
-setInterval(cleanExpiredLocks, 60_000);
+setInterval(cleanExpiredLocks, 60_000).unref();
 
 export function acquireSubscriptionLock(email: string): boolean {
   const key = email.toLowerCase();
