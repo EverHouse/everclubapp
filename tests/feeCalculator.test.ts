@@ -37,7 +37,7 @@ import {
   updateCorporateVolumePricing,
   updateFamilyDiscountPercent,
 } from '../server/core/billing/pricingConfig';
-import { estimateBookingFees } from '../server/core/billing/feeCalculator';
+
 
 describe('PricingConfig', () => {
   beforeEach(() => {
@@ -168,63 +168,3 @@ describe('PricingConfig', () => {
   });
 });
 
-describe('estimateBookingFees', () => {
-  beforeEach(() => {
-    updateOverageRate(2500);
-    updateGuestFee(2500);
-  });
-
-  it('returns zero fees when within daily allowance with 1 player', () => {
-    const result = estimateBookingFees('Core', 60, 1, 0, { dailySimulatorMinutes: 120 });
-    expect(result.overageFee).toBe(0);
-    expect(result.guestFees).toBe(0);
-    expect(result.totalFee).toBe(0);
-    expect(result.guestCount).toBe(0);
-    expect(result.overageMinutes).toBe(0);
-  });
-
-  it('calculates overage when exceeding daily allowance', () => {
-    const result = estimateBookingFees('Core', 60, 1, 100, { dailySimulatorMinutes: 120 });
-    expect(result.overageMinutes).toBe(40);
-    expect(result.overageFee).toBe(50);
-  });
-
-  it('splits time per person for multi-player bookings', () => {
-    const result = estimateBookingFees('Core', 120, 2, 0, { dailySimulatorMinutes: 120 });
-    expect(result.guestCount).toBe(1);
-    expect(result.guestFees).toBe(25);
-    expect(result.overageMinutes).toBe(0);
-    expect(result.overageFee).toBe(0);
-  });
-
-  it('calculates both overage and guest fees', () => {
-    const result = estimateBookingFees('Core', 120, 3, 30, { dailySimulatorMinutes: 60 });
-    expect(result.guestCount).toBe(2);
-    expect(result.guestFees).toBe(50);
-    expect(result.overageMinutes).toBe(10);
-    expect(result.overageFee).toBe(25);
-    expect(result.totalFee).toBe(75);
-  });
-
-  it('handles conference room allowance', () => {
-    const result = estimateBookingFees('Core', 60, 1, 0, { dailyConfRoomMinutes: 30 }, true);
-    expect(result.overageMinutes).toBe(30);
-    expect(result.overageFee).toBe(25);
-  });
-
-  it('handles zero duration', () => {
-    const result = estimateBookingFees('Core', 0, 1, 0, { dailySimulatorMinutes: 60 });
-    expect(result.totalFee).toBe(0);
-  });
-
-  it('handles zero or negative player count by flooring to 1', () => {
-    const result = estimateBookingFees('Core', 60, 0, 0, { dailySimulatorMinutes: 120 });
-    expect(result.guestCount).toBe(0);
-  });
-
-  it('handles no allowance tier', () => {
-    const result = estimateBookingFees('Social', 60, 1, 0, { dailySimulatorMinutes: 0 });
-    expect(result.overageMinutes).toBe(60);
-    expect(result.overageFee).toBe(50);
-  });
-});

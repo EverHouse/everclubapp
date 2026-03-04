@@ -97,41 +97,25 @@ export async function findConflictingBookings(
     const memberRows = memberResult.rows as unknown as UserIdRow[];
     const memberId = memberRows[0]?.id;
 
-    const ownerResult = await db.execute(sql`
-      SELECT 
-        br.id as booking_id,
-        COALESCE(r.name, 'Unknown Resource') as resource_name,
-        br.request_date,
-        br.start_time,
-        br.end_time,
-        br.user_name as owner_name,
-        br.user_email as owner_email
-      FROM booking_requests br
-      LEFT JOIN resources r ON br.resource_id = r.id
-      WHERE LOWER(br.user_email) = LOWER(${normalizedEmail})
-        AND br.request_date = ${date}
-        AND br.status = ANY(${toTextArrayLiteral(OCCUPIED_STATUSES)}::text[])
-        ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
-    `);
-    
-    const ownerRows = ownerResult.rows as unknown as BookingConflictRow[];
-    for (const row of ownerRows) {
-      if (timePeriodsOverlap(startTime, endTime, String(row.start_time), String(row.end_time))) {
-        conflicts.push({
-          bookingId: row.booking_id,
-          resourceName: row.resource_name,
-          requestDate: String(row.request_date),
-          startTime: String(row.start_time),
-          endTime: String(row.end_time),
-          ownerName: row.owner_name,
-          ownerEmail: row.owner_email,
-          conflictType: 'owner'
-        });
-      }
-    }
+    const [ownerResult, participantResult, linkedMemberResult] = await Promise.all([
+      db.execute(sql`
+        SELECT 
+          br.id as booking_id,
+          COALESCE(r.name, 'Unknown Resource') as resource_name,
+          br.request_date,
+          br.start_time,
+          br.end_time,
+          br.user_name as owner_name,
+          br.user_email as owner_email
+        FROM booking_requests br
+        LEFT JOIN resources r ON br.resource_id = r.id
+        WHERE LOWER(br.user_email) = LOWER(${normalizedEmail})
+          AND br.request_date = ${date}
+          AND br.status = ANY(${toTextArrayLiteral(OCCUPIED_STATUSES)}::text[])
+          ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
+      `),
 
-    if (memberId) {
-      const participantResult = await db.execute(sql`
+      memberId ? db.execute(sql`
         SELECT 
           br.id as booking_id,
           COALESCE(r.name, 'Unknown Resource') as resource_name,
@@ -150,49 +134,65 @@ export async function findConflictingBookings(
           AND bp.invite_status = 'accepted'
           AND br.status = ANY(${toTextArrayLiteral(OCCUPIED_STATUSES)}::text[])
           ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
-      `);
-      
-      const participantRows = participantResult.rows as unknown as ParticipantConflictRow[];
-      for (const row of participantRows) {
-        if (timePeriodsOverlap(startTime, endTime, String(row.start_time), String(row.end_time))) {
-          const isDuplicate = conflicts.some(c => c.bookingId === row.booking_id);
-          if (!isDuplicate) {
-            conflicts.push({
-              bookingId: row.booking_id,
-              resourceName: row.resource_name,
-              requestDate: String(row.request_date),
-              startTime: String(row.start_time),
-              endTime: String(row.end_time),
-              ownerName: row.owner_name,
-              ownerEmail: row.owner_email,
-              conflictType: 'participant'
-            });
-          }
+      `) : Promise.resolve({ rows: [] }),
+
+      db.execute(sql`
+        SELECT 
+          br.id as booking_id,
+          COALESCE(r.name, 'Unknown Resource') as resource_name,
+          br.request_date,
+          br.start_time,
+          br.end_time,
+          br.user_name as owner_name,
+          br.user_email as owner_email
+        FROM booking_participants bp
+        JOIN booking_sessions bs ON bp.session_id = bs.id
+        JOIN booking_requests br ON br.session_id = bs.id
+        JOIN users u ON bp.user_id = u.id
+        LEFT JOIN resources r ON br.resource_id = r.id
+        WHERE LOWER(u.email) = LOWER(${normalizedEmail})
+          AND bp.invite_status = 'accepted'
+          AND br.request_date = ${date}
+          AND br.status = ANY(${toTextArrayLiteral(OCCUPIED_STATUSES)}::text[])
+          ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
+      `)
+    ]);
+
+    const ownerRows = ownerResult.rows as unknown as BookingConflictRow[];
+    for (const row of ownerRows) {
+      if (timePeriodsOverlap(startTime, endTime, String(row.start_time), String(row.end_time))) {
+        conflicts.push({
+          bookingId: row.booking_id,
+          resourceName: row.resource_name,
+          requestDate: String(row.request_date),
+          startTime: String(row.start_time),
+          endTime: String(row.end_time),
+          ownerName: row.owner_name,
+          ownerEmail: row.owner_email,
+          conflictType: 'owner'
+        });
+      }
+    }
+
+    const participantRows = participantResult.rows as unknown as ParticipantConflictRow[];
+    for (const row of participantRows) {
+      if (timePeriodsOverlap(startTime, endTime, String(row.start_time), String(row.end_time))) {
+        const isDuplicate = conflicts.some(c => c.bookingId === row.booking_id);
+        if (!isDuplicate) {
+          conflicts.push({
+            bookingId: row.booking_id,
+            resourceName: row.resource_name,
+            requestDate: String(row.request_date),
+            startTime: String(row.start_time),
+            endTime: String(row.end_time),
+            ownerName: row.owner_name,
+            ownerEmail: row.owner_email,
+            conflictType: 'participant'
+          });
         }
       }
     }
 
-    const linkedMemberResult = await db.execute(sql`
-      SELECT 
-        br.id as booking_id,
-        COALESCE(r.name, 'Unknown Resource') as resource_name,
-        br.request_date,
-        br.start_time,
-        br.end_time,
-        br.user_name as owner_name,
-        br.user_email as owner_email
-      FROM booking_participants bp
-      JOIN booking_sessions bs ON bp.session_id = bs.id
-      JOIN booking_requests br ON br.session_id = bs.id
-      JOIN users u ON bp.user_id = u.id
-      LEFT JOIN resources r ON br.resource_id = r.id
-      WHERE LOWER(u.email) = LOWER(${normalizedEmail})
-        AND bp.invite_status = 'accepted'
-        AND br.request_date = ${date}
-        AND br.status = ANY(${toTextArrayLiteral(OCCUPIED_STATUSES)}::text[])
-        ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
-    `);
-    
     const linkedRows = linkedMemberResult.rows as unknown as BookingConflictRow[];
     for (const row of linkedRows) {
       if (timePeriodsOverlap(startTime, endTime, String(row.start_time), String(row.end_time))) {
