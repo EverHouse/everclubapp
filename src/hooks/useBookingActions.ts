@@ -313,6 +313,36 @@ export function useBookingActions() {
     return result;
   }, [staffCancelBooking, showToast]);
 
+  const revertToApproved = useCallback(async (bookingId: number | string): Promise<{ success?: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/revert-to-approved`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        return { error: data.error || 'Failed to revert booking' };
+      }
+
+      invalidateBookingQueries(queryClient);
+      return { success: true };
+    } catch {
+      return { error: 'Network error' };
+    }
+  }, [queryClient]);
+
+  const revertToApprovedWithToast = useCallback(async (bookingId: number | string) => {
+    const result = await revertToApproved(bookingId);
+    if (result.success) {
+      showToast('Booking reverted to approved', 'success');
+    } else {
+      showToast(result.error || 'Failed to revert booking', 'error');
+    }
+    return result;
+  }, [revertToApproved, showToast]);
+
   return {
     checkInBooking,
     checkInWithToast,
@@ -320,6 +350,8 @@ export function useBookingActions() {
     chargeCardWithToast,
     staffCancelBooking,
     staffCancelWithToast,
+    revertToApproved,
+    revertToApprovedWithToast,
     invalidateBookingQueries: () => invalidateBookingQueries(queryClient)
   };
 }

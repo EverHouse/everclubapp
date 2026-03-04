@@ -1,20 +1,25 @@
 import { useState, useRef, useEffect, useCallback, type MouseEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 
+type StatusValue = 'attended' | 'no_show' | 'approved';
+
 interface BookingStatusDropdownProps {
   currentStatus: 'check_in' | 'attended' | 'no_show';
-  onStatusChange: (status: 'attended' | 'no_show') => void;
+  onStatusChange: (status: StatusValue) => void;
   disabled?: boolean;
   loading?: boolean;
   size?: 'sm' | 'md';
   menuDirection?: 'up' | 'down';
   className?: string;
+  showRevert?: boolean;
 }
 
-const OPTIONS: Array<{ value: 'attended' | 'no_show'; label: string }> = [
+const BASE_OPTIONS: Array<{ value: StatusValue; label: string }> = [
   { value: 'attended', label: 'Checked In' },
   { value: 'no_show', label: 'No Show' },
 ];
+
+const REVERT_OPTION: { value: StatusValue; label: string } = { value: 'approved', label: 'Revert to Approved' };
 
 export function BookingStatusDropdown({
   currentStatus,
@@ -24,13 +29,18 @@ export function BookingStatusDropdown({
   size = 'sm',
   menuDirection = 'down',
   className = '',
+  showRevert = false,
 }: BookingStatusDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const options = showRevert && (currentStatus === 'attended' || currentStatus === 'no_show')
+    ? [...BASE_OPTIONS, REVERT_OPTION]
+    : BASE_OPTIONS;
+
   const isSm = size === 'sm';
-  const minWidth = isSm ? 'min-w-[140px]' : 'min-w-[160px]';
+  const minWidth = isSm ? 'min-w-[140px]' : 'min-w-[180px]';
   const itemTextSize = isSm ? 'text-xs' : 'text-sm';
   const iconSize = isSm ? 'w-5 h-5' : 'w-6 h-6';
   const iconTextSize = isSm ? 'text-xs' : 'text-sm';
@@ -45,7 +55,7 @@ export function BookingStatusDropdown({
     }
   };
 
-  const handleItemClick = (e: MouseEvent<HTMLButtonElement>, status: 'attended' | 'no_show') => {
+  const handleItemClick = (e: MouseEvent<HTMLButtonElement>, status: StatusValue) => {
     e.stopPropagation();
     e.preventDefault();
     setIsOpen(false);
@@ -75,20 +85,20 @@ export function BookingStatusDropdown({
       case 'ArrowDown':
         e.preventDefault();
         e.stopPropagation();
-        setActiveIndex(prev => (prev + 1) % OPTIONS.length);
+        setActiveIndex(prev => (prev + 1) % options.length);
         break;
       case 'ArrowUp':
         e.preventDefault();
         e.stopPropagation();
-        setActiveIndex(prev => (prev - 1 + OPTIONS.length) % OPTIONS.length);
+        setActiveIndex(prev => (prev - 1 + options.length) % options.length);
         break;
       case 'Enter':
       case ' ':
         e.preventDefault();
         e.stopPropagation();
-        if (activeIndex >= 0 && activeIndex < OPTIONS.length) {
+        if (activeIndex >= 0 && activeIndex < options.length) {
           setIsOpen(false);
-          onStatusChange(OPTIONS[activeIndex].value);
+          onStatusChange(options[activeIndex].value);
         }
         break;
       case 'Escape':
@@ -100,7 +110,7 @@ export function BookingStatusDropdown({
         setIsOpen(false);
         break;
     }
-  }, [isOpen, activeIndex, disabled, loading, onStatusChange]);
+  }, [isOpen, activeIndex, disabled, loading, onStatusChange, options]);
 
   const renderButton = () => {
     const ariaProps = {
@@ -220,6 +230,24 @@ export function BookingStatusDropdown({
     }
   }, [isOpen, menuDirection]);
 
+  const getOptionIcon = (value: StatusValue) => {
+    if (value === 'attended') return 'check_circle';
+    if (value === 'no_show') return 'person_off';
+    return 'undo';
+  };
+
+  const getOptionColor = (value: StatusValue) => {
+    if (value === 'attended') return 'bg-green-500/20 text-green-700 dark:text-green-400';
+    if (value === 'no_show') return 'bg-red-500/20 text-red-700 dark:text-red-400';
+    return 'bg-amber-500/20 text-amber-700 dark:text-amber-400';
+  };
+
+  const getCheckColor = (value: StatusValue) => {
+    if (value === 'attended') return 'text-green-600';
+    if (value === 'no_show') return 'text-red-600';
+    return 'text-amber-600';
+  };
+
   return (
     <div ref={buttonRef} className={`relative w-full ${className}`}>
       {renderButton()}
@@ -232,38 +260,25 @@ export function BookingStatusDropdown({
             aria-hidden="true"
           />
           <div ref={menuRef} id={listboxId} role="listbox" aria-label="Booking status" style={menuStyle} className={`bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-primary/10 dark:border-white/20 py-1 ${minWidth} animate-pop-in`}>
-            <button
-              type="button"
-              role="option"
-              id={`${listboxId}-option-0`}
-              aria-selected={currentStatus === 'attended'}
-              onClick={(e) => handleItemClick(e, 'attended')}
-              className={`w-full px-3 py-2 text-left ${itemTextSize} flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors ${currentStatus === 'attended' ? 'font-bold' : ''} ${activeIndex === 0 ? 'bg-primary/10 dark:bg-white/10' : ''}`}
-            >
-              <span className={`inline-flex items-center justify-center ${iconSize} rounded-full bg-green-500/20 text-green-700 dark:text-green-400`}>
-                <span className={`material-symbols-outlined ${iconTextSize}`}>check_circle</span>
-              </span>
-              Checked In
-              {currentStatus === 'attended' && (
-                <span className="material-symbols-outlined text-sm ml-auto text-green-600">check</span>
-              )}
-            </button>
-            <button
-              type="button"
-              role="option"
-              id={`${listboxId}-option-1`}
-              aria-selected={currentStatus === 'no_show'}
-              onClick={(e) => handleItemClick(e, 'no_show')}
-              className={`w-full px-3 py-2 text-left ${itemTextSize} flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors ${currentStatus === 'no_show' ? 'font-bold' : ''} ${activeIndex === 1 ? 'bg-primary/10 dark:bg-white/10' : ''}`}
-            >
-              <span className={`inline-flex items-center justify-center ${iconSize} rounded-full bg-red-500/20 text-red-700 dark:text-red-400`}>
-                <span className={`material-symbols-outlined ${iconTextSize}`}>person_off</span>
-              </span>
-              No Show
-              {currentStatus === 'no_show' && (
-                <span className="material-symbols-outlined text-sm ml-auto text-red-600">check</span>
-              )}
-            </button>
+            {options.map((option, index) => (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                id={`${listboxId}-option-${index}`}
+                aria-selected={currentStatus === option.value}
+                onClick={(e) => handleItemClick(e, option.value)}
+                className={`w-full px-3 py-2 text-left ${itemTextSize} flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors ${currentStatus === option.value ? 'font-bold' : ''} ${activeIndex === index ? 'bg-primary/10 dark:bg-white/10' : ''} ${option.value === 'approved' && index > 0 ? 'border-t border-primary/10 dark:border-white/10' : ''}`}
+              >
+                <span className={`inline-flex items-center justify-center ${iconSize} rounded-full ${getOptionColor(option.value)}`}>
+                  <span className={`material-symbols-outlined ${iconTextSize}`}>{getOptionIcon(option.value)}</span>
+                </span>
+                {option.label}
+                {currentStatus === option.value && (
+                  <span className={`material-symbols-outlined text-sm ml-auto ${getCheckColor(option.value)}`}>check</span>
+                )}
+              </button>
+            ))}
           </div>
         </>,
         document.body

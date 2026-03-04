@@ -44,6 +44,7 @@ export interface UnifiedBookingSheetProps {
   onReschedule?: (booking: { id: number; requestDate: string; startTime: string; endTime: string; resourceId: number; resourceName?: string; userName?: string; userEmail?: string }) => void;
   onCancelBooking?: (bookingId: number) => void;
   onCheckIn?: (bookingId: number, targetStatus?: 'attended' | 'no_show') => void;
+  onRevertToApproved?: (bookingId: number) => void | Promise<void>;
   bookingStatus?: string;
   ownerMembershipStatus?: string | null;
 }
@@ -67,6 +68,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
     onReschedule,
     onCancelBooking,
     onCheckIn,
+    onRevertToApproved,
     bookingStatus,
     ownerMembershipStatus,
     isRelink,
@@ -125,6 +127,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
         savingChanges={logic.savingChanges}
         handleManageModeSave={logic.handleManageModeSave}
         onCheckIn={onCheckIn}
+        onRevertToApproved={onRevertToApproved}
         onReschedule={onReschedule}
         onCancelBooking={onCancelBooking}
         bookingContext={bookingContext}

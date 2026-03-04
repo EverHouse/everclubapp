@@ -1494,6 +1494,55 @@ export async function handleCancelPostTransaction(
   }
 }
 
+export async function revertToApproved(params: { bookingId: number; staffEmail: string }) {
+  const { bookingId, staffEmail } = params;
+
+  const existingResult = await db.select({
+    status: bookingRequests.status,
+    userEmail: bookingRequests.userEmail,
+    userName: bookingRequests.userName,
+    sessionId: bookingRequests.sessionId,
+  })
+    .from(bookingRequests)
+    .where(eq(bookingRequests.id, bookingId));
+
+  if (existingResult.length === 0) {
+    return { error: 'Booking not found', statusCode: 404 };
+  }
+
+  const existing = existingResult[0];
+  const allowedStatuses = ['attended', 'no_show', 'checked_in'];
+  if (!existing.status || !allowedStatuses.includes(existing.status)) {
+    return { error: `Cannot revert from status "${existing.status}"`, statusCode: 400 };
+  }
+
+  const previousStatus = existing.status;
+
+  await db.update(bookingRequests)
+    .set({
+      status: 'approved',
+      reviewedBy: staffEmail,
+      reviewedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(bookingRequests.id, bookingId));
+
+  if (existing.sessionId) {
+    await db.execute(sql`
+      UPDATE booking_participants
+      SET payment_status = 'pending', updated_at = NOW()
+      WHERE session_id = ${existing.sessionId}
+        AND payment_status = 'waived'
+    `);
+  }
+
+  logger.info('[RevertToApproved] Booking reverted to approved', {
+    extra: { bookingId, previousStatus, staffEmail, memberEmail: existing.userEmail }
+  });
+
+  return { success: true, previousStatus, bookingId };
+}
+
 export async function updateGenericStatus(bookingId: number, status: string, staff_notes?: string) {
   const result = await db.update(bookingRequests)
     .set({

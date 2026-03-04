@@ -120,6 +120,7 @@ interface PaymentActionFooterProps {
   savingChanges: boolean;
   handleManageModeSave: () => void;
   onCheckIn?: (bookingId: number, targetStatus?: 'attended' | 'no_show') => void | Promise<void>;
+  onRevertToApproved?: (bookingId: number) => void | Promise<void>;
   onReschedule?: (booking: { id: number; requestDate: string; startTime: string; endTime: string; resourceId: number; resourceName?: string; userName?: string; userEmail?: string }) => void;
   onCancelBooking?: (bookingId: number) => void;
   bookingContext?: { requestDate?: string; startTime?: string; endTime?: string; resourceId?: number; resourceName?: string };
@@ -155,6 +156,7 @@ export function PaymentActionFooter({
   savingChanges,
   handleManageModeSave,
   onCheckIn,
+  onRevertToApproved,
   onReschedule: _onReschedule,
   onCancelBooking,
   bookingContext,
@@ -177,13 +179,27 @@ export function PaymentActionFooter({
     setWaiverReason('');
   };
 
-  const handleCheckIn = async (targetStatus?: 'attended' | 'no_show') => {
-    if (!bookingId || !onCheckIn) return;
+  const handleCheckIn = async (targetStatus?: 'attended' | 'no_show' | 'approved') => {
+    if (!bookingId) return;
+    if (targetStatus === 'approved' && onRevertToApproved) {
+      setCheckingIn(true);
+      try {
+        const result = onRevertToApproved(bookingId);
+        if (result instanceof Promise) await result;
+        setLocalStatus(null);
+      } catch (error) {
+        console.error('Revert failed:', error);
+      } finally {
+        setCheckingIn(false);
+      }
+      return;
+    }
+    if (!onCheckIn) return;
     setCheckingIn(true);
     try {
-      const result = onCheckIn(bookingId, targetStatus);
+      const result = onCheckIn(bookingId, targetStatus as 'attended' | 'no_show' | undefined);
       if (result instanceof Promise) await result;
-      setLocalStatus(targetStatus || 'attended');
+      setLocalStatus((targetStatus as 'attended' | 'no_show') || 'attended');
     } catch (error) {
       console.error('Check-in failed:', error);
     } finally {
@@ -231,6 +247,7 @@ export function PaymentActionFooter({
               loading={checkingIn}
               size="md"
               menuDirection="up"
+              showRevert={!!onRevertToApproved}
             />
           ) : bookingStatus !== 'cancelled' && onCheckIn && !showInlinePayment ? (
             <BookingStatusDropdown

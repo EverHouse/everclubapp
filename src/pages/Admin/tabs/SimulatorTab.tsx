@@ -58,7 +58,7 @@ const SimulatorTab: React.FC = () => {
     );
     
     const { showToast } = useToast();
-    const { checkInWithToast } = useBookingActions();
+    const { checkInWithToast, revertToApprovedWithToast } = useBookingActions();
     const { effectiveTheme } = useTheme();
     const isDark = effectiveTheme === 'dark';
     const [activeView, setActiveView] = useState<'requests' | 'calendar'>('requests');
@@ -1461,6 +1461,12 @@ const SimulatorTab: React.FC = () => {
               onCheckIn={async (bookingId, targetStatus) => {
                 const result = await checkInWithToast(bookingId, { status: targetStatus || 'attended' });
                 if (result.success) {
+                  handleRefresh();
+                }
+              }}
+              onRevertToApproved={async (bookingId) => {
+                const result = await revertToApprovedWithToast(bookingId);
+                if (result?.success) {
                   handleRefresh();
                 }
               }}

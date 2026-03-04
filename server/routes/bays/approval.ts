@@ -11,6 +11,7 @@ import {
   updateGenericStatus,
   checkinBooking,
   devConfirmBooking,
+  revertToApproved,
   formatBookingRow
 } from '../../core/bookingService/approvalService';
 import { BookingStateService } from '../../core/bookingService';
@@ -220,6 +221,30 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
   } catch (err: unknown) {
     logger.error('[Complete Cancellation] Error', { extra: { err } });
     return res.status(500).json({ error: 'Failed to complete cancellation' });
+  }
+});
+
+router.put('/api/bookings/:id/revert-to-approved', isStaffOrAdmin, async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id as string, 10);
+    if (isNaN(bookingId)) {
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
+
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
+    const result = await revertToApproved({ bookingId, staffEmail });
+
+    if (result.error && result.statusCode) {
+      return res.status(result.statusCode).json({ error: result.error });
+    }
+
+    logFromRequest(req, 'revert_to_approved', 'booking', req.params.id as string, staffEmail, {
+      previous_status: result.previousStatus
+    });
+
+    res.json(result);
+  } catch (error: unknown) {
+    logAndRespond(req, res, 500, 'Failed to revert booking', error);
   }
 });
 

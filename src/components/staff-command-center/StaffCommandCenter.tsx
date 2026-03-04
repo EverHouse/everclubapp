@@ -45,7 +45,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
   const { isAtBottom } = useBottomNav();
   const isMobile = useIsMobile();
   const { actualUser, refreshMembers } = useData();
-  const { checkInWithToast, staffCancelWithToast } = useBookingActions();
+  const { checkInWithToast, staffCancelWithToast, revertToApprovedWithToast } = useBookingActions();
   
   const navigateToTab = useCallback((tab: TabType) => {
     if (tabToPath[tab as keyof typeof tabToPath]) {
@@ -589,31 +589,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
             <h1 className="text-4xl lg:text-5xl font-bold text-primary dark:text-white leading-none" style={{ fontFamily: 'var(--font-display)', fontOpticalSizing: 'auto', letterSpacing: '-0.03em' }}>Welcome, {actualUser?.name?.split(' ')[0] || 'Staff'}</h1>
             <p className="text-sm lg:text-base text-primary/60 dark:text-white/60 mt-1">{formatTodayDate()}</p>
           </div>
-          <div className="flex flex-col items-end gap-1.5">
-            {pendingCount > 0 && (
-              <button 
-                onClick={() => navigateToTab('simulator')}
-                className="tactile-btn flex lg:hidden items-center gap-1 px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-[10px] font-medium"
-              >
-                <span className="material-symbols-outlined text-xs">assignment</span>
-                {pendingCount}
-              </button>
-            )}
-          </div>
         </div>
-
-        {/* Desktop Queue Stats - below header */}
-        {pendingCount > 0 && (
-          <div className="hidden lg:flex items-center gap-4 mb-4 animate-content-enter-delay-1">
-            <button 
-              onClick={() => navigateToTab('simulator')}
-              className="tactile-btn flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
-            >
-              <span className="material-symbols-outlined text-sm">assignment</span>
-              {pendingCount}
-            </button>
-          </div>
-        )}
 
         {/* Desktop Layout */}
         <div className="hidden lg:block space-y-6 animate-content-enter-delay-2">
@@ -875,6 +851,13 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
               window.dispatchEvent(new CustomEvent('booking-action-completed'));
               refresh();
             }
+          }
+        }}
+        onRevertToApproved={async (bookingId: number) => {
+          const result = await revertToApprovedWithToast(bookingId);
+          if (result?.success) {
+            window.dispatchEvent(new CustomEvent('booking-action-completed'));
+            refresh();
           }
         }}
         onCancelBooking={async (bookingId: number) => {
