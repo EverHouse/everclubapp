@@ -122,7 +122,7 @@ export const AlertsCard: React.FC<AlertsCardProps> = ({ notifications, onAlertCl
           <EmptyState icon="notifications_none" title="No new alerts" variant="compact" />
         </div>
       ) : (
-        <div ref={alertsListRef} className="flex-1 overflow-y-auto space-y-2 min-h-0">
+        <div ref={alertsListRef} className="flex-1 overflow-y-auto space-y-2 min-h-0 px-4 pb-4">
           {notifications.slice(0, 3).map((notif) => {
             const isCancellation = notif.type === 'booking_cancelled' || notif.type === 'cancellation_pending';
             return (
@@ -132,7 +132,7 @@ export const AlertsCard: React.FC<AlertsCardProps> = ({ notifications, onAlertCl
               role="button"
               tabIndex={0}
               onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && onAlertClick) { e.preventDefault(); onAlertClick(); } }}
-              className={`flex items-start gap-3 p-2 rounded-lg hover:bg-primary/5 dark:hover:bg-white/5 transition-colors cursor-pointer tactile-row ${!notif.is_read ? 'bg-primary/5 dark:bg-white/5' : ''} ${isCancellation && !notif.is_read ? 'ring-1 ring-red-300 dark:ring-red-500/50 bg-red-50/50 dark:bg-red-900/10' : ''}`}
+              className={`flex items-start gap-3 p-3 rounded-lg hover:bg-primary/5 dark:hover:bg-white/5 transition-colors cursor-pointer tactile-row ${!notif.is_read ? 'bg-primary/5 dark:bg-white/5' : ''} ${isCancellation && !notif.is_read ? 'ring-1 ring-red-300 dark:ring-red-500/50 bg-red-50/50 dark:bg-red-900/10' : ''}`}
             >
               <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${getNotificationColor(notif.type)}`}>
                 <span className="material-symbols-outlined text-base">{getNotificationIcon(notif.type)}</span>
