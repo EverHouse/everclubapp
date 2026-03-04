@@ -643,6 +643,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                 importedName: booking.user_name || undefined,
                 notes: booking.notes || undefined
               })}
+              onRevertToApproved={revertToApprovedWithToast}
               variant="desktop-bottom"
             />
             <BookingQueuesSection
@@ -669,6 +670,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                 importedName: booking.user_name || undefined,
                 notes: booking.notes || undefined
               })}
+              onRevertToApproved={revertToApprovedWithToast}
               variant="desktop-top"
             />
             <NoticeBoardWidget
@@ -778,6 +780,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                 importedName: booking.user_name || undefined,
                 notes: booking.notes || undefined
               })}
+            onRevertToApproved={revertToApprovedWithToast}
             variant="mobile"
           />
           {/* Upcoming Events & Wellness */}

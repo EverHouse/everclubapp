@@ -1,4 +1,5 @@
 import { db } from '../../db';
+import { pool } from '../db';
 import { bookingRequests, resources, notifications, users, bookingParticipants, stripePaymentIntents } from '../../../shared/schema';
 import { eq, and, or, gt, lt, lte, gte, ne, sql, isNull, isNotNull } from 'drizzle-orm';
 import { sendPushNotification } from '../../routes/push';
@@ -1518,22 +1519,28 @@ export async function revertToApproved(params: { bookingId: number; staffEmail: 
 
   const previousStatus = existing.status;
 
-  await db.update(bookingRequests)
-    .set({
-      status: 'approved',
-      reviewedBy: staffEmail,
-      reviewedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(eq(bookingRequests.id, bookingId));
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  if (existing.sessionId) {
-    await db.execute(sql`
-      UPDATE booking_participants
-      SET payment_status = 'pending', updated_at = NOW()
-      WHERE session_id = ${existing.sessionId}
-        AND payment_status = 'waived'
-    `);
+    await client.query(
+      `UPDATE booking_requests SET status = 'approved', reviewed_by = $1, reviewed_at = NOW(), updated_at = NOW() WHERE id = $2`,
+      [staffEmail, bookingId]
+    );
+
+    if (existing.sessionId) {
+      await client.query(
+        `UPDATE booking_participants SET payment_status = 'pending' WHERE session_id = $1 AND payment_status = 'waived'`,
+        [existing.sessionId]
+      );
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
 
   logger.info('[RevertToApproved] Booking reverted to approved', {

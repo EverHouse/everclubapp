@@ -339,6 +339,7 @@ interface BookingQueuesSectionProps {
   onAssignMember?: (booking: BookingRequest) => void;
   onCompleteCancellation?: (request: BookingRequest) => void;
   onEditBooking?: (booking: BookingRequest) => void;
+  onRevertToApproved?: (bookingId: number) => void;
   variant: 'desktop' | 'desktop-top' | 'desktop-bottom' | 'mobile';
 }
 
@@ -357,6 +358,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
   onCompleteCancellation,
   onAssignMember,
   onEditBooking,
+  onRevertToApproved,
   variant
 }) => {
   const navigate = useNavigate();
@@ -388,7 +390,17 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
   );
 
   const { execute: executeCheckIn } = useAsyncAction(
-    async (booking: BookingRequest, targetStatus?: 'attended' | 'no_show') => {
+    async (booking: BookingRequest, targetStatus?: 'attended' | 'no_show' | 'approved') => {
+      const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
+      if (targetStatus === 'approved' && onRevertToApproved) {
+        setLoadingAction(`checkin-${booking.id}`);
+        try {
+          await onRevertToApproved(bookingId);
+        } finally {
+          setLoadingAction(null);
+        }
+        return;
+      }
       setLoadingAction(`checkin-${booking.id}`);
       try {
         await onCheckIn(booking, targetStatus);
@@ -512,6 +524,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
         <BookingStatusDropdown
           currentStatus="attended"
           onStatusChange={(status) => executeCheckIn(booking, status)}
+          showRevert={true}
           size="sm"
           menuDirection="down"
         />
@@ -523,6 +536,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
         <BookingStatusDropdown
           currentStatus="no_show"
           onStatusChange={(status) => executeCheckIn(booking, status)}
+          showRevert={true}
           size="sm"
           menuDirection="down"
         />
