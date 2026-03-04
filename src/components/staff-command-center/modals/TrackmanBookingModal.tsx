@@ -261,7 +261,12 @@ export function TrackmanBookingModal({
     setIsDevConfirming(true);
     try {
       await onDevConfirm(booking.id);
-      onClose();
+      setAutoConfirmedId(`DEV-${booking.id}`);
+      setAutoApproved(true);
+      setTimeout(() => setShowSuccessOverlay(true), 50);
+      closeTimerRef.current = setTimeout(() => {
+        onCloseRef.current();
+      }, 3500);
     } catch (err: unknown) {
       const errorMsg = (err instanceof Error ? err.message : String(err)) || 'Failed to dev-confirm booking';
       setError(errorMsg);
@@ -269,7 +274,7 @@ export function TrackmanBookingModal({
     } finally {
       setIsDevConfirming(false);
     }
-  }, [booking, onDevConfirm, onClose, showToast]);
+  }, [booking, onDevConfirm, showToast]);
 
   const handleClose = useCallback(() => {
     setExternalId('');
@@ -493,7 +498,7 @@ export function TrackmanBookingModal({
                 animation: showSuccessOverlay ? 'trackmanFadeUp 0.4s ease-out 0.4s both' : 'none'
               }}
             >
-              Auto-Confirmed by Trackman
+              {autoConfirmedId?.startsWith('DEV-') ? 'Dev-Confirmed' : 'Auto-Confirmed by Trackman'}
             </h3>
             <p
               className="text-sm text-green-600/80 dark:text-green-400/80 mb-5"
@@ -521,10 +526,10 @@ export function TrackmanBookingModal({
                   />
                   <div className="relative">
                     <p className="text-xs font-medium text-green-700/70 dark:text-green-300/70 mb-1">
-                      Trackman Booking ID
+                      {autoConfirmedId?.startsWith('DEV-') ? 'Booking ID' : 'Trackman Booking ID'}
                     </p>
                     <p className="text-xl font-mono font-bold text-green-800 dark:text-green-200 tracking-wider">
-                      {autoConfirmedId}
+                      {autoConfirmedId?.startsWith('DEV-') ? `#${autoConfirmedId.replace('DEV-', '')}` : autoConfirmedId}
                     </p>
                   </div>
                 </div>

@@ -1422,54 +1422,58 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: S
   });
 
   if (metadata?.email && metadata?.purpose) {
-    const email = metadata.email;
-    const desc = paymentIntent.description || `Stripe payment: ${metadata.purpose}`;
-    const localBookingId = bookingId;
-    const localAmount = amount;
-    const localId = id;
-    
-    const userResult = await client.query('SELECT first_name, last_name FROM users WHERE email = $1', [email]);
-    const memberName = userResult.rows[0] 
-      ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
-      : email;
+    if (metadata.purpose === 'add_funds') {
+      logger.info(`[Stripe Webhook] Skipping PI-level notifications for add_funds payment ${id} — already handled by checkout.session.completed`);
+    } else {
+      const email = metadata.email;
+      const desc = paymentIntent.description || `Stripe payment: ${metadata.purpose}`;
+      const localBookingId = bookingId;
+      const localAmount = amount;
+      const localId = id;
+      
+      const userResult = await client.query('SELECT first_name, last_name FROM users WHERE email = $1', [email]);
+      const memberName = userResult.rows[0] 
+        ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
+        : email;
 
-    await queueJobInTransaction(client, 'sync_to_hubspot', {
-      email,
-      amountCents: localAmount,
-      purpose: metadata.purpose,
-      description: desc,
-      paymentIntentId: localId
-    }, { webhookEventId: localId, priority: 1 });
+      await queueJobInTransaction(client, 'sync_to_hubspot', {
+        email,
+        amountCents: localAmount,
+        purpose: metadata.purpose,
+        description: desc,
+        paymentIntentId: localId
+      }, { webhookEventId: localId, priority: 1 });
 
-    await queueJobInTransaction(client, 'send_payment_receipt', {
-      to: email,
-      memberName,
-      amount: localAmount / 100,
-      description: desc,
-      date: new Date().toISOString(),
-      paymentMethod: 'card'
-    }, { webhookEventId: localId, priority: 2 });
+      await queueJobInTransaction(client, 'send_payment_receipt', {
+        to: email,
+        memberName,
+        amount: localAmount / 100,
+        description: desc,
+        date: new Date().toISOString(),
+        paymentMethod: 'card'
+      }, { webhookEventId: localId, priority: 2 });
 
-    await queueJobInTransaction(client, 'notify_payment_success', {
-      userEmail: email,
-      amount: localAmount / 100,
-      description: desc
-    }, { webhookEventId: localId, priority: 1 });
+      await queueJobInTransaction(client, 'notify_payment_success', {
+        userEmail: email,
+        amount: localAmount / 100,
+        description: desc
+      }, { webhookEventId: localId, priority: 1 });
 
-    await queueJobInTransaction(client, 'notify_all_staff', {
-      title: 'Payment Received',
-      message: `${memberName} (${email}) made a payment of $${(localAmount / 100).toFixed(2)} for: ${desc}`,
-      type: 'payment_success'
-    }, { webhookEventId: localId, priority: 0 });
+      await queueJobInTransaction(client, 'notify_all_staff', {
+        title: 'Payment Received',
+        message: `${memberName} (${email}) made a payment of $${(localAmount / 100).toFixed(2)} for: ${desc}`,
+        type: 'payment_success'
+      }, { webhookEventId: localId, priority: 0 });
 
-    await queueJobInTransaction(client, 'broadcast_billing_update', {
-      action: 'payment_succeeded',
-      memberEmail: email,
-      memberName,
-      amount: localAmount / 100
-    }, { webhookEventId: localId, priority: 0 });
+      await queueJobInTransaction(client, 'broadcast_billing_update', {
+        action: 'payment_succeeded',
+        memberEmail: email,
+        memberName,
+        amount: localAmount / 100
+      }, { webhookEventId: localId, priority: 0 });
 
-    logger.info(`[Stripe Webhook] Queued ${5} jobs for payment ${localId} to ${email}`);
+      logger.info(`[Stripe Webhook] Queued ${5} jobs for payment ${localId} to ${email}`);
+    }
   }
 
   return deferredActions;
@@ -2664,6 +2668,11 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
     // Only handle day pass purchases
     if (session.metadata?.purpose !== 'day_pass') {
       logger.info(`[Stripe Webhook] Skipping checkout session ${session.id} (not a day_pass or staff_invite)`);
+      return deferredActions;
+    }
+
+    if (session.payment_status === 'unpaid') {
+      logger.info(`[Stripe Webhook] Day pass checkout session ${session.id} has payment_status=unpaid (async payment method) — deferring fulfillment to async_payment_succeeded`);
       return deferredActions;
     }
 

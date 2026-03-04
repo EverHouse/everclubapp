@@ -304,6 +304,26 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
         }
 
         if (invoiceResult.paidInFull) {
+          const paidParticipantIds = pendingFees.map(f => f.participantId!).filter(Boolean);
+          if (paidParticipantIds.length > 0) {
+            await db.execute(sql`
+              UPDATE booking_participants
+               SET payment_status = 'paid', paid_at = NOW(), updated_at = NOW(),
+                   stripe_payment_intent_id = ${invoiceResult.paymentIntentId || 'credit-' + bookingId},
+                   cached_fee_cents = 0
+               WHERE id = ANY(${toIntArrayLiteral(paidParticipantIds)}::int[])
+            `);
+            logger.info('[Stripe] Marked participants as paid via account credit (existing invoice)', { extra: { bookingId, participantCount: paidParticipantIds.length } });
+          }
+          sendNotificationToUser(booking.user_email, {
+            type: 'billing_update',
+            title: 'Payment Confirmed',
+            message: `Your booking fees of $${(serverTotal / 100).toFixed(2)} have been paid using your account credit.`,
+            data: { bookingId, status: 'paid' }
+          });
+          broadcastBillingUpdate({ memberEmail: booking.user_email, action: 'payment_confirmed', bookingId, status: 'paid' });
+          broadcastBookingInvoiceUpdate({ bookingId, action: 'payment_confirmed' });
+
           return res.json({
             paidInFull: true,
             invoiceId: invoiceResult.invoiceId,
@@ -409,6 +429,26 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
     });
 
     if (invoiceResult.paidInFull) {
+      const paidIds = pendingFees.map(f => f.participantId!).filter(Boolean);
+      if (paidIds.length > 0) {
+        await db.execute(sql`
+          UPDATE booking_participants
+           SET payment_status = 'paid', paid_at = NOW(), updated_at = NOW(),
+               stripe_payment_intent_id = ${invoiceResult.paymentIntentId || 'credit-' + bookingId},
+               cached_fee_cents = 0
+           WHERE id = ANY(${toIntArrayLiteral(paidIds)}::int[])
+        `);
+        logger.info('[Stripe] Marked participants as paid via account credit (new invoice)', { extra: { bookingId, participantCount: paidIds.length } });
+      }
+      sendNotificationToUser(booking.user_email, {
+        type: 'billing_update',
+        title: 'Payment Confirmed',
+        message: `Your booking fees of $${(serverTotal / 100).toFixed(2)} have been paid using your account credit.`,
+        data: { bookingId, status: 'paid' }
+      });
+      broadcastBillingUpdate({ memberEmail: booking.user_email, action: 'payment_confirmed', bookingId, status: 'paid' });
+      broadcastBookingInvoiceUpdate({ bookingId, action: 'payment_confirmed' });
+
       return res.json({
         paidInFull: true,
         invoiceId: invoiceResult.invoiceId,

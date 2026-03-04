@@ -37,8 +37,8 @@ interface CancelResult {
 }
 
 interface SideEffectsManifest {
-  stripeRefunds: Array<{ paymentIntentId: string; type: 'refund' | 'cancel'; idempotencyKey: string }>;
-  stripeSnapshotRefunds: Array<{ paymentIntentId: string; idempotencyKey: string }>;
+  stripeRefunds: Array<{ paymentIntentId: string; type: 'refund' | 'cancel'; idempotencyKey: string; amountCents?: number }>;
+  stripeSnapshotRefunds: Array<{ paymentIntentId: string; idempotencyKey: string; amountCents?: number }>;
   balanceRefunds: Array<{ stripeCustomerId: string; amountCents: number; bookingId: number; balanceRecordId: string; description: string }>;
   invoiceVoid: { bookingId: number } | null;
   calendarDeletion: { eventId: string; resourceId: number | null } | null;
@@ -185,22 +185,26 @@ export class BookingStateService {
       for (const snapshot of allSnapshots.rows as unknown as FeeSnapshotRow[]) {
         sideEffects.stripeSnapshotRefunds.push({
           paymentIntentId: snapshot.stripe_payment_intent_id,
+          amountCents: snapshot.total_cents,
           idempotencyKey: `refund_cancel_snapshot_${bookingId}_${snapshot.stripe_payment_intent_id}`,
         });
       }
 
-      const otherIntents = await tx.select({ stripePaymentIntentId: stripePaymentIntents.stripePaymentIntentId })
+      const otherIntents = await tx.select({ stripePaymentIntentId: stripePaymentIntents.stripePaymentIntentId, amountCents: stripePaymentIntents.amountCents })
         .from(stripePaymentIntents)
         .where(and(
           eq(stripePaymentIntents.bookingId, bookingId),
         ));
 
       const snapshotPiIds = new Set((allSnapshots.rows as unknown as FeeSnapshotRow[]).map((s) => s.stripe_payment_intent_id));
+      const piBookingAmounts = new Map<string, number>();
       for (const row of otherIntents) {
+        piBookingAmounts.set(row.stripePaymentIntentId, row.amountCents || 0);
         if (!snapshotPiIds.has(row.stripePaymentIntentId)) {
           sideEffects.stripeRefunds.push({
             paymentIntentId: row.stripePaymentIntentId,
             type: 'refund',
+            amountCents: row.amountCents || undefined,
             idempotencyKey: `refund_cancel_orphan_${bookingId}_${row.stripePaymentIntentId}`,
           });
         }
@@ -228,6 +232,7 @@ export class BookingStateService {
             sideEffects.stripeRefunds.push({
               paymentIntentId: participant.stripePaymentIntentId,
               type: 'refund',
+              amountCents: piBookingAmounts.get(participant.stripePaymentIntentId) || undefined,
               idempotencyKey: `refund_cancel_participant_${bookingId}_${participant.stripePaymentIntentId}`,
             });
           }
@@ -458,6 +463,7 @@ export class BookingStateService {
       for (const snapshot of allSnapshots.rows as unknown as FeeSnapshotRow[]) {
         sideEffects.stripeSnapshotRefunds.push({
           paymentIntentId: snapshot.stripe_payment_intent_id,
+          amountCents: snapshot.total_cents,
           idempotencyKey: `refund_complete_cancel_snapshot_${bookingId}_${snapshot.stripe_payment_intent_id}`,
         });
       }
@@ -487,11 +493,25 @@ export class BookingStateService {
           ));
 
         const snapshotPiIds = new Set((allSnapshots.rows as unknown as FeeSnapshotRow[]).map((s) => s.stripe_payment_intent_id));
+        const piAmounts = new Map<string, number>();
+        for (const row of allSnapshots.rows as unknown as FeeSnapshotRow[]) {
+          piAmounts.set(row.stripe_payment_intent_id, row.total_cents);
+        }
+        const piIntentRecords = await tx.select({ stripePaymentIntentId: stripePaymentIntents.stripePaymentIntentId, amountCents: stripePaymentIntents.amountCents })
+          .from(stripePaymentIntents)
+          .where(eq(stripePaymentIntents.bookingId, bookingId));
+        for (const row of piIntentRecords) {
+          if (!piAmounts.has(row.stripePaymentIntentId)) {
+            piAmounts.set(row.stripePaymentIntentId, row.amountCents || 0);
+          }
+        }
+
         for (const participant of paidParticipants) {
           if (participant.stripePaymentIntentId && !snapshotPiIds.has(participant.stripePaymentIntentId)) {
             sideEffects.stripeRefunds.push({
               paymentIntentId: participant.stripePaymentIntentId,
               type: 'refund',
+              amountCents: piAmounts.get(participant.stripePaymentIntentId) || undefined,
               idempotencyKey: `refund_complete_participant_${bookingId}_${participant.stripePaymentIntentId}`,
             });
           }
@@ -658,19 +678,23 @@ export class BookingStateService {
         const pi = await stripe.paymentIntents.retrieve(snapshotRefund.paymentIntentId);
 
         if (pi.status === 'succeeded') {
+          const refundAmount = snapshotRefund.amountCents && snapshotRefund.amountCents < pi.amount
+            ? snapshotRefund.amountCents : undefined;
           const refund = await stripe.refunds.create({
             payment_intent: snapshotRefund.paymentIntentId,
+            ...(refundAmount ? { amount: refundAmount } : {}),
             reason: 'requested_by_customer',
           }, {
             idempotencyKey: snapshotRefund.idempotencyKey,
           });
+          const refundedCents = refundAmount || pi.amount;
           logger.info('[BookingStateService] Refunded snapshot payment', {
-            extra: { paymentIntentId: snapshotRefund.paymentIntentId, refundId: refund.id, amount: (pi.amount / 100).toFixed(2) },
+            extra: { paymentIntentId: snapshotRefund.paymentIntentId, refundId: refund.id, amount: (refundedCents / 100).toFixed(2), partial: !!refundAmount },
           });
           await PaymentStatusService.markPaymentRefunded({
             paymentIntentId: snapshotRefund.paymentIntentId,
             refundId: refund.id,
-            amountCents: pi.amount,
+            amountCents: refundedCents,
           });
         } else if (['requires_payment_method', 'requires_confirmation', 'requires_action', 'requires_capture', 'processing'].includes(pi.status)) {
           await stripe.paymentIntents.cancel(snapshotRefund.paymentIntentId);
@@ -698,19 +722,23 @@ export class BookingStateService {
           }
         } else if (pi.status === 'succeeded' && pi.latest_charge) {
           const chargeId = typeof pi.latest_charge === 'string' ? pi.latest_charge : (pi.latest_charge as Stripe.Charge).id;
+          const refundAmount = refundItem.amountCents && refundItem.amountCents < pi.amount
+            ? refundItem.amountCents : undefined;
           const refund = await stripe.refunds.create({
             charge: chargeId,
+            ...(refundAmount ? { amount: refundAmount } : {}),
             reason: 'requested_by_customer',
           }, {
             idempotencyKey: refundItem.idempotencyKey,
           });
+          const refundedCents = refundAmount || pi.amount;
           logger.info('[BookingStateService] Refunded payment', {
-            extra: { paymentIntentId: refundItem.paymentIntentId, refundId: refund.id, amount: (pi.amount / 100).toFixed(2) },
+            extra: { paymentIntentId: refundItem.paymentIntentId, refundId: refund.id, amount: (refundedCents / 100).toFixed(2), partial: !!refundAmount },
           });
           await PaymentStatusService.markPaymentRefunded({
             paymentIntentId: refundItem.paymentIntentId,
             refundId: refund.id,
-            amountCents: pi.amount,
+            amountCents: refundedCents,
           });
         } else if (pi.status === 'canceled') {
           await PaymentStatusService.markPaymentCancelled({ paymentIntentId: refundItem.paymentIntentId });
