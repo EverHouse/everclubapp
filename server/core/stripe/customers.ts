@@ -670,6 +670,12 @@ export async function listCustomerPaymentMethods(customerId: string): Promise<No
     } catch (err) {
       logger.warn('[Stripe] Failed to retrieve default payment method by ID', { extra: { customerId, defaultPmId, error: getErrorMessage(err) } });
     }
+  } else if (defaultPmId && results.length > 1 && results[0].id !== defaultPmId) {
+    const idx = results.findIndex(r => r.id === defaultPmId);
+    if (idx > 0) {
+      const [defaultEntry] = results.splice(idx, 1);
+      results.unshift(defaultEntry);
+    }
   }
 
   return results;

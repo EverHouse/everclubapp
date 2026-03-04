@@ -4,8 +4,20 @@ import { sql } from 'drizzle-orm';
 import { notifyMember, notifyAllStaff } from '../notificationService';
 import { sendCardExpiringEmail } from '../../emails/membershipEmails';
 import { getErrorMessage } from '../../utils/errorUtils';
+import type Stripe from 'stripe';
 
 import { logger } from '../logger';
+
+function extractExpiryAndLast4(pm: Stripe.PaymentMethod): { expMonth: number; expYear: number; last4: string } | null {
+  if (pm.card) {
+    return { expMonth: pm.card.exp_month, expYear: pm.card.exp_year, last4: pm.card.last4 || '****' };
+  }
+  const link = (pm as unknown as { link?: { exp_month?: number; exp_year?: number; last4?: string } }).link;
+  if (link?.exp_month && link?.exp_year) {
+    return { expMonth: link.exp_month, expYear: link.exp_year, last4: link.last4 || '****' };
+  }
+  return null;
+}
 interface CheckExpiringCardsResult {
   checked: number;
   notified: number;
@@ -46,12 +58,12 @@ export async function checkExpiringCards(): Promise<CheckExpiringCardsResult> {
             customer.invoice_settings.default_payment_method as string
           );
 
-          if (!pm.card) {
+          const cardInfo = extractExpiryAndLast4(pm);
+          if (!cardInfo) {
             continue;
           }
 
-          const expMonth = pm.card.exp_month;
-          const expYear = pm.card.exp_year;
+          const { expMonth, expYear, last4: cardLast4 } = cardInfo;
           const cardExpiry = new Date(expYear, expMonth - 1, 28);
 
           if (cardExpiry <= sevenDaysFromNow && cardExpiry > now) {
@@ -83,7 +95,6 @@ export async function checkExpiringCards(): Promise<CheckExpiringCardsResult> {
             }
 
             const memberName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Member';
-            const cardLast4 = pm.card.last4 || '****';
 
             await sendCardExpiringEmail(String(userEmail), {
               memberName,
