@@ -2924,7 +2924,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
             ownerName: (bk.user_name as string) || undefined,
             ownerUserId: (bk.user_id as string) || undefined,
             trackmanBookingId: (bk.trackman_booking_id as string) || undefined,
-            source: 'link_member',
+            source: 'staff_manual',
             createdBy: linkedBy
           });
           sessionId = sessionResult.sessionId;

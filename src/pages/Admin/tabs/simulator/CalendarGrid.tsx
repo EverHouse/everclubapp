@@ -129,8 +129,8 @@ function CalendarFeeIndicator({
             ? 'text-blue-700 dark:text-blue-300'
             : 'text-green-700 dark:text-green-300';
 
-    const hasUnpaidFees = hasUnpaidFeesFlag || dbOwed > 0;
-    const totalOwed = dbOwed;
+    const totalOwed = Number(dbOwed) || 0;
+    const hasUnpaidFees = hasUnpaidFeesFlag || totalOwed > 0;
 
     return (
         <>

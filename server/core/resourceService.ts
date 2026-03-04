@@ -1096,7 +1096,7 @@ export async function linkTrackmanToMember(
         ownerEmail: ownerEmail,
         ownerName: ownerName,
         trackmanBookingId: trackmanBookingId,
-        source: 'trackman_link',
+        source: 'trackman_webhook',
         createdBy: staffEmail
       });
       if (sessionResult.sessionId) {
@@ -1588,7 +1588,7 @@ export async function assignWithPlayers(
         ownerName: owner.name,
         ownerUserId: resolvedOwnerId || undefined,
         trackmanBookingId: result.booking.trackmanBookingId || undefined,
-        source: 'staff_assignment',
+        source: 'staff_manual',
         createdBy: staffEmail
       });
       sessionId = sessionResult.sessionId;

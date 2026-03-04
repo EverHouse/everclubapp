@@ -3117,7 +3117,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               ownerName: approved.user_name || undefined,
               ownerUserId: approved.user_id || undefined,
               trackmanBookingId: approved.trackman_booking_id || undefined,
-              source: 'trackman_import_cleanup',
+              source: 'trackman_import',
               createdBy: 'trackman_import_cleanup'
             });
             if (sessionResult.sessionId) {

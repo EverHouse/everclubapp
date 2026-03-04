@@ -106,7 +106,7 @@ export async function ensureSessionForBooking(params: {
   ownerName?: string;
   ownerUserId?: string;
   trackmanBookingId?: string;
-  source: string;
+  source: 'member_request' | 'staff_manual' | 'trackman_import' | 'trackman_webhook';
   createdBy: string;
 }, client?: PoolClient): Promise<{ sessionId: number; created: boolean; error?: string }> {
   const q = client || pool;
