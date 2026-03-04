@@ -18,7 +18,7 @@ import {
 import { getSessionParticipants } from '../core/bookingService/sessionManager';
 import { invalidateCachedFees, recalculateSessionFees } from '../core/billing/unifiedFeeService';
 import { validateBody } from '../middleware/validate';
-import { addParticipantSchema, batchRosterSchema } from '../../shared/validators/roster';
+import { addParticipantSchema, batchRosterSchema, previewFeesSchema, playerCountSchema, removeParticipantSchema } from '../../shared/validators/roster';
 
 interface OwnerRow {
   id: string;
@@ -177,7 +177,7 @@ router.post('/api/bookings/:bookingId/participants', validateBody(addParticipant
   }
 });
 
-router.delete('/api/bookings/:bookingId/participants/:participantId', async (req: Request, res: Response) => {
+router.delete('/api/bookings/:bookingId/participants/:participantId', validateBody(removeParticipantSchema), async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {
@@ -208,7 +208,7 @@ router.delete('/api/bookings/:bookingId/participants/:participantId', async (req
   }
 });
 
-router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Request, res: Response) => {
+router.post('/api/bookings/:bookingId/participants/preview-fees', validateBody(previewFeesSchema), async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {
@@ -232,7 +232,7 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Re
   }
 });
 
-router.patch('/api/admin/booking/:bookingId/player-count', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.patch('/api/admin/booking/:bookingId/player-count', isStaffOrAdmin, validateBody(playerCountSchema), async (req: Request, res: Response) => {
   try {
     const bookingId = parseInt(req.params.bookingId as string, 10);
     const { playerCount } = req.body;
@@ -241,10 +241,6 @@ router.patch('/api/admin/booking/:bookingId/player-count', isStaffOrAdmin, async
 
     if (isNaN(bookingId)) {
       return res.status(400).json({ error: 'Invalid booking ID' });
-    }
-
-    if (typeof playerCount !== 'number' || playerCount < 1 || playerCount > 4) {
-      return res.status(400).json({ error: 'Player count must be between 1 and 4' });
     }
 
     const result = await updateDeclaredPlayerCount({

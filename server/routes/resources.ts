@@ -6,6 +6,7 @@ import { logAndRespond, logger } from '../core/logger';
 import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
 import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../utils/errorUtils';
+import { memberCancelSchema } from '../../shared/validators/roster';
 import {
   assignMemberSchema,
   linkTrackmanSchema,
@@ -566,7 +567,7 @@ router.delete('/api/bookings/:id', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-router.put('/api/bookings/:id/member-cancel', isAuthenticated, async (req, res) => {
+router.put('/api/bookings/:id/member-cancel', isAuthenticated, validateBody(memberCancelSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const rawSessionEmail = getSessionUser(req)?.email;
