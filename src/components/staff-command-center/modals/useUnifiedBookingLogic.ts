@@ -1172,6 +1172,12 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
           throw new Error(data.error || data.message || 'Failed to link booking to member');
         }
         const data = await res.json();
+        if (data.convertedToAvailabilityBlock) {
+          showToast(`${data.instructorName || 'Instructor'} lesson converted to availability block`, 'success');
+          onSuccess?.({ memberEmail: owner.email, memberName: owner.name });
+          onClose();
+          return;
+        }
         feesRecalculated = data.feesRecalculated === true;
         if (data.bookingId) {
           resultBookingId = data.bookingId;

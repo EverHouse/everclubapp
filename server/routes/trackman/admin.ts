@@ -3831,27 +3831,19 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
 
       // Check if block already exists
       const existingBlock = await db.execute(sql`SELECT ab.id FROM availability_blocks ab
-        JOIN facility_closures fc ON ab.closure_id = fc.id
         WHERE ab.resource_id = ${booking.resource_id}
           AND ab.block_date = ${bookingDate}
           AND ab.start_time < ${endTime}::time
           AND ab.end_time > ${booking.start_time}::time
-          AND fc.notice_type = 'private_event'
-          AND fc.is_active = true
         LIMIT 1`);
 
       const blockAlreadyExists = existingBlock.rows.length > 0;
 
       if (!dryRun) {
         if (!blockAlreadyExists) {
-          const closureResult = await db.execute(sql`INSERT INTO facility_closures 
-              (resource_id, start_date, end_date, start_time, end_time, reason, notice_type, visibility, is_active, created_by)
-            VALUES (${booking.resource_id}, ${bookingDate}, ${bookingDate}, ${booking.start_time}, ${endTime}, ${`Lesson (Converted): ${booking.user_name} [TM:${booking.trackman_booking_id || booking.id}]`}, 'private_event', 'Staff Only', true, ${'system_cleanup'})
-            RETURNING id`);
-
           await db.execute(sql`INSERT INTO availability_blocks 
-              (closure_id, resource_id, block_date, start_time, end_time, reason)
-            VALUES (${(closureResult.rows[0] as DbRow).id}, ${booking.resource_id}, ${bookingDate}, ${booking.start_time}, ${endTime}, ${`Lesson - ${booking.user_name}`})`);
+              (resource_id, block_date, start_time, end_time, block_type, notes, created_by)
+            VALUES (${booking.resource_id}, ${bookingDate}, ${booking.start_time}, ${endTime}, 'blocked', ${`Lesson - ${booking.user_name}`}, 'system_cleanup')`);
         }
 
         await db.execute(sql`UPDATE booking_requests 
@@ -3910,24 +3902,16 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
 
           // Check if block already exists
           const existingBlock = await db.execute(sql`SELECT ab.id FROM availability_blocks ab
-            JOIN facility_closures fc ON ab.closure_id = fc.id
             WHERE ab.resource_id = ${resourceId}
               AND ab.block_date = ${bookingDate}
               AND ab.start_time < ${item.end_time || item.start_time}::time
               AND ab.end_time > ${item.start_time}::time
-              AND fc.notice_type = 'private_event'
-              AND fc.is_active = true
             LIMIT 1`);
 
           if (existingBlock.rows.length === 0) {
-            const closureResult = await db.execute(sql`INSERT INTO facility_closures 
-                (resource_id, start_date, end_date, start_time, end_time, reason, notice_type, visibility, is_active, created_by)
-              VALUES (${resourceId}, ${bookingDate}, ${bookingDate}, ${item.start_time}, ${item.end_time || item.start_time}, ${`Lesson: ${item.user_name} [TM:${item.trackman_booking_id || item.id}]`}, 'private_event', 'Staff Only', true, ${'system_cleanup'})
-              RETURNING id`);
-
             await db.execute(sql`INSERT INTO availability_blocks 
-                (closure_id, resource_id, block_date, start_time, end_time, reason)
-              VALUES (${(closureResult.rows[0] as DbRow).id}, ${resourceId}, ${bookingDate}, ${item.start_time}, ${item.end_time || item.start_time}, ${`Lesson - ${item.user_name}`})`);
+                (resource_id, block_date, start_time, end_time, block_type, notes, created_by)
+              VALUES (${resourceId}, ${bookingDate}, ${item.start_time}, ${item.end_time || item.start_time}, 'blocked', ${`Lesson - ${item.user_name}`}, 'system_cleanup')`);
           }
 
           await db.execute(sql`UPDATE trackman_unmatched_bookings

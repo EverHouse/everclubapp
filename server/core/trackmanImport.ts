@@ -36,10 +36,6 @@ interface SessionCheckRow {
   session_id: number | null;
 }
 
-interface ClosureIdRow {
-  id: number;
-}
-
 interface PaymentIntentRow {
   stripe_payment_intent_id: string;
 }
@@ -236,32 +232,29 @@ async function isConvertedToPrivateEventBlock(
   if (!resourceId || !bookingDate || !startTime) return false;
   
   try {
-    // Build effective end time - use provided endTime or default to 1 hour after start
     const effectiveEndTime = endTime 
       ? sql`${endTime}::time`
       : sql`${startTime}::time + interval '1 hour'`;
     
-    // Look for availability blocks on this resource/date/time that are linked to private_event closures
     const matchingBlocks = await db.select({
       blockId: availabilityBlocks.id,
-      closureId: availabilityBlocks.closureId
     })
       .from(availabilityBlocks)
-      .innerJoin(facilityClosures, eq(availabilityBlocks.closureId, facilityClosures.id))
+      .leftJoin(facilityClosures, eq(availabilityBlocks.closureId, facilityClosures.id))
       .where(and(
         eq(availabilityBlocks.resourceId, resourceId),
         eq(availabilityBlocks.blockDate, bookingDate),
-        eq(facilityClosures.noticeType, 'private_event'),
-        eq(facilityClosures.isActive, true),
-        // Time overlap check: block starts before booking ends AND block ends after booking starts
         sql`${availabilityBlocks.startTime} < ${effectiveEndTime}`,
-        sql`${availabilityBlocks.endTime} > ${startTime}::time`
+        sql`${availabilityBlocks.endTime} > ${startTime}::time`,
+        sql`(
+          ${facilityClosures.noticeType} = 'private_event' AND ${facilityClosures.isActive} = true
+          OR ${availabilityBlocks.closureId} IS NULL
+        )`
       ))
       .limit(1);
     
     return matchingBlocks.length > 0;
   } catch (err: unknown) {
-    // Non-blocking - if check fails, allow booking creation
     process.stderr.write(`[Trackman Import] Error checking for private event block: ${getErrorMessage(err)}\n`);
     return false;
   }
@@ -1488,28 +1481,14 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           
           if (!existingBlock) {
             try {
-              // Create Facility Closure (container)
-              const [closure] = await db.insert(facilityClosures).values({
-                title: `Lesson: ${row.userName || 'Private Instruction'}`,
-                startDate: bookingDate,
-                endDate: bookingDate,
-                startTime: startTime,
-                endTime: endTime || startTime,
-                reason: `Lesson: ${row.userName || 'Private Instruction'}`,
-                noticeType: 'private_event',
-                visibility: 'Staff Only',
-                isActive: true,
-                createdBy: 'trackman_import'
-              }).returning();
-              
               await db.insert(availabilityBlocks).values({
-                closureId: closure.id,
                 resourceId,
                 blockDate: bookingDate,
                 startTime: startTime,
                 endTime: endTime || startTime,
-                blockType: 'private_event',
-                notes: `Lesson - ${row.userName}`
+                blockType: 'blocked',
+                notes: `Lesson - ${row.userName}`,
+                createdBy: 'trackman_import'
               });
               
               process.stderr.write(`[Trackman Import] Converted staff lesson to block: ${row.userEmail} -> "${row.userName}" on ${bookingDate}\n`);
@@ -3719,31 +3698,18 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
           // Check if block already exists for this time slot
           const existingBlock = await db.execute(sql`
             SELECT ab.id FROM availability_blocks ab
-            JOIN facility_closures fc ON ab.closure_id = fc.id
             WHERE ab.resource_id = ${resourceId}
               AND ab.block_date = ${bookingDate}
               AND ab.start_time < ${endTime}::time
               AND ab.end_time > ${startTime}::time
-              AND fc.notice_type = 'private_event'
-              AND fc.is_active = true
             LIMIT 1
           `);
           
           if (existingBlock.rows.length === 0) {
-            const closureTitle = `Lesson: ${userName || 'Unknown'}`;
-            const closureReason = `Lesson (Converted from Rescan): ${userName || 'Unknown'} [TM:${booking.trackmanBookingId || booking.id}]`;
-            
-            const closureResult = await db.execute(sql`
-              INSERT INTO facility_closures 
-                (title, start_date, end_date, start_time, end_time, reason, notice_type, visibility, is_active, created_by)
-              VALUES (${closureTitle}, ${bookingDate}, ${bookingDate}, ${startTime}, ${endTime}, ${closureReason}, 'private_event', 'Staff Only', true, ${performedBy})
-              RETURNING id
-            `);
-            
             await db.execute(sql`
               INSERT INTO availability_blocks 
-                (closure_id, resource_id, block_date, start_time, end_time, block_type, notes, created_by)
-              VALUES (${(closureResult.rows[0] as unknown as ClosureIdRow).id}, ${resourceId}, ${bookingDate}, ${startTime}, ${endTime}, 'blocked', ${`Lesson - ${userName || 'Unknown'}`}, ${performedBy})
+                (resource_id, block_date, start_time, end_time, block_type, notes, created_by)
+              VALUES (${resourceId}, ${bookingDate}, ${startTime}, ${endTime}, 'blocked', ${`Lesson - ${userName || 'Unknown'}`}, ${performedBy})
             `);
             
             process.stderr.write(`[Trackman Rescan] Created availability block for lesson: ${userName} on ${bookingDate} ${startTime}-${endTime}\n`);
@@ -3988,13 +3954,10 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
     // Check if block already exists for this time slot
     const existingBlock = await db.execute(sql`
       SELECT ab.id FROM availability_blocks ab
-      JOIN facility_closures fc ON ab.closure_id = fc.id
       WHERE ab.resource_id = ${booking.resource_id}
         AND ab.block_date = ${bookingDate}
         AND ab.start_time < ${endTime}::time
         AND ab.end_time > ${booking.start_time}::time
-        AND fc.notice_type = 'private_event'
-        AND fc.is_active = true
       LIMIT 1
     `);
 
@@ -4002,20 +3965,10 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
 
     if (!dryRun) {
       if (!blockAlreadyExists) {
-        const closureTitle = `Lesson: ${booking.user_name || 'Unknown'}`;
-        const closureReason = `Lesson (Converted): ${booking.user_name || 'Unknown'} [TM:${booking.trackman_booking_id || booking.id}]`;
-        
-        const closureResult = await db.execute(sql`
-          INSERT INTO facility_closures 
-            (title, start_date, end_date, start_time, end_time, reason, notice_type, visibility, is_active, created_by)
-          VALUES (${closureTitle}, ${bookingDate}, ${bookingDate}, ${booking.start_time}, ${endTime}, ${closureReason}, 'private_event', 'Staff Only', true, 'system_cleanup')
-          RETURNING id
-        `);
-
         await db.execute(sql`
           INSERT INTO availability_blocks 
-            (closure_id, resource_id, block_date, start_time, end_time, block_type, notes, created_by)
-          VALUES (${(closureResult.rows[0] as unknown as ClosureIdRow).id}, ${booking.resource_id}, ${bookingDate}, ${booking.start_time}, ${endTime}, 'blocked', ${`Lesson - ${booking.user_name || 'Unknown'}`}, 'system_cleanup')
+            (resource_id, block_date, start_time, end_time, block_type, notes, created_by)
+          VALUES (${booking.resource_id}, ${bookingDate}, ${booking.start_time}, ${endTime}, 'blocked', ${`Lesson - ${booking.user_name || 'Unknown'}`}, 'system_cleanup')
         `);
       }
 
@@ -4105,31 +4058,18 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
       // Check if block already exists
       const existingBlock = await db.execute(sql`
         SELECT ab.id FROM availability_blocks ab
-        JOIN facility_closures fc ON ab.closure_id = fc.id
         WHERE ab.resource_id = ${resourceId}
           AND ab.block_date = ${bookingDate}
           AND ab.start_time < ${item.endTime || item.startTime}::time
           AND ab.end_time > ${item.startTime}::time
-          AND fc.notice_type = 'private_event'
-          AND fc.is_active = true
         LIMIT 1
       `);
 
       if (existingBlock.rows.length === 0) {
-        const closureTitle = `Lesson: ${item.userName || 'Unknown'}`;
-        const closureReason = `Lesson: ${item.userName || 'Unknown'} [TM:${item.trackmanBookingId || item.id}]`;
-        
-        const closureResult = await db.execute(sql`
-          INSERT INTO facility_closures 
-            (title, start_date, end_date, start_time, end_time, reason, notice_type, visibility, is_active, created_by)
-          VALUES (${closureTitle}, ${bookingDate}, ${bookingDate}, ${item.startTime}, ${item.endTime || item.startTime}, ${closureReason}, 'private_event', 'Staff Only', true, 'system_cleanup')
-          RETURNING id
-        `);
-
         await db.execute(sql`
           INSERT INTO availability_blocks 
-            (closure_id, resource_id, block_date, start_time, end_time, block_type, notes, created_by)
-          VALUES (${(closureResult.rows[0] as unknown as ClosureIdRow).id}, ${resourceId}, ${bookingDate}, ${item.startTime}, ${item.endTime || item.startTime}, 'blocked', ${`Lesson - ${item.userName || 'Unknown'}`}, 'system_cleanup')
+            (resource_id, block_date, start_time, end_time, block_type, notes, created_by)
+          VALUES (${resourceId}, ${bookingDate}, ${item.startTime}, ${item.endTime || item.startTime}, 'blocked', ${`Lesson - ${item.userName || 'Unknown'}`}, 'system_cleanup')
         `);
       }
 
