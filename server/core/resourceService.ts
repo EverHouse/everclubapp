@@ -966,6 +966,13 @@ export async function linkTrackmanToMember(
     let booking;
     let created = false;
     
+    const participantsJson = additionalPlayers.map(p => {
+      if (p.type === 'guest_placeholder') {
+        return { type: 'guest' as const, name: p.guest_name || 'Guest (info pending)' };
+      }
+      return { type: 'member' as const, email: p.email, name: p.name, userId: p.member_id };
+    });
+
     if (existingBooking) {
       const staffNoteSuffix = ` [Linked to member via staff: ${ownerName} with ${totalPlayerCount} players]`;
       const newStaffNotes = (existingBooking.staffNotes || '') + staffNoteSuffix;
@@ -978,6 +985,7 @@ export async function linkTrackmanToMember(
           status: 'approved',
           declaredPlayerCount: totalPlayerCount,
           guestCount: guestCount,
+          requestParticipants: participantsJson.length > 0 ? participantsJson : undefined,
           staffNotes: newStaffNotes,
           updatedAt: new Date()
         })
@@ -1050,6 +1058,7 @@ export async function linkTrackmanToMember(
           isUnmatched: false,
           declaredPlayerCount: totalPlayerCount,
           guestCount: guestCount,
+          requestParticipants: participantsJson.length > 0 ? participantsJson : undefined,
           staffNotes: `[Linked from Trackman webhook by staff: ${ownerName} with ${totalPlayerCount} players]`,
           createdAt: new Date(),
           updatedAt: new Date()
@@ -1539,6 +1548,13 @@ export async function assignWithPlayers(
     
     const newNote = ` [Assigned by staff: ${owner.name} with ${totalPlayerCount} players]`;
     
+    const participantsJson = additionalPlayers.map(p => {
+      if (p.type === 'guest_placeholder') {
+        return { type: 'guest' as const, name: p.guest_name || 'Guest (info pending)' };
+      }
+      return { type: 'member' as const, email: p.email, name: p.name, userId: p.member_id };
+    });
+
     const [updated] = await tx.update(bookingRequests)
       .set({
         userEmail: owner.email.toLowerCase(),
@@ -1548,6 +1564,7 @@ export async function assignWithPlayers(
         status: 'approved',
         declaredPlayerCount: totalPlayerCount,
         guestCount: guestCount,
+        requestParticipants: participantsJson.length > 0 ? participantsJson : undefined,
         staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ${newNote}`,
         updatedAt: new Date()
       })

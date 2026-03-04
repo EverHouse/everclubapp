@@ -1543,6 +1543,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
               br.user_name as owner_name, br.duration_minutes, br.request_date, br.session_id, br.status,
               br.user_id as owner_user_id,
               br.notes, br.staff_notes, br.trackman_customer_notes,
+              br.request_participants,
               r.capacity as resource_capacity,
               r.type as resource_type,
               EXTRACT(EPOCH FROM (bs.end_time - bs.start_time)) / 60 as session_duration_minutes
@@ -2204,6 +2205,74 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           isStaff: isStaffUser,
           guestInfo: null
         });
+      }
+
+      const savedParticipants = (bookingResult.rows[0] as DbRow)?.request_participants;
+      const rpArray = Array.isArray(savedParticipants) ? savedParticipants as Array<{ type: string; email?: string; name?: string; userId?: string }> : [];
+      if (rpArray.length > 0) {
+        let rpSlotNumber = membersWithFees.length > 0
+          ? Math.max(...membersWithFees.map(m => m.slotNumber)) + 1
+          : 2;
+        let rpSlotId = -200;
+        for (const rp of rpArray) {
+          if (rpSlotNumber > expectedPlayerCount) break;
+          if (rp.type === 'member' && rp.email) {
+            const rpLookup = await db.execute(sql`SELECT id, first_name, last_name, tier, membership_status FROM users WHERE LOWER(email) = LOWER(${rp.email}) LIMIT 1`);
+            const rpUser = (rpLookup.rows as DbRow[])[0];
+            const rpName = rpUser
+              ? `${rpUser.first_name || ''} ${rpUser.last_name || ''}`.trim() || rp.name || rp.email
+              : rp.name || rp.email;
+            const rpTier = rpUser ? (rpUser.tier as string || null) : null;
+            const rpMembershipStatus = rpUser ? (rpUser.membership_status as string || null) : null;
+            const rpIsStaff = staffEmailSet.has(rp.email.toLowerCase());
+            membersWithFees.push({
+              id: rpSlotId,
+              bookingId,
+              userEmail: rp.email,
+              slotNumber: rpSlotNumber,
+              isPrimary: false,
+              linkedAt: null,
+              linkedBy: null,
+              memberName: rpName,
+              tier: rpIsStaff ? 'Staff' : rpTier,
+              fee: PRICING.GUEST_FEE_DOLLARS,
+              feeNote: `$${PRICING.GUEST_FEE_DOLLARS} fee applies`,
+              feeBreakdown: null,
+              membershipStatus: rpMembershipStatus,
+              isInactiveMember: false,
+              isStaff: rpIsStaff,
+              guestInfo: null
+            });
+          } else if (rp.type === 'guest') {
+            membersWithFees.push({
+              id: rpSlotId,
+              bookingId,
+              userEmail: null,
+              slotNumber: rpSlotNumber,
+              isPrimary: false,
+              linkedAt: null,
+              linkedBy: null,
+              memberName: rp.name || 'Guest (info pending)',
+              tier: null,
+              fee: PRICING.GUEST_FEE_DOLLARS,
+              feeNote: `$${PRICING.GUEST_FEE_DOLLARS} fee applies`,
+              feeBreakdown: null,
+              membershipStatus: null,
+              isInactiveMember: false,
+              isStaff: false,
+              guestInfo: {
+                guestId: rpSlotId,
+                guestName: rp.name || 'Guest (info pending)',
+                guestEmail: null,
+                fee: PRICING.GUEST_FEE_DOLLARS,
+                feeNote: `$${PRICING.GUEST_FEE_DOLLARS} fee applies`,
+                usedGuestPass: false
+              }
+            });
+          }
+          rpSlotId--;
+          rpSlotNumber++;
+        }
       }
 
       let legacySlotNumber = membersWithFees.length > 0

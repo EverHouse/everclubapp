@@ -159,6 +159,7 @@ export const trackmanUnmatchedBookings = pgTable("trackman_unmatched_bookings", 
   resolvedAt: timestamp("resolved_at"),
   resolvedBy: varchar("resolved_by"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
 });
 
 // Trackman import runs - track import history
