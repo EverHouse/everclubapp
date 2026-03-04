@@ -11,6 +11,7 @@ import { TIER_NAMES } from '../../../shared/constants/tiers';
 import GroupBillingManager from './GroupBillingManager';
 import { getApiErrorMessage, getNetworkErrorMessage, extractApiError } from '../../utils/errorHandling';
 import { TerminalPayment } from '../staff-command-center/TerminalPayment';
+import { useToast } from '../Toast';
 
 interface GuestHistoryItem {
   id: number;
@@ -487,10 +488,9 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
   const { effectiveTheme } = useTheme();
   const isDark = effectiveTheme === 'dark';
 
+  const { showToast } = useToast();
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [isEditingTier, setIsEditingTier] = useState(false);
   const [manualTier, setManualTier] = useState('');
@@ -535,7 +535,6 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
   const [showUpdateCardTerminal, setShowUpdateCardTerminal] = useState(false);
   const [showCollectPayment, setShowCollectPayment] = useState(false);
   const [collectPaymentAmount, setCollectPaymentAmount] = useState(0);
-  const [collectPaymentError, setCollectPaymentError] = useState<string | null>(null);
   const [collectPaymentMode, setCollectPaymentMode] = useState<'terminal' | 'charge_card'>('terminal');
   const [isChargingCard, setIsChargingCard] = useState(false);
 
@@ -559,14 +558,15 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
   } | null>(null);
 
   const showSuccess = (message: string) => {
-    setSuccessMessage(message);
-    console.log('[MemberBilling] Success:', message);
-    setTimeout(() => setSuccessMessage(null), 3000);
+    showToast(message, 'success');
+  };
+
+  const showError = (message: string | null) => {
+    if (message) showToast(message, 'error', 5000);
   };
 
   const fetchBillingInfo = useCallback(async () => {
     setIsLoading(true);
-    setError(null);
     try {
       const res = await fetch(`/api/member-billing/${encodeURIComponent(memberEmail)}`, {
         credentials: 'include',
@@ -575,10 +575,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         const data = await res.json();
         setBillingInfo(data);
       } else {
-        setError(await extractApiError(res, 'load billing info'));
+        showError(await extractApiError(res, 'load billing info'));
       }
     } catch (err: unknown) {
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsLoading(false);
     }
@@ -663,10 +663,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         showSuccess('Migration initiated successfully');
         setTimeout(() => onDrawerClose?.(), 600);
       } else {
-        setError(await extractApiError(res, 'initiate migration'));
+        showError(await extractApiError(res, 'initiate migration'));
       }
     } catch (err: unknown) {
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsMigrationLoading(false);
     }
@@ -686,10 +686,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         showSuccess('Migration cancelled');
         setTimeout(() => onDrawerClose?.(), 600);
       } else {
-        setError(await extractApiError(res, 'cancel migration'));
+        showError(await extractApiError(res, 'cancel migration'));
       }
     } catch (err: unknown) {
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsMigrationLoading(false);
     }
@@ -708,7 +708,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       });
       
       if (!res.ok) {
-        setError(await extractApiError(res, 'update tier'));
+        showError(await extractApiError(res, 'update tier'));
       } else {
         setIsEditingTier(false);
         if (onTierUpdate) onTierUpdate(manualTier);
@@ -719,7 +719,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       }
     } catch (err: unknown) {
       console.error('Error updating tier:', err);
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsSavingTier(false);
     }
@@ -727,7 +727,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
 
   const handleUpdateBillingSource = async (newSource: string) => {
     setIsUpdatingSource(true);
-    setError(null);
+    showError(null);
     try {
       const res = await fetch(`/api/member-billing/${encodeURIComponent(memberEmail)}/source`, {
         method: 'PUT',
@@ -741,10 +741,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         showSuccess('Billing source updated');
         setTimeout(() => onDrawerClose?.(), 600);
       } else {
-        setError(getApiErrorMessage(res, 'update billing source'));
+        showError(getApiErrorMessage(res, 'update billing source'));
       }
     } catch (err: unknown) {
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsUpdatingSource(false);
     }
@@ -752,7 +752,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
 
   const handlePauseSubscription = async (durationDays: 30 | 60) => {
     setIsPausing(true);
-    setError(null);
+    showError(null);
     try {
       const res = await fetch(`/api/member-billing/${encodeURIComponent(memberEmail)}/pause`, {
         method: 'POST',
@@ -769,10 +769,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         showSuccess(`Subscription paused for ${durationDays} days. Billing resumes on ${resumeDate}.`);
         setTimeout(() => onDrawerClose?.(), 600);
       } else {
-        setError(getApiErrorMessage(res, 'pause subscription'));
+        showError(getApiErrorMessage(res, 'pause subscription'));
       }
     } catch (err: unknown) {
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsPausing(false);
     }
@@ -780,7 +780,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
 
   const handleResumeSubscription = async () => {
     setIsResuming(true);
-    setError(null);
+    showError(null);
     try {
       const res = await fetch(`/api/member-billing/${encodeURIComponent(memberEmail)}/resume`, {
         method: 'POST',
@@ -792,10 +792,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         showSuccess('Subscription resumed');
         setTimeout(() => onDrawerClose?.(), 600);
       } else {
-        setError(getApiErrorMessage(res, 'resume subscription'));
+        showError(getApiErrorMessage(res, 'resume subscription'));
       }
     } catch (err: unknown) {
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsResuming(false);
     }
@@ -803,7 +803,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
 
   const handleCancelSubscription = async () => {
     setIsCanceling(true);
-    setError(null);
+    showError(null);
     try {
       const res = await fetch(`/api/member-billing/${encodeURIComponent(memberEmail)}/cancel`, {
         method: 'POST',
@@ -816,10 +816,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         showSuccess('Subscription will be canceled at period end');
         setTimeout(() => onDrawerClose?.(), 600);
       } else {
-        setError(getApiErrorMessage(res, 'cancel subscription'));
+        showError(getApiErrorMessage(res, 'cancel subscription'));
       }
     } catch (err: unknown) {
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsCanceling(false);
     }
@@ -827,7 +827,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
 
   const handleApplyCredit = async (amountCents: number, description: string) => {
     setIsApplyingCredit(true);
-    setError(null);
+    showError(null);
     try {
       const res = await fetch(`/api/member-billing/${encodeURIComponent(memberEmail)}/credit`, {
         method: 'POST',
@@ -840,10 +840,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         setShowCreditModal(false);
         showSuccess(`Credit of $${(amountCents / 100).toFixed(2)} applied`);
       } else {
-        setError(getApiErrorMessage(res, 'apply credit'));
+        showError(getApiErrorMessage(res, 'apply credit'));
       }
     } catch (err: unknown) {
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsApplyingCredit(false);
     }
@@ -851,7 +851,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
 
   const handleApplyDiscount = async (percentOff: number, duration: string) => {
     setIsApplyingDiscount(true);
-    setError(null);
+    showError(null);
     try {
       const res = await fetch(`/api/member-billing/${encodeURIComponent(memberEmail)}/discount`, {
         method: 'POST',
@@ -864,10 +864,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         setShowDiscountModal(false);
         showSuccess(`${percentOff}% discount applied`);
       } else {
-        setError(getApiErrorMessage(res, 'apply discount'));
+        showError(getApiErrorMessage(res, 'apply discount'));
       }
     } catch (err: unknown) {
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsApplyingDiscount(false);
     }
@@ -875,7 +875,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
 
   const handleGetPaymentLink = async () => {
     setIsGettingPaymentLink(true);
-    setError(null);
+    showError(null);
     const linkWindow = window.open('about:blank', '_blank');
     try {
       const res = await fetch(`/api/member-billing/${encodeURIComponent(memberEmail)}/payment-link`, {
@@ -892,15 +892,15 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           }
         } else {
           linkWindow?.close();
-          setError('No payment link URL returned');
+          showError('No payment link URL returned');
         }
       } else {
         linkWindow?.close();
-        setError(getApiErrorMessage(res, 'get payment link'));
+        showError(getApiErrorMessage(res, 'get payment link'));
       }
     } catch (err: unknown) {
       linkWindow?.close();
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsGettingPaymentLink(false);
     }
@@ -908,7 +908,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
 
   const handleOpenBillingPortal = async () => {
     setIsOpeningBillingPortal(true);
-    setError(null);
+    showError(null);
     const portalWindow = window.open('about:blank', '_blank');
     try {
       const res = await fetch('/api/my/billing/portal', {
@@ -927,15 +927,15 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           }
         } else {
           portalWindow?.close();
-          setError('No billing portal URL returned');
+          showError('No billing portal URL returned');
         }
       } else {
         portalWindow?.close();
-        setError(getApiErrorMessage(res, 'open billing portal'));
+        showError(getApiErrorMessage(res, 'open billing portal'));
       }
     } catch (err: unknown) {
       portalWindow?.close();
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsOpeningBillingPortal(false);
     }
@@ -944,7 +944,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
   const handleSendActivationEmail = async () => {
     if (!memberEmail) return;
     setIsSendingActivation(true);
-    setError(null);
+    showError(null);
     try {
       const res = await fetch('/api/stripe/staff/send-reactivation-link', {
         method: 'POST',
@@ -954,12 +954,12 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Failed to send activation email');
+        showError(data.error || 'Failed to send activation email');
       } else {
         showSuccess('Activation email sent!');
       }
     } catch (err: unknown) {
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsSendingActivation(false);
     }
@@ -967,7 +967,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
 
   const handleCopyActivationLink = async () => {
     if (!memberEmail) return;
-    setError(null);
+    showError(null);
     try {
       const res = await fetch('/api/my/billing/portal', {
         method: 'POST',
@@ -982,16 +982,16 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           showSuccess('Activation link copied to clipboard!');
         }
       } else {
-        setError(getApiErrorMessage(res, 'get activation link'));
+        showError(getApiErrorMessage(res, 'get activation link'));
       }
     } catch (err: unknown) {
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     }
   };
 
   const handleSyncToStripe = async () => {
     setIsSyncingToStripe(true);
-    setError(null);
+    showError(null);
     try {
       const res = await fetch(`/api/member-billing/${encodeURIComponent(memberEmail)}/sync-stripe`, {
         method: 'POST',
@@ -1003,10 +1003,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         onMemberUpdated?.();
         showSuccess(data.created ? 'Created new Stripe customer' : 'Linked existing Stripe customer');
       } else {
-        setError(getApiErrorMessage(res, 'sync to Stripe'));
+        showError(getApiErrorMessage(res, 'sync to Stripe'));
       }
     } catch (err: unknown) {
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsSyncingToStripe(false);
     }
@@ -1014,7 +1014,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
 
   const handleSyncStripeData = async () => {
     setIsSyncingStripeData(true);
-    setError(null);
+    showError(null);
     const results: string[] = [];
     
     try {
@@ -1063,10 +1063,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       if (results.length > 0) {
         showSuccess(`Stripe sync complete: ${results.join(', ')}`);
       } else {
-        setError('Sync completed but no changes were made');
+        showError('Sync completed but no changes were made');
       }
     } catch (err: unknown) {
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsSyncingStripeData(false);
     }
@@ -1074,12 +1074,12 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
 
   const handleCreateSubscription = async () => {
     if (!selectedSubscriptionTier) {
-      setError('Please select a membership tier');
+      showError('Please select a membership tier');
       return;
     }
     
     setIsCreatingSubscription(true);
-    setError(null);
+    showError(null);
     
     try {
       const res = await fetch('/api/stripe/subscriptions/create-for-member', {
@@ -1103,10 +1103,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         showSuccess(data.message || 'Subscription created successfully');
         setTimeout(() => onDrawerClose?.(), 600);
       } else {
-        setError(getApiErrorMessage(res, 'create subscription'));
+        showError(getApiErrorMessage(res, 'create subscription'));
       }
     } catch (err: unknown) {
-      setError(getNetworkErrorMessage());
+      showError(getNetworkErrorMessage());
     } finally {
       setIsCreatingSubscription(false);
     }
@@ -1125,23 +1125,6 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
 
   return (
     <div className="space-y-4 pb-20">
-      {error && (
-        <div className={`p-3 rounded-lg flex items-center gap-2 ${isDark ? 'bg-red-500/10 border border-red-500/30' : 'bg-red-50 border border-red-200'}`}>
-          <span className="material-symbols-outlined text-red-500 text-base">error</span>
-          <p className={`text-sm ${isDark ? 'text-red-400' : 'text-red-600'}`}>{error}</p>
-          <button onClick={() => setError(null)} className="ml-auto p-1 hover:opacity-70" aria-label="Dismiss error">
-            <span className="material-symbols-outlined text-red-500 text-base">close</span>
-          </button>
-        </div>
-      )}
-
-      {successMessage && (
-        <div className={`p-3 rounded-lg flex items-center gap-2 ${isDark ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
-          <span className="material-symbols-outlined text-green-500 text-base">check_circle</span>
-          <p className={`text-sm ${isDark ? 'text-green-400' : 'text-green-600'}`}>{successMessage}</p>
-        </div>
-      )}
-
       <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -1386,6 +1369,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
               }
             } catch (err: unknown) {
               console.error('Failed to load coupons:', err);
+              showError('Failed to load available coupons');
             } finally {
               setIsLoadingCoupons(false);
             }
@@ -1393,7 +1377,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           onCollectPayment={billingInfo.activeSubscription?.status === 'incomplete' ? () => {
             const amount = billingInfo.activeSubscription?.planAmount || 0;
             setCollectPaymentAmount(amount);
-            setCollectPaymentError(null);
+            showError(null);
             setShowCollectPayment(true);
           } : undefined}
           onSendActivationEmail={billingInfo.activeSubscription?.status === 'incomplete' ? handleSendActivationEmail : undefined}
@@ -1852,12 +1836,6 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
             )}
           </div>
 
-          {error && (
-            <div className={`p-3 rounded-lg ${isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'} text-sm`}>
-              {error}
-            </div>
-          )}
-
           <div className="flex gap-2 pt-2">
             <button
               onClick={() => {
@@ -1895,7 +1873,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           onClose={() => {
             setShowCollectPayment(false);
             setCollectPaymentMode('terminal');
-            setCollectPaymentError(null);
+            showError(null);
           }}
           title="Collect Subscription Payment"
           size="md"
@@ -1912,7 +1890,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
 
             <div className={`flex rounded-lg overflow-hidden border ${isDark ? 'border-white/20' : 'border-gray-200'}`}>
               <button
-                onClick={() => { setCollectPaymentMode('terminal'); setCollectPaymentError(null); }}
+                onClick={() => { setCollectPaymentMode('terminal'); showError(null); }}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                   collectPaymentMode === 'terminal'
                     ? isDark
@@ -1927,7 +1905,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
                 Card Reader
               </button>
               <button
-                onClick={() => { setCollectPaymentMode('charge_card'); setCollectPaymentError(null); }}
+                onClick={() => { setCollectPaymentMode('charge_card'); showError(null); }}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                   collectPaymentMode === 'charge_card'
                     ? isDark
@@ -1942,12 +1920,6 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
                 Charge Saved Card
               </button>
             </div>
-
-            {collectPaymentError && (
-              <div className={`p-3 rounded-lg ${isDark ? 'bg-red-900/20 border border-red-700 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'}`}>
-                <p className="text-sm">{collectPaymentError}</p>
-              </div>
-            )}
 
             {collectPaymentMode === 'terminal' && (
               <TerminalPayment
@@ -1971,7 +1943,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
                     });
                     if (!confirmRes.ok) {
                       const data = await confirmRes.json();
-                      setCollectPaymentError(data.error || 'Failed to confirm payment');
+                      showError(data.error || 'Failed to confirm payment');
                       return;
                     }
                     const confirmData = await confirmRes.json();
@@ -1985,10 +1957,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
                     fetchBillingInfo();
                     onMemberUpdated?.();
                   } catch (err: unknown) {
-                    setCollectPaymentError((err instanceof Error ? err.message : String(err)) || 'Failed to confirm payment');
+                    showError((err instanceof Error ? err.message : String(err)) || 'Failed to confirm payment');
                   }
                 }}
-                onError={(msg) => setCollectPaymentError(msg)}
+                onError={(msg) => showError(msg)}
                 onCancel={() => {
                   setShowCollectPayment(false);
                   setCollectPaymentMode('terminal');
@@ -2030,7 +2002,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
                     onClick={() => {
                       setShowCollectPayment(false);
                       setCollectPaymentMode('terminal');
-                      setCollectPaymentError(null);
+                      showError(null);
                     }}
                     className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                       isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -2041,7 +2013,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
                   <button
                     onClick={async () => {
                       setIsChargingCard(true);
-                      setCollectPaymentError(null);
+                      showError(null);
                       try {
                         const res = await fetch('/api/stripe/staff/charge-subscription-invoice', {
                           method: 'POST',
@@ -2054,7 +2026,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
                         });
                         const data = await res.json();
                         if (!res.ok) {
-                          setCollectPaymentError(data.error || 'Failed to charge card');
+                          showError(data.error || 'Failed to charge card');
                           return;
                         }
                         showSuccess('Payment received! Membership activated.');
@@ -2063,7 +2035,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
                         fetchBillingInfo();
                         onMemberUpdated?.();
                       } catch (err: unknown) {
-                        setCollectPaymentError((err instanceof Error ? err.message : String(err)) || 'Failed to charge card');
+                        showError((err instanceof Error ? err.message : String(err)) || 'Failed to charge card');
                       } finally {
                         setIsChargingCard(false);
                       }
@@ -2124,6 +2096,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
               }}
               onError={(msg) => {
                 console.error('Terminal card save error:', msg);
+                showError(msg || 'Failed to update payment method');
               }}
               onCancel={() => setShowUpdateCardTerminal(false)}
             />
