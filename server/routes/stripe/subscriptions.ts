@@ -691,6 +691,46 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, subsc
   }
 });
 
+router.get('/api/stripe/subscriptions/invoice-link/:subscriptionId', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { subscriptionId } = req.params;
+    const { memberEmail } = req.query;
+    if (!subscriptionId) {
+      return res.status(400).json({ error: 'subscriptionId is required' });
+    }
+
+    const stripe = await getStripeClient();
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+      expand: ['latest_invoice']
+    });
+
+    if (!subscription || subscription.status === 'canceled') {
+      return res.status(404).json({ error: 'Subscription not found or canceled' });
+    }
+
+    if (memberEmail) {
+      const memberResult = await db.execute(sql`SELECT stripe_customer_id FROM users WHERE LOWER(email) = LOWER(${String(memberEmail)}) LIMIT 1`);
+      if (memberResult.rows.length > 0) {
+        const memberCustomerId = (memberResult.rows[0] as { stripe_customer_id: string | null }).stripe_customer_id;
+        const subCustomer = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id;
+        if (memberCustomerId && subCustomer && memberCustomerId !== subCustomer) {
+          return res.status(403).json({ error: 'Subscription does not belong to this member' });
+        }
+      }
+    }
+
+    const invoice = subscription.latest_invoice as Stripe.Invoice | null;
+    if (!invoice?.hosted_invoice_url) {
+      return res.status(404).json({ error: 'No payment link available for this subscription' });
+    }
+
+    res.json({ url: invoice.hosted_invoice_url, invoiceId: invoice.id, invoiceStatus: invoice.status });
+  } catch (error: unknown) {
+    logger.error('[Stripe] Error fetching invoice link', { error: error instanceof Error ? error : new Error(String(error)) });
+    res.status(500).json({ error: 'Failed to get invoice link' });
+  }
+});
+
 router.get('/api/stripe/subscriptions/refresh-intent/:subscriptionId', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { subscriptionId } = req.params;

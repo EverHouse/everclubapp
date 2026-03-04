@@ -946,11 +946,12 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
     setIsSendingActivation(true);
     showError(null);
     try {
+      const subId = billingInfo?.activeSubscription?.status === 'incomplete' ? billingInfo.activeSubscription.id : undefined;
       const res = await fetch('/api/stripe/staff/send-reactivation-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ memberEmail }),
+        body: JSON.stringify({ memberEmail, subscriptionId: subId }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -969,20 +970,37 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
     if (!memberEmail) return;
     showError(null);
     try {
-      const res = await fetch('/api/my/billing/portal', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: memberEmail }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.url) {
-          await navigator.clipboard.writeText(data.url);
-          showSuccess('Activation link copied to clipboard!');
+      const subId = billingInfo?.activeSubscription?.status === 'incomplete' ? billingInfo.activeSubscription.id : undefined;
+      let url: string | null = null;
+
+      if (subId) {
+        const invoiceRes = await fetch(`/api/stripe/subscriptions/invoice-link/${subId}?memberEmail=${encodeURIComponent(memberEmail)}`, {
+          credentials: 'include',
+        });
+        if (invoiceRes.ok) {
+          const invoiceData = await invoiceRes.json();
+          url = invoiceData.url || null;
         }
+      }
+
+      if (!url) {
+        const res = await fetch('/api/my/billing/portal', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: memberEmail }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          url = data.url || null;
+        }
+      }
+
+      if (url) {
+        await navigator.clipboard.writeText(url);
+        showSuccess('Activation link copied to clipboard!');
       } else {
-        showError(getApiErrorMessage(res, 'get activation link'));
+        showError('Could not generate activation link');
       }
     } catch (err: unknown) {
       showError(getNetworkErrorMessage());
@@ -1101,7 +1119,9 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         setSelectedSubscriptionTier('');
         setSelectedCoupon('');
         showSuccess(data.message || 'Subscription created successfully');
-        setTimeout(() => onDrawerClose?.(), 600);
+        if (data.memberStatus === 'active') {
+          setTimeout(() => onDrawerClose?.(), 600);
+        }
       } else {
         showError(getApiErrorMessage(res, 'create subscription'));
       }

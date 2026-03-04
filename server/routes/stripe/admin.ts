@@ -376,7 +376,7 @@ router.post('/api/stripe/staff/send-membership-link', isStaffOrAdmin, async (req
 
 router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { memberEmail: rawMemberEmail } = req.body;
+    const { memberEmail: rawMemberEmail, subscriptionId } = req.body;
     const memberEmail = rawMemberEmail?.trim()?.toLowerCase();
 
     if (!memberEmail) {
@@ -388,20 +388,42 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
       return res.status(400).json({ error: 'Invalid email address' });
     }
 
-    const memberResult = await db.execute(sql`SELECT id, email, first_name, last_name, tier, last_tier, membership_status, billing_provider, stripe_customer_id
+    const memberResult = await db.execute(sql`SELECT id, email, first_name, last_name, tier, last_tier, membership_status, billing_provider, stripe_customer_id, stripe_subscription_id
        FROM users WHERE LOWER(email) = LOWER(${memberEmail})`);
 
     if (memberResult.rows.length === 0) {
       return res.status(404).json({ error: 'Member not found' });
     }
 
-    const member = memberResult.rows[0] as { id: number; email: string; first_name: string | null; last_name: string | null; tier: string | null; last_tier: string | null; membership_status: string | null; billing_provider: string | null; stripe_customer_id: string | null };
+    const member = memberResult.rows[0] as { id: number; email: string; first_name: string | null; last_name: string | null; tier: string | null; last_tier: string | null; membership_status: string | null; billing_provider: string | null; stripe_customer_id: string | null; stripe_subscription_id: string | null };
     const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email;
 
     let reactivationLink = 'https://everclub.app/billing';
     let usedCheckout = false;
+    let usedInvoiceLink = false;
 
-    if (member.stripe_customer_id) {
+    const subIdToCheck = subscriptionId || member.stripe_subscription_id;
+    if (subIdToCheck && member.stripe_customer_id) {
+      try {
+        const stripe = await getStripeClient();
+        const sub = await stripe.subscriptions.retrieve(subIdToCheck, { expand: ['latest_invoice'] });
+        const subCustomer = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id;
+        if (subCustomer && member.stripe_customer_id && subCustomer !== member.stripe_customer_id) {
+          logger.warn('[Stripe] Subscription does not belong to member', { extra: { email: member.email, subscriptionId: subIdToCheck, subCustomer, memberCustomer: member.stripe_customer_id } });
+        } else if (sub.status === 'incomplete') {
+          const invoice = sub.latest_invoice as Stripe.Invoice | null;
+          if (invoice?.hosted_invoice_url) {
+            reactivationLink = invoice.hosted_invoice_url;
+            usedInvoiceLink = true;
+            logger.info('[Stripe] Using hosted invoice URL for incomplete subscription activation', { extra: { memberEmail: member.email, invoiceId: invoice.id } });
+          }
+        }
+      } catch (subError: unknown) {
+        logger.warn('[Stripe] Could not retrieve subscription for activation link', { extra: { email: member.email, subscriptionId: subIdToCheck, error: getErrorMessage(subError) } });
+      }
+    }
+
+    if (!usedInvoiceLink && member.stripe_customer_id) {
       try {
         const stripe = await getStripeClient();
         const returnUrl = process.env.NODE_ENV === 'production' 
@@ -418,7 +440,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
         reactivationLink = session.url;
         logger.info('[Stripe] Created billing portal session for reactivation', { extra: { memberEmail: member.email } });
       } catch (portalError: unknown) {
-        logger.warn('[Stripe] Could not create billing portal for , using fallback link', { extra: { email: member.email, error: getErrorMessage(portalError) } });
+        logger.warn('[Stripe] Could not create billing portal for member, using fallback link', { extra: { email: member.email, error: getErrorMessage(portalError) } });
       }
     } else {
       const tierName = (member.last_tier || member.tier) as string | null;
