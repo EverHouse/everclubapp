@@ -599,9 +599,11 @@ router.get('/api/admin/trackman-webhooks', isStaffOrAdmin, async (req: Request, 
     
     const countResult = await db.execute(sql`SELECT COUNT(*) as total FROM trackman_webhook_events`);
     
+    const totalCount = parseInt((countResult.rows[0] as unknown as TotalCountRow).total);
     res.json({
       events: result.rows,
-      total: parseInt((countResult.rows[0] as unknown as TotalCountRow).total),
+      total: totalCount,
+      totalCount,
       limit,
       offset
     });
@@ -614,17 +616,26 @@ router.get('/api/admin/trackman-webhooks', isStaffOrAdmin, async (req: Request, 
 router.get('/api/admin/trackman-webhooks/stats', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const stats = await db.execute(sql`SELECT 
-        COUNT(*) as total,
+        COUNT(*) as total_events,
         COUNT(*) FILTER (WHERE matched_booking_id IS NOT NULL) as matched,
         COUNT(*) FILTER (WHERE matched_booking_id IS NULL AND processing_error IS NULL) as unmatched,
         COUNT(*) FILTER (WHERE processing_error IS NOT NULL) as errors,
-        COUNT(*) FILTER (WHERE event_type = 'booking.created') as created,
-        COUNT(*) FILTER (WHERE event_type = 'booking.cancelled') as cancelled,
-        COUNT(*) FILTER (WHERE event_type = 'booking.modified') as modified,
-        COUNT(*) FILTER (WHERE twe.matched_booking_id IS NOT NULL AND br.is_unmatched = true) as matched_but_unlinked
+        COUNT(*) FILTER (WHERE event_type ILIKE '%created%' OR event_type ILIKE '%create%') as created,
+        COUNT(*) FILTER (WHERE event_type ILIKE '%cancelled%' OR event_type ILIKE '%cancel%' OR event_type ILIKE '%deleted%') as cancelled,
+        COUNT(*) FILTER (WHERE event_type ILIKE '%modified%' OR event_type ILIKE '%update%') as modified,
+        COUNT(*) FILTER (WHERE twe.matched_booking_id IS NOT NULL AND br.was_auto_linked = true AND br.is_unmatched = false) as auto_confirmed,
+        COUNT(*) FILTER (WHERE twe.matched_booking_id IS NOT NULL AND (br.was_auto_linked = false OR br.was_auto_linked IS NULL) AND br.is_unmatched = false) as manually_linked,
+        COUNT(*) FILTER (WHERE twe.matched_booking_id IS NOT NULL AND br.is_unmatched = true) as needs_linking,
+        COUNT(*) FILTER (WHERE twe.matched_booking_id IS NULL AND processing_error IS NULL AND NOT (twe.event_type ILIKE '%cancelled%' OR twe.event_type ILIKE '%cancel%' OR twe.event_type ILIKE '%deleted%')) as needs_linking_unmatched,
+        MAX(twe.created_at) as last_event_at
       FROM trackman_webhook_events twe
       LEFT JOIN booking_requests br ON twe.matched_booking_id = br.id
       WHERE twe.created_at >= NOW() - INTERVAL '30 days'`);
+    
+    const row = stats.rows[0] as Record<string, string>;
+    const autoConfirmed = parseInt(row?.auto_confirmed || '0');
+    const manuallyLinked = parseInt(row?.manually_linked || '0');
+    const needsLinking = parseInt(row?.needs_linking || '0') + parseInt(row?.needs_linking_unmatched || '0');
     
     const slotStats = await db.execute(sql`SELECT 
         COUNT(*) as total_slots,
@@ -634,7 +645,12 @@ router.get('/api/admin/trackman-webhooks/stats', isStaffOrAdmin, async (req: Req
       FROM trackman_bay_slots`);
     
     res.json({
-      webhookStats: stats.rows[0],
+      webhookStats: {
+        ...row,
+        auto_confirmed: autoConfirmed,
+        manually_linked: manuallyLinked,
+        needs_linking: needsLinking,
+      },
       slotStats: slotStats.rows[0],
     });
   } catch (error: unknown) {

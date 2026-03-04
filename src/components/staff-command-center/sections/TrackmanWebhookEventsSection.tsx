@@ -119,14 +119,23 @@ interface TrackmanPayloadBooking {
   status?: string;
   updatedAt?: string;
   createdAt?: string;
+  created_at?: string;
   bay_name?: string;
   bayName?: string;
-  bay?: { ref?: string; name?: string };
+  bay?: { ref?: string; name?: string; id?: number };
   start?: string;
   end?: string;
   players?: unknown[];
   playerCount?: number;
   player_count?: number;
+  type?: string;
+  id?: number;
+  range?: { id?: number; name?: string };
+  bayOption?: { id?: number; name?: string; duration?: number; subtitle?: string | null };
+  playerOptions?: Array<{ id?: number; name?: string; count?: number }>;
+  externalBookingId?: string;
+  externalBookingProvider?: string;
+  venue?: { id?: number; name?: string; slug?: string };
 }
 
 const getPlayerCount = (bookingData: TrackmanPayloadBooking): number | null => {
@@ -444,6 +453,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                   const payload = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;
                   const eventType = getEventTypeFromPayload(payload, event.event_type);
                   const bookingData = (payload?.data || payload?.booking || {}) as TrackmanPayloadBooking;
+                  const venueData = (payload?.venue || bookingData?.venue) as TrackmanPayloadBooking['venue'];
                   const bayName = bookingData?.bay_name || bookingData?.bayName || (bookingData?.bay?.ref ? `Bay ${bookingData.bay.ref}` : undefined);
                   
                   const bookingStart = bookingData?.start;
@@ -656,10 +666,99 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                       </div>
                       
                       {isExpanded && (
-                        <div className="mt-3 p-2 md:p-3 bg-gray-100 dark:bg-black/20 rounded-lg overflow-auto max-h-48 md:max-h-64">
-                          <pre className="text-xs text-primary/80 dark:text-white/80 whitespace-pre-wrap break-all">
-                            {JSON.stringify(payload, null, 2)}
-                          </pre>
+                        <div className="mt-3 space-y-2">
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                            {bookingData?.id && (
+                              <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg">
+                                <p className="text-[10px] uppercase tracking-wider text-primary/50 dark:text-white/40">Trackman ID</p>
+                                <p className="text-xs font-medium text-primary dark:text-white">{bookingData.id}</p>
+                              </div>
+                            )}
+                            {bookingData?.status && (
+                              <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg">
+                                <p className="text-[10px] uppercase tracking-wider text-primary/50 dark:text-white/40">Status</p>
+                                <p className="text-xs font-medium text-primary dark:text-white capitalize">{bookingData.status}</p>
+                              </div>
+                            )}
+                            {bookingData?.type && (
+                              <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg">
+                                <p className="text-[10px] uppercase tracking-wider text-primary/50 dark:text-white/40">Type</p>
+                                <p className="text-xs font-medium text-primary dark:text-white">{bookingData.type}</p>
+                              </div>
+                            )}
+                            {bookingData?.bayOption?.name && (
+                              <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg">
+                                <p className="text-[10px] uppercase tracking-wider text-primary/50 dark:text-white/40">Bay Option</p>
+                                <p className="text-xs font-medium text-primary dark:text-white">{bookingData.bayOption.name}</p>
+                                {bookingData.bayOption.duration && (
+                                  <p className="text-[10px] text-primary/50 dark:text-white/40">{bookingData.bayOption.duration} hr{bookingData.bayOption.duration !== 1 ? 's' : ''}</p>
+                                )}
+                              </div>
+                            )}
+                            {bookingData?.bay && (
+                              <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg">
+                                <p className="text-[10px] uppercase tracking-wider text-primary/50 dark:text-white/40">Bay</p>
+                                <p className="text-xs font-medium text-primary dark:text-white">
+                                  {bookingData.bay.name || (bookingData.bay.ref ? `Bay ${bookingData.bay.ref}` : `ID: ${bookingData.bay.id}`)}
+                                </p>
+                              </div>
+                            )}
+                            {venueData?.name && (
+                              <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg">
+                                <p className="text-[10px] uppercase tracking-wider text-primary/50 dark:text-white/40">Venue</p>
+                                <p className="text-xs font-medium text-primary dark:text-white">{venueData.name}</p>
+                              </div>
+                            )}
+                            {(bookingData?.createdAt || bookingData?.created_at) && (
+                              <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg">
+                                <p className="text-[10px] uppercase tracking-wider text-primary/50 dark:text-white/40">Created</p>
+                                <p className="text-xs font-medium text-primary dark:text-white">{formatDateTimePacific(bookingData.createdAt || bookingData.created_at || '')}</p>
+                              </div>
+                            )}
+                            {bookingData?.externalBookingId && (
+                              <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg">
+                                <p className="text-[10px] uppercase tracking-wider text-primary/50 dark:text-white/40">External Booking</p>
+                                <p className="text-xs font-medium text-primary dark:text-white">#{bookingData.externalBookingId}</p>
+                              </div>
+                            )}
+                            {event.matched_booking_id && (
+                              <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg">
+                                <p className="text-[10px] uppercase tracking-wider text-primary/50 dark:text-white/40">Linked Booking</p>
+                                <p className="text-xs font-medium text-primary dark:text-white">#{event.matched_booking_id}</p>
+                              </div>
+                            )}
+                          </div>
+                          {bookingData?.playerOptions && bookingData.playerOptions.length > 0 && (
+                            <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg">
+                              <p className="text-[10px] uppercase tracking-wider text-primary/50 dark:text-white/40 mb-1">Player Options</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {bookingData.playerOptions.map((po, idx) => (
+                                  <span key={idx} className="px-2 py-0.5 bg-white dark:bg-white/10 rounded text-xs text-primary dark:text-white">
+                                    {po.name || `Option ${idx + 1}`}{po.count ? ` (x${po.count})` : ''}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {event.linked_member_name && event.linked_member_name !== 'Unknown (Trackman)' && (
+                            <div className="p-2 bg-green-50 dark:bg-green-500/10 rounded-lg">
+                              <p className="text-[10px] uppercase tracking-wider text-green-600/60 dark:text-green-400/60 mb-0.5">Linked Member</p>
+                              <p className="text-xs font-medium text-green-800 dark:text-green-300">{event.linked_member_name}</p>
+                              {event.linked_member_email && (
+                                <p className="text-[10px] text-green-600/60 dark:text-green-400/60">{event.linked_member_email}</p>
+                              )}
+                            </div>
+                          )}
+                          <details className="group">
+                            <summary className="text-[10px] uppercase tracking-wider text-primary/40 dark:text-white/30 cursor-pointer hover:text-primary/60 dark:hover:text-white/50 transition-colors">
+                              Raw Payload
+                            </summary>
+                            <div className="mt-1 p-2 bg-gray-100 dark:bg-black/20 rounded-lg overflow-auto max-h-48">
+                              <pre className="text-[10px] text-primary/70 dark:text-white/60 whitespace-pre-wrap break-all">
+                                {JSON.stringify(payload, null, 2)}
+                              </pre>
+                            </div>
+                          </details>
                         </div>
                       )}
                     </div>

@@ -1572,14 +1572,42 @@ export async function assignWithPlayers(
     return { booking: updated, sessionId: existingBooking.sessionId };
   });
   
-  if (result.sessionId && additionalPlayers.length > 0) {
+  let sessionId = result.sessionId;
+
+  if (!sessionId && result.booking.resourceId && result.booking.requestDate && result.booking.startTime && result.booking.endTime) {
+    try {
+      const sessionResult = await ensureSessionForBooking({
+        bookingId,
+        resourceId: result.booking.resourceId,
+        sessionDate: String(result.booking.requestDate),
+        startTime: String(result.booking.startTime),
+        endTime: String(result.booking.endTime),
+        ownerEmail: owner.email,
+        ownerName: owner.name,
+        ownerUserId: resolvedOwnerId || undefined,
+        trackmanBookingId: result.booking.trackmanBookingId || undefined,
+        source: 'staff_assignment',
+        createdBy: staffEmail
+      });
+      sessionId = sessionResult.sessionId;
+      logger.info('[assign-with-players] Created session for booking without one', {
+        extra: { bookingId, sessionId, newOwner: owner.email }
+      });
+    } catch (sessErr: unknown) {
+      logger.warn('[assign-with-players] Failed to create session for booking', {
+        extra: { bookingId, error: sessErr }
+      });
+    }
+  }
+
+  if (sessionId && additionalPlayers.length > 0) {
     try {
       const durationMinutes = Number(result.booking.durationMinutes) || 60;
       const slotDuration = Math.floor(durationMinutes / Math.max(totalPlayerCount, 1));
       for (const player of additionalPlayers) {
         if (player.type === 'guest_placeholder') {
           await db.execute(sql`INSERT INTO booking_participants (session_id, participant_type, display_name, slot_duration, payment_status, used_guest_pass, created_at)
-             VALUES (${result.sessionId}, 'guest', ${player.guest_name || 'Guest (info pending)'}, ${slotDuration}, 'pending', false, NOW())`);
+             VALUES (${sessionId}, 'guest', ${player.guest_name || 'Guest (info pending)'}, ${slotDuration}, 'pending', false, NOW())`);
         } else if (player.type === 'member' && player.email) {
           const memberLookup = await db.execute(sql`SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER(${player.email}) LIMIT 1`);
           const memberRow = (memberLookup.rows as unknown as MemberLookupRow[])[0];
@@ -1587,37 +1615,37 @@ export async function assignWithPlayers(
             ? `${memberRow.first_name || ''} ${memberRow.last_name || ''}`.trim() || player.name || player.email
             : player.name || player.email;
           await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, payment_status, created_at)
-             VALUES (${result.sessionId}, ${memberRow?.id || null}, 'member', ${displayName}, ${slotDuration}, 'pending', NOW())`);
+             VALUES (${sessionId}, ${memberRow?.id || null}, 'member', ${displayName}, ${slotDuration}, 'pending', NOW())`);
         }
       }
     } catch (partErr: unknown) {
       logger.warn('[assign-with-players] Failed to add participants to booking_participants', {
-        extra: { bookingId, sessionId: result.sessionId, error: partErr }
+        extra: { bookingId, sessionId, error: partErr }
       });
     }
   }
 
-  if (result.sessionId) {
+  if (sessionId) {
     try {
-      await recalculateSessionFees(result.sessionId, 'approval');
+      await recalculateSessionFees(sessionId, 'approval');
       logger.info('[assign-with-players] Recalculated fees after member assignment', {
-        extra: { bookingId, sessionId: result.sessionId, newOwner: owner.email }
+        extra: { bookingId, sessionId, newOwner: owner.email }
       });
     } catch (recalcErr: unknown) {
       logger.warn('[assign-with-players] Failed to recalculate fees after assignment', {
-        extra: { bookingId, sessionId: result.sessionId, error: recalcErr }
+        extra: { bookingId, sessionId, error: recalcErr }
       });
     }
   }
   
-  if (result.sessionId) {
+  if (sessionId) {
     try {
       const feeResult = await db.execute(sql`
         SELECT SUM(COALESCE(cached_fee_cents, 0)) as total_cents,
                SUM(CASE WHEN participant_type = 'owner' THEN COALESCE(cached_fee_cents, 0) ELSE 0 END) as overage_cents,
                SUM(CASE WHEN participant_type = 'guest' THEN COALESCE(cached_fee_cents, 0) ELSE 0 END) as guest_cents
         FROM booking_participants
-        WHERE session_id = ${result.sessionId}
+        WHERE session_id = ${sessionId}
       `);
       
       const feeRow = (feeResult.rows as unknown as FeeSumRow[])[0];
@@ -1627,7 +1655,7 @@ export async function assignWithPlayers(
       
       if (totalCents > 0) {
         const prepayResult = await createPrepaymentIntent({
-          sessionId: result.sessionId,
+          sessionId,
           bookingId: bookingId,
           userId: owner.member_id || null,
           userEmail: owner.email,
@@ -1637,19 +1665,19 @@ export async function assignWithPlayers(
         });
         
         if (prepayResult?.paidInFull) {
-          await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid' WHERE session_id = ${result.sessionId} AND payment_status IN ('pending', 'unpaid')`);
+          await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid' WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'unpaid')`);
           logger.info('[assign-with-players] Prepayment fully covered by credit', {
-            extra: { bookingId, sessionId: result.sessionId, totalCents }
+            extra: { bookingId, sessionId, totalCents }
           });
         } else {
           logger.info('[assign-with-players] Created prepayment intent', {
-            extra: { bookingId, sessionId: result.sessionId, totalCents }
+            extra: { bookingId, sessionId, totalCents }
           });
         }
       }
     } catch (prepayErr: unknown) {
       logger.warn('[assign-with-players] Failed to create prepayment intent', {
-        extra: { bookingId, sessionId: result.sessionId, error: prepayErr }
+        extra: { bookingId, sessionId, error: prepayErr }
       });
     }
   }
@@ -1669,7 +1697,7 @@ export async function assignWithPlayers(
       const feeResult = await db.execute(sql`
         SELECT SUM(COALESCE(cached_fee_cents, 0)) as total_cents
         FROM booking_participants
-        WHERE session_id = ${result.sessionId}
+        WHERE session_id = ${sessionId}
       `);
       
       const totalCents = parseInt((feeResult.rows as unknown as FeeSumRow[])[0]?.total_cents || '0');
@@ -1698,7 +1726,7 @@ export async function assignWithPlayers(
     }
   }
   
-  return { booking: result.booking, totalPlayerCount, guestCount, sessionId: result.sessionId };
+  return { booking: result.booking, totalPlayerCount, guestCount, sessionId };
 }
 
 export async function changeBookingOwner(bookingId: number, newEmail: string, newName: string, memberId?: string) {

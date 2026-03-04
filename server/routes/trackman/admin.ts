@@ -2550,7 +2550,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       grandTotal = Math.max(grandTotal, snapshotTotalCents / 100);
     }
     
-    const allPaid = (hasCompletedFeeSnapshot && pendingFeeCount === 0) || (pendingFeeCount === 0 && hasPaidFees);
+    const hasEmptySlots = actualPlayerCount < expectedPlayerCount;
+    const allPaid = !hasEmptySlots && ((hasCompletedFeeSnapshot && pendingFeeCount === 0) || (pendingFeeCount === 0 && hasPaidFees));
     
     const isOwnerStaff = ownerEmail ? staffEmailSet.has(String(ownerEmail).toLowerCase()) : false;
     
@@ -2823,9 +2824,37 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
       return res.status(400).json({ error: 'memberEmail is required' });
     }
     
-    const bookingResult = await db.execute(sql`SELECT request_date, start_time, end_time, status, session_id FROM booking_requests WHERE id = ${bookingId}`);
-    const sessionId = (bookingResult.rows[0] as DbRow)?.session_id;
+    const bookingResult = await db.execute(sql`SELECT request_date, start_time, end_time, status, session_id, resource_id, user_email, user_name, user_id, trackman_booking_id FROM booking_requests WHERE id = ${bookingId}`);
+    let sessionId = (bookingResult.rows[0] as DbRow)?.session_id;
     
+    if (!sessionId && bookingResult.rows[0]) {
+      const bk = bookingResult.rows[0] as DbRow;
+      if (bk.resource_id && bk.request_date && bk.start_time && bk.end_time) {
+        try {
+          const { ensureSessionForBooking } = await import('../../core/bookingService/sessionManager');
+          const sessionResult = await ensureSessionForBooking({
+            bookingId: parseInt(bookingId as string),
+            resourceId: bk.resource_id as number,
+            sessionDate: String(bk.request_date),
+            startTime: String(bk.start_time),
+            endTime: String(bk.end_time),
+            ownerEmail: (bk.user_email as string) || memberEmail,
+            ownerName: (bk.user_name as string) || undefined,
+            ownerUserId: (bk.user_id as string) || undefined,
+            trackmanBookingId: (bk.trackman_booking_id as string) || undefined,
+            source: 'link_member',
+            createdBy: linkedBy
+          });
+          sessionId = sessionResult.sessionId;
+          await db.execute(sql`UPDATE booking_requests SET session_id = ${sessionId} WHERE id = ${bookingId}`);
+          logger.info('[Link Member] Created session for booking without one', { extra: { bookingId, sessionId } });
+        } catch (sessErr: unknown) {
+          logger.error('[Link Member] Failed to create session', { error: sessErr instanceof Error ? sessErr : new Error(String(sessErr)) });
+          return res.status(500).json({ error: 'Failed to create booking session' });
+        }
+      }
+    }
+
     if (sessionId) {
       const booking = bookingResult.rows[0] as DbRow;
       
@@ -2847,7 +2876,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
       const targetSlot = await db.execute(sql`SELECT id, participant_type, user_id FROM booking_participants WHERE id = ${slotId} AND session_id = ${sessionId}`);
       if (targetSlot.rowCount && targetSlot.rowCount > 0) {
         const slot = (targetSlot.rows[0] as DbRow);
-        if (slot.participant_type === 'owner' && !slot.user_id) {
+        if (!slot.user_id && (slot.participant_type === 'owner' || slot.participant_type === 'member')) {
           await db.execute(sql`UPDATE booking_participants SET user_id = ${userId}, display_name = ${displayName} WHERE id = ${slotId}`);
           
           await db.execute(sql`DELETE FROM booking_participants WHERE session_id = ${sessionId} AND user_id = ${userId} AND id != ${slotId}`);
@@ -2860,7 +2889,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
             }
           }
 
-          logger.info('[Link Member] Linked member to existing owner slot', { extra: { slotId, userId, displayName, sessionId } });
+          logger.info('[Link Member] Linked member to existing empty slot', { extra: { slotId, userId, displayName, sessionId, slotType: slot.participant_type } });
 
           if (bookingResult.rows[0]) {
             const bookingForNotif = bookingResult.rows[0] as DbRow;
@@ -2879,7 +2908,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
                 body: notificationMessage,
                 tag: `booking-linked-${bookingId}`
               }).catch((err) => {
-                logger.error('[trackman-admin] Failed to send push notification on owner slot link', {
+                logger.error('[trackman-admin] Failed to send push notification on empty slot link', {
                   error: err instanceof Error ? err : new Error(String(err))
                 });
               });
@@ -2890,7 +2919,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
             slotId,
             memberEmail: memberEmail.toLowerCase(),
             linkedBy,
-            ownerSlotLinked: true
+            slotType: slot.participant_type
           });
 
           broadcastBookingRosterUpdate({
@@ -2902,7 +2931,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
 
           return res.json({ 
             success: true, 
-            message: `Member ${memberEmail} linked to owner slot` 
+            message: `Member ${memberEmail} linked to ${slot.participant_type} slot` 
           });
         }
       }
@@ -2936,6 +2965,9 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
           logger.warn('[Link Member] Failed to recalculate fees for session', { extra: { sessionId, feeErr } });
         }
       }
+    } else {
+      logger.warn('[Link Member] No session found and could not create one', { extra: { bookingId, slotId } });
+      return res.status(400).json({ error: 'No active session for this booking. Try reassigning the booking owner first.' });
     }
     
     if (bookingResult.rows[0]) {
