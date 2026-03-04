@@ -15,7 +15,7 @@ import { getSessionUser } from '../../types/session';
 import { isExpandedProduct } from '../../types/stripe-helpers';
 import { getTodayPacific, getPacificMidnightUTC } from '../../utils/dateUtils';
 import { getStripeClient } from '../../core/stripe/client';
-import { isPlaceholderEmail } from '../../core/stripe/customers';
+import { isPlaceholderEmail, listCustomerPaymentMethods } from '../../core/stripe/customers';
 import { findOrCreateHubSpotContact } from '../../core/hubspot/members';
 import {
   createPaymentIntent,
@@ -1340,23 +1340,19 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
 
     const stripe = await getStripeClient();
 
-    // Get customer's saved payment methods
-    const paymentMethods = await stripe.paymentMethods.list({
-      customer: member.stripe_customer_id,
-      type: 'card'
-    });
+    // Get customer's saved payment methods (includes Link-saved cards)
+    const paymentMethods = await listCustomerPaymentMethods(member.stripe_customer_id);
 
-    if (paymentMethods.data.length === 0) {
+    if (paymentMethods.length === 0) {
       return res.status(400).json({ 
         error: 'Member has no saved card on file. They need to make a payment first to save their card.',
         noSavedCard: true
       });
     }
 
-    // Use the first (most recent) payment method
-    const paymentMethod = paymentMethods.data[0];
-    const cardLast4 = paymentMethod.card?.last4 || '****';
-    const cardBrand = paymentMethod.card?.brand || 'card';
+    const paymentMethod = paymentMethods[0];
+    const cardLast4 = paymentMethod.last4 || '****';
+    const cardBrand = paymentMethod.brand || 'card';
 
     const trackmanBookingId = (participantResult.rows[0] as unknown as DbParticipantRow)?.trackman_booking_id || null;
 
@@ -1666,21 +1662,18 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, async (re
 
     const stripe = await getStripeClient();
 
-    const paymentMethods = await stripe.paymentMethods.list({
-      customer: member.stripe_customer_id,
-      type: 'card'
-    });
+    const paymentMethods = await listCustomerPaymentMethods(member.stripe_customer_id);
 
-    if (paymentMethods.data.length === 0) {
+    if (paymentMethods.length === 0) {
       return res.status(400).json({
         error: 'No saved card on file. Use Online Card instead.',
         noSavedCard: true
       });
     }
 
-    const paymentMethod = paymentMethods.data[0];
-    const cardLast4 = paymentMethod.card?.last4 || '****';
-    const cardBrand = paymentMethod.card?.brand || 'card';
+    const paymentMethod = paymentMethods[0];
+    const cardLast4 = paymentMethod.last4 || '****';
+    const cardBrand = paymentMethod.brand || 'card';
 
     if (Array.isArray(cartItems) && cartItems.length > 0) {
       try {
@@ -1854,24 +1847,18 @@ router.get('/api/stripe/staff/check-saved-card/:email', isStaffOrAdmin, async (r
       return res.json({ hasSavedCard: false });
     }
 
-    const stripe = await getStripeClient();
-    const paymentMethods = await stripe.paymentMethods.list({
-      customer: (memberResult.rows[0] as { stripe_customer_id: string }).stripe_customer_id,
-      type: 'card',
-      limit: 1
-    });
+    const paymentMethods = await listCustomerPaymentMethods((memberResult.rows[0] as { stripe_customer_id: string }).stripe_customer_id);
 
-    if (paymentMethods.data.length === 0) {
+    if (paymentMethods.length === 0) {
       return res.json({ hasSavedCard: false });
     }
 
-    const card = paymentMethods.data[0].card;
     res.json({ 
       hasSavedCard: true,
-      cardLast4: card?.last4,
-      cardBrand: card?.brand,
-      cardExpMonth: card?.exp_month,
-      cardExpYear: card?.exp_year
+      cardLast4: paymentMethods[0].last4,
+      cardBrand: paymentMethods[0].brand,
+      cardExpMonth: paymentMethods[0].expMonth,
+      cardExpYear: paymentMethods[0].expYear
     });
   } catch (error: unknown) {
     if ((error as StripeError)?.code === 'resource_missing') {
@@ -3110,12 +3097,9 @@ router.post('/api/stripe/staff/charge-subscription-invoice', isStaffOrAdmin, asy
     }
 
     if (!paymentMethodId && typeof customer === 'object' && customer.id) {
-      const paymentMethods = await stripe.paymentMethods.list({
-        customer: customer.id,
-        type: 'card'
-      });
-      if (paymentMethods.data.length > 0) {
-        paymentMethodId = paymentMethods.data[0].id;
+      const paymentMethods = await listCustomerPaymentMethods(customer.id);
+      if (paymentMethods.length > 0) {
+        paymentMethodId = paymentMethods[0].id;
       }
     }
 

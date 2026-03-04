@@ -10,6 +10,7 @@ import { getMemberTierByEmail, getTierLimits } from '../../core/tierService';
 import { computeFeeBreakdown, applyFeeBreakdownToParticipants, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { logFromRequest } from '../../core/auditLog';
 import { getStripeClient } from '../../core/stripe/client';
+import { listCustomerPaymentMethods } from '../../core/stripe/customers';
 
 import { recordUsage, ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { updateVisitorTypeByUserId } from '../../core/visitors';
@@ -700,21 +701,17 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
             
             const stripe = await getStripeClient();
             
-            const paymentMethods = await stripe.paymentMethods.list({
-              customer: customerId,
-              type: 'card',
-              limit: 1
-            });
+            const paymentMethods = await listCustomerPaymentMethods(customerId);
             
             let paymentStatus = 'pending';
             let paymentIntentId = '';
             
-            if (paymentMethods.data.length > 0) {
+            if (paymentMethods.length > 0) {
               const paymentIntent = await stripe.paymentIntents.create({
                 amount: amountCents as number,
                 currency: 'usd',
                 customer: customerId,
-                payment_method: paymentMethods.data[0].id,
+                payment_method: paymentMethods[0].id,
                 confirm: true,
                 off_session: true,
                 description: `Day Pass - Golf Simulator (${bookingDateStr})`,

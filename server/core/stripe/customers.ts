@@ -603,10 +603,44 @@ export interface NormalizedPaymentMethod {
   expYear: number | undefined;
 }
 
+function extractCardDetails(pm: Stripe.PaymentMethod): Omit<NormalizedPaymentMethod, 'id'> | null {
+  const card = pm.card ?? (pm as unknown as { link?: { last4?: string; brand?: string; exp_month?: number; exp_year?: number } }).link;
+  if (!card) return null;
+  return {
+    brand: ('brand' in card ? card.brand : undefined) ?? undefined,
+    last4: ('last4' in card ? card.last4 : undefined) ?? undefined,
+    expMonth: ('exp_month' in card ? card.exp_month : undefined) ?? undefined,
+    expYear: ('exp_year' in card ? card.exp_year : undefined) ?? undefined,
+  };
+}
+
 export async function listCustomerPaymentMethods(customerId: string): Promise<NormalizedPaymentMethod[]> {
   const stripe = await getStripeClient();
   const results: NormalizedPaymentMethod[] = [];
   const seenIds = new Set<string>();
+  let defaultPmId: string | undefined;
+
+  try {
+    const customer = await stripe.customers.retrieve(customerId, {
+      expand: ['invoice_settings.default_payment_method'],
+    });
+    if (!customer.deleted) {
+      const defaultPm = (customer as Stripe.Customer).invoice_settings?.default_payment_method;
+      if (defaultPm && typeof defaultPm === 'object') {
+        const pm = defaultPm as Stripe.PaymentMethod;
+        defaultPmId = pm.id;
+        const details = extractCardDetails(pm);
+        if (details) {
+          seenIds.add(pm.id);
+          results.push({ id: pm.id, ...details });
+        }
+      } else if (defaultPm && typeof defaultPm === 'string') {
+        defaultPmId = defaultPm;
+      }
+    }
+  } catch (err) {
+    logger.warn('[Stripe] Failed to check default payment method', { extra: { customerId, error: getErrorMessage(err) } });
+  }
 
   const cardMethods = await stripe.paymentMethods.list({
     customer: customerId,
@@ -625,28 +659,17 @@ export async function listCustomerPaymentMethods(customerId: string): Promise<No
     }
   }
 
-  try {
-    const customer = await stripe.customers.retrieve(customerId, {
-      expand: ['invoice_settings.default_payment_method'],
-    });
-    if (!customer.deleted) {
-      const defaultPm = (customer as Stripe.Customer).invoice_settings?.default_payment_method;
-      if (defaultPm && typeof defaultPm === 'object') {
-        const pm = defaultPm as Stripe.PaymentMethod;
-        if (!seenIds.has(pm.id) && pm.card) {
-          seenIds.add(pm.id);
-          results.push({
-            id: pm.id,
-            brand: pm.card.brand ?? undefined,
-            last4: pm.card.last4 ?? undefined,
-            expMonth: pm.card.exp_month ?? undefined,
-            expYear: pm.card.exp_year ?? undefined,
-          });
-        }
+  if (defaultPmId && !seenIds.has(defaultPmId)) {
+    try {
+      const pm = await stripe.paymentMethods.retrieve(defaultPmId);
+      const details = extractCardDetails(pm);
+      if (details) {
+        seenIds.add(pm.id);
+        results.unshift({ id: pm.id, ...details });
       }
+    } catch (err) {
+      logger.warn('[Stripe] Failed to retrieve default payment method by ID', { extra: { customerId, defaultPmId, error: getErrorMessage(err) } });
     }
-  } catch (err) {
-    logger.warn('[Stripe] Failed to check default payment method', { extra: { customerId, error: getErrorMessage(err) } });
   }
 
   return results;

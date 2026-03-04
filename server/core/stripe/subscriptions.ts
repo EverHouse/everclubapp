@@ -2,6 +2,7 @@ import { getStripeClient } from './client';
 import Stripe from 'stripe';
 import { isExpandedProduct, SubscriptionPendingUpdate } from '../../types/stripe-helpers';
 import { getErrorMessage, isStripeError } from '../../utils/errorUtils';
+import { listCustomerPaymentMethods } from './customers';
 
 import { logger } from '../logger';
 
@@ -455,15 +456,11 @@ export async function changeSubscriptionTier(
       }
     }
     
-    // If still no payment method, try to get the first attached card
+    // If still no payment method, try to get the first attached card (including Link-saved)
     if (!defaultPaymentMethod) {
-      const paymentMethods = await stripe.paymentMethods.list({
-        customer: sub.customer as string,
-        type: 'card',
-        limit: 1,
-      });
-      if (paymentMethods.data.length > 0) {
-        defaultPaymentMethod = paymentMethods.data[0].id;
+      const paymentMethods = await listCustomerPaymentMethods(sub.customer as string);
+      if (paymentMethods.length > 0) {
+        defaultPaymentMethod = paymentMethods[0].id;
         logger.info(`[Stripe Subscriptions] Using first attached card ${defaultPaymentMethod} for tier change`);
       }
     }
