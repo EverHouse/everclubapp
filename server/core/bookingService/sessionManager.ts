@@ -109,6 +109,22 @@ export async function ensureSessionForBooking(params: {
   source: 'member_request' | 'staff_manual' | 'trackman_import' | 'trackman_webhook';
   createdBy: string;
 }, client?: PoolClient): Promise<{ sessionId: number; created: boolean; error?: string }> {
+  if (!params.startTime || !params.endTime) {
+    return { sessionId: 0, created: false, error: 'Missing start_time or end_time' };
+  }
+
+  const [sh, sm] = params.startTime.split(':').map(Number);
+  const [eh, em] = params.endTime.split(':').map(Number);
+  if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) {
+    return { sessionId: 0, created: false, error: `Invalid time format: start=${params.startTime}, end=${params.endTime}` };
+  }
+
+  const startMins = sh * 60 + sm;
+  const endMins = eh * 60 + em;
+  if (startMins === endMins) {
+    return { sessionId: 0, created: false, error: `Zero-duration booking: start=${params.startTime}, end=${params.endTime}` };
+  }
+
   const attemptSessionCreation = async (): Promise<{ sessionId: number; created: boolean }> => {
     let sessionId: number | null = null;
     let created = false;

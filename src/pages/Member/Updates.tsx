@@ -225,6 +225,7 @@ const MemberUpdates: React.FC = () => {
       const res = await fetch(`/api/notifications/mark-all-read`, { 
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_email: user.email }),
         credentials: 'include' 
       });
       if (!res.ok) return;
