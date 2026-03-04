@@ -333,7 +333,7 @@ interface BookingQueuesSectionProps {
   onOpenTrackman: (booking?: BookingRequest) => void;
   onApprove: (request: BookingRequest) => void;
   onDeny: (request: BookingRequest) => void;
-  onCheckIn: (booking: BookingRequest, targetStatus?: 'attended' | 'no_show') => void;
+  onCheckIn: (booking: BookingRequest, targetStatus?: 'attended' | 'no_show' | 'approved') => void;
   onPaymentClick?: (bookingId: number) => void;
   onRosterClick?: (bookingId: number) => void;
   onAssignMember?: (booking: BookingRequest) => void;

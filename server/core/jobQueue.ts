@@ -265,16 +265,16 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
         const { getStripeClient: getStripeForRefund } = await import('./stripe/client');
         const stripeRefund = await getStripeForRefund();
         try {
-          const refundParams: Record<string, unknown> = {
+          const refundCreateParams: { payment_intent: string; reason: 'duplicate' | 'fraudulent' | 'requested_by_customer'; metadata: Record<string, string>; amount?: number } = {
             payment_intent: payload.paymentIntentId as string,
-            reason: (payload.reason as string) || 'duplicate',
+            reason: ((payload.reason as string) || 'duplicate') as 'duplicate' | 'fraudulent' | 'requested_by_customer',
             metadata: payload.metadata as Record<string, string>,
           };
           if (payload.amountCents) {
-            refundParams.amount = payload.amountCents as number;
+            refundCreateParams.amount = payload.amountCents as number;
           }
           const refund = await stripeRefund.refunds.create(
-            refundParams as Parameters<typeof stripeRefund.refunds.create>[0],
+            refundCreateParams,
             { idempotencyKey: payload.idempotencyKey as string }
           );
           logger.info(`[JobQueue] Auto-refund issued: ${refund.id} for PI ${payload.paymentIntentId}, amount: ${payload.amountCents || 'full'}`);

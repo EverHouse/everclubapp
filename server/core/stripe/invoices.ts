@@ -282,6 +282,7 @@ export async function chargeOneTimeFee(params: {
   metadata?: Record<string, string>;
 }): Promise<{
   success: boolean;
+  paymentFailed?: boolean;
   invoice?: InvoiceResult;
   amountFromBalance?: number;
   amountCharged?: number;

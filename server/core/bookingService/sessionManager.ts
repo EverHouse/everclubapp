@@ -25,7 +25,7 @@ import { getTodayPacific } from '../../utils/dateUtils';
 // Transaction context type - allows functions to participate in an outer transaction
 export type TransactionContext = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-export type BookingSource = 'member_request' | 'staff_manual' | 'trackman_import' | 'trackman_webhook' | 'trackman';
+export type BookingSource = 'member_request' | 'staff_manual' | 'trackman_import' | 'trackman_webhook' | 'trackman' | 'auto-complete' | 'manual-auto-complete';
 export type ParticipantType = 'owner' | 'member' | 'guest';
 export type PaymentMethod = 'guest_pass' | 'credit_card' | 'unpaid' | 'waived';
 
@@ -106,7 +106,7 @@ export async function ensureSessionForBooking(params: {
   ownerName?: string;
   ownerUserId?: string;
   trackmanBookingId?: string;
-  source: 'member_request' | 'staff_manual' | 'trackman_import' | 'trackman_webhook';
+  source: BookingSource;
   createdBy: string;
 }, client?: PoolClient): Promise<{ sessionId: number; created: boolean; error?: string }> {
   if (!params.startTime || !params.endTime) {

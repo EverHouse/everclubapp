@@ -169,7 +169,7 @@ export async function executePendingMigration(userId: string, email: string): Pr
       const billingStartDate = user.migration_billing_start_date;
       const isFuture = billingStartDate && (billingStartDate.getTime() - now.getTime() > 48 * 60 * 60 * 1000);
 
-      const subscriptionParams: Record<string, unknown> = {
+      const subscriptionParams = {
         customer: customerId,
         items: [{ price: stripePriceId }],
         default_payment_method: defaultPaymentMethod,
@@ -181,16 +181,16 @@ export async function executePendingMigration(userId: string, email: string): Pr
           userId: userId,
           memberEmail: email,
         },
+        ...(isFuture ? { trial_end: Math.floor(billingStartDate!.getTime() / 1000) } : {}),
       };
 
       if (isFuture) {
-        subscriptionParams.trial_end = Math.floor(billingStartDate!.getTime() / 1000);
         logger.info(`${prefix} Creating subscription with trial_end for ${email}, billing starts: ${billingStartDate!.toISOString()}`);
       } else {
         logger.info(`${prefix} Creating subscription with immediate billing for ${email}`);
       }
 
-      const subscription = await stripe.subscriptions.create(subscriptionParams as Parameters<typeof stripe.subscriptions.create>[0], {
+      const subscription = await stripe.subscriptions.create(subscriptionParams, {
         idempotencyKey: `migration_sub_${userId}_${stripePriceId}_${Math.floor(Date.now() / 300000)}`
       });
 

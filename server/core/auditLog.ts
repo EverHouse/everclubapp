@@ -296,7 +296,11 @@ export type AuditAction =
   | 'mark_booking_paid'
   | 'booking_creation'
   | 'cleanup_ghost_fees'
-  | 'send_reactivation_link';
+  | 'send_reactivation_link'
+  | 'revert_to_approved'
+  | 'bulk_attend_stale_bookings'
+  | 'create_block'
+  | 'get_invoice_link';
 
 export type ActorType = 'staff' | 'member' | 'system';
 
@@ -329,6 +333,7 @@ export type ResourceType =
   | 'stripe'
   | 'billing_groups'
   | 'legacy_purchase'
+  | 'availability_block'
   | 'bulk_waiver'
   | 'terminal_reader'
   | 'tier_feature'

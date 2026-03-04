@@ -287,12 +287,11 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subsc
         } catch (cancelError) {
           logger.error('[Stripe] CRITICAL: Failed to cancel subscription during rollback — notifying staff for manual cleanup', { extra: { subscriptionId: stripeSubscription.subscriptionId, cancelError } });
           try {
-            const { notifyAllStaff } = await import('../../core/websocket');
+            const { notifyAllStaff } = await import('../../core/staffNotifications');
             await notifyAllStaff(
               'CRITICAL: Stripe Subscription Needs Manual Cancellation',
               `Subscription ${stripeSubscription.subscriptionId} for ${member.email} was created but the database update failed, and the automatic rollback also failed. Please cancel subscription ${stripeSubscription.subscriptionId} manually in Stripe to prevent unauthorized charges.`,
-              'billing_alert',
-              { sendPush: true }
+              'billing_alert'
             );
           } catch {
             logger.error('[Stripe] Failed to send staff notification for rollback failure');
@@ -560,12 +559,11 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, subsc
         } catch (cancelError: unknown) {
           logger.error('[Stripe] CRITICAL: Failed to cancel subscription during rollback — notifying staff for manual cleanup', { extra: { subscriptionId: subscriptionResult.subscription.subscriptionId, error: getErrorMessage(cancelError) } });
           try {
-            const { notifyAllStaff } = await import('../../core/websocket');
+            const { notifyAllStaff } = await import('../../core/staffNotifications');
             await notifyAllStaff(
               'CRITICAL: Stripe Subscription Needs Manual Cancellation',
               `Subscription ${subscriptionResult.subscription.subscriptionId} for ${email} was created but the database update failed, and the automatic rollback also failed. Please cancel this subscription manually in Stripe.`,
-              'billing_alert',
-              { sendPush: true }
+              'billing_alert'
             );
           } catch {
             logger.error('[Stripe] Failed to send staff notification for rollback failure');
@@ -699,7 +697,7 @@ router.get('/api/stripe/subscriptions/invoice-link/:subscriptionId', isStaffOrAd
     const member = memberResult.rows[0] as { id: number; stripe_customer_id: string | null };
 
     const stripe = await getStripeClient();
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId as string, {
       expand: ['latest_invoice']
     });
 
@@ -717,11 +715,12 @@ router.get('/api/stripe/subscriptions/invoice-link/:subscriptionId', isStaffOrAd
       return res.status(404).json({ error: 'No payment link available for this subscription' });
     }
 
+    const memberEmailStr = String(memberEmail);
     await logFromRequest(req, {
       action: 'get_invoice_link',
       resourceType: 'subscription',
-      resourceId: subscriptionId,
-      resourceName: String(memberEmail),
+      resourceId: subscriptionId as string,
+      resourceName: memberEmailStr,
       details: {
         memberEmail: String(memberEmail),
         memberId: member.id,
@@ -745,7 +744,7 @@ router.get('/api/stripe/subscriptions/refresh-intent/:subscriptionId', isStaffOr
     }
 
     const stripe = await getStripeClient();
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId as string, {
       expand: ['latest_invoice.payment_intent']
     });
 

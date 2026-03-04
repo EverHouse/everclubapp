@@ -1042,7 +1042,7 @@ const SimulatorTab: React.FC = () => {
                         queueItems={queueItems}
                         pendingRequests={pendingRequests}
                         cancellationPendingBookings={cancellationPendingBookings}
-                        scheduledBookings={scheduledBookings}
+                        scheduledBookings={scheduledBookings as BookingRequest[]}
                         scheduledFilter={scheduledFilter}
                         setScheduledFilter={setScheduledFilter}
                         resources={resources}
