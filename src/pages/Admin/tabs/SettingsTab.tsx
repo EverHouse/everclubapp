@@ -77,7 +77,18 @@ const SettingsTab: React.FC = () => {
 
   useEffect(() => {
     if (fetchedSettings) {
-      setSettings(fetchedSettings);
+      setSettings({
+        ...fetchedSettings,
+        categoryLabels: fetchedSettings.categoryLabels ?? {
+          guest_pass: 'Guest Pass',
+          guest_sim_fee: 'Guest Sim Fee',
+          sim_walk_in: 'Sim Walk-In',
+          membership: 'Membership',
+          cafe: 'Cafe',
+          retail: 'Retail',
+          other: 'Other',
+        },
+      });
       setHasChanges(false);
     }
   }, [fetchedSettings]);
@@ -92,7 +103,7 @@ const SettingsTab: React.FC = () => {
         'notifications.sync_failure_alerts': String(settingsToSave.syncFailureAlerts),
       };
       
-      for (const [key, label] of Object.entries(settingsToSave.categoryLabels)) {
+      for (const [key, label] of Object.entries(settingsToSave.categoryLabels ?? {})) {
         payload[`category.${key}`] = label;
       }
       
@@ -121,7 +132,10 @@ const SettingsTab: React.FC = () => {
 
   const handleReset = () => {
     if (fetchedSettings) {
-      setSettings(fetchedSettings);
+      setSettings({
+        ...fetchedSettings,
+        categoryLabels: fetchedSettings.categoryLabels ?? settings.categoryLabels ?? {},
+      });
       setHasChanges(false);
     }
   };
@@ -238,12 +252,12 @@ const SettingsTab: React.FC = () => {
               </div>
               <input
                 type="text"
-                value={settings.categoryLabels[key]}
+                value={settings.categoryLabels?.[key] ?? ''}
                 onChange={(e) => {
                   setSettings({
                     ...settings,
                     categoryLabels: {
-                      ...settings.categoryLabels,
+                      ...(settings.categoryLabels ?? {}),
                       [key]: e.target.value
                     }
                   });
