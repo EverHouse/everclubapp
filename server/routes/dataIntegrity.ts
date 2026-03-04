@@ -15,6 +15,8 @@ import { getSystemHealth } from '../core/healthCheck';
 import { getSessionUser } from '../types/session';
 import type { Request } from 'express';
 import { getErrorMessage, safeErrorDetail } from '../utils/errorUtils';
+import { validateBody } from '../middleware/validate';
+import { resolveIssueSchema, syncPushPullSchema, ignoreIssueSchema, bulkIgnoreSchema, placeholderDeleteSchema, recordIdSchema, userIdSchema, unlinkHubspotSchema, mergeHubspotSchema, mergeStripeSchema, changeBillingProviderSchema, acceptTierSchema, reviewItemSchema, assignSessionOwnerSchema, cancelOrphanedPiSchema, dryRunSchema } from '../../shared/validators/dataIntegrity';
 
 const router = Router();
 
@@ -82,28 +84,15 @@ router.get('/api/data-integrity/history', isAdmin, async (req, res) => {
   }
 });
 
-router.post('/api/data-integrity/resolve', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/resolve', isAdmin, validateBody(resolveIssueSchema), async (req: Request, res) => {
   try {
     const { issue_key, resolution_method, notes, action } = req.body;
-    
-    if (!issue_key) {
-      return res.status(400).json({ error: 'issue_key is required' });
-    }
-    
-    const actionType = action || 'resolved';
-    if (!['resolved', 'ignored', 'reopened'].includes(actionType)) {
-      return res.status(400).json({ error: 'Invalid action type' });
-    }
-    
-    if (actionType === 'resolved' && !resolution_method) {
-      return res.status(400).json({ error: 'resolution_method is required for resolved action' });
-    }
     
     const staffEmail = getSessionUser(req)?.email || 'unknown';
     
     const result = await resolveIssue({
       issueKey: issue_key,
-      action: actionType,
+      action,
       actionBy: staffEmail,
       resolutionMethod: resolution_method,
       notes: notes
@@ -127,21 +116,9 @@ router.get('/api/data-integrity/audit-log', isAdmin, async (req, res) => {
   }
 });
 
-router.post('/api/data-integrity/sync-push', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/sync-push', isAdmin, validateBody(syncPushPullSchema), async (req: Request, res) => {
   try {
-    // Accept both camelCase and snake_case parameter names
-    const issue_key = req.body.issue_key || req.body.issueKey;
-    const target = req.body.target;
-    const user_id = req.body.user_id || req.body.userId;
-    const hubspot_contact_id = req.body.hubspot_contact_id || req.body.hubspotContactId;
-    
-    if (!issue_key) {
-      return res.status(400).json({ error: 'issue_key is required' });
-    }
-    
-    if (!target || !['hubspot', 'calendar'].includes(target)) {
-      return res.status(400).json({ error: 'Valid target (hubspot or calendar) is required' });
-    }
+    const { issue_key, target, user_id, hubspot_contact_id } = req.body;
     
     const result = await syncPush({
       issueKey: issue_key,
@@ -160,21 +137,9 @@ router.post('/api/data-integrity/sync-push', isAdmin, async (req: Request, res) 
   }
 });
 
-router.post('/api/data-integrity/sync-pull', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/sync-pull', isAdmin, validateBody(syncPushPullSchema), async (req: Request, res) => {
   try {
-    // Accept both camelCase and snake_case parameter names
-    const issue_key = req.body.issue_key || req.body.issueKey;
-    const target = req.body.target;
-    const user_id = req.body.user_id || req.body.userId;
-    const hubspot_contact_id = req.body.hubspot_contact_id || req.body.hubspotContactId;
-    
-    if (!issue_key) {
-      return res.status(400).json({ error: 'issue_key is required' });
-    }
-    
-    if (!target || !['hubspot', 'calendar'].includes(target)) {
-      return res.status(400).json({ error: 'Valid target (hubspot or calendar) is required' });
-    }
+    const { issue_key, target, user_id, hubspot_contact_id } = req.body;
     
     const result = await syncPull({
       issueKey: issue_key,
@@ -203,21 +168,9 @@ router.get('/api/data-integrity/ignores', isAdmin, async (req, res) => {
   }
 });
 
-router.post('/api/data-integrity/ignore', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/ignore', isAdmin, validateBody(ignoreIssueSchema), async (req: Request, res) => {
   try {
     const { issue_key, duration, reason } = req.body;
-    
-    if (!issue_key) {
-      return res.status(400).json({ error: 'issue_key is required' });
-    }
-    
-    if (!duration || !['24h', '1w', '30d'].includes(duration)) {
-      return res.status(400).json({ error: 'Valid duration (24h, 1w, 30d) is required' });
-    }
-    
-    if (!reason || reason.trim().length === 0) {
-      return res.status(400).json({ error: 'reason is required' });
-    }
     
     const staffEmail = getSessionUser(req)?.email || 'unknown';
     
@@ -256,25 +209,9 @@ router.delete('/api/data-integrity/ignore/:issueKey', isAdmin, async (req: Reque
   }
 });
 
-router.post('/api/data-integrity/ignore-bulk', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/ignore-bulk', isAdmin, validateBody(bulkIgnoreSchema), async (req: Request, res) => {
   try {
     const { issue_keys, duration, reason } = req.body;
-    
-    if (!issue_keys || !Array.isArray(issue_keys) || issue_keys.length === 0) {
-      return res.status(400).json({ error: 'issue_keys array is required' });
-    }
-    
-    if (issue_keys.length > 5000) {
-      return res.status(400).json({ error: 'Maximum 5000 issues can be excluded at once' });
-    }
-    
-    if (!duration || !['24h', '1w', '30d'].includes(duration)) {
-      return res.status(400).json({ error: 'Valid duration (24h, 1w, 30d) is required' });
-    }
-    
-    if (!reason || reason.trim().length === 0) {
-      return res.status(400).json({ error: 'reason is required' });
-    }
     
     const staffEmail = getSessionUser(req)?.email || 'unknown';
     
@@ -466,13 +403,9 @@ router.get('/api/data-integrity/placeholder-accounts', isAdmin, async (req, res)
   }
 });
 
-router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, validateBody(placeholderDeleteSchema), async (req: Request, res) => {
   try {
     const { stripeCustomerIds, hubspotContactIds, localDatabaseUserIds } = req.body;
-    
-    if (!Array.isArray(stripeCustomerIds) && !Array.isArray(hubspotContactIds) && !Array.isArray(localDatabaseUserIds)) {
-      return res.status(400).json({ error: 'Must provide stripeCustomerIds, hubspotContactIds, or localDatabaseUserIds arrays' });
-    }
     
     logger.info('[DataIntegrity] Deleting Stripe customers, HubSpot contacts, and local database users...', { extra: { stripeCustomerIds: stripeCustomerIds?.length || 0, hubspotContactIds: hubspotContactIds?.length || 0, localDatabaseUserIds: localDatabaseUserIds?.length || 0 } });
     
@@ -674,10 +607,9 @@ router.get('/api/data-integrity/health', isAdmin, async (req, res) => {
   }
 });
 
-router.post('/api/data-integrity/fix/unlink-hubspot', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/unlink-hubspot', isAdmin, validateBody(unlinkHubspotSchema), async (req: Request, res) => {
   try {
     const { userId, hubspotContactId } = req.body;
-    if (!userId) return res.status(400).json({ success: false, message: 'userId is required' });
     
     await db.execute(sql`UPDATE users SET hubspot_id = NULL, updated_at = NOW() WHERE id = ${userId}`);
     
@@ -693,12 +625,9 @@ router.post('/api/data-integrity/fix/unlink-hubspot', isAdmin, async (req: Reque
   }
 });
 
-router.post('/api/data-integrity/fix/merge-hubspot-duplicates', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/merge-hubspot-duplicates', isAdmin, validateBody(mergeHubspotSchema), async (req: Request, res) => {
   try {
     const { primaryUserId, secondaryUserId, hubspotContactId } = req.body;
-    if (!primaryUserId || !secondaryUserId) {
-      return res.status(400).json({ success: false, message: 'primaryUserId and secondaryUserId are required' });
-    }
     
     const sessionUser = getSessionUser(req);
     const { executeMerge } = await import('../core/userMerge');
@@ -724,10 +653,9 @@ router.post('/api/data-integrity/fix/merge-hubspot-duplicates', isAdmin, async (
   }
 });
 
-router.post('/api/data-integrity/fix/delete-guest-pass', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/delete-guest-pass', isAdmin, validateBody(recordIdSchema), async (req: Request, res) => {
   try {
     const { recordId } = req.body;
-    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
     
     await db.execute(sql`DELETE FROM guest_passes WHERE id = ${recordId}`);
     
@@ -740,10 +668,9 @@ router.post('/api/data-integrity/fix/delete-guest-pass', isAdmin, async (req: Re
   }
 });
 
-router.post('/api/data-integrity/fix/delete-fee-snapshot', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/delete-fee-snapshot', isAdmin, validateBody(recordIdSchema), async (req: Request, res) => {
   try {
     const { recordId } = req.body;
-    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
     
     await db.execute(sql`DELETE FROM booking_fee_snapshots WHERE id = ${recordId}`);
     
@@ -756,10 +683,9 @@ router.post('/api/data-integrity/fix/delete-fee-snapshot', isAdmin, async (req: 
   }
 });
 
-router.post('/api/data-integrity/fix/dismiss-trackman-unmatched', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/dismiss-trackman-unmatched', isAdmin, validateBody(recordIdSchema), async (req: Request, res) => {
   try {
     const { recordId } = req.body;
-    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
     
     const staffEmail = getSessionUser(req)?.email || 'admin';
     
@@ -774,10 +700,9 @@ router.post('/api/data-integrity/fix/dismiss-trackman-unmatched', isAdmin, async
   }
 });
 
-router.post('/api/data-integrity/fix/delete-booking-participant', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/delete-booking-participant', isAdmin, validateBody(recordIdSchema), async (req: Request, res) => {
   try {
     const { recordId } = req.body;
-    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
     
     await db.execute(sql`DELETE FROM booking_participants WHERE id = ${recordId}`);
     
@@ -790,9 +715,9 @@ router.post('/api/data-integrity/fix/delete-booking-participant', isAdmin, async
   }
 });
 
-router.post('/api/data-integrity/fix/fix-orphaned-participants', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/fix-orphaned-participants', isAdmin, validateBody(dryRunSchema), async (req: Request, res) => {
   try {
-    const { dryRun = true } = req.body;
+    const { dryRun } = req.body;
     
     const invalidParticipants = await db.execute(sql`
       SELECT bp.id, bp.user_id, bp.display_name, bp.participant_type, bp.session_id
@@ -880,10 +805,9 @@ router.post('/api/data-integrity/fix/fix-orphaned-participants', isAdmin, async 
   }
 });
 
-router.post('/api/data-integrity/fix/convert-participant-to-guest', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/convert-participant-to-guest', isAdmin, validateBody(recordIdSchema), async (req: Request, res) => {
   try {
     const { recordId } = req.body;
-    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
     
     await db.execute(sql`
       UPDATE booking_participants 
@@ -900,10 +824,9 @@ router.post('/api/data-integrity/fix/convert-participant-to-guest', isAdmin, asy
   }
 });
 
-router.post('/api/data-integrity/fix/approve-review-item', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/approve-review-item', isAdmin, validateBody(reviewItemSchema), async (req: Request, res) => {
   try {
     const { recordId, table } = req.body;
-    if (!recordId || !table) return res.status(400).json({ success: false, message: 'recordId and table are required' });
     
     const sessionUser = getSessionUser(req);
     const reviewedBy = sessionUser?.email || 'staff';
@@ -914,8 +837,6 @@ router.post('/api/data-integrity/fix/approve-review-item', isAdmin, async (req: 
         WHERE id = ${recordId}`);
     } else if (table === 'events') {
       await db.execute(sql`UPDATE events SET needs_review = false WHERE id = ${recordId}`);
-    } else {
-      return res.status(400).json({ success: false, message: `Unsupported table: ${table}` });
     }
     
     logFromRequest(req, 'approve_review_item', table as ResourceType, recordId, undefined, { table, reviewedBy });
@@ -927,17 +848,14 @@ router.post('/api/data-integrity/fix/approve-review-item', isAdmin, async (req: 
   }
 });
 
-router.post('/api/data-integrity/fix/delete-review-item', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/delete-review-item', isAdmin, validateBody(reviewItemSchema), async (req: Request, res) => {
   try {
     const { recordId, table } = req.body;
-    if (!recordId || !table) return res.status(400).json({ success: false, message: 'recordId and table are required' });
     
     if (table === 'wellness_classes') {
       await db.execute(sql`UPDATE wellness_classes SET is_active = false, updated_at = NOW() WHERE id = ${recordId}`);
     } else if (table === 'events') {
       await db.execute(sql`DELETE FROM events WHERE id = ${recordId}`);
-    } else {
-      return res.status(400).json({ success: false, message: `Unsupported table: ${table}` });
     }
     
     logFromRequest(req, 'delete_review_item', table as ResourceType, recordId, undefined, { table });
@@ -949,9 +867,9 @@ router.post('/api/data-integrity/fix/delete-review-item', isAdmin, async (req: R
   }
 });
 
-router.post('/api/data-integrity/fix/approve-all-review-items', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/approve-all-review-items', isAdmin, validateBody(dryRunSchema), async (req: Request, res) => {
   try {
-    const { dryRun = true } = req.body;
+    const { dryRun } = req.body;
     const sessionUser = getSessionUser(req);
     const reviewedBy = sessionUser?.email || 'staff';
     
@@ -991,11 +909,10 @@ router.post('/api/data-integrity/fix/approve-all-review-items', isAdmin, async (
   }
 });
 
-router.post('/api/data-integrity/fix/delete-empty-session', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/delete-empty-session', isAdmin, validateBody(recordIdSchema), async (req: Request, res) => {
   const client = await pool.connect();
   try {
     const { recordId } = req.body;
-    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
 
     await client.query('BEGIN');
 
@@ -1038,11 +955,10 @@ router.post('/api/data-integrity/fix/delete-empty-session', isAdmin, async (req:
   }
 });
 
-router.post('/api/data-integrity/fix/assign-session-owner', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/assign-session-owner', isAdmin, validateBody(assignSessionOwnerSchema), async (req: Request, res) => {
   const client = await pool.connect();
   try {
     const { sessionId, ownerEmail, additional_players } = req.body;
-    if (!sessionId || !ownerEmail) return res.status(400).json({ success: false, message: 'sessionId and ownerEmail are required' });
 
     const session = await client.query(
       `SELECT bs.id, bs.resource_id, bs.session_date, bs.start_time, bs.end_time, r.name as resource_name
@@ -1152,13 +1068,10 @@ router.post('/api/data-integrity/fix/assign-session-owner', isAdmin, async (req:
   }
 });
 
-router.post('/api/data-integrity/fix/merge-stripe-customers', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/merge-stripe-customers', isAdmin, validateBody(mergeStripeSchema), async (req: Request, res) => {
   try {
-    const { email: rawEmail, keepCustomerId, removeCustomerId } = req.body;
-    const email = rawEmail?.trim()?.toLowerCase();
-    if (!email || !keepCustomerId || !removeCustomerId) {
-      return res.status(400).json({ success: false, message: 'email, keepCustomerId, and removeCustomerId are required' });
-    }
+    const { keepCustomerId, removeCustomerId } = req.body;
+    const email = req.body.email.trim().toLowerCase();
 
     const result = await db.execute(sql`
       UPDATE users 
@@ -1180,10 +1093,9 @@ router.post('/api/data-integrity/fix/merge-stripe-customers', isAdmin, async (re
   }
 });
 
-router.post('/api/data-integrity/fix/deactivate-stale-member', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/deactivate-stale-member', isAdmin, validateBody(userIdSchema), async (req: Request, res) => {
   try {
     const { userId } = req.body;
-    if (!userId) return res.status(400).json({ success: false, message: 'userId is required' });
 
     const result = await db.execute(sql`
       UPDATE users 
@@ -1204,15 +1116,9 @@ router.post('/api/data-integrity/fix/deactivate-stale-member', isAdmin, async (r
   }
 });
 
-router.post('/api/data-integrity/fix/change-billing-provider', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/change-billing-provider', isAdmin, validateBody(changeBillingProviderSchema), async (req: Request, res) => {
   try {
     const { userId, newProvider } = req.body;
-    if (!userId || !newProvider) return res.status(400).json({ success: false, message: 'userId and newProvider are required' });
-
-    const validProviders = ['stripe', 'manual', 'comped'];
-    if (!validProviders.includes(newProvider)) {
-      return res.status(400).json({ success: false, message: `Invalid provider. Must be one of: ${validProviders.join(', ')}` });
-    }
 
     const result = await db.execute(sql`
       UPDATE users 
@@ -1233,10 +1139,9 @@ router.post('/api/data-integrity/fix/change-billing-provider', isAdmin, async (r
   }
 });
 
-router.post('/api/data-integrity/fix/delete-member-no-email', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/delete-member-no-email', isAdmin, validateBody(recordIdSchema), async (req: Request, res) => {
   try {
     const { recordId } = req.body;
-    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
 
     // Safety check: only delete if the member truly has no email
     const member = await db.execute(sql`SELECT id, email, first_name, last_name FROM users WHERE id = ${recordId}`);
@@ -1281,10 +1186,9 @@ router.post('/api/data-integrity/fix/delete-member-no-email', isAdmin, async (re
   }
 });
 
-router.post('/api/data-integrity/fix/complete-booking', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/complete-booking', isAdmin, validateBody(recordIdSchema), async (req: Request, res) => {
   try {
     const { recordId } = req.body;
-    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
 
     const result = await db.execute(sql`
       UPDATE booking_requests 
@@ -1305,10 +1209,9 @@ router.post('/api/data-integrity/fix/complete-booking', isAdmin, async (req: Req
   }
 });
 
-router.post('/api/data-integrity/fix/cancel-stale-booking', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/cancel-stale-booking', isAdmin, validateBody(recordIdSchema), async (req: Request, res) => {
   try {
     const { recordId } = req.body;
-    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
 
     const result = await db.execute(sql`
       UPDATE booking_requests 
@@ -1408,10 +1311,9 @@ router.post('/api/data-integrity/fix/bulk-attend-stale-bookings', isAdmin, async
   }
 });
 
-router.post('/api/data-integrity/fix/activate-stuck-member', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/activate-stuck-member', isAdmin, validateBody(userIdSchema), async (req: Request, res) => {
   try {
     const { userId } = req.body;
-    if (!userId) return res.status(400).json({ success: false, message: 'userId is required' });
 
     const result = await db.execute(sql`
       UPDATE users 
@@ -1432,10 +1334,9 @@ router.post('/api/data-integrity/fix/activate-stuck-member', isAdmin, async (req
   }
 });
 
-router.post('/api/data-integrity/fix/recalculate-guest-passes', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/recalculate-guest-passes', isAdmin, validateBody(userIdSchema), async (req: Request, res) => {
   try {
     const { userId } = req.body;
-    if (!userId) return res.status(400).json({ success: false, message: 'userId is required' });
 
     await db.execute(sql`
       UPDATE guest_passes gp
@@ -1460,10 +1361,9 @@ router.post('/api/data-integrity/fix/recalculate-guest-passes', isAdmin, async (
   }
 });
 
-router.post('/api/data-integrity/fix/release-guest-pass-hold', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/release-guest-pass-hold', isAdmin, validateBody(recordIdSchema), async (req: Request, res) => {
   try {
     const { recordId } = req.body;
-    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
 
     const result = await db.execute(sql`DELETE FROM guest_pass_holds WHERE id = ${recordId}`);
 
@@ -1480,10 +1380,9 @@ router.post('/api/data-integrity/fix/release-guest-pass-hold', isAdmin, async (r
   }
 });
 
-router.post('/api/data-integrity/fix/cancel-orphaned-pi', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/cancel-orphaned-pi', isAdmin, validateBody(cancelOrphanedPiSchema), async (req: Request, res) => {
   try {
     const { paymentIntentId } = req.body;
-    if (!paymentIntentId) return res.status(400).json({ success: false, message: 'paymentIntentId is required' });
 
     const stripe = await getStripeClient();
     try {
@@ -1506,10 +1405,9 @@ router.post('/api/data-integrity/fix/cancel-orphaned-pi', isAdmin, async (req: R
   }
 });
 
-router.post('/api/data-integrity/fix/delete-orphan-enrollment', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/delete-orphan-enrollment', isAdmin, validateBody(recordIdSchema), async (req: Request, res) => {
   try {
     const { recordId } = req.body;
-    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
 
     const result = await db.execute(sql`DELETE FROM wellness_enrollments WHERE id = ${recordId}`);
 
@@ -1526,10 +1424,9 @@ router.post('/api/data-integrity/fix/delete-orphan-enrollment', isAdmin, async (
   }
 });
 
-router.post('/api/data-integrity/fix/delete-orphan-rsvp', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/delete-orphan-rsvp', isAdmin, validateBody(recordIdSchema), async (req: Request, res) => {
   try {
     const { recordId } = req.body;
-    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
 
     const result = await db.execute(sql`DELETE FROM event_rsvps WHERE id = ${recordId}`);
 
@@ -1546,12 +1443,9 @@ router.post('/api/data-integrity/fix/delete-orphan-rsvp', isAdmin, async (req: R
   }
 });
 
-router.post('/api/data-integrity/fix/accept-tier', isAdmin, async (req: Request, res) => {
+router.post('/api/data-integrity/fix/accept-tier', isAdmin, validateBody(acceptTierSchema), async (req: Request, res) => {
   try {
     const { userId, acceptedTier, source } = req.body;
-    if (!userId) return res.status(400).json({ success: false, message: 'userId is required' });
-    if (!acceptedTier) return res.status(400).json({ success: false, message: 'acceptedTier is required' });
-    if (!source || !['app', 'stripe'].includes(source)) return res.status(400).json({ success: false, message: 'source must be "app" or "stripe"' });
 
     const result = await db.execute(sql`
       UPDATE users 

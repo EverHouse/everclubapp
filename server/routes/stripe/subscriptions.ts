@@ -20,6 +20,8 @@ import {
 } from '../../core/stripe';
 import { getSessionUser } from '../../types/session';
 import { logFromRequest } from '../../core/auditLog';
+import { validateBody } from '../../middleware/validate';
+import { createSubscriptionSchema, createSubscriptionForMemberSchema, createNewMemberSubscriptionSchema, confirmInlinePaymentSchema, sendActivationLinkSchema } from '../../../shared/validators/subscriptions';
 import { sendNotificationToUser, broadcastBillingUpdate } from '../../core/websocket';
 import { sendMembershipActivationEmail } from '../../emails/membershipEmails';
 import { findOrCreateHubSpotContact } from '../../core/hubspot/members';
@@ -54,14 +56,10 @@ router.get('/api/stripe/subscriptions/:customerId', isStaffOrAdmin, async (req: 
   }
 });
 
-router.post('/api/stripe/subscriptions', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/subscriptions', isStaffOrAdmin, validateBody(createSubscriptionSchema), async (req: Request, res: Response) => {
   try {
     const { customerId, priceId, memberEmail: rawMemberEmail } = req.body;
     const memberEmail = rawMemberEmail?.trim()?.toLowerCase();
-    
-    if (!customerId || !priceId) {
-      return res.status(400).json({ error: 'Missing required fields: customerId, priceId' });
-    }
     
     const result = await createSubscription({
       customerId,
@@ -183,15 +181,11 @@ router.post('/api/stripe/sync-subscriptions', isStaffOrAdmin, sensitiveActionRat
   }
 });
 
-router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subscriptionCreationRateLimiter, async (req: Request, res: Response) => {
+router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subscriptionCreationRateLimiter, validateBody(createSubscriptionForMemberSchema), async (req: Request, res: Response) => {
   try {
     const { memberEmail: rawMemberEmail, tierName, couponId } = req.body;
     const memberEmail = rawMemberEmail?.trim()?.toLowerCase();
     const sessionUser = getSessionUser(req);
-    
-    if (!memberEmail || !tierName) {
-      return res.status(400).json({ error: 'memberEmail and tierName are required' });
-    }
 
     if (!acquireSubscriptionLock(memberEmail)) {
       logger.warn('[Stripe] Subscription creation already in progress', { extra: { memberEmail } });
@@ -392,15 +386,11 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subsc
   }
 });
 
-router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, subscriptionCreationRateLimiter, async (req: Request, res: Response) => {
+router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, subscriptionCreationRateLimiter, validateBody(createNewMemberSubscriptionSchema), async (req: Request, res: Response) => {
   try {
     const { email: rawEmail, firstName, lastName, phone, dob, tierSlug, couponId, streetAddress, city, state, zipCode } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
     const sessionUser = getSessionUser(req);
-    
-    if (!email || !tierSlug) {
-      return res.status(400).json({ error: 'email and tierSlug are required' });
-    }
 
     if (!acquireSubscriptionLock(email)) {
       logger.warn('[Stripe] Subscription creation already in progress for new member', { extra: { email } });
@@ -789,14 +779,10 @@ router.get('/api/stripe/subscriptions/refresh-intent/:subscriptionId', isStaffOr
   }
 });
 
-router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, validateBody(confirmInlinePaymentSchema), async (req: Request, res: Response) => {
   try {
     const { paymentIntentId, subscriptionId, userId } = req.body;
     const sessionUser = getSessionUser(req);
-    
-    if (!paymentIntentId) {
-      return res.status(400).json({ error: 'paymentIntentId is required' });
-    }
     if (paymentIntentId.startsWith('seti_') || paymentIntentId.startsWith('free_')) {
       return res.status(400).json({ error: 'This is a $0 subscription — no payment confirmation is needed.' });
     }
@@ -950,15 +936,11 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
   }
 });
 
-router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, validateBody(sendActivationLinkSchema), async (req: Request, res: Response) => {
   try {
     const { email: rawEmail, firstName, lastName, phone, dob, tierSlug, couponId, streetAddress, city, state, zipCode } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
     const sessionUser = getSessionUser(req);
-    
-    if (!email || !tierSlug) {
-      return res.status(400).json({ error: 'email and tierSlug are required' });
-    }
     
     const { resolveUserByEmail } = await import('../../core/stripe/customers');
     const resolved = await resolveUserByEmail(email);

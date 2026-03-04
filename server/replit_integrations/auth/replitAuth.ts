@@ -37,7 +37,7 @@ export function getSession() {
   }
   
   try {
-    const sessionTtl = 30 * 24 * 60 * 60 * 1000; // 30 days
+    const sessionTtl = 30 * 24 * 60 * 60; // 30 days in seconds (connect-pg-simple expects seconds)
     const pgStore = connectPg(session);
     const sessionStore = new pgStore({
       pool: pool as unknown as import("pg").Pool,

@@ -1,10 +1,21 @@
 import { Router } from 'express';
 import { bookingRateLimiter } from '../middleware/rateLimiting';
 import { isAuthenticated, isStaffOrAdmin } from '../core/middleware';
+import { validateBody } from '../middleware/validate';
 import { logAndRespond, logger } from '../core/logger';
 import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
 import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../utils/errorUtils';
+import {
+  assignMemberSchema,
+  linkTrackmanSchema,
+  markAsEventSchema,
+  assignWithPlayersSchema,
+  changeOwnerSchema,
+  createBookingSchema,
+  manualBookingSchema,
+  declineBookingSchema,
+} from '../../shared/validators/resources';
 import {
   fetchAllResources,
   checkExistingBookings,
@@ -185,7 +196,7 @@ router.put('/api/bookings/:id/approve', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-router.put('/api/bookings/:id/decline', isStaffOrAdmin, async (req, res) => {
+router.put('/api/bookings/:id/decline', isStaffOrAdmin, validateBody(declineBookingSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const bookingId = parseInt(id as string);
@@ -207,17 +218,12 @@ router.put('/api/bookings/:id/decline', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, async (req, res) => {
+router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, validateBody(assignMemberSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const bookingId = parseInt(id as string);
     if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
-    const { member_email: raw_member_email, member_name, member_id } = req.body;
-    const member_email = raw_member_email?.trim()?.toLowerCase();
-    
-    if (!member_email || !member_name) {
-      return res.status(400).json({ error: 'Missing required fields: member_email, member_name' });
-    }
+    const { member_email, member_name, member_id } = req.body;
     
     const result = await assignMemberToBooking(bookingId, member_email, member_name, member_id);
     
@@ -236,14 +242,9 @@ router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, async (req, res) 
   }
 });
 
-router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req, res) => {
+router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, validateBody(linkTrackmanSchema), async (req, res) => {
   try {
-    const { trackman_booking_id, owner, additional_players, member_email: raw_member_email, member_name, member_id, rememberEmail, originalEmail } = req.body;
-    const member_email = raw_member_email?.trim()?.toLowerCase();
-    
-    if (!trackman_booking_id) {
-      return res.status(400).json({ error: 'Missing required field: trackman_booking_id' });
-    }
+    const { trackman_booking_id, owner, additional_players, member_email, member_name, member_id, rememberEmail, originalEmail } = req.body;
     
     const ownerEmail = owner?.email || member_email;
     const ownerName = owner?.name || member_name;
@@ -355,13 +356,9 @@ router.get('/api/resources/overlapping-notices', isStaffOrAdmin, async (req, res
   }
 });
 
-router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
+router.post('/api/bookings/mark-as-event', isStaffOrAdmin, validateBody(markAsEventSchema), async (req, res) => {
   try {
     const { booking_id, trackman_booking_id, existingClosureId } = req.body;
-    
-    if (!booking_id && !trackman_booking_id) {
-      return res.status(400).json({ error: 'Missing required field: booking_id or trackman_booking_id' });
-    }
     
     const staffEmail = req.session?.user?.email || 'staff';
     
@@ -399,17 +396,13 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, res) => {
+router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, validateBody(assignWithPlayersSchema), async (req, res) => {
   try {
     const bookingId = parseInt(req.params.id as string);
     const { owner, additional_players, rememberEmail, originalEmail } = req.body;
     
     if (!bookingId || isNaN(bookingId)) {
       return res.status(400).json({ error: 'Invalid booking ID' });
-    }
-    
-    if (!owner?.email || !owner?.name) {
-      return res.status(400).json({ error: 'Missing required owner fields: email, name' });
     }
     
     const additionalPlayers: Array<{ type: 'member' | 'guest_placeholder'; member_id?: string; email?: string; name?: string; guest_name?: string }> = additional_players || [];
@@ -458,18 +451,13 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
   }
 });
 
-router.put('/api/bookings/:id/change-owner', isStaffOrAdmin, async (req, res) => {
+router.put('/api/bookings/:id/change-owner', isStaffOrAdmin, validateBody(changeOwnerSchema), async (req, res) => {
   try {
     const bookingId = parseInt(req.params.id as string);
-    const { new_email: raw_new_email, new_name, member_id } = req.body;
-    const new_email = raw_new_email?.trim()?.toLowerCase();
+    const { new_email, new_name, member_id } = req.body;
     
     if (!bookingId || isNaN(bookingId)) {
       return res.status(400).json({ error: 'Invalid booking ID' });
-    }
-    
-    if (!new_email || !new_name) {
-      return res.status(400).json({ error: 'Missing required fields: new_email, new_name' });
     }
     
     const result = await changeBookingOwner(bookingId, new_email, new_name, member_id);
@@ -492,7 +480,7 @@ router.put('/api/bookings/:id/change-owner', isStaffOrAdmin, async (req, res) =>
   }
 });
 
-router.post('/api/bookings', bookingRateLimiter, async (req, res) => {
+router.post('/api/bookings', bookingRateLimiter, validateBody(createBookingSchema), async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     
@@ -500,12 +488,7 @@ router.post('/api/bookings', bookingRateLimiter, async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const { resource_id, user_email: raw_user_email, booking_date, start_time, end_time, notes } = req.body;
-    const user_email = raw_user_email?.trim()?.toLowerCase();
-    
-    if (!resource_id || !user_email || !booking_date || !start_time || !end_time) {
-      return res.status(400).json({ error: 'Missing required fields: resource_id, user_email, booking_date, start_time, end_time' });
-    }
+    const { resource_id, user_email, booking_date, start_time, end_time, notes } = req.body;
     
     const sessionEmail = sessionUser.email?.toLowerCase() || '';
     const requestEmail = user_email.toLowerCase();
@@ -638,7 +621,7 @@ router.put('/api/bookings/:id/member-cancel', isAuthenticated, async (req, res) 
   }
 });
 
-router.post('/api/staff/bookings/manual', isStaffOrAdmin, async (req, res) => {
+router.post('/api/staff/bookings/manual', isStaffOrAdmin, validateBody(manualBookingSchema), async (req, res) => {
   try {
     const { 
       member_email, 
@@ -646,7 +629,7 @@ router.post('/api/staff/bookings/manual', isStaffOrAdmin, async (req, res) => {
       booking_date, 
       start_time, 
       duration_minutes, 
-      guest_count = 0, 
+      guest_count, 
       booking_source, 
       notes,
       staff_notes,
@@ -656,10 +639,6 @@ router.post('/api/staff/bookings/manual', isStaffOrAdmin, async (req, res) => {
     const staffEmail = getSessionUser(req)?.email;
     if (!staffEmail) {
       return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    if (!member_email || !resource_id || !booking_date || !start_time || !duration_minutes || !booking_source) {
-      return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const result = await createManualBooking({

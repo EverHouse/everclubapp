@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const addParticipantSchema = z.object({
-  type: z.enum(['member', 'guest'], { required_error: 'Participant type is required' }),
+  type: z.enum(['member', 'guest'], { message: 'Participant type is required' }),
   userId: z.string().optional(),
   guest: z.object({
     name: z.string().min(1, 'Guest name is required').max(200),
@@ -28,7 +28,7 @@ const batchOperationSchema = z.object({
 });
 
 export const batchRosterSchema = z.object({
-  rosterVersion: z.number().int({ required_error: 'rosterVersion is required' }),
+  rosterVersion: z.number({ message: 'rosterVersion is required' }).int(),
   operations: z.array(batchOperationSchema).min(1, 'At least one operation is required').max(20),
 });
 

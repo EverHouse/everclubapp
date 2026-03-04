@@ -18,6 +18,16 @@ import { getStaffInfo, MAX_RETRY_ATTEMPTS } from './helpers';
 import { broadcastBillingUpdate, sendNotificationToUser } from '../../core/websocket';
 import { alertOnExternalServiceError } from '../../core/errorAlerts';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
+import { validateBody } from '../../middleware/validate';
+import {
+  adjustGuestPassesSchema,
+  addPaymentNoteSchema,
+  retryPaymentSchema,
+  cancelPaymentSchema,
+  refundPaymentSchema,
+  capturePaymentSchema,
+  voidAuthorizationSchema,
+} from '../../../shared/validators/paymentAdmin';
 
 interface DbLedgerRow {
   id: number;
@@ -70,21 +80,11 @@ router.post('/api/stripe/cleanup-stale-intents', isStaffOrAdmin, async (req: Req
   }
 });
 
-router.post('/api/payments/adjust-guest-passes', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/payments/adjust-guest-passes', isStaffOrAdmin, validateBody(adjustGuestPassesSchema), async (req: Request, res: Response) => {
   try {
     const { memberId, memberEmail: rawEmail, memberName, adjustment, reason } = req.body;
     const memberEmail = rawEmail?.trim()?.toLowerCase();
     const { staffEmail, staffName } = getStaffInfo(req);
-
-    if (!memberEmail || typeof adjustment !== 'number' || !reason) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: memberEmail, adjustment (number), reason' 
-      });
-    }
-
-    if (adjustment === 0) {
-      return res.status(400).json({ error: 'Adjustment cannot be zero' });
-    }
 
     const existingResult = await db.execute(sql`SELECT id, passes_used, passes_total FROM guest_passes WHERE LOWER(member_email) = ${memberEmail.toLowerCase()}`);
 
@@ -135,13 +135,9 @@ router.post('/api/payments/adjust-guest-passes', isStaffOrAdmin, async (req: Req
   }
 });
 
-router.post('/api/payments/add-note', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/payments/add-note', isStaffOrAdmin, validateBody(addPaymentNoteSchema), async (req: Request, res: Response) => {
   try {
     const { transactionId, note, performedBy, performedByName } = req.body;
-
-    if (!transactionId || !note) {
-      return res.status(400).json({ error: 'Missing required fields: transactionId, note' });
-    }
 
     const { staffEmail, staffName } = getStaffInfo(req);
     const finalPerformedBy = performedBy || staffEmail;
@@ -199,14 +195,10 @@ router.get('/api/payments/:paymentIntentId/notes', isStaffOrAdmin, async (req: R
   }
 });
 
-router.post('/api/payments/retry', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/payments/retry', isStaffOrAdmin, validateBody(retryPaymentSchema), async (req: Request, res: Response) => {
   try {
     const { paymentIntentId } = req.body;
     const { staffEmail, staffName } = getStaffInfo(req);
-
-    if (!paymentIntentId) {
-      return res.status(400).json({ error: 'Missing required field: paymentIntentId' });
-    }
 
     const payment = await getPaymentByIntentId(paymentIntentId);
 
@@ -336,14 +328,10 @@ router.post('/api/payments/retry', isStaffOrAdmin, async (req: Request, res: Res
   }
 });
 
-router.post('/api/payments/cancel', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/payments/cancel', isStaffOrAdmin, validateBody(cancelPaymentSchema), async (req: Request, res: Response) => {
   try {
     const { paymentIntentId } = req.body;
     const { staffEmail, staffName } = getStaffInfo(req);
-
-    if (!paymentIntentId) {
-      return res.status(400).json({ error: 'Missing required field: paymentIntentId' });
-    }
 
     const payment = await getPaymentByIntentId(paymentIntentId);
 
@@ -403,14 +391,10 @@ router.post('/api/payments/cancel', isStaffOrAdmin, async (req: Request, res: Re
   }
 });
 
-router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/payments/refund', isStaffOrAdmin, validateBody(refundPaymentSchema), async (req: Request, res: Response) => {
   try {
     const { paymentIntentId, amountCents, reason } = req.body;
     const { staffEmail, staffName } = getStaffInfo(req);
-
-    if (!paymentIntentId) {
-      return res.status(400).json({ error: 'Missing required field: paymentIntentId' });
-    }
 
     const payment = await getPaymentByIntentId(paymentIntentId);
 
@@ -596,14 +580,10 @@ router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Re
   }
 });
 
-router.post('/api/payments/capture', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/payments/capture', isStaffOrAdmin, validateBody(capturePaymentSchema), async (req: Request, res: Response) => {
   try {
     const { paymentIntentId, amountCents } = req.body;
     const { staffEmail, staffName } = getStaffInfo(req);
-
-    if (!paymentIntentId) {
-      return res.status(400).json({ error: 'Missing paymentIntentId' });
-    }
 
     const payment = await getPaymentByIntentId(paymentIntentId);
 
@@ -656,14 +636,10 @@ router.post('/api/payments/capture', isStaffOrAdmin, async (req: Request, res: R
   }
 });
 
-router.post('/api/payments/void-authorization', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/payments/void-authorization', isStaffOrAdmin, validateBody(voidAuthorizationSchema), async (req: Request, res: Response) => {
   try {
     const { paymentIntentId, reason } = req.body;
     const { staffEmail, staffName } = getStaffInfo(req);
-
-    if (!paymentIntentId) {
-      return res.status(400).json({ error: 'Missing paymentIntentId' });
-    }
 
     const payment = await getPaymentByIntentId(paymentIntentId);
 

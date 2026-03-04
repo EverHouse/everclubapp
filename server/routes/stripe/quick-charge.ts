@@ -26,7 +26,7 @@ import { alertOnExternalServiceError } from '../../core/errorAlerts';
 import { getErrorMessage, getErrorCode, safeErrorDetail } from '../../utils/errorUtils';
 import { normalizeTierName } from '../../utils/tierUtils';
 import { validateBody } from '../../middleware/validate';
-import { quickChargeSchema } from '../../../shared/validators/payments';
+import { quickChargeSchema, confirmQuickChargeSchema, attachEmailSchema, chargeSavedCardPosSchema, sendReceiptSchema, chargeSubscriptionInvoiceSchema } from '../../../shared/validators/payments';
 
 interface DbMemberRow {
   id: string;
@@ -345,14 +345,10 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, validateBody(quick
   }
 });
 
-router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, validateBody(confirmQuickChargeSchema), async (req: Request, res: Response) => {
   try {
     const { paymentIntentId } = req.body;
     const { staffEmail, staffName } = getStaffInfo(req);
-
-    if (!paymentIntentId) {
-      return res.status(400).json({ error: 'Missing paymentIntentId' });
-    }
 
     const result = await confirmPaymentSuccess(
       paymentIntentId,
@@ -431,15 +427,11 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, async (req
   }
 });
 
-router.post('/api/stripe/staff/quick-charge/attach-email', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/staff/quick-charge/attach-email', isStaffOrAdmin, validateBody(attachEmailSchema), async (req: Request, res: Response) => {
   try {
     const { paymentIntentId, email: rawEmail } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
     const { staffEmail } = getStaffInfo(req);
-
-    if (!paymentIntentId || !email) {
-      return res.status(400).json({ error: 'Missing required fields: paymentIntentId, email' });
-    }
 
     if (isPlaceholderEmail(email)) {
       return res.status(400).json({ error: 'Cannot attach placeholder emails' });
@@ -529,24 +521,13 @@ router.post('/api/stripe/staff/quick-charge/attach-email', isStaffOrAdmin, async
   }
 });
 
-router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, validateBody(chargeSavedCardPosSchema), async (req: Request, res: Response) => {
   try {
     const { memberEmail: rawEmail, memberName, amountCents, description, productId, cartItems } = req.body;
     const memberEmail = rawEmail?.trim()?.toLowerCase();
     const { staffEmail, staffName, sessionUser } = getStaffInfo(req);
 
-    if (!memberEmail || !amountCents) {
-      return res.status(400).json({ error: 'Missing required fields: memberEmail, amountCents' });
-    }
-
     const numericAmount = Number(amountCents);
-    if (isNaN(numericAmount) || !Number.isFinite(numericAmount) || numericAmount < 50) {
-      return res.status(400).json({ error: 'Amount must be at least $0.50' });
-    }
-
-    if (numericAmount > 99999999) {
-      return res.status(400).json({ error: 'Amount exceeds maximum allowed' });
-    }
 
     if (numericAmount >= SAVED_CARD_APPROVAL_THRESHOLD_CENTS) {
       if (sessionUser?.role !== 'admin') {
@@ -880,19 +861,10 @@ router.get('/api/staff/member-balance/:email', isStaffOrAdmin, async (req: Reque
 });
 
 
-router.post('/api/purchases/send-receipt', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/purchases/send-receipt', isStaffOrAdmin, validateBody(sendReceiptSchema), async (req: Request, res: Response) => {
   try {
     const { email: rawEmail, memberName, items, totalAmount, paymentMethod, paymentIntentId } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
-
-    if (!email || !memberName || !items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'Missing required fields: email, memberName, items' });
-    }
-
-    const numericTotal = Number(totalAmount);
-    if (!totalAmount || isNaN(numericTotal) || numericTotal <= 0) {
-      return res.status(400).json({ error: 'totalAmount must be a positive number' });
-    }
 
     const receiptItems: PurchaseReceiptItem[] = items.map((item: { name?: string; quantity?: number; unitPrice?: number; total?: number }) => ({
       name: item.name || 'Unknown Item',
@@ -928,17 +900,10 @@ router.post('/api/purchases/send-receipt', isStaffOrAdmin, async (req: Request, 
   }
 });
 
-router.post('/api/stripe/staff/charge-subscription-invoice', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/staff/charge-subscription-invoice', isStaffOrAdmin, validateBody(chargeSubscriptionInvoiceSchema), async (req: Request, res: Response) => {
   try {
     const { subscriptionId, userId } = req.body;
     const { staffEmail } = getStaffInfo(req);
-
-    if (!subscriptionId) {
-      return res.status(400).json({ error: 'Missing required field: subscriptionId' });
-    }
-    if (!userId) {
-      return res.status(400).json({ error: 'Missing required field: userId' });
-    }
 
     const userResult = await db.execute(sql`SELECT id, email, first_name, last_name, membership_status 
        FROM users WHERE id = ${userId}`);

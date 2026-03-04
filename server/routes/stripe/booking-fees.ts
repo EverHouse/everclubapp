@@ -27,7 +27,7 @@ import { getErrorMessage, getErrorCode, safeErrorDetail } from '../../utils/erro
 import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { getBookingInvoiceId, finalizeAndPayInvoice, createDraftInvoiceForBooking, finalizeInvoicePaidOutOfBand, recreateDraftInvoiceFromBooking } from '../../core/billing/bookingInvoiceService';
 import { validateBody } from '../../middleware/validate';
-import { createPaymentIntentSchema, markBookingPaidSchema } from '../../../shared/validators/payments';
+import { createPaymentIntentSchema, markBookingPaidSchema, confirmPaymentSchema, cancelPaymentIntentSchema, createCustomerSchema, chargeSavedCardSchema } from '../../../shared/validators/payments';
 
 interface DbMemberRow {
   id: string;
@@ -126,19 +126,6 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, validateBody(cr
       }
     }
     
-    if (typeof amountCents !== 'number' || amountCents < 50 || !Number.isFinite(amountCents)) {
-      return res.status(400).json({ 
-        error: 'Invalid amount. Must be a positive number of at least 50 cents.' 
-      });
-    }
-
-    const validPurposes = ['guest_fee', 'overage_fee', 'one_time_purchase'];
-    if (!validPurposes.includes(purpose)) {
-      return res.status(400).json({ 
-        error: `Invalid purpose. Must be one of: ${validPurposes.join(', ')}` 
-      });
-    }
-
     let resolvedUserId = userId || '';
     if (!resolvedUserId && email) {
       const { resolveUserByEmail } = await import('../../core/stripe/customers');
@@ -451,14 +438,10 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, validateBody(cr
   }
 });
 
-router.post('/api/stripe/confirm-payment', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/confirm-payment', isStaffOrAdmin, validateBody(confirmPaymentSchema), async (req: Request, res: Response) => {
   try {
     const { paymentIntentId } = req.body;
     const { staffEmail, staffName } = getStaffInfo(req);
-
-    if (!paymentIntentId) {
-      return res.status(400).json({ error: 'Missing paymentIntentId' });
-    }
 
     const result = await confirmPaymentSuccess(
       paymentIntentId,
@@ -505,13 +488,9 @@ router.get('/api/stripe/payment-intent/:id', isStaffOrAdmin, async (req: Request
   }
 });
 
-router.post('/api/stripe/cancel-payment', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/cancel-payment', isStaffOrAdmin, validateBody(cancelPaymentIntentSchema), async (req: Request, res: Response) => {
   try {
     const { paymentIntentId } = req.body;
-
-    if (!paymentIntentId) {
-      return res.status(400).json({ error: 'Missing paymentIntentId' });
-    }
 
     const result = await cancelPaymentIntent(paymentIntentId);
 
@@ -543,14 +522,10 @@ router.post('/api/stripe/cancel-payment', isStaffOrAdmin, async (req: Request, r
   }
 });
 
-router.post('/api/stripe/create-customer', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/create-customer', isStaffOrAdmin, validateBody(createCustomerSchema), async (req: Request, res: Response) => {
   try {
     const { userId, email: rawEmail, name } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
-
-    if (!userId || !email) {
-      return res.status(400).json({ error: 'Missing required fields: userId, email' });
-    }
 
     const result = await getOrCreateStripeCustomer(userId, email, name);
 
@@ -616,19 +591,11 @@ router.get('/api/billing/members/search', isStaffOrAdmin, async (req: Request, r
   }
 });
 
-router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(chargeSavedCardSchema), async (req: Request, res: Response) => {
   try {
     const { memberEmail: rawMemberEmail, bookingId, sessionId, participantIds } = req.body;
     const memberEmail = rawMemberEmail?.trim()?.toLowerCase();
     const { staffEmail, staffName, sessionUser } = getStaffInfo(req);
-
-    if (!memberEmail) {
-      return res.status(400).json({ error: 'Missing required field: memberEmail' });
-    }
-
-    if (!participantIds || !Array.isArray(participantIds) || participantIds.length === 0) {
-      return res.status(400).json({ error: 'Missing required field: participantIds' });
-    }
 
     const memberResult = await db.execute(sql`SELECT id, email, first_name, last_name, stripe_customer_id 
        FROM users WHERE LOWER(email) = LOWER(${memberEmail})`);
