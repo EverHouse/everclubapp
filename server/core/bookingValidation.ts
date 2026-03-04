@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { facilityClosures, bookingRequests, availabilityBlocks } from '../../shared/schema';
 import { eq, and, or, sql } from 'drizzle-orm';
-import { parseAffectedAreas } from './affectedAreas';
+import { parseAffectedAreasBatch } from './affectedAreas';
 import { logger } from './logger';
 
 interface ClosureCacheEntry {
@@ -91,8 +91,13 @@ export async function checkClosureConflict(
     const bookingStartMinutes = parseTimeToMinutes(startTime);
     const bookingEndMinutes = parseTimeToMinutes(endTime);
 
-    for (const closure of activeClosures) {
-      const affectedResourceIds = await parseAffectedAreas(closure.affectedAreas as string);
+    const allAffectedIds = await parseAffectedAreasBatch(
+      activeClosures.map(c => c.affectedAreas as string)
+    );
+
+    for (let i = 0; i < activeClosures.length; i++) {
+      const closure = activeClosures[i];
+      const affectedResourceIds = allAffectedIds[i];
 
       if (!affectedResourceIds.includes(resourceId)) continue;
 

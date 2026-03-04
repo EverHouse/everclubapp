@@ -17,7 +17,7 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 vi.mock('../server/core/affectedAreas', () => ({
-  parseAffectedAreas: vi.fn(),
+  parseAffectedAreasBatch: vi.fn(),
 }));
 
 import { parseTimeToMinutes, hasTimeOverlap } from '../server/core/bookingValidation';

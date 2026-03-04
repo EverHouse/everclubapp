@@ -16,7 +16,7 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 vi.mock('../server/core/affectedAreas', () => ({
-  parseAffectedAreas: vi.fn(),
+  parseAffectedAreasBatch: vi.fn(),
 }));
 
 vi.mock('../server/utils/errorUtils', () => ({
@@ -36,7 +36,7 @@ import {
   isResourceAvailableForDate,
 } from '../server/core/bookingService/availabilityGuard';
 import { db } from '../server/db';
-import { parseAffectedAreas } from '../server/core/affectedAreas';
+import { parseAffectedAreasBatch } from '../server/core/affectedAreas';
 
 describe('availabilityGuard re-exports', () => {
   describe('parseTimeToMinutes', () => {
@@ -111,6 +111,7 @@ describe('isResourceAvailableForDate', () => {
 
   it('returns true when no closures exist', async () => {
     (db.execute as ReturnType<typeof vi.fn>).mockResolvedValue({ rows: [] });
+    (parseAffectedAreasBatch as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     const result = await isResourceAvailableForDate(1, '2025-01-15');
     expect(result).toBe(true);
   });
@@ -119,7 +120,7 @@ describe('isResourceAvailableForDate', () => {
     (db.execute as ReturnType<typeof vi.fn>).mockResolvedValue({
       rows: [{ id: 10, affected_areas: 'Bay 1,Bay 2' }],
     });
-    (parseAffectedAreas as ReturnType<typeof vi.fn>).mockResolvedValue([1, 2]);
+    (parseAffectedAreasBatch as ReturnType<typeof vi.fn>).mockResolvedValue([[1, 2]]);
 
     const result = await isResourceAvailableForDate(1, '2025-01-15');
     expect(result).toBe(false);
@@ -129,7 +130,7 @@ describe('isResourceAvailableForDate', () => {
     (db.execute as ReturnType<typeof vi.fn>).mockResolvedValue({
       rows: [{ id: 10, affected_areas: 'Bay 3,Bay 4' }],
     });
-    (parseAffectedAreas as ReturnType<typeof vi.fn>).mockResolvedValue([3, 4]);
+    (parseAffectedAreasBatch as ReturnType<typeof vi.fn>).mockResolvedValue([[3, 4]]);
 
     const result = await isResourceAvailableForDate(1, '2025-01-15');
     expect(result).toBe(true);
@@ -139,6 +140,7 @@ describe('isResourceAvailableForDate', () => {
     (db.execute as ReturnType<typeof vi.fn>).mockResolvedValue({
       rows: [{ id: 10, affected_areas: null }],
     });
+    (parseAffectedAreasBatch as ReturnType<typeof vi.fn>).mockResolvedValue([[]]);
 
     const result = await isResourceAvailableForDate(1, '2025-01-15');
     expect(result).toBe(true);
