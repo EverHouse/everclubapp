@@ -8,6 +8,85 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.68.0",
+    date: "2026-03-04",
+    title: "Invoice & Booking Data Integrity",
+    isMajor: true,
+    changes: [
+      "Fix: Draft invoices are now properly deleted and booking references cleared when bookings are cancelled — prevents orphaned invoice records from blocking future billing",
+      "Fix: Invoices are voided when bookings are permanently deleted — prevents stale charges from lingering in Stripe",
+      "Fix: Duplicate bookings and charges prevented with improved data integrity checks — advisory locks and optimistic locking ensure atomic operations",
+      "Fix: Booking fee estimates no longer overcharge — fee calculation correctly accounts for already-paid participants and avoids cached_fee_cents overwrite",
+      "Feature: Staff can mark all stale bookings as attended in bulk — new action in the data integrity dashboard clears backlogged 'confirmed' bookings past their session date",
+      "Fix: Booking and authentication system reliability improved — session revalidation, WebSocket reconnect, and OTP rate limiting hardened",
+    ]
+  },
+  {
+    version: "8.67.0",
+    date: "2026-03-04",
+    title: "Fee Calculation & Guest Pass Fixes",
+    changes: [
+      "Fix: Fee calculation and guest pass tracking corrected — usage lookups now sum both userId and email entries to prevent double-dipping across booking types",
+      "Fix: Missing payment update flag added to user accounts — ensures payment method changes propagate correctly during billing operations",
+      "Fix: Booking payments and notification delivery fixed — prevents duplicate notification sends and ensures payment status transitions are atomic",
+    ]
+  },
+  {
+    version: "8.66.0",
+    date: "2026-03-04",
+    title: "OTP Security & Atomic Cancellations",
+    changes: [
+      "Fix: OTP verification now uses three-tier rate limiting (per-IP+email, per-IP global, per-email aggregate) — prevents brute-force attempts while avoiding lockout of legitimate users",
+      "Fix: Booking cancellation improved — status change and usage ledger cleanup are now transactional, with Stripe refund, guest pass release, and calendar deletion as reliable post-commit operations",
+      "Fix: Booking errors prevented when source values are invalid — server-side validation rejects malformed booking source fields",
+      "Fix: User account creation and payment processing made more reliable — handles edge cases with missing Stripe customer IDs",
+    ]
+  },
+  {
+    version: "8.65.0",
+    date: "2026-03-03",
+    title: "Simulator Tab & Calendar Improvements",
+    changes: [
+      "Feature: Current time indicator added to the booking calendar grid — a red line marks the current time so staff can see at a glance what's happening now",
+      "Feature: Simulator tab now supports date navigation and route-level prefetching — faster tab switches and smoother browsing between days",
+      "Fix: Simulator tab crashes fixed — notification update listeners no longer cause React state updates on unmounted components",
+      "Fix: Alerts card list items now have proper spacing and visual separation",
+      "Fix: Redundant booking request database index removed — prevents recreation on every migration push",
+      "Fix: Staff sidebar properly fits tablets and iPads — navigation rail adjusts to viewport width",
+    ]
+  },
+  {
+    version: "8.64.0",
+    date: "2026-03-03",
+    title: "Subscription & Payment Method Management",
+    changes: [
+      "Fix: Saved payment methods now display correctly for all users — retrieval logic improved to handle both Stripe and local payment records",
+      "Fix: Payment method prioritization improved — default card selection now accounts for card expiry and last-used date",
+      "Fix: Card expiry notifications improved — warnings sent before cards expire instead of after",
+      "Fix: Subscription creation now uses saved cards for payment — members no longer need to re-enter card details",
+      "Fix: Ownership validation added for subscription management — members can only modify their own subscriptions",
+      "Fix: Direct invoice links added to subscription management — members can view and pay outstanding invoices inline",
+      "Fix: Incomplete subscriptions handled gracefully during authentication — prevents login failures when a subscription is mid-setup",
+      "Fix: Waiver modal scrolling and visibility detection improved — completion button only appears when the full document is visible",
+      "Fix: Member profile drawer auto-closes after billing actions and refreshes directory data",
+      "Fix: Member billing management enhanced with better error handling and real-time WebSocket updates",
+    ]
+  },
+  {
+    version: "8.63.0",
+    date: "2026-03-03",
+    title: "Trackman Session Management & Staff Lessons",
+    isMajor: true,
+    changes: [
+      "Feature: Additional players can now be assigned to Trackman sessions and bookings — staff can manage participant rosters directly from the session view",
+      "Feature: Participant transfer logic added to session creation — when Trackman auto-approves via webhook, all booking participants are transferred to the new session",
+      "Feature: Additional player details shown on unmatched booking requests — staff see full roster info before matching",
+      "Improvement: Booking approvals separated from session creation — cleaner code path for staff confirmation vs Trackman webhook confirmation",
+      "Improvement: Staff golf lessons no longer create facility closure notice records — only availability blocks are created, keeping the notices feed clean",
+      "Cleanup: Legacy booking review process removed from the application interface — replaced by the Trackman-integrated approval flow",
+    ]
+  },
+  {
     version: "8.62.0",
     date: "2026-03-04",
     title: "Dev Confirm Moved to Trackman Modal",

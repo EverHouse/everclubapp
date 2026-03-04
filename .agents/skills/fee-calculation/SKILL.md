@@ -103,6 +103,16 @@ When `computeFeeBreakdown` determines fees > $0, the approval flow can trigger `
 
 **Metadata stored on payment:** `bookingId`, `sessionId`, `overageCents`, `guestCents`, `prepaymentType = 'booking_approval'`.
 
+### Already-Paid Participant Guard (v8.68.0)
+
+Fee recalculation skips participants who have already paid (`cached_fee_cents > 0` with a completed payment intent). This prevents `cached_fee_cents` from being overwritten during roster updates, which would cause billing discrepancies. Usage lookups sum both `userId` and `email` entries in the `usage_ledger` to prevent double-dipping when the same person appears under different identifiers across booking types.
+
+### Invoice Lifecycle (v8.68.0)
+
+- **Cancellation cleanup**: Draft invoices are deleted and `stripe_invoice_id` is cleared when a booking is cancelled.
+- **Permanent deletion**: Invoices are voided when a booking is permanently deleted from the data integrity dashboard.
+- **Invoice-to-booking link**: Orphaned invoice references (where the Stripe invoice no longer exists) are cleaned up automatically.
+
 ### Booking Invoice Sync
 
 When roster changes trigger fee recalculation (via `recalculateSessionFees()`), the booking's draft Stripe invoice is automatically synced by `syncBookingInvoice()`. This ensures the invoice line items always reflect the current participant fees. The sync:

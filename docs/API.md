@@ -1,7 +1,7 @@
 # Ever Club Members App — API Reference
 
 > Manually maintained reference of all REST endpoints.
-> Last updated: 2026-03-02
+> Last updated: 2026-03-04
 
 **Auth legend:**
 - 🔓 Public — no authentication required
@@ -1020,6 +1020,7 @@
 | POST | `/api/data-integrity/fix/complete-booking` | 🛡️ | Force-complete booking |
 | POST | `/api/data-integrity/fix/cancel-stale-booking` | 🛡️ | Cancel stale booking |
 | POST | `/api/data-integrity/fix/bulk-cancel-stale-bookings` | 🛡️ | Bulk cancel stale bookings |
+| POST | `/api/data-integrity/fix/bulk-attend-stale-bookings` | 🛡️ | Bulk mark stale bookings as attended |
 | POST | `/api/data-integrity/fix/activate-stuck-member` | 🛡️ | Activate stuck member |
 | POST | `/api/data-integrity/fix/recalculate-guest-passes` | 🛡️ | Recalculate guest passes |
 | POST | `/api/data-integrity/fix/release-guest-pass-hold` | 🛡️ | Release guest pass hold |

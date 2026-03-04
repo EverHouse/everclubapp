@@ -103,7 +103,7 @@ Staff approves via `PUT /api/booking-requests/:id` with `status: 'approved'`. Th
 
 Trackman webhooks and CSV imports link external bookings to app bookings:
 
-- **Webhook auto-approve**: `tryAutoApproveBooking()` matches pending bookings by email + date + time (±10 minute tolerance). On match, sets `status='approved'`, links `trackman_booking_id`, and calls `ensureSessionForBooking()`. After session creation and fee calculation, creates a draft Stripe invoice via `createDraftInvoiceForBooking()` (non-blocking, simulator bookings only).
+- **Webhook auto-approve**: `tryAutoApproveBooking()` matches pending bookings by email + date + time (±10 minute tolerance). On match, sets `status='approved'`, links `trackman_booking_id`, and calls `ensureSessionForBooking()`. After session creation, all booking participants from `request_participants` are transferred to the new session. Fee calculation runs post-commit, then creates a draft Stripe invoice via `createDraftInvoiceForBooking()` (non-blocking, simulator bookings only).
 - **Webhook create**: `createBookingForMember()` tries to match existing `[PENDING_TRACKMAN_SYNC]` bookings first, then creates new booking records. Uses `was_auto_linked=true` flag.
 - **Duration updates**: If Trackman reports different duration, update `booking_requests` and `booking_sessions` times, then call `recalculateSessionFees()` for delta billing, then sync the draft invoice via `syncBookingInvoice()` to update line items.
 - **Bay changes**: If Trackman reports a different `resource_id`, update both `booking_requests.resource_id` and `booking_sessions.resource_id`, then broadcast availability for old and new bays.
@@ -120,6 +120,8 @@ Two cancellation paths:
 
 **Member cancel** (`PUT /api/booking-requests/:id/member-cancel`):
 
+Cancellation uses a **transactional status update** (v8.66.0) — the booking status change and usage ledger cleanup are atomic within a database transaction. External side effects (Stripe refunds, calendar deletion, notifications) run post-commit as best-effort operations:
+
 1. Validate ownership — three accepted conditions:
    - Session email matches booking's `user_email`.
    - Admin/staff with `acting_as_email` matching booking email.
@@ -130,8 +132,9 @@ Two cancellation paths:
 5. Cancel all pending Stripe payment intents linked to the booking (`status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`).
 5a. Handle Stripe invoice cleanup via `voidBookingInvoice(bookingId)` (non-blocking). This handles all invoice states: draft (deletes), open (voids), paid (auto-refunds via `stripe.refunds.create`, notifies staff on failure), void/uncollectible (skips).
 6. Delete Google Calendar event via `deleteCalendarEvent(calendarEventId)`.
-7. Publish `booking_cancelled` event with `cleanupNotifications: true` (deletes related notifications).
-8. Broadcast availability update.
+7. Clean up usage_ledger entries for the cancelled session.
+8. Publish `booking_cancelled` event with `cleanupNotifications: true` (deletes related notifications).
+9. Broadcast availability update.
 
 **Trackman cancel** (`cancelBookingByTrackmanId()`):
 
