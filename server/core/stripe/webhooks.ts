@@ -685,10 +685,13 @@ async function handleChargeRefunded(client: PoolClient, charge: Stripe.Charge): 
       
       for (const row of participantUpdate.rows) {
         const bookingLookup = await client.query(
-          `SELECT br.id FROM booking_sessions bs JOIN booking_requests br ON br.trackman_booking_id = bs.trackman_booking_id WHERE bs.id = $1 LIMIT 1`,
+          `SELECT br.id, br.user_email AS booking_owner_email FROM booking_sessions bs 
+           JOIN booking_requests br ON br.trackman_booking_id = bs.trackman_booking_id 
+           WHERE bs.id = $1 LIMIT 1`,
           [row.session_id]
         );
         const auditBookingId = bookingLookup.rows[0]?.id;
+        const bookingOwnerEmail = bookingLookup.rows[0]?.booking_owner_email;
         if (auditBookingId) {
           await logPaymentAudit({
             bookingId: auditBookingId,
@@ -699,8 +702,45 @@ async function handleChargeRefunded(client: PoolClient, charge: Stripe.Charge): 
             staffName: 'Stripe Webhook',
             amountAffected: 0,
             paymentMethod: 'stripe',
-            metadata: { stripePaymentIntentId: paymentIntentId },
+            metadata: { stripePaymentIntentId: paymentIntentId, source: 'manual_stripe_refund' },
           });
+        }
+
+        // Refund guest passes for participants that used them (mirrors in-app cancellation teardown)
+        const guestPassCheck = await client.query(
+          `SELECT id, display_name, used_guest_pass FROM booking_participants
+           WHERE id = $1 AND used_guest_pass = true`,
+          [row.id]
+        );
+        if (guestPassCheck.rowCount && guestPassCheck.rowCount > 0 && bookingOwnerEmail) {
+          const guestName = guestPassCheck.rows[0].display_name;
+          await client.query(
+            `UPDATE guest_passes SET passes_used = GREATEST(0, passes_used - 1) WHERE LOWER(member_email) = LOWER($1)`,
+            [bookingOwnerEmail]
+          );
+          await client.query(
+            `UPDATE booking_participants SET used_guest_pass = false WHERE id = $1`,
+            [row.id]
+          );
+          logger.info(`[Stripe Webhook] Refunded guest pass for participant ${row.id} (guest: ${guestName}) back to ${bookingOwnerEmail} (manual Stripe refund teardown)`);
+        }
+
+        // Credit back usage_ledger minutes (mirrors in-app cancellation teardown)
+        const ledgerDelete = await client.query(
+          `DELETE FROM usage_ledger WHERE session_id = $1 AND LOWER(member_id) = LOWER($2) RETURNING minutes_charged`,
+          [row.session_id, row.user_email?.toLowerCase()]
+        );
+        if (ledgerDelete.rowCount && ledgerDelete.rowCount > 0) {
+          const minutesRestored = ledgerDelete.rows.reduce((sum: number, r: { minutes_charged: number }) => sum + (r.minutes_charged || 0), 0);
+          logger.info(`[Stripe Webhook] Restored ${minutesRestored} usage_ledger minutes for ${row.user_email} session ${row.session_id} (manual Stripe refund teardown)`);
+        }
+
+        // Release any guest pass holds for this booking
+        if (auditBookingId) {
+          await client.query(
+            `DELETE FROM guest_pass_holds WHERE booking_id = $1`,
+            [auditBookingId]
+          );
         }
         
         // Send refund notification to member
@@ -2686,12 +2726,17 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
     const phone = session.metadata?.purchaser_phone;
     const amountCents = session.amount_total || 0;
 
-    // Get payment_intent_id
+    // Get payment_intent_id (may be null for 100% discount checkouts)
     let paymentIntentId: string | null = null;
     if (session.payment_intent) {
       paymentIntentId = typeof session.payment_intent === 'string'
         ? session.payment_intent
         : session.payment_intent.id;
+    }
+
+    if (!paymentIntentId && amountCents === 0) {
+      paymentIntentId = `free_checkout_${session.id}`;
+      logger.info(`[Stripe Webhook] Day pass checkout with $0 total (100% discount) — using synthetic paymentIntentId: ${paymentIntentId}`);
     }
 
     if (!productSlug || !email || !paymentIntentId) {
@@ -3654,15 +3699,19 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
     }
 
     if (status === 'active') {
+      const isReactivation = previousAttributes?.status && ['past_due', 'unpaid', 'suspended'].includes(previousAttributes.status);
+      const allowedStatuses = isReactivation
+        ? ['pending', 'inactive', 'non-member', 'past_due', 'trialing', 'suspended']
+        : ['pending', 'inactive', 'non-member', 'past_due', 'trialing'];
+
       await client.query(
         `UPDATE users SET membership_status = 'active', billing_provider = 'stripe', stripe_current_period_end = COALESCE($2, stripe_current_period_end),
          archived_at = NULL, archived_by = NULL, updated_at = NOW() 
          WHERE id = $1 
-         AND (membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member', 'past_due', 'trialing'))
-         AND COALESCE(membership_status, '') NOT IN ('cancelled', 'suspended', 'terminated')`,
-        [userId, subscriptionPeriodEnd]
+         AND (membership_status IS NULL OR membership_status IN (${allowedStatuses.map((_, i) => `$${i + 3}`).join(', ')}))`,
+        [userId, subscriptionPeriodEnd, ...allowedStatuses]
       );
-      logger.info(`[Stripe Webhook] Membership status set to active for ${email}`);
+      logger.info(`[Stripe Webhook] Membership status set to active for ${email} (reactivation=${isReactivation})`);
 
       const activationStatuses = ['incomplete', 'incomplete_expired'];
       const reactivationStatuses = ['past_due', 'unpaid', 'suspended'];
@@ -5082,24 +5131,44 @@ export async function handleCustomerCreated(client: PoolClient, customer: Stripe
     const user = userResult.rows[0];
 
     if (!user.stripe_customer_id) {
-      await client.query(
-        `UPDATE users SET stripe_customer_id = $1 WHERE id = $2`,
-        [customer.id, user.id]
-      );
-      logger.info(`[Stripe Webhook] Linked Stripe customer ${customer.id} to user ${user.id} (${user.email})`);
-
-      deferredActions.push(async () => {
-        try {
-          await logSystemAction({
-            action: 'stripe_customer_linked',
-            resourceType: 'user',
-            resourceId: user.id,
-            details: { stripeCustomerId: customer.id, email: user.email },
-          });
-        } catch (err: unknown) {
-          logger.error('[Stripe Webhook] Failed to log stripe_customer_linked:', { error: getErrorMessage(err) });
+      const isAuthenticatedCustomer = customer.metadata?.source === 'app' || customer.metadata?.userId;
+      if (!isAuthenticatedCustomer) {
+        logger.warn(`[Stripe Webhook] Blocking unauthenticated Stripe customer link for user ${user.id} (${user.email}) — customer ${customer.id} was created without app authentication. Notifying staff.`);
+        deferredActions.push(async () => {
+          try {
+            await notifyAllStaff(
+              'Unauthenticated Stripe Customer Link Blocked',
+              `A Stripe customer (${customer.id}) was created with email ${user.email} via a public checkout, but auto-linking was blocked for security. If this is legitimate, manually link the customer in the admin panel.`,
+              'billing'
+            );
+          } catch (err: unknown) {
+            logger.error('[Stripe Webhook] Failed to notify staff about blocked customer link:', { error: getErrorMessage(err) });
+          }
+        });
+      } else {
+        const linkResult = await client.query(
+          `UPDATE users SET stripe_customer_id = $1 WHERE id = $2 AND stripe_customer_id IS NULL RETURNING id`,
+          [customer.id, user.id]
+        );
+        if (linkResult.rowCount === 0) {
+          logger.warn(`[Stripe Webhook] Race condition: user ${user.id} already has a stripe_customer_id (concurrent link). Skipping.`);
+          return deferredActions;
         }
-      });
+        logger.info(`[Stripe Webhook] Linked Stripe customer ${customer.id} to user ${user.id} (${user.email})`);
+
+        deferredActions.push(async () => {
+          try {
+            await logSystemAction({
+              action: 'stripe_customer_linked',
+              resourceType: 'user',
+              resourceId: user.id,
+              details: { stripeCustomerId: customer.id, email: user.email },
+            });
+          } catch (err: unknown) {
+            logger.error('[Stripe Webhook] Failed to log stripe_customer_linked:', { error: getErrorMessage(err) });
+          }
+        });
+      }
     } else if (user.stripe_customer_id !== customer.id) {
       logger.warn(`[Stripe Webhook] Duplicate Stripe customer detected for user ${user.id} (${user.email}): existing=${user.stripe_customer_id}, new=${customer.id}`);
 

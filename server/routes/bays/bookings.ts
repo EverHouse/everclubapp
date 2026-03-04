@@ -1233,11 +1233,15 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
           guestPassRecipientsToRefund.push({ displayName: (guest.display_name as string) || null });
         }
         
-        await tx.execute(sql`UPDATE booking_participants 
-           SET cached_fee_cents = 0, payment_status = 'waived'
-           WHERE session_id = ${existing.sessionId} 
-           AND payment_status = 'pending'`);
-        logger.info('[Member Cancel] Cleared pending fees for session', { extra: { sessionId: existing.sessionId } });
+        if (!shouldSkipRefund) {
+          await tx.execute(sql`UPDATE booking_participants 
+             SET cached_fee_cents = 0, payment_status = 'waived'
+             WHERE session_id = ${existing.sessionId} 
+             AND payment_status = 'pending'`);
+          logger.info('[Member Cancel] Cleared pending fees for session', { extra: { sessionId: existing.sessionId } });
+        } else {
+          logger.info('[Member Cancel] Late cancellation — preserving pending fees for session', { extra: { sessionId: existing.sessionId } });
+        }
       }
       
       await tx.update(bookingRequests)
@@ -1258,12 +1262,16 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       }
     }
     
-    try {
-      await voidBookingInvoice(bookingId);
-    } catch (err: unknown) {
-      logger.error('[Member Cancel] Failed to void/refund booking invoice (non-blocking)', {
-        extra: { bookingId, error: getErrorMessage(err) }
-      });
+    if (!shouldSkipRefund) {
+      try {
+        await voidBookingInvoice(bookingId);
+      } catch (err: unknown) {
+        logger.error('[Member Cancel] Failed to void/refund booking invoice (non-blocking)', {
+          extra: { bookingId, error: getErrorMessage(err) }
+        });
+      }
+    } else {
+      logger.info('[Member Cancel] Late cancellation — preserving booking invoice for fee collection', { extra: { bookingId } });
     }
     
     try {
