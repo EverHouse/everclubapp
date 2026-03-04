@@ -196,12 +196,28 @@ export async function convertHoldToUsage(
     const passesToConvert = holdResult.rows[0].passes_held;
     
     if (passesToConvert > 0) {
-      await client.query(
+      const updateResult = await client.query(
         `UPDATE guest_passes 
          SET passes_used = passes_used + $1
          WHERE LOWER(member_email) = $2`,
         [passesToConvert, emailLower]
       );
+      if (updateResult.rowCount === 0) {
+        const tierResult = await client.query(
+          `SELECT mt.guest_passes_per_month 
+           FROM users u JOIN membership_tiers mt ON LOWER(u.tier) = LOWER(mt.name)
+           WHERE LOWER(u.email) = $1 LIMIT 1`,
+          [emailLower]
+        );
+        const tierAllocation = tierResult.rows[0]?.guest_passes_per_month ?? 4;
+        await client.query(
+          `INSERT INTO guest_passes (member_email, passes_total, passes_used)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (member_email) DO UPDATE SET passes_used = guest_passes.passes_used + $3`,
+          [emailLower, tierAllocation, passesToConvert]
+        );
+        logger.info(`[GuestPassHoldService] Created guest_passes row for ${emailLower} during hold-to-usage conversion`);
+      }
     }
     
     await client.query(

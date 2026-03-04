@@ -1927,6 +1927,7 @@ export async function devConfirmBooking(params: DevConfirmParams) {
     return { error: `Booking is already ${booking.status}`, statusCode: 400 };
   }
 
+  let resolvedTotalFeeCents = 0;
   const { sessionId, totalFeeCents, dateStr, timeStr } = await db.transaction(async (tx) => {
     let sessionId = booking.session_id;
     let totalFeeCents = 0;
@@ -2042,15 +2043,6 @@ export async function devConfirmBooking(params: DevConfirmParams) {
       logger.info('[Dev Confirm] Participants transferred from request', {
         extra: { bookingId, sessionId, participantsCreated, totalRequested: requestParticipants?.length || 0 }
       });
-
-      try {
-        const feeResult = await recalculateSessionFees(sessionId as number, 'approval');
-        if (feeResult?.totalSessionFee) {
-          totalFeeCents = feeResult.totalSessionFee;
-        }
-      } catch (feeError: unknown) {
-        logger.warn('[Dev Confirm] Failed to calculate fees', { extra: { feeError } });
-      }
     }
 
     const devConfirmResult = await tx.execute(sql`
@@ -2132,6 +2124,18 @@ export async function devConfirmBooking(params: DevConfirmParams) {
     return { sessionId, totalFeeCents, dateStr, timeStr };
   });
 
+  resolvedTotalFeeCents = totalFeeCents;
+  if (sessionId) {
+    try {
+      const feeResult = await recalculateSessionFees(sessionId as number, 'approval');
+      if (feeResult?.totalSessionFee) {
+        resolvedTotalFeeCents = feeResult.totalSessionFee;
+      }
+    } catch (feeError: unknown) {
+      logger.warn('[Dev Confirm] Failed to calculate fees', { extra: { feeError } });
+    }
+  }
+
   sendNotificationToUser(booking.user_email as string, {
     type: 'notification',
     title: 'Booking Confirmed',
@@ -2139,7 +2143,7 @@ export async function devConfirmBooking(params: DevConfirmParams) {
     data: { bookingId: bookingId.toString(), eventType: 'booking_confirmed' }
   }, { action: 'booking_confirmed', bookingId, triggerSource: 'approval.ts' });
 
-  return { success: true, bookingId, sessionId, totalFeeCents, booking, dateStr, timeStr };
+  return { success: true, bookingId, sessionId, totalFeeCents: resolvedTotalFeeCents, booking, dateStr, timeStr };
 }
 
 interface CompleteCancellationParams {

@@ -22,12 +22,13 @@ import { logger } from '../../core/logger';
 import { memberLookupRateLimiter } from '../../middleware/rateLimiting';
 import { z } from 'zod';
 import { invalidateCache } from '../../core/queryCache';
+import { normalizeEmail } from '../../core/utils/emailNormalization';
 
 const router = Router();
 
 const emailParamSchema = z.string().min(1).max(320).transform(val => {
-  const decoded = decodeURIComponent(val).trim().toLowerCase();
-  return decoded;
+  const decoded = decodeURIComponent(val);
+  return normalizeEmail(decoded);
 }).refine(val => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
   message: 'Invalid email format'
 });

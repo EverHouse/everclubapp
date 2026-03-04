@@ -308,7 +308,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         sql`SELECT status FROM booking_requests WHERE id = ${sessionData.bookingId}`
       );
       const bookingStatus = String(statusCheck.rows[0]?.status ?? '');
-      if (['cancelled', 'declined', 'cancellation_pending'].includes(bookingStatus)) {
+      if (['cancelled', 'declined'].includes(bookingStatus)) {
         logger.info('[FeeBreakdown] Booking is cancelled/declined — returning $0', {
           extra: { bookingId: sessionData.bookingId, status: bookingStatus }
         });
