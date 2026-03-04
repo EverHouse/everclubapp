@@ -589,8 +589,8 @@ export function logFromRequest(
   req: Request, 
   actionOrParams: AuditAction | LogFromRequestParams, 
   resourceType?: ResourceType, 
-  resourceId?: string, 
-  resourceName?: string, 
+  resourceId?: string | null, 
+  resourceName?: string | null, 
   details?: Record<string, unknown>
 ): void {
   const staffEmail = req.session?.user?.email;
@@ -613,8 +613,8 @@ export function logFromRequest(
   } else {
     finalAction = actionOrParams as AuditAction;
     finalResourceType = resourceType!;
-    finalResourceId = resourceId;
-    finalResourceName = resourceName;
+    finalResourceId = resourceId ?? undefined;
+    finalResourceName = resourceName ?? undefined;
     finalDetails = details;
   }
   

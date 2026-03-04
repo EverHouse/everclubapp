@@ -563,7 +563,7 @@ router.post('/api/payments/refund', isStaffOrAdmin, validateBody(refundPaymentSc
     
     broadcastBillingUpdate({
       action: 'payment_refunded',
-      memberEmail: memberEmail || undefined,
+      memberEmail,
       amount: refundedAmount,
       status: newStatus
     });

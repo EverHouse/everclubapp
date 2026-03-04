@@ -647,7 +647,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
           thresholdCents: SAVED_CARD_APPROVAL_THRESHOLD_CENTS
         });
       }
-      logFromRequest(req, 'large_charge_approved', 'payment', undefined, memberEmail, {
+      logFromRequest(req, 'large_charge_approved', 'payment', null, memberEmail, {
         amountCents: authoritativeAmountCents,
         approvedBy: staffEmail,
         role: 'admin',
@@ -914,11 +914,11 @@ router.post('/api/stripe/staff/mark-booking-paid', isStaffOrAdmin, validateBody(
       });
     }
 
-    logFromRequest(req, 'mark_booking_paid', 'payment', oobResult.invoiceId || undefined, undefined, {
+    logFromRequest(req, 'mark_booking_paid', 'payment', oobResult.invoiceId || null, null, {
       bookingId,
       participantIds: JSON.stringify(participantIds),
       paidVia: paidVia || 'cash',
-      invoiceId: oobResult.invoiceId || undefined,
+      invoiceId: oobResult.invoiceId || null,
       staffEmail,
     });
 

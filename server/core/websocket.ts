@@ -1075,9 +1075,9 @@ export function broadcastBillingUpdate(data: {
           'booking_payment_updated' | 'payment_refunded' | 'balance_updated' |
           'invoice_created' | 'invoice_finalized' | 'invoice_voided' |
           'payment_confirmed';
-  customerId?: string;
-  memberEmail?: string;
-  memberName?: string;
+  customerId?: string | null;
+  memberEmail?: string | null;
+  memberName?: string | null;
   amount?: number;
   planName?: string;
   status?: string;
