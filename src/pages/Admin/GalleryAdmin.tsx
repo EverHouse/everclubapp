@@ -6,6 +6,7 @@ import FloatingActionButton from '../../components/FloatingActionButton';
 import ModalShell from '../../components/ModalShell';
 import { haptic } from '../../utils/haptics';
 import { useDragAutoScroll } from '../../hooks/useDragAutoScroll';
+import { useToast } from '../../components/Toast';
 
 interface GalleryImage {
     id: number;
@@ -36,6 +37,7 @@ const GalleryAdmin: React.FC = () => {
     const [togglingId, setTogglingId] = useState<number | null>(null);
     const { startAutoScroll, updatePosition, stopAutoScroll } = useDragAutoScroll();
     const [galleryRef] = useAutoAnimate();
+    const { showToast } = useToast();
 
     useEffect(() => {
         if (!isLoading) {
@@ -138,7 +140,10 @@ const GalleryAdmin: React.FC = () => {
 
             await fetchImages();
             setIsEditing(false);
+            haptic.success();
+            showToast(editId ? 'Image updated' : 'Image added', 'success');
         } catch (err: unknown) {
+            haptic.error();
             setError((err instanceof Error ? err.message : String(err)) || 'Failed to save image');
         } finally {
             setIsSaving(false);
@@ -157,9 +162,15 @@ const GalleryAdmin: React.FC = () => {
 
             if (res.ok) {
                 await fetchImages();
+                haptic.success();
+                showToast(image.isActive ? 'Image hidden' : 'Image visible', 'success');
+            } else {
+                haptic.error();
+                showToast('Failed to toggle visibility', 'error');
             }
-        } catch (err: unknown) {
-            console.error('Failed to toggle status:', err);
+        } catch {
+            haptic.error();
+            showToast('Failed to toggle visibility', 'error');
         } finally {
             setTogglingId(null);
         }
@@ -174,9 +185,15 @@ const GalleryAdmin: React.FC = () => {
 
             if (res.ok) {
                 await fetchImages();
+                haptic.success();
+                showToast('Image deleted', 'success');
+            } else {
+                haptic.error();
+                showToast('Failed to delete image', 'error');
             }
-        } catch (err: unknown) {
-            console.error('Failed to delete image:', err);
+        } catch {
+            haptic.error();
+            showToast('Failed to delete image', 'error');
         } finally {
             setDeleteConfirm(null);
         }
@@ -248,8 +265,9 @@ const GalleryAdmin: React.FC = () => {
                 throw new Error('Server rejected reorder');
             }
             haptic.success();
-        } catch (err: unknown) {
-            console.error('Failed to reorder:', err);
+        } catch {
+            haptic.error();
+            showToast('Failed to save new order', 'error');
             setReorderError('Failed to save new order');
             await fetchImages();
             setTimeout(() => setReorderError(null), 3000);

@@ -4,6 +4,8 @@ import { usePageReady } from '../../contexts/PageReadyContext';
 import ModalShell from '../../components/ModalShell';
 import { getInquiryStatusColor, formatStatusLabel } from '../../utils/statusColors';
 import { formatRelativeTime, formatCardTimestamp, getRelativeDateLabel } from '../../utils/dateUtils';
+import { useToast } from '../../components/Toast';
+import { haptic } from '../../utils/haptics';
 
 const formatDate = (dateStr: string): string => {
     try {
@@ -57,18 +59,10 @@ const InquiriesAdmin: React.FC = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [inquiriesRef] = useAutoAnimate();
     const [isSyncing, setIsSyncing] = useState(false);
-    const [syncResult, setSyncResult] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-
-    useEffect(() => {
-        if (syncResult) {
-            const timer = setTimeout(() => setSyncResult(null), 4000);
-            return () => clearTimeout(timer);
-        }
-    }, [syncResult]);
+    const { showToast } = useToast();
 
     const handleSyncFromHubSpot = async () => {
         setIsSyncing(true);
-        setSyncResult(null);
         try {
             const res = await fetch('/api/admin/hubspot/sync-form-submissions', {
                 method: 'POST',
@@ -77,16 +71,19 @@ const InquiriesAdmin: React.FC = () => {
             if (res.ok) {
                 const data = await res.json();
                 const inserted = data.newInserted ?? 0;
-                setSyncResult({
-                    message: inserted > 0 ? `Synced ${inserted} new submission${inserted !== 1 ? 's' : ''}` : 'All submissions are up to date',
-                    type: 'success',
-                });
+                haptic.success();
+                showToast(
+                    inserted > 0 ? `Synced ${inserted} new submission${inserted !== 1 ? 's' : ''}` : 'All submissions are up to date',
+                    'success',
+                );
                 fetchInquiries();
             } else {
-                setSyncResult({ message: 'Sync failed — please try again', type: 'error' });
+                haptic.error();
+                showToast('Sync failed — please try again', 'error');
             }
         } catch {
-            setSyncResult({ message: 'Sync failed — please try again', type: 'error' });
+            haptic.error();
+            showToast('Sync failed — please try again', 'error');
         } finally {
             setIsSyncing(false);
         }
@@ -136,8 +133,9 @@ const InquiriesAdmin: React.FC = () => {
                 });
                 setInquiries(prev => prev.map(i => i.id === inquiry.id ? { ...i, status: 'read' } : i));
                 setSelectedInquiry(prev => prev ? { ...prev, status: 'read' } : null);
-            } catch (err: unknown) {
-                console.error('Failed to mark as read:', err);
+            } catch {
+                haptic.error();
+                showToast('Failed to mark as read', 'error');
             }
         }
     };
@@ -155,9 +153,15 @@ const InquiriesAdmin: React.FC = () => {
             if (res.ok) {
                 setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, status } : i));
                 setSelectedInquiry(prev => prev ? { ...prev, status } : null);
+                haptic.success();
+                showToast(`Status updated to ${formatStatusLabel(status)}`, 'success');
+            } else {
+                haptic.error();
+                showToast('Failed to update status', 'error');
             }
-        } catch (err: unknown) {
-            console.error('Failed to update status:', err);
+        } catch {
+            haptic.error();
+            showToast('Failed to update status', 'error');
         } finally {
             setIsSaving(false);
         }
@@ -176,9 +180,15 @@ const InquiriesAdmin: React.FC = () => {
             if (res.ok) {
                 setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, notes } : i));
                 setSelectedInquiry(prev => prev ? { ...prev, notes } : null);
+                haptic.success();
+                showToast('Notes saved', 'success');
+            } else {
+                haptic.error();
+                showToast('Failed to save notes', 'error');
             }
-        } catch (err: unknown) {
-            console.error('Failed to save notes:', err);
+        } catch {
+            haptic.error();
+            showToast('Failed to save notes', 'error');
         } finally {
             setIsSaving(false);
         }
@@ -196,9 +206,15 @@ const InquiriesAdmin: React.FC = () => {
                 setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, status: 'archived' } : i));
                 setIsDetailOpen(false);
                 setSelectedInquiry(null);
+                haptic.success();
+                showToast('Inquiry archived', 'success');
+            } else {
+                haptic.error();
+                showToast('Failed to archive', 'error');
             }
-        } catch (err: unknown) {
-            console.error('Failed to archive:', err);
+        } catch {
+            haptic.error();
+            showToast('Failed to archive', 'error');
         } finally {
             setIsSaving(false);
         }
@@ -212,19 +228,6 @@ const InquiriesAdmin: React.FC = () => {
 
     return (
         <div className="animate-page-enter">
-            {syncResult && (
-                <div className={`mb-3 px-4 py-3 rounded-xl text-sm font-semibold flex items-center gap-2 animate-content-enter ${
-                    syncResult.type === 'success'
-                        ? 'bg-green-500/10 text-green-700 dark:text-green-400'
-                        : 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
-                }`}>
-                    <span className="material-symbols-outlined text-lg" aria-hidden="true">
-                        {syncResult.type === 'success' ? 'check_circle' : 'info'}
-                    </span>
-                    {syncResult.message}
-                </div>
-            )}
-
             <div className="flex items-center justify-end mb-3 animate-content-enter-delay-1">
                 <button
                     onClick={handleSyncFromHubSpot}

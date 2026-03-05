@@ -8,6 +8,8 @@ import { MotionList, MotionListItem } from '../../components/motion';
 import { getTodayPacific, formatDateDisplayWithDay, formatDateTimePacific, addDaysToPacificDate } from '../../utils/dateUtils';
 import { getMemberNoticeTitle, getAffectedAreasList, isBlockingClosure } from '../../utils/closureUtils';
 import { useNotificationStore } from '../../stores/notificationStore';
+import { useToast } from '../../components/Toast';
+import { haptic } from '../../utils/haptics';
 
 const NOTICE_PREVIEW_DAYS = 7; // Show notices this many days before they start
 

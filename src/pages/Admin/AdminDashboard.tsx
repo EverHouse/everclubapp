@@ -18,6 +18,8 @@ import { TabTransition } from '../../components/motion';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import PullToRefresh from '../../components/PullToRefresh';
 import CheckInConfirmationModal from '../../components/staff-command-center/modals/CheckInConfirmationModal';
+import { useToast } from '../../components/Toast';
+import { haptic } from '../../utils/haptics';
 
 import { TabType, StaffBottomNav, StaffSidebar, StaffNavigationRail, usePendingCounts, useUnreadNotifications, useCommandCenter, getTabFromPathname, tabToPath } from './layout';
 
@@ -312,6 +314,7 @@ const TrainingSectionModal: React.FC<TrainingModalProps> = ({ isOpen, onClose, s
     const [steps, setSteps] = useState<{ title: string; content: string; imageUrl?: string; pageIcon?: string }[]>([{ title: '', content: '' }]);
     const [saving, setSaving] = useState(false);
     const [showIconPicker, setShowIconPicker] = useState(false);
+    const { showToast } = useToast();
 
     useEffect(() => {
         if (section) {
@@ -357,9 +360,12 @@ const TrainingSectionModal: React.FC<TrainingModalProps> = ({ isOpen, onClose, s
                 isAdminOnly,
                 steps: steps.filter(s => s.title.trim() && s.content.trim())
             });
+            haptic.success();
+            showToast(section ? 'Section updated' : 'Section added', 'success');
             onClose();
-        } catch (err: unknown) {
-            console.error('Failed to save section:', err);
+        } catch {
+            haptic.error();
+            showToast('Failed to save section', 'error');
         } finally {
             setSaving(false);
         }
@@ -496,6 +502,7 @@ const StaffTrainingGuide: React.FC = () => {
     const isAdmin = actualUser?.role === 'admin';
     const printRef = useRef<HTMLDivElement>(null);
     const { confirm, ConfirmDialogComponent } = useConfirmDialog();
+    const { showToast } = useToast();
 
     useEffect(() => {
         fetchSections();
@@ -512,8 +519,8 @@ const StaffTrainingGuide: React.FC = () => {
             } else if (response.status === 401) {
                 setAuthError(true);
             }
-        } catch (error: unknown) {
-            console.error('Failed to fetch training sections:', error);
+        } catch {
+            showToast('Failed to load training sections', 'error');
         } finally {
             setLoading(false);
         }
@@ -550,9 +557,15 @@ const StaffTrainingGuide: React.FC = () => {
             });
             if (response.ok) {
                 await fetchSections();
+                haptic.success();
+                showToast('Training section deleted', 'success');
+            } else {
+                haptic.error();
+                showToast('Failed to delete section', 'error');
             }
-        } catch (error: unknown) {
-            console.error('Delete failed:', error);
+        } catch {
+            haptic.error();
+            showToast('Failed to delete section', 'error');
         }
     };
 

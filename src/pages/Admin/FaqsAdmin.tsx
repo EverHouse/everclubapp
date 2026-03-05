@@ -6,6 +6,7 @@ import FloatingActionButton from '../../components/FloatingActionButton';
 import ModalShell from '../../components/ModalShell';
 import { haptic } from '../../utils/haptics';
 import { useDragAutoScroll } from '../../hooks/useDragAutoScroll';
+import { useToast } from '../../components/Toast';
 
 interface FAQ {
     id: number;
@@ -27,13 +28,13 @@ const FaqsAdmin: React.FC = () => {
     const [newItem, setNewItem] = useState<Partial<FAQ>>({ category: 'General', sortOrder: 0, isActive: true });
     const [isSaving, setIsSaving] = useState(false);
     const [isSeeding, setIsSeeding] = useState(false);
-    const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
     const [draggedItemId, setDraggedItemId] = useState<number | null>(null);
     const [previewOrder, setPreviewOrder] = useState<FAQ[] | null>(null);
     const originalOrderRef = useRef<FAQ[] | null>(null);
     const { startAutoScroll, updatePosition, stopAutoScroll } = useDragAutoScroll();
     const [faqsRef] = useAutoAnimate();
+    const { showToast } = useToast();
 
     useEffect(() => {
         if (!isLoading) {
@@ -74,12 +75,11 @@ const FaqsAdmin: React.FC = () => {
 
     const handleSave = async () => {
         if (!newItem.question?.trim() || !newItem.answer?.trim()) {
-            setMessage({ type: 'error', text: 'Question and answer are required' });
+            showToast('Question and answer are required', 'error');
             return;
         }
 
         setIsSaving(true);
-        setMessage(null);
 
         try {
             const payload = {
@@ -105,18 +105,20 @@ const FaqsAdmin: React.FC = () => {
                 });
 
             if (res.ok) {
-                setMessage({ type: 'success', text: editId ? 'FAQ updated' : 'FAQ created' });
+                haptic.success();
+                showToast(editId ? 'FAQ updated' : 'FAQ created', 'success');
                 await fetchFaqs();
                 setIsEditing(false);
             } else {
                 const data = await res.json();
-                setMessage({ type: 'error', text: data.error || 'Failed to save' });
+                haptic.error();
+                showToast(data.error || 'Failed to save', 'error');
             }
-        } catch (err: unknown) {
-            setMessage({ type: 'error', text: 'Network error' });
+        } catch {
+            haptic.error();
+            showToast('Network error', 'error');
         } finally {
             setIsSaving(false);
-            setTimeout(() => setMessage(null), 3000);
         }
     };
 
@@ -127,24 +129,25 @@ const FaqsAdmin: React.FC = () => {
                 credentials: 'include',
             });
             if (res.ok) {
-                setMessage({ type: 'success', text: 'FAQ deleted' });
+                haptic.success();
+                showToast('FAQ deleted', 'success');
                 setFaqs(prev => prev.filter(f => f.id !== id));
             } else {
                 const data = await res.json();
-                setMessage({ type: 'error', text: data.error || 'Failed to delete' });
+                haptic.error();
+                showToast(data.error || 'Failed to delete', 'error');
             }
-        } catch (err: unknown) {
-            setMessage({ type: 'error', text: 'Network error' });
+        } catch {
+            haptic.error();
+            showToast('Network error', 'error');
         } finally {
             setDeleteConfirm(null);
-            setTimeout(() => setMessage(null), 3000);
         }
     };
 
     const handleSeedFaqs = async () => {
         if (isSeeding) return;
         setIsSeeding(true);
-        setMessage(null);
         try {
             const res = await fetch('/api/admin/faqs/seed', {
                 method: 'POST',
@@ -152,16 +155,18 @@ const FaqsAdmin: React.FC = () => {
             });
             const data = await res.json();
             if (res.ok) {
-                setMessage({ type: 'success', text: `Seeded ${data.count} FAQs` });
+                haptic.success();
+                showToast(`Seeded ${data.count} FAQs`, 'success');
                 await fetchFaqs();
             } else {
-                setMessage({ type: 'error', text: data.error || 'Failed to seed FAQs' });
+                haptic.error();
+                showToast(data.error || 'Failed to seed FAQs', 'error');
             }
-        } catch (err: unknown) {
-            setMessage({ type: 'error', text: 'Network error' });
+        } catch {
+            haptic.error();
+            showToast('Network error', 'error');
         } finally {
             setIsSeeding(false);
-            setTimeout(() => setMessage(null), 5000);
         }
     };
 
@@ -231,11 +236,10 @@ const FaqsAdmin: React.FC = () => {
                 throw new Error('Server rejected reorder');
             }
             haptic.success();
-        } catch (err: unknown) {
-            console.error('Failed to reorder:', err);
-            setMessage({ type: 'error', text: 'Failed to save new order' });
+        } catch {
+            haptic.error();
+            showToast('Failed to save new order', 'error');
             await fetchFaqs();
-            setTimeout(() => setMessage(null), 3000);
         }
     };
 
@@ -269,16 +273,6 @@ const FaqsAdmin: React.FC = () => {
                     </button>
                 )}
             </div>
-
-            {message && (
-                <div className={`mb-4 px-4 py-3 rounded-lg text-sm font-medium ${
-                    message.type === 'success'
-                        ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800'
-                        : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
-                }`}>
-                    {message.text}
-                </div>
-            )}
 
             <ModalShell isOpen={isEditing} onClose={() => setIsEditing(false)} title={editId ? 'Edit FAQ' : 'Add FAQ'} size="lg">
                 <div className="p-6">
