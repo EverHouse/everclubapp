@@ -29,6 +29,17 @@ import { isProduction } from '../core/db';
 import { logger } from '../core/logger';
 
 const intervalIds: NodeJS.Timeout[] = [];
+const staggerTimeouts: NodeJS.Timeout[] = [];
+
+const STAGGER_INTERVAL_MS = 10_000;
+
+function staggerStart(delayMs: number, name: string, fn: () => void): void {
+  const timeout = setTimeout(() => {
+    logger.info(`[Schedulers] Starting ${name} (staggered +${Math.round(delayMs / 1000)}s)`);
+    fn();
+  }, delayMs);
+  staggerTimeouts.push(timeout);
+}
 
 export function initSchedulers(): void {
   if (!isProduction) {
@@ -65,35 +76,111 @@ export function initSchedulers(): void {
   schedulerTracker.registerScheduler('Supabase Heartbeat', 6 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Job Queue Processor', 5000);
 
-  startBackgroundSyncScheduler();
-  startDailyReminderScheduler();
-  startMorningClosureScheduler();
-  intervalIds.push(startWeeklyCleanupScheduler());
-  intervalIds.push(...startIntegrityScheduler());
-  startWaiverReviewScheduler();
-  startStripeReconciliationScheduler();
-  startFeeSnapshotReconciliationScheduler();
-  startGracePeriodScheduler();
-  startBookingExpiryScheduler();
-  startBookingAutoCompleteScheduler();
-  startCommunicationLogsScheduler();
-  intervalIds.push(startWebhookLogCleanupScheduler());
-  intervalIds.push(startSessionCleanupScheduler());
-  startUnresolvedTrackmanScheduler();
-  startHubSpotQueueScheduler();
-  startHubSpotFormSyncScheduler();
-  startMemberSyncScheduler();
-  intervalIds.push(startDuplicateCleanupScheduler());
-  startGuestPassResetScheduler();
-  startStuckCancellationScheduler();
-  startPendingUserCleanupScheduler();
-  startWebhookEventCleanupScheduler();
-  startOnboardingNudgeScheduler();
-  startSupabaseHeartbeatScheduler();
-  startJobProcessor(5000);
+  logger.info(`[Schedulers] Staggering scheduler startup over ~${26 * STAGGER_INTERVAL_MS / 1000}s to prevent DB connection spikes`);
+
+  let slot = 0;
+
+  // ── Wave 1: Real-time / high-frequency (immediate → +20s) ──
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Job Queue Processor', () => startJobProcessor(5000));
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Supabase Heartbeat', () => startSupabaseHeartbeatScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'HubSpot Queue', () => startHubSpotQueueScheduler());
+  slot++;
+
+  // ── Wave 2: Booking & calendar syncs (+30s → +70s) ──
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Background Sync', () => startBackgroundSyncScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Booking Expiry', () => startBookingExpiryScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Booking Auto-Complete', () => startBookingAutoCompleteScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Unresolved Trackman', () => startUnresolvedTrackmanScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Fee Snapshot Reconciliation', () => startFeeSnapshotReconciliationScheduler());
+  slot++;
+
+  // ── Wave 3: Notifications & communication (+80s → +110s) ──
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Daily Reminder', () => startDailyReminderScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Morning Closure', () => startMorningClosureScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Communication Logs Sync', () => startCommunicationLogsScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Onboarding Nudge', () => startOnboardingNudgeScheduler());
+  slot++;
+
+  // ── Wave 4: Financial & billing (+120s → +160s) ──
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Stripe Reconciliation', () => startStripeReconciliationScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Grace Period', () => startGracePeriodScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Guest Pass Reset', () => startGuestPassResetScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Stuck Cancellation', () => startStuckCancellationScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Waiver Review', () => startWaiverReviewScheduler());
+  slot++;
+
+  // ── Wave 5: HubSpot & external syncs (+170s → +200s) ──
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'HubSpot Form Sync', () => startHubSpotFormSyncScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Member Sync', () => startMemberSyncScheduler());
+  slot++;
+
+  // ── Wave 6: Integrity & cleanup (+210s → +270s) ──
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Integrity Check', () => {
+    intervalIds.push(...startIntegrityScheduler());
+  });
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Weekly Cleanup', () => {
+    intervalIds.push(startWeeklyCleanupScheduler());
+  });
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Session Cleanup', () => {
+    intervalIds.push(startSessionCleanupScheduler());
+  });
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Webhook Log Cleanup', () => {
+    intervalIds.push(startWebhookLogCleanupScheduler());
+  });
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Webhook Event Cleanup', () => startWebhookEventCleanupScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Duplicate Cleanup', () => {
+    intervalIds.push(startDuplicateCleanupScheduler());
+  });
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Pending User Cleanup', () => startPendingUserCleanupScheduler());
+  slot++;
 }
 
 export function stopSchedulers(): void {
+  for (const timeout of staggerTimeouts) {
+    clearTimeout(timeout);
+  }
+  staggerTimeouts.length = 0;
+
   for (const id of intervalIds) {
     clearInterval(id);
   }
