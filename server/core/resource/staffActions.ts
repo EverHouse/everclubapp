@@ -321,6 +321,29 @@ export async function changeBookingOwner(bookingId: number, newEmail: string, ne
     .where(eq(bookingRequests.id, bookingId))
     .returning();
   
+  if (existingBooking.sessionId) {
+    const resolvedUserId = memberId || null;
+    let resolvedName = newName;
+    let resolvedMemberId = resolvedUserId;
+
+    if (!resolvedMemberId) {
+      const userResult = await db.execute(sql`SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER(${newEmail}) LIMIT 1`);
+      const userRow = (userResult.rows as Array<{ id: string; first_name: string | null; last_name: string | null }>)[0];
+      if (userRow) {
+        resolvedMemberId = userRow.id;
+        const fullName = [userRow.first_name, userRow.last_name].filter(Boolean).join(' ');
+        if (fullName) resolvedName = fullName;
+      }
+    }
+
+    await db.execute(sql`
+      UPDATE booking_participants
+      SET user_id = ${resolvedMemberId},
+          display_name = ${resolvedName}
+      WHERE session_id = ${existingBooking.sessionId} AND participant_type = 'owner'
+    `);
+  }
+  
   const { broadcastToStaff } = await import('../websocket');
   broadcastToStaff({
     type: 'booking_updated',

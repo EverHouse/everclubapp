@@ -1127,6 +1127,11 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
 
             if (matchedEmail) {
               ghostUpdateFields.userEmail = matchedEmail;
+              const userIdResult = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${matchedEmail}) LIMIT 1`);
+              const resolvedUserId = (userIdResult.rows as Array<{ id: string }>)[0]?.id;
+              if (resolvedUserId) {
+                ghostUpdateFields.userId = resolvedUserId;
+              }
             }
             if (parsedBayId) {
               ghostUpdateFields.resourceId = parsedBayId;
@@ -1236,9 +1241,16 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             process.stderr.write(`[Trackman Import] Parsed ${parsedPlayersForInsert.length} players from notes: ${parsedPlayersForInsert.map(p => `${p.type}:${p.name||p.email||'unknown'}`).join(', ')}\n`);
           }
           
+          let insertUserId: string | null = null;
+          if (matchedEmail) {
+            const insertUserIdResult = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${matchedEmail}) LIMIT 1`);
+            insertUserId = (insertUserIdResult.rows as Array<{ id: string }>)[0]?.id || null;
+          }
+
           const insertResult = await db.insert(bookingRequests).values({
             userEmail: matchedEmail,
             userName: row.userName,
+            userId: insertUserId,
             resourceId: parsedBayId,
             requestDate: bookingDate,
             startTime: startTime,
