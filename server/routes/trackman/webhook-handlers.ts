@@ -147,11 +147,16 @@ export async function handleBookingModification(
   const timeChanged = incoming.parsedStartTime !== existingStartTime ||
     (incoming.parsedEndTime && incoming.parsedEndTime !== existingEndTime);
   const dateChanged = incoming.parsedDate !== existingDate;
-  if (!bayChanged && !timeChanged && !dateChanged) {
+  const playerCountChanged = incoming.playerCount > 0 && existing.declaredPlayerCount != null
+    && incoming.playerCount !== existing.declaredPlayerCount;
+  if (!bayChanged && !timeChanged && !dateChanged && !playerCountChanged) {
     logger.info('[Trackman Webhook] No modifications detected for linked booking', {
       extra: { bookingId, trackmanBookingId: incoming.trackmanBookingId }
     });
     return { modified: false, changes: [] };
+  }
+  if (playerCountChanged) {
+    changes.push(`Player count changed: ${existing.declaredPlayerCount || 1} → ${incoming.playerCount}`);
   }
 
   const oldResourceId = existing.resourceId;
@@ -271,30 +276,31 @@ export async function handleBookingModification(
             const newSessionId = (newSessionResult.rows[0] as { id: number }).id;
             await tx.execute(sql`UPDATE booking_requests SET session_id = ${newSessionId} WHERE id = ${bookingId}`);
 
-            const existingParticipants = await tx.execute(sql`SELECT user_id, participant_type, display_name, payment_status, slot_duration
-               FROM booking_participants WHERE session_id = ${sessionId}`);
-            const partRows = existingParticipants.rows as Array<{ user_id: string | null; participant_type: string; display_name: string | null; payment_status: string; slot_duration: number | null }>;
-            let copiedCount = 0;
-            for (const p of partRows) {
-              await tx.execute(sql`INSERT INTO booking_participants
-                 (session_id, user_id, participant_type, display_name, payment_status, slot_duration, created_at)
-                 VALUES (${newSessionId}, ${p.user_id}, ${p.participant_type}, ${p.display_name}, ${p.payment_status}, ${p.slot_duration}, NOW())`);
-              copiedCount++;
-            }
+            const userLookup = await tx.execute(sql`SELECT u.id as user_id
+               FROM users u WHERE LOWER(u.email) = LOWER(${existing.userEmail}) LIMIT 1`);
+            const userId = userLookup.rows.length > 0 ? (userLookup.rows[0] as { user_id: string }).user_id : null;
+            await tx.execute(sql`INSERT INTO booking_participants
+               (session_id, user_id, participant_type, display_name, payment_status, created_at)
+               VALUES (${newSessionId}, ${userId}, 'owner', ${existing.userName || existing.userEmail}, 'waived', NOW())`);
 
-            if (copiedCount === 0) {
-              const userLookup = await tx.execute(sql`SELECT u.id as user_id
-                 FROM users u WHERE LOWER(u.email) = LOWER(${existing.userEmail}) LIMIT 1`);
-              const userId = userLookup.rows.length > 0 ? (userLookup.rows[0] as { user_id: string }).user_id : null;
-              await tx.execute(sql`INSERT INTO booking_participants
-                 (session_id, user_id, participant_type, display_name, payment_status, created_at)
-                 VALUES (${newSessionId}, ${userId}, 'owner', ${existing.userName || existing.userEmail}, 'waived', NOW())`);
-              copiedCount = 1;
+            const rpResult = await tx.execute(sql`SELECT request_participants FROM booking_requests WHERE id = ${bookingId}`);
+            const rpData = (rpResult.rows as Array<Record<string, unknown>>)[0]?.request_participants;
+            let transferredCount = 0;
+            if (rpData) {
+              try {
+                transferredCount = await transferRequestParticipantsToSession(
+                  newSessionId, rpData, existing.userEmail, `modification detach booking #${bookingId}`
+                );
+              } catch (rpErr: unknown) {
+                logger.warn('[Trackman Webhook] Non-blocking: Failed to transfer request_participants during detach', {
+                  extra: { bookingId, newSessionId, error: (rpErr as Error).message }
+                });
+              }
             }
 
             newSessionIdForFees = newSessionId;
-            logger.info('[Trackman Webhook] Created new session and copied participants from old session', {
-              extra: { bookingId, oldSessionId: sessionId, newSessionId, newResourceId, newDate, newStartTime, newEndTime, copiedParticipants: copiedCount }
+            logger.info('[Trackman Webhook] Created new session with owner + request_participants for detached booking', {
+              extra: { bookingId, oldSessionId: sessionId, newSessionId, newResourceId, newDate, newStartTime, newEndTime, transferredFromRequest: transferredCount }
             });
           } else {
             await tx.execute(sql`UPDATE booking_sessions
@@ -473,8 +479,20 @@ export async function handleBookingModification(
       }
     }
 
+    if (effectiveSessionId) {
+      linkAndNotifyParticipants(bookingId, {
+        trackmanBookingId: incoming.trackmanBookingId,
+        linkedBy: 'trackman_modification',
+        bayName: newResourceId ? `Bay ${newResourceId}` : undefined
+      }).catch(err => {
+        logger.warn('[Trackman Webhook] Non-blocking: Failed to link/notify participants after modification', {
+          extra: { bookingId, sessionId: effectiveSessionId, error: (err as Error).message }
+        });
+      });
+    }
+
     logger.info('[Trackman Webhook] Successfully applied booking modification', {
-      extra: { bookingId, sessionId, trackmanBookingId: incoming.trackmanBookingId, changes, conflictWarning }
+      extra: { bookingId, sessionId: effectiveSessionId, trackmanBookingId: incoming.trackmanBookingId, changes, conflictWarning }
     });
 
     return { modified: true, changes, conflictWarning };
