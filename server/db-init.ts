@@ -675,6 +675,54 @@ export async function ensureDatabaseConstraints() {
     }
     
     logger.info('[DB Init] Performance indexes processed');
+
+    try {
+      const needsFix = await db.execute(sql`
+        SELECT id FROM users 
+        WHERE LOWER(email) = 'nick@evenhouse.club' 
+          AND stripe_customer_id IS NOT NULL
+        LIMIT 1
+      `);
+      if (needsFix.rows.length > 0) {
+        await db.execute(sql`
+          UPDATE users 
+          SET stripe_customer_id = (SELECT stripe_customer_id FROM users WHERE LOWER(email) = 'nick@evenhouse.club' LIMIT 1),
+              membership_tier = 'VIP',
+              membership_status = 'active',
+              billing_provider = 'stripe',
+              updated_at = NOW()
+          WHERE LOWER(email) = 'nicholasallanluu@gmail.com'
+        `);
+        await db.execute(sql`
+          UPDATE users 
+          SET stripe_customer_id = NULL,
+              stripe_subscription_id = NULL,
+              membership_tier = NULL,
+              membership_status = 'non-member',
+              updated_at = NOW()
+          WHERE LOWER(email) = 'nick@evenhouse.club'
+        `);
+        logger.info('[DB Init] Moved Stripe customer from nick@evenhouse.club to nicholasallanluu@gmail.com');
+
+        try {
+          const { getStripeClient } = await import('./core/stripe/client');
+          const stripe = await getStripeClient();
+          const custId = (needsFix.rows[0] as { id: string }).id;
+          const custResult = await db.execute(sql`
+            SELECT stripe_customer_id FROM users WHERE LOWER(email) = 'nicholasallanluu@gmail.com' LIMIT 1
+          `);
+          const stripeCustomerId = (custResult.rows[0] as { stripe_customer_id: string })?.stripe_customer_id;
+          if (stripeCustomerId) {
+            await stripe.customers.update(stripeCustomerId, { email: 'nicholasallanluu@gmail.com' });
+            logger.info('[DB Init] Updated Stripe customer email to nicholasallanluu@gmail.com');
+          }
+        } catch (stripeErr: unknown) {
+          logger.error('[DB Init] Stripe customer email update failed (update manually in Stripe dashboard):', { extra: { errorMessage: getErrorMessage(stripeErr) } });
+        }
+      }
+    } catch (fixErr: unknown) {
+      logger.error('[DB Init] Stripe customer reassignment failed:', { extra: { errorMessage: getErrorMessage(fixErr) } });
+    }
   } catch (error: unknown) {
     logger.error('[DB Init] Failed to ensure constraints:', { extra: { errorMessage: getErrorMessage(error) } });
   }
