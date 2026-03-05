@@ -1117,9 +1117,9 @@ const TrackmanTab: React.FC = () => {
               
               {fuzzySearchQuery.trim() && (
                 <div className="max-h-48 overflow-y-auto space-y-2 -mx-2 px-2 mb-4">
-                  {fuzzyFilteredMembers.slice(0, 15).map((member: TrackmanMember) => (
+                  {fuzzyFilteredMembers.slice(0, 15).map((member: TrackmanMember, idx: number) => (
                     <button
-                      key={member.email}
+                      key={member.email || `member-${idx}`}
                       onClick={() => setFuzzyMatchModal(prev => prev ? { ...prev, selectedEmail: member.email } : null)}
                       className={`w-full p-3 text-left rounded-xl transition-all duration-fast ${
                         fuzzyMatchModal?.selectedEmail === member.email

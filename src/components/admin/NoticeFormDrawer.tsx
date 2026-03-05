@@ -266,8 +266,8 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
               }`}
             >
               <option value="">Select category...</option>
-              {noticeTypes.map(type => (
-                <option key={type.id} value={type.name}>{type.name}</option>
+              {noticeTypes.map((type, idx) => (
+                <option key={type.id ?? `type-${idx}`} value={type.name}>{type.name}</option>
               ))}
             </select>
             {touchedFields.has('notice_type') && closureValidation.notice_type && (
@@ -297,8 +297,8 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
               className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-sm text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
             >
               <option value="">Select reason...</option>
-              {closureReasons.filter(r => r.isActive).map(reason => (
-                <option key={reason.id} value={reason.label}>{reason.label}</option>
+              {closureReasons.filter(r => r.isActive).map((reason, idx) => (
+                <option key={reason.id ?? `reason-${idx}`} value={reason.label}>{reason.label}</option>
               ))}
             </select>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -374,8 +374,8 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
                 />
                 <span className="text-sm text-primary dark:text-white">Conference Room</span>
               </label>
-              {bays.map(bay => (
-                <label key={bay.id} className="flex items-center gap-2 cursor-pointer">
+              {bays.map((bay, idx) => (
+                <label key={bay.id ?? `bay-${idx}`} className="flex items-center gap-2 cursor-pointer">
                   <input 
                     type="checkbox" 
                     checked={formData.affected_areas.split(',').some(a => a.trim() === `bay_${bay.id}`)}

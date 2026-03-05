@@ -175,8 +175,8 @@ const HubSpotFormModal: React.FC<HubSpotFormModalProps> = ({
           </div>
         ) : (
           <div className="space-y-4">
-            {fields.map(field => (
-              <div key={field.name}>
+            {fields.map((field, idx) => (
+              <div key={field.name || `field-${idx}`}>
                 <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1.5 pl-1">
                   {field.label} {field.required && <span className="text-red-500">*</span>}
                 </label>
