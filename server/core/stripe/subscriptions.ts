@@ -38,12 +38,23 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
     const defaultPaymentMethod = paymentMethods.length > 0 ? paymentMethods[0] : null;
     const hasCardOnFile = !!defaultPaymentMethod;
 
-    logger.info(`[Stripe Subscriptions] Customer ${customerId} has ${paymentMethods.length} payment method(s), using ${hasCardOnFile ? 'auto-charge' : 'incomplete'} behavior`);
+    let isFullyComped = false;
+    if (couponId) {
+      try {
+        const coupon = await stripe.coupons.retrieve(couponId);
+        isFullyComped = coupon.percent_off === 100;
+      } catch (couponErr: unknown) {
+        logger.warn(`[Stripe Subscriptions] Could not verify coupon ${couponId}, proceeding with default behavior`, { extra: { error: getErrorMessage(couponErr) } });
+      }
+    }
+
+    const useAllowIncomplete = hasCardOnFile || isFullyComped;
+    logger.info(`[Stripe Subscriptions] Customer ${customerId}: ${paymentMethods.length} payment method(s), comped=${isFullyComped}, behavior=${useAllowIncomplete ? 'allow_incomplete' : 'default_incomplete'}`);
 
     const subscriptionParams: Stripe.SubscriptionCreateParams = {
       customer: customerId,
       items: [{ price: priceId }],
-      payment_behavior: hasCardOnFile ? 'allow_incomplete' : 'default_incomplete',
+      payment_behavior: useAllowIncomplete ? 'allow_incomplete' : 'default_incomplete',
       ...(hasCardOnFile && defaultPaymentMethod ? { default_payment_method: defaultPaymentMethod.id } : {}),
       payment_settings: {
         save_default_payment_method: 'on_subscription',
