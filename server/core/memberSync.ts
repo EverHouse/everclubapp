@@ -8,7 +8,6 @@ import { normalizeTierName, TIER_NAMES } from '../../shared/constants/tiers';
 import { sql, eq, and } from 'drizzle-orm';
 import { isProduction } from './db';
 import { broadcastMemberDataUpdated, broadcastDataIntegrityUpdate } from './websocket';
-import { syncDealStageFromMindbodyStatus } from './hubspotDeals';
 import { alertOnHubSpotSyncComplete, alertOnSyncFailure } from './dataAlerts';
 import pLimit from 'p-limit';
 import { notifyMember, notifyAllStaff } from './notificationService';
@@ -741,50 +740,6 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
       }
     }
     
-    // Sync deal stages in batches with throttling to avoid HubSpot rate limits
-    // Run this AFTER the main sync completes to avoid blocking member data updates
-    const dealSyncStatuses = ['active', 'declined', 'suspended', 'expired', 'terminated', 'cancelled', 'froze', 'non-member', 'frozen', 'past_due', 'past due', 'pastdue'];
-    const contactsNeedingDealSync = allContacts.filter(c => {
-      const email = c.properties.email?.toLowerCase();
-      const status = (c.properties.membership_status || 'non-member').toLowerCase();
-      return email && dealSyncStatuses.includes(status);
-    });
-    
-    if (contactsNeedingDealSync.length > 0) {
-      if (!isProduction) logger.info(`[MemberSync] Starting deal sync for ${contactsNeedingDealSync.length} members (throttled)`);
-      
-      // Process deals in batches of 5 with 2 second delay between batches
-      // HubSpot has 110 requests per 10 seconds limit, so we stay well under
-      const BATCH_SIZE = 5;
-      const BATCH_DELAY_MS = 2000;
-      const limit = pLimit(BATCH_SIZE);
-      
-      for (let i = 0; i < contactsNeedingDealSync.length; i += BATCH_SIZE) {
-        const batch = contactsNeedingDealSync.slice(i, i + BATCH_SIZE);
-        
-        await Promise.all(
-          batch.map(contact => 
-            limit(async () => {
-              const email = contact.properties.email!.toLowerCase();
-              const status = (contact.properties.membership_status || 'non-member').toLowerCase();
-              try {
-                await syncDealStageFromMindbodyStatus(email, status, 'system', 'Mindbody Sync');
-              } catch (err: unknown) {
-                if (!isProduction) logger.error(`[MemberSync] Failed to sync deal stage for ${email}:`, { error: err });
-              }
-            })
-          )
-        );
-        
-        // Add delay between batches to avoid rate limits
-        if (i + BATCH_SIZE < contactsNeedingDealSync.length) {
-          await delay(BATCH_DELAY_MS);
-        }
-      }
-      
-      if (!isProduction) logger.info(`[MemberSync] Deal sync complete for ${contactsNeedingDealSync.length} members`);
-    }
-    
     // Broadcast to staff that member data has been updated
     if (synced > 0) {
       broadcastMemberDataUpdated([]);
@@ -1340,45 +1295,6 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
           logger.info(`[MemberSync] Added ${linkedEmailsAdded} linked emails from HubSpot merged contacts`);
         }
       }
-    }
-    
-    const dealSyncStatuses = ['active', 'declined', 'suspended', 'expired', 'terminated', 'cancelled', 'froze', 'non-member', 'frozen', 'past_due', 'past due', 'pastdue'];
-    const contactsNeedingDealSync = allContacts.filter(c => {
-      const email = c.properties.email?.toLowerCase();
-      const status = (c.properties.membership_status || 'non-member').toLowerCase();
-      return email && dealSyncStatuses.includes(status);
-    });
-    
-    if (contactsNeedingDealSync.length > 0) {
-      if (!isProduction) logger.info(`[MemberSync] Starting deal sync for ${contactsNeedingDealSync.length} members (throttled)`);
-      
-      const BATCH_SIZE = 5;
-      const BATCH_DELAY_MS = 2000;
-      const limit = pLimit(BATCH_SIZE);
-      
-      for (let i = 0; i < contactsNeedingDealSync.length; i += BATCH_SIZE) {
-        const batch = contactsNeedingDealSync.slice(i, i + BATCH_SIZE);
-        
-        await Promise.all(
-          batch.map(contact => 
-            limit(async () => {
-              const email = contact.properties.email!.toLowerCase();
-              const status = (contact.properties.membership_status || 'non-member').toLowerCase();
-              try {
-                await syncDealStageFromMindbodyStatus(email, status, 'system', 'Mindbody Sync');
-              } catch (err: unknown) {
-                if (!isProduction) logger.error(`[MemberSync] Failed to sync deal stage for ${email}:`, { error: err });
-              }
-            })
-          )
-        );
-        
-        if (i + BATCH_SIZE < contactsNeedingDealSync.length) {
-          await delay(BATCH_DELAY_MS);
-        }
-      }
-      
-      if (!isProduction) logger.info(`[MemberSync] Deal sync complete for ${contactsNeedingDealSync.length} members`);
     }
     
     if (synced > 0) {
