@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.73.0",
+    date: "2026-03-05",
+    title: "Booking Ownership & Revert Fixes",
+    changes: [
+      "Fix: Booking header now shows the correct owner name when a member is linked to an empty owner slot — previously the header retained the original Trackman import name while the roster showed the new owner",
+      "Fix: Reverting a booking from attended/checked-in back to approved no longer fails with an error — resolved a database type issue that blocked the status change",
+    ]
+  },
+  {
     version: "8.68.0",
     date: "2026-03-04",
     title: "Invoice & Booking Data Integrity",

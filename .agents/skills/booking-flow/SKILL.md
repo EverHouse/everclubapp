@@ -308,6 +308,22 @@ See `references/trackman-sync.md` for reconciliation details.
 
 **Rule:** Every caller of `recalculateSessionFees()` that modifies the billing context (roster change, reassignment, participant add/remove) MUST also call `syncBookingInvoice()` afterward. `recalculateSessionFees()` only updates `booking_participants.cached_fee_cents` — it does NOT touch the Stripe invoice. See fee-calculation skill for the full list of callers.
 
+#### Owner Slot Link Must Sync booking_requests (v8.73.0)
+
+`PUT /api/admin/booking/:bookingId/members/:slotId/link` in `admin-roster.ts` updates the `booking_participants` table when linking a member to an empty owner or member slot. However, when linking to an **owner** slot, it did NOT update `booking_requests.user_email`, `user_name`, or `user_id`. This caused the booking detail header (which reads from `booking_requests.user_name`) to show the original Trackman import name while the roster correctly showed the new owner.
+
+**Fix:** Added a conditional `UPDATE booking_requests SET user_id, user_email, user_name` when `slot.participant_type === 'owner'` immediately after the participant update.
+
+**Rule:** Any code path that changes a booking's owner participant MUST also update `booking_requests.user_id`, `user_email`, and `user_name`. The three canonical paths are: (1) `PUT /api/admin/trackman/matched/:id/reassign` in `admin-resolution.ts`, (2) the owner slot link in `admin-roster.ts`, and (3) `PUT /api/admin/booking/:id/reassign` in `admin-resolution.ts`.
+
+#### Revert-to-Approved Enum Type Error (v8.73.0)
+
+`revertToApproved()` in `approvalService.ts` used `COALESCE(bs.source, '') NOT IN ('trackman_import', 'trackman_webhook')` to skip payment status resets for Trackman-sourced sessions. When `bs.source` was NULL, PostgreSQL coalesced to `''`, which is not a valid `booking_source` enum value — causing `invalid input value for enum booking_source: ""`.
+
+**Fix:** Changed to `(bs.source IS NULL OR bs.source::text NOT IN ('trackman_import', 'trackman_webhook'))`. Casting enum to text avoids type coercion errors.
+
+**Rule:** Never use `COALESCE(enum_column, '')` for PostgreSQL enum columns. Use `(column IS NULL OR column::text ...)` instead. Empty string is not a valid value for any enum type.
+
 #### Staff Assignment FK Violation
 
 Frontend was sending `staff.user_id || staff.id` as `member_id` when assigning bookings to staff. If a staff member lacks a `users` record, `user_id` is null and `staff.id` (from `staff_users` table) is NOT a valid `users.id` UUID, causing a foreign key violation on `booking_requests.user_id`. Fixed: frontend sends `staff.user_id || null`, and backend resolves `user_id` from the owner's email via the `users` table when no valid `member_id` is provided.
