@@ -251,15 +251,10 @@ export async function handleBookingModification(
                 });
                 await tx.execute(sql`DELETE FROM booking_sessions WHERE id = ${r.id}`);
               } else {
-                logger.error('[Trackman Webhook] Overlapping session has linked bookings — unlinking and deleting (Trackman is source of truth, cascades to participants)', {
+                conflictWarning = `Overlapping session #${r.id} with ${linkedCount} booking(s) exists at destination — coexisting (Trackman is source of truth)`;
+                logger.warn('[Trackman Webhook] ' + conflictWarning, {
                   extra: { bookingId, sessionId, conflictSessionId: r.id, linkedCount, newResourceId, newDate, newStartTime, newEndTime }
                 });
-                await tx.execute(sql`UPDATE booking_requests 
-                   SET session_id = NULL, 
-                       status = CASE WHEN status IN ('pending', 'pending_approval', 'approved', 'confirmed') THEN 'needs_review' ELSE status END,
-                       notes = COALESCE(notes, '') || ' [Displaced by Trackman modification of booking #' || ${String(bookingId)} || ' — needs staff review]'
-                   WHERE session_id = ${r.id}`);
-                await tx.execute(sql`DELETE FROM booking_sessions WHERE id = ${r.id}`);
               }
             }
           }
