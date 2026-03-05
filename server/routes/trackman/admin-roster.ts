@@ -13,6 +13,7 @@ import { ensureSessionForBooking } from '../../core/bookingService/sessionManage
 import { PRICING } from '../../core/billing/pricingConfig';
 import { refundGuestPassForParticipant } from '../../core/billing/guestPassConsumer';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { createPacificDate } from '../../utils/dateUtils';
 import { broadcastBookingRosterUpdate } from '../../core/websocket';
 
 interface DbRow {
@@ -1454,7 +1455,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
             const bookingForNotif = bookingResult.rows[0] as DbRow;
             const bookingDate = bookingForNotif.request_date;
             const now = new Date();
-            const bookingDateTime = new Date(`${bookingDate}T${bookingForNotif.start_time}`);
+            const bookingDateTime = createPacificDate(String(bookingDate), String(bookingForNotif.start_time));
             
             if (bookingDateTime > now && bookingForNotif.status === 'approved') {
               const notificationMessage = `You've been added to a simulator booking on ${new Date(bookingDate as string).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' })}.`;
@@ -1533,7 +1534,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
       const booking = bookingResult.rows[0] as DbRow;
       const bookingDate = booking.request_date;
       const now = new Date();
-      const bookingDateTime = new Date(`${bookingDate}T${booking.start_time}`);
+      const bookingDateTime = createPacificDate(String(bookingDate), String(booking.start_time));
       
       if (bookingDateTime > now && booking.status === 'approved') {
         const notificationMessage = `You've been added to a simulator booking on ${new Date(bookingDate as string).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' })}.`;

@@ -2,6 +2,7 @@ import { db } from '../../db';
 import { bookingRequests, bookingParticipants, guests as guestsTable, participantTypeEnum } from '../../../shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { getTodayPacific } from '../../utils/dateUtils';
 import { getMemberTierByEmail } from '../tierService';
 import { ensureSessionForBooking, createSession, recordUsage, ParticipantInput } from '../bookingService/sessionManager';
 import { calculateFullSessionBilling, Participant } from '../bookingService/usageCalculator';
@@ -431,7 +432,7 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
           .from(bookingRequests)
           .where(eq(bookingRequests.id, input.bookingId));
         const existingNotes = bookingForNote?.staffNotes || '';
-        const failureNote = `[SESSION_PARTIAL] Owner-only session created (${new Date().toISOString().split('T')[0]}). Additional participants may need to be added manually.`;
+        const failureNote = `[SESSION_PARTIAL] Owner-only session created (${getTodayPacific()}). Additional participants may need to be added manually.`;
         const updatedNotes = existingNotes ? `${existingNotes}\n${failureNote}` : failureNote;
         await db.update(bookingRequests)
           .set({ staffNotes: updatedNotes })
@@ -445,7 +446,7 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
             .from(bookingRequests)
             .where(eq(bookingRequests.id, input.bookingId));
           const existingCriticalNotes = bookingForCriticalNote?.staffNotes || '';
-          const criticalNote = `[SESSION_CREATION_FAILED] Auto session failed (${new Date().toISOString().split('T')[0]}). Please create a session manually.`;
+          const criticalNote = `[SESSION_CREATION_FAILED] Auto session failed (${getTodayPacific()}). Please create a session manually.`;
           const updatedCriticalNotes = existingCriticalNotes ? `${existingCriticalNotes}\n${criticalNote}` : criticalNote;
           await db.update(bookingRequests)
             .set({ staffNotes: updatedCriticalNotes })

@@ -46,30 +46,28 @@ export function generateTimeSlots(
   slotDurationMinutes: number
 ): TimeSlot[] {
   const slots: TimeSlot[] = [];
-  const dateObj = new Date(date);
   const startTotal = businessHours.start * 60 + (businessHours.startMinute || 0);
   const endTotal = businessHours.end * 60;
 
-  for (let totalMin = startTotal; totalMin + slotDurationMinutes <= endTotal; totalMin += slotDurationMinutes) {
-    const slotStart = new Date(dateObj);
-    slotStart.setHours(Math.floor(totalMin / 60), totalMin % 60, 0, 0);
+  const minutesToTimeStr = (totalMin: number): string => {
+    const h = Math.floor(totalMin / 60).toString().padStart(2, '0');
+    const m = (totalMin % 60).toString().padStart(2, '0');
+    return `${h}:${m}`;
+  };
 
-    const slotEnd = new Date(slotStart);
-    slotEnd.setMinutes(slotEnd.getMinutes() + slotDurationMinutes);
+  for (let totalMin = startTotal; totalMin + slotDurationMinutes <= endTotal; totalMin += slotDurationMinutes) {
+    const startTimeStr = minutesToTimeStr(totalMin);
+    const endTimeStr = minutesToTimeStr(totalMin + slotDurationMinutes);
+    const slotStart = createPacificDate(date, `${startTimeStr}:00`);
+    const slotEnd = createPacificDate(date, `${endTimeStr}:00`);
 
     const isAvailable = !busyPeriods.some(busy => {
       return (slotStart < busy.end && slotEnd > busy.start);
     });
 
-    const formatTime = (d: Date) => {
-      const h = d.getHours().toString().padStart(2, '0');
-      const m = d.getMinutes().toString().padStart(2, '0');
-      return `${h}:${m}`;
-    };
-
     slots.push({
-      start: formatTime(slotStart),
-      end: formatTime(slotEnd),
+      start: startTimeStr,
+      end: endTimeStr,
       available: isAvailable
     });
   }
