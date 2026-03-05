@@ -6,8 +6,17 @@ import { getErrorMessage } from '../utils/errorUtils';
 
 const PROCESS_INTERVAL_MS = 30 * 1000; // 30 seconds
 let isProcessing = false;
-let consecutiveFailures = 0;
-const ALERT_AFTER_CONSECUTIVE_FAILURES = 3;
+
+function extractRootError(error: unknown): string {
+  const message = getErrorMessage(error);
+  if (error instanceof Error && error.cause) {
+    const causeMsg = getErrorMessage(error.cause);
+    if (causeMsg && causeMsg !== message) {
+      return causeMsg;
+    }
+  }
+  return message;
+}
 
 async function processQueue(): Promise<void> {
   if (isProcessing) {
@@ -38,31 +47,23 @@ async function processQueue(): Promise<void> {
       });
     }
 
-    if (consecutiveFailures > 0) {
-      logger.info(`[HubSpot Queue] Recovered after ${consecutiveFailures} consecutive failure(s)`);
-    }
-    consecutiveFailures = 0;
     schedulerTracker.recordRun('HubSpot Queue', true);
     
   } catch (error: unknown) {
-    consecutiveFailures++;
+    const rootError = extractRootError(error);
     logger.error('[HubSpot Queue] Scheduler error', { 
-      error: getErrorMessage(error),
-      extra: { consecutiveFailures }
-    });
-    
-    if (consecutiveFailures >= ALERT_AFTER_CONSECUTIVE_FAILURES) {
-      try {
-        await alertOnScheduledTaskFailure(
-          'HubSpot Queue Processor',
-          error instanceof Error ? error : getErrorMessage(error),
-          { context: `Failed ${consecutiveFailures} consecutive times` }
-        );
-      } catch (alertError: unknown) {
-        // Ignore alert failures
+      error: rootError,
+      extra: { 
+        drizzleMessage: getErrorMessage(error),
+        cause: error instanceof Error && error.cause ? getErrorMessage(error.cause) : undefined
       }
+    });
+    try {
+      await alertOnScheduledTaskFailure('HubSpot Queue Processor', rootError);
+    } catch (alertError: unknown) {
+      // Ignore alert failures
     }
-    schedulerTracker.recordRun('HubSpot Queue', false, getErrorMessage(error));
+    schedulerTracker.recordRun('HubSpot Queue', false, rootError);
   } finally {
     isProcessing = false;
   }

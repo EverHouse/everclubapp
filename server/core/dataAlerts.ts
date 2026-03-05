@@ -308,7 +308,14 @@ export async function alertOnScheduledTaskFailure(
     return;
   }
   
-  const errorMessage = error instanceof Error ? error.message : error;
+  let errorMessage = error instanceof Error ? error.message : error;
+  if (error instanceof Error && error.cause) {
+    const causeMsg = error.cause instanceof Error ? error.cause.message : String(error.cause);
+    if (causeMsg && causeMsg !== errorMessage) {
+      errorMessage = causeMsg;
+    }
+  }
+
   const title = `Scheduled Task Failed: ${taskName}`;
   let message = `The ${taskName} scheduled task failed: ${errorMessage}`;
   
