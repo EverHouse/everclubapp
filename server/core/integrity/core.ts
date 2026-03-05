@@ -29,13 +29,6 @@ export interface MemberRow {
   [key: string]: unknown;
 }
 
-export interface OrphanParticipantRow {
-  id: string | number;
-  session_id: number;
-  display_name: string;
-  participant_type: string;
-}
-
 export interface CountRow {
   count: number | string;
 }
@@ -50,19 +43,6 @@ export interface UnmatchedBookingRow {
   start_time: string;
   end_time: string;
   notes: string;
-}
-
-export interface OrphanEnrollmentRow {
-  id: string | number;
-  class_id: number;
-  user_email: string;
-}
-
-export interface OrphanRsvpRow {
-  id: string | number;
-  event_id: number;
-  user_email: string;
-  attendee_name: string;
 }
 
 export interface BookingResourceRow {
@@ -518,9 +498,6 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Deals Without Line Items': 'high',
   'Tier Reconciliation': 'high',
   'Duplicate Stripe Customers': 'high',
-  'Orphan Booking Participants': 'medium',
-  'Orphan Wellness Enrollments': 'medium',
-  'Orphan Event RSVPs': 'medium',
   'MindBody Stale Sync': 'medium',
   'MindBody Data Quality': 'medium',
   'Items Needing Review': 'low',
@@ -800,16 +777,13 @@ export async function getIntegritySummary(): Promise<IntegritySummary> {
 }
 
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<IntegrityCheckResult[]> {
-  const { checkOrphanBookingParticipants, checkUnmatchedTrackmanBookings, checkOrphanWellnessEnrollments, checkOrphanEventRsvps, checkBookingResourceRelationships, checkParticipantUserRelationships, checkNeedsReviewItems, checkBookingTimeValidity, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings } = await import('./bookingChecks');
+  const { checkUnmatchedTrackmanBookings, checkBookingResourceRelationships, checkParticipantUserRelationships, checkNeedsReviewItems, checkBookingTimeValidity, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings } = await import('./bookingChecks');
   const { checkHubSpotSyncMismatch, checkDealStageDrift, checkDealsWithoutLineItems, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
   const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedFeeSnapshots, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation } = await import('./stripeChecks');
   const { checkMembersWithoutEmail, checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkGuestPassesForNonExistentMembers } = await import('./memberChecks');
 
   const checks = await Promise.all([
-    safeCheck(checkOrphanBookingParticipants, 'Orphan Booking Participants'),
     safeCheck(checkUnmatchedTrackmanBookings, 'Unmatched Trackman Bookings'),
-    safeCheck(checkOrphanWellnessEnrollments, 'Orphan Wellness Enrollments'),
-    safeCheck(checkOrphanEventRsvps, 'Orphan Event RSVPs'),
     safeCheck(checkBookingResourceRelationships, 'Booking Resource Relationships'),
     safeCheck(checkParticipantUserRelationships, 'Participant User Relationships'),
     safeCheck(checkHubSpotSyncMismatch, 'HubSpot Sync Mismatch'),

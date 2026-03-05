@@ -6,11 +6,8 @@ import { getTodayPacific } from '../../utils/dateUtils';
 import type {
   IntegrityCheckResult,
   IntegrityIssue,
-  OrphanParticipantRow,
   UnmatchedBookingRow,
   CountRow,
-  OrphanEnrollmentRow,
-  OrphanRsvpRow,
   BookingResourceRow,
   ParticipantUserRow,
   ReviewItemRow,
@@ -25,39 +22,6 @@ import type {
   ExpiredHoldRow,
   StaleBookingRow,
 } from './core';
-
-export async function checkOrphanBookingParticipants(): Promise<IntegrityCheckResult> {
-  const issues: IntegrityIssue[] = [];
-
-  const orphans = await db.execute(sql`
-    SELECT bp.id, bp.session_id, bp.display_name, bp.participant_type
-    FROM booking_participants bp
-    LEFT JOIN booking_sessions bs ON bp.session_id = bs.id
-    WHERE bs.id IS NULL
-  `);
-
-  for (const row of orphans.rows as unknown as OrphanParticipantRow[]) {
-    issues.push({
-      category: 'orphan_record',
-      severity: 'error',
-      table: 'booking_participants',
-      recordId: row.id,
-      description: `Participant "${row.display_name}" (session_id: ${row.session_id}) has no valid booking session`,
-      suggestion: 'Delete orphan participant record or recreate the booking session',
-      context: {
-        memberName: row.display_name || undefined
-      }
-    });
-  }
-
-  return {
-    checkName: 'Orphan Booking Participants',
-    status: issues.length === 0 ? 'pass' : 'fail',
-    issueCount: issues.length,
-    issues,
-    lastRun: new Date()
-  };
-}
 
 export async function checkUnmatchedTrackmanBookings(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
@@ -133,73 +97,6 @@ export async function checkUnmatchedTrackmanBookings(): Promise<IntegrityCheckRe
       lastRun: new Date()
     };
   }
-}
-
-export async function checkOrphanWellnessEnrollments(): Promise<IntegrityCheckResult> {
-  const issues: IntegrityIssue[] = [];
-
-  const orphans = await db.execute(sql`
-    SELECT we.id, we.class_id, we.user_email
-    FROM wellness_enrollments we
-    LEFT JOIN wellness_classes wc ON we.class_id = wc.id
-    WHERE wc.id IS NULL
-  `);
-
-  for (const row of orphans.rows as unknown as OrphanEnrollmentRow[]) {
-    issues.push({
-      category: 'orphan_record',
-      severity: 'error',
-      table: 'wellness_enrollments',
-      recordId: row.id,
-      description: `Enrollment for ${row.user_email} references non-existent class (class_id: ${row.class_id})`,
-      suggestion: 'Delete orphan enrollment record',
-      context: {
-        memberEmail: row.user_email || undefined
-      }
-    });
-  }
-
-  return {
-    checkName: 'Orphan Wellness Enrollments',
-    status: issues.length === 0 ? 'pass' : 'fail',
-    issueCount: issues.length,
-    issues,
-    lastRun: new Date()
-  };
-}
-
-export async function checkOrphanEventRsvps(): Promise<IntegrityCheckResult> {
-  const issues: IntegrityIssue[] = [];
-
-  const orphans = await db.execute(sql`
-    SELECT er.id, er.event_id, er.user_email, er.attendee_name
-    FROM event_rsvps er
-    LEFT JOIN events e ON er.event_id = e.id
-    WHERE e.id IS NULL
-  `);
-
-  for (const row of orphans.rows as unknown as OrphanRsvpRow[]) {
-    issues.push({
-      category: 'orphan_record',
-      severity: 'error',
-      table: 'event_rsvps',
-      recordId: row.id,
-      description: `RSVP for ${row.user_email} references non-existent event (event_id: ${row.event_id})`,
-      suggestion: 'Delete orphan RSVP record',
-      context: {
-        memberName: row.attendee_name || undefined,
-        memberEmail: row.user_email || undefined
-      }
-    });
-  }
-
-  return {
-    checkName: 'Orphan Event RSVPs',
-    status: issues.length === 0 ? 'pass' : 'fail',
-    issueCount: issues.length,
-    issues,
-    lastRun: new Date()
-  };
 }
 
 export async function checkBookingResourceRelationships(): Promise<IntegrityCheckResult> {

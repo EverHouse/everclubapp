@@ -59,20 +59,6 @@ export const integrityCheckMetadata: IntegrityCheckMetadata[] = [
     severity: 'high'
   },
   {
-    checkName: 'Orphan Booking Participants',
-    title: 'Booking Guests Without Accounts',
-    description: 'Identifies guests listed on bookings whose user accounts no longer exist in the system.',
-    impact: 'Historical booking data becomes incomplete and guest statistics may be inaccurate.',
-    severity: 'medium'
-  },
-  {
-    checkName: 'Orphan Wellness Enrollments',
-    title: 'Wellness Signups Missing Classes',
-    description: 'Finds wellness class enrollments that reference classes which have been deleted.',
-    impact: 'Members may think they\'re enrolled in classes that no longer exist, causing confusion.',
-    severity: 'medium'
-  },
-  {
     checkName: 'Empty Booking Sessions',
     title: 'Empty Booking Records',
     description: 'Locates booking sessions that have no participants assigned.',
@@ -175,13 +161,6 @@ export const integrityCheckMetadata: IntegrityCheckMetadata[] = [
     title: 'MindBody Stale Sync',
     description: 'Detects members with MindBody client IDs who may need migration to Stripe billing.',
     impact: 'Legacy billing members may have outdated records that need manual review for migration.',
-    severity: 'medium'
-  },
-  {
-    checkName: 'Orphan Event RSVPs',
-    title: 'Orphan Event RSVPs',
-    description: 'Finds event RSVPs that reference events which have been deleted from the system.',
-    impact: 'These orphaned records clutter the database but have minimal operational impact.',
     severity: 'medium'
   },
   {

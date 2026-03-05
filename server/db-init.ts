@@ -484,6 +484,99 @@ export async function ensureDatabaseConstraints() {
       logger.warn(`[DB Init] Skipping notification type CHECK constraint: ${getErrorMessage(err)}`);
     }
 
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'booking_requests_time_order_check'
+          ) THEN
+            ALTER TABLE booking_requests ADD CONSTRAINT booking_requests_time_order_check
+              CHECK (end_time > start_time OR (start_time >= '20:00:00' AND end_time <= '06:00:00'));
+          END IF;
+        END $$;
+      `);
+      logger.info('[DB Init] Booking time order CHECK constraint created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping booking time order CHECK: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'booking_sessions_time_order_check'
+          ) THEN
+            ALTER TABLE booking_sessions ADD CONSTRAINT booking_sessions_time_order_check
+              CHECK (end_time > start_time OR (start_time >= '20:00:00' AND end_time <= '06:00:00'));
+          END IF;
+        END $$;
+      `);
+      logger.info('[DB Init] Session time order CHECK constraint created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping session time order CHECK: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'users_active_email_check'
+          ) THEN
+            ALTER TABLE users ADD CONSTRAINT users_active_email_check
+              CHECK (
+                membership_status IN ('terminated', 'cancelled', 'deleted', 'former_member')
+                OR email IS NOT NULL
+              );
+          END IF;
+        END $$;
+      `);
+      logger.info('[DB Init] Active member email CHECK constraint created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping active email CHECK: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_indexes WHERE indexname = 'users_stripe_customer_id_unique'
+          ) THEN
+            CREATE UNIQUE INDEX users_stripe_customer_id_unique
+              ON users (stripe_customer_id) WHERE stripe_customer_id IS NOT NULL;
+          END IF;
+        END $$;
+      `);
+      logger.info('[DB Init] Stripe customer ID unique index created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping Stripe customer unique index: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          ALTER TABLE booking_fee_snapshots
+            DROP CONSTRAINT IF EXISTS booking_fee_snapshots_booking_id_fkey;
+          ALTER TABLE booking_fee_snapshots
+            ADD CONSTRAINT booking_fee_snapshots_booking_id_fkey
+            FOREIGN KEY (booking_id) REFERENCES booking_requests(id) ON DELETE CASCADE;
+
+          ALTER TABLE booking_fee_snapshots
+            DROP CONSTRAINT IF EXISTS booking_fee_snapshots_session_id_fkey;
+          ALTER TABLE booking_fee_snapshots
+            ADD CONSTRAINT booking_fee_snapshots_session_id_fkey
+            FOREIGN KEY (session_id) REFERENCES booking_sessions(id) ON DELETE CASCADE;
+        END $$;
+      `);
+      logger.info('[DB Init] Fee snapshot CASCADE constraints created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping fee snapshot CASCADE: ${getErrorMessage(err)}`);
+    }
+
     const indexQueries = [
       { name: 'idx_booking_requests_status', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_status ON booking_requests(status)` },
       { name: 'idx_booking_requests_user_email', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_user_email ON booking_requests(user_email)` },
