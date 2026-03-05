@@ -630,7 +630,12 @@ export function useMemberBilling(
           setTimeout(() => onDrawerClose?.(), 600);
         }
       } else {
-        showError(getApiErrorMessage(res, 'create subscription'));
+        try {
+          const errorData = await res.json();
+          showError(errorData.error || getApiErrorMessage(res, 'create subscription'));
+        } catch {
+          showError(getApiErrorMessage(res, 'create subscription'));
+        }
       }
     } catch (err: unknown) {
       showError(getNetworkErrorMessage());

@@ -206,7 +206,24 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subsc
     const member = memberResult[0];
     
     if (member.stripeSubscriptionId) {
-      return res.status(400).json({ error: 'Member already has an active subscription' });
+      try {
+        const stripeClient = await getStripeClient();
+        const existingSub = await stripeClient.subscriptions.retrieve(member.stripeSubscriptionId);
+        if (['active', 'trialing', 'past_due', 'incomplete'].includes(existingSub.status)) {
+          return res.status(400).json({ error: `Member already has an active subscription (${existingSub.status}). Cancel the existing subscription first.` });
+        }
+        logger.info('[Stripe] Clearing stale subscription ID for member — Stripe subscription is', { extra: { memberEmail, status: existingSub.status, subscriptionId: member.stripeSubscriptionId } });
+        await db.update(users).set({ stripeSubscriptionId: null, updatedAt: new Date() }).where(eq(users.id, member.id));
+      } catch (subCheckErr: unknown) {
+        const stripeErr = subCheckErr as { statusCode?: number; code?: string };
+        if (isStripeError(subCheckErr) && (stripeErr.statusCode === 404 || stripeErr.code === 'resource_missing')) {
+          logger.info('[Stripe] Clearing orphaned subscription ID for member — subscription not found in Stripe', { extra: { memberEmail, subscriptionId: member.stripeSubscriptionId } });
+          await db.update(users).set({ stripeSubscriptionId: null, updatedAt: new Date() }).where(eq(users.id, member.id));
+        } else {
+          logger.error('[Stripe] Failed to verify existing subscription status', { error: subCheckErr instanceof Error ? subCheckErr : new Error(String(subCheckErr)) });
+          return res.status(400).json({ error: 'Could not verify existing subscription status. Please try again.' });
+        }
+      }
     }
     
     const tierResult = await db.select()
