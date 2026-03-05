@@ -17,6 +17,7 @@ import { listCustomerInvoices, getCustomerPaymentHistory } from '../core/stripe/
 import { listCustomerSubscriptions } from '../core/stripe/subscriptions';
 import { logFromRequest } from '../core/auditLog';
 import { getErrorMessage, safeErrorDetail } from '../utils/errorUtils';
+import { getAppBaseUrl } from '../utils/urlUtils';
 import { formatDatePacific } from '../utils/dateUtils';
 import { notifyMember, notifyAllStaff } from '../core/notificationService';
 import { PRICING } from '../core/billing/pricingConfig';
@@ -899,11 +900,7 @@ router.post('/api/member-billing/:email/payment-link', isStaffOrAdmin, async (re
 
     const stripe = await getStripeClient();
 
-    const returnUrl = process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : process.env.REPLIT_DEPLOYMENT_DOMAIN
-        ? `https://${process.env.REPLIT_DEPLOYMENT_DOMAIN}`
-        : 'https://everclub.com';
+    const returnUrl = getAppBaseUrl();
 
     const session = await stripe.billingPortal.sessions.create({
       customer: member.stripe_customer_id,

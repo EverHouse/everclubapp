@@ -5,6 +5,7 @@ import { getPacificHour, getTodayPacific, CLUB_TIMEZONE } from '../utils/dateUti
 import { sendGracePeriodReminderEmail } from '../emails/membershipEmails';
 import { notifyAllStaff } from '../core/notificationService';
 import { getStripeClient } from '../core/stripe/client';
+import { getAppBaseUrl } from '../utils/urlUtils';
 import { logger } from '../core/logger';
 
 interface GracePeriodMemberRow {
@@ -41,9 +42,7 @@ async function getReactivationLink(stripeCustomerId: string | null): Promise<str
   
   try {
     const stripe = await getStripeClient();
-    const returnUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://everclub.app'
-      : (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'https://everclub.app');
+    const returnUrl = getAppBaseUrl();
 
     const session = await stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,

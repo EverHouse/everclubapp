@@ -7,6 +7,7 @@ import { getStripeClient } from '../core/stripe/client';
 import { getCorporateVolumePrice } from '../core/stripe/groupBilling';
 import { logSystemAction } from '../core/auditLog';
 import { checkoutRateLimiter } from '../middleware/rateLimiting';
+import { getAppBaseUrl } from '../utils/urlUtils';
 import { z } from 'zod';
 import { sql } from 'drizzle-orm';
 
@@ -48,8 +49,7 @@ router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
 
     const stripe = await getStripeClient();
 
-    const replitDomains = process.env.REPLIT_DOMAINS?.split(',')[0];
-    const baseUrl = replitDomains ? `https://${replitDomains}` : 'http://localhost:5000';
+    const baseUrl = getAppBaseUrl();
 
     const isCorporate = tierData.tierType === 'corporate' || tierSlug === 'corporate';
     

@@ -26,6 +26,7 @@ import { escapeHtml, checkSyncCooldown } from './helpers';
 import { sensitiveActionRateLimiter, checkoutRateLimiter } from '../../middleware/rateLimiting';
 import { logFromRequest } from '../../core/auditLog';
 import { getErrorMessage, getErrorCode, safeErrorDetail } from '../../utils/errorUtils';
+import { getAppBaseUrl } from '../../utils/urlUtils';
 
 interface MemberSyncRow {
   id: number;
@@ -282,9 +283,7 @@ router.post('/api/stripe/staff/send-membership-link', isStaffOrAdmin, async (req
 
     const stripe = await getStripeClient();
 
-    const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : 'https://everclub.app';
+    const baseUrl = getAppBaseUrl();
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -426,9 +425,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
     if (!usedInvoiceLink && member.stripe_customer_id) {
       try {
         const stripe = await getStripeClient();
-        const returnUrl = process.env.NODE_ENV === 'production' 
-          ? 'https://everclub.app'
-          : (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'https://everclub.app');
+        const returnUrl = getAppBaseUrl();
 
         const session = await stripe.billingPortal.sessions.create({
           customer: member.stripe_customer_id as string,
@@ -457,9 +454,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
             const tier = tierResult.rows[0] as { id: number; name: string; stripe_price_id: string | null; price_cents: number; billing_interval: string };
             if (tier.stripe_price_id) {
               const stripe = await getStripeClient();
-              const baseUrl = process.env.REPLIT_DEV_DOMAIN
-                ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-                : 'https://everclub.app';
+              const baseUrl = getAppBaseUrl();
 
               const sanitizedFirstName = String(member.first_name || '').trim().slice(0, 100);
               const sanitizedLastName = String(member.last_name || '').trim().slice(0, 100);
@@ -619,9 +614,7 @@ router.post('/api/public/day-pass/checkout', checkoutRateLimiter, async (req: Re
 
     const stripe = await getStripeClient();
 
-    const domain = process.env.NODE_ENV === 'production' 
-      ? 'https://everclub.app'
-      : (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'https://everclub.app');
+    const domain = getAppBaseUrl();
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',

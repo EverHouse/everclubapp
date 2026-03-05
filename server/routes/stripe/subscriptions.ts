@@ -29,6 +29,7 @@ import { randomUUID } from 'crypto';
 import { checkSyncCooldown } from './helpers';
 import { sensitiveActionRateLimiter, subscriptionCreationRateLimiter, acquireSubscriptionLock, releaseSubscriptionLock } from '../../middleware/rateLimiting';
 import { getErrorMessage, getErrorCode, safeErrorDetail } from '../../utils/errorUtils';
+import { getAppBaseUrl } from '../../utils/urlUtils';
 
 const router = Router();
 
@@ -1052,8 +1053,7 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, va
       
       const stripe = await getStripeClient();
       
-      const replitDomains = process.env.REPLIT_DOMAINS?.split(',')[0];
-      const baseUrl = replitDomains ? `https://${replitDomains}` : 'https://everclub.app';
+      const baseUrl = getAppBaseUrl();
       
       const successUrl = `${baseUrl}/welcome?session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl = `${baseUrl}/`;

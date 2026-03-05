@@ -12,6 +12,7 @@ import { checkoutRateLimiter } from '../middleware/rateLimiting';
 import { isStaffOrAdmin } from '../core/middleware';
 import { getSessionUser } from '../types/session';
 import { getErrorMessage } from '../utils/errorUtils';
+import { getAppBaseUrl } from '../utils/urlUtils';
 import { logFromRequest } from '../core/auditLog';
 
 const router = Router();
@@ -88,8 +89,7 @@ router.post('/api/day-passes/checkout', checkoutRateLimiter, async (req: Request
 
     const stripe = await getStripeClient();
 
-    const replitDomains = process.env.REPLIT_DOMAINS?.split(',')[0];
-    const baseUrl = replitDomains ? `https://${replitDomains}` : 'http://localhost:5000';
+    const baseUrl = getAppBaseUrl();
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',

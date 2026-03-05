@@ -15,6 +15,7 @@ import { getBillingGroupByMemberEmail } from '../core/stripe/groupBilling';
 import { listCustomerInvoices } from '../core/stripe/invoices';
 import { notifyAllStaff } from '../core/notificationService';
 import { getErrorMessage } from '../utils/errorUtils';
+import { getAppBaseUrl } from '../utils/urlUtils';
 import { formatDatePacific } from '../utils/dateUtils';
 
 const router = Router();
@@ -207,11 +208,7 @@ router.post('/api/my/billing/update-payment-method', requireAuth, async (req, re
     
     const stripe = await getStripeClient();
     
-    const returnUrl = process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}/profile`
-      : process.env.REPLIT_DEPLOYMENT_DOMAIN
-        ? `https://${process.env.REPLIT_DEPLOYMENT_DOMAIN}/profile`
-        : 'https://everclub.com/profile';
+    const returnUrl = `${getAppBaseUrl()}/profile`;
     
     const session = await stripe.billingPortal.sessions.create({
       customer: member.stripe_customer_id as string,
@@ -272,11 +269,7 @@ router.post('/api/my/billing/portal', requireAuth, async (req, res) => {
       }
     }
     
-    const returnUrl = process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}/profile`
-      : process.env.REPLIT_DEPLOYMENT_DOMAIN
-        ? `https://${process.env.REPLIT_DEPLOYMENT_DOMAIN}/profile`
-        : 'https://everclub.com/profile';
+    const returnUrl = `${getAppBaseUrl()}/profile`;
     
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId as string,
@@ -319,11 +312,7 @@ router.post('/api/my/billing/add-payment-method-for-extras', requireAuth, async 
       customerId = custResult.customerId;
     }
     
-    const returnUrl = process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}/profile`
-      : process.env.REPLIT_DEPLOYMENT_DOMAIN
-        ? `https://${process.env.REPLIT_DEPLOYMENT_DOMAIN}/profile`
-        : 'https://everclub.com/profile';
+    const returnUrl = `${getAppBaseUrl()}/profile`;
     
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId as string,
@@ -378,11 +367,7 @@ router.post('/api/my/billing/migrate-to-stripe', requireAuth, async (req, res) =
     
     await db.execute(sql`UPDATE users SET billing_migration_requested_at = NOW() WHERE id = ${member.id}`);
     
-    const returnUrl = process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}/profile`
-      : process.env.REPLIT_DEPLOYMENT_DOMAIN
-        ? `https://${process.env.REPLIT_DEPLOYMENT_DOMAIN}/profile`
-        : 'https://everclub.com/profile';
+    const returnUrl = `${getAppBaseUrl()}/profile`;
     
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId as string,
@@ -478,8 +463,7 @@ router.post('/api/my/add-funds', requireAuth, async (req, res) => {
       customerId = custResult.customerId;
     }
     
-    const replitDomains = process.env.REPLIT_DOMAINS?.split(',')[0];
-    const baseUrl = replitDomains ? `https://${replitDomains}` : 'http://localhost:5000';
+    const baseUrl = getAppBaseUrl();
     
     const session = await stripe.checkout.sessions.create({
       customer: customerId as string,
