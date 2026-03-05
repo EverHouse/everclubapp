@@ -230,10 +230,13 @@ export class BookingStateService {
 
         for (const participant of paidParticipants) {
           if (participant.stripePaymentIntentId && !snapshotPiIds.has(participant.stripePaymentIntentId)) {
+            const participantAmount = participant.cachedFeeCents && participant.cachedFeeCents > 0
+              ? participant.cachedFeeCents
+              : piBookingAmounts.get(participant.stripePaymentIntentId) || undefined;
             sideEffects.stripeRefunds.push({
               paymentIntentId: participant.stripePaymentIntentId,
               type: 'refund',
-              amountCents: piBookingAmounts.get(participant.stripePaymentIntentId) || undefined,
+              amountCents: participantAmount,
               idempotencyKey: `refund_cancel_participant_${bookingId}_${participant.stripePaymentIntentId}`,
             });
           }

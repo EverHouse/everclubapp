@@ -141,42 +141,19 @@ export async function enforceSocialTierRules(
 
 export async function getGuestPassesRemaining(memberEmail: string): Promise<number> {
   try {
-    const tier = await getMemberTierByEmail(memberEmail);
-    
-    if (!tier) {
-      return 0;
-    }
-    
-    const limits = await getTierLimits(tier);
-    
-    const { year, month } = getPacificDateParts();
-    const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    
     const result = await db.execute(
-      sql`SELECT COUNT(*) as guest_count
-       FROM booking_participants bp
-       JOIN booking_sessions bs ON bp.session_id = bs.id
-       JOIN booking_requests br ON bs.id = br.session_id
-       WHERE bp.participant_type = 'guest'
-         AND bp.used_guest_pass = true
-         AND bs.session_date >= ${monthStart}
-         AND bs.session_date <= ${monthEnd}
-         AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
-         AND EXISTS (
-           SELECT 1 FROM booking_participants owner_bp
-           WHERE owner_bp.session_id = bs.id
-             AND owner_bp.participant_type = 'owner'
-             AND owner_bp.user_id = (
-               SELECT id FROM users WHERE LOWER(email) = LOWER(${memberEmail}) LIMIT 1
-             )
-         )`
+      sql`SELECT passes_total, passes_used FROM guest_passes WHERE LOWER(member_email) = LOWER(${memberEmail}) LIMIT 1`
     );
     
-    const usedPasses = parseInt(String((result.rows[0] as { guest_count: string })?.guest_count || '0'));
+    if (result.rows.length > 0) {
+      const row = result.rows[0] as { passes_total: number; passes_used: number };
+      return Math.max(0, row.passes_total - row.passes_used);
+    }
     
-    return Math.max(0, limits.guest_passes_per_month - usedPasses);
+    const tier = await getMemberTierByEmail(memberEmail);
+    if (!tier) return 0;
+    const limits = await getTierLimits(tier);
+    return limits.guest_passes_per_month;
   } catch (error: unknown) {
     logger.error('[getGuestPassesRemaining] Error:', { error });
     return 0;

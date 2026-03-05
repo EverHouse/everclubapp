@@ -182,7 +182,7 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
                  billing_provider = CASE WHEN users.billing_provider IS NULL OR users.billing_provider = '' OR users.billing_provider = 'stripe' THEN 'stripe' ELSE users.billing_provider END,
                  stripe_current_period_end = COALESCE($9, users.stripe_current_period_end),
                  tier = COALESCE(EXCLUDED.tier, users.tier),
-                 role = 'member',
+                 role = CASE WHEN users.role IN ('admin', 'staff') THEN users.role ELSE 'member' END,
                  archived_at = NULL,
                  archived_by = NULL,
                  join_date = COALESCE(users.join_date, NOW()),

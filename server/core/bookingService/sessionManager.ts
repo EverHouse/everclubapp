@@ -132,15 +132,11 @@ export async function ensureSessionForBooking(params: {
     const lockClient = client || await pool.connect();
     const manageLockClient = !client;
     try {
-      const lockKey = `${params.resourceId}:${params.sessionDate}`;
-      let hash = 0;
-      for (let i = 0; i < lockKey.length; i++) {
-        hash = ((hash << 5) - hash + lockKey.charCodeAt(i)) | 0;
-      }
+      const lockKey = `${params.resourceId}::${params.sessionDate}`;
       if (!manageLockClient) {
-        await lockClient.query(`SELECT pg_advisory_xact_lock($1)`, [hash]);
+        await lockClient.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [lockKey]);
       } else {
-        await lockClient.query(`SELECT pg_advisory_lock($1)`, [hash]);
+        await lockClient.query(`SELECT pg_advisory_lock(hashtext($1))`, [lockKey]);
       }
       try {
 
@@ -263,7 +259,7 @@ export async function ensureSessionForBooking(params: {
 
       } finally {
         if (manageLockClient) {
-          await lockClient.query(`SELECT pg_advisory_unlock($1)`, [hash]).catch(() => {});
+          await lockClient.query(`SELECT pg_advisory_unlock(hashtext($1))`, [lockKey]).catch(() => {});
         }
       }
     } finally {

@@ -67,15 +67,26 @@ export async function processWalkInCheckin(params: WalkInCheckinParams): Promise
     const member = (memberResult.rows as unknown as MemberRow[])[0];
     const displayName = [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email.split('@')[0];
 
-    const recentCheckin = await db.execute(sql`SELECT id, created_at FROM walk_in_visits WHERE member_email = ${member.email} AND created_at > NOW() - INTERVAL '2 minutes' LIMIT 1`);
-    const recentRows = recentCheckin.rows as unknown as RecentCheckinRow[];
-    if (recentRows.length > 0) {
+    const newVisitCount = await db.transaction(async (tx) => {
+      const lockedUser = await tx.execute(sql`SELECT id FROM users WHERE id = ${params.memberId} FOR UPDATE`);
+      if (lockedUser.rows.length === 0) throw new Error('Member not found');
+
+      const recentCheckin = await tx.execute(sql`SELECT id FROM walk_in_visits WHERE member_email = ${member.email} AND created_at > NOW() - INTERVAL '2 minutes' LIMIT 1`);
+      if ((recentCheckin.rows as unknown as RecentCheckinRow[]).length > 0) {
+        return null;
+      }
+
+      await tx.execute(sql`INSERT INTO walk_in_visits (member_email, member_id, checked_in_by, checked_in_by_name, source, created_at)
+         VALUES (${member.email}, ${String(member.id)}, ${params.checkedInBy}, ${params.checkedInByName}, ${params.source}, NOW())`);
+
+      const updateResult = await tx.execute(sql`UPDATE users SET lifetime_visits = COALESCE(lifetime_visits, 0) + 1 WHERE id = ${params.memberId} RETURNING lifetime_visits`);
+      const visitRows = updateResult.rows as unknown as VisitCountRow[];
+      return visitRows[0]?.lifetime_visits || 1;
+    });
+
+    if (newVisitCount === null) {
       return { success: false, memberName: displayName, memberEmail: member.email, tier: member.tier, lifetimeVisits: member.lifetime_visits || 0, pinnedNotes: [], membershipStatus: member.membership_status, alreadyCheckedIn: true, error: 'This member was already checked in less than 2 minutes ago' };
     }
-
-    const updateResult = await db.execute(sql`UPDATE users SET lifetime_visits = COALESCE(lifetime_visits, 0) + 1 WHERE id = ${params.memberId} RETURNING lifetime_visits`);
-    const visitRows = updateResult.rows as unknown as VisitCountRow[];
-    const newVisitCount = visitRows[0]?.lifetime_visits || 1;
 
     if (member.hubspot_id) {
       updateHubSpotContactVisitCount(String(member.hubspot_id), newVisitCount)
@@ -91,9 +102,6 @@ export async function processWalkInCheckin(params: WalkInCheckinParams): Promise
       type: 'booking',
       relatedType: 'booking'
     }).catch(err => logger.error(`[WalkInCheckin] Failed to send notification:`, { extra: { err } }));
-
-    await db.execute(sql`INSERT INTO walk_in_visits (member_email, member_id, checked_in_by, checked_in_by_name, source, created_at)
-       VALUES (${member.email}, ${String(member.id)}, ${params.checkedInBy}, ${params.checkedInByName}, ${params.source}, NOW())`);
 
     if (newVisitCount === 1 && member.membership_status?.toLowerCase() === 'trialing') {
       sendFirstVisitConfirmationEmail(String(member.email), { firstName: member.first_name || undefined })

@@ -418,7 +418,7 @@ export async function deleteBillingGroup(
     
     const group = existingGroup[0];
     
-    if (group.primaryStripeSubscriptionId) {
+    if (group.primaryStripeSubscriptionId && group.isActive !== false) {
       return { 
         success: false, 
         error: 'Cannot delete billing group with an active Stripe subscription. Please cancel the subscription first.' 
@@ -789,6 +789,17 @@ export async function addCorporateMember(params: {
         );
     
         newMemberCount = currentMembersResult.rows.length + 1;
+        
+        hasPrePaidSeats = !!(group[0].max_seats && (group[0].max_seats as number) > 0);
+        maxSeats = group[0].max_seats;
+        
+        if (hasPrePaidSeats && newMemberCount > (group[0].max_seats as number)) {
+          throw Object.assign(new Error('Seat limit exceeded'), {
+            __earlyReturn: true,
+            result: { success: false, error: `Corporate group has reached its maximum limit of ${group[0].max_seats} seats.` }
+          } as EarlyReturnError);
+        }
+        
         const pricePerSeat = getCorporateVolumePrice(newMemberCount);
       
         const insertResult = await tx.execute(
@@ -843,9 +854,6 @@ export async function addCorporateMember(params: {
           }
         }
 
-        hasPrePaidSeats = !!(group[0].max_seats && (group[0].max_seats as number) > 0);
-        maxSeats = group[0].max_seats;
-      
         if (hasPrePaidSeats) {
           logger.info(`[GroupBilling] Pre-paid seats mode: ${newMemberCount} of ${group[0].max_seats} seats used (no Stripe billing change needed)`);
         } else if (primaryStripeSubscriptionId) {
