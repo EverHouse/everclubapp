@@ -243,7 +243,9 @@ const AdminDashboard: React.FC = () => {
         <PullToRefresh onRefresh={handleAdminRefresh}>
           <TabTransition activeKey={activeTab} className="animate-content-enter">
             {activeTab === 'training' ? (
-              <StaffTrainingGuide key="training" />
+              <PageErrorBoundary pageName="Training">
+                <StaffTrainingGuide key="training" />
+              </PageErrorBoundary>
             ) : (
               <PageErrorBoundary pageName={`Admin Tab: ${activeTab}`}>
                 <Suspense fallback={<TabLoadingFallback />}>

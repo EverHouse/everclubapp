@@ -35,6 +35,8 @@ interface AttendanceBooking {
   end_time?: string;
   status?: string;
   resource_name?: string;
+  reconciliationStatus?: string;
+  reconciliationNotes?: string;
 }
 
 interface HubspotSyncMember {
@@ -135,14 +137,14 @@ export function useDataIntegrityState() {
 
   const [guestFeeStartDate, setGuestFeeStartDate] = useState('');
   const [guestFeeEndDate, setGuestFeeEndDate] = useState('');
-  const [unlinkedGuestFees, setUnlinkedGuestFees] = useState<UnlinkedGuestFee[] | AvailableSession[] | AttendanceBooking[]>([]);
-  const [availableSessions, setAvailableSessions] = useState<UnlinkedGuestFee[] | AvailableSession[] | AttendanceBooking[]>([]);
+  const [unlinkedGuestFees, setUnlinkedGuestFees] = useState<UnlinkedGuestFee[]>([]);
+  const [availableSessions, setAvailableSessions] = useState<AvailableSession[]>([]);
   const [selectedFeeId, setSelectedFeeId] = useState<number | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
 
   const [attendanceSearchDate, setAttendanceSearchDate] = useState('');
   const [attendanceSearchEmail, setAttendanceSearchEmail] = useState('');
-  const [attendanceBookings, setAttendanceBookings] = useState<UnlinkedGuestFee[] | AvailableSession[] | AttendanceBooking[]>([]);
+  const [attendanceBookings, setAttendanceBookings] = useState<AttendanceBooking[]>([]);
   const [updatingAttendanceId, setUpdatingAttendanceId] = useState<number | null>(null);
   const [attendanceNote, setAttendanceNote] = useState('');
 

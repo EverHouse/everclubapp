@@ -915,7 +915,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                       </div>
                     )}
                     
-                    {result.issues.filter(i => !i.ignored).length > 3 && (
+                    {Array.isArray(result.issues) && result.issues.filter(i => !i.ignored).length > 3 && (
                       <div className="flex justify-end">
                         <button
                           onClick={() => openBulkIgnoreModal(result.checkName, result.issues)}
@@ -927,7 +927,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                       </div>
                     )}
                     
-                    {result.issues.length > 0 && Object.entries(groupByCategory(result.issues)).map(([category, categoryIssues]) => (
+                    {Array.isArray(result.issues) && result.issues.length > 0 && Object.entries(groupByCategory(result.issues)).map(([category, categoryIssues]) => (
                       <AnimatedCategoryDiv key={category} category={category} className="space-y-2">
                         <p className="text-xs font-medium text-primary/60 dark:text-white/60 uppercase tracking-wide">
                           {getCategoryLabel(category)} ({categoryIssues.length})
