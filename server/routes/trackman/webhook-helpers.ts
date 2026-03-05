@@ -90,7 +90,7 @@ export interface TrackmanV2Booking {
   status: string;
   bayOption?: TrackmanV2BayOption;
   created_at?: string;
-  playerOptions?: TrackmanV2PlayerOption[];
+  playerOptions?: TrackmanV2PlayerOption[] | Record<string, TrackmanV2PlayerOption>;
   externalBookingId?: string;
   externalBookingProvider?: string;
 }
@@ -195,7 +195,12 @@ export function parseTrackmanV2Payload(payload: TrackmanV2WebhookPayload): {
   const startParsed = parseISOToPacific(booking.start);
   const endParsed = parseISOToPacific(booking.end);
   
-  const playerCount = booking.playerOptions?.reduce((sum, opt) => sum + opt.quantity, 0) || 1;
+  const playerOptionsArray = Array.isArray(booking.playerOptions)
+    ? booking.playerOptions
+    : booking.playerOptions
+      ? Object.values(booking.playerOptions)
+      : [];
+  const playerCount = playerOptionsArray.reduce((sum, opt) => sum + (opt.quantity || 0), 0) || 1;
   
   const normalized: NormalizedBookingFields = {
     trackmanBookingId: String(booking.id),
