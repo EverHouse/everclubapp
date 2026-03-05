@@ -8,6 +8,24 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.75.0",
+    date: "2026-03-05",
+    title: "Security & Reliability Audit Fixes",
+    changes: [
+      "Fix: Rate limiting corrected — logged-in users now get the higher request allowance, anonymous users get the lower limit (was accidentally reversed)",
+      "Fix: HubSpot sync queue no longer allows duplicate jobs to bypass idempotency checks during rapid-fire scenarios",
+      "Fix: Announcement banners now display correctly — resolved an issue where banners were never shown to members despite being enabled by staff",
+      "Fix: Banner create and update operations are now atomic — if something goes wrong, the previous banner stays active instead of disappearing",
+      "Fix: Staff no longer receive false 'New Member Activated' notifications when a member's payment recovers from a failed charge",
+      "Fix: Updating a member's tier no longer resets their billing status — members with overdue payments keep their correct billing state",
+      "Fix: Event inquiry deal enrichment now uses the background job queue instead of a fragile timer — enrichment data is no longer lost if the server restarts within 5 seconds",
+      "Fix: Tier sync CSV import now correctly handles data containing commas and special characters — previously could corrupt member tier assignments",
+      "Fix: New User form now properly resets when switching between Member and Day Pass modes — prevents accidental data carryover",
+      "Fix: Improved memory management for button double-tap protection and countdown timers across the app",
+      "Fix: HubSpot property configuration errors now return the correct error type instead of appearing as server crashes in monitoring",
+    ]
+  },
+  {
     version: "8.74.0",
     date: "2026-03-05",
     title: "Admin Settings Expansion",
