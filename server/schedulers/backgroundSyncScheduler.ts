@@ -84,6 +84,7 @@ const runBackgroundSync = async () => {
 };
 
 export function startBackgroundSyncScheduler(): void {
+  if (currentTimeoutId) return;
   currentTimeoutId = setTimeout(runBackgroundSync, SYNC_INTERVAL_MS);
   logger.info('[Startup] Background calendar sync enabled (every 5 minutes, first sync in 5 minutes)');
 }

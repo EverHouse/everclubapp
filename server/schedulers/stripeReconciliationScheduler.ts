@@ -94,12 +94,17 @@ export function startStripeReconciliationScheduler(): void {
   logger.info(`[Startup] Stripe reconciliation scheduler enabled (runs at 5am Pacific)`);
   schedulerTracker.recordRun('Stripe Reconciliation', true);
   
+  checkAndRunReconciliation().catch((err: unknown) => {
+    logger.error('[Stripe Reconciliation] Initial check error:', { error: err as Error });
+    schedulerTracker.recordRun('Stripe Reconciliation', false, String(err));
+  });
+  
   intervalId = setInterval(() => {
     checkAndRunReconciliation().catch((err: unknown) => {
       logger.error('[Stripe Reconciliation] Uncaught error:', { error: err as Error });
       schedulerTracker.recordRun('Stripe Reconciliation', false, String(err));
     });
-  }, 60 * 60 * 1000);
+  }, 5 * 60 * 1000);
 }
 
 export function stopStripeReconciliationScheduler(): void {

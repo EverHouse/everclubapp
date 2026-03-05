@@ -472,7 +472,13 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           continue;
         }
         
-        const isCancelledInApp = existing.status === 'cancelled' || existing.status === 'cancellation_pending';
+        const isCancelledInApp = existing.status === 'cancelled';
+        const isPendingCancel = existing.status === 'cancellation_pending';
+        
+        if (isPendingCancel && row.status.toLowerCase() !== 'cancelled' && row.status.toLowerCase() !== 'canceled') {
+          process.stderr.write(`[Trackman Import] SKIPPED: Booking #${existing.id} (Trackman ID: ${row.bookingId}) is cancellation_pending — waiting for staff to cancel in Trackman\n`);
+          continue;
+        }
         
         if (isCancelledInApp && row.status.toLowerCase() !== 'cancelled' && row.status.toLowerCase() !== 'canceled') {
           let hasPaidFees = false;
@@ -799,7 +805,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           process.stderr.write(`[Trackman Import] MERGED: CSV row ${row.bookingId} into placeholder booking #${placeholder.id} (was: "${placeholder.user_name}", now: "${row.userName}"${matchedEmail ? `, linked to ${matchedEmail}` : ''})\n`);
           
           
-          if (matchedEmail && parsedBayId) {
+          if (matchedEmail && parsedBayId && !placeholder.session_id) {
             try {
               const mergeParsedPlayersForSession = parseNotesForPlayers(row.notes);
               await createTrackmanSessionAndParticipants({
@@ -821,7 +827,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             } catch (sessionErr: unknown) {
               process.stderr.write(`[Trackman Import] Failed to create session for merged booking #${placeholder.id}: ${getErrorMessage(sessionErr)}\n`);
             }
-          } else {
+          } else if (!matchedEmail || !parsedBayId) {
             process.stderr.write(`[Trackman Import] Merged booking #${placeholder.id} created without session - no matched email or resource\n`);
           }
           
