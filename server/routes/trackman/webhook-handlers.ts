@@ -222,20 +222,27 @@ export async function handleBookingModification(
              FROM booking_sessions bs
              WHERE bs.resource_id = ${newResourceId}
                AND bs.session_date = ${newDate}
-               AND bs.start_time = ${newStartTime}
-               AND bs.end_time = ${newEndTime}
-               AND bs.id != ${sessionId}`);
+               AND bs.id != ${sessionId}
+               AND tsrange(
+                 (bs.session_date + bs.start_time)::timestamp,
+                 (bs.session_date + bs.end_time)::timestamp,
+                 '[)'
+               ) && tsrange(
+                 (${newDate}::date + ${newStartTime}::time)::timestamp,
+                 (${newDate}::date + ${newEndTime}::time)::timestamp,
+                 '[)'
+               )`);
           if (conflictingSessions.rows.length > 0) {
             for (const row of conflictingSessions.rows) {
               const r = row as { id: number; linked_bookings: string };
               const linkedCount = parseInt(r.linked_bookings, 10) || 0;
               if (linkedCount === 0) {
-                logger.warn('[Trackman Webhook] Deleting orphan conflicting session at destination slot', {
+                logger.warn('[Trackman Webhook] Deleting orphan overlapping session at destination slot', {
                   extra: { bookingId, sessionId, conflictSessionId: r.id, newResourceId, newDate, newStartTime, newEndTime }
                 });
                 await tx.execute(sql`DELETE FROM booking_sessions WHERE id = ${r.id}`);
               } else {
-                logger.error('[Trackman Webhook] Conflicting session has linked bookings — unlinking and deleting (Trackman is source of truth, cascades to participants)', {
+                logger.error('[Trackman Webhook] Overlapping session has linked bookings — unlinking and deleting (Trackman is source of truth, cascades to participants)', {
                   extra: { bookingId, sessionId, conflictSessionId: r.id, linkedCount, newResourceId, newDate, newStartTime, newEndTime }
                 });
                 await tx.execute(sql`UPDATE booking_requests 
