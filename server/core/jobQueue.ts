@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { queryWithRetry } from './db';
 import { getErrorMessage } from '../utils/errorUtils';
 import { sql } from 'drizzle-orm';
 import { schedulerTracker } from './schedulerTracker';
@@ -117,17 +118,21 @@ async function claimJobs(): Promise<Array<{ id: number; jobType: string; payload
   const nowIso = new Date().toISOString();
   const lockExpiryIso = new Date(Date.now() - LOCK_TIMEOUT_MS).toISOString();
   
-  const result = await db.execute(sql`UPDATE job_queue
-     SET locked_at = ${nowIso}::timestamptz, locked_by = ${WORKER_ID}
+  const result = await queryWithRetry(
+    `UPDATE job_queue
+     SET locked_at = $1::timestamptz, locked_by = $2
      WHERE id IN (
        SELECT id FROM job_queue
        WHERE status = 'pending'
-         AND scheduled_for <= ${nowIso}::timestamptz
-         AND (locked_at IS NULL OR locked_at < ${lockExpiryIso}::timestamptz)
+         AND scheduled_for <= $3::timestamptz
+         AND (locked_at IS NULL OR locked_at < $4::timestamptz)
        ORDER BY priority DESC, scheduled_for ASC
-       LIMIT ${BATCH_SIZE}
+       LIMIT $5
      )
-     RETURNING id, job_type, payload, retry_count, max_retries`);
+     RETURNING id, job_type, payload, retry_count, max_retries`,
+    [nowIso, WORKER_ID, nowIso, lockExpiryIso, BATCH_SIZE],
+    3
+  );
   
   return result.rows.map((r) => {
     const row = r as unknown as JobRow;

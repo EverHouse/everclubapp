@@ -269,11 +269,10 @@ async function executeHubSpotOperation(operation: string, payload: Record<string
   }
 }
 
-// Recover jobs stuck in 'processing' status (server crash recovery)
 export async function recoverStuckProcessingJobs(): Promise<number> {
   try {
-    const result = await db.execute(sql`
-      UPDATE hubspot_sync_queue
+    const result = await queryWithRetry(
+      `UPDATE hubspot_sync_queue
       SET status = 'failed', 
           retry_count = retry_count + 1,
           last_error = 'Processing timeout - server may have crashed',
@@ -281,8 +280,10 @@ export async function recoverStuckProcessingJobs(): Promise<number> {
           updated_at = NOW()
       WHERE status = 'processing' 
         AND updated_at < NOW() - INTERVAL '10 minutes'
-      RETURNING id
-    `);
+      RETURNING id`,
+      [],
+      3
+    );
     
     if ((result.rowCount || 0) > 0) {
       logger.warn('[HubSpot Queue] Recovered stuck processing jobs', { 
