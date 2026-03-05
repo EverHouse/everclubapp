@@ -660,17 +660,20 @@ router.get('/api/hubspot/contacts', isStaffOrAdmin, async (req, res) => {
   
   if (!backgroundRefreshInProgress) {
     backgroundRefreshInProgress = true;
-    fetchAllHubSpotContacts(true)
-      .then(contacts => {
-        backgroundRefreshInProgress = false;
-      })
-      .catch(err => {
-        if (!isProduction) logger.warn('[HubSpot] Initial sync failed', { extra: { err } });
-        backgroundRefreshInProgress = false;
-      });
+    try {
+      await fetchAllHubSpotContacts(true);
+      backgroundRefreshInProgress = false;
+      if (allContactsCache.data) {
+        const filteredContacts = filterContacts(allContactsCache.data);
+        return res.json(buildResponse(filteredContacts, false, false));
+      }
+    } catch (err) {
+      logger.warn('[HubSpot] Initial sync failed, returning empty', { extra: { err: err instanceof Error ? err.message : String(err) } });
+      backgroundRefreshInProgress = false;
+    }
   }
   
-  return res.json(buildResponse([], true, true));
+  return res.json(buildResponse([], true, backgroundRefreshInProgress));
   } catch (error: unknown) {
     logger.error('Failed to fetch contacts', { error: error instanceof Error ? error : new Error(String(error)) });
     return res.status(500).json({ error: 'Failed to fetch contacts' });

@@ -62,7 +62,7 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
     }
     
     const subscription = await stripe.subscriptions.create(subscriptionParams, {
-      idempotencyKey: `sub_create_${customerId}_${priceId}_${couponId || 'none'}_${Date.now()}`
+      idempotencyKey: `sub_create_${customerId}_${priceId}_${couponId || 'none'}_${Math.floor(Date.now() / 300000)}`
     });
     
     const invoice = subscription.latest_invoice as Stripe.Invoice;

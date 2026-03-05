@@ -893,7 +893,7 @@ export async function addCorporateMember(params: {
                   corporate_membership: 'true',
                 },
                 proration_behavior: 'create_prorations',
-              }, { idempotencyKey: `subitem_corp_add_${primaryStripeSubscriptionId}_${newPricePerSeat}_${newMemberCount}_${Date.now()}` });
+              }, { idempotencyKey: `subitem_corp_add_${primaryStripeSubscriptionId}_${newPricePerSeat}_${newMemberCount}_${Math.floor(Date.now() / 300000)}` });
             
               newStripeItemId = newItem.id;
             
@@ -1049,7 +1049,7 @@ export async function removeCorporateMember(params: {
                 corporate_membership: 'true',
               },
               proration_behavior: 'create_prorations',
-            }, { idempotencyKey: `subitem_corp_remove_${primaryStripeSubscriptionId}_${newPricePerSeat}_${newMemberCount}_${Date.now()}` });
+            }, { idempotencyKey: `subitem_corp_remove_${primaryStripeSubscriptionId}_${newPricePerSeat}_${newMemberCount}_${Math.floor(Date.now() / 300000)}` });
 
             newStripeItemId = newItem.id;
           

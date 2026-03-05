@@ -186,6 +186,20 @@ router.delete('/api/staff-users/:id', isAdmin, async (req, res) => {
     const { id } = req.params;
     if (isNaN(parseInt(id as string))) return res.status(400).json({ error: 'Invalid staff user ID' });
     
+    const targetUser = await db.select({ role: staffUsers.role, isActive: staffUsers.isActive })
+      .from(staffUsers)
+      .where(eq(staffUsers.id, parseInt(id as string)));
+    
+    if (targetUser.length > 0 && targetUser[0].role === 'admin' && targetUser[0].isActive) {
+      const adminCount = await db.select({ count: sql<number>`count(*)::int` })
+        .from(staffUsers)
+        .where(and(eq(staffUsers.isActive, true), eq(staffUsers.role, 'admin')));
+      
+      if (adminCount[0].count <= 1) {
+        return res.status(400).json({ error: 'Cannot remove the last active admin' });
+      }
+    }
+    
     const result = await db.delete(staffUsers)
       .where(eq(staffUsers.id, parseInt(id as string)))
       .returning();

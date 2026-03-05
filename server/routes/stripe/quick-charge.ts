@@ -110,7 +110,7 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, validateBody(quick
         metadata: guestMetadata,
         payment_method_types: ['card_present', 'card'],
       }, {
-        idempotencyKey: `guest_pos_${staffEmail}_${numericAmount}_${Date.now()}`
+        idempotencyKey: `guest_pos_${staffEmail}_${numericAmount}_${finalDescription.substring(0, 40)}_${Math.floor(Date.now() / 300000)}`
       });
 
       try {
@@ -663,7 +663,7 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, validateB
         productId: productId || ''
       }
     }, {
-      idempotencyKey: `pos_saved_card_${member.id}_${numericAmount}_${randomUUID()}`
+      idempotencyKey: `pos_saved_card_${member.id}_${numericAmount}_${(description || '').substring(0, 40)}_${Math.floor(Date.now() / 300000)}`
     });
 
     if (paymentIntent.status === 'succeeded') {

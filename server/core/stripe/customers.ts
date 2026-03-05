@@ -443,7 +443,7 @@ export async function getOrCreateStripeCustomer(
         name: resolvedName || undefined,
         metadata: metadata,
         ...(userPhone ? { phone: userPhone } : {}),
-      }, { idempotencyKey: `cust_create_${email.toLowerCase()}_${Date.now()}` });
+      }, { idempotencyKey: `cust_create_${email.toLowerCase()}_${Math.floor(Date.now() / 300000)}` });
       customerId = customer.id;
       isNew = true;
     }

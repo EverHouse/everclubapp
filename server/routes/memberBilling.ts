@@ -792,7 +792,7 @@ router.post('/api/member-billing/:email/discount', isStaffOrAdmin, async (req, r
     let appliedCouponId = couponId;
 
     if (!couponId && percentOff) {
-      const idempotencyKey = `coupon_member_${email}_${percentOff}_${duration}_${Date.now()}`;
+      const idempotencyKey = `coupon_member_${email}_${percentOff}_${duration}_${Math.floor(Date.now() / 300000)}`;
       const coupon = await stripe.coupons.create({
         percent_off: percentOff,
         duration: duration as 'once' | 'forever',
