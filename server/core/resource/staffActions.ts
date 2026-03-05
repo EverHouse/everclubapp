@@ -47,6 +47,13 @@ export async function assignMemberToBooking(bookingId: number, memberEmail: stri
       })
       .where(eq(bookingRequests.id, bookingId))
       .returning();
+
+    if (existing.sessionId) {
+      await tx.execute(sql`UPDATE booking_participants
+        SET user_id = ${memberId || null},
+            display_name = ${memberName}
+        WHERE session_id = ${existing.sessionId} AND participant_type = 'owner'`);
+    }
     
     return updated;
   });
@@ -136,6 +143,19 @@ export async function assignWithPlayers(
   });
   
   let sessionId = result.sessionId;
+
+  if (sessionId) {
+    try {
+      await db.execute(sql`UPDATE booking_participants
+        SET user_id = ${resolvedOwnerId || null},
+            display_name = ${owner.name}
+        WHERE session_id = ${sessionId} AND participant_type = 'owner'`);
+    } catch (ownerUpdateErr: unknown) {
+      logger.warn('[assign-with-players] Failed to update session owner participant', {
+        extra: { bookingId, sessionId, error: ownerUpdateErr }
+      });
+    }
+  }
 
   if (!sessionId && result.booking.resourceId && result.booking.requestDate && result.booking.startTime && result.booking.endTime) {
     try {

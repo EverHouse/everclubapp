@@ -370,7 +370,17 @@ export async function linkTrackmanToMember(
   let finalSessionId: number | null = result.sessionId || null;
 
   if (result.sessionId) {
-    logger.info('[link-trackman-to-member] Using existing session', {
+    try {
+      await db.execute(sql`UPDATE booking_participants
+        SET user_id = ${resolvedOwnerId || null},
+            display_name = ${ownerName}
+        WHERE session_id = ${result.sessionId} AND participant_type = 'owner'`);
+    } catch (ownerUpdateErr: unknown) {
+      logger.warn('[link-trackman-to-member] Failed to update session owner participant', {
+        extra: { bookingId: result.booking.id, sessionId: result.sessionId, error: ownerUpdateErr }
+      });
+    }
+    logger.info('[link-trackman-to-member] Using existing session, updated owner participant', {
       extra: { bookingId: result.booking.id, sessionId: result.sessionId }
     });
   } else {

@@ -595,6 +595,44 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           updateFields.userName = row.userName;
           updateFields.isUnmatched = false;
           changes.push(`member: linked ${matchedEmail}`);
+
+          const unmatchedUserIdResult = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${matchedEmail}) LIMIT 1`);
+          const unmatchedResolvedUserId = (unmatchedUserIdResult.rows as Array<{ id: string }>)[0]?.id;
+          if (unmatchedResolvedUserId) {
+            updateFields.userId = unmatchedResolvedUserId;
+          }
+
+          if (existing.sessionId) {
+            try {
+              const ownerResult = await db.execute(sql`
+                SELECT bp.id, bp.user_id, u.email AS current_email
+                FROM booking_participants bp
+                LEFT JOIN users u ON bp.user_id = u.id
+                WHERE bp.session_id = ${existing.sessionId} AND bp.participant_type = 'owner'
+                LIMIT 1
+              `);
+              const currentOwner = (ownerResult.rows as Array<{ id: number; user_id: string | null; current_email: string | null }>)[0];
+              const currentOwnerEmail = currentOwner?.current_email?.toLowerCase();
+              if (currentOwner && currentOwnerEmail !== matchedEmail.toLowerCase()) {
+                const newOwnerUser = unmatchedResolvedUserId
+                  ? (await db.execute(sql`SELECT first_name, last_name FROM users WHERE id = ${unmatchedResolvedUserId}`)).rows[0] as { first_name: string | null; last_name: string | null } | undefined
+                  : undefined;
+                const newDisplayName = newOwnerUser
+                  ? [newOwnerUser.first_name, newOwnerUser.last_name].filter(Boolean).join(' ') || row.userName || matchedEmail
+                  : row.userName || matchedEmail;
+                await db.execute(sql`
+                  UPDATE booking_participants
+                  SET user_id = ${unmatchedResolvedUserId || null},
+                      display_name = ${newDisplayName},
+                      payment_status = 'waived'
+                  WHERE id = ${currentOwner.id}
+                `);
+                process.stderr.write(`[Trackman Import] Updated session owner for unmatched→matched booking #${existing.id}: ${currentOwnerEmail || '(unknown)'} → ${matchedEmail}\n`);
+              }
+            } catch (ownerUpdateErr: unknown) {
+              process.stderr.write(`[Trackman Import] Non-blocking: Failed to update session owner for booking #${existing.id}: ${getErrorMessage(ownerUpdateErr)}\n`);
+            }
+          }
           
           if (existing.status === 'pending' && normalizedStatus === 'approved') {
             updateFields.status = 'approved';
@@ -795,6 +833,11 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           
           if (matchedEmail) {
             updateFields.user_email = matchedEmail;
+            const mergeUserIdResult = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${matchedEmail}) LIMIT 1`);
+            const mergeResolvedUserId = (mergeUserIdResult.rows as Array<{ id: string }>)[0]?.id;
+            if (mergeResolvedUserId) {
+              updateFields.user_id = mergeResolvedUserId;
+            }
           }
           
           const setFragments = Object.entries(updateFields).map(([key, value]) => 
@@ -805,6 +848,38 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           
           process.stderr.write(`[Trackman Import] MERGED: CSV row ${row.bookingId} into placeholder booking #${placeholder.id} (was: "${placeholder.user_name}", now: "${row.userName}"${matchedEmail ? `, linked to ${matchedEmail}` : ''})\n`);
           
+          if (matchedEmail && placeholder.session_id) {
+            try {
+              const ownerResult = await db.execute(sql`
+                SELECT bp.id, bp.user_id, u.email AS current_email
+                FROM booking_participants bp
+                LEFT JOIN users u ON bp.user_id = u.id
+                WHERE bp.session_id = ${placeholder.session_id} AND bp.participant_type = 'owner'
+                LIMIT 1
+              `);
+              const currentOwner = (ownerResult.rows as Array<{ id: number; user_id: string | null; current_email: string | null }>)[0];
+              const currentOwnerEmail = currentOwner?.current_email?.toLowerCase();
+              if (currentOwner && currentOwnerEmail !== matchedEmail.toLowerCase()) {
+                const mergeUserId = updateFields.user_id as string | undefined;
+                const newOwnerUser = mergeUserId
+                  ? (await db.execute(sql`SELECT first_name, last_name FROM users WHERE id = ${mergeUserId}`)).rows[0] as { first_name: string | null; last_name: string | null } | undefined
+                  : undefined;
+                const newDisplayName = newOwnerUser
+                  ? [newOwnerUser.first_name, newOwnerUser.last_name].filter(Boolean).join(' ') || row.userName || matchedEmail
+                  : row.userName || matchedEmail;
+                await db.execute(sql`
+                  UPDATE booking_participants
+                  SET user_id = ${mergeUserId || null},
+                      display_name = ${newDisplayName},
+                      payment_status = 'waived'
+                  WHERE id = ${currentOwner.id}
+                `);
+                process.stderr.write(`[Trackman Import] Updated session owner for merged placeholder #${placeholder.id}: ${currentOwnerEmail || '(unknown)'} → ${matchedEmail}\n`);
+              }
+            } catch (ownerUpdateErr: unknown) {
+              process.stderr.write(`[Trackman Import] Non-blocking: Failed to update session owner for merged placeholder #${placeholder.id}: ${getErrorMessage(ownerUpdateErr)}\n`);
+            }
+          }
           
           if (matchedEmail && parsedBayId && !placeholder.session_id) {
             try {
