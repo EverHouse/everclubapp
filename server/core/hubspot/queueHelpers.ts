@@ -66,9 +66,9 @@ export async function queueTierSync(params: TierSyncParams): Promise<void> {
   const emailKey = params.email.toLowerCase();
 
   await db.execute(sql`UPDATE hubspot_sync_queue 
-    SET status = 'completed', completed_at = NOW() 
+    SET status = 'superseded', completed_at = NOW() 
     WHERE operation = 'sync_tier' 
-      AND status = 'pending' 
+      AND status IN ('pending', 'failed') 
       AND LOWER(payload->>'email') = ${emailKey}`);
 
   await enqueueHubSpotSync('sync_tier', params, {

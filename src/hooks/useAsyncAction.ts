@@ -42,10 +42,10 @@ export function useAsyncAction<T = unknown, Args extends unknown[] = unknown[]>(
   onErrorRef.current = onError;
   debounceRef.current = Math.max(300, debounceMs);
 
-  // Track execution state to prevent double calls
   const isLoadingRef = useRef(false);
   const lastExecutionTimeRef = useRef(0);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingResolveRef = useRef<((value: T | undefined) => void) | null>(null);
 
   const execute = useCallback(
     async (...args: Args): Promise<T | undefined> => {
@@ -57,20 +57,24 @@ export function useAsyncAction<T = unknown, Args extends unknown[] = unknown[]>(
       const now = Date.now();
       const timeSinceLastExecution = now - lastExecutionTimeRef.current;
 
-      // If minimum debounce time hasn't passed, schedule retry
       if (timeSinceLastExecution < debounceRef.current && lastExecutionTimeRef.current > 0) {
         const waitTime = debounceRef.current - timeSinceLastExecution;
 
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
           if (debounceTimerRef.current) {
             clearTimeout(debounceTimerRef.current);
           }
+          if (pendingResolveRef.current) {
+            pendingResolveRef.current(undefined);
+          }
+          pendingResolveRef.current = resolve as (value: T | undefined) => void;
           debounceTimerRef.current = setTimeout(async () => {
+            pendingResolveRef.current = null;
             try {
               const result = await execute(...args);
               resolve(result);
             } catch (err: unknown) {
-              reject(err);
+              resolve(undefined);
             }
           }, waitTime);
         });
@@ -102,6 +106,10 @@ export function useAsyncAction<T = unknown, Args extends unknown[] = unknown[]>(
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
+      }
+      if (pendingResolveRef.current) {
+        pendingResolveRef.current(undefined);
+        pendingResolveRef.current = null;
       }
     };
   }, []);

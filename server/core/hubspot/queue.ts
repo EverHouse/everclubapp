@@ -52,7 +52,7 @@ export async function enqueueHubSpotSync(
     // If idempotency key provided, check for existing pending job
     if (idempotencyKey) {
       const existing = await db.execute(sql`SELECT id FROM hubspot_sync_queue 
-         WHERE idempotency_key = ${idempotencyKey} AND status IN ('pending', 'processing', 'failed')`);
+         WHERE idempotency_key = ${idempotencyKey} AND status IN ('pending', 'processing', 'failed') AND status != 'superseded'`);
       if (existing.rows.length > 0) {
         logger.info('[HubSpot Queue] Duplicate job skipped', { 
           extra: { idempotencyKey, existingId: existing.rows[0].id }
@@ -63,7 +63,7 @@ export async function enqueueHubSpotSync(
     
     const result = await db.execute(sql`INSERT INTO hubspot_sync_queue (operation, payload, priority, max_retries, idempotency_key)
        VALUES (${operation}, ${JSON.stringify(payload)}, ${priority}, ${maxRetries}, ${idempotencyKey})
-       ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL AND status != 'completed' DO NOTHING
+       ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL AND status NOT IN ('completed', 'superseded') DO NOTHING
        RETURNING id`);
     
     if (result.rows.length === 0) {

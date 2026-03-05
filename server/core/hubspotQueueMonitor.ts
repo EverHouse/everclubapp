@@ -5,6 +5,7 @@ interface HubSpotQueueStats {
   pending: number;
   failed: number;
   completed_24h: number;
+  superseded_24h: number;
   processing: number;
 }
 
@@ -41,6 +42,7 @@ export async function getHubSpotQueueMonitorData(): Promise<HubSpotQueueMonitorD
       COALESCE(SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END), 0)::int as pending,
       COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0)::int as failed,
       COALESCE(SUM(CASE WHEN status = 'completed' AND completed_at > NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END), 0)::int as completed_24h,
+      COALESCE(SUM(CASE WHEN status = 'superseded' AND completed_at > NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END), 0)::int as superseded_24h,
       COALESCE(SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END), 0)::int as processing
     FROM hubspot_sync_queue
   `);
@@ -50,6 +52,7 @@ export async function getHubSpotQueueMonitorData(): Promise<HubSpotQueueMonitorD
     pending: Number(row?.pending) || 0,
     failed: Number(row?.failed) || 0,
     completed_24h: Number(row?.completed_24h) || 0,
+    superseded_24h: Number((row as Record<string, unknown>)?.superseded_24h) || 0,
     processing: Number(row?.processing) || 0,
   };
 

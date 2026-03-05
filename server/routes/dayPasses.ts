@@ -540,23 +540,44 @@ export async function recordDayPassPurchaseFromWebhook(data: {
       phone: data.phone
     });
 
-    const [purchase] = await db
-      .insert(dayPassPurchases)
-      .values({
-        userId: user.id,
-        productType: data.productSlug,
-        amountCents: data.amountCents,
-        quantity: 1,
-        stripePaymentIntentId: data.paymentIntentId,
-        stripeCustomerId: data.customerId,
-        purchaserEmail: data.email,
-        purchaserFirstName: data.firstName,
-        purchaserLastName: data.lastName,
-        purchaserPhone: data.phone,
-        source: 'stripe',
-        purchasedAt: new Date()
-      })
-      .returning();
+    let purchase;
+    try {
+      [purchase] = await db
+        .insert(dayPassPurchases)
+        .values({
+          userId: user.id,
+          productType: data.productSlug,
+          amountCents: data.amountCents,
+          quantity: 1,
+          stripePaymentIntentId: data.paymentIntentId,
+          stripeCustomerId: data.customerId,
+          purchaserEmail: data.email,
+          purchaserFirstName: data.firstName,
+          purchaserLastName: data.lastName,
+          purchaserPhone: data.phone,
+          source: 'stripe',
+          purchasedAt: new Date()
+        })
+        .returning();
+    } catch (insertErr: unknown) {
+      if (String(insertErr).includes('day_pass_purchases_stripe_pi_unique')) {
+        const existing = await db.select()
+          .from(dayPassPurchases)
+          .where(eq(dayPassPurchases.stripePaymentIntentId, data.paymentIntentId))
+          .limit(1);
+        if (existing.length > 0) {
+          logger.info('[DayPasses Webhook] Duplicate insert caught by unique constraint', { extra: { paymentIntentId: data.paymentIntentId } });
+          return {
+            success: true,
+            purchaseId: existing[0].id,
+            userId: existing[0].userId || undefined,
+            quantity: existing[0].quantity ?? 1,
+            remainingUses: existing[0].remainingUses ?? 1
+          };
+        }
+      }
+      throw insertErr;
+    }
 
     if (user.id) {
       await linkPurchaseToUser(purchase.id, user.id);

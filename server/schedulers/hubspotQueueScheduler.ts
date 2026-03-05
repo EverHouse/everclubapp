@@ -4,7 +4,7 @@ import { logger } from '../core/logger';
 import { alertOnScheduledTaskFailure } from '../core/dataAlerts';
 import { getErrorMessage } from '../utils/errorUtils';
 
-const PROCESS_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+const PROCESS_INTERVAL_MS = 30 * 1000; // 30 seconds
 let isProcessing = false;
 
 async function processQueue(): Promise<void> {
@@ -18,7 +18,7 @@ async function processQueue(): Promise<void> {
     // First, recover any jobs stuck in 'processing' state (server crash recovery)
     await recoverStuckProcessingJobs();
     
-    const stats = await processHubSpotQueue(20); // Process up to 20 jobs per batch
+    const stats = await processHubSpotQueue(50); // Process up to 50 jobs per batch
     
     if (stats.processed > 0) {
       logger.info('[HubSpot Queue] Batch processed', {
@@ -60,7 +60,7 @@ export function startHubSpotQueueScheduler(): void {
     return;
   }
 
-  logger.info('[Startup] HubSpot queue scheduler enabled (runs every 2 minutes)');
+  logger.info('[Startup] HubSpot queue scheduler enabled (runs every 30 seconds)');
   
   setTimeout(async () => {
     try {

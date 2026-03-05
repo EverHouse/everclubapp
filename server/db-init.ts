@@ -633,6 +633,18 @@ export async function ensureDatabaseConstraints() {
       logger.warn(`[DB Init] Skipping wellness enrollment unique index: ${getErrorMessage(err)}`);
     }
 
+    try {
+      await db.execute(sql`
+        DROP INDEX IF EXISTS hubspot_sync_queue_idempotency_idx;
+        CREATE UNIQUE INDEX hubspot_sync_queue_idempotency_idx 
+          ON hubspot_sync_queue (idempotency_key) 
+          WHERE idempotency_key IS NOT NULL AND status NOT IN ('completed', 'superseded');
+      `);
+      logger.info('[DB Init] HubSpot queue idempotency index updated for superseded status');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping HubSpot queue idempotency index update: ${getErrorMessage(err)}`);
+    }
+
     const indexQueries = [
       { name: 'idx_booking_requests_status', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_status ON booking_requests(status)` },
       { name: 'idx_booking_requests_user_email', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_user_email ON booking_requests(user_email)` },
