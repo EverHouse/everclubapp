@@ -32,6 +32,7 @@ let hubspotConnectionSettings: ConnectionItem | null = null;
 let googleCalendarConnectionSettings: ConnectionItem | null = null;
 
 let hubspotTokenRefreshPromise: Promise<string> | null = null;
+let googleCalendarTokenRefreshPromise: Promise<string> | null = null;
 
 export async function getHubSpotAccessToken() {
   const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
@@ -149,20 +150,7 @@ export async function getHubSpotClientWithFallback(): Promise<{ client: Client; 
   return { client: new Client({ accessToken: accessToken as string }), source: 'connector' };
 }
 
-async function getGoogleCalendarAccessToken() {
-  const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
-  
-  if (googleCalendarConnectionSettings) {
-    const gcSettings = googleCalendarConnectionSettings.settings;
-    const gcOauth = gcSettings?.oauth?.credentials;
-    const expiresAt = gcSettings?.expires_at || gcOauth?.expires_at;
-    const cachedToken = gcSettings?.access_token || gcOauth?.access_token;
-    
-    if (expiresAt && cachedToken && new Date(expiresAt as string).getTime() > Date.now() + TOKEN_REFRESH_BUFFER_MS) {
-      return cachedToken as string;
-    }
-  }
-  
+async function fetchGoogleCalendarToken(): Promise<string> {
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME || 'connectors.replit.com';
   const xReplitToken = process.env.REPL_IDENTITY 
     ? 'repl ' + process.env.REPL_IDENTITY 
@@ -192,7 +180,33 @@ async function getGoogleCalendarAccessToken() {
   if (!googleCalendarConnectionSettings || !accessToken) {
     throw new Error('Google Calendar not connected');
   }
-  return accessToken;
+  return accessToken as string;
+}
+
+async function getGoogleCalendarAccessToken() {
+  const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+  
+  if (googleCalendarConnectionSettings) {
+    const gcSettings = googleCalendarConnectionSettings.settings;
+    const gcOauth = gcSettings?.oauth?.credentials;
+    const expiresAt = gcSettings?.expires_at || gcOauth?.expires_at;
+    const cachedToken = gcSettings?.access_token || gcOauth?.access_token;
+    
+    if (expiresAt && cachedToken && new Date(expiresAt as string).getTime() > Date.now() + TOKEN_REFRESH_BUFFER_MS) {
+      return cachedToken as string;
+    }
+  }
+
+  if (googleCalendarTokenRefreshPromise) {
+    return googleCalendarTokenRefreshPromise;
+  }
+
+  googleCalendarTokenRefreshPromise = fetchGoogleCalendarToken();
+  try {
+    return await googleCalendarTokenRefreshPromise;
+  } finally {
+    googleCalendarTokenRefreshPromise = null;
+  }
 }
 
 export async function getGoogleCalendarClient() {
