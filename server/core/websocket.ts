@@ -5,6 +5,7 @@ import { parse as parseCookie } from 'cookie';
 import { unsign } from 'cookie-signature';
 import { Pool } from 'pg';
 import { logger } from './logger';
+import { stripSslMode } from './db';
 
 interface ClientConnection {
   ws: WebSocket;
@@ -57,8 +58,8 @@ let sessionPool: Pool | null = null;
 function getSessionPool(): Pool | null {
   if (sessionPool) return sessionPool;
   
-  const poolerUrl = process.env.DATABASE_POOLER_URL;
-  const directUrl = process.env.DATABASE_URL;
+  const poolerUrl = stripSslMode(process.env.DATABASE_POOLER_URL);
+  const directUrl = stripSslMode(process.env.DATABASE_URL);
   const usePooler = process.env.ENABLE_PGBOUNCER === 'true' && !!poolerUrl;
   const dbUrl = usePooler ? poolerUrl : directUrl;
   if (!dbUrl) {

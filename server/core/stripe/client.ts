@@ -82,7 +82,8 @@ export async function getStripeSync() {
     const { StripeSync } = await import('stripe-replit-sync');
     const secretKey = await getStripeSecretKey();
 
-    const connectionString = process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL || '';
+    const { stripSslMode } = await import('../db');
+    const connectionString = stripSslMode(process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL) || '';
     if (!connectionString) {
       throw new Error('[StripeSync] No DATABASE_URL or DATABASE_POOLER_URL configured');
     }

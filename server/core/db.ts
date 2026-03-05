@@ -4,8 +4,19 @@ import { getErrorMessage, getErrorCode, getErrorDetail } from '../utils/errorUti
 import { logger } from './logger';
 export const isProduction = process.env.NODE_ENV === 'production';
 
-const poolerUrl = process.env.DATABASE_POOLER_URL;
-const directUrl = process.env.DATABASE_URL;
+export function stripSslMode(url: string | undefined): string | undefined {
+  if (!url) return url;
+  try {
+    const u = new URL(url);
+    u.searchParams.delete('sslmode');
+    return u.toString();
+  } catch {
+    return url.replace(/[?&]sslmode=[^&]*/g, '').replace(/\?$/, '');
+  }
+}
+
+const poolerUrl = stripSslMode(process.env.DATABASE_POOLER_URL);
+const directUrl = stripSslMode(process.env.DATABASE_URL);
 const poolerEnabled = process.env.ENABLE_PGBOUNCER === 'true';
 export const usingPooler = poolerEnabled && !!poolerUrl;
 
