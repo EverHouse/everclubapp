@@ -1164,6 +1164,37 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 } catch (sessionErr: unknown) {
                   process.stderr.write(`[Trackman Import] Failed to create session for ghost booking #${existingGhost.id}: ${getErrorMessage(sessionErr)}\n`);
                 }
+              } else if (existingGhost.sessionId) {
+                try {
+                  const ownerResult = await db.execute(sql`
+                    SELECT bp.id, bp.user_id, u.email AS current_email
+                    FROM booking_participants bp
+                    LEFT JOIN users u ON bp.user_id = u.id
+                    WHERE bp.session_id = ${existingGhost.sessionId} AND bp.participant_type = 'owner'
+                    LIMIT 1
+                  `);
+                  const currentOwner = (ownerResult.rows as Array<{ id: number; user_id: string | null; current_email: string | null }>)[0];
+                  const currentOwnerEmail = currentOwner?.current_email?.toLowerCase();
+                  if (currentOwner && currentOwnerEmail !== matchedEmail.toLowerCase()) {
+                    const newOwnerResult = await db.execute(sql`
+                      SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER(${matchedEmail}) LIMIT 1
+                    `);
+                    const newOwnerUser = (newOwnerResult.rows as Array<{ id: string; first_name: string | null; last_name: string | null }>)[0];
+                    const newDisplayName = newOwnerUser
+                      ? [newOwnerUser.first_name, newOwnerUser.last_name].filter(Boolean).join(' ') || row.userName || matchedEmail
+                      : row.userName || matchedEmail;
+                    await db.execute(sql`
+                      UPDATE booking_participants
+                      SET user_id = ${newOwnerUser?.id || null},
+                          display_name = ${newDisplayName},
+                          payment_status = 'waived'
+                      WHERE id = ${currentOwner.id}
+                    `);
+                    process.stderr.write(`[Trackman Import] Updated session owner for ghost booking #${existingGhost.id}: ${currentOwnerEmail || '(unknown)'} → ${matchedEmail}\n`);
+                  }
+                } catch (ownerUpdateErr: unknown) {
+                  process.stderr.write(`[Trackman Import] Failed to update session owner for ghost booking #${existingGhost.id}: ${getErrorMessage(ownerUpdateErr)}\n`);
+                }
               }
             }
 
