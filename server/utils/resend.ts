@@ -1,6 +1,11 @@
 import { Resend } from 'resend';
 import { logger } from '../core/logger';
 
+interface ResendConnectionSettings {
+  api_key: string;
+  from_email?: string;
+}
+
 let connectionSettings: Record<string, unknown> | null = null;
 
 const isDevelopment = process.env.NODE_ENV !== 'production' && !process.env.WEB_REPL_RENEWAL;
@@ -41,10 +46,11 @@ async function getCredentials() {
     }
   ).then(res => res.json()).then((data: Record<string, unknown>) => (data.items as Record<string, unknown>[] | undefined)?.[0] ?? null);
 
-  if (!connectionSettings || (!(connectionSettings.settings as any).api_key)) {
+  const settings = connectionSettings?.settings as ResendConnectionSettings | undefined;
+  if (!settings?.api_key) {
     throw new Error('Resend not connected');
   }
-  return { apiKey: (connectionSettings.settings as any).api_key, fromEmail: (connectionSettings.settings as any).from_email };
+  return { apiKey: settings.api_key, fromEmail: settings.from_email };
 }
 
 export async function getResendClient(): Promise<{ client: Resend; fromEmail: string }> {

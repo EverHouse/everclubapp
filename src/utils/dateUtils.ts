@@ -162,6 +162,23 @@ export function formatDateTimePacific(isoString: string | null | undefined): str
   return `${dateStr} at ${timeStr}`;
 }
 
+export function formatDatePacific(dateStr: string): string {
+  if (!dateStr) return 'Unknown date';
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: CLUB_TIMEZONE });
+}
+
+export function formatTimePacific(dateStr: string): string {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  return date.toLocaleTimeString('en-US', { 
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: CLUB_TIMEZONE
+  });
+}
+
 function parseTimeToMinutes(timeStr: string): number | null {
   const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (!match) return null;

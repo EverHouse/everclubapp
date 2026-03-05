@@ -17,7 +17,7 @@ import { invalidateCache } from '../core/queryCache';
 import { broadcastDirectoryUpdate } from '../core/websocket';
 import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
 import { AssociationSpecAssociationCategoryEnum } from '@hubspot/api-client/lib/codegen/crm/associations/v4';
-import { getErrorMessage, safeErrorDetail } from '../utils/errorUtils';
+import { getErrorMessage, getErrorStatusCode, safeErrorDetail } from '../utils/errorUtils';
 import { denormalizeTierForHubSpot, denormalizeTierForHubSpotAsync } from '../utils/tierUtils';
 import { enqueueHubSpotSync } from '../core/hubspot/queue';
 
@@ -2250,7 +2250,7 @@ async function ensureNonMarketingProperty(hubspot: any): Promise<'ready' | 'skip
     );
     return 'ready';
   } catch (getErr: unknown) {
-    const status = (getErr as any)?.code ?? (getErr as any)?.response?.status ?? (getErr as any)?.statusCode;
+    const status = getErrorStatusCode(getErr);
     if (status && status !== 404) {
       logger.warn('[HubSpot MarketingAudit] Could not read property (non-404), will attempt create', {
         error: getErr instanceof Error ? getErr : new Error(String(getErr)),
@@ -2275,7 +2275,7 @@ async function ensureNonMarketingProperty(hubspot: any): Promise<'ready' | 'skip
       logger.info('[HubSpot MarketingAudit] Created remove_from_marketing custom property');
       return 'ready';
     } catch (createErr: unknown) {
-      const createStatus = (createErr as any)?.code ?? (createErr as any)?.response?.status ?? (createErr as any)?.statusCode;
+      const createStatus = getErrorStatusCode(createErr);
       if (createStatus === 409) {
         logger.info('[HubSpot MarketingAudit] Property already exists (409 conflict)');
         return 'ready';

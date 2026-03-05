@@ -134,6 +134,12 @@ The following large files have been split into sub-modules with barrel re-export
 - **Mutation button disable**: All billing mutation buttons (`StripeBillingSection`) properly use `disabled={isPending}` during async operations to prevent double-clicks.
 - **Toast/haptic consistency migration**: Older admin components (`BugReportsAdmin`, `DiscountsSubTab`, `ApplicationPipeline`) migrated from `console.error` or custom inline toast state to the global `useToast` + `haptic` utilities for consistent success/error feedback across all staff actions.
 
+### Code Quality Audit Fixes (v8.77.1)
+- **Global Express Error Middleware**: Added catch-all `(err, req, res, next)` error handler at the end of the Express middleware chain in `server/index.ts`. Any unhandled route error now returns a JSON `{ error: 'Internal server error' }` with 500 status instead of a raw HTML page. Uses `getErrorStatusCode` for proper status propagation.
+- **Eliminated `as any` Casts**: Removed all `as any` type casts from server code. `server/utils/resend.ts` now uses a typed `ResendConnectionSettings` interface. `server/routes/hubspot.ts` now uses `getErrorStatusCode()` from `errorUtils.ts` instead of `(err as any)?.code` chains.
+- **Enhanced `getErrorStatusCode`**: `server/utils/errorUtils.ts` now checks `error.response.status` (nested object) in addition to `error.statusCode`, `error.status`, and `error.code` — properly handles HubSpot SDK error objects.
+- **Consolidated Date Formatting**: `src/utils/dateUtils.ts` gained `formatDatePacific()` and `formatTimePacific()` exports. `RedeemPassCard.tsx` now imports shared date utilities instead of defining local duplicates.
+
 ### Bug Audit Fixes (v8.77.0)
 - **Orphaned Promise Fix**: `useAsyncAction` debounce now resolves superseded promises with `undefined` instead of leaving them hanging forever — prevents frozen UI when users triple-click buttons.
 - **Webhook TOCTOU Race**: `recordDayPassPurchaseFromWebhook` now catches `day_pass_purchases_stripe_pi_unique` constraint violations gracefully, matching the client-facing `/confirm` routes — prevents Stripe webhook retry storms from duplicate webhook bursts.

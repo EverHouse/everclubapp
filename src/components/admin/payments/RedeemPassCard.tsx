@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import ModalShell from '../../ModalShell';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { haptic } from '../../../utils/haptics';
+import { formatDatePacific, formatDateTimePacific, formatTimePacific } from '../../../utils/dateUtils';
 
 export interface SectionProps {
   onClose?: () => void;
@@ -496,33 +497,9 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles' });
-  };
-
-  const formatDateTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-      timeZone: 'America/Los_Angeles'
-    });
-  };
-
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-      timeZone: 'America/Los_Angeles'
-    });
-  };
+  const formatDate = formatDatePacific;
+  const formatDateTime = formatDateTimePacific;
+  const formatTime = formatTimePacific;
 
   const getPassHistory = (passId: string) => {
     return historyData.find(h => h.passId === passId)?.logs || [];

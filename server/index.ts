@@ -2,7 +2,7 @@ process.env.TZ = 'America/Los_Angeles';
 
 import http from 'http';
 import type { Server } from 'http';
-import { getErrorMessage } from './utils/errorUtils';
+import { getErrorMessage, getErrorStatusCode } from './utils/errorUtils';
 import { logger } from './core/logger';
 import { usingPooler } from './core/db';
 
@@ -948,6 +948,17 @@ async function initializeApp() {
       next();
     });
   }
+
+  app.use((err: Error, req: import('express').Request, res: import('express').Response, _next: import('express').NextFunction) => {
+    const status = getErrorStatusCode(err) || 500;
+    logger.error('[Express] Unhandled route error', {
+      error: err,
+      extra: { method: req.method, url: req.originalUrl, status }
+    });
+    if (!res.headersSent) {
+      res.status(status).json({ error: status >= 500 ? 'Internal server error' : getErrorMessage(err) });
+    }
+  });
 
   expressApp = app;
   isReady = true;
