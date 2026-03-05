@@ -277,7 +277,7 @@ router.post('/api/hubspot/push-members-to-hubspot', isStaffOrAdmin, async (req, 
     let errors = 0;
     let hubspotIdsBackfilled = 0;
     const errorDetails: string[] = [];
-    const BATCH_SIZE = 5;
+    const BATCH_SIZE = 10;
     
     for (let i = 0; i < members.length; i += BATCH_SIZE) {
       const batch = members.slice(i, i + BATCH_SIZE);
@@ -308,7 +308,7 @@ router.post('/api/hubspot/push-members-to-hubspot', isStaffOrAdmin, async (req, 
       );
       
       if (i + BATCH_SIZE < members.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
     

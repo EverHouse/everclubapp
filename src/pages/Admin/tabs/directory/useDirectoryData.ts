@@ -151,26 +151,20 @@ export function useDirectoryData({
             let stripeUpdated = 0;
             let errors: string[] = [];
 
-            try {
-                const pullRes = await postWithCredentials<SyncResponse>('/api/hubspot/sync-all-members', {});
-                pullCount = pullRes.synced || 0;
-            } catch {
-                errors.push('pull');
-            }
+            const [pullResult, pushResult, stripeResult] = await Promise.allSettled([
+                postWithCredentials<SyncResponse>('/api/hubspot/sync-all-members', {}),
+                postWithCredentials<{ synced?: number }>('/api/hubspot/push-members-to-hubspot', {}),
+                postWithCredentials<{ updated?: number }>('/api/stripe/sync-member-subscriptions', {}),
+            ]);
 
-            try {
-                const pushRes = await postWithCredentials<{ synced?: number }>('/api/hubspot/push-members-to-hubspot', {});
-                pushCount = pushRes.synced || 0;
-            } catch {
-                errors.push('push');
-            }
+            if (pullResult.status === 'fulfilled') pullCount = pullResult.value.synced || 0;
+            else errors.push('pull');
 
-            try {
-                const stripeRes = await postWithCredentials<{ updated?: number }>('/api/stripe/sync-member-subscriptions', {});
-                stripeUpdated = stripeRes.updated || 0;
-            } catch {
-                errors.push('stripe');
-            }
+            if (pushResult.status === 'fulfilled') pushCount = pushResult.value.synced || 0;
+            else errors.push('push');
+
+            if (stripeResult.status === 'fulfilled') stripeUpdated = stripeResult.value.updated || 0;
+            else errors.push('stripe');
 
             return { pullCount, pushCount, stripeUpdated, errors };
         },
