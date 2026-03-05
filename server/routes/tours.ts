@@ -1029,7 +1029,7 @@ router.post('/api/tours/schedule', checkoutRateLimiter, async (req, res) => {
     }
 
     const [startHours, startMinutes] = startTime.split(':').map(Number);
-    const toursConfig = await getResourceConfig('tours');
+    const toursConfig = await getResourceConfig('tours', date);
     const { businessHours } = toursConfig;
     const slotDuration = toursConfig.slotDuration ?? 30;
 

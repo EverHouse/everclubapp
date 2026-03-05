@@ -42,41 +42,36 @@ export async function getCalendarBusyTimes(calendarId: string, date: string): Pr
 export function generateTimeSlots(
   date: string,
   busyPeriods: BusyPeriod[],
-  businessHours: { start: number; end: number },
+  businessHours: { start: number; end: number; startMinute?: number },
   slotDurationMinutes: number
 ): TimeSlot[] {
   const slots: TimeSlot[] = [];
   const dateObj = new Date(date);
-  
-  for (let hour = businessHours.start; hour < businessHours.end; hour++) {
-    for (let minute = 0; minute < 60; minute += slotDurationMinutes) {
-      const slotStart = new Date(dateObj);
-      slotStart.setHours(hour, minute, 0, 0);
-      
-      const slotEnd = new Date(slotStart);
-      slotEnd.setMinutes(slotEnd.getMinutes() + slotDurationMinutes);
-      
-      if (slotEnd.getHours() > businessHours.end || 
-          (slotEnd.getHours() === businessHours.end && slotEnd.getMinutes() > 0)) {
-        continue;
-      }
-      
-      const isAvailable = !busyPeriods.some(busy => {
-        return (slotStart < busy.end && slotEnd > busy.start);
-      });
-      
-      const formatTime = (d: Date) => {
-        const h = d.getHours().toString().padStart(2, '0');
-        const m = d.getMinutes().toString().padStart(2, '0');
-        return `${h}:${m}`;
-      };
-      
-      slots.push({
-        start: formatTime(slotStart),
-        end: formatTime(slotEnd),
-        available: isAvailable
-      });
-    }
+  const startTotal = businessHours.start * 60 + (businessHours.startMinute || 0);
+  const endTotal = businessHours.end * 60;
+
+  for (let totalMin = startTotal; totalMin + slotDurationMinutes <= endTotal; totalMin += slotDurationMinutes) {
+    const slotStart = new Date(dateObj);
+    slotStart.setHours(Math.floor(totalMin / 60), totalMin % 60, 0, 0);
+
+    const slotEnd = new Date(slotStart);
+    slotEnd.setMinutes(slotEnd.getMinutes() + slotDurationMinutes);
+
+    const isAvailable = !busyPeriods.some(busy => {
+      return (slotStart < busy.end && slotEnd > busy.start);
+    });
+
+    const formatTime = (d: Date) => {
+      const h = d.getHours().toString().padStart(2, '0');
+      const m = d.getMinutes().toString().padStart(2, '0');
+      return `${h}:${m}`;
+    };
+
+    slots.push({
+      start: formatTime(slotStart),
+      end: formatTime(slotEnd),
+      available: isAvailable
+    });
   }
   
   return slots;
@@ -97,7 +92,7 @@ export async function getCalendarAvailability(
     return { slots: [], calendarId: null, error: `Calendar "${staticConfig.name}" not found` };
   }
   
-  const config = await getResourceConfig(resourceType);
+  const config = await getResourceConfig(resourceType, date);
   const busyPeriods = await getCalendarBusyTimes(calendarId, date);
   const slotDuration = durationMinutes || config.slotDuration;
   const slots = generateTimeSlots(date, busyPeriods, config.businessHours, slotDuration);

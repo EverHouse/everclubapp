@@ -87,8 +87,6 @@ const DEFAULT_SETTINGS: Record<string, { value: string; category: string }> = {
   'hours.friday_saturday': { value: '8:30 AM – 10:00 PM', category: 'hours_display' },
   'hours.sunday': { value: '8:30 AM – 6:00 PM', category: 'hours_display' },
 
-  'resource.club_open_hour': { value: '9', category: 'resource_hours' },
-  'resource.club_close_hour': { value: '21', category: 'resource_hours' },
   'resource.golf.slot_duration': { value: '60', category: 'resource_hours' },
   'resource.conference.slot_duration': { value: '30', category: 'resource_hours' },
   'resource.tours.slot_duration': { value: '30', category: 'resource_hours' },

@@ -28,8 +28,6 @@ interface SettingsState {
   hoursTuesdayThursday: string;
   hoursFridaySaturday: string;
   hoursSunday: string;
-  clubOpenHour: string;
-  clubCloseHour: string;
   resourceGolfSlotDuration: string;
   resourceConferenceSlotDuration: string;
   resourceToursSlotDuration: string;
@@ -102,6 +100,26 @@ const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => {
   return { value: String(i), label: `${hour12}:00 ${ampm}` };
 });
 
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+  const hour = Math.floor(i / 2);
+  const minute = i % 2 === 0 ? '00' : '30';
+  const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  const ampm = hour < 12 ? 'AM' : 'PM';
+  return { value: `${hour12}:${minute} ${ampm}`, label: `${hour12}:${minute} ${ampm}` };
+});
+
+function parseHoursString(str: string): { closed: boolean; open: string; close: string } {
+  if (!str || str.toLowerCase() === 'closed') return { closed: true, open: '8:30 AM', close: '8:00 PM' };
+  const parts = str.split(/\s*[–\-]\s*/);
+  if (parts.length === 2) return { closed: false, open: parts[0].trim(), close: parts[1].trim() };
+  return { closed: false, open: '8:30 AM', close: '8:00 PM' };
+}
+
+function formatHoursString(closed: boolean, open: string, close: string): string {
+  if (closed) return 'Closed';
+  return `${open} – ${close}`;
+}
+
 const inputClass = "w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 text-primary dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent";
 const inputSmClass = "flex-1 px-4 py-2.5 rounded-lg border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 text-primary dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent text-sm";
 const sectionClass = "bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-primary/10 dark:border-white/20";
@@ -166,8 +184,6 @@ const SettingsTab: React.FC = () => {
     hoursTuesdayThursday: '8:30 AM – 8:00 PM',
     hoursFridaySaturday: '8:30 AM – 10:00 PM',
     hoursSunday: '8:30 AM – 6:00 PM',
-    clubOpenHour: '9',
-    clubCloseHour: '21',
     resourceGolfSlotDuration: '60',
     resourceConferenceSlotDuration: '30',
     resourceToursSlotDuration: '30',
@@ -248,8 +264,6 @@ const SettingsTab: React.FC = () => {
         hoursTuesdayThursday: data['hours.tuesday_thursday']?.value || defaultSettings.hoursTuesdayThursday,
         hoursFridaySaturday: data['hours.friday_saturday']?.value || defaultSettings.hoursFridaySaturday,
         hoursSunday: data['hours.sunday']?.value || defaultSettings.hoursSunday,
-        clubOpenHour: data['resource.club_open_hour']?.value || '9',
-        clubCloseHour: data['resource.club_close_hour']?.value || '21',
         resourceGolfSlotDuration: data['resource.golf.slot_duration']?.value || '60',
         resourceConferenceSlotDuration: data['resource.conference.slot_duration']?.value || '30',
         resourceToursSlotDuration: data['resource.tours.slot_duration']?.value || '30',
@@ -300,8 +314,6 @@ const SettingsTab: React.FC = () => {
         'hours.tuesday_thursday': settingsToSave.hoursTuesdayThursday,
         'hours.friday_saturday': settingsToSave.hoursFridaySaturday,
         'hours.sunday': settingsToSave.hoursSunday,
-        'resource.club_open_hour': settingsToSave.clubOpenHour,
-        'resource.club_close_hour': settingsToSave.clubCloseHour,
         'resource.golf.slot_duration': settingsToSave.resourceGolfSlotDuration,
         'resource.conference.slot_duration': settingsToSave.resourceConferenceSlotDuration,
         'resource.tours.slot_duration': settingsToSave.resourceToursSlotDuration,
@@ -489,61 +501,71 @@ const SettingsTab: React.FC = () => {
             </div>
           )}
 
-          <SubSectionLabel>Display Hours (Public Pages)</SubSectionLabel>
+          <SubSectionLabel>Display Hours (Public Pages &amp; Booking Availability)</SubSectionLabel>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">These hours control both the public display and booking slot availability for each day.</p>
           <div className="space-y-3">
             {[
               { label: 'Monday', field: 'hoursMonday' as const },
               { label: 'Tue – Thu', field: 'hoursTuesdayThursday' as const },
               { label: 'Fri – Sat', field: 'hoursFridaySaturday' as const },
               { label: 'Sunday', field: 'hoursSunday' as const },
-            ].map(({ label, field }) => (
-              <div key={field} className="flex items-center gap-4">
-                <div className="w-24 flex-shrink-0">
-                  <span className="text-sm font-medium text-primary/70 dark:text-white/70">{label}</span>
+            ].map(({ label, field }) => {
+              const parsed = parseHoursString(settings[field]);
+              return (
+                <div key={field} className="flex items-center gap-3">
+                  <div className="w-24 flex-shrink-0">
+                    <span className="text-sm font-medium text-primary/70 dark:text-white/70">{label}</span>
+                  </div>
+                  <label className="flex items-center gap-2 flex-shrink-0 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={parsed.closed}
+                      onChange={(e) => updateField(field, formatHoursString(e.target.checked, parsed.open, parsed.close))}
+                      className="rounded border-gray-300 dark:border-white/25"
+                    />
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Closed</span>
+                  </label>
+                  {!parsed.closed && (
+                    <>
+                      <select
+                        value={parsed.open}
+                        onChange={(e) => updateField(field, formatHoursString(false, e.target.value, parsed.close))}
+                        className={inputSmClass + ' !w-36'}
+                      >
+                        {TIME_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                      <span className="text-gray-400 text-sm">–</span>
+                      <select
+                        value={parsed.close}
+                        onChange={(e) => updateField(field, formatHoursString(false, parsed.open, e.target.value))}
+                        className={inputSmClass + ' !w-36'}
+                      >
+                        {TIME_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                    </>
+                  )}
                 </div>
-                <input type="text" value={settings[field]} onChange={(e) => updateField(field, e.target.value)} className={inputSmClass} placeholder="e.g. 8:30 AM – 8:00 PM" />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
 
       <div className={sectionClass}>
-        <SectionHeader icon="schedule" title="Resource Operating Hours" subtitle="Club-wide availability hours and per-resource slot durations" />
-        <div className="space-y-4">
-          <div className="p-4 bg-gray-50 dark:bg-black/20 rounded-xl">
-            <p className="font-medium text-primary dark:text-white mb-3">Club Hours</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">All bookable resources follow these operating hours</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Opens</label>
-                <select value={settings.clubOpenHour} onChange={(e) => updateField('clubOpenHour', e.target.value)} className={inputSmClass}>
-                  {HOUR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                </select>
+        <SectionHeader icon="schedule" title="Resource Slot Durations" subtitle="Default booking length per resource type — operating hours follow the Display Hours above" />
+        <div className="p-4 bg-gray-50 dark:bg-black/20 rounded-xl">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Booking availability uses the Display Hours (above) for each day of the week. Monday = Closed means no bookable slots on Mondays.</p>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Golf Simulators (min)', field: 'resourceGolfSlotDuration' as const },
+              { label: 'Conference Room (min)', field: 'resourceConferenceSlotDuration' as const },
+              { label: 'Tours (min)', field: 'resourceToursSlotDuration' as const },
+            ].map(({ label, field }) => (
+              <div key={field}>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</label>
+                <input type="number" min="15" max="120" step="15" value={settings[field]} onChange={(e) => updateField(field, e.target.value)} className={inputSmClass} />
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Closes</label>
-                <select value={settings.clubCloseHour} onChange={(e) => updateField('clubCloseHour', e.target.value)} className={inputSmClass}>
-                  {HOUR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                </select>
-              </div>
-            </div>
-          </div>
-          <div className="p-4 bg-gray-50 dark:bg-black/20 rounded-xl">
-            <p className="font-medium text-primary dark:text-white mb-3">Slot Durations</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Default booking length per resource type (in minutes)</p>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: 'Golf Simulators', field: 'resourceGolfSlotDuration' as const },
-                { label: 'Conference Room', field: 'resourceConferenceSlotDuration' as const },
-                { label: 'Tours', field: 'resourceToursSlotDuration' as const },
-              ].map(({ label, field }) => (
-                <div key={field}>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</label>
-                  <input type="number" min="15" max="120" step="15" value={settings[field]} onChange={(e) => updateField(field, e.target.value)} className={inputSmClass} />
-                </div>
-              ))}
-            </div>
+            ))}
           </div>
         </div>
       </div>

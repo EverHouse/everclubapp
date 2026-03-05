@@ -71,7 +71,7 @@ router.get('/api/calendar-availability/conference', async (req, res) => {
       return res.status(404).json({ error: result.error });
     }
     
-    const conferenceConfig = await getResourceConfig('conference');
+    const conferenceConfig = await getResourceConfig('conference', date as string);
     res.json({
       date,
       calendarName: CALENDAR_CONFIG.conference.name,
