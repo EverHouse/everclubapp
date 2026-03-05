@@ -595,7 +595,8 @@ export async function tryMatchByBayDateTime(
   slotDate: string,
   startTime: string,
   trackmanBookingId: string,
-  playerCount: number
+  playerCount: number,
+  endTime?: string
 ): Promise<{ matched: boolean; bookingId?: number; memberEmail?: string; memberName?: string }> {
   try {
     const result = await db.execute(sql`SELECT id, user_email, user_name, status, start_time, end_time, duration_minutes, session_id
@@ -604,20 +605,50 @@ export async function tryMatchByBayDateTime(
          AND request_date = ${slotDate}
          AND trackman_booking_id IS NULL
          AND status IN ('pending', 'approved')
-         AND ABS(EXTRACT(EPOCH FROM (start_time::time - ${startTime}::time))) <= 600
+         AND ABS(EXTRACT(EPOCH FROM (start_time::time - ${startTime}::time))) <= 300
        ORDER BY 
          CASE WHEN status = 'pending' THEN 0 ELSE 1 END,
-         ABS(EXTRACT(EPOCH FROM (start_time::time - ${startTime}::time))) ASC
-       LIMIT 1`);
+         ABS(EXTRACT(EPOCH FROM (start_time::time - ${startTime}::time))) ASC`);
     
-    if ((result.rows as Array<Record<string, unknown>>).length === 0) {
+    const rows = result.rows as Array<Record<string, unknown>>;
+    
+    if (rows.length === 0) {
       logger.info('[Trackman Webhook] No bay/date/time match found', {
-        extra: { resourceId, slotDate, startTime }
+        extra: { resourceId, slotDate, startTime, endTime }
       });
       return { matched: false };
     }
     
-    const booking = (result.rows as Array<Record<string, unknown>>)[0];
+    let candidates = rows;
+    if (endTime && candidates.length > 1) {
+      const withEndTimeMatch = candidates.filter(r => {
+        const bookingEnd = r.end_time as string | null;
+        if (!bookingEnd) return false;
+        try {
+          const diff = Math.abs(
+            new Date(`2000-01-01T${bookingEnd}`).getTime() - new Date(`2000-01-01T${endTime}`).getTime()
+          );
+          return diff <= 300000;
+        } catch { return false; }
+      });
+      if (withEndTimeMatch.length > 0) {
+        candidates = withEndTimeMatch;
+      }
+    }
+    
+    if (candidates.length > 1) {
+      logger.warn('[Trackman Webhook] Multiple bay/date/time matches found — skipping auto-link to avoid wrong match', {
+        extra: { 
+          resourceId, slotDate, startTime, endTime,
+          candidateCount: candidates.length,
+          candidateIds: candidates.map(c => c.id),
+          candidateEmails: candidates.map(c => c.user_email)
+        }
+      });
+      return { matched: false };
+    }
+    
+    const booking = candidates[0];
     const bookingId = booking.id as number;
     const memberEmail = booking.user_email as string;
     const memberName = booking.user_name as string;

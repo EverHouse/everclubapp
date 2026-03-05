@@ -427,17 +427,15 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
       }
       
       // Step 2: Try bay/date/time matching for unlinked bookings (webhook arrives before staff links)
-      // Only auto-link when we have a customer email to verify the match — V2 webhooks never include
-      // customer data, so a blind bay/date/time match can link the wrong member's booking.
-      // Without email verification, let the webhook fall through to create an unmatched booking
-      // and rely on CSV import (which has authoritative customer data) to assign the correct owner.
-      if (!matchedBookingId && resourceId && v2Result.normalized.parsedDate && v2Result.normalized.parsedStartTime && v2Result.normalized.customerEmail) {
+      // This also links trackman_booking_id to the booking for future webhook matching
+      if (!matchedBookingId && resourceId && v2Result.normalized.parsedDate && v2Result.normalized.parsedStartTime) {
         const bayTimeResult = await tryMatchByBayDateTime(
           resourceId,
           v2Result.normalized.parsedDate,
           v2Result.normalized.parsedStartTime,
           v2Result.normalized.trackmanBookingId!,
-          v2Result.normalized.playerCount
+          v2Result.normalized.playerCount,
+          v2Result.normalized.parsedEndTime
         );
         
         if (bayTimeResult.matched && bayTimeResult.bookingId) {
@@ -465,10 +463,6 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
             extra: { bookingId: matchedBookingId, trackmanBookingId, resourceId }
           });
         }
-      } else if (!matchedBookingId && resourceId && v2Result.normalized.parsedDate && v2Result.normalized.parsedStartTime && !v2Result.normalized.customerEmail) {
-        logger.info('[Trackman Webhook] V2: Skipping bay/date/time auto-link — no customer email to verify match', {
-          extra: { trackmanBookingId, resourceId, date: v2Result.normalized.parsedDate, time: v2Result.normalized.parsedStartTime }
-        });
       }
       
       // Step 3: Update bay slot cache for matched bookings
