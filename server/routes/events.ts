@@ -1324,27 +1324,15 @@ router.post('/api/events/:id/sync-eventbrite-attendees', isStaffOrAdmin, async (
     
     // Create email lookup map (including linked emails)
     const emailToMember = new Map<string, typeof allMembers[0]>();
-    // Create name lookup map for fallback matching
-    const nameToMember = new Map<string, typeof allMembers[0]>();
-    
     for (const member of allMembers) {
       if (member.email) {
         emailToMember.set(member.email.toLowerCase(), member);
       }
-      // Also add linked emails
       const linkedEmails = (member.linkedEmails as string[] | null) || [];
       const manualEmails = (member.manuallyLinkedEmails as string[] | null) || [];
       for (const linkedEmail of [...linkedEmails, ...manualEmails]) {
         if (linkedEmail) {
           emailToMember.set(linkedEmail.toLowerCase(), member);
-        }
-      }
-      // Add to name lookup map (normalized: lowercase, trimmed)
-      if (member.firstName && member.lastName) {
-        const fullName = `${member.firstName} ${member.lastName}`.toLowerCase().trim();
-        // Only add if not already in map (first match wins, avoids overwriting)
-        if (!nameToMember.has(fullName)) {
-          nameToMember.set(fullName, member);
         }
       }
     }
@@ -1405,11 +1393,7 @@ router.post('/api/events/:id/sync-eventbrite-attendees', isStaffOrAdmin, async (
         `${primaryAttendee.profile?.first_name || ''} ${primaryAttendee.profile?.last_name || ''}`.trim() ||
         email.split('@')[0];
       
-      let matchedMember = emailToMember.get(email);
-      if (!matchedMember && attendeeName) {
-        const normalizedName = attendeeName.toLowerCase().trim();
-        matchedMember = nameToMember.get(normalizedName);
-      }
+      const matchedMember = emailToMember.get(email);
       
       // Check if ANY of these attendee IDs already exist
       const existingByAnyAttendeeId = await db.select()

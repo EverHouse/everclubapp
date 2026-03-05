@@ -73,7 +73,8 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number; direction: 'below' | 'above' }>({ top: 0, left: 0, width: 0, direction: 'below' });
+  const rafRef = useRef<number>(0);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const instanceId = useId();
   const listboxId = `member-search-listbox-${instanceId}`;
   const getOptionId = (index: number) => `member-search-option-${instanceId}-${index}`;
@@ -194,37 +195,42 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
     setHighlightedIndex(0);
   }, [filteredMembers.length]);
 
-  const updateDropdownPosition = useCallback(() => {
-    if (!inputRef.current) return;
-    const rect = inputRef.current.getBoundingClientRect();
-    const maxDropdownHeight = 256;
-    const spaceBelow = window.innerHeight - rect.bottom - 8;
-    const spaceAbove = rect.top - 8;
-    const direction = spaceBelow >= maxDropdownHeight || spaceBelow >= spaceAbove ? 'below' : 'above';
+  const syncDropdownPosition = useCallback(() => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    const scrollX = window.scrollX || document.documentElement.scrollLeft;
 
-    setDropdownPos({
-      top: direction === 'below' ? rect.bottom + 4 : rect.top - 4,
-      left: rect.left,
+    setDropdownStyle({
+      position: 'absolute',
+      top: rect.bottom + scrollY + 4,
+      left: rect.left + scrollX,
       width: rect.width,
-      direction,
+      zIndex: 99999,
     });
   }, []);
 
   useEffect(() => {
     if (!isOpen) return;
-    updateDropdownPosition();
+    syncDropdownPosition();
 
-    const handleScrollOrResize = () => {
-      requestAnimationFrame(updateDropdownPosition);
+    const onScrollOrResize = () => {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(syncDropdownPosition);
     };
 
-    window.addEventListener('scroll', handleScrollOrResize, true);
-    window.addEventListener('resize', handleScrollOrResize);
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+    window.visualViewport?.addEventListener('resize', onScrollOrResize);
+    window.visualViewport?.addEventListener('scroll', onScrollOrResize);
     return () => {
-      window.removeEventListener('scroll', handleScrollOrResize, true);
-      window.removeEventListener('resize', handleScrollOrResize);
+      cancelAnimationFrame(rafRef.current);
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+      window.visualViewport?.removeEventListener('resize', onScrollOrResize);
+      window.visualViewport?.removeEventListener('scroll', onScrollOrResize);
     };
-  }, [isOpen, updateDropdownPosition]);
+  }, [isOpen, syncDropdownPosition]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -289,14 +295,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
       ref={dropdownRef}
       id={listboxId}
       role="listbox"
-      style={{
-        position: 'fixed',
-        top: dropdownPos.direction === 'below' ? dropdownPos.top : undefined,
-        bottom: dropdownPos.direction === 'above' ? window.innerHeight - dropdownPos.top : undefined,
-        left: dropdownPos.left,
-        width: dropdownPos.width,
-        zIndex: 99999,
-      }}
+      style={dropdownStyle}
       className="bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto"
     >
       {filteredMembers.length > 0 ? (

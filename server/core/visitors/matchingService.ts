@@ -125,36 +125,7 @@ export async function findMatchingUser(criteria: MatchCriteria): Promise<User | 
     if (results.length > 0) return results[0];
   }
 
-  // 4. Exact phone match (normalize phone format first)
-  // FIX: Exclude archived users
-  if (criteria.phone) {
-    const normalizedPhone = normalizePhone(criteria.phone);
-    const results = await db
-      .select()
-      .from(users)
-      .where(and(eq(users.phone, normalizedPhone), sql`archived_at IS NULL`))
-      .limit(1);
-    if (results.length > 0) return results[0];
-  }
-
-  // 5. firstName + lastName + phone match (all three required)
-  // FIX: Exclude archived users
-  if (criteria.firstName && criteria.lastName && criteria.phone) {
-    const normalizedPhone = normalizePhone(criteria.phone);
-    const results = await db
-      .select()
-      .from(users)
-      .where(
-        and(
-          ilike(users.firstName, criteria.firstName),
-          ilike(users.lastName, criteria.lastName),
-          eq(users.phone, normalizedPhone),
-          sql`archived_at IS NULL`
-        )
-      )
-      .limit(1);
-    if (results.length > 0) return results[0];
-  }
+  
 
   return null;
 }

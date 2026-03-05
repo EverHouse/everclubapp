@@ -300,6 +300,7 @@ export async function importSalesFromContent(content: string, clientLookup?: Map
   matchedByEmail: number;
   matchedByPhone: number;
   matchedByName: number;
+
   unmatched: number;
   errors: string[];
 }> {
@@ -404,36 +405,7 @@ export async function importSalesFromContent(content: string, clientLookup?: Map
           }
         }
         
-        // Try phone match from First Visit lookup
-        const phoneToMatch = clientInfo?.phone;
-        if (member.length === 0 && phoneToMatch) {
-          const phoneMatch = await db.select({ id: users.id, email: users.email })
-            .from(users)
-            .where(eq(users.phone, phoneToMatch))
-            .limit(1);
-          if (phoneMatch.length > 0) {
-            member = phoneMatch;
-            matchMethod = 'phone';
-            result.matchedByPhone++;
-          }
-        }
         
-        // Try name + phone match
-        if (member.length === 0 && firstName && lastName && phoneToMatch) {
-          const namePhoneMatch = await db.select({ id: users.id, email: users.email })
-            .from(users)
-            .where(and(
-              ilike(users.firstName, firstName),
-              ilike(users.lastName, lastName),
-              eq(users.phone, phoneToMatch)
-            ))
-            .limit(1);
-          if (namePhoneMatch.length > 0) {
-            member = namePhoneMatch;
-            matchMethod = 'name_phone';
-            result.matchedByName++;
-          }
-        }
         
         // Name-only matching removed — too high risk of false matches (e.g. two "John Smith" members).
         // Unmatched purchases go to the /unmatched admin route for manual linking.

@@ -44,17 +44,38 @@ export async function handleCustomerUpdated(client: PoolClient, customer: Stripe
 
     if (currentEmail && stripeEmail !== currentEmail) {
       const activeMatch = await client.query(
-        `SELECT id, email FROM users WHERE LOWER(email) = $1 AND archived_at IS NULL AND membership_status NOT IN ('merged', 'terminated') AND stripe_customer_id IS NULL LIMIT 2`,
+        `SELECT id, email, stripe_customer_id FROM users WHERE LOWER(email) = $1 AND archived_at IS NULL AND membership_status NOT IN ('merged', 'terminated') LIMIT 2`,
         [stripeEmail]
       );
-      if (activeMatch.rows.length === 1) {
-        logger.warn(`[Stripe Webhook] customer.updated: Stripe email change for ${stripeCustomerId} matches existing user ${activeMatch.rows[0].email}. Auto-reassignment BLOCKED — flagging for manual review.`);
+
+      const stripeEmailUser = activeMatch.rows.find((r: { email: string }) => r.email.toLowerCase() === stripeEmail);
+      const stripeEmailUserOwnsThisCustomer = stripeEmailUser?.stripe_customer_id === stripeCustomerId;
+
+      if (stripeEmailUserOwnsThisCustomer) {
+        logger.info(`[Stripe Webhook] customer.updated: Stripe email ${stripeEmail} belongs to user who owns this customer ${stripeCustomerId}. This is the rightful owner — clearing stale link from ${currentEmail}.`);
+        await client.query('UPDATE users SET stripe_customer_id = NULL, stripe_subscription_id = NULL WHERE stripe_customer_id = $1 AND LOWER(email) != $2', [stripeCustomerId, stripeEmail]);
+        updates.push(`stale_link_cleared (${currentEmail} → rightful owner ${stripeEmail})`);
+
+        deferredActions.push(async () => {
+          try {
+            await notifyAllStaff(
+              'Stripe Customer Reassigned',
+              `Stripe customer ${stripeCustomerId} was incorrectly linked to ${currentEmail} but belongs to ${stripeEmail}. The stale link has been cleared automatically.`,
+              'billing_alert',
+              { sendPush: true }
+            );
+          } catch (err: unknown) {
+            logger.error('[Stripe Webhook] Failed to send reassignment notification:', { error: err });
+          }
+        });
+      } else if (stripeEmailUser && (!stripeEmailUser.stripe_customer_id || stripeEmailUser.stripe_customer_id === stripeCustomerId)) {
+        logger.warn(`[Stripe Webhook] customer.updated: Stripe email change for ${stripeCustomerId} matches existing unlinked user ${stripeEmailUser.email}. Auto-reassignment BLOCKED — flagging for manual review.`);
         
         deferredActions.push(async () => {
           try {
             await notifyAllStaff(
               'Stripe Customer Email Change — Action Required',
-              `Stripe customer ${stripeCustomerId} (currently ${currentEmail}) changed their email to ${stripeEmail}, which matches existing member ${activeMatch.rows[0].email}. Auto-reassignment was blocked for security. Please verify and update manually if this is legitimate.`,
+              `Stripe customer ${stripeCustomerId} (currently ${currentEmail}) changed their email to ${stripeEmail}, which matches existing member ${stripeEmailUser.email} (no Stripe customer linked). Auto-reassignment was blocked for security. Please verify and update manually if this is legitimate.`,
               'billing_alert',
               { sendPush: true }
             );
@@ -62,7 +83,7 @@ export async function handleCustomerUpdated(client: PoolClient, customer: Stripe
             logger.error('[Stripe Webhook] Failed to send reassignment alert:', { error: err });
           }
         });
-        updates.push(`auto_reassignment_blocked (stripe_email=${stripeEmail} matches ${activeMatch.rows[0].email})`);
+        updates.push(`auto_reassignment_blocked (stripe_email=${stripeEmail} matches unlinked ${stripeEmailUser.email})`);
       } else if (activeMatch.rows.length > 1) {
         logger.warn(`[Stripe Webhook] customer.updated: multiple active users match Stripe email ${stripeEmail} — skipping all auto-actions, notifying staff`);
         deferredActions.push(async () => {
@@ -79,36 +100,36 @@ export async function handleCustomerUpdated(client: PoolClient, customer: Stripe
         });
         updates.push(`multi_match_blocked (stripe_email=${stripeEmail})`);
         return deferredActions;
-      }
-
-      logger.warn(`[Stripe Webhook] customer.updated: email mismatch for customer ${stripeCustomerId}: Stripe has ${stripeEmail}, app has ${currentEmail}. Auto-correcting Stripe to match app.`);
-      
-      deferredActions.push(async () => {
-        try {
-          const stripeClient = await getStripeClient();
-          await stripeClient.customers.update(stripeCustomerId, { email: currentEmail });
-          logger.info(`[Stripe Webhook] Auto-corrected Stripe customer ${stripeCustomerId} email from ${stripeEmail} to ${currentEmail}`);
-          await notifyAllStaff(
-            'Stripe Email Auto-Corrected',
-            `Member ${user.display_name || currentEmail} had a different email in Stripe (${stripeEmail}). It has been automatically corrected to match the app email (${currentEmail}).`,
-            'billing_alert',
-            { sendPush: false }
-          );
-        } catch (err: unknown) {
-          logger.error('[Stripe Webhook] Failed to auto-correct Stripe email:', { error: err });
+      } else {
+        logger.warn(`[Stripe Webhook] customer.updated: email mismatch for customer ${stripeCustomerId}: Stripe has ${stripeEmail}, app has ${currentEmail}. No matching user for Stripe email — auto-correcting Stripe to match app.`);
+        
+        deferredActions.push(async () => {
           try {
+            const stripeClient = await getStripeClient();
+            await stripeClient.customers.update(stripeCustomerId, { email: currentEmail });
+            logger.info(`[Stripe Webhook] Auto-corrected Stripe customer ${stripeCustomerId} email from ${stripeEmail} to ${currentEmail}`);
             await notifyAllStaff(
-              'Stripe Email Mismatch — Auto-Correct Failed',
-              `Member ${user.display_name || currentEmail} has a different email in Stripe (${stripeEmail}) than in the app (${currentEmail}). Auto-correction failed — please update manually.`,
+              'Stripe Email Auto-Corrected',
+              `Member ${user.display_name || currentEmail} had a different email in Stripe (${stripeEmail}). It has been automatically corrected to match the app email (${currentEmail}).`,
               'billing_alert',
-              { sendPush: true }
+              { sendPush: false }
             );
-          } catch {
-            logger.error('[Stripe Webhook] Failed to send email mismatch fallback notification');
+          } catch (err: unknown) {
+            logger.error('[Stripe Webhook] Failed to auto-correct Stripe email:', { error: err });
+            try {
+              await notifyAllStaff(
+                'Stripe Email Mismatch — Auto-Correct Failed',
+                `Member ${user.display_name || currentEmail} has a different email in Stripe (${stripeEmail}) than in the app (${currentEmail}). Auto-correction failed — please update manually.`,
+                'billing_alert',
+                { sendPush: true }
+              );
+            } catch {
+              logger.error('[Stripe Webhook] Failed to send email mismatch fallback notification');
+            }
           }
-        }
-      });
-      updates.push(`email_auto_corrected (stripe=${stripeEmail} → app=${currentEmail})`);
+        });
+        updates.push(`email_auto_corrected (stripe=${stripeEmail} → app=${currentEmail})`);
+      }
     }
 
     if (stripeName) {

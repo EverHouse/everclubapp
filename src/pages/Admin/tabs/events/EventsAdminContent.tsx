@@ -782,7 +782,7 @@ export const EventsAdminContent: React.FC = () => {
                                     const isPending = pendingEventIds.has(event.id);
                                     const isOptimistic = event.id < 0;
                                     return (
-                                    <div key={event.id} onClick={() => !isOptimistic && openEdit(event)} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border flex flex-col gap-3 relative overflow-hidden transition-colors ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
+                                    <div key={event.id} onClick={() => !isOptimistic && openEdit(event)} onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !isOptimistic) { e.preventDefault(); openEdit(event); } }} role="button" tabIndex={isOptimistic ? -1 : 0} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border flex flex-col gap-3 relative overflow-hidden transition-colors ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
                                         isPending || isOptimistic 
                                             ? 'border-brand-green/50 animate-pulse cursor-wait' 
                                             : 'border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-transform active:scale-[0.98]'
@@ -869,7 +869,7 @@ export const EventsAdminContent: React.FC = () => {
                                 {pastEvents.slice(0, showAllPastEvents ? pastEvents.length : 20).map((event, index) => {
                                     const isPending = pendingEventIds.has(event.id);
                                     return (
-                                    <div key={event.id} onClick={() => openEdit(event)} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border flex flex-col gap-3 relative overflow-hidden transition-colors ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
+                                    <div key={event.id} onClick={() => openEdit(event)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(event); } }} role="button" tabIndex={0} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border flex flex-col gap-3 relative overflow-hidden transition-colors ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
                                         isPending ? 'border-brand-green/50 animate-pulse cursor-wait' : 'border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-transform active:scale-[0.98]'
                                     }`}>
                                         {isPending && (

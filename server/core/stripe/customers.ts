@@ -274,50 +274,7 @@ export async function getOrCreateStripeCustomer(
     }
   }
 
-  const hubspotResult = await db.execute(sql`SELECT u.stripe_customer_id, u.email, u.hubspot_id 
-     FROM users u 
-     WHERE u.id = ${userId} AND u.hubspot_id IS NOT NULL`);
-
-  const hubspotRow = (hubspotResult.rows as unknown as HubspotRow[])[0];
-  if (hubspotRow?.hubspot_id) {
-    const hubspotMatchResult = await db.execute(sql`SELECT u.stripe_customer_id, u.email
-       FROM users u
-       WHERE u.hubspot_id = ${hubspotRow.hubspot_id}
-         AND u.id != ${userId}
-         AND u.stripe_customer_id IS NOT NULL
-         AND u.archived_at IS NULL
-       ORDER BY u.membership_status = 'active' DESC, u.lifetime_visits DESC
-       LIMIT 1`);
-
-    const hubspotMatchRow = (hubspotMatchResult.rows as unknown as StripeCustomerRow[])[0];
-    if (hubspotMatchRow?.stripe_customer_id) {
-      const existingCustomerId = hubspotMatchRow.stripe_customer_id;
-      try {
-        const stripeForValidation = await getStripeClient();
-        await stripeForValidation.customers.retrieve(existingCustomerId);
-        logger.info(`[Stripe] Found existing customer ${existingCustomerId} via HubSpot ID match for user ${userId} (matched user: ${hubspotMatchRow.email})`);
-        
-        await db.execute(sql`UPDATE users SET stripe_customer_id = ${existingCustomerId}, archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = ${userId}`);
-        if (userRow?.archived_at) {
-          logger.info(`[Auto-Unarchive] User ${email} unarchived after receiving Stripe customer ID`);
-        }
-        
-        return { customerId: existingCustomerId, isNew: false };
-      } catch (validationError: unknown) {
-        if (getErrorCode(validationError) === 'resource_missing') {
-          logger.warn(`[Stripe] Stale HubSpot-matched customer ${existingCustomerId} for ${email} — clearing and creating new`);
-          await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE stripe_customer_id = ${existingCustomerId}`);
-        } else {
-          logger.info(`[Stripe] Found existing customer ${existingCustomerId} via HubSpot ID match for user ${userId}`);
-          await db.execute(sql`UPDATE users SET stripe_customer_id = ${existingCustomerId}, archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = ${userId}`);
-          if (userRow?.archived_at) {
-            logger.info(`[Auto-Unarchive] User ${email} unarchived after receiving Stripe customer ID`);
-          }
-          return { customerId: existingCustomerId, isNew: false };
-        }
-      }
-    }
-  }
+  
 
   let stripe;
   try {
@@ -357,19 +314,8 @@ export async function getOrCreateStripeCustomer(
           });
           
           if (!ownershipVerified) {
-            const alreadyLinkedResult = await db.execute(sql`SELECT id, email FROM users WHERE stripe_customer_id = ANY(${toTextArrayLiteral(sortedCustomers.map(c => c.id))}::text[]) AND id != ${userId} AND archived_at IS NULL LIMIT 1`);
-            if (alreadyLinkedResult.rows.length > 0) {
-              const alreadyLinkedRow = alreadyLinkedResult.rows[0] as unknown as { id: string; email: string };
-              logger.warn(`[Stripe] Customer(s) found via linked email ${searchEmail} but already linked to different user ${alreadyLinkedRow.email} — skipping to prevent cross-linking`);
-              continue;
-            }
-            
-            const customerName = (sortedCustomers[0] as Stripe.Customer).name?.toLowerCase() || '';
-            const userName = resolvedName?.toLowerCase() || '';
-            if (customerName && userName && !customerName.includes(userName.split(' ')[0]) && !userName.includes(customerName.split(' ')[0])) {
-              logger.warn(`[Stripe] Customer ${sortedCustomers[0].id} found via linked email ${searchEmail} but name mismatch (Stripe: "${(sortedCustomers[0] as Stripe.Customer).name}", App: "${resolvedName}") — skipping to prevent cross-linking`);
-              continue;
-            }
+            logger.warn(`[Stripe] Customer(s) found via linked email ${searchEmail} but ownership not verified for user ${userId} — skipping to prevent cross-linking`);
+            continue;
           }
         }
         

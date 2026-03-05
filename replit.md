@@ -24,9 +24,10 @@ The Ever Club Members App is a private members club application designed for gol
 
 ### UI/UX & Frontend
 - **Design System**: Liquid Glass UI system using Tailwind CSS v4, supporting dark mode and M3-compliant motion tokens.
+- **Design Token Standards**: All brand colors must use named Tailwind tokens (`primary`, `lavender`, `danger`, `bone`, `surface-dark-*`) — never hardcoded hex values in class strings. Z-index uses named scale (`z-banner`, `z-modal`, `z-fab`, etc.) defined in `tailwind.config.js`.
 - **Technology Stack**: React 19, Vite, and state management using Zustand/TanStack libraries.
 - **Component Design**: Sheets and modals follow a Header, scrollable Body, and Sticky Footer structure. Button hierarchy differentiates actions.
-- **Accessibility**: Adheres to WCAG conventions, including skip navigation, focus trapping, and proper roles/attributes. `prefers-reduced-motion` is respected.
+- **Accessibility**: Adheres to WCAG conventions, including skip navigation, focus trapping, and proper roles/attributes. `prefers-reduced-motion` is respected. All clickable non-button elements must have `role="button"`, `tabIndex={0}`, and `onKeyDown` handlers. Modal backdrops must not use `aria-hidden="true"` with `onClick`.
 - **M3 Components**: Custom components like `SegmentedButton`, `Chip`, `SearchBar`, and `FloatingActionButton` support M3 design principles.
 - **Bottom Sheet Variants**: `SlideUpDrawer` supports `modal` (default) and `standard` variants.
 - **Navigation Rail**: Staff portal uses `StaffNavigationRail` for tablet/desktop, bottom nav for mobile.

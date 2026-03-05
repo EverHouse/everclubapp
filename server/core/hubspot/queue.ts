@@ -112,7 +112,6 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
       WHERE (status = 'pending' OR (status = 'failed' AND next_retry_at <= NOW()))
       ORDER BY priority ASC, created_at ASC
       LIMIT ${batchSize}
-      FOR UPDATE SKIP LOCKED
     )
     RETURNING id, operation, payload, retry_count, max_retries
   `);

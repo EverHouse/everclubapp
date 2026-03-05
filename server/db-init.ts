@@ -533,21 +533,27 @@ export async function ensureDatabaseConstraints() {
       logger.warn(`[DB Init] Skipping active email CHECK: ${getErrorMessage(err)}`);
     }
 
-    try {
-      await db.execute(sql`
-        DO $$
-        BEGIN
-          IF NOT EXISTS (
-            SELECT 1 FROM pg_indexes WHERE indexname = 'users_stripe_customer_id_unique'
-          ) THEN
-            CREATE UNIQUE INDEX users_stripe_customer_id_unique
-              ON users (stripe_customer_id) WHERE stripe_customer_id IS NOT NULL;
-          END IF;
-        END $$;
-      `);
-      logger.info('[DB Init] Stripe customer ID unique index created/verified');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Skipping Stripe customer unique index: ${getErrorMessage(err)}`);
+    if (process.env.NODE_ENV === 'production') {
+      try {
+        await db.execute(sql`
+          UPDATE users SET stripe_customer_id = NULL
+          WHERE id IN (
+            SELECT id FROM (
+              SELECT id, ROW_NUMBER() OVER (PARTITION BY stripe_customer_id ORDER BY updated_at DESC NULLS LAST, created_at DESC NULLS LAST) AS rn
+              FROM users
+              WHERE stripe_customer_id IS NOT NULL
+            ) dupes
+            WHERE rn > 1
+          )
+        `);
+        await db.execute(sql`
+          CREATE UNIQUE INDEX IF NOT EXISTS users_stripe_customer_id_unique
+            ON users (stripe_customer_id) WHERE stripe_customer_id IS NOT NULL
+        `);
+        logger.info('[DB Init] Stripe customer ID unique index created/verified');
+      } catch (err: unknown) {
+        logger.warn(`[DB Init] Skipping Stripe customer unique index: ${getErrorMessage(err)}`);
+      }
     }
 
     try {
