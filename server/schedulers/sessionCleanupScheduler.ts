@@ -3,10 +3,12 @@ import { getPacificHour } from '../utils/dateUtils';
 import { logger } from '../core/logger';
 
 let isRunning = false;
+let intervalId: NodeJS.Timeout | null = null;
 
 export function startSessionCleanupScheduler(): NodeJS.Timeout {
+  stopSessionCleanupScheduler();
   logger.info('[Startup] Session cleanup scheduler enabled (runs daily at 2am Pacific)');
-  return setInterval(async () => {
+  intervalId = setInterval(async () => {
     if (isRunning) {
       logger.info('[Session Cleanup] Skipping run — previous run still in progress');
       return;
@@ -25,4 +27,12 @@ export function startSessionCleanupScheduler(): NodeJS.Timeout {
       isRunning = false;
     }
   }, 60 * 60 * 1000);
+  return intervalId;
+}
+
+export function stopSessionCleanupScheduler(): void {
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
 }

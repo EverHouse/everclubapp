@@ -86,6 +86,20 @@ async function cleanupPendingUsers(): Promise<void> {
 }
 
 let intervalId: NodeJS.Timeout | null = null;
+let isRunning = false;
+
+async function guardedCleanup(): Promise<void> {
+  if (isRunning) {
+    logger.info('[Pending User Cleanup] Skipping run — previous run still in progress');
+    return;
+  }
+  isRunning = true;
+  try {
+    await cleanupPendingUsers();
+  } finally {
+    isRunning = false;
+  }
+}
 
 export function startPendingUserCleanupScheduler(): void {
   if (intervalId) {
@@ -96,14 +110,14 @@ export function startPendingUserCleanupScheduler(): void {
   logger.info('[Startup] Pending user cleanup scheduler enabled (runs every 6 hours)');
 
   intervalId = setInterval(() => {
-    cleanupPendingUsers().catch((err: unknown) => {
+    guardedCleanup().catch((err: unknown) => {
       logger.error('[Pending User Cleanup] Uncaught error:', { error: err as Error });
       schedulerTracker.recordRun('Pending User Cleanup', false, String(err));
     });
   }, 6 * 60 * 60 * 1000);
 
   setTimeout(() => {
-    cleanupPendingUsers().catch((err: unknown) => {
+    guardedCleanup().catch((err: unknown) => {
       logger.error('[Pending User Cleanup] Initial run error:', { error: err as Error });
       schedulerTracker.recordRun('Pending User Cleanup', false, String(err));
     });

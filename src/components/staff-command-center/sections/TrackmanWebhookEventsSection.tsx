@@ -204,6 +204,13 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayResult, setReplayResult] = useState<{ success: boolean; message: string; sent?: number; failed?: number } | null>(null);
   const sectionRef = useRef<HTMLDivElement>(null);
+  const autoMatchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (autoMatchTimeoutRef.current) clearTimeout(autoMatchTimeoutRef.current);
+    };
+  }, []);
 
   const handleReplayToDev = async () => {
     if (!replayDevUrl) return;
@@ -327,7 +334,8 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
           success: false,
           message: errorData.error || `Failed (${res.status})`
         });
-        setTimeout(() => setAutoMatchResult(null), 5000);
+        if (autoMatchTimeoutRef.current) clearTimeout(autoMatchTimeoutRef.current);
+        autoMatchTimeoutRef.current = setTimeout(() => setAutoMatchResult(null), 5000);
         return;
       }
       
@@ -345,14 +353,16 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
         window.dispatchEvent(new CustomEvent('booking-action-completed'));
       }
       
-      setTimeout(() => setAutoMatchResult(null), 5000);
+      if (autoMatchTimeoutRef.current) clearTimeout(autoMatchTimeoutRef.current);
+      autoMatchTimeoutRef.current = setTimeout(() => setAutoMatchResult(null), 5000);
     } catch (err: unknown) {
       setAutoMatchResult({
         eventId,
         success: false,
         message: 'Network error - try again'
       });
-      setTimeout(() => setAutoMatchResult(null), 5000);
+      if (autoMatchTimeoutRef.current) clearTimeout(autoMatchTimeoutRef.current);
+      autoMatchTimeoutRef.current = setTimeout(() => setAutoMatchResult(null), 5000);
     } finally {
       setAutoMatchingEventId(null);
     }

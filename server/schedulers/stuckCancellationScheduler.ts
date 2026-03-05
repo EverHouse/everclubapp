@@ -77,6 +77,20 @@ async function checkStuckCancellations(): Promise<void> {
 }
 
 let intervalId: NodeJS.Timeout | null = null;
+let isRunning = false;
+
+async function guardedCheck(): Promise<void> {
+  if (isRunning) {
+    logger.info('[Stuck Cancellations] Skipping run — previous run still in progress');
+    return;
+  }
+  isRunning = true;
+  try {
+    await checkStuckCancellations();
+  } finally {
+    isRunning = false;
+  }
+}
 
 export function startStuckCancellationScheduler(): void {
   if (intervalId) {
@@ -87,15 +101,14 @@ export function startStuckCancellationScheduler(): void {
   logger.info('[Startup] Stuck cancellation check scheduler enabled (runs every 2 hours)');
 
   intervalId = setInterval(() => {
-    checkStuckCancellations().catch((err: unknown) => {
+    guardedCheck().catch((err: unknown) => {
       logger.error('[Stuck Cancellations] Uncaught error:', { error: err as Error });
       schedulerTracker.recordRun('Stuck Cancellation', false, String(err));
     });
   }, 2 * 60 * 60 * 1000);
 
-  // Run initial check after 1 minute
   setTimeout(() => {
-    checkStuckCancellations().catch((err: unknown) => {
+    guardedCheck().catch((err: unknown) => {
       logger.error('[Stuck Cancellations] Initial run error:', { error: err as Error });
       schedulerTracker.recordRun('Stuck Cancellation', false, String(err));
     });

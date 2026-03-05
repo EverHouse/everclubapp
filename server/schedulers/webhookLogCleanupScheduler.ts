@@ -3,6 +3,7 @@ import { getPacificHour } from '../utils/dateUtils';
 import { logger } from '../core/logger';
 
 let isRunning = false;
+let intervalId: NodeJS.Timeout | null = null;
 
 async function scheduleWebhookLogCleanup(): Promise<void> {
   try {
@@ -16,8 +17,9 @@ async function scheduleWebhookLogCleanup(): Promise<void> {
 }
 
 export function startWebhookLogCleanupScheduler(): NodeJS.Timeout {
+  stopWebhookLogCleanupScheduler();
   logger.info('[Startup] Webhook log cleanup scheduler enabled (runs daily at 4am Pacific, deletes logs older than 30 days)');
-  return setInterval(async () => {
+  intervalId = setInterval(async () => {
     if (isRunning) {
       logger.info('[Webhook Cleanup] Skipping run — previous run still in progress');
       return;
@@ -33,4 +35,12 @@ export function startWebhookLogCleanupScheduler(): NodeJS.Timeout {
       isRunning = false;
     }
   }, 60 * 60 * 1000);
+  return intervalId;
+}
+
+export function stopWebhookLogCleanupScheduler(): void {
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
 }

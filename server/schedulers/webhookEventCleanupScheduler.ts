@@ -18,6 +18,20 @@ async function cleanupOldWebhookEvents(): Promise<void> {
 }
 
 let intervalId: NodeJS.Timeout | null = null;
+let isRunning = false;
+
+async function guardedCleanup(): Promise<void> {
+  if (isRunning) {
+    logger.info('[Webhook Event Cleanup] Skipping run — previous run still in progress');
+    return;
+  }
+  isRunning = true;
+  try {
+    await cleanupOldWebhookEvents();
+  } finally {
+    isRunning = false;
+  }
+}
 
 export function startWebhookEventCleanupScheduler(): void {
   if (intervalId) {
@@ -28,14 +42,14 @@ export function startWebhookEventCleanupScheduler(): void {
   logger.info('[Startup] Webhook event cleanup scheduler enabled (runs every 24 hours)');
 
   intervalId = setInterval(() => {
-    cleanupOldWebhookEvents().catch((err: unknown) => {
+    guardedCleanup().catch((err: unknown) => {
       logger.error('[Webhook Event Cleanup] Uncaught error:', { error: err as Error });
       schedulerTracker.recordRun('Webhook Event Cleanup', false, String(err));
     });
   }, 24 * 60 * 60 * 1000);
 
   setTimeout(() => {
-    cleanupOldWebhookEvents().catch((err: unknown) => {
+    guardedCleanup().catch((err: unknown) => {
       logger.error('[Webhook Event Cleanup] Initial run error:', { error: err as Error });
       schedulerTracker.recordRun('Webhook Event Cleanup', false, String(err));
     });

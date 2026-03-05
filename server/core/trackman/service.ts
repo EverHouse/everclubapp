@@ -747,6 +747,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               .where(eq(trackmanUnmatchedBookings.id, existingUnmatched[0].id));
             process.stderr.write(`[Trackman Import] Auto-resolved legacy entry for booking ${row.bookingId}\n`);
           } catch (resolveErr: unknown) {
+            logger.warn('[Trackman Import] Failed to auto-resolve legacy unmatched entry', { extra: { bookingId: row.bookingId, error: String(resolveErr) } });
           }
         }
         

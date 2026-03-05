@@ -5,6 +5,8 @@ import { logger } from '../core/logger';
 
 const CLEANUP_HOUR = 4;
 let lastCleanupDate = '';
+let intervalId: NodeJS.Timeout | null = null;
+let isRunning = false;
 
 async function cleanupDuplicateTrackmanBookings(): Promise<{ deletedCount: number }> {
   const client = await pool.connect();
@@ -61,29 +63,39 @@ async function cleanupDuplicateTrackmanBookings(): Promise<{ deletedCount: numbe
 }
 
 async function checkAndRunCleanup(): Promise<void> {
+  if (isRunning) {
+    logger.info('[Duplicate Cleanup] Skipping run — previous run still in progress');
+    return;
+  }
+  isRunning = true;
   try {
     const currentHour = getPacificHour();
     const todayStr = getTodayPacific();
     
     if (currentHour === CLEANUP_HOUR && lastCleanupDate !== todayStr) {
-      lastCleanupDate = todayStr;
       logger.info('[Duplicate Cleanup] Running scheduled cleanup...');
       const result = await cleanupDuplicateTrackmanBookings();
+      lastCleanupDate = todayStr;
       if (result.deletedCount > 0) {
         logger.info(`[Duplicate Cleanup] Completed: removed ${result.deletedCount} duplicates`);
-        schedulerTracker.recordRun('Duplicate Cleanup', true);
       }
+      schedulerTracker.recordRun('Duplicate Cleanup', true);
     }
   } catch (error: unknown) {
     logger.error('[Duplicate Cleanup] Scheduler error:', { error: error as Error });
     schedulerTracker.recordRun('Duplicate Cleanup', false, String(error));
+  } finally {
+    isRunning = false;
   }
 }
 
 export function startDuplicateCleanupScheduler(): NodeJS.Timeout {
+  stopDuplicateCleanupScheduler();
   logger.info('[Startup] Duplicate cleanup scheduler enabled (startup-only — unique constraint prevents new duplicates)');
   
   setTimeout(async () => {
+    if (isRunning) return;
+    isRunning = true;
     try {
       logger.info('[Duplicate Cleanup] Running startup cleanup check...');
       const result = await cleanupDuplicateTrackmanBookings();
@@ -97,10 +109,24 @@ export function startDuplicateCleanupScheduler(): NodeJS.Timeout {
     } catch (error: unknown) {
       logger.error('[Duplicate Cleanup] Startup cleanup error:', { error: error as Error });
       schedulerTracker.recordRun('Duplicate Cleanup', false, String(error));
+    } finally {
+      isRunning = false;
     }
   }, 30000);
   
-  return setInterval(() => {}, 24 * 60 * 60 * 1000);
+  intervalId = setInterval(() => {
+    checkAndRunCleanup().catch((err) => {
+      logger.error('[Duplicate Cleanup] Uncaught error:', { error: err as Error });
+    });
+  }, 24 * 60 * 60 * 1000);
+  return intervalId;
+}
+
+export function stopDuplicateCleanupScheduler(): void {
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
 }
 
 export { cleanupDuplicateTrackmanBookings };

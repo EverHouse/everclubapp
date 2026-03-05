@@ -34,6 +34,7 @@ async function runHeartbeat(): Promise<void> {
 }
 
 export function startSupabaseHeartbeatScheduler(): void {
+  stopSupabaseHeartbeatScheduler();
   logger.info('[Startup] Supabase heartbeat scheduler enabled (runs every 6 hours)');
 
   setTimeout(async () => {

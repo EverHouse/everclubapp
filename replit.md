@@ -197,6 +197,13 @@ The following large files have been split into sub-modules with barrel re-export
 - **HubSpot Contact Mappings**: Tier name mappings and status mappings configurable from admin settings. Async wrapper functions (`getDbStatusToHubSpotMapping`, `getTierToHubSpotMapping`) read from settings with hardcoded fallbacks. Pipeline ID and stage ID settings removed (deal sync fully removed).
 - **Notification & Communication**: Daily reminder hour, morning closure hour, onboarding nudge hour, grace period hour/days, max onboarding nudges, and trial coupon code all read from settings at runtime via `getSettingValue()`. HubSpot stage/tier/status collapsible sections in UI use expand/collapse pattern.
 
+### Bug Fixes (v8.77.2)
+- **TabTransition timer leak fix**: Both `enterTimer` and `delayTimer` in `TabTransition.tsx` are now tracked via refs with proper `useEffect` cleanup, preventing orphaned timers on unmount.
+- **Circular import chain fix**: Extracted `TabType`, `tabToPath`, `pathToTab`, `getTabFromPathname` from `src/pages/Admin/layout/types.ts` into `src/lib/nav-constants.ts`. All `src/components/` files import from `nav-constants.ts`; `layout/types.ts` re-exports for backward compatibility within Admin pages. This breaks the HMR cycle that caused repeated page reloads.
+- **Scheduler overlap guards**: Added `isRunning` flags to `sessionCleanupScheduler`, `communicationLogsScheduler`, `webhookLogCleanupScheduler`, `pendingUserCleanupScheduler`, `stuckCancellationScheduler`, `webhookEventCleanupScheduler`. Added `stop` functions and double-start protection to `sessionCleanupScheduler`, `webhookLogCleanupScheduler`, `weeklyCleanupScheduler`, `duplicateCleanupScheduler`. `supabaseHeartbeatScheduler` now calls `stop` before re-starting.
+- **TrackmanWebhookEventsSection timeout cleanup**: All three `setTimeout(() => setAutoMatchResult(null), 5000)` calls in `handleAutoMatch` now use an `autoMatchTimeoutRef` with `useEffect` unmount cleanup, preventing state updates on unmounted components.
+- **Empty catch block fix**: `server/core/trackman/service.ts:749` now logs a warning with booking ID instead of silently swallowing errors during legacy unmatched entry resolution.
+
 ### Bug Fixes (v8.77.1)
 - **CafeTab controlled/uncontrolled fix**: Added `|| ''` fallback to `value={newItem.category}` in `CafeTab.tsx` select input to prevent React controlled/uncontrolled warnings when category is undefined.
 - **AdminDashboard circular import fix**: Replaced barrel import from `./layout` with direct imports from individual modules (`./layout/types`, `./layout/StaffBottomNav`, `./layout/StaffSidebar`, etc.) to reduce HMR invalidation chain and fix Vite HMR churn.
