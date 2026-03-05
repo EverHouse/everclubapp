@@ -184,7 +184,7 @@ async function runPeriodicAutoFix(): Promise<void> {
       logger.info(`[Auto-Fix] Set billing_provider='mindbody' for ${result.fixedBillingProvider} members with MindBody IDs`);
     }
     if (result.fixedFromAlternateEmail > 0) {
-      logger.warn(`[Auto-Fix] Detected ${result.fixedFromAlternateEmail} linked users with separate records — should be merged into primary via userMerge`);
+      logger.info(`[Auto-Fix] Cleared tier/status for ${result.fixedFromAlternateEmail} linked user records (data belongs to primary)`);
     }
     if (result.syncedStaffRoles > 0) {
       logger.info(`[Auto-Fix] Synced staff roles for ${result.syncedStaffRoles} users`);

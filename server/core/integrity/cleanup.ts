@@ -163,27 +163,23 @@ export async function autoFixMissingTiers(): Promise<{
       logger.info(`[AutoFix] Set billing_provider='mindbody' for ${billingProviderResult.rows.length} members with MindBody IDs: ${emails}`);
     }
 
-    const unmergdLinkedUsers = await db.execute(sql`
-      SELECT DISTINCT ON (u1.id)
-        u1.id, u1.email as linked_email, ule.primary_email
-      FROM users u1
-      JOIN user_linked_emails ule ON LOWER(ule.linked_email) = LOWER(u1.email)
-      JOIN users primary_user ON LOWER(primary_user.email) = LOWER(ule.primary_email)
-      WHERE u1.role = 'member' 
-        AND u1.membership_status = 'active' 
-        AND u1.email NOT LIKE '%test%'
-        AND u1.email NOT LIKE '%example.com'
-      ORDER BY u1.id
+    const clearedLinkedTiers = await db.execute(sql`
+      UPDATE users u
+      SET tier = NULL, membership_status = 'inactive', updated_at = NOW()
+      FROM user_linked_emails ule
+      WHERE LOWER(ule.linked_email) = LOWER(u.email)
+        AND u.role = 'member'
+        AND (u.tier IS NOT NULL OR u.membership_status = 'active')
+        AND u.email NOT LIKE '%test%'
+        AND u.email NOT LIKE '%example.com'
+      RETURNING u.email, u.tier
     `);
 
-    fixedFromAlternateEmail = unmergdLinkedUsers.rows.length;
+    fixedFromAlternateEmail = (clearedLinkedTiers as { rowCount?: number }).rowCount || 0;
 
     if (fixedFromAlternateEmail > 0) {
-      const details = (unmergdLinkedUsers.rows as unknown as { linked_email: string; primary_email: string }[])
-        .slice(0, 10)
-        .map(r => `${r.linked_email} → ${r.primary_email}`)
-        .join(', ');
-      logger.warn(`[AutoFix] ${fixedFromAlternateEmail} linked users still have separate user records — should be merged into primary: ${details}`);
+      const emails = (clearedLinkedTiers.rows as unknown as { email: string }[]).slice(0, 10).map(r => r.email).join(', ');
+      logger.info(`[AutoFix] Cleared tier/status for ${fixedFromAlternateEmail} linked user records (data belongs to primary): ${emails}`);
     }
 
     const hubspotTierCandidates = await db.execute(sql`
