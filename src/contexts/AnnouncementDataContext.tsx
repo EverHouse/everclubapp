@@ -22,6 +22,7 @@ export const AnnouncementDataProvider: React.FC<{children: ReactNode}> = ({ chil
   const [announcements, setAnnouncements] = useState<Announcement[]>(INITIAL_ANNOUNCEMENTS);
   const [announcementsLoaded, setAnnouncementsLoaded] = useState(false);
   const announcementsFetchedRef = useRef(false);
+  const mutatingRef = useRef(false);
 
   const refreshAnnouncements = useCallback(async () => {
     try {
@@ -67,12 +68,22 @@ export const AnnouncementDataProvider: React.FC<{children: ReactNode}> = ({ chil
   }, [refreshAnnouncements]);
 
   useEffect(() => {
-    const handleAnnouncementUpdate = () => { refreshAnnouncements(); };
+    const handleAnnouncementUpdate = () => {
+      if (!mutatingRef.current) refreshAnnouncements();
+    };
     window.addEventListener('announcement-update', handleAnnouncementUpdate);
     return () => { window.removeEventListener('announcement-update', handleAnnouncementUpdate); };
   }, [refreshAnnouncements]);
 
   const addAnnouncement = useCallback(async (item: Announcement) => {
+    const tempId = `temp-${Date.now()}`;
+    const optimisticItem: Announcement = {
+      ...item,
+      id: tempId,
+      date: 'Just now',
+    };
+    setAnnouncements(prev => [optimisticItem, ...prev]);
+    mutatingRef.current = true;
     try {
       const res = await fetch('/api/announcements', {
         method: 'POST',
@@ -87,20 +98,27 @@ export const AnnouncementDataProvider: React.FC<{children: ReactNode}> = ({ chil
           endDate: item.endDate || null,
           linkType: item.linkType || null,
           linkTarget: item.linkTarget || null,
-          notifyMembers: item.notifyMembers || false
+          notifyMembers: item.notifyMembers || false,
+          showAsBanner: item.showAsBanner || false
         })
       });
       if (res.ok) {
         const newItem = await res.json();
-        setAnnouncements(prev => [newItem, ...prev]);
+        setAnnouncements(prev => prev.map(a => a.id === tempId ? newItem : a));
+      } else {
+        setAnnouncements(prev => prev.filter(a => a.id !== tempId));
       }
     } catch (err: unknown) {
       console.error('Failed to add announcement:', err);
+      setAnnouncements(prev => prev.filter(a => a.id !== tempId));
+    } finally {
+      setTimeout(() => { mutatingRef.current = false; }, 1000);
     }
   }, []);
 
   const updateAnnouncement = useCallback(async (item: Announcement) => {
     setAnnouncements(prev => prev.map(a => a.id === item.id ? item : a));
+    mutatingRef.current = true;
     try {
       const res = await fetch(`/api/announcements/${item.id}`, {
         method: 'PUT',
@@ -127,11 +145,14 @@ export const AnnouncementDataProvider: React.FC<{children: ReactNode}> = ({ chil
     } catch (err: unknown) {
       console.error('Failed to update announcement:', err);
       refreshAnnouncements();
+    } finally {
+      setTimeout(() => { mutatingRef.current = false; }, 1000);
     }
   }, [refreshAnnouncements]);
 
   const deleteAnnouncement = useCallback(async (id: string) => {
     setAnnouncements(prev => prev.filter(a => a.id !== id));
+    mutatingRef.current = true;
     try {
       const res = await fetch(`/api/announcements/${id}`, {
         method: 'DELETE',
@@ -141,6 +162,8 @@ export const AnnouncementDataProvider: React.FC<{children: ReactNode}> = ({ chil
     } catch (err: unknown) {
       console.error('Failed to delete announcement:', err);
       refreshAnnouncements();
+    } finally {
+      setTimeout(() => { mutatingRef.current = false; }, 1000);
     }
   }, [refreshAnnouncements]);
 
