@@ -53,6 +53,7 @@ For each claimed job, call `executeHubSpotOperation(operation, payload)` which d
 - `sync_company` → `companies.syncCompanyToHubSpot`
 - `sync_payment` → `stripe/hubspotSync.syncPaymentToHubSpot`
 - `sync_day_pass` → `stripe/hubspotSync.syncDayPassToHubSpot`
+- `enrich_event_deal` → `routes/hubspot.enrichEventDealFromQueue` (v8.75.0 — migrated from setTimeout to queue)
 - `create_deal` / `sync_member` — currently disabled (log and skip)
 
 ### Step 4: Handle Results

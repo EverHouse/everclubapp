@@ -50,7 +50,7 @@ Detailed transactional steps for guest pass hold creation, consumption at check-
 
 ### Transaction Flow
 
-3. **Acquire client** from `pool.connect()`, **BEGIN**
+3. **Acquire transaction** via `db.transaction()` or accept external client
 4. **Idempotency check:**
    ```sql
    SELECT id, used_guest_pass, guest_id FROM booking_participants WHERE id = $1
@@ -208,9 +208,9 @@ Detailed transactional steps for guest pass hold creation, consumption at check-
 
 All transactional functions follow these patterns:
 
-1. **Client acquisition:** `pool.connect()` with release in `finally`
-2. **Transaction boundary:** explicit `BEGIN`/`COMMIT` with `ROLLBACK` in catch
-3. **External client support:** `createGuestPassHold` and `getAvailableGuestPasses` accept an optional `externalClient` (PoolClient) to participate in an outer transaction, skipping own transaction management
+1. **Transaction management:** Uses `db.transaction()` or `safeDbTransaction()` from Drizzle ORM (v8.75.0)
+2. **Transaction boundary:** Drizzle handles `BEGIN`/`COMMIT`/`ROLLBACK` automatically
+3. **External client support:** `createGuestPassHold` and `getAvailableGuestPasses` accept an optional external transaction handle to participate in an outer transaction, skipping own transaction management
 4. **Idempotency:** both `consumeGuestPassForParticipant` and `refundGuestPassForParticipant` check current state before acting, returning success if already in desired state
 5. **Row-level locking:** `SELECT FOR UPDATE` on `guest_passes` and `guest_pass_holds` to prevent concurrent modification
 6. **Floor clamping:** `GREATEST(0, passes_used - 1)` on refund to prevent negative counts

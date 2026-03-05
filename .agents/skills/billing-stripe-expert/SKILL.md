@@ -114,9 +114,9 @@ If a membership payment fails, do NOT cut off access immediately. Set status to 
 ### 9. Transactions
 Any action that touches `booking_sessions`, `payments`, `stripe_payment_intents`, or `booking_fee_snapshots` tables MUST be wrapped in a database transaction.
 
-- Pattern: `const client = await pool.connect(); await client.query('BEGIN'); ... await client.query('COMMIT');`
-- Always use `try/catch/finally` with `client.release()` in `finally`
-- On error: `await client.query('ROLLBACK');`
+- Pattern: Use `db.transaction(async (tx) => { ... })` from Drizzle ORM, or `safeDbTransaction()` from `server/core/safeDbOperation.ts` for automatic error alerting
+- Drizzle handles BEGIN/COMMIT/ROLLBACK automatically
+- On error: transaction auto-rolls back; `safeDbTransaction` also triggers `alertOnScheduledTaskFailure`
 - **Webhook transactions**: The entire webhook handler is wrapped in a single transaction. If any handler fails, all DB changes roll back.
 - **Fee calculations**: `calculateAndCacheParticipantFees()` in `feeCalculator.ts` wraps its multi-table updates in a transaction
 - **Payment status**: `PaymentStatusService` methods (`markPaymentSucceeded`, `markPaymentRefunded`) use transactions to update snapshots + intents + participants atomically

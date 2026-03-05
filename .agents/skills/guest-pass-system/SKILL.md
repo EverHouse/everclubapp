@@ -61,7 +61,7 @@ Each membership tier grants a monthly allocation of guest passes. Members use th
 5. Insert into `guest_pass_holds` with 30-day expiry
 6. Return `{ holdId, passesHeld, passesAvailable }`
 
-Supports an optional `externalClient` (PoolClient) to participate in an outer transaction.
+Supports an optional `externalClient` (Drizzle transaction handle or PoolClient) to participate in an outer transaction.
 
 ### getAvailableGuestPasses()
 **Signature:** `getAvailableGuestPasses(memberEmail, tierName?, externalClient?)`

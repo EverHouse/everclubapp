@@ -79,8 +79,8 @@ All date/time operations use Pacific timezone (`America/Los_Angeles`). Use `serv
 ### 5. API Field Name Consistency
 Response field names must EXACTLY match frontend TypeScript interfaces. Verify field names against the frontend interface before returning `res.json({...})`.
 
-### 6. Safe Database Operations (v7.26.0, updated v8.69.0)
-Use `safeDbOperation()` and `safeDbTransaction()` from `server/core/safeDbOperation.ts`. **BANNED:** Empty `catch {}` blocks anywhere in server code. `safeDbTransaction()` wraps `pool.connect()` inside its try/catch block so that connection pool exhaustion triggers error logging and `alertOnScheduledTaskFailure` instead of throwing silently.
+### 6. Safe Database Operations (v7.26.0, updated v8.75.0)
+Use `safeDbOperation()` and `safeDbTransaction()` from `server/core/safeDbOperation.ts`. **BANNED:** Empty `catch {}` blocks anywhere in server code. `safeDbTransaction()` uses Drizzle's native `db.transaction()` with automatic rollback and `alertOnScheduledTaskFailure` error alerting. The callback receives a Drizzle `tx` object — use `tx.insert()`, `tx.update()`, `tx.execute()` etc. to ensure queries participate in the transaction.
 
 ### 7. Database Migrations
 NEVER write migration files manually — use `npm run db:push`. Schema changes go in `shared/schema.ts`, then push.
@@ -127,7 +127,7 @@ Pattern A is preferred for new routes. Pattern B is used in roster.ts, bays/book
 - `POST /api/hubspot/forms/*` — HubSpot form submissions
 
 ### 10. Rate Limiting
-All public endpoints that create database records or trigger notifications MUST have rate limiting middleware. Currently protected: `/api/tours/book`, `/api/tours/schedule`, `/api/day-passes/confirm`, `/api/client-error`. Use `checkoutRateLimiter` from `../middleware/rateLimiting` for public form submissions.
+All public endpoints that create database records or trigger notifications MUST have rate limiting middleware. Currently protected: `/api/tours/book`, `/api/tours/schedule`, `/api/day-passes/confirm`, `/api/client-error`. Use `checkoutRateLimiter` from `../middleware/rateLimiting` for public form submissions. Global rate limiter: authenticated users get 2,000 req/min, anonymous users get 600 req/min (v8.75.0).
 
 ### 11. Input Validation
 All API endpoints SHOULD validate request body with Zod schemas. Currently only 3 route files use Zod (checkout.ts, members/onboarding.ts, members/profile.ts). All `parseInt(req.params.id)` calls MUST be followed by an `isNaN()` check with 400 response. Many routes are missing this guard.
@@ -142,7 +142,7 @@ All `setInterval()` calls in schedulers MUST return their `NodeJS.Timeout` ID. T
 All `stripe.*.create()` calls MUST include an `idempotencyKey` parameter with a deterministic value (NOT `randomUUID()`). Pattern: `operation_type_${uniqueBusinessKey}`. Idempotency keys on `update()` calls are nice-to-have but not required.
 
 ### 15. Connection Pool Safety
-Never use `pool.connect()` inside `Promise.race()` without ensuring the connection is released regardless of which promise wins. Always use try/finally for connection release. The `safeDbTransaction()` helper handles this correctly. The WebSocket session verification pool uses `max: 20` to handle reconnection storms during deploys. When using advisory locks with an externally-provided client (already in a transaction), use `pg_advisory_xact_lock` instead of `pg_advisory_lock` — transaction-scoped locks auto-release on COMMIT/ROLLBACK, preventing lock leaks if the transaction enters an aborted state (v8.69.0).
+Never use `pool.connect()` inside `Promise.race()` without ensuring the connection is released regardless of which promise wins. Always use try/finally for connection release. Prefer `db.transaction()` or `safeDbTransaction()` over manual `pool.connect()` + `BEGIN`/`COMMIT` — Drizzle manages the connection lifecycle automatically (v8.75.0). The WebSocket session verification pool uses `max: 20` to handle reconnection storms during deploys. When using advisory locks with an externally-provided client (already in a transaction), use `pg_advisory_xact_lock` instead of `pg_advisory_lock` — transaction-scoped locks auto-release on COMMIT/ROLLBACK, preventing lock leaks if the transaction enters an aborted state (v8.69.0).
 
 ### 16. Drizzle SQL Null Coalescing
 All optional/nullable values interpolated in Drizzle `sql` template literals MUST use `?? null` coalescing. When `undefined` is passed to a `sql` template literal, Drizzle produces an empty SQL placeholder (e.g., `$7, , $8`) causing syntax errors. Pattern: `sql\`... VALUES (${optionalValue ?? null})\``. This was discovered via production Trackman webhook failures (Feb 2026). Fixed files include: `webhook-handlers.ts` (`saveToUnmatchedBookings`), `webhook-billing.ts` (`updateBaySlotCache`), and `webhook-validation.ts` (`logWebhookEvent`).
