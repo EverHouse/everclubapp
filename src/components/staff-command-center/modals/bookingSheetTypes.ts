@@ -99,3 +99,61 @@ export const isPlaceholderEmail = (email: string): boolean => {
          lower.startsWith('lesson-') ||
          lower.startsWith('unmatched-');
 };
+
+export type BookingType = 'simulator' | 'conference_room' | 'lesson' | 'staff_block';
+export type SheetMode = 'assign' | 'manage';
+
+export interface UnifiedBookingSheetProps {
+  isOpen: boolean;
+  onClose: () => void;
+  mode: SheetMode;
+  bookingType?: BookingType;
+  trackmanBookingId?: string | null;
+  bayName?: string;
+  bookingDate?: string;
+  timeSlot?: string;
+  matchedBookingId?: number | string;
+  currentMemberName?: string;
+  currentMemberEmail?: string;
+  isRelink?: boolean;
+  importedName?: string;
+  notes?: string;
+  originalEmail?: string;
+  bookingId?: number;
+  sessionId?: number | string | null;
+  ownerName?: string;
+  ownerEmail?: string;
+  declaredPlayerCount?: number;
+  bookingContext?: BookingContextType;
+  checkinMode?: boolean;
+  onSuccess?: (options?: { markedAsEvent?: boolean; memberEmail?: string; memberName?: string }) => void;
+  onOpenBillingModal?: (bookingId: number) => void;
+  onRosterUpdated?: () => void;
+  onCheckinComplete?: () => void;
+  onCollectPayment?: (bookingId: number) => void;
+  onReschedule?: (booking: { id: number; requestDate: string; startTime: string; endTime: string; resourceId: number; resourceName?: string; userName?: string; userEmail?: string }) => void;
+  onCancelBooking?: (bookingId: number) => void;
+  onCheckIn?: (bookingId: number, targetStatus?: 'attended' | 'no_show') => void;
+  onRevertToApproved?: (bookingId: number) => void | Promise<void>;
+  bookingStatus?: string;
+  ownerMembershipStatus?: string | null;
+}
+
+export interface VisitorSearchResult {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  name?: string;
+  userType?: 'visitor' | 'member' | 'staff' | 'instructor';
+  isInstructor?: boolean;
+  staffRole?: string;
+}
+
+export interface SlotState {
+  type: 'empty' | 'member' | 'guest_placeholder' | 'visitor';
+  member?: { id: string; email: string; name: string; tier?: string | null };
+  guestName?: string;
+}
+
+export type SlotsArray = [SlotState, SlotState, SlotState, SlotState];

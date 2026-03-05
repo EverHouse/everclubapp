@@ -8,46 +8,9 @@ import { ErrorBoundary } from '../../ErrorBoundary';
 import { useUnifiedBookingLogic } from './useUnifiedBookingLogic';
 import { isPlaceholderEmail } from './bookingSheetTypes';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
-import type { BookingContextType } from './bookingSheetTypes';
+import type { UnifiedBookingSheetProps } from './bookingSheetTypes';
 
-export type BookingType = 'simulator' | 'conference_room' | 'lesson' | 'staff_block';
-export type SheetMode = 'assign' | 'manage';
-
-export interface UnifiedBookingSheetProps {
-  isOpen: boolean;
-  onClose: () => void;
-  mode: SheetMode;
-  bookingType?: BookingType;
-  trackmanBookingId?: string | null;
-  bayName?: string;
-  bookingDate?: string;
-  timeSlot?: string;
-  matchedBookingId?: number | string;
-  currentMemberName?: string;
-  currentMemberEmail?: string;
-  isRelink?: boolean;
-  importedName?: string;
-  notes?: string;
-  originalEmail?: string;
-  bookingId?: number;
-  sessionId?: number | string | null;
-  ownerName?: string;
-  ownerEmail?: string;
-  declaredPlayerCount?: number;
-  bookingContext?: BookingContextType;
-  checkinMode?: boolean;
-  onSuccess?: (options?: { markedAsEvent?: boolean; memberEmail?: string; memberName?: string }) => void;
-  onOpenBillingModal?: (bookingId: number) => void;
-  onRosterUpdated?: () => void;
-  onCheckinComplete?: () => void;
-  onCollectPayment?: (bookingId: number) => void;
-  onReschedule?: (booking: { id: number; requestDate: string; startTime: string; endTime: string; resourceId: number; resourceName?: string; userName?: string; userEmail?: string }) => void;
-  onCancelBooking?: (bookingId: number) => void;
-  onCheckIn?: (bookingId: number, targetStatus?: 'attended' | 'no_show') => void;
-  onRevertToApproved?: (bookingId: number) => void | Promise<void>;
-  bookingStatus?: string;
-  ownerMembershipStatus?: string | null;
-}
+export type { BookingType, SheetMode, UnifiedBookingSheetProps } from './bookingSheetTypes';
 
 export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
   const {

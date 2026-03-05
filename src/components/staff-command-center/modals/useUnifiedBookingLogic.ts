@@ -3,30 +3,12 @@ import { SelectedMember } from '../../shared/MemberSearchInput';
 import { useToast } from '../../Toast';
 import { usePricing } from '../../../hooks/usePricing';
 import TierBadge from '../../TierBadge';
-import type { BookingMember, BookingGuest, ValidationInfo, FinancialSummary, BookingContextType, ManageModeRosterData, MemberMatchWarning, FetchedContext } from './bookingSheetTypes';
+import type { BookingMember, BookingGuest, ValidationInfo, FinancialSummary, BookingContextType, ManageModeRosterData, MemberMatchWarning, FetchedContext, UnifiedBookingSheetProps, VisitorSearchResult, SlotState, SlotsArray } from './bookingSheetTypes';
 import { isPlaceholderEmail } from './bookingSheetTypes';
-import type { UnifiedBookingSheetProps } from './UnifiedBookingSheet';
 import { useBookingActions } from '../../../hooks/useBookingActions';
 import React from 'react';
 
-export interface VisitorSearchResult {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  name?: string;
-  userType?: 'visitor' | 'member' | 'staff' | 'instructor';
-  isInstructor?: boolean;
-  staffRole?: string;
-}
-
-export interface SlotState {
-  type: 'empty' | 'member' | 'guest_placeholder' | 'visitor';
-  member?: { id: string; email: string; name: string; tier?: string | null };
-  guestName?: string;
-}
-
-export type SlotsArray = [SlotState, SlotState, SlotState, SlotState];
+export type { VisitorSearchResult, SlotState, SlotsArray } from './bookingSheetTypes';
 
 export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   const {

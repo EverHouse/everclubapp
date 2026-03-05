@@ -1,6 +1,6 @@
 import React from 'react';
 import { MemberSearchInput, SelectedMember } from '../../shared/MemberSearchInput';
-import type { SlotState, SlotsArray, VisitorSearchResult } from './useUnifiedBookingLogic';
+import type { SlotState, SlotsArray, VisitorSearchResult } from './bookingSheetTypes';
 
 interface AssignModeSlotsProps {
   slots: SlotsArray;
