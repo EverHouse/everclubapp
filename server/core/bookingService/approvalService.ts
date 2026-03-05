@@ -1530,7 +1530,11 @@ export async function revertToApproved(params: { bookingId: number; staffEmail: 
 
     if (existing.sessionId) {
       await client.query(
-        `UPDATE booking_participants SET payment_status = 'pending' WHERE session_id = $1 AND payment_status = 'waived'`,
+        `UPDATE booking_participants bp SET payment_status = 'pending'
+         FROM booking_sessions bs
+         WHERE bp.session_id = $1 AND bp.payment_status = 'waived'
+           AND bs.id = bp.session_id
+           AND COALESCE(bs.source, '') NOT IN ('trackman_import', 'trackman_webhook')`,
         [existing.sessionId]
       );
     }

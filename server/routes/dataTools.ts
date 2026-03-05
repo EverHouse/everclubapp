@@ -2107,24 +2107,18 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
           
           await db.execute(sql`
             INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-            VALUES (${sessionId}, ${userId}, 'owner', ${booking.userName || booking.userEmail}, 'pending', ${slotDuration})
+            VALUES (${sessionId}, ${userId}, 'owner', ${booking.userName || booking.userEmail}, 'waived', ${slotDuration})
             ON CONFLICT DO NOTHING
           `);
           
           for (let i = 1; i < booking.playerCount; i++) {
             await db.execute(sql`
               INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-              VALUES (${sessionId}, NULL, 'guest', ${`Guest ${i + 1}`}, 'pending', ${slotDuration})
+              VALUES (${sessionId}, NULL, 'guest', ${`Guest ${i + 1}`}, 'waived', ${slotDuration})
             `);
           }
           
           await recalculateSessionFees(sessionId, 'staff_action');
-          
-          const todayPacific = getTodayPacific();
-          const isPastBooking = booking.requestDate < todayPacific;
-          if (isPastBooking) {
-            await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW() WHERE session_id = ${sessionId} AND payment_status = 'pending'`);
-          }
         } catch (participantErr: unknown) {
           logger.warn('[DataTools] Failed to create participants for session', { extra: { sessionId, error: getErrorMessage(participantErr) } });
         }

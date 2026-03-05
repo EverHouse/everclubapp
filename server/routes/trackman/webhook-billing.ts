@@ -274,6 +274,7 @@ export async function createBookingForMember(
           newSessionId = sessionResult.sessionId || null;
           
           if (newSessionId && !sessionResult.error) {
+            await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${newSessionId} AND (payment_status = 'pending' OR payment_status IS NULL)`);
             const slotDuration = startTime && endTime
               ? Math.round((new Date(`2000-01-01T${endTime}`).getTime() - 
                            new Date(`2000-01-01T${startTime}`).getTime()) / 60000)
@@ -453,6 +454,7 @@ export async function createBookingForMember(
         sessionId = sessionResult.sessionId || null;
         
         if (sessionId && !sessionResult.error) {
+          await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${sessionId} AND (payment_status = 'pending' OR payment_status IS NULL)`);
           try {
             const ownerTier = await getMemberTierByEmail(member.email, { allowInactive: true });
             
@@ -673,6 +675,7 @@ export async function tryMatchByBayDateTime(
       });
 
       if (sessionResult.sessionId && !sessionResult.error) {
+        await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${sessionResult.sessionId} AND (payment_status = 'pending' OR payment_status IS NULL)`);
         let transferredCount = 0;
         try {
           const rpResult = await db.execute(sql`SELECT request_participants FROM booking_requests WHERE id = ${bookingId}`);

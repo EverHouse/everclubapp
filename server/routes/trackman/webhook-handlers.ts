@@ -470,6 +470,7 @@ export async function tryAutoApproveBooking(
 
       if (sessionResult.sessionId) {
         createdSessionId = sessionResult.sessionId;
+        await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${createdSessionId} AND (payment_status = 'pending' OR payment_status IS NULL)`);
         
         try {
           const rpResult = await db.execute(sql`SELECT request_participants FROM booking_requests WHERE id = ${bookingId}`);
@@ -720,7 +721,9 @@ export async function createUnmatchedBookingRequest(
           createdBy: 'trackman_webhook'
         });
 
-        if (!sessionResult.sessionId) {
+        if (sessionResult.sessionId) {
+          await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${sessionResult.sessionId} AND (payment_status = 'pending' OR payment_status IS NULL)`);
+        } else {
           logger.warn('[Trackman Webhook] Session creation failed for unmatched booking (keeping approved to block calendar)', {
             extra: { bookingId, trackmanBookingId, error: sessionResult.error }
           });
@@ -1230,7 +1233,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
             : 60;
           for (let i = 0; i < slotsToFill; i++) {
             await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-              VALUES (${autoApproveResult.sessionId}, NULL, 'guest', ${`Guest ${currentParticipants + i + 1}`}, 'pending', ${slotDuration})`);
+              VALUES (${autoApproveResult.sessionId}, NULL, 'guest', ${`Guest ${currentParticipants + i + 1}`}, 'waived', ${slotDuration})`);
           }
           await recalculateSessionFees(autoApproveResult.sessionId, 'trackman_webhook');
           logger.info('[Trackman Webhook] Backfilled generic guest slots after auto-approve', {

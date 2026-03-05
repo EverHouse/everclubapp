@@ -36,8 +36,8 @@ export async function transferRequestParticipantsToSession(
       const guestName = rp.name || 'Guest';
       if (!existingGuestNames.has(guestName.toLowerCase())) {
         await db.execute(sql`INSERT INTO booking_participants 
-           (session_id, display_name, participant_type, is_owner, created_at)
-           VALUES (${sessionId}, ${guestName}, 'guest', false, NOW())`);
+           (session_id, display_name, participant_type, is_owner, payment_status, created_at)
+           VALUES (${sessionId}, ${guestName}, 'guest', false, 'waived', NOW())`);
         existingGuestNames.add(guestName.toLowerCase());
         participantsAdded++;
       }
@@ -60,8 +60,8 @@ export async function transferRequestParticipantsToSession(
 
         const rpDisplayName = [rpUserRow.first_name, rpUserRow.last_name].filter(Boolean).join(' ') || rpUserRow.email;
         await db.execute(sql`INSERT INTO booking_participants 
-           (session_id, user_id, user_email, display_name, participant_type, is_owner, created_at)
-           VALUES (${sessionId}, ${rpUserRow.id}, ${rpUserRow.email}, ${rpDisplayName}, 'member', false, NOW())`);
+           (session_id, user_id, user_email, display_name, participant_type, is_owner, payment_status, created_at)
+           VALUES (${sessionId}, ${rpUserRow.id}, ${rpUserRow.email}, ${rpDisplayName}, 'member', false, 'waived', NOW())`);
         existingUserIds.add(rpUserRow.id);
         existingEmails.add(rpUserRow.email.toLowerCase());
         participantsAdded++;
@@ -299,19 +299,11 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
 
     if (participants.length > 0) {
       const participantIds = participants.map(p => p.id);
-      if (input.isPast) {
-        await db.execute(sql`
-          UPDATE booking_participants 
-          SET payment_status = 'paid', paid_at = NOW()
-          WHERE id IN (${sql.join(participantIds.map(id => sql`${id}`), sql`, `)})
-        `);
-      } else {
-        await db.execute(sql`
-          UPDATE booking_participants 
-          SET payment_status = 'pending'
-          WHERE id IN (${sql.join(participantIds.map(id => sql`${id}`), sql`, `)})
-        `);
-      }
+      await db.execute(sql`
+        UPDATE booking_participants 
+        SET payment_status = 'waived'
+        WHERE id IN (${sql.join(participantIds.map(id => sql`${id}`), sql`, `)})
+      `);
     }
 
     const billingParticipants: Participant[] = [];
@@ -433,11 +425,7 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
           .set({ sessionId: fallbackSession.id })
           .where(eq(bookingRequests.id, input.bookingId));
 
-        if (input.isPast) {
-          await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW() WHERE session_id = ${fallbackSession.id}`);
-        } else {
-          await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending' WHERE session_id = ${fallbackSession.id}`);
-        }
+        await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${fallbackSession.id}`);
 
         const [bookingForNote] = await db.select({ staffNotes: bookingRequests.staffNotes })
           .from(bookingRequests)

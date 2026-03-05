@@ -390,6 +390,7 @@ export async function linkTrackmanToMember(
       });
       if (sessionResult.sessionId) {
         finalSessionId = sessionResult.sessionId;
+        await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${sessionResult.sessionId} AND (payment_status = 'pending' OR payment_status IS NULL)`);
         await db.update(bookingRequests).set({ sessionId: sessionResult.sessionId }).where(eq(bookingRequests.id, booking.id));
         logger.info('[link-trackman-to-member] Created new session after member assignment', {
           extra: { bookingId: booking.id, sessionId: sessionResult.sessionId, ownerEmail, ownerName }

@@ -1669,6 +1669,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             });
             if (sessionResult.sessionId) {
               targetSessionId = sessionResult.sessionId;
+              await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${targetSessionId} AND (payment_status = 'pending' OR payment_status IS NULL)`);
               process.stderr.write(`[Trackman Import]   Created session #${targetSessionId} for auto-approved booking #${approved.id}\n`);
             }
           } catch (sessionErr: unknown) {
