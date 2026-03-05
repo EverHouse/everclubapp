@@ -561,7 +561,7 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
           if (visibility) extendedProps['ehApp_visibility'] = visibility;
           if (requires_rsvp !== undefined && requires_rsvp !== null) extendedProps['ehApp_requiresRsvp'] = String(requires_rsvp);
           if (location) extendedProps['ehApp_location'] = location;
-          await updateCalendarEvent(
+          const calResult = await updateCalendarEvent(
             existing[0].googleCalendarId,
             calendarId,
             calendarTitle,
@@ -571,6 +571,15 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
             trimmedEndTime || trimmedStartTime,
             extendedProps
           );
+          if (calResult.success) {
+            await db.update(events).set({
+              googleEventEtag: calResult.etag,
+              googleEventUpdatedAt: calResult.updatedAt,
+              locallyEdited: false,
+              appLastModifiedAt: null,
+              lastSyncedAt: new Date(),
+            }).where(eq(events.id, parseInt(id as string)));
+          }
         }
       } catch (calError: unknown) {
         logger.error('Failed to update Google Calendar event', { error: calError instanceof Error ? calError : new Error(getErrorMessage(calError)) });

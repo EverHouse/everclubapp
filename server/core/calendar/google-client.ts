@@ -108,6 +108,12 @@ export async function deleteCalendarEvent(eventId: string, calendarId: string = 
   }
 }
 
+interface CalendarUpdateResult {
+  success: boolean;
+  etag?: string | null;
+  updatedAt?: Date | null;
+}
+
 export async function updateCalendarEvent(
   eventId: string,
   calendarId: string,
@@ -117,11 +123,11 @@ export async function updateCalendarEvent(
   startTime: string,
   endTime: string,
   extendedProperties?: Record<string, string>
-): Promise<boolean> {
+): Promise<CalendarUpdateResult> {
   try {
     if (!date || !startTime) {
       logger.error('Error updating calendar event: Missing date or startTime');
-      return false;
+      return { success: false };
     }
     
     const calendar = await getGoogleCalendarClient();
@@ -143,7 +149,7 @@ export async function updateCalendarEvent(
       requestBody.extendedProperties = { private: extendedProperties };
     }
     
-    await withCalendarRetry(
+    const patchResult = await withCalendarRetry(
       () => calendar.events.patch({
         calendarId,
         eventId,
@@ -152,9 +158,13 @@ export async function updateCalendarEvent(
       'updateCalendarEvent'
     );
     
-    return true;
+    return {
+      success: true,
+      etag: patchResult?.data?.etag || null,
+      updatedAt: patchResult?.data?.updated ? new Date(patchResult.data.updated) : null,
+    };
   } catch (error: unknown) {
     logger.error('Error updating calendar event:', { error: error });
-    return false;
+    return { success: false };
   }
 }
