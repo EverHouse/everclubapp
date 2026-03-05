@@ -14,6 +14,7 @@ import type { CafeItem } from '../../../types/data';
 import RedeemDayPassSection from './RedeemPassCard';
 import IdScannerModal from '../../staff-command-center/modals/IdScannerModal';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
+import { haptic } from '../../../utils/haptics';
 
 interface CartItem {
   productId: string;
@@ -331,6 +332,7 @@ const POSRegister: React.FC = () => {
       setClientSecret(data.clientSecret);
       setPaymentIntentId(data.paymentIntentId);
     } catch (err: unknown) {
+      haptic.error();
       setError((err instanceof Error ? err.message : String(err)) || 'Failed to create payment');
     } finally {
       setIsCreatingIntent(false);
@@ -357,6 +359,7 @@ const POSRegister: React.FC = () => {
 
     setPaymentIntentId(intentId);
     setSuccess(true);
+    haptic.success();
   };
 
   const handleTerminalSuccess = async (piId: string) => {
@@ -376,6 +379,7 @@ const POSRegister: React.FC = () => {
 
     setPaymentIntentId(piId);
     setSuccess(true);
+    haptic.success();
   };
 
   const handleSavedCardCharge = async () => {
@@ -413,7 +417,9 @@ const POSRegister: React.FC = () => {
 
       setPaymentIntentId(data.paymentIntentId);
       setSuccess(true);
+      haptic.success();
     } catch (err: unknown) {
+      haptic.error();
       setError((err instanceof Error ? err.message : String(err)) || 'Failed to charge card on file');
     } finally {
       setIsProcessing(false);
@@ -458,7 +464,9 @@ const POSRegister: React.FC = () => {
       }
 
       setReceiptSent(true);
+      haptic.success();
     } catch {
+      haptic.error();
       setError('Failed to send receipt');
     } finally {
       setReceiptSending(false);
@@ -493,6 +501,7 @@ const POSRegister: React.FC = () => {
       await handleSendReceipt(email);
     } catch (err: unknown) {
       console.error('[POS] Guest receipt submit error:', err);
+      haptic.error();
       setError('Failed to send receipt');
     } finally {
       setAttachingEmail(false);

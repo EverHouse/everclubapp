@@ -144,7 +144,9 @@ const GalleryAdmin: React.FC = () => {
             showToast(editId ? 'Image updated' : 'Image added', 'success');
         } catch (err: unknown) {
             haptic.error();
-            setError((err instanceof Error ? err.message : String(err)) || 'Failed to save image');
+            const msg = (err instanceof Error ? err.message : String(err)) || 'Failed to save image';
+            setError(msg);
+            showToast(msg, 'error');
         } finally {
             setIsSaving(false);
         }
@@ -265,6 +267,7 @@ const GalleryAdmin: React.FC = () => {
                 throw new Error('Server rejected reorder');
             }
             haptic.success();
+            showToast('Order saved', 'success');
         } catch {
             haptic.error();
             showToast('Failed to save new order', 'error');

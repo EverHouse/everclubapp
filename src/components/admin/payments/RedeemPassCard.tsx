@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ModalShell from '../../ModalShell';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
+import { haptic } from '../../../utils/haptics';
 
 export interface SectionProps {
   onClose?: () => void;
@@ -367,6 +368,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
       
       const data = await res.json();
       
+      haptic.success();
       if (data.passHolder) {
         const successInfo: RedemptionSuccess = {
           passHolder: data.passHolder,
@@ -429,6 +431,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
         return;
       }
       
+      haptic.success();
       setSuccessMessage('Pass refunded successfully');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: unknown) {

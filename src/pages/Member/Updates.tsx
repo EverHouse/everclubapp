@@ -205,6 +205,8 @@ const MemberUpdates: React.FC = () => {
     setSearchParams({ tab });
   };
 
+  const { showToast } = useToast();
+
   const markNotificationRead = async (notificationId: number) => {
     try {
       const res = await fetch(`/api/notifications/${notificationId}/read`, { 
@@ -216,8 +218,9 @@ const MemberUpdates: React.FC = () => {
       setUnreadCount(prev => Math.max(0, prev - 1));
       useNotificationStore.getState().markAsRead(notificationId);
       window.dispatchEvent(new CustomEvent('notifications-read'));
-    } catch (err: unknown) {
-      console.error('Failed to mark notification read:', err);
+    } catch {
+      haptic.error();
+      showToast('Failed to mark notification as read', 'error');
     }
   };
 
@@ -235,8 +238,9 @@ const MemberUpdates: React.FC = () => {
       setUnreadCount(0);
       useNotificationStore.getState().markAllAsRead();
       window.dispatchEvent(new CustomEvent('notifications-read'));
-    } catch (err: unknown) {
-      console.error('Failed to mark all notifications read:', err);
+    } catch {
+      haptic.error();
+      showToast('Failed to mark all as read', 'error');
     }
   };
 
@@ -263,8 +267,9 @@ const MemberUpdates: React.FC = () => {
         setUnreadCount(prevUnread);
         useNotificationStore.getState().setUnreadCount(prevUnread);
       }
-    } catch (err) {
-      console.error('Failed to dismiss all notifications:', err);
+    } catch {
+      haptic.error();
+      showToast('Failed to dismiss notifications', 'error');
       setNotifications(snapshot);
       setUnreadCount(prevUnread);
       useNotificationStore.getState().setUnreadCount(prevUnread);

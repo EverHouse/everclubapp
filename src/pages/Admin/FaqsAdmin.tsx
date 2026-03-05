@@ -236,6 +236,7 @@ const FaqsAdmin: React.FC = () => {
                 throw new Error('Server rejected reorder');
             }
             haptic.success();
+            showToast('Order saved', 'success');
         } catch {
             haptic.error();
             showToast('Failed to save new order', 'error');
