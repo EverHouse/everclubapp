@@ -12,6 +12,10 @@ export async function fetchWithCredentials<T>(url: string, options?: RequestInit
   return response.json();
 }
 
+export function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError';
+}
+
 export async function postWithCredentials<T>(url: string, data: unknown): Promise<T> {
   return fetchWithCredentials<T>(url, {
     method: 'POST',

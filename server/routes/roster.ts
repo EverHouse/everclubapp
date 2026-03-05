@@ -3,7 +3,7 @@ import { logAndRespond, logger } from '../core/logger';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getSessionUser } from '../types/session';
-import { isStaffOrAdmin } from '../core/middleware';
+import { isAuthenticated, isStaffOrAdmin } from '../core/middleware';
 import { checkMemberAvailability } from '../core/bookingService/conflictDetection';
 import {
   isStaffOrAdminCheck,
@@ -140,7 +140,7 @@ router.get('/api/bookings/:bookingId/participants', async (req: Request, res: Re
   }
 });
 
-router.post('/api/bookings/:bookingId/participants', validateBody(addParticipantSchema), async (req: Request, res: Response) => {
+router.post('/api/bookings/:bookingId/participants', isAuthenticated, validateBody(addParticipantSchema), async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {
@@ -177,7 +177,7 @@ router.post('/api/bookings/:bookingId/participants', validateBody(addParticipant
   }
 });
 
-router.delete('/api/bookings/:bookingId/participants/:participantId', validateBody(removeParticipantSchema), async (req: Request, res: Response) => {
+router.delete('/api/bookings/:bookingId/participants/:participantId', isAuthenticated, validateBody(removeParticipantSchema), async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {

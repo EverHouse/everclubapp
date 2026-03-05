@@ -14,7 +14,7 @@ import { getSessionUser } from '../../types/session';
 import { cancelPaymentIntent, getStripeClient } from '../../core/stripe';
 import { logFromRequest, logMemberAction } from '../../core/auditLog';
 import { getCalendarNameForBayAsync, isStaffOrAdminCheck } from './helpers';
-import { isStaffOrAdmin } from '../../core/middleware';
+import { isAuthenticated, isStaffOrAdmin } from '../../core/middleware';
 import { getCalendarIdByName, deleteCalendarEvent } from '../../core/calendar/index';
 import { getGuestPassesRemaining, refundGuestPass } from '../guestPasses';
 import { computeFeeBreakdown, getEffectivePlayerCount, applyFeeBreakdownToParticipants, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
@@ -432,7 +432,7 @@ router.get('/api/booking-requests', async (req, res) => {
   }
 });
 
-router.post('/api/booking-requests', bookingRateLimiter, validateBody(createBookingRequestSchema), async (req, res) => {
+router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, validateBody(createBookingRequestSchema), async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     
@@ -1062,7 +1062,7 @@ router.get('/api/booking-requests/:id', async (req, res) => {
   }
 });
 
-router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
+router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (req, res) => {
   try {
     const { id } = req.params;
     const rawSessionEmail = getSessionUser(req)?.email;

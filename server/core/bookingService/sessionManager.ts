@@ -259,7 +259,7 @@ export async function ensureSessionForBooking(params: {
 
       } finally {
         if (manageLockClient) {
-          await lockClient.query(`SELECT pg_advisory_unlock(hashtext($1))`, [lockKey]).catch(() => {});
+          await lockClient.query(`SELECT pg_advisory_unlock(hashtext($1))`, [lockKey]).catch((unlockErr: unknown) => { logger.warn('[SessionManager] Advisory lock release failed', { error: unlockErr instanceof Error ? unlockErr : new Error(String(unlockErr)) }); });
         }
       }
     } finally {
@@ -1239,7 +1239,7 @@ export async function createSessionWithUsageTracking(
 
     } finally {
       if (lockClient) {
-        await lockClient.query(`SELECT pg_advisory_unlock($1)`, [userLockHash]).catch(() => {});
+        await lockClient.query(`SELECT pg_advisory_unlock($1)`, [userLockHash]).catch((unlockErr: unknown) => { logger.warn('[SessionManager] Advisory lock release failed', { error: unlockErr instanceof Error ? unlockErr : new Error(String(unlockErr)) }); });
       }
     }
     } finally {

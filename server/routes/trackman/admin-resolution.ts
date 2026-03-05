@@ -15,6 +15,10 @@ import { updateVisitorTypeByUserId } from '../../core/visitors';
 import { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
 import { getTodayPacific } from '../../utils/dateUtils';
 
+function pacificNow(): string {
+  return new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
 interface DbRow {
   [key: string]: unknown;
 }
@@ -196,7 +200,7 @@ router.post('/api/admin/trackman/unmatched/auto-resolve', isStaffOrAdmin, async 
                user_email = ${row.user_email}, 
                user_name = ${autoResolveName},
                is_unmatched = false,
-               staff_notes = COALESCE(staff_notes, '') || ${` [Auto-resolved by ${staffEmail} on ${new Date().toISOString()}]`},
+               staff_notes = COALESCE(staff_notes, '') || ${` [Auto-resolved by ${staffEmail} on ${pacificNow()}]`},
                updated_at = NOW()
            WHERE id = ${row.booking_id}`);
         
@@ -256,7 +260,7 @@ router.post('/api/admin/trackman/unmatched/bulk-dismiss', isStaffOrAdmin, async 
     
     const result = await db.execute(sql`UPDATE booking_requests 
        SET is_unmatched = false,
-           staff_notes = COALESCE(staff_notes, '') || ${` [Dismissed as ${dismissReason} by ${staffEmail} on ${new Date().toISOString()}]`},
+           staff_notes = COALESCE(staff_notes, '') || ${` [Dismissed as ${dismissReason} by ${staffEmail} on ${pacificNow()}]`},
            updated_at = NOW()
        WHERE id IN (${sql.join(bookingIds.map((id: number) => sql`${id}`), sql`, `)})
          AND is_unmatched = true
@@ -376,7 +380,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
              user_email = ${member.email}, 
              user_name = ${`${member.first_name} ${member.last_name}`.trim()},
              is_unmatched = false,
-             staff_notes = COALESCE(staff_notes, '') || ${` [Resolved by ${staffEmail} on ${new Date().toISOString()}]`},
+             staff_notes = COALESCE(staff_notes, '') || ${` [Resolved by ${staffEmail} on ${pacificNow()}]`},
              updated_at = NOW()
          WHERE id = ${numericId}`);
     }
@@ -478,7 +482,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                        user_email = ${member.email}, 
                        user_name = ${memberFullName},
                        is_unmatched = false,
-                       staff_notes = COALESCE(staff_notes, '') || ${` [Auto-resolved via linked email by ${staffEmail} on ${new Date().toISOString()}]`},
+                       staff_notes = COALESCE(staff_notes, '') || ${` [Auto-resolved via linked email by ${staffEmail} on ${pacificNow()}]`},
                        updated_at = NOW()
                    WHERE id = ${otherBooking.id}`);
                 
@@ -885,7 +889,7 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
                      user_email = ${member.email}, 
                      user_name = ${sameEmailName},
                      is_unmatched = false,
-                     staff_notes = COALESCE(staff_notes, '') || ${` [Auto-resolved via same email by ${staffEmail} on ${new Date().toISOString()}]`},
+                     staff_notes = COALESCE(staff_notes, '') || ${` [Auto-resolved via same email by ${staffEmail} on ${pacificNow()}]`},
                      updated_at = NOW()
                  WHERE id = ${booking.id}`);
             
@@ -1395,7 +1399,7 @@ router.post('/api/admin/trackman/unmatch-member', isStaffOrAdmin, async (req, re
          SET user_email = NULL,
              user_name = ${originalName},
              is_unmatched = true,
-             staff_notes = COALESCE(staff_notes, '') || ${` [Unmatched from ${normalizedEmail} by ${unmatchedBy} on ${new Date().toISOString()}]`}
+             staff_notes = COALESCE(staff_notes, '') || ${` [Unmatched from ${normalizedEmail} by ${unmatchedBy} on ${pacificNow()}]`}
          WHERE id = ${booking.id}`);
       affectedCount++;
     }
@@ -1404,7 +1408,7 @@ router.post('/api/admin/trackman/unmatch-member', isStaffOrAdmin, async (req, re
       logFromRequest(req, 'unmatch_booking', 'booking', undefined, normalizedEmail, {
         email: normalizedEmail,
         affectedCount,
-        unmatchedAt: new Date().toISOString()
+        unmatchedAt: pacificNow()
       });
     }
     

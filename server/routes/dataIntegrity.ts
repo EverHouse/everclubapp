@@ -1061,7 +1061,7 @@ router.post('/api/data-integrity/fix/assign-session-owner', isAdmin, validateBod
 
     res.json({ success: true, message: `Assigned ${displayName} to session on ${sess.session_date} at ${sess.resource_name}` });
   } catch (error: unknown) {
-    try { await client.query('ROLLBACK'); } catch {}
+    try { await client.query('ROLLBACK'); } catch (rollbackErr: unknown) { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); }
     logger.error('[DataIntegrity] Assign session owner error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
   } finally {
@@ -1128,7 +1128,7 @@ router.post('/api/data-integrity/fix/deactivate-stale-member', isAdmin, validate
 
     res.json({ success: true, message: `Deactivated MindBody member #${userId}` });
   } catch (error: unknown) {
-    await client.query('ROLLBACK').catch(() => {});
+    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
     logger.error('[DataIntegrity] Deactivate stale member error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
   } finally {
@@ -1170,7 +1170,7 @@ router.post('/api/data-integrity/fix/change-billing-provider', isAdmin, validate
 
     res.json({ success: true, message: `Changed billing provider to ${newProvider} for user #${userId}` });
   } catch (error: unknown) {
-    await client.query('ROLLBACK').catch(() => {});
+    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
     logger.error('[DataIntegrity] Change billing provider error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
   } finally {
@@ -1384,7 +1384,7 @@ router.post('/api/data-integrity/fix/activate-stuck-member', isAdmin, validateBo
 
     res.json({ success: true, message: `Activated stuck member #${userId}` });
   } catch (error: unknown) {
-    await client.query('ROLLBACK').catch(() => {});
+    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
     logger.error('[DataIntegrity] Activate stuck member error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
   } finally {
@@ -1535,7 +1535,7 @@ router.post('/api/data-integrity/fix/accept-tier', isAdmin, validateBody(acceptT
 
     res.json({ success: true, message: `Accepted tier "${acceptedTier}" from ${source} for user #${userId}` });
   } catch (error: unknown) {
-    await client.query('ROLLBACK').catch(() => {});
+    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
     logger.error('[DataIntegrity] Accept tier error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
   } finally {

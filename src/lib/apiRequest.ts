@@ -56,8 +56,13 @@ function delay(ms: number): Promise<void> {
 export async function apiRequest<T = unknown>(
   url: string,
   options?: RequestInit,
-  retryConfig?: RetryConfig
+  retryConfig?: RetryConfig,
+  signal?: AbortSignal
 ): Promise<ApiResult<T>> {
+  if (signal?.aborted) {
+    return { ok: false, error: 'Request aborted' };
+  }
+
   const config = { ...DEFAULT_RETRY_CONFIG, ...retryConfig };
   const method = options?.method || 'GET';
   const canRetry = isIdempotentMethod(method) || config.retryNonIdempotent;
@@ -70,16 +75,28 @@ export async function apiRequest<T = unknown>(
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
+      const onCallerAbort = () => controller.abort();
+      if (signal) {
+        signal.addEventListener('abort', onCallerAbort);
+      }
+
       const headers: Record<string, string> = {
         ...(options?.headers as Record<string, string> || {}),
       };
 
-      const res = await fetch(url, {
-        ...options,
-        headers,
-        credentials: 'include',
-        signal: controller.signal,
-      });
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          ...options,
+          headers,
+          credentials: 'include',
+          signal: controller.signal,
+        });
+      } finally {
+        if (signal) {
+          signal.removeEventListener('abort', onCallerAbort);
+        }
+      }
 
       clearTimeout(timeoutId);
 
@@ -119,6 +136,10 @@ export async function apiRequest<T = unknown>(
       }
       return { ok: true, data };
     } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError' && signal?.aborted) {
+        return { ok: false, error: 'Request aborted' };
+      }
+
       lastError = err;
       
       if (canRetry && isRetryableError(err) && attempt < maxRetries) {
