@@ -401,6 +401,7 @@ export async function ensureDatabaseConstraints() {
         try {
           await db.execute(sql`ALTER TYPE booking_source ADD VALUE IF NOT EXISTS ${val}`);
         } catch {
+          logger.debug(`[DB Init] booking_source enum value '${val}' already exists or cannot be added`);
         }
       }
       logger.info('[DB Init] booking_source enum values synced');
@@ -410,6 +411,7 @@ export async function ensureDatabaseConstraints() {
         try {
           await db.execute(sql`ALTER TYPE participant_payment_status ADD VALUE IF NOT EXISTS ${val}`);
         } catch {
+          logger.debug(`[DB Init] participant_payment_status enum value '${val}' already exists or cannot be added`);
         }
       }
       logger.info('[DB Init] participant_payment_status enum values synced');

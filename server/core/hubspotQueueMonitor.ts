@@ -52,7 +52,7 @@ export async function getHubSpotQueueMonitorData(): Promise<HubSpotQueueMonitorD
     pending: Number(row?.pending) || 0,
     failed: Number(row?.failed) || 0,
     completed_24h: Number(row?.completed_24h) || 0,
-    superseded_24h: Number((row as Record<string, unknown>)?.superseded_24h) || 0,
+    superseded_24h: Number(row?.superseded_24h) || 0,
     processing: Number(row?.processing) || 0,
   };
 

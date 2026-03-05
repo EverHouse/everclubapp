@@ -22,6 +22,7 @@ function getSupabaseClient(): SupabaseClient | null {
   try {
     return getSupabaseAnon();
   } catch {
+    logger.debug('[Supabase] Failed to initialize Supabase client');
     return null;
   }
 }
