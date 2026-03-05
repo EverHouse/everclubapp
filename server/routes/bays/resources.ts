@@ -5,6 +5,7 @@ import { eq, and, or, asc, sql } from 'drizzle-orm';
 import { isProduction } from '../../core/db';
 import { getGoogleCalendarClient } from '../../core/integrations';
 import {logAndRespond, logger } from '../../core/logger';
+import { getPacificMidnightUTC } from '../../utils/dateUtils';
 
 const router = Router();
 
@@ -65,10 +66,8 @@ router.get('/api/bays/:bayId/availability', async (req, res) => {
     let calendarBlocks: Array<{ start_time: string; end_time: string; block_type: string; notes: string }> = [];
     try {
       const calendar = await getGoogleCalendarClient();
-      const startTime = new Date(date as string);
-      startTime.setHours(0, 0, 0, 0);
-      const endTime = new Date(date as string);
-      endTime.setHours(23, 59, 59, 999);
+      const startTime = getPacificMidnightUTC(date as string);
+      const endTime = new Date(startTime.getTime() + 24 * 60 * 60 * 1000 - 1);
       
       const response = await calendar.freebusy.query({
         requestBody: {

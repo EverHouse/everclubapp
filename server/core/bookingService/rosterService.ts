@@ -909,7 +909,7 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
     let matchingGuestName: string | null = null;
 
     if (type === 'member') {
-      const memberResult = await db.select({
+      const memberResult = await tx.select({
         id: users.id,
         email: users.email,
         firstName: users.firstName,

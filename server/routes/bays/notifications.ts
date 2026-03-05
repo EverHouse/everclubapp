@@ -3,7 +3,7 @@ import { db } from '../../db';
 import { bookingRequests, resources } from '../../../shared/schema';
 import { eq, or, gte, desc } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../../core/middleware';
-import { formatTime12Hour } from '../../utils/dateUtils';
+import { formatTime12Hour, createPacificDate } from '../../utils/dateUtils';
 import { logAndRespond } from '../../core/logger';
 import { getSessionUser } from '../../types/session';
 
@@ -86,16 +86,7 @@ router.get('/api/recent-activity', isStaffOrAdmin, async (req, res) => {
       
       let bookingDateTime: Date | null = null;
       if (booking.requestDate && booking.startTime) {
-        const [year, month, day] = booking.requestDate.split('-').map(Number);
-        const [hour, minute] = booking.startTime.split(':').map(Number);
-        const localDate = new Date(year, month - 1, day, hour, minute, 0);
-        const pacificOffset = new Intl.DateTimeFormat('en-US', {
-          timeZone: 'America/Los_Angeles',
-          timeZoneName: 'shortOffset'
-        }).formatToParts(localDate).find(p => p.type === 'timeZoneName')?.value || 'GMT-8';
-        const offsetHours = parseInt(pacificOffset.replace('GMT', '')) || -8;
-        const offsetStr = offsetHours >= 0 ? `+${String(offsetHours).padStart(2, '0')}:00` : `${String(offsetHours).padStart(3, '0')}:00`;
-        bookingDateTime = new Date(`${booking.requestDate}T${booking.startTime}:00${offsetStr}`);
+        bookingDateTime = createPacificDate(booking.requestDate, booking.startTime);
       }
       const now = new Date();
       const isBookingInPast = bookingDateTime && bookingDateTime < now;
