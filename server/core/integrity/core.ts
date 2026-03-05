@@ -100,25 +100,7 @@ export interface NoEmailMemberRow {
   membership_tier: string;
 }
 
-export interface DealWithoutLineItemRow {
-  id: string | number;
-  member_email: string;
-  hubspot_deal_id: string;
-  deal_name: string;
-  pipeline_stage: string;
-}
 
-export interface DealStageDriftRow {
-  id: string | number;
-  member_email: string;
-  hubspot_deal_id: string;
-  deal_name: string;
-  current_stage: string;
-  membership_status: string;
-  first_name: string;
-  last_name: string;
-  tier: string;
-}
 
 export interface StuckMemberRow {
   id: string;
@@ -470,14 +452,12 @@ export const NO_TIER_STATUSES = ['terminated', 'cancelled', 'non-member', 'delet
 
 export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'> = {
   'HubSpot Sync Mismatch': 'critical',
-  'Deal Stage Drift': 'critical',
   'Stripe Subscription Sync': 'critical',
   'Stuck Transitional Members': 'critical',
   'Active Bookings Without Sessions': 'critical',
   'Participant User Relationships': 'high',
   'Booking Time Validity': 'high',
   'Members Without Email': 'high',
-  'Deals Without Line Items': 'high',
   'Tier Reconciliation': 'high',
   'Duplicate Stripe Customers': 'high',
   'MindBody Stale Sync': 'medium',
@@ -759,7 +739,7 @@ export async function getIntegritySummary(): Promise<IntegritySummary> {
 
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<IntegrityCheckResult[]> {
   const { checkUnmatchedTrackmanBookings, checkParticipantUserRelationships, checkNeedsReviewItems, checkBookingTimeValidity, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings } = await import('./bookingChecks');
-  const { checkHubSpotSyncMismatch, checkDealStageDrift, checkDealsWithoutLineItems, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
+  const { checkHubSpotSyncMismatch, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
   const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation } = await import('./stripeChecks');
   const { checkMembersWithoutEmail, checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkGuestPassesForNonExistentMembers } = await import('./memberChecks');
 
@@ -770,8 +750,6 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     safeCheck(checkNeedsReviewItems, 'Items Needing Review'),
     safeCheck(checkBookingTimeValidity, 'Booking Time Validity'),
     safeCheck(checkMembersWithoutEmail, 'Members Without Email'),
-    safeCheck(checkDealsWithoutLineItems, 'Deals Without Line Items'),
-    safeCheck(checkDealStageDrift, 'Deal Stage Drift'),
     safeCheck(checkStripeSubscriptionSync, 'Stripe Subscription Sync'),
     safeCheck(checkStuckTransitionalMembers, 'Stuck Transitional Members'),
     safeCheck(checkTierReconciliation, 'Tier Reconciliation'),

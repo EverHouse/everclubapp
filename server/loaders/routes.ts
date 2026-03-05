@@ -5,7 +5,6 @@ import calendarRouter from '../routes/calendar';
 import eventsRouter from '../routes/events';
 import authRouter from '../routes/auth';
 import hubspotRouter from '../routes/hubspot';
-import hubspotDealsRouter from '../routes/hubspotDeals';
 import membersRouter from '../routes/members';
 import usersRouter from '../routes/users';
 import wellnessRouter from '../routes/wellness';
@@ -68,7 +67,6 @@ export function registerRoutes(app: Express): void {
   app.use(authGoogleRouter);
   app.use('/api/auth', testAuthRouter);
   app.use(hubspotRouter);
-  app.use(hubspotDealsRouter);
   app.use(accountRouter);
   app.use(dataExportRouter);
   app.use(membersRouter);

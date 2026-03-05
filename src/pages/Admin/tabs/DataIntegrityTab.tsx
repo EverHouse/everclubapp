@@ -142,9 +142,6 @@ const DataIntegrityTab: React.FC = () => {
         isCleaningMindbodyIds={actions.isCleaningMindbodyIds}
         mindbodyCleanupResult={state.mindbodyCleanupResult}
         handleCleanupMindbodyIds={actions.handleCleanupMindbodyIds}
-        isRunningDealStageRemediation={actions.isRunningDealStageRemediation}
-        dealStageRemediationResult={state.dealStageRemediationResult}
-        handleRemediateDealStages={actions.handleRemediateDealStages}
         isRunningStripeHubspotLink={actions.isRunningStripeHubspotLink}
         stripeHubspotLinkResult={state.stripeHubspotLinkResult}
         handleLinkStripeHubspot={actions.handleLinkStripeHubspot}

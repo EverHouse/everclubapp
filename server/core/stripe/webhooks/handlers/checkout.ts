@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { getStripeClient } from '../../client';
-import { syncCompanyToHubSpot, queueDayPassSyncToHubSpot } from '../../../hubspot';
+import { syncCompanyToHubSpot } from '../../../hubspot';
 import { db } from '../../../../db';
 import { sql } from 'drizzle-orm';
 import { notifyMember, notifyAllStaff } from '../../../notificationService';
@@ -524,20 +524,6 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
           logger.error('[Stripe Webhook] Failed to notify staff of day pass:', { error: notifyErr });
         }
 
-        try {
-          await queueDayPassSyncToHubSpot({
-            email,
-            firstName,
-            lastName,
-            phone,
-            productSlug,
-            amountCents,
-            paymentIntentId,
-            purchaseId: deferredDayPassResult.purchaseId
-          });
-        } catch (hubspotError: unknown) {
-          logger.error('[Stripe Webhook] Failed to queue HubSpot sync for day pass:', { error: hubspotError });
-        }
       } catch (recordErr: unknown) {
         logger.error('[Stripe Webhook] Day pass deferred recording failed:', { error: recordErr });
       }

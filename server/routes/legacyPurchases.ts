@@ -5,7 +5,6 @@ import { legacyPurchases, users, legacyImportJobs, hubspotDeals, hubspotProductM
 import { eq, desc, and, sql, gte, lte } from "drizzle-orm";
 import { isStaffOrAdmin, isAdmin } from "../core/middleware";
 import { importMembersFromCSV, importSalesFromCSV, importAttendanceFromCSV, importFirstVisitReport, importSalesFromContent, parseFirstVisitReport } from "../core/mindbody/import";
-import { createDealForLegacyMember } from "../core/hubspotDeals";
 import { getHubSpotClient } from "../core/integrations";
 import type { Client as HubSpotClient } from '@hubspot/api-client';
 import { retryableHubSpotRequest } from "../core/hubspot/request";
@@ -873,35 +872,8 @@ router.post("/api/legacy-purchases/admin/sync-hubspot", isAdmin, async (req: Req
           // Step 2a: Find or create a deal for this member
           let dealId: string | null = null;
           
-          // Check if member already has a deal in our local database
-          const existingDeal = await db.select()
-            .from(hubspotDeals)
-            .where(eq(hubspotDeals.memberEmail, memberEmail.toLowerCase()))
-            .limit(1);
-          
-          if (existingDeal.length > 0 && existingDeal[0].hubspotDealId) {
-            dealId = existingDeal[0].hubspotDealId;
-            results.dealsReused++;
-          } else {
-            // Create a new deal for this legacy member
-            const dealResult = await createDealForLegacyMember(
-              memberEmail,
-              'active',
-              'system',
-              'Legacy Sync'
-            );
-            
-            if (dealResult.success && dealResult.dealId) {
-              dealId = dealResult.dealId;
-              results.dealsCreated++;
-            } else {
-              results.errors++;
-              if (results.errorDetails.length < 10) {
-                results.errorDetails.push(`${memberEmail}: Failed to create deal - ${dealResult.error}`);
-              }
-              continue;
-            }
-          }
+          logger.info('[LegacyPurchases] Deal syncing removed, skipping deal creation for member', { extra: { memberEmail } });
+          continue;
           
           if (!dealId) {
             results.errors++;

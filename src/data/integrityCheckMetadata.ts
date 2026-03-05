@@ -10,13 +10,6 @@ export interface IntegrityCheckMetadata {
 
 export const integrityCheckMetadata: IntegrityCheckMetadata[] = [
   {
-    checkName: 'Deal Stage Drift',
-    title: 'Deal Stage Drift',
-    description: 'Compares each member\'s HubSpot deal stage against their actual membership status in the app.',
-    impact: 'Mismatched deal stages can cause billing problems - members may be charged incorrectly or miss renewal notices if their CRM status doesn\'t match reality.',
-    severity: 'critical'
-  },
-  {
     checkName: 'Stripe Subscription Sync',
     title: 'Stripe Subscription Sync',
     description: 'Verifies that each member\'s subscription status in Stripe matches what the app shows for their membership.',
@@ -64,13 +57,6 @@ export const integrityCheckMetadata: IntegrityCheckMetadata[] = [
     description: 'Locates booking sessions that have no participants assigned.',
     impact: 'These empty records clutter the system but have minimal operational impact.',
     severity: 'low'
-  },
-  {
-    checkName: 'Deals Without Line Items',
-    title: 'Member Deals Missing Products',
-    description: 'Identifies HubSpot deals that don\'t have proper product line items attached.',
-    impact: 'Billing won\'t work correctly for these members as they have no products on their membership deal.',
-    severity: 'high'
   },
   {
     checkName: 'Members Without Email',

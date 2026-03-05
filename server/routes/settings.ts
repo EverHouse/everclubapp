@@ -81,15 +81,6 @@ const DEFAULT_SETTINGS: Record<string, { value: string; category: string }> = {
   'resource.conference.slot_duration': { value: '30', category: 'resource_hours' },
   'resource.tours.slot_duration': { value: '30', category: 'resource_hours' },
 
-  'hubspot.pipeline_id': { value: process.env.HUBSPOT_MEMBERSHIP_PIPELINE_ID || 'default', category: 'hubspot' },
-  'hubspot.stage.day_pass_tour_request': { value: '2414796536', category: 'hubspot' },
-  'hubspot.stage.tour_booked': { value: '2413968103', category: 'hubspot' },
-  'hubspot.stage.visited_day_pass': { value: '2414796537', category: 'hubspot' },
-  'hubspot.stage.application_submitted': { value: '2414797498', category: 'hubspot' },
-  'hubspot.stage.billing_setup': { value: '2825519819', category: 'hubspot' },
-  'hubspot.stage.closed_won_active': { value: 'closedwon', category: 'hubspot' },
-  'hubspot.stage.payment_declined': { value: '2825519820', category: 'hubspot' },
-  'hubspot.stage.closed_lost': { value: 'closedlost', category: 'hubspot' },
 
   'hubspot.tier.core': { value: 'Core Membership', category: 'hubspot_tiers' },
   'hubspot.tier.core-founding': { value: 'Core Membership Founding Members', category: 'hubspot_tiers' },

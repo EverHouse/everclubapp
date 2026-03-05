@@ -8,7 +8,7 @@ import { notifyPaymentSuccess, notifyPaymentFailed, notifyStaffPaymentFailed, no
 import { sendPaymentReceiptEmail, sendPaymentFailedEmail } from '../emails/paymentEmails';
 import { sendMembershipRenewalEmail, sendMembershipFailedEmail } from '../emails/membershipEmails';
 import { sendPassWithQrEmail } from '../emails/passEmails';
-import { queuePaymentSyncToHubSpot, queueDayPassSyncToHubSpot, syncCompanyToHubSpot } from './hubspot';
+import { syncCompanyToHubSpot } from './hubspot';
 
 import { logger } from './logger';
 
@@ -47,9 +47,7 @@ export type JobType =
   | 'broadcast_billing_update'
   | 'broadcast_day_pass_update'
   | 'send_notification_to_user'
-  | 'sync_to_hubspot'
   | 'sync_company_to_hubspot'
-  | 'sync_day_pass_to_hubspot'
   | 'upsert_transaction_cache'
   | 'update_member_tier'
   | 'stripe_credit_refund'
@@ -212,14 +210,8 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
       case 'send_notification_to_user':
         sendNotificationToUser(payload.userEmail as string, payload.notification as unknown as { type: string; title: string; message: string; data?: Record<string, unknown> });
         break;
-      case 'sync_to_hubspot':
-        await queuePaymentSyncToHubSpot(payload as unknown as Parameters<typeof queuePaymentSyncToHubSpot>[0]);
-        break;
       case 'sync_company_to_hubspot':
         await syncCompanyToHubSpot(payload as unknown as Parameters<typeof syncCompanyToHubSpot>[0]);
-        break;
-      case 'sync_day_pass_to_hubspot':
-        await queueDayPassSyncToHubSpot(payload as unknown as Parameters<typeof queueDayPassSyncToHubSpot>[0]);
         break;
       case 'upsert_transaction_cache':
         const { upsertTransactionCache } = await import('./stripe/transactionCache');

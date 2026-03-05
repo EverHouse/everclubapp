@@ -27,8 +27,6 @@ interface SettingsState {
   resourceGolfSlotDuration: string;
   resourceConferenceSlotDuration: string;
   resourceToursSlotDuration: string;
-  hubspotPipelineId: string;
-  hubspotStages: Record<string, string>;
   hubspotTiers: Record<string, string>;
   hubspotStatuses: Record<string, string>;
   dailyReminderHour: string;
@@ -39,17 +37,6 @@ interface SettingsState {
   gracePeriodDays: string;
   trialCouponCode: string;
 }
-
-const HUBSPOT_STAGE_KEYS = [
-  { key: 'day_pass_tour_request', label: 'Day Pass / Tour Request' },
-  { key: 'tour_booked', label: 'Tour Booked' },
-  { key: 'visited_day_pass', label: 'Visited / Day Pass' },
-  { key: 'application_submitted', label: 'Application Submitted' },
-  { key: 'billing_setup', label: 'Billing Setup' },
-  { key: 'closed_won_active', label: 'Closed Won (Active)' },
-  { key: 'payment_declined', label: 'Payment Declined' },
-  { key: 'closed_lost', label: 'Closed Lost' },
-] as const;
 
 const HUBSPOT_TIER_KEYS = [
   'core', 'core-founding', 'premium', 'premium-founding',
@@ -158,12 +145,6 @@ const SettingsTab: React.FC = () => {
     resourceGolfSlotDuration: '60',
     resourceConferenceSlotDuration: '30',
     resourceToursSlotDuration: '30',
-    hubspotPipelineId: 'default',
-    hubspotStages: {
-      day_pass_tour_request: '2414796536', tour_booked: '2413968103', visited_day_pass: '2414796537',
-      application_submitted: '2414797498', billing_setup: '2825519819', closed_won_active: 'closedwon',
-      payment_declined: '2825519820', closed_lost: 'closedlost',
-    },
     hubspotTiers: {
       'core': 'Core Membership', 'core-founding': 'Core Membership Founding Members',
       'premium': 'Premium Membership', 'premium-founding': 'Premium Membership Founding Members',
@@ -190,11 +171,6 @@ const SettingsTab: React.FC = () => {
     queryKey: ['settings'],
     queryFn: async () => {
       const data = await fetchWithCredentials<Record<string, { value: string }>>('/api/settings');
-
-      const hubspotStages: Record<string, string> = {};
-      for (const s of HUBSPOT_STAGE_KEYS) {
-        hubspotStages[s.key] = data[`hubspot.stage.${s.key}`]?.value || defaultSettings.hubspotStages[s.key] || '';
-      }
 
       const hubspotTiers: Record<string, string> = {};
       for (const t of HUBSPOT_TIER_KEYS) {
@@ -229,8 +205,6 @@ const SettingsTab: React.FC = () => {
         resourceGolfSlotDuration: data['resource.golf.slot_duration']?.value || '60',
         resourceConferenceSlotDuration: data['resource.conference.slot_duration']?.value || '30',
         resourceToursSlotDuration: data['resource.tours.slot_duration']?.value || '30',
-        hubspotPipelineId: data['hubspot.pipeline_id']?.value || 'default',
-        hubspotStages,
         hubspotTiers,
         hubspotStatuses,
         dailyReminderHour: data['scheduling.daily_reminder_hour']?.value || '18',
@@ -276,7 +250,6 @@ const SettingsTab: React.FC = () => {
         'resource.golf.slot_duration': settingsToSave.resourceGolfSlotDuration,
         'resource.conference.slot_duration': settingsToSave.resourceConferenceSlotDuration,
         'resource.tours.slot_duration': settingsToSave.resourceToursSlotDuration,
-        'hubspot.pipeline_id': settingsToSave.hubspotPipelineId,
         'scheduling.daily_reminder_hour': settingsToSave.dailyReminderHour,
         'scheduling.morning_closure_hour': settingsToSave.morningClosureHour,
         'scheduling.onboarding_nudge_hour': settingsToSave.onboardingNudgeHour,
@@ -286,9 +259,6 @@ const SettingsTab: React.FC = () => {
         'scheduling.trial_coupon_code': settingsToSave.trialCouponCode,
       };
 
-      for (const [key, val] of Object.entries(settingsToSave.hubspotStages ?? {})) {
-        payload[`hubspot.stage.${key}`] = val;
-      }
       for (const [key, val] of Object.entries(settingsToSave.hubspotTiers ?? {})) {
         payload[`hubspot.tier.${key}`] = val;
       }
@@ -505,44 +475,8 @@ const SettingsTab: React.FC = () => {
       </div>
 
       <div className={sectionClass}>
-        <SectionHeader icon="hub" title="HubSpot Mappings" subtitle="Configure how the app maps data to HubSpot properties" />
+        <SectionHeader icon="hub" title="HubSpot Contact Mappings" subtitle="Configure how the app maps contact data to HubSpot properties" />
         <div className="space-y-4">
-          <div>
-            <FieldLabel>Pipeline ID</FieldLabel>
-            <input type="text" value={settings.hubspotPipelineId} onChange={(e) => updateField('hubspotPipelineId', e.target.value)} className={inputClass} placeholder="Pipeline ID" />
-          </div>
-
-          <div>
-            <button onClick={() => toggleSection('hubspotStages')} className="flex items-center gap-2 w-full text-left py-2">
-              <span className="material-symbols-outlined text-sm text-primary/50 dark:text-white/50 transition-transform" style={{ transform: expandedSections.hubspotStages ? 'rotate(90deg)' : 'rotate(0deg)' }}>chevron_right</span>
-              <span className="text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-widest">Pipeline Stage IDs</span>
-            </button>
-            {expandedSections.hubspotStages && (
-              <div className="space-y-3 mt-2">
-                {HUBSPOT_STAGE_KEYS.map(({ key, label }) => (
-                  <div key={key} className="flex items-center gap-4">
-                    <div className="w-44 flex-shrink-0">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">{label}</span>
-                    </div>
-                    <input
-                      type="text"
-                      value={settings.hubspotStages?.[key] ?? ''}
-                      onChange={(e) => {
-                        setSettings(prev => ({
-                          ...prev,
-                          hubspotStages: { ...(prev.hubspotStages ?? {}), [key]: e.target.value }
-                        }));
-                        setHasChanges(true);
-                      }}
-                      className={inputSmClass}
-                      placeholder="Stage ID"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
           <div>
             <button onClick={() => toggleSection('hubspotTiers')} className="flex items-center gap-2 w-full text-left py-2">
               <span className="material-symbols-outlined text-sm text-primary/50 dark:text-white/50 transition-transform" style={{ transform: expandedSections.hubspotTiers ? 'rotate(90deg)' : 'rotate(0deg)' }}>chevron_right</span>

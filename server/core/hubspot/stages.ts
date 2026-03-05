@@ -1,13 +1,9 @@
 import { db } from '../../db';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
-import { isProduction } from '../db';
 import { getHubSpotClient } from '../integrations';
-import { hubspotDeals, hubspotLineItems } from '../../../shared/schema';
-import { logBillingAudit } from '../auditLog';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { retryableHubSpotRequest } from './request';
 import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
-import { validateMembershipPipeline, isValidStage } from './pipeline';
 import { isPlaceholderEmail } from '../stripe/customers';
 
 import { logger } from '../logger';
@@ -26,11 +22,7 @@ async function isLiveStripeEnvironment(): Promise<boolean> {
 }
 
 import { 
-  HUBSPOT_STAGE_IDS, 
-  MINDBODY_TO_STAGE_MAP, 
   MINDBODY_TO_CONTACT_STATUS_MAP,
-  ACTIVE_STATUSES,
-  CHURNED_STATUSES,
   ContactMembershipStatus,
   BillingProvider,
   DB_STATUS_TO_HUBSPOT_STATUS,
@@ -38,67 +30,6 @@ import {
   DB_TIER_TO_HUBSPOT,
   getDbStatusToHubSpotMapping
 } from './constants';
-
-export async function updateDealStage(
-  hubspotDealId: string,
-  newStage: string,
-  performedBy: string,
-  performedByName?: string
-): Promise<boolean> {
-  try {
-    const hubspot = await getHubSpotClient();
-    
-    const existingDeal = await db.select()
-      .from(hubspotDeals)
-      .where(eq(hubspotDeals.hubspotDealId, hubspotDealId))
-      .limit(1);
-    
-    const previousStage = existingDeal[0]?.pipelineStage || null;
-    
-    await retryableHubSpotRequest(() =>
-      hubspot.crm.deals.basicApi.update(hubspotDealId, {
-        properties: {
-          dealstage: newStage
-        }
-      })
-    );
-    
-    await db.update(hubspotDeals)
-      .set({
-        pipelineStage: newStage,
-        lastStageSyncAt: new Date(),
-        lastSyncError: null,
-        updatedAt: new Date()
-      })
-      .where(eq(hubspotDeals.hubspotDealId, hubspotDealId));
-    
-    if (existingDeal[0]) {
-      await logBillingAudit({
-        memberEmail: existingDeal[0].memberEmail,
-        hubspotDealId,
-        actionType: 'stage_changed',
-        previousValue: previousStage,
-        newValue: newStage,
-        performedBy,
-        performedByName
-      });
-    }
-    
-    if (!isProduction) logger.info(`[HubSpotDeals] Updated deal ${hubspotDealId} to stage ${newStage}`);
-    return true;
-  } catch (error: unknown) {
-    logger.error('[HubSpotDeals] Error updating deal stage:', { error: error });
-    
-    await db.update(hubspotDeals)
-      .set({
-        lastSyncError: getErrorMessage(error) || 'Unknown error',
-        updatedAt: new Date()
-      })
-      .where(eq(hubspotDeals.hubspotDealId, hubspotDealId));
-    
-    return false;
-  }
-}
 
 export async function updateContactMembershipStatus(
   hubspotContactId: string,
@@ -116,10 +47,10 @@ export async function updateContactMembershipStatus(
       })
     );
     
-    if (!isProduction) logger.info(`[HubSpotDeals] Updated contact ${hubspotContactId} membership_status to ${newStatus}`);
+    logger.info(`[HubSpot] Updated contact ${hubspotContactId} membership_status to ${newStatus}`);
     return true;
   } catch (error: unknown) {
-    logger.error('[HubSpotDeals] Error updating contact membership_status:', { error: error });
+    logger.error('[HubSpot] Error updating contact membership_status:', { error: error });
     return false;
   }
 }
@@ -188,7 +119,6 @@ export async function syncMemberToHubSpot(
         return { success: false, error: 'Contact not found', updated: {} };
       }
       
-      // Create the contact if it doesn't exist
       logger.info(`[HubSpot Sync] Contact not found for ${email}, creating...`);
       const { findOrCreateHubSpotContact } = await import('./members');
       let contactFirstName = '';
@@ -329,7 +259,6 @@ export async function syncMemberToHubSpot(
       logger.info(`[HubSpot Sync] Updated ${email}: ${JSON.stringify(properties)}`);
       return { success: true, contactId, updated };
     } catch (updateError: unknown) {
-      // If some properties don't exist, retry with only the valid ones
       const errBody = updateError && typeof updateError === 'object' && 'body' in updateError ? (updateError as { body: { errors?: Array<{ code: string; context?: { propertyName?: string[] } }> } }).body : undefined;
       if (errBody?.errors?.some((e) => e.code === 'PROPERTY_DOESNT_EXIST')) {
         const invalidProps = errBody.errors
@@ -357,177 +286,6 @@ export async function syncMemberToHubSpot(
   } catch (error: unknown) {
     logger.error(`[HubSpot Sync] Error syncing ${email}:`, { error: error });
     return { success: false, error: getErrorMessage(error), updated: {} };
-  }
-}
-
-export async function syncDealStageFromMindbodyStatus(
-  memberEmail: string,
-  mindbodyStatus: string,
-  performedBy: string = 'system',
-  performedByName?: string
-): Promise<{ success: boolean; dealId?: string; newStage?: string; contactUpdated?: boolean; error?: string }> {
-  logger.info(`[HubSpot] Deal sync disabled — skipping stage sync for ${memberEmail}`);
-  return { success: true, error: 'Deal sync disabled' };
-  const { createDealForLegacyMember } = await import('./members');
-  
-  try {
-    const pipelineValidation = await validateMembershipPipeline();
-    if (!pipelineValidation.pipelineExists) {
-      logger.error(`[HubSpotDeals] Cannot sync: ${pipelineValidation.error}`);
-      return { success: false, error: pipelineValidation.error };
-    }
-    
-    const normalizedStatus = mindbodyStatus.toLowerCase().replace(/[^a-z-]/g, '');
-    const targetStage = MINDBODY_TO_STAGE_MAP[normalizedStatus];
-    
-    if (!targetStage) {
-      if (!isProduction) logger.info(`[HubSpotDeals] No stage mapping for status: ${mindbodyStatus}`);
-      return { success: false, error: `No stage mapping for status: ${mindbodyStatus}` };
-    }
-    
-    if (!isValidStage(targetStage)) {
-      logger.warn(`[HubSpotDeals] Target stage ${targetStage} not found in pipeline, check HubSpot configuration`);
-    }
-    
-    const existingDeal = await db.select()
-      .from(hubspotDeals)
-      .where(and(
-        eq(hubspotDeals.memberEmail, memberEmail.toLowerCase()),
-        eq(hubspotDeals.isPrimary, true)
-      ))
-      .limit(1);
-    
-    const fallbackDeal = existingDeal.length === 0 
-      ? await db.select()
-          .from(hubspotDeals)
-          .where(eq(hubspotDeals.memberEmail, memberEmail.toLowerCase()))
-          .limit(1)
-      : existingDeal;
-    
-    if (fallbackDeal.length === 0) {
-      if (!isProduction) logger.info(`[HubSpotDeals] No deal found for member: ${memberEmail}, creating deal for legacy member`);
-      
-      const legacyDealResult = await createDealForLegacyMember(
-        memberEmail,
-        mindbodyStatus,
-        performedBy,
-        performedByName
-      );
-      
-      if (!legacyDealResult.success) {
-        if (!isProduction) logger.info(`[HubSpotDeals] Skipped deal creation for ${memberEmail}: ${legacyDealResult.error}`);
-        return { success: false, error: legacyDealResult.error };
-      }
-      
-      return {
-        success: true,
-        dealId: legacyDealResult.dealId,
-        newStage: targetStage,
-        contactUpdated: true
-      };
-    }
-    
-    const deal = fallbackDeal[0];
-    
-    if (deal.pipelineStage === targetStage && deal.lastKnownMindbodyStatus === normalizedStatus) {
-      return { success: true, dealId: deal.hubspotDealId, newStage: targetStage };
-    }
-    
-    const targetContactStatus: ContactMembershipStatus = MINDBODY_TO_CONTACT_STATUS_MAP[normalizedStatus] || 'Suspended';
-    const isRecovery = ACTIVE_STATUSES.includes(normalizedStatus);
-    const isChurned = CHURNED_STATUSES.includes(normalizedStatus);
-    
-    await db.update(hubspotDeals)
-      .set({
-        lastKnownMindbodyStatus: normalizedStatus,
-        updatedAt: new Date()
-      })
-      .where(eq(hubspotDeals.id, deal.id));
-    
-    const dealUpdated = await updateDealStage(deal.hubspotDealId, targetStage, performedBy, performedByName);
-    
-    let contactUpdated = false;
-    if (deal.hubspotContactId) {
-      contactUpdated = await updateContactMembershipStatus(deal.hubspotContactId, targetContactStatus, performedBy);
-      
-      await logBillingAudit({
-        memberEmail: deal.memberEmail,
-        hubspotDealId: deal.hubspotDealId,
-        actionType: 'contact_status_changed',
-        newValue: targetContactStatus,
-        actionDetails: { 
-          trigger: 'mindbody_status_sync', 
-          mindbodyStatus: normalizedStatus,
-          statusCategory: isRecovery ? 'recovery' : isChurned ? 'churned' : 'payment_issue'
-        },
-        performedBy,
-        performedByName
-      });
-    }
-    
-    if (isRecovery) {
-      if (!isProduction) logger.info(`[HubSpotDeals] Recovery: Member ${memberEmail} status changed to Active, deal moved to ${targetStage}`);
-    } else if (isChurned) {
-      if (!isProduction) logger.info(`[HubSpotDeals] Churned: Member ${memberEmail} marked as former_member, deal moved to ${targetStage}`);
-      
-      // Remove all line items and update contact for churned members (MindBody cancelled/terminated)
-      if (deal.hubspotDealId) {
-        try {
-          const lineItems = await db.select()
-            .from(hubspotLineItems)
-            .where(eq(hubspotLineItems.hubspotDealId, deal.hubspotDealId));
-          
-          let lineItemsRemoved = 0;
-          const hubspot = await getHubSpotClient();
-          
-          for (const lineItem of lineItems) {
-            if (lineItem.hubspotLineItemId) {
-              try {
-                await retryableHubSpotRequest(() =>
-                  hubspot.crm.lineItems.basicApi.archive(lineItem.hubspotLineItemId!)
-                );
-                
-                await db.delete(hubspotLineItems)
-                  .where(eq(hubspotLineItems.hubspotLineItemId, lineItem.hubspotLineItemId));
-                
-                lineItemsRemoved++;
-              } catch (removeError: unknown) {
-                logger.error(`[HubSpotDeals] Failed to remove line item ${lineItem.hubspotLineItemId}:`, { error: removeError });
-              }
-            }
-          }
-          
-          // Clear membership tier on contact for churned members
-          if (deal.hubspotContactId) {
-            try {
-              await retryableHubSpotRequest(() =>
-                hubspot.crm.contacts.basicApi.update(deal.hubspotContactId!, {
-                  properties: {
-                    membership_tier: ''
-                  }
-                })
-              );
-              if (!isProduction) logger.info(`[HubSpotDeals] Cleared membership_tier for churned member ${memberEmail}`);
-            } catch (tierClearError: unknown) {
-              logger.warn(`[HubSpotDeals] Failed to clear membership_tier for ${memberEmail}:`, { error: tierClearError });
-            }
-          }
-          
-          if (lineItemsRemoved > 0) {
-            logger.info(`[HubSpotDeals] Removed ${lineItemsRemoved} line items for churned MindBody member ${memberEmail}`);
-          }
-        } catch (lineItemError: unknown) {
-          logger.error(`[HubSpotDeals] Error removing line items for churned member:`, { error: lineItemError });
-        }
-      }
-    } else {
-      if (!isProduction) logger.info(`[HubSpotDeals] Payment Issue: Member ${memberEmail} marked as inactive, deal moved to ${targetStage}`);
-    }
-    
-    return { success: dealUpdated, dealId: deal.hubspotDealId, newStage: targetStage, contactUpdated };
-  } catch (error: unknown) {
-    logger.error('[HubSpotDeals] Error syncing deal stage from Mindbody:', { error: error });
-    return { success: false };
   }
 }
 

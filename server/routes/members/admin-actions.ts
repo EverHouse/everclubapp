@@ -8,7 +8,7 @@ import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
 import { getSessionUser } from '../../types/session';
 import { TIER_NAMES } from '../../../shared/constants/tiers';
 import { getTierRank } from './helpers';
-import { createMemberLocally, queueMemberCreation, getAllDiscountRules, handleTierChange, queueTierSync, syncTierToHubSpot } from '../../core/hubspot';
+import { createMemberLocally, getAllDiscountRules, queueTierSync, syncTierToHubSpot } from '../../core/hubspot';
 import Stripe from 'stripe';
 import { changeSubscriptionTier, pauseSubscription } from '../../core/stripe';
 import { notifyMember } from '../../core/notificationService';
@@ -19,7 +19,6 @@ import { logFromRequest } from '../../core/auditLog';
 import { previewMerge, executeMerge, findPotentialDuplicates } from '../../core/userMerge';
 import { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
 import { invalidateCache } from '../../core/queryCache';
-import type { TierChangeResult } from '../../core/hubspot/members';
 import { validateBody } from '../../middleware/validate';
 import { tierChangeSchema, createMemberSchema } from '../../../shared/validators/members';
 
@@ -99,22 +98,6 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, validateBody(tierChange
     const performedByName = sessionUser?.firstName 
       ? `${sessionUser.firstName} ${sessionUser.lastName || ''}`.trim() 
       : sessionUser?.email?.split('@')[0] || 'Staff';
-
-    let hubspotResult: TierChangeResult = { success: true, oldLineItemRemoved: false, newLineItemAdded: false };
-
-    if (normalizedTier) {
-      hubspotResult = await handleTierChange(
-        normalizedEmail,
-        oldTierDisplay || 'None',
-        normalizedTier,
-        performedBy,
-        performedByName
-      );
-
-      if (!hubspotResult.success && hubspotResult.error) {
-        logger.warn('[Members] HubSpot deal tier change failed, queuing for retry', { extra: { normalizedEmail, hubspotResultError: hubspotResult.error } });
-      }
-    }
 
     syncTierToHubSpot({
       email: normalizedEmail,
@@ -198,7 +181,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, validateBody(tierChange
         previousTier: oldTierDisplay || 'None',
         newTier: newTierDisplay || 'None',
         billingProvider: member.billingProvider || 'unknown',
-        hubspotSynced: hubspotResult.success,
+        hubspotSynced: true,
         stripeSynced: stripeSync.success
       }
     });
@@ -215,9 +198,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, validateBody(tierChange
         previousTier: oldTierDisplay
       },
       hubspotSync: {
-        success: hubspotResult.success,
-        oldLineItemRemoved: hubspotResult.oldLineItemRemoved,
-        newLineItemAdded: hubspotResult.newLineItemAdded
+        success: true,
       },
       stripeSync,
       warning: stripeSync.warning
@@ -963,13 +944,7 @@ router.post('/api/members', isStaffOrAdmin, validateBody(createMemberSchema), as
       return res.status(400).json({ error: result.error || 'Failed to create member' });
     }
     
-    let hubspotSyncQueued = false;
-    try {
-      await queueMemberCreation(memberInput);
-      hubspotSyncQueued = true;
-    } catch (queueError) {
-      logger.error('[CreateMember] Failed to queue HubSpot sync (member created locally)', { extra: { queueError } });
-    }
+    const hubspotSyncQueued = false;
     
     invalidateCache('members_directory');
     res.status(201).json({

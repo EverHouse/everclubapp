@@ -196,7 +196,6 @@ export function useDataIntegrityState() {
   const [reviewItemsResult, setReviewItemsResult] = useState<{ success: boolean; message: string; wellnessCount?: number; eventCount?: number; total?: number; dryRun?: boolean } | null>(null);
   const [duplicateDetectionResult, setDuplicateDetectionResult] = useState<{ success: boolean; message: string; appDuplicates?: DuplicateRecord[]; hubspotDuplicates?: DuplicateRecord[] } | null>(null);
   const [expandedDuplicates, setExpandedDuplicates] = useState<{ app: boolean; hubspot: boolean }>({ app: false, hubspot: false });
-  const [dealStageRemediationResult, setDealStageRemediationResult] = useState<{ success: boolean; message: string; total?: number; fixed?: number; dryRun?: boolean } | null>(null);
 
   const [selectedMember, setSelectedMember] = useState<MemberProfile | null>(null);
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
@@ -343,7 +342,6 @@ export function useDataIntegrityState() {
     reviewItemsResult, setReviewItemsResult,
     duplicateDetectionResult, setDuplicateDetectionResult,
     expandedDuplicates, setExpandedDuplicates,
-    dealStageRemediationResult, setDealStageRemediationResult,
     selectedMember, setSelectedMember,
     isProfileDrawerOpen, setIsProfileDrawerOpen,
     loadingMemberEmail, setLoadingMemberEmail,

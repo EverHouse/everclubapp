@@ -7,13 +7,8 @@ import type { ContactMembershipStatus } from './constants';
 export type HubSpotOperation = 
   | 'create_contact'
   | 'update_contact'
-  | 'create_deal'
-  | 'sync_member'
   | 'sync_tier'
-  | 'sync_company'
-  | 'sync_day_pass'
-  | 'sync_payment'
-  | 'enrich_event_deal';
+  | 'sync_company';
 
 interface QueueIdRow {
   id: number;
@@ -237,7 +232,6 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
 async function executeHubSpotOperation(operation: string, payload: Record<string, unknown>): Promise<void> {
   // Import handlers dynamically to avoid circular deps
   const members = await import('./members');
-  const contacts = await import('./contacts');
   const companies = await import('./companies');
   const stages = await import('./stages');
   
@@ -261,39 +255,13 @@ async function executeHubSpotOperation(operation: string, payload: Record<string
       );
       break;
       
-    case 'create_deal':
-      logger.info(`[HubSpot Queue] Deal creation disabled — skipping create_deal for ${payload.email}`);
-      break;
-      
-    case 'sync_member':
-      logger.info(`[HubSpot Queue] Deal creation disabled — skipping sync_member for ${payload.email}`);
-      break;
-      
     case 'sync_tier':
-      // Sync tier change to HubSpot contact and deal
       await members.syncTierToHubSpot(payload as unknown as { email: string; newTier: string; oldTier?: string; changedBy?: string; changedByName?: string });
       break;
       
     case 'sync_company':
       await companies.syncCompanyToHubSpot(payload as unknown as Parameters<typeof companies.syncCompanyToHubSpot>[0]);
       break;
-      
-    case 'sync_day_pass':
-      // Use the stripe hubspotSync version which handles line items on deals
-      const dayPassSync = await import('../stripe/hubspotSync');
-      await dayPassSync.syncDayPassToHubSpot(payload as unknown as Parameters<typeof dayPassSync.syncDayPassToHubSpot>[0]);
-      break;
-      
-    case 'sync_payment':
-      const hubspotSync = await import('../stripe/hubspotSync');
-      await hubspotSync.syncPaymentToHubSpot(payload as unknown as Parameters<typeof hubspotSync.syncPaymentToHubSpot>[0]);
-      break;
-
-    case 'enrich_event_deal': {
-      const { enrichEventDealFromQueue } = await import('../../routes/hubspot');
-      await enrichEventDealFromQueue(payload as { email: string; fields: Array<{ name: string; value: string }> });
-      break;
-    }
       
     default:
       throw new Error(`Unknown HubSpot operation: ${operation}`);

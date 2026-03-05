@@ -15,11 +15,9 @@ import * as path from 'path';
 import pRetry, { AbortError } from 'p-retry';
 import { invalidateCache } from '../core/queryCache';
 import { broadcastDirectoryUpdate } from '../core/websocket';
-import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
-import { AssociationSpecAssociationCategoryEnum } from '@hubspot/api-client/lib/codegen/crm/associations/v4';
 import { getErrorMessage, getErrorStatusCode, safeErrorDetail } from '../utils/errorUtils';
 import { denormalizeTierForHubSpot, denormalizeTierForHubSpotAsync } from '../utils/tierUtils';
-import { enqueueHubSpotSync } from '../core/hubspot/queue';
+
 
 interface HubSpotApiObject {
   id: string;
@@ -724,136 +722,6 @@ router.get('/api/hubspot/contacts/:id', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-/**
- * Fire-and-forget: enrich an event deal with structured properties
- * after the HubSpot workflow creates it.
- */
-async function enrichEventDeal(
-  contactEmail: string,
-  formFields: Array<{ name: string; value: string }>
-): Promise<void> {
-  const EVENT_TYPE_TO_DEAL_VALUE: Record<string, string> = {
-    'Birthday': 'birthday',
-    'Corporate': 'corporate',
-    'Brand Activation': 'brand_activation',
-    'Other': 'other',
-  };
-
-  const EVENTS_PIPELINE_ID = '1447785156';
-  const EVENTS_NEW_INQUIRY_STAGE = '2412923587';
-
-  const getField = (name: string) => formFields.find(f => f.name === name)?.value || '';
-
-  const dealProperties: Record<string, string> = {};
-
-  const eventDate = getField('event_date');
-  if (eventDate) dealProperties.event_date = eventDate;
-
-  const eventTime = getField('event_time');
-  if (eventTime) dealProperties.event_time = eventTime;
-
-  const eventType = getField('event_type');
-  const dealEventType = EVENT_TYPE_TO_DEAL_VALUE[eventType];
-  if (dealEventType) dealProperties.event_type = dealEventType;
-
-  const guestCount = getField('guest_count');
-  if (guestCount) dealProperties.expected_guest_count = guestCount;
-
-  const eventServices = getField('event_services');
-  if (eventServices) dealProperties.event_services = eventServices;
-
-  const additionalDetails = getField('additional_details');
-  if (additionalDetails) dealProperties.additional_details = additionalDetails;
-
-  if (Object.keys(dealProperties).length === 0) return;
-
-  try {
-    const hubspot = await getHubSpotClient();
-
-    const contactSearch = await retryableHubSpotRequest(() =>
-      hubspot.crm.contacts.searchApi.doSearch({
-        filterGroups: [{
-          filters: [{
-            propertyName: 'email',
-            operator: FilterOperatorEnum.Eq,
-            value: contactEmail.toLowerCase()
-          }]
-        }],
-        properties: ['email'],
-        limit: 1
-      })
-    );
-
-    if (!contactSearch.results?.length) {
-      logger.warn('[HubSpot DealEnrich] Contact not found for', { extra: { contactEmail } });
-      return;
-    }
-
-    const contactId = contactSearch.results[0].id;
-
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const associations = await retryableHubSpotRequest(() =>
-        (hubspot.crm.contacts as unknown as { associationsApi: { getAll: (id: string, type: string) => Promise<{ results?: Array<{ id: string }> }> } }).associationsApi.getAll(contactId, 'deals')
-      );
-
-      const assocResults = (associations as { results?: Array<{ id: string }> }).results;
-      if (assocResults?.length) {
-        for (const assoc of assocResults) {
-          const deal = await retryableHubSpotRequest(() =>
-            hubspot.crm.deals.basicApi.getById(assoc.id, ['pipeline', 'dealstage', 'createdate'])
-          );
-
-          if (deal.properties.pipeline === EVENTS_PIPELINE_ID) {
-            const createDate = new Date(deal.properties.createdate);
-            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-
-            if (createDate >= fiveMinutesAgo) {
-              await retryableHubSpotRequest(() =>
-                hubspot.crm.deals.basicApi.update(assoc.id, { properties: dealProperties })
-              );
-              logger.info('[HubSpot DealEnrich] Updated deal with event details for', { extra: { assocId: assoc.id, contactEmail } });
-              return;
-            }
-          }
-        }
-      }
-
-      if (attempt === 0) {
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
-    }
-
-    const firstName = getField('firstname');
-    const lastName = getField('lastname');
-    const dealName = `${firstName} ${lastName} ${eventType || 'Event'} Inquiry`.trim();
-
-    const createResponse = await retryableHubSpotRequest(() =>
-      hubspot.crm.deals.basicApi.create({
-        properties: {
-          dealname: dealName,
-          pipeline: EVENTS_PIPELINE_ID,
-          dealstage: EVENTS_NEW_INQUIRY_STAGE,
-          ...dealProperties
-        },
-        associations: [{
-          to: { id: contactId },
-          types: [{
-            associationCategory: AssociationSpecAssociationCategoryEnum.HubspotDefined,
-            associationTypeId: 3
-          }]
-        }]
-      })
-    );
-
-    logger.info('[HubSpot DealEnrich] Created deal with event details for', { extra: { createResponseId: createResponse.id, contactEmail } });
-  } catch (error: unknown) {
-    logger.error('[HubSpot DealEnrich] Error enriching deal for', { extra: { contactEmail, error_instanceof_Error_error_String_error: error instanceof Error ? error.message : String(error) } });
-  }
-}
-
-export async function enrichEventDealFromQueue(payload: { email: string; fields: Array<{ name: string; value: string }> }): Promise<void> {
-  await enrichEventDeal(payload.email, payload.fields);
-}
 
 const HUBSPOT_PORTAL_ID_DEFAULT = '244200670';
 const HUBSPOT_FORMS: Record<string, string> = {
@@ -1032,14 +900,6 @@ router.post('/api/hubspot/forms/:formType', async (req, res) => {
         }
       ).catch(err => logger.error('Staff inquiry notification failed:', { extra: { err } }));
 
-      if (formType === 'private-hire' || formType === 'event-inquiry') {
-        const emailValue = getFieldValue('email') || '';
-        if (emailValue) {
-          enqueueHubSpotSync('enrich_event_deal', { email: emailValue, fields }, { priority: 5 }).catch(err =>
-            logger.error('[HubSpot DealEnrich] Failed to enqueue enrichment', { extra: { err } })
-          );
-        }
-      }
     } catch (dbError: unknown) {
       logger.error('Failed to save form submission locally', { extra: { dbError } });
     }

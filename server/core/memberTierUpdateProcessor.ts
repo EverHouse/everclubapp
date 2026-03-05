@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { users } from '../../shared/schema';
 import { sql } from 'drizzle-orm';
-import { handleTierChange, queueTierSync } from './hubspot';
+import { queueTierSync } from './hubspot';
 import { notifyMember } from './notificationService';
 
 import { logger } from './logger';
@@ -77,28 +77,15 @@ export async function processMemberTierUpdate(payload: MemberTierUpdatePayload):
       })
       .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
 
-    // Sync to HubSpot if requested
     if (syncToHubspot && newTier) {
-      const hubspotResult = await handleTierChange(
-        normalizedEmail,
-        oldTier || 'None',
+      await queueTierSync({
+        email: normalizedEmail,
         newTier,
-        performedBy,
-        performedByName
-      );
-
-      if (!hubspotResult.success && hubspotResult.error) {
-        logger.warn(`[MemberTierUpdateProcessor] HubSpot sync failed for ${normalizedEmail}, queuing for retry: ${hubspotResult.error}`);
-        await queueTierSync({
-          email: normalizedEmail,
-          newTier,
-          oldTier: oldTier || 'None',
-          changedBy: performedBy,
-          changedByName: performedByName
-        });
-      } else {
-        logger.info(`[MemberTierUpdateProcessor] HubSpot sync successful for ${normalizedEmail}: ${oldTier || 'None'} → ${newTier}`);
-      }
+        oldTier: oldTier || 'None',
+        changedBy: performedBy,
+        changedByName: performedByName
+      });
+      logger.info(`[MemberTierUpdateProcessor] Queued HubSpot tier sync for ${normalizedEmail}: ${oldTier || 'None'} → ${newTier}`);
     }
 
     // Notify member of tier change

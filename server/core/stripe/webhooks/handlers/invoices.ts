@@ -3,7 +3,7 @@ import { getStripeClient } from '../../client';
 import { notifyMember, notifyAllStaff } from '../../../notificationService';
 import { sendMembershipRenewalEmail, sendMembershipFailedEmail } from '../../../../emails/membershipEmails';
 import { broadcastBillingUpdate } from '../../../websocket';
-import { queuePaymentSyncToHubSpot } from '../../../hubspot';
+
 import { logPaymentFailure } from '../../../monitoring';
 import { sendErrorAlert } from '../../../errorAlerts';
 import { logSystemAction } from '../../../auditLog';
@@ -160,21 +160,6 @@ export async function handleInvoicePaymentSucceeded(client: PoolClient, invoice:
   const localNextBillingDate = nextBillingDate;
   const localUserId = userId;
   const localPaymentIntent = (typeof invoice.payment_intent === 'string' ? invoice.payment_intent : invoice.payment_intent?.id) || invoice.id;
-
-  deferredActions.push(async () => {
-    try {
-      await queuePaymentSyncToHubSpot({
-        paymentIntentId: localPaymentIntent,
-        email: localEmail,
-        amountCents: localAmountPaid,
-        description: `Membership Renewal: ${localPlanName}`,
-        purpose: 'membership_renewal',
-      });
-      logger.info(`[Stripe Webhook] Queued invoice payment HubSpot sync for ${localEmail}`);
-    } catch (hubspotError: unknown) {
-      logger.error('[Stripe Webhook] Failed to queue HubSpot sync for invoice payment:', { error: hubspotError });
-    }
-  });
 
   deferredActions.push(async () => {
     await notifyMember({

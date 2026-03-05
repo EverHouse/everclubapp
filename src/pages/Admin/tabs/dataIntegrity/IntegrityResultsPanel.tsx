@@ -82,9 +82,6 @@ interface IntegrityResultsPanelProps {
   isCleaningMindbodyIds: boolean;
   mindbodyCleanupResult: { success: boolean; message: string; toClean?: number; dryRun?: boolean } | null;
   handleCleanupMindbodyIds: (dryRun: boolean) => void;
-  isRunningDealStageRemediation: boolean;
-  dealStageRemediationResult: { success: boolean; message: string; total?: number; fixed?: number; dryRun?: boolean } | null;
-  handleRemediateDealStages: (dryRun: boolean) => void;
   isRunningStripeHubspotLink: boolean;
   stripeHubspotLinkResult: { success: boolean; message: string; stripeOnlyMembers?: StripeHubspotMember[]; hubspotOnlyMembers?: StripeHubspotMember[]; linkedCount?: number; dryRun?: boolean } | null;
   handleLinkStripeHubspot: (dryRun: boolean) => void;
@@ -165,9 +162,6 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
   isCleaningMindbodyIds,
   mindbodyCleanupResult,
   handleCleanupMindbodyIds,
-  isRunningDealStageRemediation,
-  dealStageRemediationResult,
-  handleRemediateDealStages,
   isRunningStripeHubspotLink,
   stripeHubspotLinkResult,
   handleLinkStripeHubspot,
@@ -652,43 +646,6 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                   <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
                 )}
                 <p className={`text-xs ${getTextStyle(mindbodyCleanupResult)}`}>{mindbodyCleanupResult.message}</p>
-              </div>
-            )}
-          </div>
-        );
-
-      case 'Deal Stage Drift':
-        return (
-          <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 mb-4">
-            <p className="text-xs text-orange-700 dark:text-orange-300 mb-2">
-              <strong>Quick Fix:</strong> Update HubSpot deal stages to match current membership status
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => handleRemediateDealStages(true)}
-                disabled={isRunningDealStageRemediation}
-                className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-              >
-                {isRunningDealStageRemediation && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">visibility</span>
-                Preview
-              </button>
-              <button
-                onClick={() => handleRemediateDealStages(false)}
-                disabled={isRunningDealStageRemediation}
-                className="tactile-btn px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-              >
-                {isRunningDealStageRemediation && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">sync</span>
-                Remediate Deal Stages
-              </button>
-            </div>
-            {dealStageRemediationResult && (
-              <div className={`mt-2 p-2 rounded ${getResultStyle(dealStageRemediationResult)}`}>
-                {dealStageRemediationResult.dryRun && (
-                  <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
-                )}
-                <p className={`text-xs ${getTextStyle(dealStageRemediationResult)}`}>{dealStageRemediationResult.message}</p>
               </div>
             )}
           </div>

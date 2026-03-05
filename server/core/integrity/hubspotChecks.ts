@@ -11,8 +11,6 @@ import type {
   IntegrityIssue,
   SyncComparisonData,
   MemberRow,
-  DealWithoutLineItemRow,
-  DealStageDriftRow,
   HubSpotDuplicateRow,
   LinkedCountRow,
 } from './core';
@@ -164,123 +162,7 @@ export async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> 
   };
 }
 
-export async function checkDealsWithoutLineItems(): Promise<IntegrityCheckResult> {
-  const issues: IntegrityIssue[] = [];
 
-  const dealsWithoutLineItems = await db.execute(sql`
-    SELECT hd.id, hd.member_email, hd.hubspot_deal_id, hd.deal_name, hd.pipeline_stage
-    FROM hubspot_deals hd
-    LEFT JOIN hubspot_line_items hli ON hd.hubspot_deal_id = hli.hubspot_deal_id
-    WHERE hli.id IS NULL
-      AND hd.deal_name NOT LIKE '%(Legacy)%'
-  `);
-
-  for (const row of dealsWithoutLineItems.rows as unknown as DealWithoutLineItemRow[]) {
-    issues.push({
-      category: 'data_quality',
-      severity: 'error',
-      table: 'hubspot_deals',
-      recordId: row.id,
-      description: `Deal "${row.deal_name || 'Unnamed'}" for ${row.member_email} has no product line items`,
-      suggestion: 'Add product line items to this deal in the billing section or HubSpot',
-      context: {
-        memberEmail: row.member_email || undefined
-      }
-    });
-  }
-
-  return {
-    checkName: 'Deals Without Line Items',
-    status: issues.length === 0 ? 'pass' : 'fail',
-    issueCount: issues.length,
-    issues,
-    lastRun: new Date()
-  };
-}
-
-export async function checkDealStageDrift(): Promise<IntegrityCheckResult> {
-  const issues: IntegrityIssue[] = [];
-
-  const STAGE_MAPPING: Record<string, string> = {
-    'active': 'closedwon',
-    'pending': '2825519820',
-    'declined': '2825519820',
-    'suspended': '2825519820',
-    'expired': '2825519820',
-    'froze': '2825519820',
-    'frozen': '2825519820',
-    'past_due': '2825519820',
-    'pastdue': '2825519820',
-    'paymentfailed': '2825519820',
-    'terminated': 'closedlost',
-    'cancelled': 'closedlost',
-    'non-member': 'closedlost',
-    'nonmember': 'closedlost'
-  };
-
-  const STAGE_NAMES: Record<string, string> = {
-    'closedwon': 'Active Members',
-    '2825519820': 'Payment Declined',
-    'closedlost': 'Closed Lost'
-  };
-
-  const driftingDeals = await db.execute(sql`
-    SELECT 
-      hd.id,
-      hd.member_email,
-      hd.hubspot_deal_id,
-      hd.deal_name,
-      hd.pipeline_stage as current_stage,
-      u.membership_status,
-      u.first_name,
-      u.last_name,
-      u.tier
-    FROM hubspot_deals hd
-    JOIN users u ON LOWER(u.email) = LOWER(hd.member_email)
-    WHERE u.role = 'member'
-      AND hd.pipeline_stage IS NOT NULL
-      AND u.membership_status IS NOT NULL
-  `);
-
-  for (const row of driftingDeals.rows as unknown as DealStageDriftRow[]) {
-    const membershipStatus = String(row.membership_status || 'non-member').toLowerCase();
-    const expectedStage = STAGE_MAPPING[membershipStatus] || 'closedlost';
-    const currentStage = row.current_stage;
-
-    if (currentStage !== expectedStage) {
-      const memberName = [row.first_name, row.last_name].filter(Boolean).join(' ') || 'Unknown';
-      const expectedStageName = STAGE_NAMES[expectedStage] || expectedStage;
-      const currentStageName = STAGE_NAMES[currentStage] || currentStage;
-
-      issues.push({
-        category: 'sync_mismatch',
-        severity: 'error',
-        table: 'hubspot_deals',
-        recordId: row.id,
-        description: `Deal for ${row.member_email} is in "${currentStageName}" but membership status is "${membershipStatus}" (should be in "${expectedStageName}")`,
-        suggestion: `Update deal stage to match membership status or correct membership status in HubSpot`,
-        context: {
-          memberName,
-          memberEmail: row.member_email,
-          memberTier: row.tier || undefined,
-          syncType: 'hubspot',
-          syncComparison: [
-            { field: 'Deal Stage', appValue: currentStageName, externalValue: expectedStageName },
-            { field: 'Membership Status', appValue: membershipStatus, externalValue: null }
-          ]
-        }
-      });
-    }
-  }
-
-  return {
-    checkName: 'Deal Stage Drift',
-    status: issues.length === 0 ? 'pass' : issues.length > 10 ? 'fail' : 'warning',
-    issueCount: issues.length,
-    issues,
-    lastRun: new Date()
-  };
-}
 
 export async function checkHubSpotIdDuplicates(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];

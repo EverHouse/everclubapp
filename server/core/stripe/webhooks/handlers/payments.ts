@@ -16,7 +16,7 @@ import type { PoolClient } from 'pg';
 import type { DeferredAction } from '../types';
 import { upsertTransactionCache } from '../framework';
 import { getErrorMessage } from '../../../../utils/errorUtils';
-import { queuePaymentSyncToHubSpot } from '../../../hubspot';
+
 
 const MAX_RETRY_ATTEMPTS = 3;
 

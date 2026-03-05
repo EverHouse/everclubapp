@@ -1,7 +1,4 @@
 export {
-  MEMBERSHIP_PIPELINE_ID,
-  HUBSPOT_STAGE_IDS,
-  MINDBODY_TO_STAGE_MAP,
   MINDBODY_TO_CONTACT_STATUS_MAP,
   INACTIVE_STATUSES,
   CHURNED_STATUSES,
@@ -15,15 +12,7 @@ export {
 } from './request';
 
 export {
-  validateMembershipPipeline,
-  isValidStage,
-  getPipelineValidationCache
-} from './pipeline';
-
-export {
-  updateDealStage,
   updateContactMembershipStatus,
-  syncDealStageFromMindbodyStatus
 } from './stages';
 
 export {
@@ -37,28 +26,13 @@ export {
 } from './products';
 
 export {
-  addLineItemToDeal,
-  removeLineItemFromDeal,
-  getMemberDealWithLineItems
-} from './lineItems';
-
-export {
-  getContactDeals,
   findOrCreateHubSpotContact,
-  createMembershipDeal,
-  createDealForLegacyMember,
-  createMemberWithDeal,
   createMemberLocally,
   syncNewMemberToHubSpot,
   syncTierToHubSpot,
-  getMemberPaymentStatus,
-  handleTierChange,
-  handleMembershipCancellation,
   type AddMemberInput,
   type AddMemberResult,
   type CreateMemberLocallyResult,
-  type TierChangeResult,
-  type CancellationResult
 } from './members';
 
 export {
@@ -88,9 +62,7 @@ export {
 } from './queue';
 
 export {
-  queuePaymentSyncToHubSpot,
-  queueDayPassSyncToHubSpot,
-  queueMemberCreation,
   queueTierSync,
+  queueIntegrityFixSync,
   type TierSyncParams
 } from './queueHelpers';

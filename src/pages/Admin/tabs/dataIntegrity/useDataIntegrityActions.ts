@@ -1108,25 +1108,6 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
     },
   });
 
-  const remediateDealStagesMutation = useMutation({
-    mutationFn: (dryRun: boolean) => 
-      postWithCredentials<{ message?: string; total?: number; fixed?: number }>('/api/hubspot/remediate-deal-stages', { dryRun }),
-    onSuccess: (data, dryRun) => {
-      state.setDealStageRemediationResult({
-        success: true,
-        message: data.message || `Found ${data.total || 0} deals needing updates${!dryRun ? `, fixed ${data.fixed || 0}` : ''}`,
-        total: data.total,
-        fixed: data.fixed,
-        dryRun
-      });
-      showToast(dryRun ? 'Preview complete - no changes made' : (data.message || 'Deal stage remediation complete'), dryRun ? 'info' : 'success');
-    },
-    onError: (err: Error) => {
-      state.setDealStageRemediationResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to remediate deal stages' });
-      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to remediate deal stages', 'error');
-    },
-  });
-
   const detectDuplicatesMutation = useMutation({
     mutationFn: () => 
       postWithCredentials<{ message?: string; appDuplicates?: DuplicateRecord[]; hubspotDuplicates?: DuplicateRecord[] }>('/api/data-tools/detect-duplicates', {}),
@@ -1468,11 +1449,6 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
     approveAllReviewItemsMutation.mutate(dryRun);
   };
 
-  const handleRemediateDealStages = (dryRun: boolean = true) => {
-    state.setDealStageRemediationResult(null);
-    remediateDealStagesMutation.mutate(dryRun);
-  };
-
   const handleDetectDuplicates = () => {
     state.setDuplicateDetectionResult(null);
     state.setExpandedDuplicates({ app: false, hubspot: false });
@@ -1522,7 +1498,6 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
   const isRunningGhostBookingFix = previewGhostBookingsMutation.isPending || fixGhostBookingsMutation.isPending;
   const isRunningOrphanedParticipantFix = fixOrphanedParticipantsMutation.isPending;
   const isRunningReviewItemsApproval = approveAllReviewItemsMutation.isPending;
-  const isRunningDealStageRemediation = remediateDealStagesMutation.isPending;
   const isRunningDuplicateDetection = detectDuplicatesMutation.isPending;
   const isLoadingPlaceholders = scanPlaceholdersMutation.isPending;
   const isDeletingPlaceholders = deletePlaceholdersMutation.isPending;
@@ -1575,7 +1550,6 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
     handleFixGhostBookings,
     handleFixOrphanedParticipants,
     handleApproveAllReviewItems,
-    handleRemediateDealStages,
     handleDetectDuplicates,
     handleScanPlaceholders,
     handleDeletePlaceholders,
@@ -1614,7 +1588,6 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
     isRunningGhostBookingFix,
     isRunningOrphanedParticipantFix,
     isRunningReviewItemsApproval,
-    isRunningDealStageRemediation,
     isRunningDuplicateDetection,
     isLoadingPlaceholders,
     isDeletingPlaceholders,

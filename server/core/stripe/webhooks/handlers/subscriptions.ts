@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { getStripeClient } from '../../client';
-import { handleTierChange, queueTierSync, handleMembershipCancellation } from '../../../hubspot';
+import { queueTierSync } from '../../../hubspot';
 import { notifyMember, notifyAllStaff } from '../../../notificationService';
 import { broadcastBillingUpdate } from '../../../websocket';
 import { logSystemAction } from '../../../auditLog';
@@ -248,26 +248,14 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
             logger.info(`[Stripe Webhook] Synced ${deferredCustomerEmail} to HubSpot contact: status=${deferredActualStatus}, tier=${deferredTierName}, billing=stripe`);
             
             if (deferredTierName) {
-              const hubspotResult = await handleTierChange(
-                deferredCustomerEmail,
-                'None',
-                deferredTierName,
-                'stripe-webhook',
-                'Stripe Subscription'
-              );
-              
-              if (!hubspotResult.success && hubspotResult.error) {
-                logger.warn(`[Stripe Webhook] HubSpot deal sync failed for new member ${deferredCustomerEmail}, queuing for retry`);
-                await queueTierSync({
-                  email: deferredCustomerEmail,
-                  newTier: deferredTierName,
-                  oldTier: 'None',
-                  changedBy: 'stripe-webhook',
-                  changedByName: 'Stripe Subscription'
-                });
-              } else {
-                logger.info(`[Stripe Webhook] Created HubSpot deal line item for ${deferredCustomerEmail} tier=${deferredTierName}`);
-              }
+              await queueTierSync({
+                email: deferredCustomerEmail,
+                newTier: deferredTierName,
+                oldTier: 'None',
+                changedBy: 'stripe-webhook',
+                changedByName: 'Stripe Subscription'
+              });
+              logger.info(`[Stripe Webhook] Queued HubSpot tier sync for ${deferredCustomerEmail} tier=${deferredTierName}`);
             }
           }
         } catch (hubspotError: unknown) {
@@ -788,39 +776,16 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
 
         deferredActions.push(async () => {
           try {
-            const hubspotResult = await handleTierChange(
-              deferredTierEmail,
-              deferredOldTier,
-              deferredNewTierName,
-              'stripe-webhook',
-              'Stripe Subscription'
-            );
-            
-            if (!hubspotResult.success && hubspotResult.error) {
-              logger.warn(`[Stripe Webhook] HubSpot tier sync failed for ${deferredTierEmail}, queuing for retry: ${hubspotResult.error}`);
-              await queueTierSync({
-                email: deferredTierEmail,
-                newTier: deferredNewTierName,
-                oldTier: deferredOldTier,
-                changedBy: 'stripe-webhook',
-                changedByName: 'Stripe Subscription'
-              });
-            } else {
-              logger.info(`[Stripe Webhook] Synced ${deferredTierEmail} tier=${deferredNewTierName} to HubSpot (deal line items updated)`);
-            }
-          } catch (hubspotError: unknown) {
-            logger.error('[Stripe Webhook] HubSpot sync failed for tier change, queuing for retry:', { extra: { detail: getErrorMessage(hubspotError) } });
-            try {
-              await queueTierSync({
-                email: deferredTierEmail,
-                newTier: deferredNewTierName,
-                oldTier: deferredOldTier,
-                changedBy: 'stripe-webhook',
-                changedByName: 'Stripe Subscription'
-              });
-            } catch (queueErr: unknown) {
-              logger.error('[Stripe Webhook] Failed to queue tier sync retry:', { error: queueErr });
-            }
+            await queueTierSync({
+              email: deferredTierEmail,
+              newTier: deferredNewTierName,
+              oldTier: deferredOldTier,
+              changedBy: 'stripe-webhook',
+              changedByName: 'Stripe Subscription'
+            });
+            logger.info(`[Stripe Webhook] Queued HubSpot tier sync for ${deferredTierEmail} tier=${deferredNewTierName}`);
+          } catch (queueErr: unknown) {
+            logger.error('[Stripe Webhook] Failed to queue tier sync:', { error: queueErr });
           }
         });
         
@@ -1688,17 +1653,6 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
         logger.info(`[Stripe Webhook] Synced ${deferredCancelEmail} status=cancelled to HubSpot`);
       } catch (hubspotError: unknown) {
         logger.error('[Stripe Webhook] HubSpot sync failed for status cancelled:', { error: hubspotError });
-      }
-
-      try {
-        const cancellationResult = await handleMembershipCancellation(deferredCancelEmail, 'stripe-webhook', 'Stripe Subscription');
-        if (cancellationResult.success) {
-          logger.info(`[Stripe Webhook] HubSpot cancellation processed: ${cancellationResult.lineItemsRemoved} line items removed, deal moved to lost: ${cancellationResult.dealMovedToLost}`);
-        } else {
-          logger.error(`[Stripe Webhook] HubSpot cancellation failed: ${cancellationResult.error}`);
-        }
-      } catch (cancellationError: unknown) {
-        logger.error('[Stripe Webhook] HubSpot cancellation handling failed:', { error: cancellationError });
       }
 
       try {
