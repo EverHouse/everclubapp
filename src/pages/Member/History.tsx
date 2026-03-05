@@ -441,6 +441,7 @@ const History: React.FC = () => {
                                               window.open(resp.receiptUrl, '_blank', 'noopener,noreferrer');
                                             }
                                           } catch (e) {
+                                            console.error('[History] Failed to load receipt:', e);
                                           }
                                         }}
                                         className={`tactile-btn text-xs flex items-center gap-0.5 justify-end mt-1 ${isDark ? 'text-accent hover:text-accent/80' : 'text-brand-green hover:text-brand-green/80'}`}
