@@ -392,18 +392,9 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
 
       {showSection && (
         <div className="mt-4 space-y-4">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs md:text-sm text-primary/70 dark:text-white/70">
-              Real-time webhook events received from Trackman. These events automatically update bay availability and booking status.
-            </p>
-            <button
-              onClick={() => setShowReplayModal(true)}
-              className="shrink-0 px-3 py-1.5 text-xs font-medium bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-500/30 transition-colors flex items-center gap-1 tactile-btn"
-            >
-              <span className="material-symbols-outlined text-sm">send</span>
-              Replay to Dev
-            </button>
-          </div>
+          <p className="text-xs md:text-sm text-primary/70 dark:text-white/70">
+            Real-time webhook events received from Trackman. These events automatically update bay availability and booking status.
+          </p>
 
           {webhookStats && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
