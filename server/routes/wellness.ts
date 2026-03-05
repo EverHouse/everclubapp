@@ -1013,27 +1013,36 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
       ? `${memberName} joined the waitlist for ${cls.title} on ${formattedDate}`
       : `${memberName} enrolled in ${cls.title} on ${formattedDate}`;
     
-    const result = await db.transaction(async (tx) => {
-      const enrollmentResult = await tx.insert(wellnessEnrollments)
-        .values({
-          classId: parseInt(class_id as string),
+    let result;
+    try {
+      result = await db.transaction(async (tx) => {
+        const enrollmentResult = await tx.insert(wellnessEnrollments)
+          .values({
+            classId: parseInt(class_id as string),
+            userEmail: user_email as string,
+            status: 'confirmed',
+            isWaitlisted: isWaitlisted as boolean
+          })
+          .returning();
+        
+        await tx.insert(notifications).values({
           userEmail: user_email as string,
-          status: 'confirmed',
-          isWaitlisted: isWaitlisted as boolean
-        })
-        .returning();
-      
-      await tx.insert(notifications).values({
-        userEmail: user_email as string,
-        title: isWaitlisted ? 'Added to Waitlist' : 'Wellness Class Confirmed',
-        message: memberMessage,
-        type: 'wellness_booking',
-        relatedId: parseInt(class_id as string),
-        relatedType: 'wellness_class'
+          title: isWaitlisted ? 'Added to Waitlist' : 'Wellness Class Confirmed',
+          message: memberMessage,
+          type: 'wellness_booking',
+          relatedId: parseInt(class_id as string),
+          relatedType: 'wellness_class'
+        });
+        
+        return enrollmentResult[0];
       });
-      
-      return enrollmentResult[0];
-    });
+    } catch (txErr: unknown) {
+      if (String(txErr).includes('wellness_enrollments_unique_active')) {
+        logger.info('[Wellness] Duplicate enrollment caught by unique constraint', { extra: { classId: class_id, userEmail: user_email } });
+        return res.status(409).json({ error: 'Already enrolled in this class' });
+      }
+      throw txErr;
+    }
     
     notifyAllStaff(
       isWaitlisted ? 'New Waitlist Entry' : 'New Wellness Enrollment',

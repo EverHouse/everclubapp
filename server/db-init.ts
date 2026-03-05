@@ -599,6 +599,40 @@ export async function ensureDatabaseConstraints() {
       logger.warn(`[DB Init] Skipping guest pass/conference CASCADE: ${getErrorMessage(err)}`);
     }
 
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_indexes WHERE indexname = 'day_pass_purchases_stripe_pi_unique'
+          ) THEN
+            CREATE UNIQUE INDEX day_pass_purchases_stripe_pi_unique
+              ON day_pass_purchases (stripe_payment_intent_id) WHERE stripe_payment_intent_id IS NOT NULL;
+          END IF;
+        END $$;
+      `);
+      logger.info('[DB Init] Day pass payment intent unique index created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping day pass PI unique index: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_indexes WHERE indexname = 'wellness_enrollments_unique_active'
+          ) THEN
+            CREATE UNIQUE INDEX wellness_enrollments_unique_active
+              ON wellness_enrollments (class_id, user_email) WHERE status = 'confirmed';
+          END IF;
+        END $$;
+      `);
+      logger.info('[DB Init] Wellness enrollment unique active index created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping wellness enrollment unique index: ${getErrorMessage(err)}`);
+    }
+
     const indexQueries = [
       { name: 'idx_booking_requests_status', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_status ON booking_requests(status)` },
       { name: 'idx_booking_requests_user_email', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_user_email ON booking_requests(user_email)` },

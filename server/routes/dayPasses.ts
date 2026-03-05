@@ -218,40 +218,55 @@ router.post('/api/day-passes/confirm', checkoutRateLimiter, async (req: Request,
       phone
     });
 
-    const existingPurchase = resolvedPaymentIntentId 
-      ? await db.select()
+    if (resolvedPaymentIntentId) {
+      const existingPurchase = await db.select()
           .from(dayPassPurchases)
           .where(eq(dayPassPurchases.stripePaymentIntentId, resolvedPaymentIntentId))
-          .limit(1)
-      : [];
+          .limit(1);
 
-    if (existingPurchase.length > 0) {
-      logger.info('[DayPasses] Purchase already recorded for payment', { extra: { resolvedPaymentIntentId } });
-      return res.json({
-        success: true,
-        purchaseId: existingPurchase[0].id,
-        userId: user.id,
-        alreadyRecorded: true
-      });
+      if (existingPurchase.length > 0) {
+        logger.info('[DayPasses] Purchase already recorded for payment', { extra: { resolvedPaymentIntentId } });
+        return res.json({
+          success: true,
+          purchaseId: existingPurchase[0].id,
+          userId: user.id,
+          alreadyRecorded: true
+        });
+      }
     }
 
-    const [purchase] = await db
-      .insert(dayPassPurchases)
-      .values({
-        userId: user.id,
-        productType: productSlug,
-        amountCents: amountPaid,
-        quantity: 1,
-        stripePaymentIntentId: resolvedPaymentIntentId,
-        stripeCustomerId: customerId,
-        purchaserEmail: email,
-        purchaserFirstName: firstName,
-        purchaserLastName: lastName,
-        purchaserPhone: phone,
-        source: 'stripe',
-        purchasedAt: new Date()
-      })
-      .returning();
+    let purchase;
+    try {
+      [purchase] = await db
+        .insert(dayPassPurchases)
+        .values({
+          userId: user.id,
+          productType: productSlug,
+          amountCents: amountPaid,
+          quantity: 1,
+          stripePaymentIntentId: resolvedPaymentIntentId,
+          stripeCustomerId: customerId,
+          purchaserEmail: email,
+          purchaserFirstName: firstName,
+          purchaserLastName: lastName,
+          purchaserPhone: phone,
+          source: 'stripe',
+          purchasedAt: new Date()
+        })
+        .returning();
+    } catch (insertErr: unknown) {
+      if (String(insertErr).includes('day_pass_purchases_stripe_pi_unique')) {
+        const existing = await db.select()
+          .from(dayPassPurchases)
+          .where(eq(dayPassPurchases.stripePaymentIntentId, resolvedPaymentIntentId))
+          .limit(1);
+        if (existing.length > 0) {
+          logger.info('[DayPasses] Duplicate insert caught by unique constraint', { extra: { resolvedPaymentIntentId } });
+          return res.json({ success: true, purchaseId: existing[0].id, userId: user.id, alreadyRecorded: true });
+        }
+      }
+      throw insertErr;
+    }
 
     if (user.id) {
       await linkPurchaseToUser(purchase.id, user.id);
@@ -433,23 +448,38 @@ router.post('/api/day-passes/staff-checkout/confirm', isStaffOrAdmin, async (req
       await db.update(users).set(addressUpdate).where(eq(users.id, user.id));
     }
 
-    const [purchase] = await db
-      .insert(dayPassPurchases)
-      .values({
-        userId: user.id,
-        productType: productSlug,
-        amountCents: paymentIntent.amount,
-        quantity: 1,
-        stripePaymentIntentId: paymentIntentId,
-        stripeCustomerId: typeof paymentIntent.customer === 'string' ? paymentIntent.customer : paymentIntent.customer?.id || null,
-        purchaserEmail: email,
-        purchaserFirstName: firstName,
-        purchaserLastName: lastName,
-        purchaserPhone: phone,
-        source: 'staff',
-        purchasedAt: new Date()
-      })
-      .returning();
+    let purchase;
+    try {
+      [purchase] = await db
+        .insert(dayPassPurchases)
+        .values({
+          userId: user.id,
+          productType: productSlug,
+          amountCents: paymentIntent.amount,
+          quantity: 1,
+          stripePaymentIntentId: paymentIntentId,
+          stripeCustomerId: typeof paymentIntent.customer === 'string' ? paymentIntent.customer : paymentIntent.customer?.id || null,
+          purchaserEmail: email,
+          purchaserFirstName: firstName,
+          purchaserLastName: lastName,
+          purchaserPhone: phone,
+          source: 'staff',
+          purchasedAt: new Date()
+        })
+        .returning();
+    } catch (insertErr: unknown) {
+      if (String(insertErr).includes('day_pass_purchases_stripe_pi_unique')) {
+        const existing = await db.select()
+          .from(dayPassPurchases)
+          .where(eq(dayPassPurchases.stripePaymentIntentId, paymentIntentId))
+          .limit(1);
+        if (existing.length > 0) {
+          logger.info('[DayPasses] Duplicate staff checkout caught by unique constraint', { extra: { paymentIntentId } });
+          return res.json({ success: true, purchaseId: existing[0].id, userId: existing[0].userId, alreadyRecorded: true });
+        }
+      }
+      throw insertErr;
+    }
 
     if (user.id) {
       await linkPurchaseToUser(purchase.id, user.id);
