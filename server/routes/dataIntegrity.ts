@@ -988,9 +988,9 @@ router.post('/api/data-integrity/fix/assign-session-owner', isAdmin, validateBod
 
     if (existingParticipant.rows.length === 0) {
       await client.query(
-        `INSERT INTO booking_participants (session_id, user_id, user_email, display_name, participant_type, is_owner, created_at)
-         VALUES ($1, $2, $3, $4, 'member', true, NOW())`,
-        [sessionId, member.id, member.email, [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email]
+        `INSERT INTO booking_participants (session_id, user_id, display_name, participant_type, created_at)
+         VALUES ($1, $2, $3, 'member', NOW())`,
+        [sessionId, member.id, [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email]
       );
     }
 
@@ -1018,8 +1018,8 @@ router.post('/api/data-integrity/fix/assign-session-owner', isAdmin, validateBod
       for (const rp of rpEntries) {
         if (rp.type === 'guest') {
           await client.query(
-            `INSERT INTO booking_participants (session_id, display_name, participant_type, is_owner, created_at)
-             VALUES ($1, $2, 'guest', false, NOW())`,
+            `INSERT INTO booking_participants (session_id, display_name, participant_type, created_at)
+             VALUES ($1, $2, 'guest', NOW())`,
             [sessionId, rp.name || 'Guest']
           );
         } else if (rp.email) {
@@ -1030,10 +1030,10 @@ router.post('/api/data-integrity/fix/assign-session-owner', isAdmin, validateBod
           if (playerUser.rows.length > 0) {
             const pu = playerUser.rows[0];
             await client.query(
-              `INSERT INTO booking_participants (session_id, user_id, user_email, display_name, participant_type, is_owner, created_at)
-               VALUES ($1, $2, $3, $4, 'member', false, NOW())
+              `INSERT INTO booking_participants (session_id, user_id, display_name, participant_type, created_at)
+               VALUES ($1, $2, $3, 'member', NOW())
                ON CONFLICT DO NOTHING`,
-              [sessionId, pu.id, pu.email, [pu.first_name, pu.last_name].filter(Boolean).join(' ') || pu.email]
+              [sessionId, pu.id, [pu.first_name, pu.last_name].filter(Boolean).join(' ') || pu.email]
             );
           }
         }

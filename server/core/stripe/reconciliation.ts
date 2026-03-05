@@ -341,7 +341,7 @@ export async function reconcileDailyRefunds() {
           const participantResult = await db.execute(sql`UPDATE booking_participants 
              SET payment_status = 'refunded', refunded_at = NOW()
              WHERE stripe_payment_intent_id = ${paymentIntentId} AND payment_status = 'paid'
-             RETURNING id, user_email`);
+             RETURNING id, display_name`);
           
           if (participantResult.rowCount && participantResult.rowCount > 0) {
             participantsHealed += participantResult.rowCount;
