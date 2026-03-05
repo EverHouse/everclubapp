@@ -454,6 +454,21 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     }
   }, [isOpen, isManageMode, fetchRosterData]);
 
+  const checkSavedCard = useCallback(async (email: string) => {
+    try {
+      setCheckingCard(true);
+      const res = await fetch(`/api/stripe/staff/check-saved-card/${encodeURIComponent(email)}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setSavedCardInfo(data);
+      }
+    } catch (err: unknown) {
+      console.error('Failed to check saved card:', err);
+    } finally {
+      setCheckingCard(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isOpen || !bookingId) return;
     const hasPropContext = bayName || bookingDate || timeSlot || bookingContext;
@@ -490,25 +505,14 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         if (!ownerEmail && data.user_email) {
           checkSavedCard(data.user_email);
         }
-      } catch {}
+      } catch (err: unknown) {
+        if (!cancelled) {
+          console.error('[UnifiedBooking] Failed to fetch booking context:', err);
+        }
+      }
     })();
     return () => { cancelled = true; };
-  }, [isOpen, bookingId, bayName, bookingDate, timeSlot, bookingContext]);
-
-  const checkSavedCard = useCallback(async (email: string) => {
-    try {
-      setCheckingCard(true);
-      const res = await fetch(`/api/stripe/staff/check-saved-card/${encodeURIComponent(email)}`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setSavedCardInfo(data);
-      }
-    } catch (err: unknown) {
-      console.error('Failed to check saved card:', err);
-    } finally {
-      setCheckingCard(false);
-    }
-  }, []);
+  }, [isOpen, bookingId, bayName, bookingDate, timeSlot, bookingContext, ownerEmail, checkSavedCard]);
 
   useEffect(() => {
     const email = ownerEmail || fetchedContext?.ownerEmail;

@@ -1761,7 +1761,7 @@ export async function applyRosterBatch(params: BatchRosterUpdateParams): Promise
               break;
             }
 
-            const memberResult = await db.select({
+            const memberResult = await tx.select({
               id: users.id,
               email: users.email,
               firstName: users.firstName,
