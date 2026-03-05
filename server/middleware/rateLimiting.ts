@@ -15,9 +15,9 @@ export const globalRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: (req: Request) => {
     if (req.session?.user?.id) {
-      return 600;
+      return 2000;
     }
-    return 2000;
+    return 600;
   },
   standardHeaders: true,
   legacyHeaders: false,

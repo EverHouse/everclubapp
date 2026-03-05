@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface UseAsyncActionOptions<T = unknown> {
   onSuccess?: (result: T) => void;
@@ -97,6 +97,14 @@ export function useAsyncAction<T = unknown, Args extends unknown[] = unknown[]>(
     },
     []
   );
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   const reset = useCallback(() => {
     if (debounceTimerRef.current) {

@@ -2307,7 +2307,7 @@ router.post('/api/admin/hubspot/remove-marketing-contacts', isAdmin, async (req:
           logger.error('[HubSpot MarketingAudit] Property does not exist. Please create it manually in HubSpot.', {
             error: batchError instanceof Error ? batchError : new Error(String(batchError)),
           });
-          return res.status(500).json({
+          return res.status(422).json({
             error: 'The remove_from_marketing property does not exist in HubSpot and could not be auto-created. Please create a checkbox property named "remove_from_marketing" in HubSpot contact settings, then try again.',
           });
         }

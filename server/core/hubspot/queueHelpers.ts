@@ -56,7 +56,7 @@ export async function queueIntegrityFixSync(params: IntegrityFixSyncParams): Pro
     changedByName: 'Data Integrity Fix',
   }, {
     priority: 2,
-    idempotencyKey: `integrity_fix_${emailKey}_${params.fixAction}_${Date.now()}`,
+    idempotencyKey: `integrity_fix_${emailKey}_${params.fixAction}_${Math.floor(Date.now() / 86400000)}`,
     maxRetries: 3
   });
 }
@@ -73,7 +73,7 @@ export async function queueTierSync(params: TierSyncParams): Promise<void> {
 
   await enqueueHubSpotSync('sync_tier', params, {
     priority: 2,
-    idempotencyKey: `tier_sync_${emailKey}_to_${newTierKey}_${Date.now()}`,
+    idempotencyKey: `tier_sync_${emailKey}_to_${newTierKey}_${Math.floor(Date.now() / 86400000)}`,
     maxRetries: 5
   });
 }
