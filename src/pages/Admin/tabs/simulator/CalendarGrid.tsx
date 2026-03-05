@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { formatTime12Hour, getTodayPacific } from '../../../../utils/dateUtils';
 import type { BookingRequest, Resource, CalendarClosure, AvailabilityBlock } from './simulatorTypes';
 import { formatDateShortAdmin, getClosureForSlot, getBlockForSlot } from './simulatorUtils';
-import { prefetchBookingDetail } from '../../../../lib/prefetch';
+import { prefetchBookingDetail } from '../../../../lib/prefetch-actions';
 
 export interface CalendarGridProps {
     resources: Resource[];

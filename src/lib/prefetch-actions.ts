@@ -1,0 +1,90 @@
+type RouteImportMap = Record<string, () => Promise<unknown>>;
+type RouteAPIMap = Record<string, string[]>;
+
+const prefetchedPaths = new Set<string>();
+const prefetchedAPIs = new Set<string>();
+
+let memberRouteImports: RouteImportMap = {};
+let memberRouteAPIs: RouteAPIMap = {};
+let staffRouteImports: RouteImportMap = {};
+let staffRouteAPIs: RouteAPIMap = {};
+
+export const registerMemberRoutes = (imports: RouteImportMap, apis: RouteAPIMap) => {
+  memberRouteImports = imports;
+  memberRouteAPIs = apis;
+};
+
+export const registerStaffRoutes = (imports: RouteImportMap, apis: RouteAPIMap) => {
+  staffRouteImports = imports;
+  staffRouteAPIs = apis;
+};
+
+const doPrefetch = (path: string, imports: RouteImportMap, apis: RouteAPIMap) => {
+  if (prefetchedPaths.has(path)) return;
+  const importFn = imports[path];
+  if (importFn) {
+    prefetchedPaths.add(path);
+    importFn();
+  }
+  const apiList = apis[path];
+  if (apiList) {
+    apiList.forEach(api => {
+      if (!prefetchedAPIs.has(api)) {
+        prefetchedAPIs.add(api);
+        fetch(api, { credentials: 'include' }).catch(() => {});
+      }
+    });
+  }
+};
+
+export const prefetchRoute = (path: string) => {
+  doPrefetch(path, memberRouteImports, memberRouteAPIs);
+};
+
+export const prefetchAdjacentRoutes = (currentPath: string) => {
+  const navOrder = ['/dashboard', '/book', '/wellness', '/events', '/updates'];
+  const idx = navOrder.indexOf(currentPath);
+  if (idx === -1) return;
+  if (idx > 0) prefetchRoute(navOrder[idx - 1]);
+  if (idx < navOrder.length - 1) prefetchRoute(navOrder[idx + 1]);
+};
+
+export const prefetchAllNavRoutes = () => {
+  Object.keys(memberRouteImports).forEach(prefetchRoute);
+};
+
+export const prefetchOnIdle = () => {
+  if ('requestIdleCallback' in window) {
+    (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void }).requestIdleCallback(() => prefetchAllNavRoutes(), { timeout: 2000 });
+  } else {
+    setTimeout(prefetchAllNavRoutes, 100);
+  }
+};
+
+export const prefetchStaffRoute = (path: string) => {
+  doPrefetch(path, staffRouteImports, staffRouteAPIs);
+};
+
+export const prefetchAdjacentStaffRoutes = (currentPath: string) => {
+  const navOrder = ['/admin', '/admin/bookings', '/admin/financials', '/admin/tours', '/admin/calendar', '/admin/notices', '/admin/updates', '/admin/directory'];
+  const idx = navOrder.indexOf(currentPath);
+  if (idx === -1) return;
+  if (idx > 0) prefetchStaffRoute(navOrder[idx - 1]);
+  if (idx < navOrder.length - 1) prefetchStaffRoute(navOrder[idx + 1]);
+};
+
+export const prefetchMemberProfile = (email: string) => {
+  const key = `member-profile:${email}`;
+  if (prefetchedAPIs.has(key)) return;
+  prefetchedAPIs.add(key);
+  const encoded = encodeURIComponent(email);
+  fetch(`/api/members/${encoded}/history`, { credentials: 'include' }).catch(() => {});
+  fetch(`/api/members/${encoded}/notes`, { credentials: 'include' }).catch(() => {});
+};
+
+export const prefetchBookingDetail = (bookingId: number | string) => {
+  const key = `booking-detail:${bookingId}`;
+  if (prefetchedAPIs.has(key)) return;
+  prefetchedAPIs.add(key);
+  fetch(`/api/admin/booking/${bookingId}/members`, { credentials: 'include' }).catch(() => {});
+};

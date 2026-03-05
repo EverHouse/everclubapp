@@ -1,126 +1,43 @@
-type LazyComponent = { prefetch?: () => Promise<unknown> };
+import { registerMemberRoutes, registerStaffRoutes } from './prefetch-actions';
 
-const prefetchedPaths = new Set<string>();
-const prefetchedAPIs = new Set<string>();
+export { prefetchRoute, prefetchAdjacentRoutes, prefetchOnIdle, prefetchAllNavRoutes, prefetchStaffRoute, prefetchAdjacentStaffRoutes, prefetchMemberProfile, prefetchBookingDetail } from './prefetch-actions';
 
-const routeImports: Record<string, () => Promise<{ default: React.ComponentType<Record<string, unknown>> }>> = {
-  '/book': () => import('../pages/Member/BookGolf'),
-  '/events': () => import('../pages/Member/Events'),
-  '/wellness': () => import('../pages/Member/Wellness'),
-  '/profile': () => import('../pages/Member/Profile'),
-  '/dashboard': () => import('../pages/Member/Dashboard'),
-  '/updates': () => import('../pages/Member/Updates'),
-};
-
-const routeAPIs: Record<string, string[]> = {
-  '/book': ['/api/bays'],
-  '/events': ['/api/events'],
-  '/wellness': ['/api/wellness-classes'],
-  '/updates': ['/api/announcements', '/api/closures'],
-  '/dashboard': ['/api/member/dashboard-data'],
-};
-
-export const prefetchRoute = (path: string) => {
-  if (prefetchedPaths.has(path)) return;
-  const importFn = routeImports[path];
-  if (importFn) {
-    prefetchedPaths.add(path);
-    importFn();
+registerMemberRoutes(
+  {
+    '/book': () => import('../pages/Member/BookGolf'),
+    '/events': () => import('../pages/Member/Events'),
+    '/wellness': () => import('../pages/Member/Wellness'),
+    '/profile': () => import('../pages/Member/Profile'),
+    '/dashboard': () => import('../pages/Member/Dashboard'),
+    '/updates': () => import('../pages/Member/Updates'),
+  },
+  {
+    '/book': ['/api/bays'],
+    '/events': ['/api/events'],
+    '/wellness': ['/api/wellness-classes'],
+    '/updates': ['/api/announcements', '/api/closures'],
+    '/dashboard': ['/api/member/dashboard-data'],
   }
-  const apis = routeAPIs[path];
-  if (apis) {
-    apis.forEach(api => {
-      if (!prefetchedAPIs.has(api)) {
-        prefetchedAPIs.add(api);
-        fetch(api, { credentials: 'include' }).catch(() => {});
-      }
-    });
+);
+
+registerStaffRoutes(
+  {
+    '/admin': () => import('../pages/Admin/AdminDashboard'),
+    '/admin/bookings': () => import('../pages/Admin/tabs/SimulatorTab'),
+    '/admin/financials': () => import('../pages/Admin/tabs/FinancialsTab'),
+    '/admin/directory': () => import('../pages/Admin/tabs/DirectoryTab'),
+    '/admin/calendar': () => import('../pages/Admin/tabs/EventsTab'),
+    '/admin/notices': () => import('../pages/Admin/tabs/BlocksTab'),
+    '/admin/updates': () => import('../pages/Admin/tabs/UpdatesTab'),
+    '/admin/tours': () => import('../pages/Admin/tabs/ToursTab'),
+    '/admin/team': () => import('../pages/Admin/tabs/TeamTab'),
+    '/admin/tiers': () => import('../pages/Admin/tabs/TiersTab'),
+    '/admin/changelog': () => import('../pages/Admin/tabs/ChangelogTab'),
+  },
+  {
+    '/admin': ['/api/admin/dashboard-summary'],
+    '/admin/bookings': ['/api/admin/todays-bookings'],
+    '/admin/directory': ['/api/members/directory'],
+    '/admin/financials': ['/api/admin/financials/summary'],
   }
-};
-
-export const prefetchAdjacentRoutes = (currentPath: string) => {
-  const navOrder = ['/dashboard', '/book', '/wellness', '/events', '/updates'];
-  const idx = navOrder.indexOf(currentPath);
-  if (idx === -1) return;
-  
-  if (idx > 0) prefetchRoute(navOrder[idx - 1]);
-  if (idx < navOrder.length - 1) prefetchRoute(navOrder[idx + 1]);
-};
-
-export const prefetchAllNavRoutes = () => {
-  Object.keys(routeImports).forEach(prefetchRoute);
-};
-
-export const prefetchOnIdle = () => {
-  if ('requestIdleCallback' in window) {
-    (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void }).requestIdleCallback(() => prefetchAllNavRoutes(), { timeout: 2000 });
-  } else {
-    setTimeout(prefetchAllNavRoutes, 100);
-  }
-};
-
-// Staff portal prefetching
-const staffRouteImports: Record<string, () => Promise<{ default: React.ComponentType<Record<string, unknown>> }>> = {
-  '/admin': () => import('../pages/Admin/AdminDashboard'),
-  '/admin/bookings': () => import('../pages/Admin/tabs/SimulatorTab'),
-  '/admin/financials': () => import('../pages/Admin/tabs/FinancialsTab'),
-  '/admin/directory': () => import('../pages/Admin/tabs/DirectoryTab'),
-  '/admin/calendar': () => import('../pages/Admin/tabs/EventsTab'),
-  '/admin/notices': () => import('../pages/Admin/tabs/BlocksTab'),
-  '/admin/updates': () => import('../pages/Admin/tabs/UpdatesTab'),
-  '/admin/tours': () => import('../pages/Admin/tabs/ToursTab'),
-  '/admin/team': () => import('../pages/Admin/tabs/TeamTab'),
-  '/admin/tiers': () => import('../pages/Admin/tabs/TiersTab'),
-  '/admin/changelog': () => import('../pages/Admin/tabs/ChangelogTab'),
-};
-
-const staffRouteAPIs: Record<string, string[]> = {
-  '/admin': ['/api/admin/dashboard-summary'],
-  '/admin/bookings': ['/api/admin/todays-bookings'],
-  '/admin/directory': ['/api/members/directory'],
-  '/admin/financials': ['/api/admin/financials/summary'],
-};
-
-export const prefetchStaffRoute = (path: string) => {
-  if (prefetchedPaths.has(path)) return;
-  const importFn = staffRouteImports[path];
-  if (importFn) {
-    prefetchedPaths.add(path);
-    importFn();
-  }
-  const apis = staffRouteAPIs[path];
-  if (apis) {
-    apis.forEach(api => {
-      if (!prefetchedAPIs.has(api)) {
-        prefetchedAPIs.add(api);
-        fetch(api, { credentials: 'include' }).catch(() => {});
-      }
-    });
-  }
-};
-
-export const prefetchAdjacentStaffRoutes = (currentPath: string) => {
-  const navOrder = ['/admin', '/admin/bookings', '/admin/financials', '/admin/tours', '/admin/calendar', '/admin/notices', '/admin/updates', '/admin/directory'];
-  const idx = navOrder.indexOf(currentPath);
-  if (idx === -1) return;
-  
-  if (idx > 0) prefetchStaffRoute(navOrder[idx - 1]);
-  if (idx < navOrder.length - 1) prefetchStaffRoute(navOrder[idx + 1]);
-};
-
-export const prefetchMemberProfile = (email: string) => {
-  const key = `member-profile:${email}`;
-  if (prefetchedAPIs.has(key)) return;
-  prefetchedAPIs.add(key);
-  const encoded = encodeURIComponent(email);
-  fetch(`/api/members/${encoded}/history`, { credentials: 'include' }).catch(() => {});
-  fetch(`/api/members/${encoded}/notes`, { credentials: 'include' }).catch(() => {});
-};
-
-export const prefetchBookingDetail = (bookingId: number | string) => {
-  const key = `booking-detail:${bookingId}`;
-  if (prefetchedAPIs.has(key)) return;
-  prefetchedAPIs.add(key);
-  fetch(`/api/admin/booking/${bookingId}/members`, { credentials: 'include' }).catch(() => {});
-};
-
+);

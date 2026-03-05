@@ -5,7 +5,7 @@ import { DirectoryTabSkeleton } from '../../../../components/skeletons';
 import EmptyState from '../../../../components/EmptyState';
 import { formatPhoneNumber } from '../../../../utils/formatting';
 import { getMemberStatusBadgeClass, getMemberStatusLabel } from '../../../../utils/statusColors';
-import { prefetchMemberProfile } from '../../../../lib/prefetch';
+import { prefetchMemberProfile } from '../../../../lib/prefetch-actions';
 import { formatJoinDate } from './directoryTypes';
 import SortableHeader from './DirectoryListHeader';
 import type { SortField } from './directoryTypes';

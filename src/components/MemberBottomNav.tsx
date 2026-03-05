@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SafeAreaBottomOverlay } from './layout/SafeAreaBottomOverlay';
-import { prefetchRoute, prefetchAdjacentRoutes } from '../lib/prefetch';
+import { prefetchRoute, prefetchAdjacentRoutes } from '../lib/prefetch-actions';
 import { haptic } from '../utils/haptics';
 
 interface MemberNavItem {

@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SafeAreaBottomOverlay } from '../../../components/layout/SafeAreaBottomOverlay';
 import { TabType, NavItemData, NAV_ITEMS, tabToPath } from './types';
-import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../../../lib/prefetch';
+import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../../../lib/prefetch-actions';
 
 interface StaffBottomNavProps {
   activeTab: TabType;

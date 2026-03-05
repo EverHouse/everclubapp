@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { TabType, NavItemData, tabToPath, MAIN_NAV_ITEMS, ADMIN_NAV_ITEMS } from './types';
 import { useNavigationLoading } from '../../../contexts/NavigationLoadingContext';
 import { getLatestVersion } from '../../../data/changelog-version';
-import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../../../lib/prefetch';
+import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../../../lib/prefetch-actions';
 
 interface StaffSidebarProps {
   activeTab: TabType;
