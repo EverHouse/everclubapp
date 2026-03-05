@@ -56,6 +56,7 @@ export interface IssueContext {
   lastUpdate?: string;
   memberStatus?: string;
   stripeCustomerId?: string;
+  stripePaymentIntentId?: string;
   status?: string;
   resourceId?: number;
   bookingId?: number;

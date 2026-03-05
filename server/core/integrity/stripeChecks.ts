@@ -376,7 +376,7 @@ export async function checkOrphanedPaymentIntents(): Promise<IntegrityCheckResul
       description: `Payment intent ${row.stripe_payment_intent_id} (${row.total_cents} cents, status: ${row.status}) references a cancelled/denied/expired booking (booking_id: ${row.booking_id})`,
       suggestion: 'Cancel the Stripe payment intent and clean up the fee snapshot',
       context: {
-        stripeCustomerId: row.stripe_payment_intent_id || undefined,
+        stripePaymentIntentId: row.stripe_payment_intent_id || undefined,
         status: row.status || undefined
       }
     });

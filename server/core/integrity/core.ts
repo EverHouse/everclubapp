@@ -382,6 +382,7 @@ export interface IssueContext {
   syncComparison?: SyncComparisonData[];
   hubspotContactId?: string;
   stripeCustomerId?: string;
+  stripePaymentIntentId?: string;
   userId?: number;
   duplicateUsers?: Array<{ userId: number; email: string; status: string; tier: string }>;
   trackmanBookingId?: string;
