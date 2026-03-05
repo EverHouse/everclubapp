@@ -417,10 +417,10 @@ export async function ensureDatabaseConstraints() {
       await db.execute(sql`ALTER TABLE users ALTER COLUMN billing_provider SET DEFAULT 'stripe'`);
       logger.info('[DB Init] billing_provider column default set to stripe');
 
-      try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS migration_billing_start_date TIMESTAMP`); } catch {}
-      try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS migration_requested_by TEXT`); } catch {}
-      try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS migration_tier_snapshot TEXT`); } catch {}
-      try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS migration_status TEXT`); } catch {}
+      try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS migration_billing_start_date TIMESTAMP`); } catch { logger.debug('[DB Init] migration_billing_start_date column already exists or failed'); }
+      try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS migration_requested_by TEXT`); } catch { logger.debug('[DB Init] migration_requested_by column already exists or failed'); }
+      try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS migration_tier_snapshot TEXT`); } catch { logger.debug('[DB Init] migration_tier_snapshot column already exists or failed'); }
+      try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS migration_status TEXT`); } catch { logger.debug('[DB Init] migration_status column already exists or failed'); }
       logger.info('[DB Init] Billing migration columns verified');
       
       const hubspotFix = await db.execute(sql`

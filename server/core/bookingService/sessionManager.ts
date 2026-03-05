@@ -544,7 +544,12 @@ export async function linkBookingRequestToSession(
   }
 }
 
-// Internal implementation that accepts an optional external client for transaction participation
+async function resolveMonthlyAllocation(tierName?: string): Promise<number> {
+  const { getTierLimits } = await import('../tierService');
+  const tierLimits = tierName ? await getTierLimits(tierName) : null;
+  return tierLimits?.guest_passes_per_month ?? 0;
+}
+
 async function deductGuestPassesInternal(
   memberEmail: string,
   passCount: number,
@@ -575,52 +580,34 @@ async function deductGuestPassesInternal(
     );
     
     if (lockResult.rows.length > 0) {
-      // Existing row found - check and update
       const { passes_used, passes_total } = lockResult.rows[0];
       
-      // Handle backfill if passes_total is 0
-      if (!passes_total || passes_total === 0) {
-        const { getTierLimits } = await import('../tierService');
-        const tierLimits = tierName ? await getTierLimits(tierName) : null;
-        // Default to 0 if no tier found - don't grant free passes to users without a tier
-        const monthlyAllocation = tierLimits?.guest_passes_per_month ?? 0;
-        
-        if (passes_used + passCount <= monthlyAllocation) {
-          await client.query(
-            `UPDATE guest_passes 
-             SET passes_total = $3, passes_used = passes_used + $2
-             WHERE LOWER(member_email) = LOWER($1)`,
-            [memberEmail, passCount, monthlyAllocation]
-          );
-          if (manageTransaction) await client.query('COMMIT');
-          logger.info('[deductGuestPasses] Passes deducted (backfilled)', { extra: { memberEmail, passCount } });
-          return { success: true, passesDeducted: passCount };
-        }
+      const effectiveTotal = (!passes_total || passes_total === 0)
+        ? await resolveMonthlyAllocation(tierName)
+        : passes_total;
+
+      const needsBackfill = !passes_total || passes_total === 0;
+
+      if (passes_used + passCount > effectiveTotal) {
         if (manageTransaction) await client.query('ROLLBACK');
+        logger.warn('[deductGuestPasses] Insufficient passes', { extra: { memberEmail, passCount, passes_used, passes_total: effectiveTotal } });
         return { success: false, passesDeducted: 0 };
       }
-      
-      // Normal update
-      if (passes_used + passCount <= passes_total) {
-        await client.query(
-          `UPDATE guest_passes SET passes_used = passes_used + $2 
-           WHERE LOWER(member_email) = LOWER($1)`,
-          [memberEmail, passCount]
-        );
-        if (manageTransaction) await client.query('COMMIT');
-        logger.info('[deductGuestPasses] Passes deducted', { extra: { memberEmail, passCount } });
-        return { success: true, passesDeducted: passCount };
-      }
-      if (manageTransaction) await client.query('ROLLBACK');
-      logger.warn('[deductGuestPasses] Insufficient passes', { extra: { memberEmail, passCount, passes_used, passes_total } });
-      return { success: false, passesDeducted: 0 };
+
+      const updateQuery = needsBackfill
+        ? `UPDATE guest_passes SET passes_total = $3, passes_used = passes_used + $2 WHERE LOWER(member_email) = LOWER($1)`
+        : `UPDATE guest_passes SET passes_used = passes_used + $2 WHERE LOWER(member_email) = LOWER($1)`;
+      const updateParams = needsBackfill
+        ? [memberEmail, passCount, effectiveTotal]
+        : [memberEmail, passCount];
+
+      await client.query(updateQuery, updateParams);
+      if (manageTransaction) await client.query('COMMIT');
+      logger.info(`[deductGuestPasses] Passes deducted${needsBackfill ? ' (backfilled)' : ''}`, { extra: { memberEmail, passCount } });
+      return { success: true, passesDeducted: passCount };
     }
     
-    // No existing record - create with ON CONFLICT for race safety
-    const { getTierLimits } = await import('../tierService');
-    const tierLimits = tierName ? await getTierLimits(tierName) : null;
-    // Default to 0 if no tier found - don't grant free passes to users without a tier
-    const monthlyAllocation = tierLimits?.guest_passes_per_month ?? 0;
+    const monthlyAllocation = await resolveMonthlyAllocation(tierName);
     
     if (passCount > monthlyAllocation) {
       if (manageTransaction) await client.query('ROLLBACK');

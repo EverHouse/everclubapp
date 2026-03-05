@@ -1148,6 +1148,7 @@ router.get('/api/auth/session', async (req, res) => {
       lifetimeVisits = Number(rows[0].lifetime_visits);
     }
   } catch {
+    logger.debug('[Auth] Failed to fetch lifetime visits for session enrichment');
   }
 
   res.json({

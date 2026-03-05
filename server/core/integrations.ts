@@ -119,6 +119,7 @@ export async function getHubSpotPrivateAppClient(): Promise<Client | null> {
       return new Client({ accessToken: rows[0].value });
     }
   } catch {
+    logger.debug('[Integrations] Failed to read HubSpot private app token from settings');
   }
   return null;
 }
