@@ -1072,7 +1072,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       )}
                                     </button>
                                   )}
-                                  {issue.table === 'booking_requests' && !issue.ignored && (
+                                  {issue.table === 'booking_requests' && !issue.ignored && issue.category !== 'billing_issue' && (
                                     <>
                                       {issue.context?.trackmanBookingId && (
                                         <button

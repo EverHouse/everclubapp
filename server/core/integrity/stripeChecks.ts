@@ -536,6 +536,8 @@ export async function checkInvoiceBookingReconciliation(): Promise<IntegrityChec
         AND br.stripe_invoice_id IS NULL
         AND br.request_date > CURRENT_DATE - INTERVAL '30 days'
         AND br.user_email NOT LIKE '%@trackman.local'
+        AND br.user_email NOT LIKE 'private-event@%'
+        AND br.is_event IS NOT TRUE
         AND bp.payment_status = 'pending'
         AND COALESCE(bp.cached_fee_cents, 0) > 0
       GROUP BY br.id, br.user_email, br.request_date, br.status
