@@ -1,13 +1,43 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Logo from './Logo';
 import { APP_VERSION, formatLastUpdated } from '../config/version';
+
+const FALLBACK: Record<string, string> = {
+  'contact.address_line1': '15771 Red Hill Ave, Ste 500',
+  'contact.city_state_zip': 'Tustin, CA 92780',
+  'contact.phone': '(949) 545-5855',
+  'hours.monday': 'Closed',
+  'hours.tuesday_thursday': '8:30 AM–8 PM',
+  'hours.friday_saturday': '8:30 AM–10 PM',
+  'hours.sunday': '8:30 AM–6 PM',
+  'social.instagram_url': 'https://www.instagram.com/everclub/',
+  'social.linkedin_url': 'https://www.linkedin.com/company/ever-club',
+  'social.tiktok_url': 'https://www.tiktok.com/@everclub',
+};
+
+function usePublicSettings() {
+  const [settings, setSettings] = useState<Record<string, string>>(FALLBACK);
+
+  useEffect(() => {
+    fetch('/api/settings/public')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((data: Record<string, string>) => setSettings(prev => ({ ...prev, ...data })))
+      .catch(() => {});
+  }, []);
+
+  return settings;
+}
 
 interface FooterProps {
   hideCta?: boolean;
 }
 
-export const Footer: React.FC<FooterProps> = ({ hideCta = false }) => (
+export const Footer: React.FC<FooterProps> = ({ hideCta = false }) => {
+  const s = usePublicSettings();
+  const phoneDigits = s['contact.phone'].replace(/\D/g, '');
+
+  return (
   <footer className="bg-[#293515] text-[#E7E7DC] pt-16 pb-16 px-6 text-center rounded-t-[2.5rem] mt-8 -mx-4 sm:-mx-6 w-[calc(100%+2rem)] sm:w-[calc(100%+3rem)]">
      <div className="flex justify-center mb-8">
        <Logo type="mascot" variant="white" className="h-16 w-auto" />
@@ -16,30 +46,30 @@ export const Footer: React.FC<FooterProps> = ({ hideCta = false }) => (
      <div className="space-y-6 text-sm font-medium mb-10 flex flex-col items-center">
         <div className="relative flex flex-col items-center">
             <span className="material-symbols-outlined text-lg absolute -left-8 top-0.5 text-[#E7E7DC]/70">location_on</span>
-            <p className="text-[#E7E7DC]">15771 Red Hill Ave, Ste 500</p>
-            <p className="text-[#E7E7DC]/70 text-xs">Tustin, CA 92780</p>
+            <p className="text-[#E7E7DC]">{s['contact.address_line1']}</p>
+            <p className="text-[#E7E7DC]/70 text-xs">{s['contact.city_state_zip']}</p>
         </div>
 
         <div className="relative flex items-center">
             <span className="material-symbols-outlined text-lg absolute -left-8 text-[#E7E7DC]/70">call</span>
-            <a href="tel:9495455855" className="hover:underline">(949) 545-5855</a>
+            <a href={`tel:${phoneDigits}`} className="hover:underline">{s['contact.phone']}</a>
         </div>
 
         <div className="relative flex flex-col items-center text-xs">
             <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#E7E7DC] mb-2" style={{ fontFamily: 'var(--font-label)' }}>Hours</span>
             <div className="space-y-1 text-[#E7E7DC]/70 text-center">
-                <p>Mon: Closed</p>
-                <p>Tue–Thu: 8:30 AM–8 PM</p>
-                <p>Fri–Sat: 8:30 AM–10 PM</p>
-                <p>Sun: 8:30 AM–6 PM</p>
+                <p>Mon: {s['hours.monday']}</p>
+                <p>Tue–Thu: {s['hours.tuesday_thursday']}</p>
+                <p>Fri–Sat: {s['hours.friday_saturday']}</p>
+                <p>Sun: {s['hours.sunday']}</p>
             </div>
         </div>
      </div>
 
      <div className="flex justify-center gap-4 mb-10">
-        <SocialLink href="https://www.instagram.com/everclub/" icon="instagram" />
-        <SocialLink href="https://www.linkedin.com/company/ever-club" icon="linkedin" />
-        <SocialLink href="https://www.tiktok.com/@everclub" icon="tiktok" />
+        <SocialLink href={s['social.instagram_url']} icon="instagram" />
+        <SocialLink href={s['social.linkedin_url']} icon="linkedin" />
+        <SocialLink href={s['social.tiktok_url']} icon="tiktok" />
      </div>
      
      {!hideCta && (
@@ -65,7 +95,8 @@ export const Footer: React.FC<FooterProps> = ({ hideCta = false }) => (
         <p className="text-[10px] opacity-30">v{APP_VERSION} · Updated {formatLastUpdated()}</p>
      </div>
   </footer>
-);
+  );
+};
 
 const InstagramIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">

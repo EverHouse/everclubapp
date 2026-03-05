@@ -65,7 +65,102 @@ const DEFAULT_SETTINGS: Record<string, { value: string; category: string }> = {
   'push.enabled': { value: 'true', category: 'push' },
   'booking.auto_approve.conference_rooms': { value: 'true', category: 'booking' },
   'booking.auto_approve.trackman_imports': { value: 'true', category: 'booking' },
+
+  'contact.phone': { value: '(949) 545-5855', category: 'contact' },
+  'contact.email': { value: 'info@joinever.club', category: 'contact' },
+  'contact.address_line1': { value: '15771 Red Hill Ave, Ste 500', category: 'contact' },
+  'contact.address_line2': { value: '', category: 'contact' },
+  'contact.city_state_zip': { value: 'Tustin, CA 92780', category: 'contact' },
+  'contact.formerly_known_as': { value: 'Formerly Even House (evenhouse.club)', category: 'contact' },
+  'contact.google_maps_url': { value: 'https://maps.app.goo.gl/Zp93EMzyp9EA3vqA6', category: 'contact' },
+  'contact.apple_maps_query': { value: 'Even+House+Tustin+CA', category: 'contact' },
+
+  'social.instagram_url': { value: 'https://www.instagram.com/everclub/', category: 'social' },
+  'social.tiktok_url': { value: 'https://www.tiktok.com/@everclub', category: 'social' },
+  'social.linkedin_url': { value: 'https://www.linkedin.com/company/ever-club', category: 'social' },
+
+  'apple_messages.enabled': { value: 'false', category: 'apple_messages' },
+  'apple_messages.business_id': { value: '', category: 'apple_messages' },
+
+  'hours.monday': { value: 'Closed', category: 'hours_display' },
+  'hours.tuesday_thursday': { value: '8:30 AM – 8:00 PM', category: 'hours_display' },
+  'hours.friday_saturday': { value: '8:30 AM – 10:00 PM', category: 'hours_display' },
+  'hours.sunday': { value: '8:30 AM – 6:00 PM', category: 'hours_display' },
+
+  'resource.golf.start_hour': { value: '9', category: 'resource_hours' },
+  'resource.golf.end_hour': { value: '21', category: 'resource_hours' },
+  'resource.golf.slot_duration': { value: '60', category: 'resource_hours' },
+  'resource.conference.start_hour': { value: '8', category: 'resource_hours' },
+  'resource.conference.end_hour': { value: '18', category: 'resource_hours' },
+  'resource.conference.slot_duration': { value: '30', category: 'resource_hours' },
+  'resource.wellness.start_hour': { value: '6', category: 'resource_hours' },
+  'resource.wellness.end_hour': { value: '21', category: 'resource_hours' },
+  'resource.tours.start_hour': { value: '10', category: 'resource_hours' },
+  'resource.tours.end_hour': { value: '17', category: 'resource_hours' },
+  'resource.tours.slot_duration': { value: '30', category: 'resource_hours' },
+
+  'hubspot.pipeline_id': { value: process.env.HUBSPOT_MEMBERSHIP_PIPELINE_ID || 'default', category: 'hubspot' },
+  'hubspot.stage.day_pass_tour_request': { value: '2414796536', category: 'hubspot' },
+  'hubspot.stage.tour_booked': { value: '2413968103', category: 'hubspot' },
+  'hubspot.stage.visited_day_pass': { value: '2414796537', category: 'hubspot' },
+  'hubspot.stage.application_submitted': { value: '2414797498', category: 'hubspot' },
+  'hubspot.stage.billing_setup': { value: '2825519819', category: 'hubspot' },
+  'hubspot.stage.closed_won_active': { value: 'closedwon', category: 'hubspot' },
+  'hubspot.stage.payment_declined': { value: '2825519820', category: 'hubspot' },
+  'hubspot.stage.closed_lost': { value: 'closedlost', category: 'hubspot' },
+
+  'hubspot.tier.core': { value: 'Core Membership', category: 'hubspot_tiers' },
+  'hubspot.tier.core-founding': { value: 'Core Membership Founding Members', category: 'hubspot_tiers' },
+  'hubspot.tier.premium': { value: 'Premium Membership', category: 'hubspot_tiers' },
+  'hubspot.tier.premium-founding': { value: 'Premium Membership Founding Members', category: 'hubspot_tiers' },
+  'hubspot.tier.social': { value: 'Social Membership', category: 'hubspot_tiers' },
+  'hubspot.tier.social-founding': { value: 'Social Membership Founding Members', category: 'hubspot_tiers' },
+  'hubspot.tier.vip': { value: 'VIP Membership', category: 'hubspot_tiers' },
+  'hubspot.tier.corporate': { value: 'Corporate Membership', category: 'hubspot_tiers' },
+  'hubspot.tier.group-lessons': { value: 'Group Lessons Membership', category: 'hubspot_tiers' },
+
+  'hubspot.status.active': { value: 'Active', category: 'hubspot_statuses' },
+  'hubspot.status.trialing': { value: 'trialing', category: 'hubspot_statuses' },
+  'hubspot.status.past_due': { value: 'past_due', category: 'hubspot_statuses' },
+  'hubspot.status.inactive': { value: 'Suspended', category: 'hubspot_statuses' },
+  'hubspot.status.cancelled': { value: 'Terminated', category: 'hubspot_statuses' },
+  'hubspot.status.expired': { value: 'Expired', category: 'hubspot_statuses' },
+  'hubspot.status.terminated': { value: 'Terminated', category: 'hubspot_statuses' },
+  'hubspot.status.former_member': { value: 'Terminated', category: 'hubspot_statuses' },
+  'hubspot.status.pending': { value: 'Pending', category: 'hubspot_statuses' },
+  'hubspot.status.suspended': { value: 'Suspended', category: 'hubspot_statuses' },
+  'hubspot.status.frozen': { value: 'Froze', category: 'hubspot_statuses' },
+  'hubspot.status.non-member': { value: 'Non-Member', category: 'hubspot_statuses' },
+  'hubspot.status.deleted': { value: 'Terminated', category: 'hubspot_statuses' },
+
+  'scheduling.daily_reminder_hour': { value: '18', category: 'scheduling' },
+  'scheduling.morning_closure_hour': { value: '8', category: 'scheduling' },
+  'scheduling.onboarding_nudge_hour': { value: '10', category: 'scheduling' },
+  'scheduling.grace_period_hour': { value: '10', category: 'scheduling' },
+  'scheduling.max_onboarding_nudges': { value: '3', category: 'scheduling' },
+  'scheduling.grace_period_days': { value: '3', category: 'scheduling' },
+  'scheduling.trial_coupon_code': { value: 'ASTORIA7', category: 'scheduling' },
 };
+
+const PUBLIC_CATEGORIES = new Set(['contact', 'social', 'apple_messages', 'hours_display']);
+
+router.get('/api/settings/public', async (req, res) => {
+  try {
+    const settings = await db.select().from(systemSettings);
+    
+    const settingsMap: Record<string, string> = {};
+    
+    for (const [key, defaultVal] of Object.entries(DEFAULT_SETTINGS)) {
+      if (!PUBLIC_CATEGORIES.has(defaultVal.category)) continue;
+      const existing = settings.find(s => s.key === key);
+      settingsMap[key] = existing?.value ?? defaultVal.value;
+    }
+    
+    res.json(settingsMap);
+  } catch (error: unknown) {
+    logAndRespond(req, res, 500, 'Failed to fetch public settings', error, 'PUBLIC_SETTINGS_FETCH_ERROR');
+  }
+});
 
 router.get('/api/settings', isAuthenticated, async (req, res) => {
   try {

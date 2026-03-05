@@ -8,6 +8,35 @@ import { AnimatedPage } from '../../components/motion';
 import { getApiErrorMessage, getNetworkErrorMessage } from '../../utils/errorHandling';
 import SEO from '../../components/SEO';
 
+const FALLBACK = {
+  'contact.phone': '(949) 545-5855',
+  'contact.email': 'info@joinever.club',
+  'contact.address_line1': '15771 Red Hill Ave, Ste 500',
+  'contact.city_state_zip': 'Tustin, CA 92780',
+  'contact.formerly_known_as': 'Formerly Even House (evenhouse.club)',
+  'contact.google_maps_url': 'https://maps.app.goo.gl/Zp93EMzyp9EA3vqA6',
+  'contact.apple_maps_query': 'Even+House+Tustin+CA',
+  'apple_messages.enabled': 'false',
+  'apple_messages.business_id': '',
+  'hours.monday': 'Closed',
+  'hours.tuesday_thursday': '8:30 AM – 8:00 PM',
+  'hours.friday_saturday': '8:30 AM – 10:00 PM',
+  'hours.sunday': '8:30 AM – 6:00 PM',
+};
+
+function usePublicSettings() {
+  const [settings, setSettings] = useState<Record<string, string>>(FALLBACK);
+
+  useEffect(() => {
+    fetch('/api/settings/public')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((data: Record<string, string>) => setSettings(prev => ({ ...prev, ...data })))
+      .catch(() => {});
+  }, []);
+
+  return settings;
+}
+
 const Contact: React.FC = () => {
   const navigate = useNavigate();
   const { startNavigation } = useNavigationLoading();
@@ -21,6 +50,7 @@ const Contact: React.FC = () => {
     email: '',
     message: ''
   });
+  const s = usePublicSettings();
 
   useEffect(() => {
     setPageReady(true);
@@ -65,9 +95,15 @@ const Contact: React.FC = () => {
     }
   };
 
+  const phoneDigits = s['contact.phone'].replace(/\D/g, '');
+  const appleMessagesEnabled = s['apple_messages.enabled'] === 'true';
+  const appleMessagesUrl = appleMessagesEnabled && s['apple_messages.business_id']
+    ? `https://messages.apple.com/message?businessId=${s['apple_messages.business_id']}`
+    : undefined;
+
   return (
     <AnimatedPage>
-    <SEO title="Contact Us | Ever Club — Tustin, OC" description="Contact Ever Club at 15771 Red Hill Ave, Ste 500, Tustin, CA 92780. Membership inquiries, private events, tours & questions. (949) 545-5855." url="/contact" />
+    <SEO title="Contact Us | Ever Club — Tustin, OC" description={`Contact Ever Club at ${s['contact.address_line1']}, ${s['contact.city_state_zip']}. Membership inquiries, private events, tours & questions. ${s['contact.phone']}.`} url="/contact" />
     <div className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden">
       <div className="px-6 pt-4 md:pt-2 pb-6 text-center animate-content-enter">
         <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Get in Touch</h1>
@@ -83,25 +119,49 @@ const Contact: React.FC = () => {
       </div>
 
       <section className="px-4 mb-8 space-y-3 animate-content-enter-delay-1">
-           <ContactCard icon="location_on" title="VISIT US" value="15771 Red Hill Ave, Ste 500" />
-           <p className="text-xs text-primary/40 dark:text-white/30 mt-1">Formerly Even House (evenhouse.club)</p>
-           <ContactCard icon="call" title="CALL US" value="(949) 545-5855" href="tel:9495455855" />
-           <ContactCard icon="mail" title="EMAIL US" value="info@joinever.club" href="mailto:info@joinever.club" />
-           <div 
-             className="group flex items-center justify-between bg-zinc-700/50 p-4 rounded-xl border border-black/5 dark:border-white/10 shadow-sm dark:shadow-black/20 opacity-60 cursor-default"
-           >
-              <div className="flex items-center gap-4">
-                   <div className="flex items-center justify-center size-12 rounded-full bg-white/10 text-white shrink-0">
-                       <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                         <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-                       </svg>
-                   </div>
-                   <div className="flex-1 min-w-0 text-left">
-                       <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-0.5">MESSAGE US</p>
-                       <p className="text-white font-bold truncate text-sm">Apple Messages <span className="text-white/40 font-normal text-xs">(Coming Soon)</span></p>
-                   </div>
-              </div>
-           </div>
+           <ContactCard icon="location_on" title="VISIT US" value={s['contact.address_line1']} />
+           {s['contact.formerly_known_as'] && (
+             <p className="text-xs text-primary/40 dark:text-white/30 mt-1">{s['contact.formerly_known_as']}</p>
+           )}
+           <ContactCard icon="call" title="CALL US" value={s['contact.phone']} href={`tel:${phoneDigits}`} />
+           <ContactCard icon="mail" title="EMAIL US" value={s['contact.email']} href={`mailto:${s['contact.email']}`} />
+           {appleMessagesEnabled && appleMessagesUrl ? (
+             <a
+               href={appleMessagesUrl}
+               target="_blank"
+               rel="noreferrer"
+               className="tactile-card group flex items-center justify-between bg-zinc-700 p-4 rounded-xl border border-black/5 dark:border-white/10 shadow-sm dark:shadow-black/20 hover:shadow-md transition-all duration-fast cursor-pointer"
+             >
+                <div className="flex items-center gap-4">
+                     <div className="flex items-center justify-center size-12 rounded-full bg-white/10 text-white shrink-0">
+                         <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                           <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+                         </svg>
+                     </div>
+                     <div className="flex-1 min-w-0 text-left">
+                         <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-0.5">MESSAGE US</p>
+                         <p className="text-white font-bold truncate text-sm">Apple Messages</p>
+                     </div>
+                </div>
+                <span className="material-symbols-outlined text-white/30 group-hover:text-white transition-colors">chevron_right</span>
+             </a>
+           ) : (
+             <div 
+               className="group flex items-center justify-between bg-zinc-700/50 p-4 rounded-xl border border-black/5 dark:border-white/10 shadow-sm dark:shadow-black/20 opacity-60 cursor-default"
+             >
+                <div className="flex items-center gap-4">
+                     <div className="flex items-center justify-center size-12 rounded-full bg-white/10 text-white shrink-0">
+                         <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                           <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+                         </svg>
+                     </div>
+                     <div className="flex-1 min-w-0 text-left">
+                         <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-0.5">MESSAGE US</p>
+                         <p className="text-white font-bold truncate text-sm">Apple Messages <span className="text-white/40 font-normal text-xs">(Coming Soon)</span></p>
+                     </div>
+                </div>
+             </div>
+           )}
       </section>
 
       <section className="px-4 mb-8">
@@ -113,19 +173,19 @@ const Contact: React.FC = () => {
             <div className="space-y-3 text-sm">
                <div className="flex justify-between items-center pb-2 border-b border-primary/5 dark:border-white/10">
                   <span className="text-primary/70 dark:text-white/70 font-medium">Monday</span>
-                  <span className="text-primary dark:text-white font-bold">Closed</span>
+                  <span className="text-primary dark:text-white font-bold">{s['hours.monday']}</span>
                </div>
                <div className="flex justify-between items-center pb-2 border-b border-primary/5 dark:border-white/10">
                   <span className="text-primary/70 dark:text-white/70 font-medium">Tue – Thu</span>
-                  <span className="text-primary dark:text-white font-bold">8:30 AM – 8:00 PM</span>
+                  <span className="text-primary dark:text-white font-bold">{s['hours.tuesday_thursday']}</span>
                </div>
                <div className="flex justify-between items-center pb-2 border-b border-primary/5 dark:border-white/10">
                   <span className="text-primary/70 dark:text-white/70 font-medium">Fri – Sat</span>
-                  <span className="text-primary dark:text-white font-bold">8:30 AM – 10:00 PM</span>
+                  <span className="text-primary dark:text-white font-bold">{s['hours.friday_saturday']}</span>
                </div>
                <div className="flex justify-between items-center">
                   <span className="text-primary/70 dark:text-white/70 font-medium">Sunday</span>
-                  <span className="text-primary dark:text-white font-bold">8:30 AM – 6:00 PM</span>
+                  <span className="text-primary dark:text-white font-bold">{s['hours.sunday']}</span>
                </div>
             </div>
          </div>
@@ -238,7 +298,7 @@ const Contact: React.FC = () => {
             ></iframe>
             <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
                  <a 
-                   href="https://maps.app.goo.gl/Zp93EMzyp9EA3vqA6" 
+                   href={s['contact.google_maps_url']} 
                    target="_blank" 
                    rel="noreferrer" 
                    className="bg-white dark:bg-[#1a1d15] text-primary dark:text-white px-4 py-2 rounded-lg shadow-md dark:shadow-black/20 font-bold text-xs flex items-center gap-2 hover:shadow-lg transition-shadow"
@@ -247,7 +307,7 @@ const Contact: React.FC = () => {
                     Open in Google Maps
                  </a>
                  <a 
-                   href="https://maps.apple.com/?q=Even+House+Tustin+CA" 
+                   href={`https://maps.apple.com/?q=${s['contact.apple_maps_query']}`} 
                    target="_blank" 
                    rel="noreferrer" 
                    className="bg-zinc-700 text-white px-4 py-2 rounded-lg shadow-md dark:shadow-black/20 font-bold text-xs flex items-center gap-2 hover:shadow-lg transition-shadow"

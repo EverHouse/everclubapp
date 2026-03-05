@@ -4,13 +4,15 @@ import { sql } from 'drizzle-orm';
 import { getPacificHour } from '../utils/dateUtils';
 import { sendOnboardingNudge24h, sendOnboardingNudge72h, sendOnboardingNudge7d } from '../emails/onboardingNudgeEmails';
 import { logger } from '../core/logger';
+import { getSettingValue } from '../core/settingsHelper';
 
-const NUDGE_CHECK_HOUR = 10; // 10 AM Pacific
+const DEFAULT_NUDGE_CHECK_HOUR = 10;
 
 async function processOnboardingNudges(): Promise<void> {
   try {
     const currentHour = getPacificHour();
-    if (currentHour !== NUDGE_CHECK_HOUR) return;
+    const nudgeHour = Number(await getSettingValue('scheduling.onboarding_nudge_hour', String(DEFAULT_NUDGE_CHECK_HOUR)));
+    if (currentHour !== nudgeHour) return;
 
     logger.info('[Onboarding Nudge] Starting onboarding nudge check...');
 
@@ -21,7 +23,7 @@ async function processOnboardingNudges(): Promise<void> {
         AND billing_provider = 'stripe'
         AND first_login_at IS NULL
         AND onboarding_completed_at IS NULL
-        AND onboarding_nudge_count < 3
+        AND onboarding_nudge_count < ${Number(await getSettingValue('scheduling.max_onboarding_nudges', '3'))}
         AND (onboarding_last_nudge_at IS NULL OR onboarding_last_nudge_at < NOW() - INTERVAL '20 hours')
         AND created_at < NOW() - INTERVAL '20 hours'
         AND archived_at IS NULL

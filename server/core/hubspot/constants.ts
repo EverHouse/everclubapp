@@ -1,3 +1,5 @@
+import { getSettingValue } from '../settingsHelper';
+
 export const MEMBERSHIP_PIPELINE_ID = process.env.HUBSPOT_MEMBERSHIP_PIPELINE_ID || 'default';
 
 export const HUBSPOT_STAGE_IDS = {
@@ -103,3 +105,56 @@ export const DB_TIER_TO_HUBSPOT: Record<string, string> = {
 export const INACTIVE_STATUSES = ['pending', 'declined', 'suspended', 'expired', 'froze', 'frozen'];
 export const CHURNED_STATUSES = ['terminated', 'cancelled', 'non-member'];
 export const ACTIVE_STATUSES = ['active', 'trialing', 'past_due'];
+
+export async function getHubSpotPipelineId(): Promise<string> {
+  return getSettingValue('hubspot.pipeline_id', MEMBERSHIP_PIPELINE_ID);
+}
+
+export async function getHubSpotStageId(stageName: keyof typeof HUBSPOT_STAGE_IDS): Promise<string> {
+  const keyMap: Record<string, string> = {
+    DAY_PASS_TOUR_REQUEST: 'hubspot.stage.day_pass_tour_request',
+    TOUR_BOOKED: 'hubspot.stage.tour_booked',
+    VISITED_DAY_PASS: 'hubspot.stage.visited_day_pass',
+    APPLICATION_SUBMITTED: 'hubspot.stage.application_submitted',
+    BILLING_SETUP: 'hubspot.stage.billing_setup',
+    CLOSED_WON_ACTIVE: 'hubspot.stage.closed_won_active',
+    PAYMENT_DECLINED: 'hubspot.stage.payment_declined',
+    CLOSED_LOST: 'hubspot.stage.closed_lost',
+  };
+  const settingKey = keyMap[stageName];
+  if (!settingKey) return HUBSPOT_STAGE_IDS[stageName];
+  return getSettingValue(settingKey, HUBSPOT_STAGE_IDS[stageName]);
+}
+
+export async function getDbStatusToHubSpotMapping(): Promise<Record<string, string>> {
+  const result: Record<string, string> = {};
+  for (const [dbStatus, defaultVal] of Object.entries(DB_STATUS_TO_HUBSPOT_STATUS)) {
+    result[dbStatus] = await getSettingValue(`hubspot.status.${dbStatus}`, defaultVal);
+  }
+  return result;
+}
+
+export async function getTierToHubSpotMapping(): Promise<Record<string, string>> {
+  const baseTiers: Record<string, string> = {
+    'core': 'Core Membership',
+    'core-founding': 'Core Membership Founding Members',
+    'premium': 'Premium Membership',
+    'premium-founding': 'Premium Membership Founding Members',
+    'social': 'Social Membership',
+    'social-founding': 'Social Membership Founding Members',
+    'vip': 'VIP Membership',
+    'corporate': 'Corporate Membership',
+    'group-lessons': 'Group Lessons Membership',
+  };
+
+  const result: Record<string, string> = {};
+  for (const [slug, defaultLabel] of Object.entries(baseTiers)) {
+    const label = await getSettingValue(`hubspot.tier.${slug}`, defaultLabel);
+    result[slug] = label;
+    result[slug.replace(/-/g, '_')] = label;
+    result[slug.replace(/-/g, ' ')] = label;
+    const longName = `${slug.replace(/-/g, ' ')} membership`;
+    if (longName !== slug) result[longName] = label;
+  }
+  return result;
+}

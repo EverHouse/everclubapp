@@ -7,6 +7,7 @@ import { notifyAllStaff } from '../core/notificationService';
 import { getStripeClient } from '../core/stripe/client';
 import { getAppBaseUrl } from '../utils/urlUtils';
 import { logger } from '../core/logger';
+import { getSettingValue } from '../core/settingsHelper';
 
 interface GracePeriodMemberRow {
   id: number;
@@ -19,8 +20,8 @@ interface GracePeriodMemberRow {
   stripe_customer_id: string | null;
 }
 
-const GRACE_PERIOD_HOUR = 10;
-const GRACE_PERIOD_DAYS = 3;
+const DEFAULT_GRACE_PERIOD_HOUR = 10;
+const DEFAULT_GRACE_PERIOD_DAYS = 3;
 
 function getDaysSinceStartPacific(graceStartDate: Date): number {
   const now = new Date();
@@ -62,7 +63,10 @@ async function processGracePeriodMembers(): Promise<void> {
   try {
     const currentHour = getPacificHour();
     
-    if (currentHour !== GRACE_PERIOD_HOUR) {
+    const gracePeriodHour = Number(await getSettingValue('scheduling.grace_period_hour', String(DEFAULT_GRACE_PERIOD_HOUR)));
+    const gracePeriodDays = Number(await getSettingValue('scheduling.grace_period_days', String(DEFAULT_GRACE_PERIOD_DAYS)));
+
+    if (currentHour !== gracePeriodHour) {
       return;
     }
     
@@ -72,7 +76,7 @@ async function processGracePeriodMembers(): Promise<void> {
       sql`SELECT id, email, first_name, last_name, tier, grace_period_start, grace_period_email_count, stripe_customer_id
        FROM users
        WHERE grace_period_start IS NOT NULL 
-         AND grace_period_email_count < ${GRACE_PERIOD_DAYS}
+         AND grace_period_email_count < ${gracePeriodDays}
        ORDER BY grace_period_start ASC`
     );
     
@@ -94,7 +98,7 @@ async function processGracePeriodMembers(): Promise<void> {
         await sendGracePeriodReminderEmail(email as string, {
           memberName,
           currentDay: newEmailCount,
-          totalDays: GRACE_PERIOD_DAYS,
+          totalDays: gracePeriodDays,
           reactivationLink
         });
         
@@ -104,10 +108,10 @@ async function processGracePeriodMembers(): Promise<void> {
         
         logger.info(`[Grace Period] Sent day ${newEmailCount} email to ${email}`);
         
-        if (newEmailCount >= GRACE_PERIOD_DAYS) {
+        if (newEmailCount >= gracePeriodDays) {
           const daysSinceStart = getDaysSinceStartPacific(new Date(grace_period_start));
           
-          if (daysSinceStart >= GRACE_PERIOD_DAYS) {
+          if (daysSinceStart >= gracePeriodDays) {
             await db.execute(
               sql`UPDATE users SET 
                 last_tier = tier,
@@ -134,7 +138,7 @@ async function processGracePeriodMembers(): Promise<void> {
             
             await notifyAllStaff(
               'Membership Terminated',
-              `${memberName} (${email}) membership has been terminated after ${GRACE_PERIOD_DAYS} days of failed payment. Previous tier: ${tier || 'unknown'}.`,
+              `${memberName} (${email}) membership has been terminated after ${gracePeriodDays} days of failed payment. Previous tier: ${tier || 'unknown'}.`,
               'membership_terminated',
               { sendPush: true }
             );
