@@ -30,9 +30,10 @@ export const CALENDAR_CONFIG = {
 
 export async function getResourceConfig(resourceType: 'golf' | 'conference' | 'wellness' | 'tours') {
   const config = CALENDAR_CONFIG[resourceType];
-  const defaults = config.businessHours || { start: 9, end: 21 };
-  const startHour = Number(await getSettingValue(`resource.${resourceType}.start_hour`, String(defaults.start)));
-  const endHour = Number(await getSettingValue(`resource.${resourceType}.end_hour`, String(defaults.end)));
+  const defaultStart = config.businessHours?.start ?? 9;
+  const defaultEnd = config.businessHours?.end ?? 21;
+  const startHour = Number(await getSettingValue('resource.club_open_hour', String(defaultStart)));
+  const endHour = Number(await getSettingValue('resource.club_close_hour', String(defaultEnd)));
   const slotDuration = 'slotDuration' in config
     ? Number(await getSettingValue(`resource.${resourceType}.slot_duration`, String(config.slotDuration)))
     : undefined;

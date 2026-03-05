@@ -28,16 +28,10 @@ interface SettingsState {
   hoursTuesdayThursday: string;
   hoursFridaySaturday: string;
   hoursSunday: string;
-  resourceGolfStartHour: string;
-  resourceGolfEndHour: string;
+  clubOpenHour: string;
+  clubCloseHour: string;
   resourceGolfSlotDuration: string;
-  resourceConferenceStartHour: string;
-  resourceConferenceEndHour: string;
   resourceConferenceSlotDuration: string;
-  resourceWellnessStartHour: string;
-  resourceWellnessEndHour: string;
-  resourceToursStartHour: string;
-  resourceToursEndHour: string;
   resourceToursSlotDuration: string;
   hubspotPipelineId: string;
   hubspotStages: Record<string, string>;
@@ -172,16 +166,10 @@ const SettingsTab: React.FC = () => {
     hoursTuesdayThursday: '8:30 AM – 8:00 PM',
     hoursFridaySaturday: '8:30 AM – 10:00 PM',
     hoursSunday: '8:30 AM – 6:00 PM',
-    resourceGolfStartHour: '9',
-    resourceGolfEndHour: '21',
+    clubOpenHour: '9',
+    clubCloseHour: '21',
     resourceGolfSlotDuration: '60',
-    resourceConferenceStartHour: '8',
-    resourceConferenceEndHour: '18',
     resourceConferenceSlotDuration: '30',
-    resourceWellnessStartHour: '6',
-    resourceWellnessEndHour: '21',
-    resourceToursStartHour: '10',
-    resourceToursEndHour: '17',
     resourceToursSlotDuration: '30',
     hubspotPipelineId: 'default',
     hubspotStages: {
@@ -260,16 +248,10 @@ const SettingsTab: React.FC = () => {
         hoursTuesdayThursday: data['hours.tuesday_thursday']?.value || defaultSettings.hoursTuesdayThursday,
         hoursFridaySaturday: data['hours.friday_saturday']?.value || defaultSettings.hoursFridaySaturday,
         hoursSunday: data['hours.sunday']?.value || defaultSettings.hoursSunday,
-        resourceGolfStartHour: data['resource.golf.start_hour']?.value || '9',
-        resourceGolfEndHour: data['resource.golf.end_hour']?.value || '21',
+        clubOpenHour: data['resource.club_open_hour']?.value || '9',
+        clubCloseHour: data['resource.club_close_hour']?.value || '21',
         resourceGolfSlotDuration: data['resource.golf.slot_duration']?.value || '60',
-        resourceConferenceStartHour: data['resource.conference.start_hour']?.value || '8',
-        resourceConferenceEndHour: data['resource.conference.end_hour']?.value || '18',
         resourceConferenceSlotDuration: data['resource.conference.slot_duration']?.value || '30',
-        resourceWellnessStartHour: data['resource.wellness.start_hour']?.value || '6',
-        resourceWellnessEndHour: data['resource.wellness.end_hour']?.value || '21',
-        resourceToursStartHour: data['resource.tours.start_hour']?.value || '10',
-        resourceToursEndHour: data['resource.tours.end_hour']?.value || '17',
         resourceToursSlotDuration: data['resource.tours.slot_duration']?.value || '30',
         hubspotPipelineId: data['hubspot.pipeline_id']?.value || 'default',
         hubspotStages,
@@ -318,16 +300,10 @@ const SettingsTab: React.FC = () => {
         'hours.tuesday_thursday': settingsToSave.hoursTuesdayThursday,
         'hours.friday_saturday': settingsToSave.hoursFridaySaturday,
         'hours.sunday': settingsToSave.hoursSunday,
-        'resource.golf.start_hour': settingsToSave.resourceGolfStartHour,
-        'resource.golf.end_hour': settingsToSave.resourceGolfEndHour,
+        'resource.club_open_hour': settingsToSave.clubOpenHour,
+        'resource.club_close_hour': settingsToSave.clubCloseHour,
         'resource.golf.slot_duration': settingsToSave.resourceGolfSlotDuration,
-        'resource.conference.start_hour': settingsToSave.resourceConferenceStartHour,
-        'resource.conference.end_hour': settingsToSave.resourceConferenceEndHour,
         'resource.conference.slot_duration': settingsToSave.resourceConferenceSlotDuration,
-        'resource.wellness.start_hour': settingsToSave.resourceWellnessStartHour,
-        'resource.wellness.end_hour': settingsToSave.resourceWellnessEndHour,
-        'resource.tours.start_hour': settingsToSave.resourceToursStartHour,
-        'resource.tours.end_hour': settingsToSave.resourceToursEndHour,
         'resource.tours.slot_duration': settingsToSave.resourceToursSlotDuration,
         'hubspot.pipeline_id': settingsToSave.hubspotPipelineId,
         'scheduling.daily_reminder_hour': settingsToSave.dailyReminderHour,
@@ -533,38 +509,42 @@ const SettingsTab: React.FC = () => {
       </div>
 
       <div className={sectionClass}>
-        <SectionHeader icon="schedule" title="Resource Operating Hours" subtitle="Configure availability hours and slot durations per resource type" />
+        <SectionHeader icon="schedule" title="Resource Operating Hours" subtitle="Club-wide availability hours and per-resource slot durations" />
         <div className="space-y-4">
-          {[
-            { name: 'Golf Simulators', startField: 'resourceGolfStartHour' as const, endField: 'resourceGolfEndHour' as const, slotField: 'resourceGolfSlotDuration' as const },
-            { name: 'Conference Room', startField: 'resourceConferenceStartHour' as const, endField: 'resourceConferenceEndHour' as const, slotField: 'resourceConferenceSlotDuration' as const },
-            { name: 'Wellness & Classes', startField: 'resourceWellnessStartHour' as const, endField: 'resourceWellnessEndHour' as const, slotField: null },
-            { name: 'Tours', startField: 'resourceToursStartHour' as const, endField: 'resourceToursEndHour' as const, slotField: 'resourceToursSlotDuration' as const },
-          ].map(({ name, startField, endField, slotField }) => (
-            <div key={name} className="p-4 bg-gray-50 dark:bg-black/20 rounded-xl">
-              <p className="font-medium text-primary dark:text-white mb-3">{name}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Opens</label>
-                  <select value={settings[startField]} onChange={(e) => updateField(startField, e.target.value)} className={inputSmClass}>
-                    {HOUR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Closes</label>
-                  <select value={settings[endField]} onChange={(e) => updateField(endField, e.target.value)} className={inputSmClass}>
-                    {HOUR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
-                </div>
-                {slotField && (
-                  <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Slot (min)</label>
-                    <input type="number" min="15" max="120" step="15" value={settings[slotField]} onChange={(e) => updateField(slotField, e.target.value)} className={inputSmClass} />
-                  </div>
-                )}
+          <div className="p-4 bg-gray-50 dark:bg-black/20 rounded-xl">
+            <p className="font-medium text-primary dark:text-white mb-3">Club Hours</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">All bookable resources follow these operating hours</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Opens</label>
+                <select value={settings.clubOpenHour} onChange={(e) => updateField('clubOpenHour', e.target.value)} className={inputSmClass}>
+                  {HOUR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Closes</label>
+                <select value={settings.clubCloseHour} onChange={(e) => updateField('clubCloseHour', e.target.value)} className={inputSmClass}>
+                  {HOUR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
               </div>
             </div>
-          ))}
+          </div>
+          <div className="p-4 bg-gray-50 dark:bg-black/20 rounded-xl">
+            <p className="font-medium text-primary dark:text-white mb-3">Slot Durations</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Default booking length per resource type (in minutes)</p>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: 'Golf Simulators', field: 'resourceGolfSlotDuration' as const },
+                { label: 'Conference Room', field: 'resourceConferenceSlotDuration' as const },
+                { label: 'Tours', field: 'resourceToursSlotDuration' as const },
+              ].map(({ label, field }) => (
+                <div key={field}>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</label>
+                  <input type="number" min="15" max="120" step="15" value={settings[field]} onChange={(e) => updateField(field, e.target.value)} className={inputSmClass} />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 

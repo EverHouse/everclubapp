@@ -10,7 +10,7 @@ import {
 import { getHubSpotClient } from '../integrations';
 import { syncCustomerMetadataToStripe } from '../stripe/customers';
 import { logIntegrityAudit } from '../auditLog';
-import { denormalizeTierForHubSpot } from '../../utils/tierUtils';
+import { denormalizeTierForHubSpotAsync } from '../../utils/tierUtils';
 import { retryableHubSpotRequest } from '../hubspot/request';
 import type {
   AuditLogDetailsRow,
@@ -117,7 +117,7 @@ export async function syncPush(params: SyncPushParams): Promise<{ success: boole
     const hubspot = await getHubSpotClient();
 
     const isChurned = ['terminated', 'cancelled', 'non-member', 'deleted', 'former_member', 'expired'].includes(String(user.membership_status || '').toLowerCase());
-    const mappedTier = isChurned ? '' : (denormalizeTierForHubSpot(String(user.tier)) || '');
+    const mappedTier = isChurned ? '' : (await denormalizeTierForHubSpotAsync(String(user.tier)) || '');
 
     await hubspot.crm.contacts.basicApi.update(hubspotContactId, {
       properties: {
@@ -210,7 +210,7 @@ export async function bulkPushToHubSpot(dryRun: boolean = true): Promise<{
       const isNoTierStatus = NO_TIER_STATUSES.includes(memberStatus);
       const expectedTier = (isChurned || isNoTierStatus || !member.tier)
         ? ''
-        : (denormalizeTierForHubSpot(String(member.tier)) || '');
+        : (await denormalizeTierForHubSpotAsync(String(member.tier)) || '');
 
       const appFirstName = String(member.first_name || '').trim().toLowerCase();
       const hsFirstName = (hsProps.firstname || '').trim().toLowerCase();

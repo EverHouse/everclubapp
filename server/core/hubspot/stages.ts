@@ -258,8 +258,8 @@ export async function syncMemberToHubSpot(
     }
     
     if (tier) {
-      const { denormalizeTierForHubSpot } = await import('../../utils/tierUtils');
-      const hubspotTier = denormalizeTierForHubSpot(tier);
+      const { denormalizeTierForHubSpotAsync } = await import('../../utils/tierUtils');
+      const hubspotTier = await denormalizeTierForHubSpotAsync(tier);
       if (hubspotTier) {
         properties.membership_tier = hubspotTier;
         updated.tier = true;

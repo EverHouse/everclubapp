@@ -138,3 +138,20 @@ export function denormalizeTierForHubSpot(rawName: string | null | undefined): s
   
   return null;
 }
+
+export async function denormalizeTierForHubSpotAsync(rawName: string | null | undefined): Promise<string | null> {
+  if (!rawName || typeof rawName !== 'string') {
+    return null;
+  }
+
+  const slug = tryNormalizeTierSlug(rawName);
+
+  if (!slug || slug === 'staff') {
+    return null;
+  }
+
+  const { getSettingValue } = await import('../core/settingsHelper');
+  const baseName = CANONICAL_TIER_NAMES[slug];
+  const defaultTier = `${baseName} Membership`;
+  return getSettingValue(`hubspot.tier.${slug}`, defaultTier);
+}

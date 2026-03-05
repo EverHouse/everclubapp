@@ -18,7 +18,7 @@ import { broadcastDirectoryUpdate } from '../core/websocket';
 import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
 import { AssociationSpecAssociationCategoryEnum } from '@hubspot/api-client/lib/codegen/crm/associations/v4';
 import { getErrorMessage, safeErrorDetail } from '../utils/errorUtils';
-import { denormalizeTierForHubSpot } from '../utils/tierUtils';
+import { denormalizeTierForHubSpot, denormalizeTierForHubSpotAsync } from '../utils/tierUtils';
 
 interface HubSpotApiObject {
   id: string;
@@ -1172,7 +1172,7 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
         newTier: newTier
       });
       
-      const hubspotTier = denormalizeTierForHubSpot(newTier);
+      const hubspotTier = await denormalizeTierForHubSpotAsync(newTier);
       if (!hubspotTier) continue;
       
       updateBatch.push({
@@ -1297,7 +1297,7 @@ router.put('/api/hubspot/contacts/:id/tier', isStaffOrAdmin, async (req, res) =>
     logger.info('[Tier Update] Updated local database for', { extra: { contactEmail } });
     
     if (hubspotContactId) {
-      const hubspotTier = denormalizeTierForHubSpot(tier);
+      const hubspotTier = await denormalizeTierForHubSpotAsync(tier);
       if (hubspotTier) {
         await retryableHubSpotRequest(() =>
           hubspot.crm.contacts.basicApi.update(hubspotContactId!, {
@@ -1632,7 +1632,7 @@ router.post('/api/hubspot/push-db-tiers', isStaffOrAdmin, async (req, res) => {
         hubspotId: member.hubspotId
       });
       
-      const hubspotTier = denormalizeTierForHubSpot(member.tier);
+      const hubspotTier = await denormalizeTierForHubSpotAsync(member.tier);
       if (!hubspotTier) continue;
       
       updateBatch.push({

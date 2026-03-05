@@ -198,8 +198,8 @@ export async function findOrCreateHubSpotContact(
   }
   
   try {
-    const { denormalizeTierForHubSpot } = await import('../../utils/tierUtils');
-    const hubspotTier = tier ? denormalizeTierForHubSpot(tier) : null;
+    const { denormalizeTierForHubSpotAsync } = await import('../../utils/tierUtils');
+    const hubspotTier = tier ? await denormalizeTierForHubSpotAsync(tier) : null;
     
     const isVisitor = options?.role === 'visitor' || options?.role === 'day-pass';
     const properties: Record<string, string> = {
@@ -925,8 +925,8 @@ export async function handleTierChange(
       };
     }
     
-    const { denormalizeTierForHubSpot } = await import('../../utils/tierUtils');
-    const hubspotNewTier = denormalizeTierForHubSpot(newTier);
+    const { denormalizeTierForHubSpotAsync } = await import('../../utils/tierUtils');
+    const hubspotNewTier = await denormalizeTierForHubSpotAsync(newTier);
     
     if (hubspotNewTier) {
       try {
@@ -1010,8 +1010,8 @@ export async function syncTierToHubSpot(params: {
   const { email, newTier, oldTier, changedBy, changedByName } = params;
   const normalizedEmail = email.toLowerCase().trim();
   
-  const { denormalizeTierForHubSpot } = await import('../../utils/tierUtils');
-  const hubspotTier = denormalizeTierForHubSpot(newTier);
+  const { denormalizeTierForHubSpotAsync } = await import('../../utils/tierUtils');
+  const hubspotTier = await denormalizeTierForHubSpotAsync(newTier);
   const isTierCleared = !newTier || newTier === '';
   
   if (!hubspotTier && !isTierCleared) {

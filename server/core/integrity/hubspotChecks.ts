@@ -5,7 +5,7 @@ import { getErrorMessage, getErrorStatusCode } from '../../utils/errorUtils';
 import { logger } from '../logger';
 import { getHubSpotClient } from '../integrations';
 import { isProduction } from '../db';
-import { denormalizeTierForHubSpot } from '../../utils/tierUtils';
+import { denormalizeTierForHubSpotAsync } from '../../utils/tierUtils';
 import type {
   IntegrityCheckResult,
   IntegrityIssue,
@@ -92,7 +92,7 @@ export async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> 
       const isNoTierStatus = NO_TIER_STATUSES.includes(memberStatus);
       const expectedHubSpotTier = (isChurned || isNoTierStatus || !member.tier)
         ? null
-        : denormalizeTierForHubSpot(String(member.tier));
+        : await denormalizeTierForHubSpotAsync(String(member.tier));
       const hsTierRaw = props.membership_tier || null;
       const expectedNorm = (expectedHubSpotTier || '').trim().toLowerCase();
       const hsNorm = (hsTierRaw || '').trim().toLowerCase();

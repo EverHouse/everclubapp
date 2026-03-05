@@ -2,7 +2,7 @@ import { logger } from '../core/logger';
 import { Router } from 'express';
 import { isProduction } from '../core/db';
 import { getGoogleCalendarClient } from '../core/integrations';
-import { CALENDAR_CONFIG, getCalendarAvailability, discoverCalendarIds, getCalendarStatus, syncConferenceRoomCalendarToBookings } from '../core/calendar/index';
+import { CALENDAR_CONFIG, getResourceConfig, getCalendarAvailability, discoverCalendarIds, getCalendarStatus, syncConferenceRoomCalendarToBookings } from '../core/calendar/index';
 import { isStaffOrAdmin, isAdmin } from '../core/middleware';
 import { getErrorMessage, safeErrorDetail } from '../utils/errorUtils';
 
@@ -71,10 +71,11 @@ router.get('/api/calendar-availability/conference', async (req, res) => {
       return res.status(404).json({ error: result.error });
     }
     
+    const conferenceConfig = await getResourceConfig('conference');
     res.json({
       date,
       calendarName: CALENDAR_CONFIG.conference.name,
-      businessHours: CALENDAR_CONFIG.conference.businessHours,
+      businessHours: conferenceConfig.businessHours,
       slots: result.slots,
       availableSlots: result.slots.filter(s => s.available)
     });
