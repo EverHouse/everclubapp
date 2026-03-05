@@ -338,7 +338,7 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                         <div className="space-y-3 px-1">
                             {sortedVisitors.map((v, index) => (
                                 <div
-                                    key={v.id}
+                                    key={v.id ?? `visitor-${index}`}
                                     role="button"
                                     tabIndex={0}
                                     onClick={() => openVisitorDetails(v)}
@@ -479,9 +479,9 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                                 </tr>
                             </thead>
                             <tbody >
-                                {sortedVisitors.map(v => (
+                                {sortedVisitors.map((v, index) => (
                                     <tr
-                                        key={v.id}
+                                        key={v.id ?? `visitor-${index}`}
                                         tabIndex={0}
                                         role="button"
                                         onClick={() => openVisitorDetails(v)}

@@ -126,7 +126,7 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                             <div className="space-y-3 px-1">
                                 {visibleItems.map((m, index) => (
                                     <div 
-                                        key={m.email}
+                                        key={m.email || `member-${index}`}
                                         role="button"
                                         tabIndex={0}
                                         onClick={() => openDetailsModal(m)}
@@ -210,9 +210,9 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                             <div className="px-3 flex items-center self-stretch overflow-hidden font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '36%', minWidth: 0, minHeight: '44px' }}>Email</div>
                         </div>
                         <div >
-                            {visibleItems.map(m => (
+                            {visibleItems.map((m, index) => (
                                 <div 
-                                    key={m.email}
+                                    key={m.email || `member-${index}`}
                                     role="button"
                                     tabIndex={0}
                                     onClick={() => openDetailsModal(m)}

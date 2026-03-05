@@ -5,4 +5,3 @@ export * from './StaffNavigationRail';
 export * from './hooks/usePendingCounts';
 export * from './hooks/useUnreadNotifications';
 export * from './hooks/useCommandCenter';
-export { tabToPath, pathToTab, getTabFromPathname } from './types';

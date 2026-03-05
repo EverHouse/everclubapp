@@ -1,6 +1,6 @@
 import { db } from '../../db';
 import { bookingParticipants, bookingRequests, users, resources } from '../../../shared/schema';
-import { eq, sql, and } from 'drizzle-orm';
+import { eq, sql, and, inArray } from 'drizzle-orm';
 import { logger } from '../logger';
 import {
   createOrFindGuest,
@@ -270,42 +270,69 @@ export async function getBookingParticipants(
 
     participants = participantRows;
 
-    for (let i = 0; i < participants.length; i++) {
-      const p = participants[i];
-      if (p.displayName && p.displayName.includes('@')) {
-        if (p.participantType === 'owner') {
-          let ownerName = booking.owner_name;
-          if (!ownerName && booking.owner_email) {
-            const ownerLookup = await db.select({ firstName: users.firstName, lastName: users.lastName })
-              .from(users)
-              .where(sql`LOWER(${users.email}) = LOWER(${booking.owner_email})`)
-              .limit(1);
-            if (ownerLookup.length > 0) {
-              ownerName = [ownerLookup[0].firstName, ownerLookup[0].lastName].filter(Boolean).join(' ') || null;
-            }
-          }
-          if (ownerName) {
-            participants[i] = { ...p, displayName: ownerName };
-            await db.update(bookingParticipants)
-              .set({ displayName: ownerName })
-              .where(eq(bookingParticipants.id, p.id));
-          }
-        } else if (p.participantType === 'member' && p.userId) {
-          const userResult = await db.select({ firstName: users.firstName, lastName: users.lastName })
-            .from(users)
-            .where(eq(users.id, p.userId))
-            .limit(1);
-          if (userResult.length > 0) {
-            const { firstName, lastName } = userResult[0];
-            const fullName = [firstName, lastName].filter(Boolean).join(' ');
-            if (fullName) {
-              participants[i] = { ...p, displayName: fullName };
-              await db.update(bookingParticipants)
-                .set({ displayName: participants[i].displayName })
-                .where(eq(bookingParticipants.id, p.id));
-            }
+    const needsNameFix = participants.filter(p => p.displayName && p.displayName.includes('@'));
+    if (needsNameFix.length > 0) {
+      const userIdsToLookup = needsNameFix
+        .filter(p => p.participantType === 'member' && p.userId)
+        .map(p => p.userId!);
+      const emailsToLookup = needsNameFix
+        .filter(p => p.participantType === 'owner' && !booking.owner_name && booking.owner_email)
+        .map(() => booking.owner_email!);
+
+      const allLookupIds = [...new Set(userIdsToLookup)];
+      const allLookupEmails = [...new Set(emailsToLookup.map(e => e.toLowerCase()))];
+
+      const nameMap = new Map<string, string>();
+
+      if (allLookupIds.length > 0 || allLookupEmails.length > 0) {
+        const nameResults = await db.select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        })
+          .from(users)
+          .where(
+            allLookupIds.length > 0 && allLookupEmails.length > 0
+              ? sql`${users.id} IN (${sql.join(allLookupIds.map(id => sql`${id}`), sql`, `)}) OR LOWER(${users.email}) IN (${sql.join(allLookupEmails.map(e => sql`${e}`), sql`, `)})`
+              : allLookupIds.length > 0
+                ? inArray(users.id, allLookupIds)
+                : sql`LOWER(${users.email}) IN (${sql.join(allLookupEmails.map(e => sql`${e}`), sql`, `)})`
+          );
+
+        for (const row of nameResults) {
+          const fullName = [row.firstName, row.lastName].filter(Boolean).join(' ');
+          if (fullName) {
+            nameMap.set(row.id, fullName);
+            if (row.email) nameMap.set(row.email.toLowerCase(), fullName);
           }
         }
+      }
+
+      const updatePromises: Promise<unknown>[] = [];
+      for (let i = 0; i < participants.length; i++) {
+        const p = participants[i];
+        if (!p.displayName || !p.displayName.includes('@')) continue;
+
+        let resolvedName: string | null = null;
+        if (p.participantType === 'owner') {
+          resolvedName = booking.owner_name || (booking.owner_email ? nameMap.get(booking.owner_email.toLowerCase()) || null : null);
+        } else if (p.participantType === 'member' && p.userId) {
+          resolvedName = nameMap.get(p.userId) || null;
+        }
+
+        if (resolvedName) {
+          participants[i] = { ...p, displayName: resolvedName };
+          updatePromises.push(
+            db.update(bookingParticipants)
+              .set({ displayName: resolvedName })
+              .where(eq(bookingParticipants.id, p.id))
+          );
+        }
+      }
+
+      if (updatePromises.length > 0) {
+        await Promise.all(updatePromises);
       }
     }
   }
@@ -389,31 +416,53 @@ export async function previewRosterFees(
   }
 
   const allParticipants: Array<{ participantType: string; displayName: string; email?: string; userId?: string | null }> = [];
+
+  const needsNameResolve = existingParticipants.filter(p => p.displayName && p.displayName.includes('@'));
+  const previewNameMap = new Map<string, string>();
+
+  if (needsNameResolve.length > 0) {
+    const lookupUserIds = [...new Set(
+      needsNameResolve.filter(p => p.userId).map(p => p.userId!)
+    )];
+    const lookupEmails = [...new Set(
+      needsNameResolve
+        .filter(p => p.participantType === 'owner' && !booking.owner_name && booking.owner_email)
+        .map(() => booking.owner_email!.toLowerCase())
+    )];
+
+    if (lookupUserIds.length > 0 || lookupEmails.length > 0) {
+      const nameResults = await db.select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+      })
+        .from(users)
+        .where(
+          lookupUserIds.length > 0 && lookupEmails.length > 0
+            ? sql`${users.id} IN (${sql.join(lookupUserIds.map(id => sql`${id}`), sql`, `)}) OR LOWER(${users.email}) IN (${sql.join(lookupEmails.map(e => sql`${e}`), sql`, `)})`
+            : lookupUserIds.length > 0
+              ? inArray(users.id, lookupUserIds)
+              : sql`LOWER(${users.email}) IN (${sql.join(lookupEmails.map(e => sql`${e}`), sql`, `)})`
+        );
+
+      for (const row of nameResults) {
+        const fullName = [row.firstName, row.lastName].filter(Boolean).join(' ');
+        if (fullName) {
+          previewNameMap.set(row.id, fullName);
+          if (row.email) previewNameMap.set(row.email.toLowerCase(), fullName);
+        }
+      }
+    }
+  }
+
   for (const p of existingParticipants) {
     let resolvedName = p.displayName;
     if (resolvedName && resolvedName.includes('@')) {
       if (p.participantType === 'owner') {
-        if (booking.owner_name) {
-          resolvedName = booking.owner_name;
-        } else if (booking.owner_email) {
-          const ownerLookup = await db.select({ firstName: users.firstName, lastName: users.lastName })
-            .from(users)
-            .where(sql`LOWER(${users.email}) = LOWER(${booking.owner_email})`)
-            .limit(1);
-          if (ownerLookup.length > 0) {
-            const fullName = [ownerLookup[0].firstName, ownerLookup[0].lastName].filter(Boolean).join(' ');
-            if (fullName) resolvedName = fullName;
-          }
-        }
+        resolvedName = booking.owner_name || (booking.owner_email ? previewNameMap.get(booking.owner_email.toLowerCase()) || resolvedName : resolvedName);
       } else if (p.userId) {
-        const userResult = await db.select({ firstName: users.firstName, lastName: users.lastName })
-          .from(users)
-          .where(eq(users.id, p.userId))
-          .limit(1);
-        if (userResult.length > 0) {
-          const fullName = [userResult[0].firstName, userResult[0].lastName].filter(Boolean).join(' ');
-          if (fullName) resolvedName = fullName;
-        }
+        resolvedName = previewNameMap.get(p.userId) || resolvedName;
       }
     }
     allParticipants.push({

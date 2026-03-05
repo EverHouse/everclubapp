@@ -86,7 +86,7 @@ export function ManageModeRoster({
 
     return (
       <div 
-        key={member.id}
+        key={member.id ?? `slot-${member.slotNumber}`}
         className={`relative p-3 rounded-xl border transition-all duration-fast ${
           isOwner 
             ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
