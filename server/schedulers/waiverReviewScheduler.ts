@@ -41,6 +41,7 @@ export async function checkStaleWaivers(): Promise<{
         AND bp.waiver_reviewed_at IS NULL
         AND (bp.used_guest_pass IS NULL OR bp.used_guest_pass = FALSE)
         AND bp.created_at < NOW() - INTERVAL '12 hours'
+        AND (bs.source IS NULL OR bs.source::text NOT IN ('trackman_import', 'trackman_webhook', 'auto-complete', 'manual-auto-complete'))
     `);
 
     const staleWaivers: StaleWaiver[] = result.rows as unknown as StaleWaiver[];
