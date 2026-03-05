@@ -20,6 +20,7 @@ import {
 } from '../../core/stripe';
 import { getSessionUser } from '../../types/session';
 import { logFromRequest } from '../../core/auditLog';
+import { isStripeError } from '../../utils/errorUtils';
 import { validateBody } from '../../middleware/validate';
 import { createSubscriptionSchema, createSubscriptionForMemberSchema, createNewMemberSubscriptionSchema, confirmInlinePaymentSchema, sendActivationLinkSchema } from '../../../shared/validators/subscriptions';
 import { sendNotificationToUser, broadcastBillingUpdate } from '../../core/websocket';

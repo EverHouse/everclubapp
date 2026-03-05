@@ -1076,7 +1076,8 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const bookingId = parseInt(id, 10);
+    const idStr = String(id);
+    const bookingId = parseInt(idStr, 10);
     if (isNaN(bookingId)) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
@@ -1153,7 +1154,7 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
         })
         .where(eq(bookingRequests.id, bookingId));
       
-      logFromRequest(req, 'cancellation_requested', 'booking', id, undefined, {
+      logFromRequest(req, 'cancellation_requested', 'booking', idStr, undefined, {
         member_email: existing.userEmail,
         trackman_booking_id: existing.trackmanBookingId
       });
@@ -1333,7 +1334,7 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
       refundSkippedDueToLateCancel = true;
     }
     
-    logFromRequest(req, 'cancel_booking', 'booking', id, undefined, {
+    logFromRequest(req, 'cancel_booking', 'booking', idStr, undefined, {
       member_email: existing.userEmail
     });
     
