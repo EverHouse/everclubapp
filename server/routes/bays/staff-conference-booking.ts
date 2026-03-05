@@ -13,6 +13,7 @@ import { formatTime12Hour, formatDateDisplayWithDay, getTodayPacific, getPacific
 import { getCalendarIdByName, getCalendarBusyTimes } from '../../core/calendar';
 import { CALENDAR_CONFIG } from '../../core/calendar/config';
 import { broadcastAvailabilityUpdate } from '../../core/websocket';
+import { getSettingValue } from '../../core/settingsHelper';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { syncBookingInvoice, finalizeAndPayInvoice } from '../../core/billing/bookingInvoiceService';
@@ -71,21 +72,35 @@ router.get('/api/staff/conference-room/available-slots', isStaffOrAdmin, async (
       ...calendarBusySlots
     ];
 
-    const requestedDate = new Date(date + 'T12:00:00');
-    const dayOfWeek = requestedDate.getDay();
-
-    const getBusinessHours = (day: number): { open: number; close: number } | null => {
-      const openMinutes = 8 * 60 + 30;
-      switch (day) {
-        case 1: return null;
-        case 2: case 3: case 4: return { open: openMinutes, close: 20 * 60 };
-        case 5: case 6: return { open: openMinutes, close: 22 * 60 };
-        case 0: return { open: openMinutes, close: 18 * 60 };
-        default: return null;
-      }
-    };
-
-    const hours = getBusinessHours(dayOfWeek);
+    const d = new Date(date + 'T12:00:00');
+    const dayOfWeek = d.getDay();
+    let settingKey: string;
+    let fallback: string;
+    switch (dayOfWeek) {
+      case 0: settingKey = 'hours.sunday'; fallback = '8:30 AM – 6:00 PM'; break;
+      case 1: settingKey = 'hours.monday'; fallback = 'Closed'; break;
+      case 5: case 6: settingKey = 'hours.friday_saturday'; fallback = '8:30 AM – 10:00 PM'; break;
+      default: settingKey = 'hours.tuesday_thursday'; fallback = '8:30 AM – 8:00 PM'; break;
+    }
+    const displayStr = await getSettingValue(settingKey, fallback);
+    const hours = (() => {
+      if (!displayStr || displayStr.toLowerCase() === 'closed') return null;
+      const parts = displayStr.split(/\s*[–\-]\s*/);
+      if (parts.length !== 2) return null;
+      const parseT = (s: string): number | null => {
+        const m = s.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+        if (!m) return null;
+        let h = parseInt(m[1], 10);
+        const min = parseInt(m[2], 10);
+        if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+        if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+        return h * 60 + min;
+      };
+      const open = parseT(parts[0]);
+      const close = parseT(parts[1]);
+      if (open === null || close === null) return null;
+      return { open, close };
+    })();
     if (!hours) {
       return res.json([]);
     }

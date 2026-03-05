@@ -162,43 +162,69 @@ export function formatDateTimePacific(isoString: string | null | undefined): str
   return `${dateStr} at ${timeStr}`;
 }
 
+function parseTimeToMinutes(timeStr: string): number | null {
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+  if (period === 'PM' && hours !== 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
+function parseDisplayHoursStr(displayStr: string): { open: number; close: number } | null {
+  if (!displayStr || displayStr.toLowerCase() === 'closed') return null;
+  const parts = displayStr.split(/\s*[–\-]\s*/);
+  if (parts.length !== 2) return null;
+  const open = parseTimeToMinutes(parts[0]);
+  const close = parseTimeToMinutes(parts[1]);
+  if (open === null || close === null) return null;
+  return { open, close };
+}
+
 /**
- * Get business hours for a given day of week
- * Returns null if closed (Monday)
- * Hours are in minutes from midnight
+ * Get business hours for a given day of week using display hours settings.
+ * Pass displayHours from public settings for settings-driven hours.
+ * Falls back to hardcoded defaults if no settings provided.
  */
-export function getBusinessHours(dayOfWeek: number): { open: number; close: number } | null {
-  const openMinutes = 8 * 60 + 30; // 8:30 AM
+export function getBusinessHours(
+  dayOfWeek: number,
+  displayHours?: { monday?: string; tuesdayThursday?: string; fridaySaturday?: string; sunday?: string }
+): { open: number; close: number } | null {
+  if (displayHours) {
+    let displayStr: string | undefined;
+    switch (dayOfWeek) {
+      case 0: displayStr = displayHours.sunday; break;
+      case 1: displayStr = displayHours.monday; break;
+      case 5: case 6: displayStr = displayHours.fridaySaturday; break;
+      default: displayStr = displayHours.tuesdayThursday; break;
+    }
+    if (displayStr) return parseDisplayHoursStr(displayStr);
+  }
+  const openMinutes = 8 * 60 + 30;
   switch (dayOfWeek) {
-    case 1: // Monday - Closed
-      return null;
-    case 2: // Tuesday
-    case 3: // Wednesday
-    case 4: // Thursday
-      return { open: openMinutes, close: 20 * 60 }; // 8 PM
-    case 5: // Friday
-    case 6: // Saturday
-      return { open: openMinutes, close: 22 * 60 }; // 10 PM
-    case 0: // Sunday
-      return { open: openMinutes, close: 18 * 60 }; // 6 PM
-    default:
-      return null;
+    case 1: return null;
+    case 2: case 3: case 4: return { open: openMinutes, close: 20 * 60 };
+    case 5: case 6: return { open: openMinutes, close: 22 * 60 };
+    case 0: return { open: openMinutes, close: 18 * 60 };
+    default: return null;
   }
 }
 
 /**
- * Check if the facility is currently open based on Pacific time
- * Returns { isOpen, reason } where reason explains why if closed
+ * Check if the facility is currently open based on Pacific time.
+ * Pass displayHours from public settings for settings-driven hours.
  */
-export function isFacilityOpen(): { isOpen: boolean; reason?: string } {
+export function isFacilityOpen(displayHours?: { monday?: string; tuesdayThursday?: string; fridaySaturday?: string; sunday?: string }): { isOpen: boolean; reason?: string } {
   const parts = getPacificDateParts();
   const dayOfWeek = parts.dayOfWeek;
   const currentMinutes = parts.hour * 60 + parts.minute;
   
-  const hours = getBusinessHours(dayOfWeek);
+  const hours = getBusinessHours(dayOfWeek, displayHours);
   
   if (!hours) {
-    return { isOpen: false, reason: 'Closed on Mondays' };
+    return { isOpen: false, reason: 'Closed today' };
   }
   
   if (currentMinutes < hours.open) {

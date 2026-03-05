@@ -8,6 +8,7 @@ import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
 import { toIntArrayLiteral, toTextArrayLiteral } from '../utils/sqlArrayLiteral';
 import { getSessionUser } from '../types/session';
+import { getSettingValue } from '../core/settingsHelper';
 
 const router = Router();
 
@@ -29,25 +30,42 @@ interface BatchAvailabilityRequest {
   user_email?: string;
 }
 
-// Get business hours by day of week
-const getBusinessHours = (day: number): { open: number; close: number } | null => {
-  const openMinutes = 8 * 60 + 30; // 8:30 AM
-  switch (day) {
-    case 1: // Monday - Closed
-      return null;
-    case 2: // Tuesday
-    case 3: // Wednesday
-    case 4: // Thursday
-      return { open: openMinutes, close: 20 * 60 }; // 8 PM
-    case 5: // Friday
-    case 6: // Saturday
-      return { open: openMinutes, close: 22 * 60 }; // 10 PM
-    case 0: // Sunday
-      return { open: openMinutes, close: 18 * 60 }; // 6 PM
-    default:
-      return null;
+function parseTimeToMinutes(timeStr: string): number | null {
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+  if (period === 'PM' && hours !== 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
+function parseDisplayHoursToMinutes(displayStr: string): { open: number; close: number } | null {
+  if (!displayStr || displayStr.toLowerCase() === 'closed') return null;
+  const parts = displayStr.split(/\s*[–\-]\s*/);
+  if (parts.length !== 2) return null;
+  const open = parseTimeToMinutes(parts[0]);
+  const close = parseTimeToMinutes(parts[1]);
+  if (open === null || close === null) return null;
+  return { open, close };
+}
+
+async function getBusinessHoursFromSettings(date: string): Promise<{ open: number; close: number } | null> {
+  const d = new Date(date + 'T12:00:00');
+  const dayOfWeek = d.getDay();
+  let settingKey: string;
+  let fallback: string;
+  switch (dayOfWeek) {
+    case 0: settingKey = 'hours.sunday'; fallback = '8:30 AM – 6:00 PM'; break;
+    case 1: settingKey = 'hours.monday'; fallback = 'Closed'; break;
+    case 5:
+    case 6: settingKey = 'hours.friday_saturday'; fallback = '8:30 AM – 10:00 PM'; break;
+    default: settingKey = 'hours.tuesday_thursday'; fallback = '8:30 AM – 8:00 PM'; break;
   }
-};
+  const displayStr = await getSettingValue(settingKey, fallback);
+  return parseDisplayHoursToMinutes(displayStr);
+}
 
 // Generate slots for a resource given its conflicts
 const generateSlotsForResource = (
@@ -132,12 +150,8 @@ router.post('/api/availability/batch', async (req, res) => {
     const sessionUser = getSessionUser(req);
     const requestingEmail = (user_email || sessionUser?.email || '').trim().toLowerCase();
     
-    // Get day of week for business hours
-    const requestedDate = new Date(date + 'T12:00:00');
-    const dayOfWeek = requestedDate.getDay();
-    const hours = getBusinessHours(dayOfWeek);
+    const hours = await getBusinessHoursFromSettings(date);
     
-    // Return empty slots for all resources if closed
     if (!hours) {
       const result: Record<number, { slots: APISlot[] }> = {};
       resource_ids.forEach(id => { result[id] = { slots: [] }; });
@@ -383,35 +397,7 @@ router.get('/api/availability', async (req, res) => {
     const pacificParts = getPacificDateParts();
     const currentMinutes = isToday ? pacificParts.hour * 60 + pacificParts.minute : 0;
     
-    // Get day of week for the requested date (0 = Sunday, 1 = Monday, etc.)
-    const requestedDate = new Date(date as string + 'T12:00:00');
-    const dayOfWeek = requestedDate.getDay();
-    
-    // Business hours by day of week:
-    // Monday (1): Closed
-    // Tuesday-Thursday (2-4): 8:30 AM - 8 PM
-    // Friday-Saturday (5-6): 8:30 AM - 10 PM
-    // Sunday (0): 8:30 AM - 6 PM
-    const getBusinessHours = (day: number): { open: number; close: number } | null => {
-      const openMinutes = 8 * 60 + 30; // 8:30 AM
-      switch (day) {
-        case 1: // Monday - Closed
-          return null;
-        case 2: // Tuesday
-        case 3: // Wednesday
-        case 4: // Thursday
-          return { open: openMinutes, close: 20 * 60 }; // 8 PM
-        case 5: // Friday
-        case 6: // Saturday
-          return { open: openMinutes, close: 22 * 60 }; // 10 PM
-        case 0: // Sunday
-          return { open: openMinutes, close: 18 * 60 }; // 6 PM
-        default:
-          return null;
-      }
-    };
-    
-    const hours = getBusinessHours(dayOfWeek);
+    const hours = await getBusinessHoursFromSettings(date as string);
     
     // Return empty slots if closed (Monday or invalid day)
     if (!hours) {
