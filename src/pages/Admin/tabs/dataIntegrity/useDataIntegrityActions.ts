@@ -279,12 +279,9 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
         duration: params.duration,
         reason: params.reason,
       }),
-    onMutate: async () => {
+    onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey: ['data-integrity'] });
-    },
-    onSuccess: (_data, variables) => {
-      showToast('Issue ignored successfully', 'success');
-      closeIgnoreModal();
+      const snapshot = queryClient.getQueryData<CachedResultsResponse>(['data-integrity', 'cached']);
       queryClient.setQueryData(['data-integrity', 'cached'], (old: CachedResultsResponse | undefined) => {
         if (!old?.hasCached) return old;
         return {
@@ -300,12 +297,21 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
           })).filter((check) => check.issueCount > 0),
         };
       });
+      closeIgnoreModal();
+      return { snapshot };
     },
-    onError: (err: Error) => {
+    onSuccess: () => {
+      showToast('Issue ignored successfully', 'success');
+    },
+    onError: (err: Error, _variables, context) => {
+      if (context?.snapshot) {
+        queryClient.setQueryData(['data-integrity', 'cached'], context.snapshot);
+      }
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to ignore issue', 'error');
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['data-integrity', 'ignores'] });
+      queryClient.invalidateQueries({ queryKey: ['data-integrity', 'cached'] });
     },
   });
 
@@ -334,12 +340,9 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
         duration: params.duration,
         reason: params.reason,
       }),
-    onMutate: async () => {
+    onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey: ['data-integrity'] });
-    },
-    onSuccess: (data, variables) => {
-      showToast(`${data.total} issues excluded successfully`, 'success');
-      closeBulkIgnoreModal();
+      const snapshot = queryClient.getQueryData<CachedResultsResponse>(['data-integrity', 'cached']);
       const ignoredKeys = new Set(variables.issueKeys);
       queryClient.setQueryData(['data-integrity', 'cached'], (old: CachedResultsResponse | undefined) => {
         if (!old?.hasCached) return old;
@@ -348,20 +351,29 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
           results: old.results.map((check) => ({
             ...check,
             issues: Array.isArray(check.issues)
-              ? check.issues.filter((d) => !ignoredKeys.has(d.issueKey as string))
+              ? check.issues.filter((d) => !ignoredKeys.has(d.issueKey as string) && !ignoredKeys.has(d.context?.issueKey as string))
               : check.issues,
             issueCount: Array.isArray(check.issues)
-              ? check.issues.filter((d) => !ignoredKeys.has(d.issueKey as string)).length
+              ? check.issues.filter((d) => !ignoredKeys.has(d.issueKey as string) && !ignoredKeys.has(d.context?.issueKey as string)).length
               : check.issueCount,
           })).filter((check) => check.issueCount > 0),
         };
       });
+      closeBulkIgnoreModal();
+      return { snapshot };
     },
-    onError: (err: Error) => {
+    onSuccess: (data) => {
+      showToast(`${data.total} issues excluded successfully`, 'success');
+    },
+    onError: (err: Error, _variables, context) => {
+      if (context?.snapshot) {
+        queryClient.setQueryData(['data-integrity', 'cached'], context.snapshot);
+      }
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to exclude issues', 'error');
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['data-integrity', 'ignores'] });
+      queryClient.invalidateQueries({ queryKey: ['data-integrity', 'cached'] });
     },
   });
 

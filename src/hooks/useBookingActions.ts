@@ -314,6 +314,30 @@ export function useBookingActions() {
   }, [staffCancelBooking, showToast]);
 
   const revertToApproved = useCallback(async (bookingId: number | string): Promise<{ success?: boolean; error?: string }> => {
+    await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
+    await queryClient.cancelQueries({ queryKey: simulatorKeys.all });
+    const previousBookings = queryClient.getQueriesData({ queryKey: bookingsKeys.all });
+    const previousSimulator = queryClient.getQueriesData({ queryKey: simulatorKeys.all });
+
+    queryClient.setQueriesData(
+      { queryKey: bookingsKeys.all },
+      (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((b: Record<string, unknown>) =>
+          String(b.id) === String(bookingId) ? { ...b, status: 'approved' } : b
+        );
+      }
+    );
+    queryClient.setQueriesData(
+      { queryKey: simulatorKeys.all },
+      (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((b: Record<string, unknown>) =>
+          String(b.id) === String(bookingId) ? { ...b, status: 'approved' } : b
+        );
+      }
+    );
+
     try {
       const res = await fetch(`/api/bookings/${bookingId}/revert-to-approved`, {
         method: 'PUT',
@@ -322,13 +346,17 @@ export function useBookingActions() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
+        previousBookings.forEach(([key, data]) => queryClient.setQueryData(key, data));
+        previousSimulator.forEach(([key, data]) => queryClient.setQueryData(key, data));
+        const data = await res.json().catch(() => ({}));
         return { error: data.error || 'Failed to revert booking' };
       }
 
       invalidateBookingQueries(queryClient);
       return { success: true };
     } catch {
+      previousBookings.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      previousSimulator.forEach(([key, data]) => queryClient.setQueryData(key, data));
       return { error: 'Network error' };
     }
   }, [queryClient]);
