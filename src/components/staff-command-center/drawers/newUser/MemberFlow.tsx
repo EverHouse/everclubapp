@@ -1372,7 +1372,9 @@ export function MemberFlow({
           </div>
         )}
         {(() => {
-          const recentMatch = recentCreations.find(r => r.email === form.email.trim().toLowerCase() && (Date.now() - r.timestamp) < 600000);
+          const currentEmail = form.email.trim().toLowerCase();
+          const currentName = `${form.firstName} ${form.lastName}`.trim().toLowerCase();
+          const recentMatch = recentCreations.find(r => (Date.now() - r.timestamp) < 600000 && (r.email === currentEmail || (currentName.length > 1 && r.name.toLowerCase() === currentName)));
           if (recentMatch) {
             const minsAgo = Math.round((Date.now() - recentMatch.timestamp) / 60000);
             return (

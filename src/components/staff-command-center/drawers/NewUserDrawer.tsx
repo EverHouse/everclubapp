@@ -286,6 +286,7 @@ export function NewUserDrawer({
   const handleModeChange = (newMode: Mode) => {
     setMode(newMode);
     setError(null);
+    setEmailCheckResult(null);
   };
 
   const currentStep = mode === 'member' ? memberStep : visitorStep;
