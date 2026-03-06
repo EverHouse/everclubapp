@@ -71,7 +71,7 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
         const registration = await navigator.serviceWorker.ready;
         detectWaiting(registration);
         listenForUpdate(registration);
-        registration.update().catch(() => {});
+        registration.update().catch((err: unknown) => console.warn('[App] SW update check failed:', err));
       } catch (e) {
         console.error('[App] SW ready failed:', e);
       }
@@ -87,7 +87,7 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
           detectWaiting(registration);
         }
       } catch (e) {
-        // Silently fail update checks
+        console.warn('[App] SW update check failed:', e);
       }
     };
 

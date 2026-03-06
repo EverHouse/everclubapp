@@ -158,7 +158,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
             }
           }
         })
-        .catch(() => {});
+        .catch((err: unknown) => { console.warn('[MemberProfileDrawer] Failed to fetch membership tiers:', err); });
     }
     return () => { cancelled = true; };
   }, [isOpen, visitorMode, isAdmin, selectedTierId]);

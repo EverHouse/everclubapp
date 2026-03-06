@@ -74,7 +74,7 @@ interface BookingInsertRow {
 
 const router = Router();
 
-router.get('/api/booking-requests', async (req, res) => {
+router.get('/api/booking-requests', isAuthenticated, async (req, res) => {
   try {
     const { user_email, status, include_all, limit: limitParam, offset: offsetParam, page: pageParam } = req.query;
     const sessionUser = getSessionUser(req);
@@ -973,7 +973,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
   }
 });
 
-router.get('/api/booking-requests/:id', async (req, res) => {
+router.get('/api/booking-requests/:id', isAuthenticated, async (req, res) => {
   try {
     const { id } = req.params;
     const bookingId = parseInt(id, 10);

@@ -358,7 +358,7 @@ async function patchClosureCalendarEvents(
   return true;
 }
 
-// Notice Types endpoints
+// PUBLIC ROUTE - notice types used by closure forms
 router.get('/api/notice-types', async (req, res) => {
   try {
     const results = await db
@@ -473,7 +473,7 @@ router.delete('/api/notice-types/:id', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-// Closure Reasons endpoints
+// PUBLIC ROUTE - closure reasons used by closure forms
 router.get('/api/closure-reasons', async (req, res) => {
   try {
     const includeInactive = req.query.includeInactive === 'true';
@@ -581,6 +581,7 @@ router.delete('/api/closure-reasons/:id', isStaffOrAdmin, async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE - active closures displayed to all visitors
 router.get('/api/closures', async (req, res) => {
   try {
     const results = await db

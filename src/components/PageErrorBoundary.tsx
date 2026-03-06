@@ -90,8 +90,10 @@ class PageErrorBoundary extends Component<Props, State> {
           stack: error.stack?.substring(0, 2000),
           componentStack: errorInfo.componentStack?.substring(0, 2000)
         })
-      }).catch(() => {});
-    } catch {}
+      }).catch((err: unknown) => console.warn('[PageErrorBoundary] Failed to report client error:', err));
+    } catch (err: unknown) {
+      console.warn('[PageErrorBoundary] Failed to send error report:', err);
+    }
     
     if (isChunkLoadError(error)) {
       const reloadCount = getReloadCount();

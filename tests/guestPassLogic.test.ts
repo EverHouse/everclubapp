@@ -22,6 +22,7 @@ const { mockClient, mockPool } = vi.hoisted(() => {
 
 vi.mock('../server/core/db', () => ({
   pool: mockPool,
+  safeRelease: vi.fn((client: { release: () => void }) => { try { client.release(); } catch {} }),
 }));
 
 import {

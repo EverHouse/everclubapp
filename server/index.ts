@@ -36,9 +36,17 @@ process.on('uncaughtException', (error) => {
   setTimeout(() => process.exit(1), 3000);
 });
 
+let unhandledRejectionExitScheduled = false;
 process.on('unhandledRejection', (reason, promise) => {
   const errorMessage = reason instanceof Error ? reason.message : String(reason);
-  logger.error('[Process] Unhandled Rejection:', { extra: { errorMessage } });
+  logger.error('[Process] Unhandled Rejection - scheduling shutdown:', { extra: { errorMessage } });
+  if (!unhandledRejectionExitScheduled) {
+    unhandledRejectionExitScheduled = true;
+    setTimeout(() => {
+      logger.error('[Process] Exiting after unhandled rejection grace period');
+      process.exit(1);
+    }, 5000).unref();
+  }
 });
 
 process.on('beforeExit', (code) => {

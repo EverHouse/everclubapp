@@ -19,6 +19,7 @@ const initialFaqs = [
   { question: "Is there parking available?", answer: "Yes, ample complimentary parking is available for all members and guests at our Tustin location.", category: "General", sortOrder: 8 },
 ];
 
+// PUBLIC ROUTE - FAQs displayed on public website
 router.get('/api/faqs', async (req, res) => {
   try {
     const result = await db.select().from(faqs)

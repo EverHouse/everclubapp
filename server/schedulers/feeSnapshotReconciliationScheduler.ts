@@ -19,7 +19,7 @@ async function reconcilePendingSnapshots(): Promise<{ synced: number; errors: nu
     const connectPromise = pool.connect();
     const connectTimeout = new Promise<never>((_, reject) => 
       setTimeout(() => {
-        connectPromise.then(c => { released = true; c.release(); }).catch(() => {});
+        connectPromise.then(c => { released = true; c.release(); }).catch((err) => { logger.warn('[FeeSnapshotReconciliation] Failed to release timed-out connection:', { error: err }); });
         reject(new Error('DB connection timeout after 10s'));
       }, 10000)
     );
@@ -119,7 +119,7 @@ async function cancelAbandonedPaymentIntents(): Promise<{ cancelled: number; err
     const connectPromise = pool.connect();
     const connectTimeout = new Promise<never>((_, reject) => 
       setTimeout(() => {
-        connectPromise.then(c => { released = true; c.release(); }).catch(() => {});
+        connectPromise.then(c => { released = true; c.release(); }).catch((err) => { logger.warn('[FeeSnapshotReconciliation] Failed to release timed-out connection:', { error: err }); });
         reject(new Error('DB connection timeout after 10s'));
       }, 10000)
     );
@@ -256,7 +256,7 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
     const connectPromise = pool.connect();
     const connectTimeout = new Promise<never>((_, reject) => 
       setTimeout(() => {
-        connectPromise.then(c => { released = true; c.release(); }).catch(() => {});
+        connectPromise.then(c => { released = true; c.release(); }).catch((err) => { logger.warn('[FeeSnapshotReconciliation] Failed to release timed-out connection:', { error: err }); });
         reject(new Error('DB connection timeout after 10s'));
       }, 10000)
     );

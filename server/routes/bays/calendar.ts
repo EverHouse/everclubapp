@@ -28,6 +28,7 @@ interface FilledSlotsRow {
 
 const router = Router();
 
+// PUBLIC ROUTE - conference room bookings visible to authenticated members (auth checked in handler)
 router.get('/api/conference-room-bookings', async (req, res) => {
   try {
     const { member_name, member_email } = req.query;

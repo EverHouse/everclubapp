@@ -31,7 +31,7 @@ const doPrefetch = (path: string, imports: RouteImportMap, apis: RouteAPIMap) =>
     apiList.forEach(api => {
       if (!prefetchedAPIs.has(api)) {
         prefetchedAPIs.add(api);
-        fetch(api, { credentials: 'include' }).catch(() => {});
+        fetch(api, { credentials: 'include' }).catch((err) => console.warn('[prefetch] API prefetch failed:', api, err));
       }
     });
   }
@@ -78,13 +78,13 @@ export const prefetchMemberProfile = (email: string) => {
   if (prefetchedAPIs.has(key)) return;
   prefetchedAPIs.add(key);
   const encoded = encodeURIComponent(email);
-  fetch(`/api/members/${encoded}/history`, { credentials: 'include' }).catch(() => {});
-  fetch(`/api/members/${encoded}/notes`, { credentials: 'include' }).catch(() => {});
+  fetch(`/api/members/${encoded}/history`, { credentials: 'include' }).catch((err) => console.warn('[prefetch] Member history prefetch failed:', err));
+  fetch(`/api/members/${encoded}/notes`, { credentials: 'include' }).catch((err) => console.warn('[prefetch] Member notes prefetch failed:', err));
 };
 
 export const prefetchBookingDetail = (bookingId: number | string) => {
   const key = `booking-detail:${bookingId}`;
   if (prefetchedAPIs.has(key)) return;
   prefetchedAPIs.add(key);
-  fetch(`/api/admin/booking/${bookingId}/members`, { credentials: 'include' }).catch(() => {});
+  fetch(`/api/admin/booking/${bookingId}/members`, { credentials: 'include' }).catch((err) => console.warn('[prefetch] Booking detail prefetch failed:', err));
 };

@@ -57,6 +57,7 @@ interface ServiceError extends Error {
 
 const router = Router();
 
+// PUBLIC ROUTE - resource list needed by public booking UI
 router.get('/api/resources', async (req, res) => {
   try {
     const result = await fetchAllResources();

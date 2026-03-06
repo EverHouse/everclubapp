@@ -43,7 +43,7 @@ if ('serviceWorker' in navigator) {
       });
       
       setInterval(() => {
-        registration.update().catch(() => {});
+        registration.update().catch((err: unknown) => console.warn('[App] Service worker update check failed:', err));
       }, 60 * 60 * 1000);
       
     } catch (error: unknown) {

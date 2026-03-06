@@ -136,7 +136,7 @@ export function TerminalPayment({
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ readerId, paymentIntentId: piId })
-        }).catch(() => {});
+        }).catch((err: unknown) => { console.warn('[TerminalPayment] Failed to cancel payment on unmount:', err); });
       }
     };
   }, [fetchReaders, clearPollingRef, clearTimeoutRef]);

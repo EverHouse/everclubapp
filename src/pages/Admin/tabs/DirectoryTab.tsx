@@ -467,7 +467,7 @@ function handleDirectoryError(error: Error, errorInfo: ErrorInfo) {
                 componentStack: errorInfo.componentStack?.substring(0, 2000),
                 isError306,
             })
-        }).catch(() => {});
+        }).catch((err: unknown) => { console.warn('[DirectoryTab] Failed to report client error:', err); });
     } catch {}
 }
 

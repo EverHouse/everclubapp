@@ -427,7 +427,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                                         if ('caches' in window) {
                                             caches.keys().then(keys => {
                                                 keys.forEach(key => caches.delete(key));
-                                            }).catch(() => {});
+                                            }).catch((err: unknown) => { console.warn('[AvailabilityBlocks] Failed to clear caches:', err); });
                                         }
                                         window.location.reload();
                                     }}

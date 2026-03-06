@@ -8,6 +8,7 @@ import { logFromRequest } from '../core/auditLog';
 
 const router = Router();
 
+// PUBLIC ROUTE - gallery images displayed on public website
 router.get('/api/gallery', async (req, res) => {
   try {
     const { include_inactive } = req.query;

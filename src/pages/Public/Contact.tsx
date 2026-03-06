@@ -31,7 +31,7 @@ function usePublicSettings() {
     fetch('/api/settings/public')
       .then(r => r.ok ? r.json() : Promise.reject())
       .then((data: Record<string, string>) => setSettings(prev => ({ ...prev, ...data })))
-      .catch(() => {});
+      .catch((err: unknown) => console.warn('[Contact] Failed to fetch public settings:', err));
   }, []);
 
   return settings;

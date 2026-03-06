@@ -48,7 +48,7 @@ const FAQ: React.FC = () => {
       .then((data: FaqItem[]) => {
         if (data.length > 0) setFaqs(data);
       })
-      .catch(() => {})
+      .catch((err: unknown) => console.warn('[FAQ] Failed to fetch FAQs:', err))
       .finally(() => setLoading(false));
   }, []);
 

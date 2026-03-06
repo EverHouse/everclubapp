@@ -22,7 +22,8 @@ async function getStripePromise(): Promise<Stripe | null> {
     if (!publishableKey) return null;
     stripePromise = loadStripe(publishableKey);
     return stripePromise;
-  } catch {
+  } catch (err: unknown) {
+    console.warn('[StripePaymentForm] Failed to load Stripe config:', err);
     return null;
   }
 }
@@ -331,7 +332,7 @@ export function StripePaymentForm({
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ paymentIntentId: paymentIntentIdRef.current }),
-        }).catch(() => {});
+        }).catch((err: unknown) => { console.warn('[StripePaymentForm] Failed to cancel payment on unmount:', err); });
       }
     };
   }, []);

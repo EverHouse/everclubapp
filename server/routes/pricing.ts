@@ -7,6 +7,7 @@ import { logger } from '../core/logger';
 
 const router = Router();
 
+// PUBLIC ROUTE - pricing information displayed on public website
 router.get('/api/pricing', async (req, res) => {
   try {
   const response: Record<string, unknown> = {

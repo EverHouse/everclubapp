@@ -27,6 +27,7 @@ const FEATURE_KEY_TO_TIER_COLUMN: Record<string, { column: string | null; type: 
   'discounted_merch': { column: 'has_discounted_merch', type: 'boolean' },
 };
 
+// PUBLIC ROUTE - tier feature comparison displayed on public membership page
 router.get('/api/tier-features', async (req, res) => {
   try {
     const featuresResult = await db.execute(sql`

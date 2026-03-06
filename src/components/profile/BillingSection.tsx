@@ -70,7 +70,7 @@ export default function BillingSection({ isDark }: Props) {
     ]).then(([billing, invoiceData]) => {
       setBillingInfo(billing);
       setInvoices(invoiceData?.invoices || []);
-    }).catch(() => {})
+    }).catch((err: unknown) => { console.warn('[BillingSection] Failed to fetch billing data:', err); })
     .finally(() => setLoading(false));
   };
 

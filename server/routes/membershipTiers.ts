@@ -15,6 +15,7 @@ const TIERS_CACHE_TTL = 120_000;
 
 const router = Router();
 
+// PUBLIC ROUTE - membership tiers displayed on public website
 router.get('/api/membership-tiers', async (req, res) => {
   try {
     const { active } = req.query;
@@ -35,6 +36,7 @@ router.get('/api/membership-tiers', async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE - tier limits needed by booking UI
 router.get('/api/membership-tiers/limits/:tierName', async (req, res) => {
   try {
     const { tierName } = req.params;
@@ -75,6 +77,7 @@ router.get('/api/membership-tiers/limits/:tierName', async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE - individual tier details for public membership page
 router.get('/api/membership-tiers/:id', async (req, res) => {
   try {
     const { id } = req.params;

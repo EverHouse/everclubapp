@@ -97,6 +97,7 @@ The following large files have been split into sub-modules with barrel re-export
   - `server/core/integrity/` — Data integrity checks in 8 files (was `dataIntegrity.ts`, 3,891 lines)
   - `server/routes/stripe/payments.ts` — Split into `booking-fees.ts`, `quick-charge.ts`, `payment-admin.ts`, `financial-reports.ts` sub-routers (was 3,160 lines)
   - `server/core/resource/` — Resource service in 6 files (was `resourceService.ts`, 2,566 lines)
+  - `server/routes/dataTools/` — Data tools in 5 sub-routers: `member-sync.ts`, `booking-tools.ts`, `audit.ts`, `stripe-tools.ts`, `maintenance.ts` (was `dataTools.ts`, 2,683 lines)
 - **Frontend**:
   - `src/pages/Admin/tabs/dataIntegrity/` — 6 sub-components + hooks (was `DataIntegrityTab.tsx`, 2,314 lines)
   - `src/pages/Admin/tabs/directory/` — 9 sub-components + hooks (was `DirectoryTab.tsx`, 2,233 lines)
@@ -134,6 +135,16 @@ The following large files have been split into sub-modules with barrel re-export
 - **Unsaved changes guard**: `MemberProfileDrawer` warns staff with a `window.confirm` dialog when closing with unsaved notes or communication drafts. Backdrop click, close button, and escape all route through `handleDrawerClose`.
 - **Mutation button disable**: All billing mutation buttons (`StripeBillingSection`) properly use `disabled={isPending}` during async operations to prevent double-clicks.
 - **Toast/haptic consistency migration**: Older admin components (`BugReportsAdmin`, `DiscountsSubTab`, `ApplicationPipeline`) migrated from `console.error` or custom inline toast state to the global `useToast` + `haptic` utilities for consistent success/error feedback across all staff actions.
+
+### Comprehensive Audit Fixes (v8.77.5)
+- **Unhandled Rejection Shutdown**: `process.on('unhandledRejection')` in `server/index.ts` now schedules `process.exit(1)` with a 5-second grace period (`.unref()`). Prevents the app from continuing in a potentially inconsistent state after an unhandled promise rejection.
+- **Silent Catch Elimination (Server)**: 3 silent `.catch(() => {})` in `server/schedulers/feeSnapshotReconciliationScheduler.ts` replaced with logged warnings for connection release failures.
+- **Silent Catch Elimination (Frontend)**: 18+ silent `.catch(() => {})` across frontend components replaced with `console.warn` logging. Critical payment components (`TerminalPayment`, `StripePaymentForm`, `MemberPaymentModal`, `BillingSection`), staff tools (`AvailabilityBlocksContent`, `DirectoryTab`, `MemberProfileDrawer`), public pages (`Footer`, `FAQ`, `Contact`), error boundaries (`PageErrorBoundary`), and service worker (`main.tsx`, `useServiceWorkerUpdate`) all now log failures for debugging.
+- **Prefetch Error Logging**: 4 silent catches in `src/lib/prefetch-actions.ts` replaced with `console.warn` for API, member history, member notes, and booking detail prefetch failures.
+- **Auth Middleware Consistency**: `GET /api/booking-requests` and `GET /api/booking-requests/:id` in `server/routes/bays/bookings.ts` now use `isAuthenticated` middleware (previously relied only on in-handler session checks). Handler-level checks remain as defense-in-depth.
+- **Public Route Documentation**: All intentionally public routes across 10 route files marked with `// PUBLIC ROUTE` comments for audit clarity.
+- **dataTools.ts Split**: `server/routes/dataTools.ts` (2,683 lines) split into `server/routes/dataTools/` directory with 5 sub-routers: `member-sync.ts`, `booking-tools.ts`, `audit.ts`, `stripe-tools.ts`, `maintenance.ts`, plus barrel `index.ts`.
+- **New Test Coverage**: Added `tests/errorUtils.test.ts` (26 tests for error utility functions including sensitive data redaction) and `tests/middleware.test.ts` (4 tests for Zod body validation middleware). Fixed pre-existing `guestPassLogic.test.ts` mock (missing `safeRelease`).
 
 ### Performance Optimization (v8.77.3)
 - **Booking List N+1 Elimination**: Consolidated 5 sequential `booking_participants` queries in `GET /api/booking-requests` into a single batch query with in-memory partitioning. Reduces database round-trips from ~6 to ~2 per booking list request, significantly improving response time for member and staff booking views.

@@ -9,6 +9,7 @@ import { getPacificMidnightUTC } from '../../utils/dateUtils';
 
 const router = Router();
 
+// PUBLIC ROUTE - bay list needed by public booking UI
 router.get('/api/bays', async (req, res) => {
   try {
     const result = await db.select({
@@ -24,6 +25,7 @@ router.get('/api/bays', async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE - bay availability needed by public booking UI
 router.get('/api/bays/:bayId/availability', async (req, res) => {
   try {
     const { bayId } = req.params;

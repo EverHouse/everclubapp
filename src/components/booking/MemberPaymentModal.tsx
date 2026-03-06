@@ -115,7 +115,7 @@ export function MemberPaymentModal({
           credentials: 'include',
           body: JSON.stringify({ paymentIntentId: currentPiId }),
           keepalive: true,
-        }).catch(() => {});
+        }).catch((err: unknown) => { console.warn('[MemberPaymentModal] Failed to cancel payment on unmount:', err); });
       }
     };
   }, [paymentIntentId, bookingId, isOpen]);
