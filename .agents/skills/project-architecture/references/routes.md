@@ -121,8 +121,7 @@ All mutating routes (POST/PUT/PATCH/DELETE) must be protected. Two equivalent pa
 - `tierFeatures.ts` — Tier feature comparison
 - `pricing.ts` — Pricing display endpoints
 - `groupBilling.ts` — Corporate billing
-- `hubspot.ts` — HubSpot endpoints
-- `hubspotDeals.ts` — HubSpot deal endpoints
+- `hubspot.ts` — HubSpot CRM contact sync endpoints
 - `dataIntegrity.ts` — Data integrity dashboard
 - `dataExport.ts` — CCPA data export
 - `dataTools.ts` — Admin data repair tools
@@ -139,7 +138,6 @@ All mutating routes (POST/PUT/PATCH/DELETE) must be protected. Two equivalent pa
 - `imageUpload.ts` — Image upload handling
 - `idScanner.ts` — ID/license scanning (OpenAI Vision)
 - `resendWebhooks.ts` — Resend email webhooks
-- `legacyPurchases.ts` — Legacy purchase import
 - `mindbody.ts` — MindBody import endpoints
 - `testAuth.ts` — Dev-only test auth
 - `emailTemplates.ts` — Email template preview endpoints

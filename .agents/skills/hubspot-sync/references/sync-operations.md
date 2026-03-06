@@ -74,60 +74,9 @@
 5. Search for the user's contact by email.
 6. Associate contact with company using HubSpot v4 associations API (association type ID 280 = company-to-contact).
 
-## Product and Line Item Sync
-
-### Product Mapping
-
-`getProductMapping` in `server/core/hubspot/products.ts`:
-
-- Look up `hubspot_product_mappings` table by `tierName` or `productType`.
-- Returns the HubSpot product ID, product name, and unit price.
-- Products are categorized by type: `membership`, `pass`, `fee`, `day_pass`.
-
-### Add Line Item to Deal
-
-`addLineItemToDeal` in `server/core/hubspot/lineItems.ts`:
-
-1. Look up the product mapping to get unit price.
-2. Calculate discounted price: `unitPrice × (1 - discountPercent / 100)`.
-3. Create a HubSpot line item with:
-   - `hs_product_id` — the HubSpot product ID
-   - `quantity` — typically 1
-   - `price` — the discounted unit price
-   - `name` — product name
-   - `hs_discount_percentage` and `discount_reason` (if discount applies)
-4. Associate the line item with the deal (association type ID 20 = line-item-to-deal).
-5. Record the line item locally in `hubspot_line_items` table.
-6. Create a billing audit log entry.
-
-### Remove Line Item from Deal
-
-`removeLineItemFromDeal` in `server/core/hubspot/lineItems.ts`:
-
-1. Look up local line item record.
-2. Archive the line item in HubSpot via `lineItems.basicApi.archive`.
-3. Delete the local record from `hubspot_line_items`.
-4. Create an audit log entry.
-
-### Stripe Payment Sync
-
-`syncPaymentToHubSpot` in `server/core/stripe/hubspotSync.ts` (dispatched via queue operation `sync_payment`):
-
-1. Find the member's deal by email in `hubspot_deals`.
-2. Look up a product mapping by type (`pass` for guest fees, `fee` for other fees).
-3. Create a line item with the payment amount and associate it with the deal.
-4. Record in `hubspot_line_items` and `billing_audit_log`.
-
-### Day Pass Line Item Sync
-
-`syncDayPassToHubSpot` in `server/core/stripe/hubspotSync.ts` (dispatched via queue operation `sync_day_pass`):
-
-1. Find existing deal for the email; skip if no deal exists (non-member purchases are not synced as line items).
-2. Look up product mapping for `day_pass` type.
-3. Create line item and associate with deal.
-4. Record locally.
-
 ## Deal Pipeline Management
+
+> **NOTE**: HubSpot product mappings, line items, deal creation, and Stripe-to-HubSpot payment sync have been removed. Billing is now fully managed by Stripe. HubSpot is used only for CRM contact management (tier, status, billing provider properties).
 
 ### Pipeline Stages
 

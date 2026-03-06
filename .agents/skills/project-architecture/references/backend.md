@@ -190,7 +190,6 @@ Only if all 3 fail does it INSERT a new session. When called inside a transactio
 | `retry.ts`, `retryUtils.ts` | Retry with exponential backoff |
 | `affectedAreas.ts` | Change impact analysis |
 | `db.ts` | Database pool connection |
-| `hubspotDeals.ts` | HubSpot deal management |
 | `alertHistoryMonitor.ts` | Alert history tracking |
 | `emailTemplatePreview.ts` | Email template preview rendering |
 | `hubspotQueueMonitor.ts` | HubSpot queue monitoring |

@@ -85,7 +85,6 @@
 | `server/routes/checkout.ts` | Membership checkout flow |
 | `server/routes/dayPasses.ts` | Day pass management |
 | `server/routes/passes.ts` | Guest pass purchase/management |
-| `server/routes/legacyPurchases.ts` | Legacy purchase records |
 | `server/routes/pricing.ts` | Public pricing page data endpoint |
 | `server/routes/cafe.ts` | Cafe menu items (Stripe-managed prices) |
 | `server/routes/membershipTiers.ts` | Tier management (Stripe price IDs) |
@@ -254,7 +253,6 @@ These files reference billing concepts incidentally. Documented here for zero-or
 | `server/core/hubspot/queueHelpers.ts` | HubSpot queue helpers (billing status sync) |
 | `server/core/hubspot/members.ts` | HubSpot member sync (subscription/tier properties) |
 | `server/core/hubspot/constants.ts` | HubSpot property constants (billing-related fields) |
-| `server/core/hubspotDeals.ts` | HubSpot deals (subscription deal management) |
 | `server/routes/auth.ts` | Auth routes (Stripe auto-fix on login) |
 | `server/routes/auth-google.ts` | Google auth (Stripe auto-fix on login) |
 | `server/routes/staffCheckin.ts` | Staff check-in (fee verification before check-in) |
@@ -266,7 +264,6 @@ These files reference billing concepts incidentally. Documented here for zero-or
 | `server/routes/push.ts` | Push notification routes (payment alert subscriptions) |
 | `server/routes/dataTools.ts` | Data tools (billing data repair utilities) |
 | `server/routes/hubspot.ts` | HubSpot routes (billing status sync endpoints) |
-| `server/routes/hubspotDeals.ts` | HubSpot deal routes (subscription deal management) |
 | `server/routes/staff/manualBooking.ts` | Manual booking (payment/fee references) |
 | `server/routes/bays/approval.ts` | Booking approval (triggers prepayment creation) |
 | `server/routes/bays/bookings.ts` | Booking CRUD (fee display, billing session creation) |

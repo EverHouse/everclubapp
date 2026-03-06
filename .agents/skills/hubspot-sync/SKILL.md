@@ -202,11 +202,8 @@ Contacts are enriched with: lifetime visits (bookings + events + wellness + walk
 | `server/core/hubspot/members.ts` | Contact CRUD, deal creation, tier sync, cancellation |
 | `server/core/hubspot/contacts.ts` | SMS preference sync, day-pass contact creation |
 | `server/core/hubspot/companies.ts` | Company find-or-create and contact association |
-| `server/core/hubspot/products.ts` | Product mapping lookups from DB |
-| `server/core/hubspot/lineItems.ts` | Line item CRUD on deals |
-| `server/core/hubspot/stages.ts` | Deal stage updates, contact status writes, property provisioning |
-| `server/core/hubspot/constants.ts` | Pipeline IDs, stage IDs, status/tier/billing mappings |
-| `server/core/hubspot/pipeline.ts` | Pipeline validation and stage existence checks |
+| `server/core/hubspot/stages.ts` | Contact status writes, property provisioning |
+| `server/core/hubspot/constants.ts` | Status/tier/billing property mappings |
 | `server/core/hubspot/admin.ts` | Discount rule CRUD and billing audit log queries |
 | `server/core/hubspot/discounts.ts` | Discount calculation (max-wins rule, not additive) |
 | `server/core/hubspot/formSync.ts` | Form submission ingestion from HubSpot |
