@@ -151,6 +151,7 @@ const AdminDashboard: React.FC = () => {
       case 'settings': return 'Settings';
       case 'financials': return 'Financials';
       case 'email-templates': return 'Email Templates';
+      case 'analytics': return 'Analytics';
       default: return 'Dashboard';
     }
   };
