@@ -976,7 +976,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
 router.get('/api/booking-requests/:id', isAuthenticated, async (req, res) => {
   try {
     const { id } = req.params;
-    const bookingId = parseInt(id, 10);
+    const bookingId = parseInt(id as string, 10);
     
     if (isNaN(bookingId)) {
       return res.status(400).json({ error: 'Invalid booking ID' });
