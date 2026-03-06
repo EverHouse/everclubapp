@@ -394,11 +394,19 @@ export async function ensureDatabaseConstraints() {
 
     try {
       await db.execute(sql`
+        UPDATE users SET billing_provider = 'manual', updated_at = NOW()
+        WHERE billing_provider NOT IN ('stripe', 'mindbody', 'manual', 'comped', 'family_addon')
+        AND billing_provider IS NOT NULL
+      `);
+    } catch { /* ignore - cleanup before constraint */ }
+
+    try {
+      await db.execute(sql`
         DO $$
         BEGIN
           ALTER TABLE users DROP CONSTRAINT IF EXISTS users_billing_provider_check;
           ALTER TABLE users ADD CONSTRAINT users_billing_provider_check
-            CHECK (billing_provider IS NULL OR billing_provider IN ('stripe', 'mindbody', 'manual', 'comped', 'family_addon', 'hubspot'));
+            CHECK (billing_provider IS NULL OR billing_provider IN ('stripe', 'mindbody', 'manual', 'comped', 'family_addon'));
         END $$;
       `);
       logger.info('[DB Init] Billing provider CHECK constraint created/verified');
