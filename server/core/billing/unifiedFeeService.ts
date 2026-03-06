@@ -708,6 +708,17 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       const pi = participantIdentifiers[participantIdx];
       const ownerEmail = pi?.email || hostEmail;
 
+      if (!ownerEmail || ownerEmail.includes('unmatched@') || ownerEmail.includes('@trackman.import')) {
+        lineItem.overageCents = 0;
+        lineItem.totalCents = 0;
+        logger.info('[FeeBreakdown] Owner has no valid email — skipping fee calculation ($0)', {
+          extra: { ownerEmail: ownerEmail || '(empty)' }
+        });
+        lineItems.push(lineItem);
+        participantIdx++;
+        continue;
+      }
+
       // "Staff is Free" rule: Staff/admin owners always have unlimited access
       if (isStaffRole(ownerEmail)) {
         lineItem.isStaff = true;
@@ -870,7 +881,9 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
   if (nonMemberMinutes > 0 && !isConferenceRoom) {
     const ownerLineItem = lineItems.find(li => li.participantType === 'owner') ||
                           lineItems.find(li => li.participantType === 'member');
-    if (ownerLineItem && !ownerLineItem.isStaff) {
+    const ownerIdentity = ownerLineItem ? (participantIdentifiers.find((_, i) => participants[i]?.participantType === 'owner')?.email || resolvedHostEmail) : '';
+    const ownerHasValidIdentity = ownerIdentity && !ownerIdentity.includes('unmatched@') && !ownerIdentity.includes('@trackman.import');
+    if (ownerLineItem && !ownerLineItem.isStaff && ownerHasValidIdentity) {
       ownerLineItem.minutesAllocated += nonMemberMinutes;
 
       const dailyAllowance = ownerLineItem.dailyAllowance ?? 0;
