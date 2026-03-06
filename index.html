@@ -113,39 +113,47 @@
         });
       })();
     </script>
-    <!-- Start of HubSpot Embed Code (deferred loader) -->
+    <!-- Start of HubSpot Embed Code (deferred loader — production only) -->
     <script>
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(function() {
-          var s = document.createElement('script');
-          s.src = '//js-na2.hs-scripts.com/244200670.js';
-          s.id = 'hs-script-loader';
-          s.async = true;
-          document.body.appendChild(s);
-        });
-      } else {
-        setTimeout(function() {
-          var s = document.createElement('script');
-          s.src = '//js-na2.hs-scripts.com/244200670.js';
-          s.id = 'hs-script-loader';
-          s.async = true;
-          document.body.appendChild(s);
-        }, 3000);
-      }
+      (function() {
+        var h = window.location.hostname;
+        if (h.indexOf('replit.dev') !== -1 || h === 'localhost') return;
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(function() {
+            var s = document.createElement('script');
+            s.src = '//js-na2.hs-scripts.com/244200670.js';
+            s.id = 'hs-script-loader';
+            s.async = true;
+            document.body.appendChild(s);
+          });
+        } else {
+          setTimeout(function() {
+            var s = document.createElement('script');
+            s.src = '//js-na2.hs-scripts.com/244200670.js';
+            s.id = 'hs-script-loader';
+            s.async = true;
+            document.body.appendChild(s);
+          }, 3000);
+        }
+      })();
     </script>
     <!-- End of HubSpot Embed Code -->
-    <!-- Meta Pixel Code -->
+    <!-- Meta Pixel Code (production only) -->
     <script>
-      !function(f,b,e,v,n,t,s)
-      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-      n.queue=[];t=b.createElement(e);t.async=!0;
-      t.src=v;s=b.getElementsByTagName(e)[0];
-      s.parentNode.insertBefore(t,s)}(window, document,'script',
-      'https://connect.facebook.net/en_US/fbevents.js');
-      fbq('init', '906341427989429');
-      fbq('track', 'PageView');
+      (function() {
+        var h = window.location.hostname;
+        if (h.indexOf('replit.dev') !== -1 || h === 'localhost') return;
+        !function(f,b,e,v,n,t,s)
+        {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+        n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+        if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+        n.queue=[];t=b.createElement(e);t.async=!0;
+        t.src=v;s=b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t,s)}(window, document,'script',
+        'https://connect.facebook.net/en_US/fbevents.js');
+        fbq('init', '906341427989429');
+        fbq('track', 'PageView');
+      })();
     </script>
     <!-- End Meta Pixel Code -->
   </head>
