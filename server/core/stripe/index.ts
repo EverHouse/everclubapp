@@ -3,20 +3,14 @@ export { getOrCreateStripeCustomer, getStripeCustomerByEmail, updateCustomerPaym
 export { createPaymentIntent, confirmPaymentSuccess, getPaymentIntentStatus, cancelPaymentIntent, chargeWithBalance, createBalanceAwarePayment, generatePaymentIdempotencyKey, createInvoiceWithLineItems, type PaymentPurpose, type CreatePaymentIntentParams, type PaymentIntentResult, type CartLineItem, type CreatePOSInvoiceParams, type InvoicePaymentResult } from './payments';
 export { processStripeWebhook, replayStripeEvent } from './webhooks';
 export { 
-  fetchHubSpotProducts, 
-  syncHubSpotProductToStripe, 
-  syncAllHubSpotProductsToStripe, 
   getStripeProducts, 
-  getProductSyncStatus,
   syncMembershipTiersToStripe,
   getTierSyncStatus,
   syncTierFeaturesToStripe,
   syncCafeItemsToStripe,
   pullTierFeaturesFromStripe,
   pullCafeItemsFromStripe,
-  type HubSpotProduct,
   type StripeProductWithPrice,
-  type ProductSyncStatus,
   type TierSyncResult
 } from './products';
 export { 

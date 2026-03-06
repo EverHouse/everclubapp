@@ -1677,47 +1677,6 @@ router.post('/api/hubspot/sync-billing-providers', isStaffOrAdmin, async (req, r
   }
 });
 
-router.get('/api/hubspot/products', isStaffOrAdmin, async (req, res) => {
-  try {
-    const hubspot = await getHubSpotClient();
-    
-    const properties = ['name', 'price', 'hs_sku', 'description', 'hs_recurring_billing_period'];
-    let allProducts: HubSpotApiObject[] = [];
-    let after: string | undefined = undefined;
-    
-    do {
-      const response = await retryableHubSpotRequest(() => 
-        hubspot.crm.products.basicApi.getPage(100, after, properties)
-      );
-      allProducts = allProducts.concat(response.results as unknown as HubSpotApiObject[]);
-      after = response.paging?.next?.after;
-    } while (after);
-    
-    const products = allProducts.map((product: HubSpotApiObject) => {
-      const props = product.properties as Record<string, string | null | undefined>;
-      return {
-      id: product.id,
-      name: props.name || '',
-      price: parseFloat(props.price || '0') || 0,
-      sku: props.hs_sku || null,
-      description: props.description || null,
-      recurringPeriod: props.hs_recurring_billing_period || null,
-    };
-    });
-    
-    res.json({ products, count: products.length });
-  } catch (error: unknown) {
-    const errObj = error as unknown as HubSpotErrorObject;
-    const statusCode = errObj?.response?.statusCode || errObj?.status || errObj?.code;
-    const category = errObj?.response?.body?.category || errObj?.body?.category;
-    if (statusCode === 403 || category === 'MISSING_SCOPES') {
-      return res.status(403).json({ error: 'HubSpot API returned 403 for products. Check that the HubSpot Private App token is valid — update it at /api/admin/hubspot/set-forms-token-page' });
-    }
-    logger.error('[HubSpot] Error fetching products', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to fetch HubSpot products' });
-  }
-});
-
 router.post('/api/admin/hubspot/sync-form-submissions', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { syncHubSpotFormSubmissions } = await import('../core/hubspot/formSync');

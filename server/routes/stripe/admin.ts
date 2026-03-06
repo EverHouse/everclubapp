@@ -9,10 +9,6 @@ import Stripe from 'stripe';
 import { CustomerSyncResult } from '../../core/stripe/customerSync';
 import {
   getStripeProducts,
-  getProductSyncStatus,
-  syncHubSpotProductToStripe,
-  syncAllHubSpotProductsToStripe,
-  fetchHubSpotProducts,
   syncMembershipTiersToStripe,
   getTierSyncStatus,
   syncDiscountRulesToStripeCoupons,
@@ -70,74 +66,15 @@ router.post('/api/admin/check-stale-waivers', isAdmin, async (req: Request, res:
 
 router.get('/api/stripe/products', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const syncStatus = await getProductSyncStatus();
     const stripeProducts = await getStripeProducts();
     
     res.json({
       products: stripeProducts,
-      syncStatus,
       count: stripeProducts.length
     });
   } catch (error: unknown) {
     logger.error('[Stripe] Error getting products', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to get Stripe products' });
-  }
-});
-
-router.post('/api/stripe/products/sync', isStaffOrAdmin, sensitiveActionRateLimiter, async (req: Request, res: Response) => {
-  try {
-    const { hubspotProductId } = req.body;
-    
-    if (!hubspotProductId) {
-      return res.status(400).json({ error: 'Missing required field: hubspotProductId' });
-    }
-    
-    const hubspotProducts = await fetchHubSpotProducts();
-    const product = hubspotProducts.find(p => p.id === hubspotProductId);
-    
-    if (!product) {
-      return res.status(404).json({ error: 'HubSpot product not found' });
-    }
-    
-    const result = await syncHubSpotProductToStripe(product);
-    
-    if (!result.success) {
-      return res.status(500).json({ error: result.error || 'Failed to sync product' });
-    }
-    
-    res.json({
-      success: true,
-      stripeProductId: result.stripeProductId,
-      stripePriceId: result.stripePriceId
-    });
-  } catch (error: unknown) {
-    logger.error('[Stripe] Error syncing product', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to sync product to Stripe' });
-  }
-});
-
-router.post('/api/stripe/products/sync-all', isStaffOrAdmin, sensitiveActionRateLimiter, async (req: Request, res: Response) => {
-  try {
-    const cooldown = checkSyncCooldown('sync_all_products');
-    if (!cooldown.allowed) {
-      return res.status(429).json({ 
-        error: `This sync operation was run recently. Please wait ${cooldown.remainingSeconds} seconds before running again.`,
-        cooldownRemaining: cooldown.remainingSeconds,
-        lastRunAt: cooldown.lastRunAt
-      });
-    }
-
-    const result = await syncAllHubSpotProductsToStripe();
-    
-    res.json({
-      success: result.success,
-      synced: result.synced,
-      failed: result.failed,
-      errors: result.errors
-    });
-  } catch (error: unknown) {
-    logger.error('[Stripe] Error syncing all products', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to sync products to Stripe' });
   }
 });
 

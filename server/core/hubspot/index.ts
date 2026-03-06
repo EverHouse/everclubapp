@@ -21,11 +21,6 @@ export {
 } from './discounts';
 
 export {
-  getProductMapping,
-  getAllProductMappings
-} from './products';
-
-export {
   findOrCreateHubSpotContact,
   createMemberLocally,
   syncNewMemberToHubSpot,

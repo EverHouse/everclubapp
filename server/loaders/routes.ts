@@ -32,7 +32,6 @@ import rosterRouter from '../routes/roster';
 import staffCheckinRouter from '../routes/staffCheckin';
 import dataIntegrityRouter from '../routes/dataIntegrity';
 import dataToolsRouter from '../routes/dataTools';
-import legacyPurchasesRouter from '../routes/legacyPurchases';
 import mindbodyRouter from '../routes/mindbody';
 import settingsRouter from '../routes/settings';
 import stripeRouter from '../routes/stripe';
@@ -95,7 +94,6 @@ export function registerRoutes(app: Express): void {
   app.use(staffCheckinRouter);
   app.use(dataIntegrityRouter);
   app.use(dataToolsRouter);
-  app.use(legacyPurchasesRouter);
   app.use(mindbodyRouter);
   app.use(settingsRouter);
   app.use(stripeRouter);

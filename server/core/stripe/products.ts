@@ -4,7 +4,6 @@ import { stripeProducts, membershipTiers } from '../../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { getStripeClient } from './client';
 import Stripe from 'stripe';
-import { getHubSpotClientWithFallback } from '../integrations';
 import { clearTierCache } from '../tierService';
 import { PRICING, getCorporateVolumeTiers, getCorporateBasePrice, updateCorporateVolumePricing, updateOverageRate, updateGuestFee, VolumeTier } from '../billing/pricingConfig';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
@@ -22,14 +21,6 @@ interface StripePaginationParams {
 }
 
 import { logger } from '../logger';
-export interface HubSpotProduct {
-  id: string;
-  name: string;
-  price: number;
-  sku: string | null;
-  description: string | null;
-  recurringPeriod: string | null;
-}
 
 export interface StripeProductWithPrice {
   id: number;
@@ -45,47 +36,6 @@ export interface StripeProductWithPrice {
   updatedAt: Date | null;
 }
 
-export interface ProductSyncStatus {
-  hubspotProductId: string;
-  name: string;
-  price: number;
-  isSynced: boolean;
-  stripeProductId?: string;
-  stripePriceId?: string;
-}
-
-function parseRecurringPeriod(period: string | null): { interval: 'month' | 'year' | 'week' | 'day'; intervalCount: number } | null {
-  if (!period) {
-    return null;
-  }
-  
-  const cleanPeriod = period.trim().toUpperCase();
-  const match = cleanPeriod.match(/^P(\d+)([YMWD])$/);
-  if (!match) {
-    return null;
-  }
-  
-  const count = parseInt(match[1], 10);
-  const unit = match[2];
-  
-  switch (unit) {
-    case 'Y':
-      return { interval: 'year', intervalCount: count };
-    case 'M':
-      return { interval: 'month', intervalCount: count };
-    case 'W':
-      return { interval: 'week', intervalCount: count };
-    case 'D':
-      return { interval: 'day', intervalCount: count };
-    default:
-      return { interval: 'month', intervalCount: 1 };
-  }
-}
-
-/**
- * Search Stripe for existing products by name or metadata to prevent duplicates.
- * Returns the existing product if found, null otherwise.
- */
 async function findExistingStripeProduct(
   stripe: Stripe,
   productName: string,
@@ -93,7 +43,6 @@ async function findExistingStripeProduct(
   metadataValue?: string
 ): Promise<Stripe.Product | null> {
   try {
-    // First try to find by metadata if provided
     if (metadataKey && metadataValue) {
       const productsByMetadata = await stripe.products.search({
         query: `metadata['${metadataKey}']:'${metadataValue}'`,
@@ -105,7 +54,6 @@ async function findExistingStripeProduct(
       }
     }
     
-    // Fall back to searching by exact name
     const productsByName = await stripe.products.search({
       query: `name:'${productName.replace(/'/g, "\\'")}'`,
       limit: 1,
@@ -122,243 +70,6 @@ async function findExistingStripeProduct(
   }
 }
 
-export async function fetchHubSpotProducts(): Promise<HubSpotProduct[]> {
-  try {
-    const { client: hubspot, source } = await getHubSpotClientWithFallback();
-    logger.info(`[Stripe Products] Using HubSpot ${source} for products API`);
-    
-    const properties = ['name', 'price', 'hs_sku', 'description', 'hs_recurring_billing_period'];
-    let allProducts: Array<{ id: string; properties: Record<string, string> }> = [];
-    let after: string | undefined = undefined;
-    
-    do {
-      const response = await hubspot.crm.products.basicApi.getPage(100, after, properties);
-      allProducts = allProducts.concat(response.results as Array<{ id: string; properties: Record<string, string> }>);
-      after = response.paging?.next?.after;
-    } while (after);
-    
-    return allProducts.map((product) => ({
-      id: product.id,
-      name: product.properties.name || '',
-      price: parseFloat(product.properties.price) || 0,
-      sku: product.properties.hs_sku || null,
-      description: product.properties.description || null,
-      recurringPeriod: product.properties.hs_recurring_billing_period || null,
-    }));
-  } catch (error: unknown) {
-    const errorBody = error && typeof error === 'object' && 'body' in error ? (error as { body: { category?: string } }).body : undefined;
-    if (getErrorCode(error) === '403' && errorBody?.category === 'MISSING_SCOPES') {
-      logger.error('[Stripe Products] HubSpot returned 403 for products. Check that the HubSpot Private App token is valid and not expired.');
-      throw new Error('HubSpot products API returned 403. Check that your Private App token is valid — scopes are already configured.');
-    }
-    logger.error('[Stripe Products] Error fetching HubSpot products:', { error: error });
-    throw error;
-  }
-}
-
-export async function syncHubSpotProductToStripe(hubspotProduct: HubSpotProduct): Promise<{
-  success: boolean;
-  stripeProductId?: string;
-  stripePriceId?: string;
-  error?: string;
-}> {
-  try {
-    const stripe = await getStripeClient();
-    
-    const existingSync = await db.select()
-      .from(stripeProducts)
-      .where(eq(stripeProducts.hubspotProductId, hubspotProduct.id))
-      .limit(1);
-    
-    if (existingSync.length > 0) {
-      const existing = existingSync[0];
-      
-      await stripe.products.update(existing.stripeProductId, {
-        name: hubspotProduct.name,
-        description: hubspotProduct.description || undefined,
-        metadata: {
-          hubspot_product_id: hubspotProduct.id,
-          hubspot_sku: hubspotProduct.sku || '',
-        },
-      });
-      
-      const priceCents = Math.round(hubspotProduct.price * 100);
-      const isOneTimeName = /pass|pack|fee|merch/i.test(hubspotProduct.name);
-      let recurringConfig = parseRecurringPeriod(hubspotProduct.recurringPeriod);
-      if (isOneTimeName) recurringConfig = null;
-      
-      const currentPrice = await stripe.prices.retrieve(existing.stripePriceId);
-      const priceChanged = currentPrice.unit_amount !== priceCents;
-      const intervalChanged = recurringConfig 
-        ? (currentPrice.recurring?.interval !== recurringConfig.interval || 
-           currentPrice.recurring?.interval_count !== recurringConfig.intervalCount)
-        : !!currentPrice.recurring;
-      
-      let newPriceId = existing.stripePriceId;
-      
-      if (priceChanged || intervalChanged) {
-        await stripe.prices.update(existing.stripePriceId, { active: false });
-        
-        const pricePayload: Stripe.PriceCreateParams = {
-          product: existing.stripeProductId,
-          unit_amount: priceCents,
-          currency: 'usd',
-          metadata: {
-            hubspot_product_id: hubspotProduct.id,
-          },
-        };
-        if (recurringConfig) {
-          pricePayload.recurring = {
-            interval: recurringConfig.interval,
-            interval_count: recurringConfig.intervalCount,
-          };
-        }
-        const newPrice = await stripe.prices.create(pricePayload, {
-          idempotencyKey: `price_hubspot_${hubspotProduct.id}_${priceCents}_update`
-        });
-        newPriceId = newPrice.id;
-      }
-      
-      await db.update(stripeProducts)
-        .set({
-          name: hubspotProduct.name,
-          priceCents,
-          billingInterval: recurringConfig?.interval || null,
-          billingIntervalCount: recurringConfig?.intervalCount || null,
-          stripePriceId: newPriceId,
-          updatedAt: new Date(),
-        })
-        .where(eq(stripeProducts.hubspotProductId, hubspotProduct.id));
-      
-      logger.info(`[Stripe Products] Updated product ${hubspotProduct.name} (${hubspotProduct.id})`);
-      
-      return {
-        success: true,
-        stripeProductId: existing.stripeProductId,
-        stripePriceId: newPriceId,
-      };
-    }
-    
-    // Check if product already exists in Stripe before creating
-    const existingStripeProduct = await findExistingStripeProduct(
-      stripe,
-      hubspotProduct.name,
-      'hubspot_product_id',
-      hubspotProduct.id
-    );
-    
-    let stripeProduct;
-    if (existingStripeProduct) {
-      // Use existing product, just update it
-      stripeProduct = await stripe.products.update(existingStripeProduct.id, {
-        name: hubspotProduct.name,
-        description: hubspotProduct.description || undefined,
-        metadata: {
-          hubspot_product_id: hubspotProduct.id,
-          hubspot_sku: hubspotProduct.sku || '',
-        },
-      });
-      logger.info(`[Stripe Products] Reusing existing Stripe product ${stripeProduct.id} for ${hubspotProduct.name}`);
-    } else {
-      stripeProduct = await stripe.products.create({
-        name: hubspotProduct.name,
-        description: hubspotProduct.description || undefined,
-        metadata: {
-          hubspot_product_id: hubspotProduct.id,
-          hubspot_sku: hubspotProduct.sku || '',
-        },
-      }, {
-        idempotencyKey: `product_hubspot_${hubspotProduct.id}`
-      });
-    }
-    
-    const priceCents = Math.round(hubspotProduct.price * 100);
-    const isOneTimeNameCreate = /pass|pack|fee|merch/i.test(hubspotProduct.name);
-    let recurringConfigCreate = parseRecurringPeriod(hubspotProduct.recurringPeriod);
-    if (isOneTimeNameCreate) recurringConfigCreate = null;
-    
-    const pricePayloadCreate: Stripe.PriceCreateParams = {
-      product: stripeProduct.id,
-      unit_amount: priceCents,
-      currency: 'usd',
-      metadata: {
-        hubspot_product_id: hubspotProduct.id,
-      },
-    };
-    if (recurringConfigCreate) {
-      pricePayloadCreate.recurring = {
-        interval: recurringConfigCreate.interval,
-        interval_count: recurringConfigCreate.intervalCount,
-      };
-    }
-    const stripePrice = await stripe.prices.create(pricePayloadCreate, {
-      idempotencyKey: `price_hubspot_${hubspotProduct.id}_${priceCents}`
-    });
-    
-    await db.insert(stripeProducts).values({
-      hubspotProductId: hubspotProduct.id,
-      stripeProductId: stripeProduct.id,
-      stripePriceId: stripePrice.id,
-      name: hubspotProduct.name,
-      priceCents,
-      billingInterval: recurringConfigCreate?.interval || null,
-      billingIntervalCount: recurringConfigCreate?.intervalCount || null,
-      isActive: true,
-    });
-    
-    logger.info(`[Stripe Products] Created product ${hubspotProduct.name} (${hubspotProduct.id}) -> ${stripeProduct.id}`);
-    
-    return {
-      success: true,
-      stripeProductId: stripeProduct.id,
-      stripePriceId: stripePrice.id,
-    };
-  } catch (error: unknown) {
-    logger.error('[Stripe Products] Error syncing product:', { error: error });
-    return {
-      success: false,
-      error: getErrorMessage(error),
-    };
-  }
-}
-
-export async function syncAllHubSpotProductsToStripe(): Promise<{
-  success: boolean;
-  synced: number;
-  failed: number;
-  errors: Array<{ productId: string; error: string }>;
-}> {
-  try {
-    const hubspotProducts = await fetchHubSpotProducts();
-    
-    let synced = 0;
-    let failed = 0;
-    const errors: Array<{ productId: string; error: string }> = [];
-    
-    for (const product of hubspotProducts) {
-      const result = await syncHubSpotProductToStripe(product);
-      if (result.success) {
-        synced++;
-      } else {
-        failed++;
-        errors.push({ productId: product.id, error: result.error || 'Unknown error' });
-      }
-    }
-    
-    logger.info(`[Stripe Products] Sync complete: ${synced} synced, ${failed} failed`);
-    
-    return { success: true, synced, failed, errors };
-  } catch (error: unknown) {
-    logger.error('[Stripe Products] Error syncing all products:', { error: error });
-    return {
-      success: false,
-      synced: 0,
-      failed: 0,
-      errors: [{ productId: 'all', error: getErrorMessage(error) }],
-    };
-  }
-}
-
 export async function getStripeProducts(): Promise<StripeProductWithPrice[]> {
   try {
     const products = await db.select().from(stripeProducts);
@@ -369,29 +80,6 @@ export async function getStripeProducts(): Promise<StripeProductWithPrice[]> {
   }
 }
 
-export async function getProductSyncStatus(): Promise<ProductSyncStatus[]> {
-  try {
-    const hubspotProducts = await fetchHubSpotProducts();
-    const syncedProducts = await db.select().from(stripeProducts);
-    
-    const syncedMap = new Map(syncedProducts.map(p => [p.hubspotProductId, p]));
-    
-    return hubspotProducts.map(product => {
-      const synced = syncedMap.get(product.id);
-      return {
-        hubspotProductId: product.id,
-        name: product.name,
-        price: product.price,
-        isSynced: !!synced,
-        stripeProductId: synced?.stripeProductId,
-        stripePriceId: synced?.stripePriceId,
-      };
-    });
-  } catch (error: unknown) {
-    logger.error('[Stripe Products] Error getting sync status:', { error: error });
-    return [];
-  }
-}
 
 export interface TierSyncResult {
   tierId: number;
