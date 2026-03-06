@@ -171,6 +171,10 @@ export function TrackmanBookingModal({
         clearTimeout(overlayTimerRef.current);
         overlayTimerRef.current = null;
       }
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = null;
+      }
     };
   }, [isOpen, booking]);
 

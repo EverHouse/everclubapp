@@ -76,19 +76,19 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
     fetch('/api/notice-types', { credentials: 'include' })
       .then(r => r.json())
       .then(data => { if (!cancelled) setNoticeTypes(data || []); })
-      .catch(() => {});
+      .catch(() => { if (!cancelled) showToast('Failed to load notice types', 'error'); });
     
     fetch('/api/closure-reasons', { credentials: 'include' })
       .then(r => r.json())
       .then(data => { if (!cancelled) setClosureReasons(data || []); })
-      .catch(() => {});
+      .catch(() => { if (!cancelled) showToast('Failed to load closure reasons', 'error'); });
 
     fetch('/api/resources', { credentials: 'include' })
       .then(r => r.json())
       .then(data => { if (!cancelled) setResources(data || []); })
-      .catch(() => {});
+      .catch(() => { if (!cancelled) showToast('Failed to load resources', 'error'); });
     return () => { cancelled = true; };
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     if (isOpen) {

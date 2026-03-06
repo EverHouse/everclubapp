@@ -143,6 +143,7 @@ The following large files have been split into sub-modules with barrel re-export
 ### Bug & Stability Fixes (v8.77.4)
 - **TrackmanBookingModal Timer Leaks**: Three `setTimeout` calls (50ms overlay transition, 2s copy feedback, 3.5s auto-close) were not tracked in refs and could fire after unmount. Added `overlayTimerRef` and `copyTimerRef` refs; all timers now cleared in `handleClose`, the `!isOpen` reset path, and the `useEffect` cleanup function.
 - **TerminalPayment Success Timer Leak**: Four `setTimeout` calls for 1.5s success-to-callback transitions (payment success, card save success, $0 free activation, already-succeeded cancel path) were not tracked. Added `successTimeoutRef`; all four paths now store the timer ID and clear it on unmount, cancel, and before setting a new one.
+- **NoticeFormDrawer Silent Fetch Failures**: Three fetch calls (`/api/notice-types`, `/api/closure-reasons`, `/api/resources`) used `.catch(() => {})`, silently swallowing errors. Staff would see empty dropdowns with no explanation and be unable to submit the form. Now shows error toasts so staff know to retry.
 
 ### Bug & Stability Fixes (v8.77.2)
 - **TabTransition Timer Leak**: `TabTransition` component's `enterTimer` was created inside a `setTimeout` callback but never tracked for cleanup on unmount. Both exit and enter timers now stored in refs with proper cleanup in the `useEffect` return — prevents state updates on unmounted components during rapid tab switches.
