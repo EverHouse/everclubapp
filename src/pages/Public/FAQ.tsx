@@ -79,9 +79,23 @@ const FAQ: React.FC = () => {
     return faqs.filter(f => f.category === selectedCategory);
   }, [faqs, selectedCategory]);
 
+  const faqSchema = useMemo(() => ({
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqs.map(faq => ({
+      "@type": "Question",
+      "name": faq.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": faq.answer
+      }
+    }))
+  }), [faqs]);
+
   return (
     <AnimatedPage>
     <SEO title="FAQ — Frequently Asked Questions | Ever Club" description="Got questions about Ever Club? Find answers about memberships, Trackman golf simulators, events, hours, day passes & more at our Tustin, OC location." url="/faq" />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
     <div 
       className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden"
       style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'var(--header-offset)' }}
