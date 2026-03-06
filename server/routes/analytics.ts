@@ -282,13 +282,20 @@ router.get('/api/analytics/membership-insights', isStaffOrAdmin, async (_req: Re
     const [tierResult, atRiskResult, growthResult] = await Promise.all([
       db.execute(sql`
         SELECT
-          COALESCE(membership_tier, 'Unknown') AS tier,
+          CASE
+            WHEN membership_tier IN ('Core', 'Core Membership') THEN 'Core'
+            WHEN membership_tier IN ('Premium', 'Premium Membership') THEN 'Premium'
+            WHEN membership_tier IN ('VIP') THEN 'VIP'
+            WHEN membership_tier IN ('Corporate') THEN 'Corporate'
+            WHEN membership_tier IN ('Social') THEN 'Social'
+            ELSE 'Other'
+          END AS tier,
           COUNT(*)::int AS member_count
         FROM users
         WHERE role = 'member'
           AND membership_status IN ('active', 'trialing', 'past_due')
           AND archived_at IS NULL
-        GROUP BY membership_tier
+        GROUP BY 1
         ORDER BY member_count DESC
       `),
 
