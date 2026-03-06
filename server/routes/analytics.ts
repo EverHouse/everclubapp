@@ -141,33 +141,45 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
       `),
 
       db.execute(sql`
-        WITH participant_rev AS (
-          SELECT
-            TO_CHAR(DATE_TRUNC('month', bs.session_date::date), 'YYYY-MM') AS month,
-            COALESCE(SUM(bp.cached_fee_cents) FILTER (WHERE bp.payment_status = 'paid' AND bp.participant_type != 'guest'), 0)::int AS booking_revenue_cents,
-            COALESCE(SUM(bp.cached_fee_cents) FILTER (WHERE bp.payment_status = 'paid' AND bp.participant_type = 'guest'), 0)::int AS guest_revenue_cents
-          FROM booking_sessions bs
-          INNER JOIN booking_participants bp ON bp.session_id = bs.id
-          WHERE bs.session_date >= CURRENT_DATE - INTERVAL '6 months'
-          GROUP BY DATE_TRUNC('month', bs.session_date::date)
+        WITH months AS (
+          SELECT TO_CHAR(d, 'YYYY-MM') AS month
+          FROM generate_series(
+            DATE_TRUNC('month', CURRENT_DATE - INTERVAL '5 months'),
+            DATE_TRUNC('month', CURRENT_DATE),
+            '1 month'::interval
+          ) d
         ),
-        ledger_rev AS (
+        categorized AS (
           SELECT
-            TO_CHAR(DATE_TRUNC('month', bs.session_date::date), 'YYYY-MM') AS month,
-            COALESCE(SUM(ul.overage_fee::numeric * 100), 0)::int AS overage_revenue_cents
-          FROM booking_sessions bs
-          INNER JOIN usage_ledger ul ON ul.session_id = bs.id
-          WHERE bs.session_date >= CURRENT_DATE - INTERVAL '6 months'
-          GROUP BY DATE_TRUNC('month', bs.session_date::date)
+            TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS month,
+            CASE
+              WHEN metadata->>'purpose' = 'overage_fee' THEN 'overage'
+              WHEN metadata->>'purpose' = 'booking_fee' THEN 'booking'
+              WHEN metadata->>'purpose' = 'one_time_purchase' THEN 'pos_sale'
+              WHEN metadata->>'paymentType' = 'subscription_terminal'
+                OR metadata->>'source' = 'membership_inline_payment'
+                OR description ILIKE '%subscription%' THEN 'subscription'
+              WHEN description ILIKE '%payment for invoice%' THEN 'subscription'
+              ELSE 'other'
+            END AS category,
+            amount_cents
+          FROM stripe_transaction_cache
+          WHERE object_type = 'payment_intent'
+            AND status = 'succeeded'
+            AND created_at >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '5 months')
         )
         SELECT
-          COALESCE(p.month, l.month) AS month,
-          COALESCE(p.booking_revenue_cents, 0)::int AS participant_revenue_cents,
-          COALESCE(p.guest_revenue_cents, 0)::int AS guest_revenue_cents,
-          COALESCE(l.overage_revenue_cents, 0)::int AS overage_revenue_cents
-        FROM participant_rev p
-        FULL OUTER JOIN ledger_rev l ON p.month = l.month
-        ORDER BY month
+          m.month,
+          COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'subscription'), 0)::int AS subscription_cents,
+          COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'booking'), 0)::int AS booking_cents,
+          COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'overage'), 0)::int AS overage_cents,
+          COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'pos_sale'), 0)::int AS pos_sale_cents,
+          COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'other'), 0)::int AS other_cents,
+          COALESCE(SUM(c.amount_cents), 0)::int AS total_cents
+        FROM months m
+        LEFT JOIN categorized c ON c.month = m.month
+        GROUP BY m.month
+        ORDER BY m.month
       `),
 
       db.execute(sql`
@@ -251,11 +263,14 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
         bucket: r.bucket,
         memberCount: r.member_count,
       })),
-      revenueOverTime: (revenueOverTimeResult.rows as { month: string; participant_revenue_cents: number; overage_revenue_cents: number; guest_revenue_cents: number }[]).map(r => ({
+      revenueOverTime: (revenueOverTimeResult.rows as { month: string; subscription_cents: number; booking_cents: number; overage_cents: number; pos_sale_cents: number; other_cents: number; total_cents: number }[]).map(r => ({
         month: r.month,
-        participantRevenue: Math.round(r.participant_revenue_cents) / 100,
-        overageRevenue: Math.round(r.overage_revenue_cents) / 100,
-        guestRevenue: Math.round(r.guest_revenue_cents) / 100,
+        subscriptionRevenue: Math.round(r.subscription_cents) / 100,
+        bookingRevenue: Math.round(r.booking_cents) / 100,
+        overageRevenue: Math.round(r.overage_cents) / 100,
+        posSaleRevenue: Math.round(r.pos_sale_cents) / 100,
+        otherRevenue: Math.round(r.other_cents) / 100,
+        totalRevenue: Math.round(r.total_cents) / 100,
       })),
       bookingsOverTime: (bookingsOverTimeResult.rows as { week_start: string; booking_count: number }[]).map(r => ({
         weekStart: r.week_start,

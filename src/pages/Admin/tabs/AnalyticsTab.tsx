@@ -61,9 +61,12 @@ interface BookingFrequencyEntry {
 
 interface RevenueEntry {
   month: string;
-  participantRevenue: number;
+  subscriptionRevenue: number;
+  bookingRevenue: number;
   overageRevenue: number;
-  guestRevenue: number;
+  posSaleRevenue: number;
+  otherRevenue: number;
+  totalRevenue: number;
 }
 
 interface BookingsOverTimeEntry {
@@ -402,36 +405,52 @@ const BookingFrequencyChart: React.FC<{ data: BookingFrequencyEntry[] }> = ({ da
   );
 };
 
+const REVENUE_LABEL_MAP: Record<string, string> = {
+  subscription: 'Memberships',
+  booking: 'Booking Fees',
+  overage: 'Overage',
+  posSale: 'POS Sales',
+  other: 'Other',
+};
+
 const RevenueChart: React.FC<{ data: RevenueEntry[] }> = ({ data }) => {
-  if (data.length === 0) {
+  if (data.length === 0 || data.every(r => r.totalRevenue === 0)) {
     return <p className="text-primary/50 dark:text-white/50 text-sm">No revenue data available.</p>;
   }
 
   const chartData = data.map(r => ({
-    month: r.month.slice(5),
-    participant: r.participantRevenue,
+    month: new Date(r.month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+    subscription: r.subscriptionRevenue,
+    booking: r.bookingRevenue,
     overage: r.overageRevenue,
-    guest: r.guestRevenue,
-    total: r.participantRevenue + r.overageRevenue + r.guestRevenue,
+    posSale: r.posSaleRevenue,
+    other: r.otherRevenue,
+    total: r.totalRevenue,
   }));
+
+  const categories = [
+    { key: 'subscription', color: '#6366f1' },
+    { key: 'booking', color: '#8b5cf6' },
+    { key: 'overage', color: '#f59e0b' },
+    { key: 'posSale', color: '#22c55e' },
+    { key: 'other', color: '#94a3b8' },
+  ];
+
+  const activeCategories = categories.filter(c =>
+    chartData.some(d => (d as unknown as Record<string, number>)[c.key] > 0)
+  );
 
   return (
     <div>
       <ResponsiveContainer width="100%" height={250}>
         <AreaChart data={chartData} margin={{ left: -10, right: 10, top: 5, bottom: 5 }}>
           <defs>
-            <linearGradient id="gradParticipant" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="gradOverage" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="gradGuest" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-            </linearGradient>
+            {activeCategories.map(c => (
+              <linearGradient key={c.key} id={`grad-${c.key}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={c.color} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={c.color} stopOpacity={0} />
+              </linearGradient>
+            ))}
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} vertical={false} />
           <XAxis
@@ -444,21 +463,24 @@ const RevenueChart: React.FC<{ data: RevenueEntry[] }> = ({ data }) => {
             tick={{ fill: 'currentColor', fillOpacity: 0.5, fontSize: 11 }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v: number) => `$${v}`}
+            tickFormatter={(v: number) => `$${v.toLocaleString()}`}
           />
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
-            formatter={(value: number, name: string) => [`$${value.toFixed(2)}`, name === 'participant' ? 'Booking Fees' : name === 'overage' ? 'Overage Fees' : 'Guest Fees']}
+            formatter={(value: number, name: string) => [`$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, REVENUE_LABEL_MAP[name] || name]}
           />
-          <Area type="monotone" dataKey="participant" stroke="#6366f1" strokeWidth={2} fill="url(#gradParticipant)" stackId="1" />
-          <Area type="monotone" dataKey="overage" stroke="#f59e0b" strokeWidth={2} fill="url(#gradOverage)" stackId="1" />
-          <Area type="monotone" dataKey="guest" stroke="#22c55e" strokeWidth={2} fill="url(#gradGuest)" stackId="1" />
+          {activeCategories.map(c => (
+            <Area key={c.key} type="monotone" dataKey={c.key} stroke={c.color} strokeWidth={2} fill={`url(#grad-${c.key})`} stackId="1" />
+          ))}
         </AreaChart>
       </ResponsiveContainer>
-      <div className="flex items-center justify-center gap-4 mt-2 text-xs text-primary/60 dark:text-white/60">
-        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#6366f1]" />Booking</span>
-        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" />Overage</span>
-        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#22c55e]" />Guest</span>
+      <div className="flex items-center justify-center gap-3 sm:gap-4 mt-2 text-xs text-primary/60 dark:text-white/60 flex-wrap">
+        {activeCategories.map(c => (
+          <span key={c.key} className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+            {REVENUE_LABEL_MAP[c.key]}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -744,7 +766,7 @@ const AnalyticsTab: React.FC = () => {
             <SectionCard icon="trending_up" title="Bookings Over Time" subtitle="Weekly booking volume (last 6 months)">
               <BookingsOverTimeChart data={extData.bookingsOverTime} />
             </SectionCard>
-            <SectionCard icon="attach_money" title="Revenue Over Time" subtitle="Monthly revenue by category (last 6 months)">
+            <SectionCard icon="attach_money" title="Revenue Over Time" subtitle="Confirmed Stripe payments by category (last 6 months)">
               <RevenueChart data={extData.revenueOverTime} />
             </SectionCard>
           </div>

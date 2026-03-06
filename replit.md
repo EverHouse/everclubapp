@@ -124,7 +124,7 @@ The following large files have been split into sub-modules with barrel re-export
     4. Top 5 Members leaderboard (by total hours booked)
   - **Extended Stats** (`GET /api/analytics/extended-stats`):
     5. Bookings Over Time line chart (weekly counts, last 6 months)
-    6. Revenue Over Time stacked area chart (booking/overage/guest fees by month from `booking_participants` + `usage_ledger`)
+    6. Revenue Over Time stacked area chart (confirmed Stripe payments by category: memberships/overage/guest/day pass/other from `stripe_transaction_cache`)
     7. Day of Week bar chart (all-time booking distribution by weekday)
     8. Utilization by Hour bar chart (average simulator utilization % per time slot, color-coded by threshold)
     9. Active vs Inactive Members ring charts (unique bookers in 30/60/90 day windows vs total active members)
