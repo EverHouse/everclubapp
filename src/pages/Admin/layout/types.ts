@@ -19,6 +19,7 @@ export const MAIN_NAV_ITEMS: import('../../../lib/nav-constants').NavItemData[] 
   { id: 'updates', icon: 'campaign', label: 'Updates' },
   { id: 'directory', icon: 'group', label: 'Directory' },
   { id: 'training', icon: 'school', label: 'Training' },
+  { id: 'analytics', icon: 'analytics', label: 'Analytics' },
 ];
 
 export const ADMIN_NAV_ITEMS: import('../../../lib/nav-constants').NavItemData[] = [

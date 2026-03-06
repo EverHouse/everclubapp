@@ -115,6 +115,16 @@ The following large files have been split into sub-modules with barrel re-export
 - **Input Validation**: Shared Zod schemas in `shared/validators/` with `validateBody` middleware. Validator files: `payments.ts` (payment intents, quick charge, saved card, receipts), `paymentAdmin.ts` (guest passes, notes, retry/cancel/refund/capture/void), `subscriptions.ts` (create subscription, new member subscription), `dataIntegrity.ts` (resolve/ignore/sync issues, merge, billing provider), `resources.ts` (assign member, link Trackman, bookings, events), `booking.ts` (booking requests), `roster.ts` (participants, batch), `members.ts` (create member, tier change).
 - **API Documentation**: Comprehensive endpoint reference at `docs/API.md`.
 
+### Booking Analytics
+- **Analytics Page**: Staff-only analytics dashboard at `/admin/analytics` with 5 visualizations computed dynamically from `booking_requests` data:
+  1. Weekly Peak Hours Heatmap (day × hour grid with color intensity)
+  2. Resource Utilization horizontal bar chart (total hours per bay/room)
+  3. Top 5 Members leaderboard (by total hours booked)
+  4. Cancellation Rate stat card (percentage with color-coded threshold)
+  5. Average Session Length stat card
+- **Tech**: Recharts library for charts, TanStack Query for data fetching, backend endpoint at `GET /api/analytics/booking-stats`
+- **Files**: `server/routes/analytics.ts`, `src/pages/Admin/tabs/AnalyticsTab.tsx`
+
 ### Recent Changes
 See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) for the full changelog (v8.70.0+).
 

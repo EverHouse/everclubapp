@@ -55,6 +55,7 @@ import idScannerRouter from '../routes/idScanner';
 import emailTemplatesRouter from '../routes/emailTemplates';
 import monitoringRouter from '../routes/monitoring';
 import nfcCheckinRouter from '../routes/nfcCheckin';
+import analyticsRouter from '../routes/analytics';
 import { registerObjectStorageRoutes } from '../replit_integrations/object_storage';
 import { registerImageRoutes } from '../replit_integrations/image';
 
@@ -114,6 +115,7 @@ export function registerRoutes(app: Express): void {
   app.use(emailTemplatesRouter);
   app.use(monitoringRouter);
   app.use(nfcCheckinRouter);
+  app.use(analyticsRouter);
   registerObjectStorageRoutes(app);
   registerImageRoutes(app);
 }
