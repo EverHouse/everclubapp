@@ -47,7 +47,14 @@ export async function checkExistingBookings(userEmail: string, date: string, res
     .from(bookingRequests)
     .leftJoin(resources, eq(bookingRequests.resourceId, resources.id))
     .where(and(
-      eq(bookingRequests.userEmail, userEmail),
+      or(
+        eq(bookingRequests.userEmail, userEmail),
+        sql`${bookingRequests.sessionId} IN (
+          SELECT bp.session_id FROM booking_participants bp
+          JOIN users u ON bp.user_id = u.id
+          WHERE LOWER(u.email) = ${userEmail.toLowerCase()}
+        )`
+      ),
       sql`${bookingRequests.requestDate} = ${date}`,
       or(
         eq(resources.type, resourceType),

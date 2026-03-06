@@ -612,13 +612,13 @@ const BookGolf: React.FC = () => {
     setExistingDayBooking(existingBayBooking || null);
   }, [selectedDateObj, myRequests, activeTab]);
 
-  const memberBayBookingForDay = useMemo(() => {
-    if (!selectedDateObj?.date || !myRequests.length) return null;
-    return myRequests.find(r => 
+  const memberBayBookingsForDay = useMemo(() => {
+    if (!selectedDateObj?.date || !myRequests.length) return [];
+    return myRequests.filter(r => 
       r.request_date === selectedDateObj.date &&
       (r.status === 'approved' || r.status === 'pending') &&
       !r.notes?.includes('Conference room booking')
-    ) || null;
+    );
   }, [selectedDateObj, myRequests]);
 
   // Calculate minutes already booked for the selected date
@@ -695,18 +695,20 @@ const BookGolf: React.FC = () => {
   };
 
   const filteredSlotsForConference = useMemo(() => {
-    if (activeTab !== 'conference' || !memberBayBookingForDay) {
+    if (activeTab !== 'conference' || memberBayBookingsForDay.length === 0) {
       return availableSlots;
     }
     return availableSlots.filter(slot => 
-      !doTimesOverlap(
-        slot.startTime24, 
-        slot.endTime24,
-        memberBayBookingForDay.start_time,
-        memberBayBookingForDay.end_time
+      !memberBayBookingsForDay.some(booking =>
+        doTimesOverlap(
+          slot.startTime24, 
+          slot.endTime24,
+          booking.start_time,
+          booking.end_time
+        )
       )
     );
-  }, [activeTab, memberBayBookingForDay, availableSlots]);
+  }, [activeTab, memberBayBookingsForDay, availableSlots]);
 
   const handleCancelRequest = async (id: number) => {
     haptic.light();
@@ -1290,11 +1292,11 @@ const BookGolf: React.FC = () => {
             </div>
           </ModalShell>
 
-          {activeTab === 'conference' && memberBayBookingForDay && (
+          {activeTab === 'conference' && memberBayBookingsForDay.length > 0 && (
             <div className={`rounded-xl p-3 border ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
               <p className={`text-sm flex items-center gap-2 ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
                 <span className="material-symbols-outlined text-lg">info</span>
-                Time slots during your bay booking ({formatTime12Hour(memberBayBookingForDay.start_time)} - {formatTime12Hour(memberBayBookingForDay.end_time)}) are unavailable
+                Time slots during your {memberBayBookingsForDay.length > 1 ? 'bay bookings' : 'bay booking'} ({memberBayBookingsForDay.map(b => `${formatTime12Hour(b.start_time)} - ${formatTime12Hour(b.end_time)}`).join(', ')}) are unavailable
               </p>
             </div>
           )}
