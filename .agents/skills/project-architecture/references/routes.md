@@ -130,6 +130,7 @@ All mutating routes (POST/PUT/PATCH/DELETE) must be protected. Two equivalent pa
 - `faqs.ts` — FAQ management
 - `bugReports.ts` — Bug report submission
 - `inquiries.ts` — Contact form inquiries
+- `analytics.ts` — Staff booking analytics (3 endpoints: booking-stats, extended-stats, membership-insights)
 - `training.ts` — Staff training guide
 - `notices.ts` — Sequential notice system
 - `push.ts` — Push notification registration

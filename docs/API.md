@@ -1,7 +1,7 @@
 # Ever Club Members App — API Reference
 
 > Manually maintained reference of all REST endpoints.
-> Last updated: 2026-03-04
+> Last updated: 2026-03-06
 
 **Auth legend:**
 - 🔓 Public — no authentication required
@@ -57,14 +57,15 @@
 42. [Gallery](#gallery)
 43. [Café Menu](#café-menu)
 44. [FAQs](#faqs)
-45. [Training](#training)
-46. [Bug Reports](#bug-reports)
-47. [Inquiries](#inquiries)
-48. [User Management (Staff/Admin)](#user-management-staffadmin)
-49. [Data Integrity](#data-integrity)
-50. [Data Tools](#data-tools)
-51. [Data Export](#data-export)
-52. [Image Upload](#image-upload)
+45. [Analytics](#analytics)
+46. [Training](#training)
+47. [Bug Reports](#bug-reports)
+48. [Inquiries](#inquiries)
+49. [User Management (Staff/Admin)](#user-management-staffadmin)
+50. [Data Integrity](#data-integrity)
+51. [Data Tools](#data-tools)
+52. [Data Export](#data-export)
+53. [Image Upload](#image-upload)
 54. [ID Scanner](#id-scanner)
 55. [Monitoring](#monitoring)
 56. [Email Templates](#email-templates)
@@ -913,6 +914,16 @@
 | DELETE | `/api/admin/faqs/:id` | 🛡️ | Delete FAQ |
 | POST | `/api/admin/faqs/reorder` | 🛡️ | Reorder FAQs |
 | POST | `/api/admin/faqs/seed` | 🛡️ | Seed FAQ data |
+
+---
+
+## Analytics
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/analytics/booking-stats` | 🛡️ | Core booking stats: peak hours heatmap, resource utilization, top members |
+| GET | `/api/analytics/extended-stats` | 🛡️ | Extended stats: bookings over time, revenue by category, utilization by hour, active/inactive members, booking frequency |
+| GET | `/api/analytics/membership-insights` | 🛡️ | Membership insights: tier distribution, at-risk members, new member growth |
 
 ---
 

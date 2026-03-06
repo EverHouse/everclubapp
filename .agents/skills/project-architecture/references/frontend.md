@@ -78,6 +78,7 @@ Staff/admin only:
 - `SimulatorTab.tsx` — Simulator management
 - `TeamTab.tsx` — Staff team management
 - `TiersTab.tsx` — Membership tier management
+- `AnalyticsTab.tsx` — Booking analytics dashboard (14 visualizations, Recharts)
 - `ToursTab.tsx` — Tour management tab
 - `TrackmanTab.tsx` — Trackman integration management
 - `UpdatesTab.tsx` — Updates/changelog tab

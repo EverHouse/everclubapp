@@ -8,6 +8,31 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.79.0",
+    date: "2026-03-06",
+    title: "Staff Analytics Dashboard & Tracking",
+    isMajor: true,
+    changes: [
+      "Feature: New Analytics page for staff — 14 visualizations showing booking trends, revenue, peak hours, resource utilization, member activity, and membership insights across three data endpoints",
+      "Feature: Weekly Peak Hours Heatmap shows the busiest days and times at a glance — helps staff plan coverage and members pick quieter slots",
+      "Feature: Revenue Over Time stacked area chart breaks down income by category (memberships, overage fees, guest fees, day passes, and other) over the last 6 months",
+      "Feature: Resource Utilization chart shows total hours booked per bay/room — quickly identifies underused or overbooked resources",
+      "Feature: Active vs Inactive Members ring charts show engagement in 30/60/90 day windows — helps identify re-engagement opportunities",
+      "Feature: At-Risk Members list highlights members with no booking in 45+ days — proactive outreach tool for staff",
+      "Feature: New Member Growth chart shows monthly signups over the last 6 months — track how acquisition campaigns perform",
+      "Feature: Meta Pixel (Facebook) tracking added to all public pages — enables ad performance measurement and retargeting for marketing campaigns",
+      "Fix: Revenue chart now correctly categorizes payments by checking both metadata and description fields — previously some payments showed under the wrong category",
+      "Fix: Analytics member tier chart no longer shows duplicate entries for the same tier — tier names are now normalized before grouping",
+      "Fix: New member growth chart correctly excludes imported HubSpot contacts — only counts genuinely new signups",
+      "Fix: Guest fee calculation now includes full booking participant data — prevents inaccurate fee previews on the analytics page",
+      "Fix: Tour status dropdown is now easier to tap on mobile — adjusted layering so the dropdown doesn't get hidden behind other elements",
+      "Fix: Cafe menu and membership tiers now refresh automatically after pulling latest data from Stripe — no more stale prices until a page reload",
+      "Fix: Billing provider changes now validate properly with database constraints — prevents invalid billing source assignments",
+      "Fix: Improved database connection handling to prevent occasional errors during high-traffic periods",
+      "Cleanup: Removed old domain from WebSocket allowed connections list",
+    ]
+  },
+  {
     version: "8.78.0",
     date: "2026-03-06",
     title: "Scheduler & Realtime Hardening",

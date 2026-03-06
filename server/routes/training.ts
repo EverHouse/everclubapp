@@ -678,6 +678,28 @@ export const TRAINING_SEED_DATA = [
       { title: 'Read-Only Reference', content: 'Email templates are managed in the codebase and cannot be edited from this page. This tool is for reference — use it to verify what emails look like before they go out, or to answer member questions about emails they received.' },
     ]
   },
+  {
+    guideId: 'analytics',
+    icon: 'bar_chart',
+    title: 'Analytics Dashboard',
+    description: 'View booking trends, revenue, and member engagement data',
+    sortOrder: 38,
+    isAdminOnly: false,
+    steps: [
+      { title: 'Accessing Analytics', content: 'Go to Analytics from the sidebar (desktop) or hamburger menu (mobile). The analytics dashboard is available to all staff members and shows club-wide booking and membership data.', pageIcon: 'bar_chart' },
+      { title: 'Three Data Sections', content: 'The dashboard loads three sets of data simultaneously: Core Stats (booking totals and top-level metrics), Extended Stats (trends over time), and Membership Insights (member engagement and tier breakdown). Each section loads independently so you can start reading as data appears.', pageIcon: 'dashboard' },
+      { title: 'Stat Cards', content: 'At the top you will see summary cards for Total Bookings, Cancellation Rate, and Average Session Length. These give you a quick pulse check on overall activity.', pageIcon: 'analytics' },
+      { title: 'Peak Hours Heatmap', content: 'The heatmap shows which days and hours have the most bookings. Darker colors mean busier times. Use this to plan staffing or suggest quieter times to members who want less crowded sessions.', pageIcon: 'calendar_view_week' },
+      { title: 'Resource Utilization', content: 'The horizontal bar chart shows total hours booked per bay or room. This helps identify which simulators are most popular and which are underused — useful for maintenance scheduling or marketing specific bays.', pageIcon: 'sports_golf' },
+      { title: 'Top Members', content: 'A leaderboard of the top 5 members by total hours booked. Useful for identifying your most engaged members for recognition or VIP outreach.', pageIcon: 'emoji_events' },
+      { title: 'Bookings Over Time', content: 'A line chart showing weekly booking counts over the last 6 months. Look for upward or downward trends, seasonal patterns, or the impact of promotions.', pageIcon: 'timeline' },
+      { title: 'Revenue Over Time', content: 'A stacked area chart breaking down confirmed Stripe payments by category: memberships, overage fees, guest fees, day passes, and other. Hover over any point to see the breakdown for that period.', pageIcon: 'payments' },
+      { title: 'Member Engagement', content: 'Ring charts show Active vs Inactive members across 30, 60, and 90-day windows. A member is "active" if they made at least one booking in that period. Use the 90-day view to identify potential churn.', pageIcon: 'group' },
+      { title: 'At-Risk Members', content: 'A list of members who haven\'t booked in 45+ days. Each entry shows how many days since their last booking. Consider reaching out to these members to re-engage them before they cancel.', pageIcon: 'warning' },
+      { title: 'Tier Distribution', content: 'A donut chart showing how many active members are on each membership tier. Useful for understanding your member mix and planning tier-specific promotions.', pageIcon: 'donut_large' },
+      { title: 'New Member Growth', content: 'A line chart showing monthly new signups over the last 6 months. Track the impact of marketing campaigns and seasonal trends on acquisition.', pageIcon: 'trending_up' },
+    ]
+  },
 ];
 
 // Function to seed training sections with upsert logic (exported for use in startup)

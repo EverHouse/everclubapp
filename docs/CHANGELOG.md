@@ -2,6 +2,43 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.79.0] - 2026-03-06
+
+### Staff Analytics Dashboard
+- **Booking Analytics Page**: New staff-only analytics dashboard at `/admin/analytics` with 14 visualizations across three endpoints (`/api/analytics/booking-stats`, `/api/analytics/extended-stats`, `/api/analytics/membership-insights`). Includes:
+  - Total Bookings / Cancellation Rate / Avg Session Length stat cards
+  - Weekly Peak Hours Heatmap (day × hour grid with color intensity)
+  - Resource Utilization horizontal bar chart (total hours per bay/room)
+  - Top 5 Members leaderboard (by total hours booked)
+  - Bookings Over Time line chart (weekly counts, last 6 months)
+  - Revenue Over Time stacked area chart (confirmed Stripe payments by category)
+  - Day of Week bar chart (all-time booking distribution)
+  - Utilization by Hour bar chart (average utilization % per time slot)
+  - Active vs Inactive Members ring charts (30/60/90 day windows)
+  - Booking Frequency histogram (member count by booking bucket over 90 days)
+  - Tier Distribution donut pie chart (active members by membership tier)
+  - At-Risk Members list (no booking in 45+ days, max 15)
+  - New Member Growth line chart (monthly signups over 6 months)
+- **Tech**: Recharts library (BarChart, LineChart, AreaChart, PieChart, SVG ring charts), TanStack Query with three parallel queries.
+- **Files**: `server/routes/analytics.ts`, `src/pages/Admin/tabs/AnalyticsTab.tsx`
+- **Navigation**: Analytics added to both desktop sidebar and mobile hamburger menu via shared `nav-constants.ts`.
+
+### Marketing & Tracking
+- **Meta Pixel Integration**: Facebook/Meta Pixel tracking code added to `index.html` for all public pages — enables ad performance measurement, conversion tracking, and retargeting.
+
+### Analytics Data Accuracy Fixes
+- **Revenue Categorization**: `extended-stats` endpoint now checks both `metadata.type` and `description` fields on Stripe charges for accurate category assignment (memberships, overage, guest, day pass, other).
+- **Tier Normalization**: `membership-insights` endpoint normalizes tier names (trims whitespace, lowercases) before grouping — prevents duplicate chart entries like "Gold" and "gold".
+- **New Member Count**: `membership-insights` filters out imported HubSpot contacts (`source != 'hubspot_import'`) — only counts genuinely new signups.
+- **Guest Fee Calculation**: `booking-stats` now joins `booking_participants` to include participant-level fee data in financial summaries.
+
+### Bug & Stability Fixes
+- **Tour Status Dropdown**: Adjusted z-index layering on `ToursTab.tsx` dropdown so it renders above adjacent elements — previously unclickable on mobile.
+- **Cafe/Tiers Stale Data**: `CafeTab.tsx` and `TiersTab.tsx` now trigger React Query refetch after pulling latest data from Stripe — previously showed stale prices until a full page reload.
+- **Billing Provider Validation**: Added database-level CHECK constraints and server-side validation for `billing_provider` column — prevents invalid values from being written. Cleanup migration corrects any existing invalid entries.
+- **Database Connection Handling**: Improved connection pool error handling in `db-init.ts` to prevent cascading failures during high-traffic periods.
+- **WebSocket Domain Cleanup**: Removed old domain from allowed WebSocket origins in `server/core/websocket.ts`.
+
 ## [8.78.0] - 2026-03-06
 
 ### Scheduler & Realtime Hardening

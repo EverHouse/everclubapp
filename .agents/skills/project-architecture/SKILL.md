@@ -68,10 +68,11 @@ Routes (`server/routes/`) handle HTTP only. All business logic lives in `server/
 Log ALL staff actions using `logFromRequest()` from `server/core/auditLog.ts`. Include appropriate action type, resource type, and details.
 
 ### 3. Changelog & Version Updates
-Update `src/data/changelog.ts` after EVERY significant change. Bump version numbers: patch for fixes, minor for features, major for breaking. Also update these version files to match the latest changelog entry:
+Update `src/data/changelog.ts` after EVERY significant change. Bump version numbers: patch for fixes, minor for features, major for breaking. Also update ALL of these version files to match the latest changelog entry — they MUST stay in sync:
 - `src/config/version.ts` — `APP_VERSION` and `LAST_UPDATED` (displayed in the UI footer)
 - `src/data/changelog-version.ts` — `getLatestVersion()` return value (drives "new updates" badge)
-- `package.json` — `version` field (bump on significant releases)
+- `package.json` — `version` field (must match `APP_VERSION` exactly)
+- `replit.md` — version in the header line
 
 ### 4. Pacific Timezone First
 All date/time operations use Pacific timezone (`America/Los_Angeles`). Use `server/utils/dateUtils.ts` utilities, never raw `new Date()` comparisons.

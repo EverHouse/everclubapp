@@ -1,6 +1,6 @@
 # Ever Club Members App
 
-**Current Version**: 8.78.0 (March 6, 2026)
+**Current Version**: 8.79.0 (March 6, 2026)
 
 ## Overview
 The Ever Club Members App is a private members club application designed for golf and wellness centers. Its primary purpose is to serve as a central digital hub for managing golf simulator bookings, wellness service appointments, and club events. The project aims to enhance member satisfaction and operational efficiency through comprehensive membership management, facility booking, and community-building tools, ultimately creating a seamless digital experience for club members and staff.
@@ -68,6 +68,7 @@ The Ever Club Members App is a private members club application designed for gol
 - **Material Symbols**: Icon font lazy-loaded via JavaScript.
 - **Splash Screen**: Walking golfer GIF with random tagline, 2-second minimum display.
 - **Hero Image**: Preloaded in `index.html` with `fetchpriority="high"`.
+- **Meta Pixel**: Facebook/Meta Pixel tracking code in `index.html` for conversion tracking and retargeting on all public pages.
 - **HubSpot**: Script deferred via `requestIdleCallback`.
 - **PWA & Service Worker**: Versioned cache, Network-First for navigation/API, immutable for hashed assets. `sw.js`, `index.html`, and `manifest.webmanifest` served with `no-cache`.
 - **Security Headers**: HSTS, CSP with `upgrade-insecure-requests`, COOP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy.
