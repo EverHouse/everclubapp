@@ -56,7 +56,8 @@ router.get('/api/stripe/payments/:email', isStaffOrAdmin, async (req: Request, r
       details: { viewedBy: staffEmail, targetEmail: email }
     });
 
-    const result = await db.execute(sql`SELECT 
+    const [stripeResult, legacyResult] = await Promise.all([
+      db.execute(sql`SELECT 
         spi.id,
         spi.stripe_payment_intent_id,
         spi.amount_cents,
@@ -71,20 +72,61 @@ router.get('/api/stripe/payments/:email', isStaffOrAdmin, async (req: Request, r
        JOIN users u ON u.id = spi.user_id
        WHERE LOWER(u.email) = ${email.toLowerCase()}
        ORDER BY spi.created_at DESC
-       LIMIT 50`);
+       LIMIT 50`),
+      db.execute(sql`SELECT 
+        lp.id,
+        lp.item_name,
+        lp.item_category,
+        lp.item_total_cents,
+        lp.quantity,
+        lp.sale_date,
+        lp.payment_method,
+        lp.is_comp
+       FROM legacy_purchases lp
+       WHERE LOWER(lp.member_email) = ${email.toLowerCase()}
+       ORDER BY lp.sale_date DESC
+       LIMIT 200`),
+    ]);
 
-    res.json({ payments: (result.rows as Array<{ id: number; stripe_payment_intent_id: string; amount_cents: number; purpose: string; booking_id: number | null; description: string; status: string; product_id: string | null; product_name: string | null; created_at: string }>).map((row) => ({
+    const stripePayments = (stripeResult.rows as Array<{ id: number; stripe_payment_intent_id: string; amount_cents: number; purpose: string; booking_id: number | null; description: string; status: string; product_id: string | null; product_name: string | null; created_at: string }>).map((row) => ({
       id: row.id,
       stripePaymentIntentId: row.stripe_payment_intent_id,
       amountCents: row.amount_cents,
+      amount: row.amount_cents,
       purpose: row.purpose,
       bookingId: row.booking_id,
       description: row.description,
       status: row.status,
       productId: row.product_id,
       productName: row.product_name,
-      createdAt: row.created_at
-    })) });
+      product_name: row.product_name,
+      createdAt: row.created_at,
+      created_at: row.created_at,
+      date: row.created_at,
+      type: 'stripe',
+      source: 'Stripe',
+    }));
+
+    const legacyPayments = (legacyResult.rows as Array<Record<string, unknown>>).map((row) => ({
+      id: `legacy-${row.id}`,
+      description: row.item_name as string,
+      amount: row.item_total_cents as number,
+      amountCents: row.item_total_cents as number,
+      status: (row.is_comp as boolean) ? 'comp' : 'paid',
+      date: row.sale_date as string,
+      created_at: row.sale_date as string,
+      createdAt: row.sale_date as string,
+      type: 'legacy',
+      source: 'Mindbody',
+      product_name: row.item_name as string,
+      purpose: (row.item_category as string) || 'other',
+      quantity: (row.quantity as number) > 1 ? (row.quantity as number) : undefined,
+    }));
+
+    const allPayments = [...stripePayments, ...legacyPayments]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    res.json({ payments: allPayments });
   } catch (error: unknown) {
     logger.error('[Stripe] Error fetching payments', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to fetch payments' });

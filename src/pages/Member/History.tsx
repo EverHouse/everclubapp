@@ -29,7 +29,7 @@ interface UnifiedVisit {
 
 interface UnifiedPurchase {
   id: string;
-  type: 'stripe';
+  type: 'legacy' | 'stripe';
   itemName: string;
   itemCategory: string | null;
   amountCents: number;

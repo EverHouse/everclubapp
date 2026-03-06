@@ -935,7 +935,8 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const result = await db.execute(sql`SELECT 
+    const [stripeResult, legacyResult] = await Promise.all([
+      db.execute(sql`SELECT 
         spi.id,
         spi.stripe_payment_intent_id,
         spi.amount_cents,
@@ -950,19 +951,72 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
        JOIN users u ON u.id = spi.user_id
        WHERE LOWER(u.email) = ${userEmail}
        ORDER BY spi.created_at DESC
-       LIMIT 200`);
+       LIMIT 200`),
+      db.execute(sql`SELECT 
+        lp.id,
+        lp.item_name,
+        lp.item_category,
+        lp.item_total_cents,
+        lp.quantity,
+        lp.sale_date,
+        lp.payment_method,
+        lp.is_comp
+       FROM legacy_purchases lp
+       WHERE LOWER(lp.member_email) = ${userEmail}
+       ORDER BY lp.sale_date DESC
+       LIMIT 500`),
+    ]);
 
-    const purchases = (result.rows as Array<Record<string, unknown>>).map((row) => ({
-      id: `stripe-${row.id}`,
-      type: 'stripe' as const,
-      itemName: (row.description as string) || (row.product_name as string) || (row.purpose as string) || 'Payment',
-      itemCategory: (row.purpose as string) || 'payment',
-      amountCents: row.amount_cents as number,
-      date: row.created_at as string,
-      status: row.status as string,
-      source: 'Stripe',
-      stripePaymentIntentId: row.stripe_payment_intent_id as string,
-    }));
+    const purchases: Array<{
+      id: string;
+      type: string;
+      itemName: string;
+      itemCategory: string;
+      amountCents: number;
+      date: string;
+      status: string;
+      source: string;
+      quantity?: number;
+      stripePaymentIntentId: string | null;
+    }> = [];
+
+    for (const row of stripeResult.rows as Array<Record<string, unknown>>) {
+      purchases.push({
+        id: `stripe-${row.id}`,
+        type: 'stripe',
+        itemName: (row.description as string) || (row.product_name as string) || (row.purpose as string) || 'Payment',
+        itemCategory: (row.purpose as string) || 'payment',
+        amountCents: row.amount_cents as number,
+        date: row.created_at as string,
+        status: row.status as string,
+        source: 'Stripe',
+        stripePaymentIntentId: row.stripe_payment_intent_id as string,
+      });
+    }
+
+    const paymentMethodLabels: Record<string, string> = {
+      credit_card: 'Mindbody',
+      amex: 'Mindbody',
+      cash: 'Cash',
+      comp: 'Comp',
+      misc: 'Mindbody',
+    };
+
+    for (const row of legacyResult.rows as Array<Record<string, unknown>>) {
+      const method = (row.payment_method as string)?.toLowerCase() || '';
+      purchases.push({
+        id: `legacy-${row.id}`,
+        type: 'legacy',
+        itemName: row.item_name as string,
+        itemCategory: (row.item_category as string) || 'other',
+        amountCents: row.item_total_cents as number,
+        date: row.sale_date as string,
+        status: (row.is_comp as boolean) ? 'comp' : 'paid',
+        source: paymentMethodLabels[method] || 'Mindbody',
+        quantity: (row.quantity as number) > 1 ? (row.quantity as number) : undefined,
+        stripePaymentIntentId: null,
+      });
+    }
 
     const stripe = await getStripeClient();
     const userResult = await db.execute(sql`SELECT stripe_customer_id FROM users WHERE LOWER(email) = ${userEmail} AND stripe_customer_id IS NOT NULL LIMIT 1`);
