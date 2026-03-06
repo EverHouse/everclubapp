@@ -42,6 +42,7 @@ const router = Router();
 
 const BANNER_FIRST = sql`CASE WHEN ${announcements.showAsBanner} = true THEN 0 ELSE 1 END`;
 
+// PUBLIC ROUTE
 router.get('/api/announcements', async (req, res) => {
   try {
     const { active_only } = req.query;
@@ -89,6 +90,7 @@ router.get('/api/announcements', async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE
 router.get('/api/announcements/banner', async (req, res) => {
   try {
     const now = new Date();

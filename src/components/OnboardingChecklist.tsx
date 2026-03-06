@@ -72,7 +72,7 @@ const OnboardingChecklist: React.FC = () => {
                 setTimeout(() => setCelebrating(false), 3000);
               }
               return;
-            } catch {}
+            } catch (e) { console.warn('[OnboardingChecklist] Failed to parse refreshed status:', e); }
           }
         }
         if (cancelled) return;
@@ -129,7 +129,7 @@ const OnboardingChecklist: React.FC = () => {
             setCelebrating(true);
             setTimeout(() => setCelebrating(false), 3000);
           }
-        } catch {}
+        } catch (e) { console.warn('[OnboardingChecklist] Failed to complete step:', e); }
         break;
       }
       case 'waiver':
@@ -153,7 +153,7 @@ const OnboardingChecklist: React.FC = () => {
               });
               const data = await fetchWithCredentials<OnboardingStatus>('/api/member/onboarding');
               setStatus(data);
-            } catch {}
+            } catch (e) { console.warn('[OnboardingChecklist] Failed to dismiss checklist:', e); }
           }
         }
         break;

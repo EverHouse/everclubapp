@@ -327,7 +327,7 @@ export function useCommandCenterData(userEmail?: string) {
       try {
         const parsed = JSON.parse(closure.affectedAreas);
         if (Array.isArray(parsed)) return parsed.map((a: string) => a.toLowerCase());
-      } catch {}
+      } catch (e) { console.warn('[CommandCenter] Failed to parse affectedAreas:', e); }
       return [areas];
     };
 

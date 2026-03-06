@@ -21,6 +21,7 @@ const router = Router();
  * GET /api/day-passes/products
  * Returns available day pass products from DB (synced with Stripe)
  */
+// PUBLIC ROUTE
 router.get('/api/day-passes/products', async (req: Request, res: Response) => {
   try {
     const products = await db.select()

@@ -75,7 +75,7 @@ export const CafeDataProvider: React.FC<{children: ReactNode}> = ({ children }) 
           setCafeMenu(formatCafeData(data));
         }
       }
-    } catch {}
+    } catch (e) { console.warn('[CafeData] Failed to refresh cafe menu:', e); }
   }, []);
 
   useEffect(() => {

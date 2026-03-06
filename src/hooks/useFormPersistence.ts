@@ -7,20 +7,20 @@ export function useFormPersistence<T>(formKey: string, defaultValue: T): [T, (da
       if (stored) {
         return JSON.parse(stored) as T;
       }
-    } catch {}
+    } catch (e) { console.warn('[FormPersistence] Failed to restore form data:', e); }
     return defaultValue;
   });
 
   const setPersistData = useCallback((newData: T) => {
     try {
       sessionStorage.setItem(formKey, JSON.stringify(newData));
-    } catch {}
+    } catch (e) { console.warn('[FormPersistence] Failed to persist form data:', e); }
   }, [formKey]);
 
   const clearPersistedData = useCallback(() => {
     try {
       sessionStorage.removeItem(formKey);
-    } catch {}
+    } catch (e) { console.warn('[FormPersistence] Failed to clear persisted data:', e); }
   }, [formKey]);
 
   return [data, setPersistData, clearPersistedData];

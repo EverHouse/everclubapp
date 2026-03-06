@@ -775,7 +775,7 @@ function CheckoutSuccess() {
             return;
           }
         }
-      } catch {}
+      } catch (e) { console.warn('[Checkout] Payment status poll failed:', e); }
       if (attempts >= maxAttempts) {
         setPollingDone(true);
         clearInterval(interval);

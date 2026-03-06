@@ -7,6 +7,7 @@ import { logger } from '../../core/logger';
 
 const router = Router();
 
+// PUBLIC ROUTE
 router.get('/api/stripe/config', async (req: Request, res: Response) => {
   try {
     const publishableKey = await getStripePublishableKey();

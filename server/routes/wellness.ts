@@ -357,6 +357,7 @@ router.post('/api/wellness-classes/:id/mark-reviewed', isStaffOrAdmin, async (re
   }
 });
 
+// PUBLIC ROUTE
 router.get('/api/wellness-classes', async (req, res) => {
   try {
     const { active_only, include_archived, end_date } = req.query;

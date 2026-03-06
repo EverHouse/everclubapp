@@ -136,6 +136,7 @@ const generateSlotsForResource = (
 };
 
 // Batch availability endpoint - fetch multiple resources in a single request
+// PUBLIC ROUTE
 router.post('/api/availability/batch', async (req, res) => {
   try {
     const { resource_ids, date, duration, ignore_booking_id, user_email } = req.body as BatchAvailabilityRequest;
@@ -297,6 +298,7 @@ router.post('/api/availability/batch', async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE
 router.get('/api/availability', async (req, res) => {
   try {
     const { resource_id, date, duration, ignore_booking_id } = req.query;
@@ -495,6 +497,7 @@ router.post('/api/availability-blocks', isStaffOrAdmin, async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE
 router.get('/api/availability-blocks', async (req, res) => {
   try {
     const { start_date, end_date, resource_id } = req.query;

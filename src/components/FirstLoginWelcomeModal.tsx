@@ -31,7 +31,7 @@ const FirstLoginWelcomeModal: React.FC<FirstLoginWelcomeModalProps> = ({ isOpen,
         credentials: 'include',
         body: JSON.stringify({ step: 'concierge' }),
       });
-    } catch {}
+    } catch (e) { console.warn('[FirstLoginWelcome] Failed to track onboarding step:', e); }
   };
 
   return (

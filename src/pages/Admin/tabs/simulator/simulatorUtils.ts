@@ -116,7 +116,7 @@ export const parseAffectedBayIds = (affectedAreas: string | null | undefined, re
             }
             return ids;
         }
-    } catch {}
+    } catch (e) { console.warn('[SimulatorUtils] Failed to parse affected bay IDs:', e); }
     
     return [];
 };

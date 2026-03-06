@@ -43,6 +43,7 @@ router.get('/api/admin/calendars', isStaffOrAdmin, async (req, res) => {
 
 // DEPRECATED: Golf calendar sync removed - availability is now calculated from booking_requests table
 // Use /api/availability/:date endpoint instead for golf simulator availability
+// PUBLIC ROUTE
 router.get('/api/calendar-availability/golf', async (req, res) => {
   try {
     res.status(410).json({ 
@@ -56,6 +57,7 @@ router.get('/api/calendar-availability/golf', async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE
 router.get('/api/calendar-availability/conference', async (req, res) => {
   try {
     const { date, duration } = req.query;
@@ -85,6 +87,7 @@ router.get('/api/calendar-availability/conference', async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE
 router.get('/api/calendars', async (req, res) => {
   try {
     const status = await getCalendarStatus();
@@ -103,6 +106,7 @@ router.get('/api/calendars', async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE
 router.get('/api/calendar/availability', async (req, res) => {
   try {
     const { start_date, end_date } = req.query;

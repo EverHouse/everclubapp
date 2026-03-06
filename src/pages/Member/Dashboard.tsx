@@ -292,7 +292,7 @@ const Dashboard: React.FC = () => {
       try {
         const data = JSON.parse(stored);
         setNfcCheckinData(data);
-      } catch {}
+      } catch (e) { console.warn('[Dashboard] Failed to parse NFC checkin data:', e); }
     }
   }, []);
 

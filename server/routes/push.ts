@@ -189,6 +189,7 @@ export async function sendPushNotificationToAllMembers(payload: { title: string;
   }
 }
 
+// PUBLIC ROUTE
 router.get('/api/push/vapid-public-key', (req, res) => {
   res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
 });

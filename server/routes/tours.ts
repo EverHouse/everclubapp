@@ -243,6 +243,7 @@ router.post('/api/tours/book', checkoutRateLimiter, async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE
 router.patch('/api/tours/:id/confirm', async (req, res) => {
   try {
     const { id } = req.params;
@@ -975,6 +976,7 @@ function getTourConfirmationHtml(data: { guestName: string; date: string; time: 
 `;
 }
 
+// PUBLIC ROUTE
 router.get('/api/tours/availability', async (req, res) => {
   try {
     const { date } = req.query;

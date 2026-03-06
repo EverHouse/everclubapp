@@ -95,7 +95,7 @@ export const EventDataProvider: React.FC<{children: ReactNode}> = ({ children })
       if (actualUserRef.current?.role === 'admin' || actualUserRef.current?.role === 'staff') {
         try {
           await fetch('/api/events/sync/google', { method: 'POST', credentials: 'include' });
-        } catch {}
+        } catch (e) { console.warn('[EventData] Failed to trigger calendar sync:', e); }
       }
       const res = await fetch('/api/events');
       if (res.ok) {

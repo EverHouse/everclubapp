@@ -468,7 +468,7 @@ function handleDirectoryError(error: Error, errorInfo: ErrorInfo) {
                 isError306,
             })
         }).catch((err: unknown) => { console.warn('[DirectoryTab] Failed to report client error:', err); });
-    } catch {}
+    } catch (e) { console.warn('[DirectoryTab] Error handler itself failed:', e); }
 }
 
 function DirectoryTabWithBoundary() {
