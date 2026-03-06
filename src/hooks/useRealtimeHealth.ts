@@ -11,7 +11,7 @@ interface RealtimeHealthState {
   justReconnected: boolean;
 }
 
-const REALTIME_QUERY_KEYS = ['notifications', 'booking_sessions', 'announcements'];
+const REALTIME_QUERY_KEYS = ['bookings', 'command-center', 'trackman', 'simulator', 'announcements'];
 
 export function useRealtimeHealth(staffWsConnected?: boolean) {
   const [state, setState] = useState<RealtimeHealthState>({
