@@ -12,6 +12,10 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
 } from 'recharts';
 
 interface PeakHourEntry {
@@ -41,6 +45,50 @@ interface BookingStats {
   avgSessionMinutes: number;
 }
 
+interface ActiveMembers {
+  totalActiveMembers: number;
+  active30: number;
+  active60: number;
+  active90: number;
+}
+
+interface BookingFrequencyEntry {
+  bucket: string;
+  memberCount: number;
+}
+
+interface RevenueEntry {
+  month: string;
+  participantRevenue: number;
+  overageRevenue: number;
+  guestRevenue: number;
+}
+
+interface BookingsOverTimeEntry {
+  week_start: string;
+  booking_count: number;
+}
+
+interface DayOfWeekEntry {
+  day_of_week: number;
+  booking_count: number;
+}
+
+interface UtilizationEntry {
+  hourSlot: number;
+  bookedCount: number;
+  utilizationPct: number;
+}
+
+interface ExtendedStats {
+  activeMembers: ActiveMembers;
+  bookingFrequency: BookingFrequencyEntry[];
+  revenueOverTime: RevenueEntry[];
+  bookingsOverTime: BookingsOverTimeEntry[];
+  dayOfWeekBreakdown: DayOfWeekEntry[];
+  utilizationByHour: UtilizationEntry[];
+}
+
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOUR_LABELS = Array.from({ length: 24 }, (_, i) => {
   if (i === 0) return '12a';
@@ -50,6 +98,13 @@ const HOUR_LABELS = Array.from({ length: 24 }, (_, i) => {
 });
 
 const RESOURCE_COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#818cf8'];
+
+const TOOLTIP_STYLE = {
+  backgroundColor: 'var(--color-bone, #f5f0e8)',
+  border: '1px solid rgba(0,0,0,0.1)',
+  borderRadius: '8px',
+  color: '#1a1a1a',
+};
 
 function formatDuration(minutes: number): string {
   const hrs = Math.floor(minutes / 60);
@@ -75,6 +130,18 @@ const LEGEND_CLASSES = [
   'bg-indigo-400 dark:bg-indigo-500',
   'bg-indigo-500 dark:bg-indigo-400',
 ];
+
+const SectionCard: React.FC<{ icon: string; title: string; subtitle?: string; children: React.ReactNode }> = ({ icon, title, subtitle, children }) => (
+  <div className="glass-card rounded-xl p-4 sm:p-5 border border-primary/10 dark:border-white/10">
+    <div className="flex items-center gap-2 mb-1">
+      <span className="material-symbols-outlined text-lg text-primary/60 dark:text-white/60">{icon}</span>
+      <h2 className="text-base sm:text-lg font-semibold text-primary dark:text-white" style={{ fontFamily: 'var(--font-heading)' }}>{title}</h2>
+    </div>
+    {subtitle && <p className="text-xs text-primary/40 dark:text-white/40 mb-3 ml-7">{subtitle}</p>}
+    {!subtitle && <div className="mb-3" />}
+    {children}
+  </div>
+);
 
 const PeakHoursHeatmap: React.FC<{ data: PeakHourEntry[] }> = ({ data }) => {
   const grid: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
@@ -164,15 +231,7 @@ const ResourceUtilizationChart: React.FC<{ data: ResourceEntry[] }> = ({ data })
           tickLine={false}
           width={110}
         />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: 'var(--color-bone, #f5f0e8)',
-            border: '1px solid rgba(0,0,0,0.1)',
-            borderRadius: '8px',
-            color: '#1a1a1a',
-          }}
-          formatter={(value: number) => [`${value} hours`, 'Total Booked']}
-        />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => [`${value} hours`, 'Total Booked']} />
         <Bar dataKey="totalHours" radius={[0, 6, 6, 0]} maxBarSize={28}>
           {data.map((_, index) => (
             <Cell key={index} fill={RESOURCE_COLORS[index % RESOURCE_COLORS.length]} />
@@ -241,10 +300,265 @@ const StatCard: React.FC<{
   </div>
 );
 
+const ActiveMembersCard: React.FC<{ data: ActiveMembers }> = ({ data }) => {
+  const periods = [
+    { label: '30 days', active: data.active30 },
+    { label: '60 days', active: data.active60 },
+    { label: '90 days', active: data.active90 },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <div className="text-3xl font-semibold text-primary dark:text-white" style={{ fontFamily: 'var(--font-heading)' }}>
+          {data.totalActiveMembers}
+        </div>
+        <div className="text-xs text-primary/50 dark:text-white/50 uppercase tracking-wider mt-1">Total Active Members</div>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {periods.map(({ label, active }) => {
+          const pct = data.totalActiveMembers > 0 ? Math.round((active / data.totalActiveMembers) * 100) : 0;
+          return (
+            <div key={label} className="text-center">
+              <div className="relative w-16 h-16 mx-auto">
+                <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                  <circle cx="18" cy="18" r="15.9" fill="none" strokeWidth="3" className="stroke-primary/10 dark:stroke-white/10" />
+                  <circle
+                    cx="18" cy="18" r="15.9" fill="none" strokeWidth="3"
+                    strokeDasharray={`${pct} ${100 - pct}`}
+                    strokeLinecap="round"
+                    stroke="#6366f1"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-primary dark:text-white">
+                  {pct}%
+                </div>
+              </div>
+              <div className="text-lg font-semibold text-primary dark:text-white mt-1">{active}</div>
+              <div className="text-[10px] text-primary/50 dark:text-white/50 uppercase tracking-wider">{label}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const BookingFrequencyChart: React.FC<{ data: BookingFrequencyEntry[] }> = ({ data }) => {
+  if (data.length === 0) {
+    return <p className="text-primary/50 dark:text-white/50 text-sm">No booking frequency data available.</p>;
+  }
+
+  const BUCKET_ORDER = ['1-2', '3-5', '6-10', '11-20', '20+'];
+  const sorted = BUCKET_ORDER.map(b => data.find(d => d.bucket === b) || { bucket: b, memberCount: 0 });
+
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <BarChart data={sorted} margin={{ left: -10, right: 10, top: 5, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} vertical={false} />
+        <XAxis
+          dataKey="bucket"
+          tick={{ fill: 'currentColor', fillOpacity: 0.6, fontSize: 12 }}
+          axisLine={false}
+          tickLine={false}
+          label={{ value: 'bookings / 90 days', position: 'insideBottom', offset: -2, fill: 'currentColor', fillOpacity: 0.4, fontSize: 10 }}
+        />
+        <YAxis
+          tick={{ fill: 'currentColor', fillOpacity: 0.5, fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+          allowDecimals={false}
+        />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => [`${value} members`, 'Members']} />
+        <Bar dataKey="memberCount" radius={[6, 6, 0, 0]} maxBarSize={40} fill="#8b5cf6" />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
+
+const RevenueChart: React.FC<{ data: RevenueEntry[] }> = ({ data }) => {
+  if (data.length === 0) {
+    return <p className="text-primary/50 dark:text-white/50 text-sm">No revenue data available.</p>;
+  }
+
+  const chartData = data.map(r => ({
+    month: r.month.slice(5),
+    participant: r.participantRevenue,
+    overage: r.overageRevenue,
+    guest: r.guestRevenue,
+    total: r.participantRevenue + r.overageRevenue + r.guestRevenue,
+  }));
+
+  return (
+    <div>
+      <ResponsiveContainer width="100%" height={250}>
+        <AreaChart data={chartData} margin={{ left: -10, right: 10, top: 5, bottom: 5 }}>
+          <defs>
+            <linearGradient id="gradParticipant" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="gradOverage" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="gradGuest" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} vertical={false} />
+          <XAxis
+            dataKey="month"
+            tick={{ fill: 'currentColor', fillOpacity: 0.6, fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            tick={{ fill: 'currentColor', fillOpacity: 0.5, fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={(v: number) => `$${v}`}
+          />
+          <Tooltip
+            contentStyle={TOOLTIP_STYLE}
+            formatter={(value: number, name: string) => [`$${value.toFixed(2)}`, name === 'participant' ? 'Booking Fees' : name === 'overage' ? 'Overage Fees' : 'Guest Fees']}
+          />
+          <Area type="monotone" dataKey="participant" stroke="#6366f1" strokeWidth={2} fill="url(#gradParticipant)" stackId="1" />
+          <Area type="monotone" dataKey="overage" stroke="#f59e0b" strokeWidth={2} fill="url(#gradOverage)" stackId="1" />
+          <Area type="monotone" dataKey="guest" stroke="#22c55e" strokeWidth={2} fill="url(#gradGuest)" stackId="1" />
+        </AreaChart>
+      </ResponsiveContainer>
+      <div className="flex items-center justify-center gap-4 mt-2 text-xs text-primary/60 dark:text-white/60">
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#6366f1]" />Booking</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" />Overage</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#22c55e]" />Guest</span>
+      </div>
+    </div>
+  );
+};
+
+const BookingsOverTimeChart: React.FC<{ data: BookingsOverTimeEntry[] }> = ({ data }) => {
+  if (data.length === 0) {
+    return <p className="text-primary/50 dark:text-white/50 text-sm">No trend data available.</p>;
+  }
+
+  const chartData = data.map(d => ({
+    week: new Date(d.week_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    count: d.booking_count,
+  }));
+
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <LineChart data={chartData} margin={{ left: -10, right: 10, top: 5, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} vertical={false} />
+        <XAxis
+          dataKey="week"
+          tick={{ fill: 'currentColor', fillOpacity: 0.6, fontSize: 10 }}
+          axisLine={false}
+          tickLine={false}
+          interval="preserveStartEnd"
+        />
+        <YAxis
+          tick={{ fill: 'currentColor', fillOpacity: 0.5, fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+          allowDecimals={false}
+        />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => [`${value} bookings`, 'Weekly Total']} />
+        <Line type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={2.5} dot={false} activeDot={{ r: 4, fill: '#6366f1' }} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+};
+
+const DayOfWeekChart: React.FC<{ data: DayOfWeekEntry[] }> = ({ data }) => {
+  if (data.length === 0) {
+    return <p className="text-primary/50 dark:text-white/50 text-sm">No day-of-week data available.</p>;
+  }
+
+  const allDays = DAY_LABELS.map((label, idx) => {
+    const entry = data.find(d => Number(d.day_of_week) === idx);
+    return { day: label, count: entry ? entry.booking_count : 0 };
+  });
+
+  const maxCount = Math.max(...allDays.map(d => d.count), 1);
+
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <BarChart data={allDays} margin={{ left: -10, right: 10, top: 5, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} vertical={false} />
+        <XAxis
+          dataKey="day"
+          tick={{ fill: 'currentColor', fillOpacity: 0.6, fontSize: 12 }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          tick={{ fill: 'currentColor', fillOpacity: 0.5, fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+          allowDecimals={false}
+        />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => [`${value} bookings`, 'Total']} />
+        <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={40}>
+          {allDays.map((entry, index) => (
+            <Cell key={index} fill={entry.count === maxCount ? '#6366f1' : '#a78bfa'} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
+
+const UtilizationChart: React.FC<{ data: UtilizationEntry[] }> = ({ data }) => {
+  if (data.length === 0) {
+    return <p className="text-primary/50 dark:text-white/50 text-sm">No utilization data available.</p>;
+  }
+
+  const chartData = data.map(d => ({
+    hour: HOUR_LABELS[d.hourSlot] || `${d.hourSlot}`,
+    pct: d.utilizationPct,
+  }));
+
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <BarChart data={chartData} margin={{ left: -10, right: 10, top: 5, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} vertical={false} />
+        <XAxis
+          dataKey="hour"
+          tick={{ fill: 'currentColor', fillOpacity: 0.6, fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          tick={{ fill: 'currentColor', fillOpacity: 0.5, fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+          unit="%"
+          domain={[0, 100]}
+        />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => [`${value}%`, 'Utilization']} />
+        <Bar dataKey="pct" radius={[6, 6, 0, 0]} maxBarSize={32}>
+          {chartData.map((entry, index) => (
+            <Cell key={index} fill={entry.pct >= 75 ? '#ef4444' : entry.pct >= 50 ? '#f59e0b' : entry.pct >= 25 ? '#6366f1' : '#a78bfa'} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
+
 const AnalyticsTab: React.FC = () => {
   const { data, isLoading, error } = useQuery<BookingStats>({
     queryKey: ['booking-analytics'],
     queryFn: () => fetchWithCredentials<BookingStats>('/api/analytics/booking-stats'),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: extData, isLoading: extLoading } = useQuery<ExtendedStats>({
+    queryKey: ['extended-analytics'],
+    queryFn: () => fetchWithCredentials<ExtendedStats>('/api/analytics/extended-stats'),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -298,32 +612,57 @@ const AnalyticsTab: React.FC = () => {
           />
         </div>
 
-        <div className="glass-card rounded-xl p-4 sm:p-5 border border-primary/10 dark:border-white/10">
-          <div className="flex items-center gap-2 mb-3 sm:mb-4">
-            <span className="material-symbols-outlined text-lg text-primary/60 dark:text-white/60">local_fire_department</span>
-            <h2 className="text-base sm:text-lg font-semibold text-primary dark:text-white" style={{ fontFamily: 'var(--font-heading)' }}>Weekly Peak Hours</h2>
+        {extData && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            <SectionCard icon="trending_up" title="Bookings Over Time" subtitle="Weekly booking volume (last 6 months)">
+              <BookingsOverTimeChart data={extData.bookingsOverTime} />
+            </SectionCard>
+            <SectionCard icon="attach_money" title="Revenue Over Time" subtitle="Monthly revenue by category (last 6 months)">
+              <RevenueChart data={extData.revenueOverTime} />
+            </SectionCard>
           </div>
+        )}
+
+        <SectionCard icon="local_fire_department" title="Weekly Peak Hours">
           <PeakHoursHeatmap data={data.peakHours} />
-        </div>
+        </SectionCard>
+
+        {extData && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            <SectionCard icon="date_range" title="Day of Week" subtitle="All-time booking distribution by weekday">
+              <DayOfWeekChart data={extData.dayOfWeekBreakdown} />
+            </SectionCard>
+            <SectionCard icon="speed" title="Utilization by Hour" subtitle="Average simulator utilization per time slot">
+              <UtilizationChart data={extData.utilizationByHour} />
+            </SectionCard>
+          </div>
+        )}
+
+        {extData && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            <SectionCard icon="group" title="Member Activity" subtitle="Unique members who booked within each window">
+              <ActiveMembersCard data={extData.activeMembers} />
+            </SectionCard>
+            <SectionCard icon="bar_chart" title="Booking Frequency" subtitle="How often members book (last 90 days)">
+              <BookingFrequencyChart data={extData.bookingFrequency} />
+            </SectionCard>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          <div className="glass-card rounded-xl p-4 sm:p-5 border border-primary/10 dark:border-white/10">
-            <div className="flex items-center gap-2 mb-3 sm:mb-4">
-              <span className="material-symbols-outlined text-lg text-primary/60 dark:text-white/60">sports_golf</span>
-              <h2 className="text-base sm:text-lg font-semibold text-primary dark:text-white" style={{ fontFamily: 'var(--font-heading)' }}>Resource Utilization</h2>
-            </div>
+          <SectionCard icon="sports_golf" title="Resource Utilization" subtitle="Total hours booked per resource">
             <ResourceUtilizationChart data={data.resourceUtilization} />
-          </div>
-
-          <div className="glass-card rounded-xl p-4 sm:p-5 border border-primary/10 dark:border-white/10">
-            <div className="flex items-center gap-2 mb-3 sm:mb-4">
-              <span className="material-symbols-outlined text-lg text-primary/60 dark:text-white/60">emoji_events</span>
-              <h2 className="text-base sm:text-lg font-semibold text-primary dark:text-white" style={{ fontFamily: 'var(--font-heading)' }}>Top Members</h2>
-            </div>
-            <p className="text-xs text-primary/40 dark:text-white/40 mb-3">By total hours booked</p>
+          </SectionCard>
+          <SectionCard icon="emoji_events" title="Top Members" subtitle="By total hours booked">
             <TopMembersLeaderboard data={data.topMembers} />
-          </div>
+          </SectionCard>
         </div>
+
+        {extLoading && (
+          <div className="flex items-center justify-center py-8">
+            <WalkingGolferSpinner />
+          </div>
+        )}
       </div>
     </AnimatedPage>
   );

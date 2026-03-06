@@ -116,13 +116,20 @@ The following large files have been split into sub-modules with barrel re-export
 - **API Documentation**: Comprehensive endpoint reference at `docs/API.md`.
 
 ### Booking Analytics
-- **Analytics Page**: Staff-only analytics dashboard at `/admin/analytics` with 5 visualizations computed dynamically from `booking_requests` data:
-  1. Weekly Peak Hours Heatmap (day × hour grid with color intensity)
-  2. Resource Utilization horizontal bar chart (total hours per bay/room)
-  3. Top 5 Members leaderboard (by total hours booked)
-  4. Cancellation Rate stat card (percentage with color-coded threshold)
-  5. Average Session Length stat card
-- **Tech**: Recharts library for charts, TanStack Query for data fetching, backend endpoint at `GET /api/analytics/booking-stats`
+- **Analytics Page**: Staff-only analytics dashboard at `/admin/analytics` with 11 visualizations across two endpoints:
+  - **Core Stats** (`GET /api/analytics/booking-stats`):
+    1. Total Bookings / Cancellation Rate / Avg Session Length stat cards
+    2. Weekly Peak Hours Heatmap (day × hour grid with color intensity)
+    3. Resource Utilization horizontal bar chart (total hours per bay/room)
+    4. Top 5 Members leaderboard (by total hours booked)
+  - **Extended Stats** (`GET /api/analytics/extended-stats`):
+    5. Bookings Over Time line chart (weekly counts, last 6 months)
+    6. Revenue Over Time stacked area chart (booking/overage/guest fees by month from `booking_participants` + `usage_ledger`)
+    7. Day of Week bar chart (all-time booking distribution by weekday)
+    8. Utilization by Hour bar chart (average simulator utilization % per time slot, color-coded by threshold)
+    9. Active vs Inactive Members ring charts (unique bookers in 30/60/90 day windows vs total active members)
+    10. Booking Frequency histogram (member count by booking frequency bucket over 90 days)
+- **Tech**: Recharts library (BarChart, LineChart, AreaChart, SVG ring charts), TanStack Query for data fetching, two parallel queries
 - **Files**: `server/routes/analytics.ts`, `src/pages/Admin/tabs/AnalyticsTab.tsx`
 
 ### Recent Changes
