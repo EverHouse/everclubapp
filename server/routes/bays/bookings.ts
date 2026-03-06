@@ -213,75 +213,44 @@ router.get('/api/booking-requests', async (req, res) => {
     const sessionIds = result.filter(b => b.session_id).map(b => b.session_id!);
     const requestingUserEmail = (user_email as string)?.toLowerCase();
     
-    const memberSlotsCounts = sessionIds.length > 0 ? await db.select({
+    const allParticipants = sessionIds.length > 0 ? await db.select({
       sessionId: bookingParticipants.sessionId,
-      totalSlots: sql<number>`count(*)::int`,
-      filledSlots: sql<number>`count(${bookingParticipants.userId})::int`
-    })
-    .from(bookingParticipants)
-    .where(sql`${bookingParticipants.sessionId} IN (${sql.join(sessionIds.map(id => sql`${id}`), sql`, `)})`)
-    .groupBy(bookingParticipants.sessionId) : [];
-    
-    const guestCounts = sessionIds.length > 0 ? await db.select({
-      sessionId: bookingParticipants.sessionId,
-      count: sql<number>`count(*)::int`
-    })
-    .from(bookingParticipants)
-    .where(and(
-      sql`${bookingParticipants.sessionId} IN (${sql.join(sessionIds.map(id => sql`${id}`), sql`, `)})`,
-      eq(bookingParticipants.participantType, 'guest')
-    ))
-    .groupBy(bookingParticipants.sessionId) : [];
-    
-    const memberDetails = sessionIds.length > 0 ? await db.select({
-      sessionId: bookingParticipants.sessionId,
+      participantType: bookingParticipants.participantType,
+      userId: bookingParticipants.userId,
+      displayName: bookingParticipants.displayName,
+      inviteStatus: bookingParticipants.inviteStatus,
       userEmail: users.email,
-      isPrimary: sql<boolean>`${bookingParticipants.participantType} = 'owner'`,
       firstName: users.firstName,
-      lastName: users.lastName
+      lastName: users.lastName,
     })
     .from(bookingParticipants)
     .leftJoin(users, eq(bookingParticipants.userId, users.id))
-    .where(and(
-      sql`${bookingParticipants.sessionId} IN (${sql.join(sessionIds.map(id => sql`${id}`), sql`, `)})`,
-      sql`${bookingParticipants.participantType} != 'guest'`
-    )) : [];
-    
-    const guestDetails = sessionIds.length > 0 ? await db.select({
-      sessionId: bookingParticipants.sessionId,
-      guestName: bookingParticipants.displayName
-    })
-    .from(bookingParticipants)
-    .where(and(
-      sql`${bookingParticipants.sessionId} IN (${sql.join(sessionIds.map(id => sql`${id}`), sql`, `)})`,
-      eq(bookingParticipants.participantType, 'guest')
-    )) : [];
-    
-    let inviteStatusMap = new Map<string, string>();
-    if (requestingUserEmail && !isStaffRequest) {
-      const sessionIds = result.filter(b => b.session_id).map(b => String(b.session_id));
-      if (sessionIds.length > 0) {
-        const inviteStatuses = await db.select({
-          sessionId: bookingParticipants.sessionId,
-          inviteStatus: bookingParticipants.inviteStatus
-        })
-        .from(bookingParticipants)
-        .innerJoin(users, eq(bookingParticipants.userId, users.id))
-        .where(and(
-          sql`${bookingParticipants.sessionId} IN (${sql.join(sessionIds.map(id => sql`${id}`), sql`, `)})`,
-          sql`LOWER(${users.email}) = ${requestingUserEmail}`
-        ));
-        
-        for (const row of inviteStatuses) {
-          if (row.sessionId) {
-            inviteStatusMap.set(String(row.sessionId), row.inviteStatus || '');
-          }
-        }
+    .where(sql`${bookingParticipants.sessionId} IN (${sql.join(sessionIds.map(id => sql`${id}`), sql`, `)})`) : [];
+
+    const memberCountsMap = new Map<number, { total: number; filled: number }>();
+    const guestCountsMap = new Map<number, number>();
+    const memberDetailsArr: typeof allParticipants = [];
+    const guestDetailsArr: typeof allParticipants = [];
+    const inviteStatusMap = new Map<string, string>();
+
+    for (const p of allParticipants) {
+      const sid = p.sessionId;
+      const counts = memberCountsMap.get(sid) ?? { total: 0, filled: 0 };
+      counts.total++;
+      if (p.userId) counts.filled++;
+      memberCountsMap.set(sid, counts);
+
+      if (p.participantType === 'guest') {
+        guestCountsMap.set(sid, (guestCountsMap.get(sid) ?? 0) + 1);
+        guestDetailsArr.push(p);
+      } else {
+        memberDetailsArr.push(p);
+      }
+
+      if (requestingUserEmail && !isStaffRequest && p.userEmail?.toLowerCase() === requestingUserEmail) {
+        inviteStatusMap.set(String(sid), p.inviteStatus || '');
       }
     }
-    
-    const memberCountsMap = new Map(memberSlotsCounts.map(m => [m.sessionId, { total: m.totalSlots, filled: m.filledSlots }]));
-    const guestCountsMap = new Map(guestCounts.map(g => [g.sessionId, g.count]));
     
     const pendingBookings = result.filter(b => b.status === 'pending' || b.status === 'pending_approval');
     const conflictMap = new Map<number, { hasConflict: boolean; conflictingName: string | null }>();
@@ -334,7 +303,7 @@ router.get('/api/booking-requests', async (req, res) => {
     }
     
     const memberDetailsMap = new Map<number, Array<{ name: string; type: 'member'; isPrimary: boolean }>>();
-    for (const m of memberDetails) {
+    for (const m of memberDetailsArr) {
       if (!memberDetailsMap.has(m.sessionId)) {
         memberDetailsMap.set(m.sessionId, []);
       }
@@ -343,18 +312,18 @@ router.get('/api/booking-requests', async (req, res) => {
         memberDetailsMap.get(m.sessionId)!.push({
           name: fullName || m.userEmail,
           type: 'member',
-          isPrimary: m.isPrimary || false
+          isPrimary: m.participantType === 'owner'
         });
       }
     }
     
     const guestDetailsMap = new Map<number, Array<{ name: string; type: 'guest' }>>();
-    for (const g of guestDetails) {
+    for (const g of guestDetailsArr) {
       if (!guestDetailsMap.has(g.sessionId)) {
         guestDetailsMap.set(g.sessionId, []);
       }
       guestDetailsMap.get(g.sessionId)!.push({
-        name: g.guestName || 'Guest',
+        name: g.displayName || 'Guest',
         type: 'guest'
       });
     }

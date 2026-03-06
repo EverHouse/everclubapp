@@ -135,6 +135,9 @@ The following large files have been split into sub-modules with barrel re-export
 - **Mutation button disable**: All billing mutation buttons (`StripeBillingSection`) properly use `disabled={isPending}` during async operations to prevent double-clicks.
 - **Toast/haptic consistency migration**: Older admin components (`BugReportsAdmin`, `DiscountsSubTab`, `ApplicationPipeline`) migrated from `console.error` or custom inline toast state to the global `useToast` + `haptic` utilities for consistent success/error feedback across all staff actions.
 
+### Performance Optimization (v8.77.3)
+- **Booking List N+1 Elimination**: Consolidated 5 sequential `booking_participants` queries in `GET /api/booking-requests` into a single batch query with in-memory partitioning. Reduces database round-trips from ~6 to ~2 per booking list request, significantly improving response time for member and staff booking views.
+
 ### Bug & Stability Fixes (v8.77.2)
 - **TabTransition Timer Leak**: `TabTransition` component's `enterTimer` was created inside a `setTimeout` callback but never tracked for cleanup on unmount. Both exit and enter timers now stored in refs with proper cleanup in the `useEffect` return — prevents state updates on unmounted components during rapid tab switches.
 - **Circular Import HMR Fix**: Extracted shared navigation constants (`TabType`, `tabToPath`, `pathToTab`, `getTabFromPathname`) from `src/pages/Admin/layout/types.ts` into `src/lib/nav-constants.ts`. `StaffMobileSidebar` and all Staff Command Center sections now import from the shared file instead of reaching into the Admin layout directory — breaks the HMR circular dependency chain that caused repeated page reloads during development.
