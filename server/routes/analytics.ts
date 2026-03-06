@@ -282,20 +282,14 @@ router.get('/api/analytics/membership-insights', isStaffOrAdmin, async (_req: Re
     const [tierResult, atRiskResult, growthResult] = await Promise.all([
       db.execute(sql`
         SELECT
-          CASE
-            WHEN membership_tier IN ('Core', 'Core Membership') THEN 'Core'
-            WHEN membership_tier IN ('Premium', 'Premium Membership') THEN 'Premium'
-            WHEN membership_tier IN ('VIP') THEN 'VIP'
-            WHEN membership_tier IN ('Corporate') THEN 'Corporate'
-            WHEN membership_tier IN ('Social') THEN 'Social'
-            ELSE 'Other'
-          END AS tier,
+          COALESCE(mt.name, 'Unknown') AS tier,
           COUNT(*)::int AS member_count
-        FROM users
-        WHERE role = 'member'
-          AND membership_status IN ('active', 'trialing', 'past_due')
-          AND archived_at IS NULL
-        GROUP BY 1
+        FROM users u
+        LEFT JOIN membership_tiers mt ON u.tier_id = mt.id
+        WHERE u.role = 'member'
+          AND u.membership_status IN ('active', 'trialing', 'past_due')
+          AND u.archived_at IS NULL
+        GROUP BY mt.name
         ORDER BY member_count DESC
       `),
 
@@ -304,15 +298,16 @@ router.get('/api/analytics/membership-insights', isStaffOrAdmin, async (_req: Re
           u.id,
           COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) AS name,
           u.email,
-          u.membership_tier AS tier,
+          COALESCE(mt.name, 'Unknown') AS tier,
           MAX(br.request_date) AS last_booking_date
         FROM users u
+        LEFT JOIN membership_tiers mt ON u.tier_id = mt.id
         LEFT JOIN booking_requests br ON br.user_email = u.email
           AND br.status NOT IN ('cancelled', 'declined')
         WHERE u.role = 'member'
           AND u.membership_status IN ('active', 'trialing', 'past_due')
           AND u.archived_at IS NULL
-        GROUP BY u.id, u.first_name, u.last_name, u.email, u.membership_tier
+        GROUP BY u.id, u.first_name, u.last_name, u.email, mt.name
         HAVING MAX(br.request_date) IS NULL
            OR MAX(br.request_date) < CURRENT_DATE - INTERVAL '45 days'
         ORDER BY MAX(br.request_date) ASC NULLS FIRST
