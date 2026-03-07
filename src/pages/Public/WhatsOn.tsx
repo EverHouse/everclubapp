@@ -341,7 +341,7 @@ const WhatsOn: React.FC = () => {
           <p className="text-white/70 text-sm mb-4">Join Ever Club and unlock exclusive member-only events and wellness classes.</p>
           <button 
             onClick={() => { startNavigation(); navigate('/membership'); }}
-            className="tactile-btn bg-bone dark:bg-white text-primary px-6 py-3 rounded-[4px] font-bold text-sm hover:bg-white transition-colors"
+            className="tactile-btn bg-white text-primary px-6 py-3 rounded-[4px] font-bold text-sm hover:bg-white/90 transition-colors"
           >
             Explore Membership
           </button>
