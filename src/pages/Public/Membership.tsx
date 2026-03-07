@@ -486,8 +486,8 @@ const Corporate: React.FC = () => {
              </p>
         </div>
 
-        <Link to="/contact" className="w-full py-5 px-6 rounded-[4px] bg-primary text-white font-bold text-sm uppercase tracking-widest hover:bg-primary/90 shadow-xl shadow-primary/20 flex items-center justify-center gap-3 mt-4 mb-8 group animate-content-enter-delay-3">
-            Contact Us to Get Started
+        <Link to="/membership/apply" className="w-full py-5 px-6 rounded-[4px] bg-primary text-white font-bold text-sm uppercase tracking-widest hover:bg-primary/90 shadow-xl shadow-primary/20 flex items-center justify-center gap-3 mt-4 mb-8 group animate-content-enter-delay-3">
+            Apply for Corporate Membership
             <span className="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
         </Link>
       </div>
