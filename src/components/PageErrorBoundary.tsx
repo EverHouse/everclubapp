@@ -78,6 +78,7 @@ class PageErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error(`[PageErrorBoundary${this.props.pageName ? ` - ${this.props.pageName}` : ''}] Error:`, error, errorInfo);
+    console.error(`[PageErrorBoundary] Error message: ${error?.message || 'no message'}`, `Stack: ${error?.stack?.substring(0, 500) || 'no stack'}`);
     
     try {
       fetch('/api/client-error', {
