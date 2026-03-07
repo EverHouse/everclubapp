@@ -6,6 +6,24 @@ import { formatPhoneNumber } from '../../utils/phoneFormat';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import SEO from '../../components/SEO';
 
+const ADDRESS_FALLBACK: Record<string, string> = {
+  'contact.address_line1': '15771 Red Hill Ave, Ste 500',
+  'contact.city_state_zip': 'Tustin, CA 92780',
+};
+
+function usePublicSettings() {
+  const [settings, setSettings] = useState<Record<string, string>>(ADDRESS_FALLBACK);
+
+  useEffect(() => {
+    fetch('/api/settings/public')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((data: Record<string, string>) => setSettings(prev => ({ ...prev, ...data })))
+      .catch(() => {});
+  }, []);
+
+  return settings;
+}
+
 interface TimeSlot {
   start: string;
   end: string;
@@ -52,6 +70,7 @@ const generateNext14Days = (): string[] => {
 };
 
 const BookTour: React.FC = () => {
+  const s = usePublicSettings();
   const { setPageReady } = usePageReady();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<FormData>({ firstName: '', lastName: '', email: '', phone: '' });
@@ -226,7 +245,7 @@ const BookTour: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-primary/60 dark:text-white/60">location_on</span>
-                  <span className="text-primary dark:text-white font-medium">15771 Red Hill Ave, Ste 500, Tustin, CA 92780</span>
+                  <span className="text-primary dark:text-white font-medium">{s['contact.address_line1']}, {s['contact.city_state_zip']}</span>
                 </div>
               </div>
 

@@ -15,6 +15,7 @@ import { logFromRequest, AuditAction } from '../core/auditLog';
 import { broadcastToStaff } from '../core/websocket';
 import { getErrorMessage } from '../utils/errorUtils';
 import { checkoutRateLimiter } from '../middleware/rateLimiting';
+import { getSettingValue } from '../core/settingsHelper';
 
 function parseTimeToMinutes(timeStr: string): number {
   const [hours, minutes] = timeStr.split(':').map(Number);
@@ -870,7 +871,7 @@ const CLUB_COLORS = {
   borderLight: '#e5e7eb'
 };
 
-function getTourConfirmationHtml(data: { guestName: string; date: string; time: string }): string {
+async function getTourConfirmationHtml(data: { guestName: string; date: string; time: string; addressLine1: string; cityStateZip: string }): Promise<string> {
   const formattedDate = new Date(data.date + 'T12:00:00').toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -944,7 +945,7 @@ function getTourConfirmationHtml(data: { guestName: string; date: string; time: 
                         <td>
                           <p style="margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: ${CLUB_COLORS.textMuted};">Location</p>
                           <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: ${CLUB_COLORS.textDark};">Ever Club</p>
-                          <p style="margin: 4px 0 0 0; font-size: 14px; color: ${CLUB_COLORS.textMuted};">15771 Red Hill Ave, Ste 500, Tustin, CA 92780</p>
+                          <p style="margin: 4px 0 0 0; font-size: 14px; color: ${CLUB_COLORS.textMuted};">${data.addressLine1}, ${data.cityStateZip}</p>
                         </td>
                       </tr>
                     </table>
@@ -963,7 +964,7 @@ function getTourConfirmationHtml(data: { guestName: string; date: string; time: 
           <tr>
             <td style="text-align: center; border-top: 1px solid ${CLUB_COLORS.borderLight}; padding-top: 24px;">
               <p style="margin: 0; font-size: 12px; color: ${CLUB_COLORS.textMuted};">
-                Ever Club &bull; 15771 Red Hill Ave, Ste 500 &bull; Tustin, CA 92780
+                Ever Club &bull; ${data.addressLine1} &bull; ${data.cityStateZip}
               </p>
             </td>
           </tr>
@@ -1110,13 +1111,20 @@ router.post('/api/tours/schedule', checkoutRateLimiter, async (req, res) => {
     broadcastToStaff({ type: 'tour_update', action: 'created', tourId: newTour.id });
 
     if (email) {
-      safeSendEmail({
-        to: email,
-        subject: 'Your Tour at Ever Club is Confirmed!',
-        html: getTourConfirmationHtml({ guestName, date, time: startTime }),
-      }).catch(err => {
-        logger.error('Failed to send tour confirmation email', { extra: { err: getErrorMessage(err) } });
-      });
+      (async () => {
+        try {
+          const addressLine1 = await getSettingValue('contact.address_line1', '15771 Red Hill Ave, Ste 500');
+          const cityStateZip = await getSettingValue('contact.city_state_zip', 'Tustin, CA 92780');
+          const html = await getTourConfirmationHtml({ guestName, date, time: startTime, addressLine1, cityStateZip });
+          await safeSendEmail({
+            to: email,
+            subject: 'Your Tour at Ever Club is Confirmed!',
+            html,
+          });
+        } catch (err) {
+          logger.error('Failed to send tour confirmation email', { extra: { err: getErrorMessage(err) } });
+        }
+      })();
     }
 
     res.json({
