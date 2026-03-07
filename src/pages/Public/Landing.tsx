@@ -243,7 +243,7 @@ const Landing: React.FC = () => {
           description="Four state-of-the-art Trackman 4 bays deliver tour-level ball and club data for year-round play. Practice your swing, take on 100+ championship courses, or host a competitive league night — rain or shine, no tee time required."
           image="/images/golf-sims-optimized.webp"
           imageAlt="Trackman golf simulator bay at Ever Club"
-          ctaLabel="Book a Bay"
+          ctaLabel="Get a Day Pass"
           ctaLink="/checkout?type=day-pass-golf-sim"
           reversed={true}
         />
