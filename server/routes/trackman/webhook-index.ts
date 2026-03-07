@@ -1486,8 +1486,8 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
         const startStr = bookingData?.start;
         const endStr = bookingData?.end;
         const bayRef = bookingData?.bay?.ref;
-        const customerEmail = bookingData?.customer?.email || payload?.customer?.email;
-        const customerName = bookingData?.customer?.name || payload?.customer?.name || 'Unknown (Trackman)';
+        const customerEmail = undefined;
+        const customerName = 'Unknown (Trackman)';
         const rawPlayerOptions = bookingData?.playerOptions;
         const playerOptionsArr = Array.isArray(rawPlayerOptions)
           ? rawPlayerOptions

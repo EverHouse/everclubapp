@@ -41,18 +41,6 @@ export interface TrackmanBookingPayload {
   end_time?: string;
   endTime?: string;
   date?: string;
-  customer?: {
-    email?: string;
-    name?: string;
-    phone?: string;
-    id?: string;
-  };
-  user?: {
-    email?: string;
-    name?: string;
-    phone?: string;
-    id?: string;
-  };
   player_count?: number;
   playerCount?: number;
   created_at?: string;
@@ -112,8 +100,6 @@ export interface TrackmanWebhookPayload {
   eventType?: string;
   data?: TrackmanBookingPayload;
   booking?: TrackmanBookingPayload | TrackmanV2Booking;
-  user?: Record<string, unknown>;
-  purchase?: Record<string, unknown>;
   timestamp?: string;
   venue?: TrackmanV2Venue;
   start_time?: string;
@@ -239,10 +225,10 @@ export function normalizeBookingFields(booking: TrackmanBookingPayload): Normali
     startTime: booking.start_time || booking.startTime,
     endTime: booking.end_time || booking.endTime,
     date: booking.date,
-    customerEmail: booking.customer?.email || booking.user?.email,
-    customerName: booking.customer?.name || booking.user?.name,
-    customerPhone: booking.customer?.phone || booking.user?.phone,
-    customerId: booking.customer?.id || booking.user?.id,
+    customerEmail: undefined,
+    customerName: undefined,
+    customerPhone: undefined,
+    customerId: undefined,
     playerCount: booking.player_count || booking.playerCount || 1,
     status: booking.status,
     parsedDate: undefined,
