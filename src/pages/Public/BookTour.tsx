@@ -293,6 +293,7 @@ const BookTour: React.FC = () => {
                       <input
                         id="tour-firstName"
                         type="text"
+                        autoComplete="given-name"
                         value={formData.firstName}
                         onChange={(e) => {
                           setFormData(prev => ({ ...prev, firstName: e.target.value }));
@@ -315,6 +316,7 @@ const BookTour: React.FC = () => {
                       <input
                         id="tour-lastName"
                         type="text"
+                        autoComplete="family-name"
                         value={formData.lastName}
                         onChange={(e) => {
                           setFormData(prev => ({ ...prev, lastName: e.target.value }));
@@ -339,6 +341,7 @@ const BookTour: React.FC = () => {
                     <input
                       id="tour-email"
                       type="email"
+                      autoComplete="email"
                       value={formData.email}
                       onChange={(e) => {
                         setFormData(prev => ({ ...prev, email: e.target.value }));
@@ -362,6 +365,7 @@ const BookTour: React.FC = () => {
                     <input
                       id="tour-phone"
                       type="tel"
+                      autoComplete="tel"
                       value={formData.phone}
                       onChange={(e) => {
                         setFormData(prev => ({ ...prev, phone: formatPhoneNumber(e.target.value) }));

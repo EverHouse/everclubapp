@@ -211,6 +211,7 @@ const Contact: React.FC = () => {
                   value={formData.fullName}
                   onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
                   variant="solid"
+                  autoComplete="name"
                   required 
                 />
                 <Input 
@@ -220,6 +221,7 @@ const Contact: React.FC = () => {
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   variant="solid"
+                  autoComplete="email"
                   required 
                 />
                 <Input 
@@ -229,6 +231,7 @@ const Contact: React.FC = () => {
                   value={formData.phone}
                   onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                   variant="solid"
+                  autoComplete="tel"
                 />
                 <div>
                     <label htmlFor="contact-message" className="block text-sm font-medium text-primary dark:text-white mb-1.5 pl-1">Message</label>

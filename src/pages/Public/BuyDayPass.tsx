@@ -237,6 +237,7 @@ const BuyDayPass: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               variant="solid"
+              autoComplete="email"
               required 
             />
             <div className="grid grid-cols-2 gap-3">
@@ -246,6 +247,7 @@ const BuyDayPass: React.FC = () => {
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 variant="solid"
+                autoComplete="given-name"
               />
               <Input 
                 label="Last Name" 
@@ -253,6 +255,7 @@ const BuyDayPass: React.FC = () => {
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 variant="solid"
+                autoComplete="family-name"
               />
             </div>
           </div>
