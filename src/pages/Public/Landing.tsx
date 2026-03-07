@@ -249,13 +249,13 @@ const Landing: React.FC = () => {
         />
 
         <EditorialShowcase
-          overline="Curated Programming"
-          title={<>Events & <em style={{ fontStyle: 'italic' }}>Wellness</em></>}
-          description="From intimate wine tastings and chef-led dinners to golf socials and guided wellness workshops, our curated calendar is designed to spark connection and inspire something new every week."
-          image="/images/private-dining-optimized.webp"
-          imageAlt="Curated events and wellness programming at Ever Club"
-          ctaLabel="Explore Events"
-          ctaLink="/whats-on"
+          overline="Designed for Focus"
+          title={<>Luxury <em style={{ fontStyle: 'italic' }}>Workspaces</em></>}
+          description="Thoughtfully appointed private offices, conference rooms, and open lounges with high-speed fiber, espresso on demand, and an atmosphere built for deep work and creative collaboration."
+          image="/images/gallery/gallery-l1050509.webp"
+          imageAlt="Luxury co-working spaces at Ever Club"
+          ctaLabel="Get a Day Pass"
+          ctaLink="/checkout?type=day-pass-cowork"
           reversed={false}
         />
         
@@ -269,15 +269,15 @@ const Landing: React.FC = () => {
           ctaLink="/menu"
           reversed={true}
         />
-        
+
         <EditorialShowcase
-          overline="Designed for Focus"
-          title={<>Luxury <em style={{ fontStyle: 'italic' }}>Workspaces</em></>}
-          description="Thoughtfully appointed private offices, conference rooms, and open lounges with high-speed fiber, espresso on demand, and an atmosphere built for deep work and creative collaboration."
-          image="/images/gallery/gallery-l1050509.webp"
-          imageAlt="Luxury co-working spaces at Ever Club"
-          ctaLabel="Get a Day Pass"
-          ctaLink="/checkout?type=day-pass-cowork"
+          overline="Curated Programming"
+          title={<>Events & <em style={{ fontStyle: 'italic' }}>Wellness</em></>}
+          description="From intimate wine tastings and chef-led dinners to golf socials and guided wellness workshops, our curated calendar is designed to spark connection and inspire something new every week."
+          image="/images/private-dining-optimized.webp"
+          imageAlt="Curated events and wellness programming at Ever Club"
+          ctaLabel="Explore Events"
+          ctaLink="/whats-on"
           reversed={false}
         />
       </div>
