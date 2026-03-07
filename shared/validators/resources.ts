@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const assignMemberSchema = z.object({
   member_email: z.string().email('Valid email is required'),
   member_name: z.string().min(1, 'member_name is required').max(200),
-  member_id: z.string().optional(),
+  member_id: z.string().nullish(),
 });
 export type AssignMemberInput = z.infer<typeof assignMemberSchema>;
 
@@ -12,11 +12,11 @@ export const linkTrackmanSchema = z.object({
   owner: z.object({
     email: z.string().email(),
     name: z.string().min(1),
-    member_id: z.string().optional(),
+    member_id: z.string().nullish(),
   }).optional(),
   member_email: z.string().email().optional(),
   member_name: z.string().optional(),
-  member_id: z.string().optional(),
+  member_id: z.string().nullish(),
   additional_players: z.array(z.any()).optional(),
   rememberEmail: z.boolean().optional(),
   originalEmail: z.string().optional(),
@@ -37,7 +37,7 @@ export const assignWithPlayersSchema = z.object({
   owner: z.object({
     email: z.string().email(),
     name: z.string().min(1),
-    member_id: z.string().optional(),
+    member_id: z.string().nullish(),
   }),
   additional_players: z.array(z.any()).optional(),
   rememberEmail: z.boolean().optional(),
@@ -48,7 +48,7 @@ export type AssignWithPlayersInput = z.infer<typeof assignWithPlayersSchema>;
 export const changeOwnerSchema = z.object({
   new_email: z.string().email('Valid email is required'),
   new_name: z.string().min(1, 'new_name is required').max(200),
-  member_id: z.string().optional(),
+  member_id: z.string().nullish(),
 });
 export type ChangeOwnerInput = z.infer<typeof changeOwnerSchema>;
 
