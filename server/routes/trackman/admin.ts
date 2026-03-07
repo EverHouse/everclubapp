@@ -598,7 +598,7 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
         br.notes,
         br.trackman_booking_id
       FROM booking_requests br
-      WHERE br.status NOT IN ('cancelled', 'cancellation_pending')
+      WHERE br.status NOT IN ('cancelled', 'cancellation_pending', 'deleted')
         AND (
           LOWER(br.user_email) IN (${sql.join(INSTRUCTOR_EMAILS.map((e: string) => sql`${e}`), sql`, `)})
           OR LOWER(br.user_name) LIKE '%lesson%'

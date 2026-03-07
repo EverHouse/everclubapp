@@ -17,7 +17,7 @@ router.get('/api/analytics/booking-stats', isStaffOrAdmin, async (_req: Request,
         EXTRACT(HOUR FROM start_time::time) AS hour_of_day,
         COUNT(*)::int AS booking_count
       FROM booking_requests
-      WHERE status NOT IN ('cancelled', 'declined')
+      WHERE status NOT IN ('cancelled', 'declined', 'deleted')
         AND request_date IS NOT NULL
         AND start_time IS NOT NULL
         AND user_email NOT IN ${STAFF_EMAILS_SUBQUERY}
@@ -31,7 +31,7 @@ router.get('/api/analytics/booking-stats', isStaffOrAdmin, async (_req: Request,
         COALESCE(SUM(br.duration_minutes), 0)::int AS total_minutes
       FROM resources r
       LEFT JOIN booking_requests br ON br.resource_id = r.id
-        AND br.status NOT IN ('cancelled', 'declined')
+        AND br.status NOT IN ('cancelled', 'declined', 'deleted')
         AND br.user_email NOT IN ${STAFF_EMAILS_SUBQUERY}
       GROUP BY r.id, r.name
       ORDER BY total_minutes DESC
@@ -43,7 +43,7 @@ router.get('/api/analytics/booking-stats', isStaffOrAdmin, async (_req: Request,
         br.user_email AS member_email,
         SUM(br.duration_minutes)::int AS total_minutes
       FROM booking_requests br
-      WHERE br.status NOT IN ('cancelled', 'declined')
+      WHERE br.status NOT IN ('cancelled', 'declined', 'deleted')
         AND br.user_email IS NOT NULL
         AND br.user_email NOT IN ${STAFF_EMAILS_SUBQUERY}
       GROUP BY br.user_name, br.user_email
@@ -64,7 +64,7 @@ router.get('/api/analytics/booking-stats', isStaffOrAdmin, async (_req: Request,
       SELECT
         ROUND(AVG(duration_minutes), 1) AS avg_minutes
       FROM booking_requests
-      WHERE status NOT IN ('cancelled', 'declined')
+      WHERE status NOT IN ('cancelled', 'declined', 'deleted')
         AND duration_minutes IS NOT NULL
         AND duration_minutes > 0
         AND user_email NOT IN ${STAFF_EMAILS_SUBQUERY}
@@ -121,14 +121,14 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
           AND u.role = 'member'
           AND u.membership_status IN ('active', 'trialing', 'past_due')
           AND u.archived_at IS NULL
-        WHERE br.status NOT IN ('cancelled', 'declined')
+        WHERE br.status NOT IN ('cancelled', 'declined', 'deleted')
       `),
 
       db.execute(sql`
         WITH member_counts AS (
           SELECT user_email, COUNT(*)::int AS booking_count
           FROM booking_requests
-          WHERE status NOT IN ('cancelled', 'declined')
+          WHERE status NOT IN ('cancelled', 'declined', 'deleted')
             AND request_date >= CURRENT_DATE - INTERVAL '90 days'
             AND user_email IS NOT NULL
             AND user_email NOT IN ${STAFF_EMAILS_SUBQUERY}
@@ -198,7 +198,7 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
           TO_CHAR(DATE_TRUNC('week', request_date::date), 'YYYY-MM-DD') AS week_start,
           COUNT(*)::int AS booking_count
         FROM booking_requests
-        WHERE status NOT IN ('cancelled', 'declined')
+        WHERE status NOT IN ('cancelled', 'declined', 'deleted')
           AND request_date >= CURRENT_DATE - INTERVAL '6 months'
           AND request_date IS NOT NULL
           AND user_email NOT IN ${STAFF_EMAILS_SUBQUERY}
@@ -211,7 +211,7 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
           EXTRACT(DOW FROM request_date::date)::int AS day_of_week,
           COUNT(*)::int AS booking_count
         FROM booking_requests
-        WHERE status NOT IN ('cancelled', 'declined')
+        WHERE status NOT IN ('cancelled', 'declined', 'deleted')
           AND request_date IS NOT NULL
           AND user_email NOT IN ${STAFF_EMAILS_SUBQUERY}
         GROUP BY day_of_week
@@ -226,7 +226,7 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
               GREATEST(EXTRACT(HOUR FROM start_time::time)::int, EXTRACT(HOUR FROM end_time::time)::int - 1)
             ) AS hour_slot
           FROM booking_requests
-          WHERE status NOT IN ('cancelled', 'declined')
+          WHERE status NOT IN ('cancelled', 'declined', 'deleted')
             AND start_time IS NOT NULL
             AND end_time IS NOT NULL
             AND resource_id IN (SELECT id FROM resources WHERE type = 'simulator')
@@ -240,7 +240,7 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
         total_days AS (
           SELECT COUNT(DISTINCT request_date)::int AS num_days
           FROM booking_requests
-          WHERE status NOT IN ('cancelled', 'declined')
+          WHERE status NOT IN ('cancelled', 'declined', 'deleted')
             AND request_date IS NOT NULL
             AND user_email NOT IN ${STAFF_EMAILS_SUBQUERY}
         ),
@@ -333,7 +333,7 @@ router.get('/api/analytics/membership-insights', isStaffOrAdmin, async (_req: Re
         FROM users u
         LEFT JOIN membership_tiers mt ON u.tier_id = mt.id
         LEFT JOIN booking_requests br ON br.user_email = u.email
-          AND br.status NOT IN ('cancelled', 'declined')
+          AND br.status NOT IN ('cancelled', 'declined', 'deleted')
         WHERE u.role = 'member'
           AND u.membership_status IN ('active', 'trialing', 'past_due')
           AND u.archived_at IS NULL

@@ -486,7 +486,7 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
       br.trackman_booking_id,
       br.session_id
     FROM booking_requests br
-    WHERE br.status NOT IN ('cancelled', 'cancellation_pending')
+    WHERE br.status NOT IN ('cancelled', 'cancellation_pending', 'deleted')
       AND br.archived_at IS NULL
       AND (
         LOWER(br.user_email) = ANY(${toTextArrayLiteral(INSTRUCTOR_EMAILS)}::text[])

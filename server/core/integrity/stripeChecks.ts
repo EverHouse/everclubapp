@@ -468,7 +468,7 @@ export async function checkInvoiceBookingReconciliation(): Promise<IntegrityChec
       SELECT stripe_invoice_id, COUNT(*) as booking_count, array_agg(id) as booking_ids
       FROM booking_requests
       WHERE stripe_invoice_id IS NOT NULL
-        AND status NOT IN ('cancelled', 'declined')
+        AND status NOT IN ('cancelled', 'declined', 'deleted')
       GROUP BY stripe_invoice_id
       HAVING COUNT(*) > 1
     `);

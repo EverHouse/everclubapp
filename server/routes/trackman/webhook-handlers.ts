@@ -233,12 +233,12 @@ export async function handleBookingModification(
              FROM booking_requests
              WHERE session_id = ${sessionId}
                AND id != ${bookingId}
-               AND status NOT IN ('cancelled', 'rejected', 'declined')`);
+               AND status NOT IN ('cancelled', 'rejected', 'declined', 'deleted')`);
           const otherCount = parseInt((otherActiveBookings.rows[0] as { cnt: string }).cnt, 10) || 0;
           const isSharedSession = otherCount > 0;
 
           const conflictingSessions = await tx.execute(sql`SELECT bs.id, 
-               (SELECT COUNT(*) FROM booking_requests br WHERE br.session_id = bs.id AND br.status NOT IN ('cancelled', 'rejected')) AS linked_bookings
+               (SELECT COUNT(*) FROM booking_requests br WHERE br.session_id = bs.id AND br.status NOT IN ('cancelled', 'rejected', 'deleted')) AS linked_bookings
              FROM booking_sessions bs
              WHERE bs.resource_id = ${newResourceId}
                AND bs.session_date = ${newDate}

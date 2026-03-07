@@ -530,8 +530,8 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
 
   if (!isOpen || !member) return null;
 
-  const filteredBookingHistory = (history?.bookingHistory || []).filter((b: BookingHistoryItem) => b.status !== 'cancelled' && b.status !== 'declined');
-  const filteredBookingRequestsHistory = (history?.bookingRequestsHistory || []).filter((b: BookingHistoryItem) => b.status !== 'cancelled' && b.status !== 'declined');
+  const filteredBookingHistory = (history?.bookingHistory || []).filter((b: BookingHistoryItem) => b.status !== 'cancelled' && b.status !== 'declined' && b.status !== 'deleted');
+  const filteredBookingRequestsHistory = (history?.bookingRequestsHistory || []).filter((b: BookingHistoryItem) => b.status !== 'cancelled' && b.status !== 'declined' && b.status !== 'deleted');
   const bookingsCount = filteredBookingHistory.length + filteredBookingRequestsHistory.length;
   const eventsCount = history?.eventRsvpHistory?.length || 0;
   const wellnessCount = history?.wellnessHistory?.length || 0;

@@ -1623,7 +1623,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
     .from(bookingRequests)
     .where(sql`
       trackman_booking_id IS NOT NULL 
-      AND status NOT IN ('cancelled', 'attended', 'no_show', 'cancellation_pending')
+      AND status NOT IN ('cancelled', 'attended', 'no_show', 'cancellation_pending', 'deleted')
       AND request_date >= ${csvMinDate}::date 
       AND request_date <= ${csvMaxDate}::date
     `) : [];

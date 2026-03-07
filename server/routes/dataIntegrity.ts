@@ -1407,7 +1407,7 @@ router.post('/api/data-integrity/fix/recalculate-guest-passes', isAdmin, validat
         JOIN booking_requests br ON br.session_id = bs.id
         WHERE bp.guest_pass_id = gp.id
           AND bp.used_guest_pass = true
-          AND br.status NOT IN ('cancelled', 'rejected')
+          AND br.status NOT IN ('cancelled', 'rejected', 'deleted')
       ), 0)
       WHERE gp.user_id = ${userId}
     `);

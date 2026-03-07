@@ -73,7 +73,7 @@ export const USAGE_LEDGER_MEMBER_JOIN = `
 
 export const USAGE_LEDGER_MEMBER_JOIN_WITH_BOOKING = `
   LEFT JOIN users member_lookup ON member_lookup.id = bp.user_id
-  LEFT JOIN booking_requests br_lookup ON br_lookup.session_id = bp.session_id AND br_lookup.status != 'cancelled'
+  LEFT JOIN booking_requests br_lookup ON br_lookup.session_id = bp.session_id AND br_lookup.status NOT IN ('cancelled', 'deleted')
   LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id 
     AND (
       ul.member_id = bp.user_id 

@@ -137,8 +137,8 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
   const allActivities = useMemo(() => {
     const activities: ActivityItem[] = [];
 
-    const filteredBookingHistory = (bookingHistory || []).filter((b: BookingHistoryItem) => b.status !== 'cancelled' && b.status !== 'declined');
-    const filteredBookingRequestsHistory = (bookingRequestsHistory || []).filter((b: BookingHistoryItem) => b.status !== 'cancelled' && b.status !== 'declined');
+    const filteredBookingHistory = (bookingHistory || []).filter((b: BookingHistoryItem) => b.status !== 'cancelled' && b.status !== 'declined' && b.status !== 'deleted');
+    const filteredBookingRequestsHistory = (bookingRequestsHistory || []).filter((b: BookingHistoryItem) => b.status !== 'cancelled' && b.status !== 'declined' && b.status !== 'deleted');
 
     filteredBookingHistory.forEach((booking: BookingHistoryItem) => {
       const dateStr = booking.bookingDate || booking.requestDate;
@@ -416,8 +416,8 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
   };
 
   const getCounts = () => {
-    const filteredBookingHistory = (bookingHistory || []).filter((b: BookingHistoryItem) => b.status !== 'cancelled' && b.status !== 'declined');
-    const filteredBookingRequestsHistory = (bookingRequestsHistory || []).filter((b: BookingHistoryItem) => b.status !== 'cancelled' && b.status !== 'declined');
+    const filteredBookingHistory = (bookingHistory || []).filter((b: BookingHistoryItem) => b.status !== 'cancelled' && b.status !== 'declined' && b.status !== 'deleted');
+    const filteredBookingRequestsHistory = (bookingRequestsHistory || []).filter((b: BookingHistoryItem) => b.status !== 'cancelled' && b.status !== 'declined' && b.status !== 'deleted');
     
     // Count visits: use visitHistory (attended simulator bookings) + past events + attended wellness
     // This matches the backend attendedVisitsCount calculation
