@@ -154,8 +154,11 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
       ></div>
 
       <div 
+        className={`relative w-[85%] md:w-[320px] lg:w-[320px] h-full flex flex-col border-l-0 ${isClosing ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}
+      >
+      <div 
         style={{ height: '100dvh' }}
-        className={`relative w-[85%] md:w-[320px] lg:w-[320px] flex flex-col overflow-hidden rounded-tr-[2rem] rounded-br-[2rem] border-l-0 ${isDark ? 'bg-[#141414]' : 'bg-[#F2F2EC]'} backdrop-blur-xl ${isClosing ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}
+        className={`relative flex flex-col overflow-hidden rounded-tr-[2rem] rounded-br-[2rem] ${isDark ? 'bg-[#141414]' : 'bg-[#F2F2EC]'} backdrop-blur-xl`}
       >
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-multiply"></div>
 
@@ -237,6 +240,8 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
               </button>
             </div>
         </div>
+      </div>
+      <div className={`flex-1 ${isDark ? 'bg-[#141414]' : 'bg-[#F2F2EC]'}`} />
       </div>
     </div>
   );
