@@ -259,7 +259,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, validateBod
       return res.status(400).json({ error: 'Missing required owner fields: email, name' });
     }
     
-    const additionalPlayers: Array<{ type: 'member' | 'guest_placeholder'; member_id?: string; email?: string; name?: string; guest_name?: string }> = additional_players || [];
+    const additionalPlayers: Array<{ type: 'member' | 'guest_placeholder'; member_id?: string | null; email?: string; name?: string; guest_name?: string }> = additional_players || [];
     const totalPlayerCount = 1 + additionalPlayers.filter(p => p.type === 'member' || p.type === 'guest_placeholder').length;
     const guestCount = additionalPlayers.filter(p => p.type === 'guest_placeholder').length;
     
@@ -412,7 +412,7 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, validateBody
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
     
-    const additionalPlayers: Array<{ type: 'member' | 'guest_placeholder'; member_id?: string; email?: string; name?: string; guest_name?: string }> = additional_players || [];
+    const additionalPlayers: Array<{ type: 'member' | 'guest_placeholder'; member_id?: string | null; email?: string; name?: string; guest_name?: string }> = additional_players || [];
     const staffEmail = getSessionUser(req)?.email || 'staff';
     
     const result = await assignWithPlayers(bookingId, owner, additionalPlayers, staffEmail);

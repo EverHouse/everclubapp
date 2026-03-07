@@ -23,7 +23,7 @@ interface FeeSumRow {
   guest_cents?: string | null;
 }
 
-export async function assignMemberToBooking(bookingId: number, memberEmail: string, memberName: string, memberId?: string) {
+export async function assignMemberToBooking(bookingId: number, memberEmail: string, memberName: string, memberId?: string | null) {
   const result = await db.transaction(async (tx) => {
     const [existing] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
     
@@ -87,8 +87,8 @@ export async function assignMemberToBooking(bookingId: number, memberEmail: stri
 
 export async function assignWithPlayers(
   bookingId: number,
-  owner: { email: string; name: string; member_id?: string },
-  additionalPlayers: Array<{ type: 'member' | 'guest_placeholder'; member_id?: string; email?: string; name?: string; guest_name?: string }>,
+  owner: { email: string; name: string; member_id?: string | null },
+  additionalPlayers: Array<{ type: 'member' | 'guest_placeholder'; member_id?: string | null; email?: string; name?: string; guest_name?: string }>,
   staffEmail: string
 ) {
   const totalPlayerCount = 1 + additionalPlayers.filter(p => p.type === 'member' || p.type === 'guest_placeholder').length;
@@ -317,7 +317,7 @@ export async function assignWithPlayers(
   return { booking: result.booking, totalPlayerCount, guestCount, sessionId };
 }
 
-export async function changeBookingOwner(bookingId: number, newEmail: string, newName: string, memberId?: string) {
+export async function changeBookingOwner(bookingId: number, newEmail: string, newName: string, memberId?: string | null) {
   const [existingBooking] = await db.select()
     .from(bookingRequests)
     .where(eq(bookingRequests.id, bookingId));

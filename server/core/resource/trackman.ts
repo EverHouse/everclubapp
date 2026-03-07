@@ -231,7 +231,7 @@ export async function linkTrackmanToMember(
   ownerEmail: string,
   ownerName: string,
   ownerId: string | null,
-  additionalPlayers: Array<{ type: 'member' | 'guest_placeholder'; member_id?: string; email?: string; name?: string; guest_name?: string }>,
+  additionalPlayers: Array<{ type: 'member' | 'guest_placeholder'; member_id?: string | null; email?: string; name?: string; guest_name?: string }>,
   totalPlayerCount: number,
   guestCount: number,
   staffEmail: string
