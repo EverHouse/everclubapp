@@ -182,7 +182,9 @@ export function TrackmanBookingModal({
             onCloseRef.current();
           }, 3500);
         }
-      } catch {}
+      } catch (pollErr) {
+        console.warn('[TrackmanBookingModal] Auto-confirm poll error:', pollErr);
+      }
     }, 5000) : null;
 
     return () => {

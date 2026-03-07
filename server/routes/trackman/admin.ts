@@ -247,10 +247,16 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
           `UPDATE usage_ledger 
            SET member_id = $1
            WHERE session_id = $2 AND member_id = $3`,
-          [newMember.id, sessionId, oldOwnerId]
+          [newMemberEmail.toLowerCase(), sessionId, oldOwnerId]
         );
-      } else {
-        logger.warn('[Reassign] No old owner found in participants, skipping usage_ledger update', { extra: { sessionId } });
+      }
+      if (oldEmail) {
+        await client.query(
+          `UPDATE usage_ledger 
+           SET member_id = $1
+           WHERE session_id = $2 AND LOWER(member_id) = LOWER($3)`,
+          [newMemberEmail.toLowerCase(), sessionId, oldEmail]
+        );
       }
     }
     

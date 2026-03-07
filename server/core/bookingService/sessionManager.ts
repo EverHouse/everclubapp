@@ -142,8 +142,12 @@ export async function ensureSessionForBooking(params: {
 
     if (params.trackmanBookingId) {
       const trackmanMatch = await lockClient.query(
-        `SELECT id FROM booking_sessions
-         WHERE trackman_booking_id = $1
+        `SELECT bs.id FROM booking_sessions bs
+         WHERE bs.trackman_booking_id = $1
+         AND EXISTS (
+           SELECT 1 FROM booking_requests br
+           WHERE br.session_id = bs.id AND br.status NOT IN ('cancelled', 'deleted')
+         )
          LIMIT 1`,
         [params.trackmanBookingId]
       );

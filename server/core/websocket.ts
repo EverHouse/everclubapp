@@ -542,7 +542,8 @@ export function initWebSocketServer(server: Server) {
           } else if (conn.ws.readyState === WebSocket.OPEN) {
             valid.push(conn);
           }
-        } catch {
+        } catch (revalidateErr) {
+          logger.debug(`[WebSocket] Session revalidation DB error for ${email} — keeping connection`, { error: revalidateErr instanceof Error ? revalidateErr : new Error(String(revalidateErr)) });
           if (conn.ws.readyState === WebSocket.OPEN) {
             valid.push(conn);
           }
