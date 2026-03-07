@@ -293,18 +293,23 @@ export async function ensureDatabaseConstraints() {
           END IF;
 
           SELECT COUNT(*) INTO conflict_count
-          FROM public.booking_sessions
-          WHERE resource_id = NEW.resource_id
-            AND session_date = NEW.session_date
-            AND id != COALESCE(NEW.id, 0)
+          FROM public.booking_sessions bs
+          WHERE bs.resource_id = NEW.resource_id
+            AND bs.session_date = NEW.session_date
+            AND bs.id != COALESCE(NEW.id, 0)
             AND tsrange(
-              (session_date + start_time)::timestamp,
-              (session_date + end_time)::timestamp,
+              (bs.session_date + bs.start_time)::timestamp,
+              (bs.session_date + bs.end_time)::timestamp,
               '[)'
             ) && tsrange(
               (NEW.session_date + NEW.start_time)::timestamp,
               (NEW.session_date + NEW.end_time)::timestamp,
               '[)'
+            )
+            AND EXISTS (
+              SELECT 1 FROM public.booking_requests br
+              WHERE br.session_id = bs.id
+                AND br.status NOT IN ('cancelled', 'deleted')
             );
           
           IF conflict_count > 0 THEN

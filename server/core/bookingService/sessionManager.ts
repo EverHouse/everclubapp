@@ -202,27 +202,6 @@ export async function ensureSessionForBooking(params: {
     }
 
     if (!sessionId) {
-      const anySession = await lockClient.query(
-        `SELECT bs.id FROM booking_sessions bs
-         WHERE bs.resource_id = $1 AND bs.session_date = $2
-         AND tsrange(
-           (bs.session_date + bs.start_time)::timestamp,
-           (bs.session_date + bs.end_time)::timestamp,
-           '[)'
-         ) && tsrange(
-           ($2::date + $3::time)::timestamp,
-           ($2::date + $4::time)::timestamp,
-           '[)'
-         )
-         LIMIT 1`,
-        [params.resourceId, params.sessionDate, params.startTime, params.endTime]
-      );
-      if (anySession.rows.length > 0) {
-        sessionId = anySession.rows[0].id;
-      }
-    }
-
-    if (!sessionId) {
       const insertResult = await lockClient.query(
         `INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
