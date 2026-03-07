@@ -91,7 +91,7 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
       ></div>
 
       <div 
-        style={{ height: '100vh' }}
+        style={{ height: '100dvh' }}
         className={`relative w-[85%] md:w-[320px] lg:w-[320px] flex flex-col overflow-hidden rounded-tr-xl rounded-br-xl border-l-0 ${isDark ? 'bg-[#141414]' : 'bg-[#F2F2EC]'} backdrop-blur-xl ${isClosing ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}
       >
         
