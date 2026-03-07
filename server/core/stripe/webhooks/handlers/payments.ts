@@ -148,10 +148,15 @@ export async function handleChargeRefunded(client: PoolClient, charge: Stripe.Ch
     
     if (refunded || amount_refunded >= amount) {
     const participantUpdate = await client.query(
-      `UPDATE booking_participants 
-       SET payment_status = 'refunded', refunded_at = NOW()
-       WHERE stripe_payment_intent_id = $1 AND payment_status = 'paid'
-       RETURNING id, session_id, user_email`,
+      `WITH updated AS (
+        UPDATE booking_participants
+        SET payment_status = 'refunded', refunded_at = NOW()
+        WHERE stripe_payment_intent_id = $1 AND payment_status = 'paid'
+        RETURNING id, session_id, user_id
+      )
+      SELECT updated.id, updated.session_id, u.email AS user_email
+      FROM updated
+      LEFT JOIN users u ON u.id = updated.user_id`,
       [paymentIntentId]
     );
     

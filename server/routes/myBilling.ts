@@ -930,7 +930,7 @@ router.get('/api/my-billing/receipt/:paymentIntentId', requireAuth, async (req, 
 
 router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
   try {
-    const userEmail = (req as any).session?.passport?.user?.email?.toLowerCase();
+    const userEmail = req.session?.user?.email?.toLowerCase();
     if (!userEmail) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
