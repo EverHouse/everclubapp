@@ -276,8 +276,8 @@ const Landing: React.FC = () => {
           description="Thoughtfully appointed private offices, conference rooms, and open lounges with high-speed fiber, espresso on demand, and an atmosphere built for deep work and creative collaboration."
           image="/images/gallery/gallery-l1050509.webp"
           imageAlt="Luxury co-working spaces at Ever Club"
-          ctaLabel="View Spaces"
-          ctaLink="/gallery"
+          ctaLabel="Get a Day Pass"
+          ctaLink="/checkout?type=day-pass-cowork"
           reversed={false}
         />
       </div>
