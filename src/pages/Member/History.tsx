@@ -7,8 +7,6 @@ import { usePageReady } from '../../contexts/PageReadyContext';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
 import { SegmentedButton } from '../../components/ui/SegmentedButton';
 import SwipeablePage from '../../components/SwipeablePage';
-import MemberBottomNav from '../../components/MemberBottomNav';
-import { BottomSentinel } from '../../components/layout/BottomSentinel';
 import { formatTime12Hour, getRelativeDateLabel } from '../../utils/dateUtils';
 import InvoicePaymentModal from '../../components/billing/InvoicePaymentModal';
 import { AnimatedPage, MotionListItem } from '../../components/motion';
@@ -477,9 +475,7 @@ const History: React.FC = () => {
         </div>
         </TabTransition>
 
-        <BottomSentinel />
       </SwipeablePage>
-      <MemberBottomNav currentPath="/history" isDarkTheme={isDark} />
 
       {user && (
         <InvoicePaymentModal
