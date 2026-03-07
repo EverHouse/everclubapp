@@ -15,9 +15,10 @@ interface GroupedTemplates {
   [category: string]: EmailTemplate[];
 }
 
-const CATEGORY_ORDER = ['Welcome', 'Booking', 'Passes', 'Payments', 'Membership', 'System'];
+const CATEGORY_ORDER = ['Authentication', 'Welcome', 'Booking', 'Passes', 'Payments', 'Membership', 'System'];
 
 const CATEGORY_ICONS: Record<string, string> = {
+  Authentication: 'lock',
   Welcome: 'waving_hand',
   Booking: 'event_note',
   Passes: 'confirmation_number',
@@ -33,11 +34,13 @@ interface EmailCategory {
   description: string;
   defaultOff?: boolean;
   stripeNote?: boolean;
+  alwaysOn?: boolean;
 }
 
 const EMAIL_CATEGORIES: EmailCategory[] = [
+  { key: 'email.auth.enabled', label: 'Authentication', icon: 'lock', description: 'Login codes (OTP) for passwordless sign-in', alwaysOn: true },
   { key: 'email.welcome.enabled', label: 'Welcome', icon: 'waving_hand', description: 'Welcome, trial welcome, and first visit emails' },
-  { key: 'email.booking.enabled', label: 'Booking', icon: 'event_note', description: 'Booking confirmation and reschedule notifications' },
+  { key: 'email.booking.enabled', label: 'Booking', icon: 'event_note', description: 'Booking confirmations, tour confirmations, and reschedule notifications' },
   { key: 'email.passes.enabled', label: 'Passes', icon: 'confirmation_number', description: 'Day pass and guest pass emails with QR codes' },
   { key: 'email.payments.enabled', label: 'Payments', icon: 'payments', description: 'Payment receipts, failed payments, outstanding balances', defaultOff: true, stripeNote: true },
   { key: 'email.membership.enabled', label: 'Membership', icon: 'card_membership', description: 'Renewal, failed payment, card expiring, grace period emails', defaultOff: true, stripeNote: true },
@@ -219,7 +222,7 @@ const EmailTemplatesTab: React.FC = () => {
         {controlsOpen && (
           <div className="px-6 pb-6 space-y-3 border-t border-primary/5 dark:border-white/5 pt-4">
             {EMAIL_CATEGORIES.map((cat) => {
-              const enabled = getEmailEnabled(cat.key);
+              const enabled = cat.alwaysOn ? true : getEmailEnabled(cat.key);
               const isSaving = savingKey === cat.key;
               return (
                 <div
@@ -233,7 +236,12 @@ const EmailTemplatesTab: React.FC = () => {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium text-primary dark:text-white">{cat.label}</p>
-                        {!enabled && (
+                        {cat.alwaysOn && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-700/50">
+                            Always On
+                          </span>
+                        )}
+                        {!cat.alwaysOn && !enabled && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/50">
                             Disabled
                           </span>
@@ -252,12 +260,18 @@ const EmailTemplatesTab: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex-shrink-0 ml-4">
-                    <Toggle
-                      checked={enabled}
-                      onChange={() => handleToggle(cat.key, enabled)}
-                      disabled={isSaving}
-                      size="sm"
-                    />
+                    {cat.alwaysOn ? (
+                      <div className="w-9 h-5 rounded-full bg-green-500/20 dark:bg-green-500/10 flex items-center justify-end px-0.5 cursor-not-allowed" title="System-critical emails cannot be disabled">
+                        <div className="w-4 h-4 rounded-full bg-green-500" />
+                      </div>
+                    ) : (
+                      <Toggle
+                        checked={enabled}
+                        onChange={() => handleToggle(cat.key, enabled)}
+                        disabled={isSaving}
+                        size="sm"
+                      />
+                    )}
                   </div>
                 </div>
               );

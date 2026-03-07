@@ -6,6 +6,8 @@ import { getPassWithQrHtml, getRedemptionConfirmationHtml } from '../emails/pass
 import { getPaymentReceiptHtml, getPaymentFailedHtml, getOutstandingBalanceHtml, getFeeWaivedHtml, getPurchaseReceiptHtml } from '../emails/paymentEmails';
 import { getMembershipRenewalHtml, getMembershipFailedHtml, getCardExpiringHtml, getGracePeriodReminderHtml, getMembershipActivationHtml } from '../emails/membershipEmails';
 import { getIntegrityAlertEmailHtml } from '../emails/integrityAlertEmail';
+import { getTourConfirmationHtml } from '../emails/tourEmails';
+import { getOtpEmailHtml } from '../emails/otpEmail';
 import type { IntegrityCheckResult } from './dataIntegrity';
 
 export interface EmailTemplateInfo {
@@ -16,10 +18,12 @@ export interface EmailTemplateInfo {
 }
 
 const TEMPLATE_REGISTRY: EmailTemplateInfo[] = [
+  { id: 'otp-login', name: 'Login Code (OTP)', description: 'One-time passcode sent for passwordless login', category: 'Authentication' },
   { id: 'welcome', name: 'Welcome Email', description: 'Sent when a new member joins', category: 'Welcome' },
   { id: 'trial-welcome', name: 'Trial Welcome', description: 'Sent when a trial membership begins', category: 'Welcome' },
   { id: 'first-visit', name: 'First Visit', description: 'Sent after a member\'s first visit', category: 'Welcome' },
   { id: 'booking-confirmation', name: 'Booking Confirmation', description: 'Sent when a bay booking is confirmed', category: 'Booking' },
+  { id: 'tour-confirmation', name: 'Tour Confirmation', description: 'Sent when a visitor books a facility tour', category: 'Booking' },
   { id: 'pass-with-qr', name: 'Pass with QR Code', description: 'Pass purchase confirmation with QR code', category: 'Passes' },
   { id: 'redemption-confirmation', name: 'Redemption Confirmation', description: 'Sent when a pass is redeemed', category: 'Passes' },
   { id: 'payment-receipt', name: 'Payment Receipt', description: 'Receipt for a successful payment', category: 'Payments' },
@@ -41,6 +45,22 @@ export function getAllTemplates(): EmailTemplateInfo[] {
 
 export async function renderTemplatePreview(templateId: string): Promise<string | null> {
   switch (templateId) {
+    case 'otp-login':
+      return getOtpEmailHtml({
+        firstName: 'Alex',
+        code: '847291',
+        logoUrl: 'https://everclub.app/images/everclub-logo-dark.png',
+      });
+
+    case 'tour-confirmation':
+      return getTourConfirmationHtml({
+        guestName: 'Jordan Smith',
+        date: '2026-03-20',
+        time: '14:00',
+        addressLine1: '1234 Club Drive',
+        cityStateZip: 'Los Angeles, CA 90001',
+      });
+
     case 'welcome':
       return getWelcomeEmailHtml('Alex');
 
