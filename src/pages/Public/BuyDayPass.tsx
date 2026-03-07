@@ -44,7 +44,7 @@ const BuyDayPass: React.FC = () => {
       const allTiers = await response.json();
       const dayPasses = allTiers
         .filter((tier: { product_type?: string; slug?: string; name: string; stripe_price_id?: string; monthly_price?: number; description?: string; id?: number; price_string?: string; price_cents?: number }) => tier.product_type === 'one_time')
-        .filter((tier: { product_type?: string; slug?: string; name: string; stripe_price_id?: string; monthly_price?: number; description?: string; id?: number; price_string?: string; price_cents?: number }) => !tier.slug?.includes('overage'))
+        .filter((tier: { product_type?: string; slug?: string; name: string; stripe_price_id?: string; monthly_price?: number; description?: string; id?: number; price_string?: string; price_cents?: number }) => !tier.slug?.includes('overage') && !tier.name?.toLowerCase().includes('overage'))
         .map((tier: { product_type?: string; slug?: string; name: string; stripe_price_id?: string; monthly_price?: number; description?: string; id?: number; price_string?: string; price_cents?: number }) => ({
           id: tier.id as number,
           name: tier.name,
