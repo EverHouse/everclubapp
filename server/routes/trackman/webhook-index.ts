@@ -327,20 +327,27 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
   
   const payload: TrackmanWebhookPayload = req.body;
   
+  // Detect non-booking event types early (user_update, purchase) — skip booking dedup for these
+  const incomingEventType = payload.event_type || payload.eventType || '';
+  const isNonBookingEvent = incomingEventType.includes('user') || incomingEventType.includes('purchase');
+  
   // Check for duplicate webhook using idempotency guard BEFORE processing
   // Include status + content signature in dedup key so modifications with changed bay/time get through
-  const trackmanBookingIdFromPayload = extractTrackmanBookingId(payload);
-  const pBooking = payload.booking;
-  const pData = payload.data;
-  const webhookStatus = pBooking?.status || pData?.status || payload.event_type || '';
-  const contentSig = buildContentSignature(payload);
-  if (trackmanBookingIdFromPayload) {
-    const isNewWebhook = await checkWebhookIdempotency(trackmanBookingIdFromPayload, webhookStatus, contentSig);
-    if (!isNewWebhook) {
-      logger.info('[Trackman Webhook] Duplicate webhook detected - returning early', {
-        extra: { trackmanBookingId: trackmanBookingIdFromPayload, status: webhookStatus }
-      });
-      return res.status(200).json({ received: true, duplicate: true });
+  // Skip dedup for non-booking events (user_update, purchase) since they don't have stable booking IDs
+  if (!isNonBookingEvent) {
+    const trackmanBookingIdFromPayload = extractTrackmanBookingId(payload);
+    const pBooking = payload.booking;
+    const pData = payload.data;
+    const webhookStatus = pBooking?.status || pData?.status || payload.event_type || '';
+    const contentSig = buildContentSignature(payload);
+    if (trackmanBookingIdFromPayload) {
+      const isNewWebhook = await checkWebhookIdempotency(trackmanBookingIdFromPayload, webhookStatus, contentSig);
+      if (!isNewWebhook) {
+        logger.info('[Trackman Webhook] Duplicate webhook detected - returning early', {
+          extra: { trackmanBookingId: trackmanBookingIdFromPayload, status: webhookStatus }
+        });
+        return res.status(200).json({ received: true, duplicate: true });
+      }
     }
   }
   
@@ -669,11 +676,13 @@ router.get('/api/admin/trackman-webhooks/stats', isStaffOrAdmin, async (req: Req
         COUNT(*) FILTER (WHERE processing_error IS NOT NULL) as errors,
         COUNT(*) FILTER (WHERE twe.event_type::text ILIKE '%created%' OR twe.event_type::text ILIKE '%create%') as created,
         COUNT(*) FILTER (WHERE twe.event_type::text ILIKE '%cancelled%' OR twe.event_type::text ILIKE '%cancel%' OR twe.event_type::text ILIKE '%deleted%') as cancelled,
-        COUNT(*) FILTER (WHERE twe.event_type::text ILIKE '%modified%' OR twe.event_type::text ILIKE '%update%') as modified,
+        COUNT(*) FILTER (WHERE (twe.event_type::text ILIKE '%modified%' OR twe.event_type::text ILIKE '%update%') AND twe.event_type::text NOT ILIKE '%user%' AND twe.event_type::text NOT ILIKE '%purchase%') as modified,
+        COUNT(*) FILTER (WHERE twe.event_type::text ILIKE '%user%') as user_updates,
+        COUNT(*) FILTER (WHERE twe.event_type::text ILIKE '%purchase%') as purchase_events,
         COUNT(*) FILTER (WHERE twe.matched_booking_id IS NOT NULL AND br.was_auto_linked = true AND br.is_unmatched = false) as auto_confirmed,
         COUNT(*) FILTER (WHERE twe.matched_booking_id IS NOT NULL AND (br.was_auto_linked = false OR br.was_auto_linked IS NULL) AND br.is_unmatched = false) as manually_linked,
         COUNT(*) FILTER (WHERE twe.matched_booking_id IS NOT NULL AND br.is_unmatched = true) as needs_linking,
-        COUNT(*) FILTER (WHERE twe.matched_booking_id IS NULL AND processing_error IS NULL AND NOT (twe.event_type::text ILIKE '%cancelled%' OR twe.event_type::text ILIKE '%cancel%' OR twe.event_type::text ILIKE '%deleted%')) as needs_linking_unmatched,
+        COUNT(*) FILTER (WHERE twe.matched_booking_id IS NULL AND processing_error IS NULL AND NOT (twe.event_type::text ILIKE '%cancelled%' OR twe.event_type::text ILIKE '%cancel%' OR twe.event_type::text ILIKE '%deleted%') AND twe.event_type::text NOT ILIKE '%user%' AND twe.event_type::text NOT ILIKE '%purchase%') as needs_linking_unmatched,
         MAX(twe.created_at) as last_event_at
       FROM trackman_webhook_events twe
       LEFT JOIN booking_requests br ON twe.matched_booking_id = br.id
@@ -716,6 +725,8 @@ router.get('/api/admin/trackman-webhook/stats', isStaffOrAdmin, async (req: Requ
         COUNT(*) FILTER (WHERE event_type = 'booking.created') as created,
         COUNT(*) FILTER (WHERE event_type = 'booking.cancelled') as cancelled,
         COUNT(*) FILTER (WHERE event_type = 'booking.modified') as modified,
+        COUNT(*) FILTER (WHERE event_type::text ILIKE '%user%') as user_updates,
+        COUNT(*) FILTER (WHERE event_type::text ILIKE '%purchase%') as purchase_events,
         COUNT(*) FILTER (WHERE twe.matched_booking_id IS NOT NULL AND br.is_unmatched = true) as matched_but_unlinked
       FROM trackman_webhook_events twe
       LEFT JOIN booking_requests br ON twe.matched_booking_id = br.id

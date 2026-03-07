@@ -589,7 +589,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                           )}
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
-                          {onLinkToMember && event.trackman_booking_id && (
+                          {onLinkToMember && event.trackman_booking_id && !isUserUpdate && !isPurchaseUpdate && (
                             (() => {
                               const isLinkedToMember = event.matched_booking_id && !event.linked_booking_unmatched;
                               const isLinkedButUnmatched = event.matched_booking_id && event.linked_booking_unmatched;
