@@ -107,7 +107,7 @@ function CheckoutForm({ tier, email, quantity = 1, companyName, jobTitle, isCorp
         <span className="material-symbols-outlined text-5xl text-amber-500 mb-4 block">info</span>
         <p className="text-amber-700 dark:text-amber-300 text-base mb-4">{error}</p>
         <a
-          href="/#/membership"
+          href="/membership"
           className="inline-block py-3 px-6 rounded-xl font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
         >
           Back to Membership
@@ -717,7 +717,7 @@ function DayPassesSection() {
       <div className="text-center pt-8 border-t border-primary/10 dark:border-white/10">
         <p className="text-primary/60 dark:text-white/60 mb-4">Looking for a membership instead?</p>
         <a
-          href="/#/membership"
+          href="/membership"
           className="inline-flex items-center gap-2 py-3 px-6 rounded-xl font-medium bg-primary/10 dark:bg-white/10 text-primary dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
         >
           <span className="material-symbols-outlined">card_membership</span>
@@ -819,7 +819,7 @@ function CheckoutSuccess() {
         <h2 className="text-2xl font-semibold text-primary dark:text-white mb-2">Something went wrong</h2>
         <p className="text-primary/70 dark:text-white/70 mb-6">We couldn't verify your payment. Please contact support.</p>
         <a
-          href="/#/contact"
+          href="/contact"
           className="inline-block py-3 px-6 rounded-xl font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
         >
           Contact Support
@@ -857,7 +857,7 @@ function CheckoutSuccess() {
           </ul>
         </div>
         <a
-          href="/#/"
+          href="/"
           className="inline-flex items-center justify-center gap-2 py-3 px-8 rounded-xl font-semibold bg-accent text-brand-green hover:opacity-90 transition-opacity"
         >
           <span className="material-symbols-outlined">home</span>
@@ -933,7 +933,7 @@ function CheckoutSuccess() {
       </div>
 
       <a
-        href="/#/login"
+        href="/login"
         className="inline-flex items-center justify-center gap-2 py-3 px-8 rounded-xl font-semibold bg-accent text-brand-green hover:opacity-90 transition-opacity"
       >
         <span className="material-symbols-outlined">login</span>
@@ -963,7 +963,7 @@ export default function Checkout() {
     <div className="min-h-screen bg-gradient-to-b from-[#f5f7f0] to-[#eef1e6] dark:from-[#141414] dark:to-[#1c1c1c]">
       <header className="sticky top-0 z-50 bg-transparent">
         <div className="max-w-4xl mx-auto px-6 py-4">
-          <a href="/#/" className="inline-flex items-center gap-2 text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white transition-colors text-sm">
+          <a href="/" className="inline-flex items-center gap-2 text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white transition-colors text-sm">
             <span className="material-symbols-outlined text-lg">arrow_back</span>
             Back to EverClub
           </a>

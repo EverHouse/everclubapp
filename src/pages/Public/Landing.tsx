@@ -255,7 +255,7 @@ const Landing: React.FC = () => {
           image="/images/gallery/gallery-l1050509.webp"
           imageAlt="Luxury co-working spaces at Ever Club"
           ctaLabel="Get a Day Pass"
-          ctaLink="/checkout?type=day-pass-cowork"
+          ctaLink="/checkout?type=day-pass-coworking"
           reversed={false}
         />
         

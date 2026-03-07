@@ -297,7 +297,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
   const handleSearchByEmail = () => { setShowEmailSearch(true); setErrorState(null); };
   const handleSellNewPass = () => {
     const email = errorState?.passDetails?.email || searchEmail;
-    window.open(`/#/buy-day-pass${email ? `?email=${encodeURIComponent(email)}` : ''}`, '_blank');
+    window.open(`/checkout${email ? `?email=${encodeURIComponent(email)}` : ''}`, '_blank');
   };
   const handleProceedAnyway = (passId: string) => { setConfirmingRedeemAnyway(passId); };
   const clearErrorAndReset = () => { setErrorState(null); setShowEmailSearch(true); setConfirmingRedeemAnyway(null); };
