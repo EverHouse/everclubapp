@@ -45,7 +45,6 @@ const Contact: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    topic: 'Membership Inquiry',
     fullName: '',
     email: '',
     message: ''
@@ -67,7 +66,7 @@ const Contact: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fields: [
-            { name: 'topic', value: formData.topic },
+            { name: 'topic', value: 'General Inquiry' },
             { name: 'firstname', value: formData.fullName.split(' ')[0] || '' },
             { name: 'lastname', value: formData.fullName.split(' ').slice(1).join(' ') || '' },
             { name: 'email', value: formData.email },
@@ -86,7 +85,7 @@ const Contact: React.FC = () => {
       }
 
       setIsSubmitted(true);
-      setFormData({ topic: 'Membership Inquiry', fullName: '', email: '', message: '' });
+      setFormData({ fullName: '', email: '', message: '' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: unknown) {
       setError(getNetworkErrorMessage());
@@ -204,24 +203,6 @@ const Contact: React.FC = () => {
                     {error}
                   </div>
                 )}
-                <div className="relative">
-                    <label htmlFor="contact-topic" className="block text-sm font-medium text-primary dark:text-white mb-1.5 pl-1">Topic</label>
-                    <div className="relative">
-                        <select 
-                          id="contact-topic"
-                          value={formData.topic}
-                          onChange={(e) => setFormData(prev => ({ ...prev, topic: e.target.value }))}
-                          className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg py-3 pl-4 pr-10 text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm sm:leading-6 appearance-none"
-                        >
-                            <option>Membership Inquiry</option>
-                            <option>Private Events</option>
-                            <option>General Information</option>
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-white/70">
-                            <span className="material-symbols-outlined">expand_more</span>
-                        </div>
-                    </div>
-                </div>
                 <Input 
                   label="Full Name" 
                   placeholder="Jane Doe" 
