@@ -117,6 +117,38 @@ async function gracefulShutdown(signal: string) {
 const isProduction = process.env.NODE_ENV === 'production';
 const PORT = Number(process.env.PORT) || (isProduction ? 5001 : 3001);
 
+const MAINTENANCE_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta http-equiv="refresh" content="5"/>
+  <title>Ever Club — Updating</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#293515;color:#f5f0e8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);text-align:center}
+    .container{max-width:360px;padding:2rem}
+    .logo{width:64px;height:64px;margin:0 auto 1.5rem;opacity:.9}
+    h1{font-size:1.25rem;font-weight:600;margin-bottom:.75rem;letter-spacing:-.01em}
+    p{font-size:.9rem;line-height:1.5;opacity:.7;margin-bottom:1.5rem}
+    .spinner{width:24px;height:24px;border:2px solid rgba(245,240,232,.2);border-top-color:#f5f0e8;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media(prefers-color-scheme:dark){body{background:#1a2310}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <svg class="logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="32" cy="32" r="30" stroke="#f5f0e8" stroke-width="2" opacity=".3"/>
+      <text x="32" y="38" text-anchor="middle" fill="#f5f0e8" font-family="-apple-system,sans-serif" font-size="18" font-weight="600">EC</text>
+    </svg>
+    <h1>Updating the app</h1>
+    <p>We just pushed a new update. This page will automatically refresh in a few seconds.</p>
+    <div class="spinner"></div>
+  </div>
+</body>
+</html>`;
+
 httpServer = http.createServer((req, res) => {
   if (req.url === '/healthz' || req.url === '/_health') {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -125,8 +157,8 @@ httpServer = http.createServer((req, res) => {
   }
 
   if (req.url === '/' && req.method === 'GET' && !isReady) {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('OK');
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
+    res.end(MAINTENANCE_HTML);
     return;
   }
 
@@ -141,8 +173,8 @@ httpServer = http.createServer((req, res) => {
     return;
   }
 
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('OK');
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
+  res.end(MAINTENANCE_HTML);
 });
 
 httpServer.listen(PORT, '0.0.0.0', () => {
