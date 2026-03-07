@@ -116,31 +116,6 @@ export async function isEmailLinkedToUser(email: string, userEmail: string): Pro
 
 
 
-export async function autoLinkEmailToOwner(aliasEmail: string, ownerEmail: string, reason: string): Promise<boolean> {
-  try {
-    const aliasLower = aliasEmail.toLowerCase().trim();
-    
-    const result = await db.execute(sql`UPDATE users 
-       SET manually_linked_emails = 
-         CASE 
-           WHEN COALESCE(manually_linked_emails, '[]'::jsonb) ? ${aliasLower}
-           THEN manually_linked_emails
-           ELSE COALESCE(manually_linked_emails, '[]'::jsonb) || to_jsonb(${aliasLower}::text)
-         END
-       WHERE LOWER(email) = LOWER(${ownerEmail})
-       RETURNING email`);
-    
-    if (result.rowCount && result.rowCount > 0) {
-      process.stderr.write(`[Trackman Import] Auto-linked ${aliasLower} to ${ownerEmail}: ${reason}\n`);
-      return true;
-    }
-    return false;
-  } catch (error: unknown) {
-    process.stderr.write(`[Trackman Import] Failed to auto-link ${aliasEmail} to ${ownerEmail}: ${error}\n`);
-    return false;
-  }
-}
-
 export async function loadEmailMapping(): Promise<Map<string, string>> {
   const mappingPath = path.join(process.cwd(), 'uploads', 'trackman', 'even_house_cleaned_member_data_1767012619480.csv');
   const mapping = new Map<string, string>();
