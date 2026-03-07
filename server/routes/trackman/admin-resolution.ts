@@ -1454,7 +1454,7 @@ router.get('/api/admin/trackman/potential-matches', isStaffOrAdmin, async (req, 
          WHERE br.request_date = ${unmatched.booking_date}
            AND ABS(EXTRACT(EPOCH FROM (br.start_time::time - ${unmatched.start_time}::time))) <= 1800
            AND br.trackman_booking_id IS NULL
-           AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
+           AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending', 'deleted')
          LIMIT 5`);
       
       if (matchingBookings.rows.length > 0) {

@@ -109,7 +109,7 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
           JOIN booking_requests br ON br.session_id = bs.id
           LEFT JOIN resources r ON br.resource_id = r.id
           WHERE bs.id = ${sessionId}
-            AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
+            AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending', 'deleted')
           ORDER BY br.duration_minutes DESC
           LIMIT 1
         `);
@@ -133,7 +133,7 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
         JOIN booking_requests br ON br.session_id = bs.id
         LEFT JOIN resources r ON br.resource_id = r.id
         WHERE bs.id = ${sessionId}
-          AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
+          AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending', 'deleted')
         ORDER BY br.duration_minutes DESC
         LIMIT 1
       `);
