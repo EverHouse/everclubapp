@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../Toast';
 import { SlideUpDrawer } from '../SlideUpDrawer';
-import { isBlockingClosure } from '../../utils/closureUtils';
+import { isBlockingClosure, formatAffectedAreas as formatAreasShared } from '../../utils/closureUtils';
 
 function stripHtml(html: string | null | undefined): string {
   if (!html) return '';
@@ -142,26 +142,7 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
 
   const formatAffectedAreas = (areas: string | null) => {
     if (!areas) return 'Unknown';
-    if (areas === 'entire_facility') return 'Entire Facility';
-    if (areas === 'all_bays') return 'All Bays';
-    if (areas === 'conference_room') return 'Conference Room';
-    if (areas === 'none') return 'No booking restrictions';
-    
-    const areaList = areas.split(',').map(a => a.trim());
-    const formatted = areaList.map(area => {
-      if (area === 'entire_facility') return 'Entire Facility';
-      if (area === 'all_bays') return 'All Bays';
-      if (area === 'conference_room') return 'Conference Room';
-      if (area === 'Conference Room') return 'Conference Room';
-      if (area === 'none') return 'No booking restrictions';
-      if (area.startsWith('bay_')) {
-        const areaId = parseInt(area.replace('bay_', ''));
-        const bay = bays.find(b => b.id === areaId);
-        return bay ? bay.name : area;
-      }
-      return area;
-    });
-    return formatted.join(', ');
+    return formatAreasShared(areas);
   };
 
   const handleSave = async () => {

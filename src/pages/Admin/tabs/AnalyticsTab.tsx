@@ -605,7 +605,7 @@ const TierDistributionChart: React.FC<{ data: TierDistributionEntry[] }> = ({ da
   return (
     <div className="flex flex-col sm:flex-row items-center gap-4">
       <div className="w-full sm:w-1/2 h-[220px]">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height={220}>
           <PieChart>
             <Pie
               data={data}

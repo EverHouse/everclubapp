@@ -2,7 +2,7 @@ import { logger } from '../core/logger';
 import { Router } from 'express';
 import { isAdmin } from '../core/middleware';
 import { runAllIntegrityChecks, getIntegritySummary, getIntegrityHistory, resolveIssue, getAuditLog, syncPush, syncPull, createIgnoreRule, createBulkIgnoreRules, removeIgnoreRule, getIgnoredIssues, getCachedIntegrityResults, runDataCleanup } from '../core/dataIntegrity';
-import { isProduction, pool, safeRelease } from '../core/db';
+import { pool, safeRelease } from '../core/db';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { broadcastDataIntegrityUpdate } from '../core/websocket';
@@ -38,7 +38,7 @@ router.get('/api/data-integrity/cached', isAdmin, async (req, res) => {
       meta: cached.meta
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Cached results error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Cached results error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to get cached results', details: safeErrorDetail(error) });
   }
 });
@@ -59,7 +59,7 @@ router.get('/api/data-integrity/run', isAdmin, async (req, res) => {
       }
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Run error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Run error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to run integrity checks', details: safeErrorDetail(error) });
   }
 });
@@ -69,7 +69,7 @@ router.get('/api/data-integrity/summary', isAdmin, async (req, res) => {
     const summary = await getIntegritySummary();
     res.json(summary);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Summary error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Summary error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to get integrity summary', details: safeErrorDetail(error) });
   }
 });
@@ -80,7 +80,7 @@ router.get('/api/data-integrity/history', isAdmin, async (req, res) => {
     const historyData = await getIntegrityHistory(days);
     res.json(historyData);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] History error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] History error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to get integrity history', details: safeErrorDetail(error) });
   }
 });
@@ -101,7 +101,7 @@ router.post('/api/data-integrity/resolve', isAdmin, validateBody(resolveIssueSch
     
     res.json({ success: true, auditLogId: result.auditLogId });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Resolve error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Resolve error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to resolve issue', details: safeErrorDetail(error) });
   }
 });
@@ -112,7 +112,7 @@ router.get('/api/data-integrity/audit-log', isAdmin, async (req, res) => {
     const auditEntries = await getAuditLog(limit);
     res.json(auditEntries);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Audit log error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Audit log error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to get audit log', details: safeErrorDetail(error) });
   }
 });
@@ -134,7 +134,7 @@ router.post('/api/data-integrity/sync-push', isAdmin, validateBody(syncPushPullS
     
     res.json(result);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Sync push error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Sync push error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to push sync', details: safeErrorDetail(error) });
   }
 });
@@ -156,7 +156,7 @@ router.post('/api/data-integrity/sync-pull', isAdmin, validateBody(syncPushPullS
     
     res.json(result);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Sync pull error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Sync pull error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to pull sync', details: safeErrorDetail(error) });
   }
 });
@@ -166,7 +166,7 @@ router.get('/api/data-integrity/ignores', isAdmin, async (req, res) => {
     const ignores = await getIgnoredIssues();
     res.json(ignores);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Get ignores error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Get ignores error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to get ignored issues', details: safeErrorDetail(error) });
   }
 });
@@ -186,7 +186,7 @@ router.post('/api/data-integrity/ignore', isAdmin, validateBody(ignoreIssueSchem
     
     res.json({ success: true, ignore: result });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Create ignore error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Create ignore error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to create ignore rule', details: safeErrorDetail(error) });
   }
 });
@@ -207,7 +207,7 @@ router.delete('/api/data-integrity/ignore/:issueKey', isAdmin, async (req: Reque
     
     res.json({ success: true, message: 'Ignore rule removed' });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Remove ignore error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Remove ignore error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to remove ignore rule', details: safeErrorDetail(error) });
   }
 });
@@ -232,7 +232,7 @@ router.post('/api/data-integrity/ignore-bulk', isAdmin, validateBody(bulkIgnoreS
       total: result.created + result.updated
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Bulk ignore error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Bulk ignore error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to create bulk ignore rules', details: safeErrorDetail(error) });
   }
 });
@@ -249,7 +249,7 @@ router.post('/api/data-integrity/sync-stripe-metadata', isAdmin, async (req, res
       failed: result.failed
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Stripe metadata sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Stripe metadata sync error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to sync Stripe metadata', details: safeErrorDetail(error) });
   }
 });
@@ -265,7 +265,7 @@ router.post('/api/data-integrity/cleanup', isAdmin, async (req, res) => {
       ...result
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Data cleanup error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Data cleanup error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to run data cleanup', details: safeErrorDetail(error) });
   }
 });
@@ -401,7 +401,7 @@ router.get('/api/data-integrity/placeholder-accounts', isAdmin, async (req, res)
       },
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Placeholder scan error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Placeholder scan error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to scan for placeholder accounts', details: safeErrorDetail(error) });
   }
 });
@@ -585,7 +585,7 @@ router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, validate
       ...results,
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Placeholder delete error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Placeholder delete error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to delete placeholder accounts', details: safeErrorDetail(error) });
   }
 });
@@ -605,7 +605,7 @@ router.get('/api/data-integrity/health', isAdmin, async (req, res) => {
     
     res.json({ success: true, health });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Health check error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataIntegrity] Health check error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to check system health', details: safeErrorDetail(error) });
   }
 });

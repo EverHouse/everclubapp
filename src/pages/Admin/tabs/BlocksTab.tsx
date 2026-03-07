@@ -10,7 +10,7 @@ import { AnimatedPage } from '../../../components/motion';
 import { TabTransition } from '../../../components/motion/TabTransition';
 import { useConfirmDialog } from '../../../components/ConfirmDialog';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials, putWithCredentials } from '../../../hooks/queries/useFetch';
-import { isBlockingClosure, formatTitleForDisplay } from '../../../utils/closureUtils';
+import { isBlockingClosure, formatTitleForDisplay, formatAffectedAreas as formatAreasShared } from '../../../utils/closureUtils';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 
 interface BlocksClosure {
@@ -526,26 +526,7 @@ const BlocksTab: React.FC = () => {
 
     const formatAffectedAreas = (areas: string | null) => {
         if (!areas) return 'Unknown';
-        if (areas === 'entire_facility') return 'Entire Facility';
-        if (areas === 'all_bays') return 'All Bays';
-        if (areas === 'conference_room') return 'Conference Room';
-        if (areas === 'none') return 'No booking restrictions';
-        
-        const areaList = areas.split(',').map(a => a.trim());
-        const formatted = areaList.map(area => {
-            if (area === 'entire_facility') return 'Entire Facility';
-            if (area === 'all_bays') return 'All Bays';
-            if (area === 'conference_room') return 'Conference Room';
-            if (area === 'Conference Room') return 'Conference Room';
-            if (area === 'none') return 'No booking restrictions';
-            if (area.startsWith('bay_')) {
-                const areaId = parseInt(area.replace('bay_', ''));
-                const bay = bays.find(b => b.id === areaId);
-                return bay ? bay.name : area;
-            }
-            return area;
-        });
-        return formatted.join(', ');
+        return formatAreasShared(areas);
     };
 
     const isBlocking = isBlockingClosure;
