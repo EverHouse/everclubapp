@@ -128,7 +128,7 @@ const MAINTENANCE_HTML = `<!DOCTYPE html>
     *{margin:0;padding:0;box-sizing:border-box}
     body{background:#293515;color:#f5f0e8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);text-align:center}
     .container{max-width:360px;padding:2rem}
-    .logo{width:64px;height:64px;margin:0 auto 1.5rem;opacity:.9}
+    .logo{width:64px;height:64px;margin:0 auto 1.5rem;opacity:.9;border-radius:50%;object-fit:contain}
     h1{font-size:1.25rem;font-weight:600;margin-bottom:.75rem;letter-spacing:-.01em}
     p{font-size:.9rem;line-height:1.5;opacity:.7;margin-bottom:1.5rem}
     .spinner{width:24px;height:24px;border:2px solid rgba(245,240,232,.2);border-top-color:#f5f0e8;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto}
@@ -138,10 +138,7 @@ const MAINTENANCE_HTML = `<!DOCTYPE html>
 </head>
 <body>
   <div class="container">
-    <svg class="logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="32" cy="32" r="30" stroke="#f5f0e8" stroke-width="2" opacity=".3"/>
-      <text x="32" y="38" text-anchor="middle" fill="#f5f0e8" font-family="-apple-system,sans-serif" font-size="18" font-weight="600">EC</text>
-    </svg>
+    <img class="logo" src="/assets/logos/mascot-white.webp" alt="Ever Club" />
     <h1>Updating the app</h1>
     <p>We just pushed a new update. This page will automatically refresh in a few seconds.</p>
     <div class="spinner"></div>
