@@ -438,6 +438,7 @@ function DayPassesSection() {
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const submittingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -512,6 +513,7 @@ function DayPassesSection() {
           email,
           firstName,
           lastName,
+          phone,
         }),
       });
 
@@ -577,6 +579,7 @@ function DayPassesSection() {
               </label>
               <input
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
@@ -592,6 +595,7 @@ function DayPassesSection() {
                 </label>
                 <input
                   type="text"
+                  autoComplete="given-name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="John"
@@ -604,12 +608,27 @@ function DayPassesSection() {
                 </label>
                 <input
                   type="text"
+                  autoComplete="family-name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="Doe"
                   className="w-full px-4 py-3 rounded-xl border border-primary/20 dark:border-white/20 bg-white/50 dark:bg-white/5 text-primary dark:text-white focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-shadow duration-fast"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary/70 dark:text-white/70 mb-1">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                autoComplete="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(555) 123-4567"
+                className="w-full px-4 py-3 rounded-xl border border-primary/20 dark:border-white/20 bg-white/50 dark:bg-white/5 text-primary dark:text-white focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-shadow duration-fast"
+              />
             </div>
 
             {error && (
