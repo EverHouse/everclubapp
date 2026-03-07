@@ -105,6 +105,8 @@ export function TrackmanBookingModal({
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const autoApprovedRef = useRef(false);
+  autoApprovedRef.current = autoApproved;
 
   useEffect(() => {
     if (!isOpen) {
@@ -165,7 +167,7 @@ export function TrackmanBookingModal({
     const alreadyLinked = !!booking.trackman_booking_id;
 
     const pollInterval = !alreadyLinked ? setInterval(async () => {
-      if (autoApproved) return;
+      if (autoApprovedRef.current) return;
       try {
         const res = await fetch(`/api/booking-requests/${bookingId}`, { credentials: 'include' });
         if (!res.ok) return;
@@ -199,7 +201,8 @@ export function TrackmanBookingModal({
         copyTimerRef.current = null;
       }
     };
-  }, [isOpen, booking, autoApproved]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, booking]);
 
   useEffect(() => {
     if (!isOpen || !booking) {
