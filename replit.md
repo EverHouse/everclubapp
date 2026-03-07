@@ -138,7 +138,7 @@ The following large files have been split into sub-modules with barrel re-export
 - **Files**: `server/routes/analytics.ts`, `src/pages/Admin/tabs/AnalyticsTab.tsx`
 
 ### Recent Changes
-- **Session Owner Fix**: Fixed bug where `ensureSessionForBooking` reused existing sessions (after cancelled bookings) without updating the owner participant. Now detects when the previous owner's booking was cancelled and updates `booking_participants` to reflect the new owner.
+- **Session Isolation for Cancelled Bookings**: `ensureSessionForBooking` no longer reuses sessions where all bookings are cancelled/deleted. The exact-match and overlap-match queries now include an `EXISTS` check requiring at least one active booking on the session. New bookings always get their own fresh session, preserving cancelled session history for auditing. Sessions with active bookings are still correctly shared (for legitimate overlapping bookings).
 - **Trackman User Update/Purchase Webhooks**: Backend handles `user_update` and `purchase` event types with proper extraction, member matching, and logging. Frontend renders these with distinct indigo/amber styling. Dedup skipped for non-booking events. Stats queries exclude these from booking counts.
 
 See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) for the full changelog (v8.70.0+).

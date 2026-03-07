@@ -154,8 +154,12 @@ export async function ensureSessionForBooking(params: {
 
     if (!sessionId) {
       const existingSession = await lockClient.query(
-        `SELECT id FROM booking_sessions
-         WHERE resource_id = $1 AND session_date = $2 AND start_time = $3
+        `SELECT bs.id FROM booking_sessions bs
+         WHERE bs.resource_id = $1 AND bs.session_date = $2 AND bs.start_time = $3
+         AND EXISTS (
+           SELECT 1 FROM booking_requests br
+           WHERE br.session_id = bs.id AND br.status NOT IN ('cancelled', 'deleted')
+         )
          LIMIT 1`,
         [params.resourceId, params.sessionDate, params.startTime]
       );
@@ -166,13 +170,17 @@ export async function ensureSessionForBooking(params: {
 
     if (!sessionId && params.startTime !== params.endTime) {
       const overlapSession = await lockClient.query(
-        `SELECT id FROM booking_sessions
-         WHERE resource_id = $1 AND session_date = $2
+        `SELECT bs.id FROM booking_sessions bs
+         WHERE bs.resource_id = $1 AND bs.session_date = $2
+         AND EXISTS (
+           SELECT 1 FROM booking_requests br
+           WHERE br.session_id = bs.id AND br.status NOT IN ('cancelled', 'deleted')
+         )
          AND tsrange(
-           (session_date + start_time)::timestamp,
-           CASE WHEN end_time <= start_time
-             THEN (session_date + end_time + INTERVAL '1 day')::timestamp
-             ELSE (session_date + end_time)::timestamp
+           (bs.session_date + bs.start_time)::timestamp,
+           CASE WHEN bs.end_time <= bs.start_time
+             THEN (bs.session_date + bs.end_time + INTERVAL '1 day')::timestamp
+             ELSE (bs.session_date + bs.end_time)::timestamp
            END, '[)'
          ) && tsrange(
            ($2::date + $3::time)::timestamp,
@@ -250,40 +258,6 @@ export async function ensureSessionForBooking(params: {
          VALUES ($1, $2, 'owner', $3, $4, NOW())`,
         [sessionId, resolvedUserId, ownerDisplayName || params.ownerEmail, slotDuration]
       );
-    } else if (!created && params.ownerEmail) {
-      const existingEmail = existingOwner.rows[0].owner_email?.toLowerCase();
-      const existingUserId = existingOwner.rows[0].user_id;
-      const newEmail = params.ownerEmail.toLowerCase();
-      const ownerChanged = existingEmail ? existingEmail !== newEmail : (resolvedUserId ? existingUserId !== resolvedUserId : true);
-      if (ownerChanged) {
-        const hasActiveBookingForOldOwner = await lockClient.query(
-          `SELECT id FROM booking_requests
-           WHERE session_id = $1 AND status NOT IN ('cancelled', 'deleted')
-           AND (
-             ($2::text IS NOT NULL AND LOWER(user_email) = LOWER($2::text))
-             OR ($2::text IS NULL AND user_id = $3::text)
-           )
-           AND id != $4
-           LIMIT 1`,
-          [sessionId, existingEmail || null, existingUserId || null, params.bookingId]
-        );
-        if (hasActiveBookingForOldOwner.rows.length === 0) {
-          await lockClient.query(
-            `UPDATE booking_participants
-             SET user_id = $1, display_name = $2, slot_duration = $3
-             WHERE id = $4`,
-            [resolvedUserId, ownerDisplayName || params.ownerEmail, slotDuration, existingOwner.rows[0].id]
-          );
-          logger.info('[SessionManager] Updated session owner — previous owner has no active booking on this session', {
-            extra: {
-              sessionId,
-              previousOwner: existingEmail || existingUserId,
-              newOwner: newEmail,
-              bookingId: params.bookingId
-            }
-          });
-        }
-      }
     }
 
     await lockClient.query(
