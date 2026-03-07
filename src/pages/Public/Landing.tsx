@@ -158,10 +158,10 @@ const Landing: React.FC = () => {
             <div className={`flex flex-wrap gap-4 ${heroAnimPlayed ? '' : 'animate-hero-cta'} justify-center md:justify-start`}>
               <Link
                 to="/tour"
-                className="border border-white/40 bg-transparent hover:bg-white/10 text-white px-6 py-3 uppercase tracking-[0.2em] text-[10px] font-medium transition-all drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]"
+                className="bg-white text-primary px-6 py-3 uppercase tracking-[0.2em] text-[10px] font-bold transition-all hover:bg-white/90 shadow-[0_4px_16px_rgba(0,0,0,0.3)]"
                 style={{ fontFamily: 'var(--font-label)' }}
               >
-                Private Tour
+                Book a Tour
               </Link>
               <Link
                 to="/membership"

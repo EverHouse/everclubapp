@@ -44,7 +44,13 @@ const BuyDayPass: React.FC = () => {
       const allTiers = await response.json();
       const dayPasses = allTiers
         .filter((tier: { product_type?: string; slug?: string; name: string; stripe_price_id?: string; monthly_price?: number; description?: string; id?: number; price_string?: string; price_cents?: number }) => tier.product_type === 'one_time')
-        .filter((tier: { product_type?: string; slug?: string; name: string; stripe_price_id?: string; monthly_price?: number; description?: string; id?: number; price_string?: string; price_cents?: number }) => !tier.slug?.includes('overage') && !tier.name?.toLowerCase().includes('overage'))
+        .filter((tier: { product_type?: string; slug?: string; name: string; stripe_price_id?: string; monthly_price?: number; description?: string; id?: number; price_string?: string; price_cents?: number }) => {
+          const slug = tier.slug?.toLowerCase() || '';
+          const name = tier.name?.toLowerCase() || '';
+          if (slug.includes('overage') || name.includes('overage')) return false;
+          if (slug.includes('guest-pass') || slug.includes('guest_pass') || name.includes('guest fee')) return false;
+          return slug.startsWith('day-pass');
+        })
         .map((tier: { product_type?: string; slug?: string; name: string; stripe_price_id?: string; monthly_price?: number; description?: string; id?: number; price_string?: string; price_cents?: number }) => ({
           id: tier.id as number,
           name: tier.name,
@@ -127,9 +133,9 @@ const BuyDayPass: React.FC = () => {
     <div className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden">
       <SEO title="Day Pass — Golf Simulator & Coworking | Ever Club" description="No membership needed. Buy a day pass for Trackman golf simulators or coworking at Ever Club in Tustin, OC. Walk in & experience the club." url="/day-pass" />
       <div className="px-6 pt-4 md:pt-2 pb-6 text-center animate-pop-in">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Day Passes</h1>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Experience the Club</h1>
         <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed max-w-xs mx-auto" style={{ fontFamily: 'var(--font-body)' }}>
-          Experience Ever Club as a guest. No membership required.
+          No membership required. Pick a pass and walk in.
         </p>
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-primary/60 dark:text-white/60 mt-3">
           <span className="flex items-center gap-1.5">
@@ -148,51 +154,6 @@ const BuyDayPass: React.FC = () => {
       </div>
 
       <section className="px-4 mb-6">
-        <div className="bg-white dark:bg-[#1a1d15] rounded-xl p-6 shadow-sm dark:shadow-none border border-black/5 dark:border-white/10">
-          <h2 className="text-2xl text-primary dark:text-white mb-4 flex items-center gap-2 leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>
-            <span className="material-symbols-outlined text-xl translate-y-[1px]">person</span>
-            Your Information
-          </h2>
-          
-          <div className="space-y-4">
-            <Input 
-              label="Email Address" 
-              type="email" 
-              placeholder="your@email.com" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              variant="solid"
-              required 
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <Input 
-                label="First Name" 
-                placeholder="John" 
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                variant="solid"
-              />
-              <Input 
-                label="Last Name" 
-                placeholder="Doe" 
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                variant="solid"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {error && (
-        <div className="px-4 mb-4">
-          <div className="bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
-            {error}
-          </div>
-        </div>
-      )}
-
-      <section className="px-4 mb-8">
         <h2 className="text-2xl text-primary dark:text-white mb-4 flex items-center gap-2 px-2 leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>
           <span className="material-symbols-outlined text-xl translate-y-[1px]">confirmation_number</span>
           Available Passes
@@ -251,6 +212,51 @@ const BuyDayPass: React.FC = () => {
             ))}
           </div>
         )}
+      </section>
+
+      {error && (
+        <div className="px-4 mb-4">
+          <div className="bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+            {error}
+          </div>
+        </div>
+      )}
+
+      <section className="px-4 mb-8">
+        <div className="bg-white dark:bg-[#1a1d15] rounded-xl p-6 shadow-sm dark:shadow-none border border-black/5 dark:border-white/10">
+          <h2 className="text-2xl text-primary dark:text-white mb-4 flex items-center gap-2 leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>
+            <span className="material-symbols-outlined text-xl translate-y-[1px]">person</span>
+            Your Information
+          </h2>
+          
+          <div className="space-y-4">
+            <Input 
+              label="Email Address" 
+              type="email" 
+              placeholder="your@email.com" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              variant="solid"
+              required 
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Input 
+                label="First Name" 
+                placeholder="John" 
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                variant="solid"
+              />
+              <Input 
+                label="Last Name" 
+                placeholder="Doe" 
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                variant="solid"
+              />
+            </div>
+          </div>
+        </div>
       </section>
 
       <section className="px-4 mb-8">

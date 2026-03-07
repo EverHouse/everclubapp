@@ -134,10 +134,9 @@ const MembershipOverview: React.FC = () => {
     <div className="bg-bone dark:bg-[#141414] min-h-screen overflow-x-hidden">
     <div className="px-4 pt-4 pb-0 flex flex-col gap-8 max-w-6xl mx-auto lg:px-8">
       <div className="text-center px-2 animate-content-enter">
-        <p className="text-primary/40 dark:text-white/40 text-[10px] font-bold uppercase tracking-[0.3em] mb-2">Est. 2025</p>
-        <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Your Office. Your Course. Your Club.</h1>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Find Your Membership</h1>
         <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed max-w-[320px] mx-auto" style={{ fontFamily: 'var(--font-body)' }}>
-          Select the membership that fits how you work, play, and connect.
+          Select the plan that fits how you work, play, and connect.
         </p>
       </div>
 
@@ -159,7 +158,7 @@ const MembershipOverview: React.FC = () => {
               navigate('/membership/apply');
             }
           };
-          const btnText = isCorporate ? 'View Details' : tier.button_text;
+          const btnText = isCorporate ? 'Get a Quote' : tier.button_text;
 
           if (tier.is_popular) {
             return (

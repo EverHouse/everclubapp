@@ -203,9 +203,7 @@ const BookTour: React.FC = () => {
             <p className="text-primary/60 dark:text-white/60 text-sm md:text-base">
               Experience the club firsthand. Meet the team, explore the space, and see if Ever Club is the right fit for you.
             </p>
-            <p className="text-primary/40 dark:text-white/40 text-xs font-medium mt-2">
-              Join 200+ members who started with a tour.
-            </p>
+            
             <div className="flex items-center justify-center gap-6 text-primary/50 dark:text-white/50 text-xs mt-4 mb-2">
               <span className="flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-sm">schedule</span>
