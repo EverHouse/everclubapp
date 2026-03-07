@@ -47,6 +47,7 @@ const Contact: React.FC = () => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
+    phone: '',
     message: ''
   });
   const s = usePublicSettings();
@@ -70,6 +71,7 @@ const Contact: React.FC = () => {
             { name: 'firstname', value: formData.fullName.split(' ')[0] || '' },
             { name: 'lastname', value: formData.fullName.split(' ').slice(1).join(' ') || '' },
             { name: 'email', value: formData.email },
+            { name: 'phone', value: formData.phone },
             { name: 'message', value: formData.message }
           ],
           context: {
@@ -85,7 +87,7 @@ const Contact: React.FC = () => {
       }
 
       setIsSubmitted(true);
-      setFormData({ fullName: '', email: '', message: '' });
+      setFormData({ fullName: '', email: '', phone: '', message: '' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: unknown) {
       setError(getNetworkErrorMessage());
@@ -219,6 +221,14 @@ const Contact: React.FC = () => {
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   variant="solid"
                   required 
+                />
+                <Input 
+                  label="Phone Number" 
+                  type="tel" 
+                  placeholder="(555) 123-4567" 
+                  value={formData.phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  variant="solid"
                 />
                 <div>
                     <label htmlFor="contact-message" className="block text-sm font-medium text-primary dark:text-white mb-1.5 pl-1">Message</label>
