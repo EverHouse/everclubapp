@@ -227,10 +227,10 @@ const MembershipOverview: React.FC = () => {
           <p className="text-primary/60 dark:text-white/60 text-sm font-light">Your path to membership in 3 simple steps</p>
         </div>
         
-        <div className="flex flex-col md:flex-row items-center md:items-start justify-center gap-4 md:gap-2 relative">
-          <div className="hidden md:block absolute top-7 left-[16.67%] right-[16.67%] h-[2px] border-t-2 border-dashed border-primary/20 dark:border-white/20"></div>
+        <div className="flex flex-col md:flex-row items-center md:items-start justify-center gap-4 md:gap-0 relative max-w-2xl mx-auto">
+          <div className="hidden md:block absolute top-7 left-[calc(16.67%+28px)] right-[calc(16.67%+28px)] h-[2px] border-t-2 border-dashed border-primary/20 dark:border-white/20"></div>
           
-          <div className="flex flex-col items-center text-center relative z-10 flex-1 max-w-[200px]">
+          <div className="flex flex-col items-center text-center relative z-10 flex-1">
             <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-white text-lg font-bold mb-3 shadow-lg dark:shadow-black/20">
               1
             </div>
@@ -238,12 +238,12 @@ const MembershipOverview: React.FC = () => {
               <span className="material-symbols-outlined text-primary dark:text-white text-2xl">edit_note</span>
             </div>
             <h4 className="font-semibold text-primary dark:text-white text-sm mb-1">Apply Online</h4>
-            <p className="text-xs text-primary/60 dark:text-white/60 font-light leading-relaxed">Fill out a brief application form. Takes about 2 minutes.</p>
+            <p className="text-xs text-primary/60 dark:text-white/60 font-light leading-relaxed max-w-[180px] mx-auto">Fill out a brief application form. Takes about 2 minutes.</p>
           </div>
           
           <div className="md:hidden w-px h-8 border-l-2 border-dashed border-primary/20 dark:border-white/20"></div>
           
-          <div className="flex flex-col items-center text-center relative z-10 flex-1 max-w-[200px]">
+          <div className="flex flex-col items-center text-center relative z-10 flex-1">
             <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-white text-lg font-bold mb-3 shadow-lg dark:shadow-black/20">
               2
             </div>
@@ -251,12 +251,12 @@ const MembershipOverview: React.FC = () => {
               <span className="material-symbols-outlined text-primary dark:text-white text-2xl">calendar_month</span>
             </div>
             <h4 className="font-semibold text-primary dark:text-white text-sm mb-1">Book a Tour</h4>
-            <p className="text-xs text-primary/60 dark:text-white/60 font-light leading-relaxed">Visit the club and meet our team. We'll show you around.</p>
+            <p className="text-xs text-primary/60 dark:text-white/60 font-light leading-relaxed max-w-[180px] mx-auto">Visit the club and meet our team. We'll show you around.</p>
           </div>
           
           <div className="md:hidden w-px h-8 border-l-2 border-dashed border-primary/20 dark:border-white/20"></div>
           
-          <div className="flex flex-col items-center text-center relative z-10 flex-1 max-w-[200px]">
+          <div className="flex flex-col items-center text-center relative z-10 flex-1">
             <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-white text-lg font-bold mb-3 shadow-lg dark:shadow-black/20">
               3
             </div>
@@ -264,7 +264,7 @@ const MembershipOverview: React.FC = () => {
               <span className="material-symbols-outlined text-primary dark:text-white text-2xl">celebration</span>
             </div>
             <h4 className="font-semibold text-primary dark:text-white text-sm mb-1">Welcome Home</h4>
-            <p className="text-xs text-primary/60 dark:text-white/60 font-light leading-relaxed">Get your membership card and start enjoying all the benefits.</p>
+            <p className="text-xs text-primary/60 dark:text-white/60 font-light leading-relaxed max-w-[180px] mx-auto">Get your membership card and start enjoying all the benefits.</p>
           </div>
         </div>
         
