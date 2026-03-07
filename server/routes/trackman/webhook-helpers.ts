@@ -93,18 +93,6 @@ export interface TrackmanV2Booking {
   playerOptions?: TrackmanV2PlayerOption[] | Record<string, TrackmanV2PlayerOption>;
   externalBookingId?: string;
   externalBookingProvider?: string;
-  customer?: {
-    email?: string;
-    name?: string;
-    phone?: string;
-    id?: string;
-  };
-  user?: {
-    email?: string;
-    name?: string;
-    phone?: string;
-    id?: string;
-  };
 }
 
 export interface TrackmanV2Venue {
@@ -222,10 +210,10 @@ export function parseTrackmanV2Payload(payload: TrackmanV2WebhookPayload): {
     startTime: `${startParsed.date}T${startParsed.time}:00`,
     endTime: `${endParsed.date}T${endParsed.time}:00`,
     date: startParsed.date,
-    customerEmail: booking.customer?.email || booking.user?.email,
-    customerName: booking.customer?.name || booking.user?.name,
-    customerPhone: booking.customer?.phone || booking.user?.phone,
-    customerId: booking.customer?.id || booking.user?.id,
+    customerEmail: undefined,
+    customerName: undefined,
+    customerPhone: undefined,
+    customerId: undefined,
     playerCount,
     status: booking.status,
     parsedDate: startParsed.date,
