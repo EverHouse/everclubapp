@@ -859,7 +859,12 @@ export async function createUnmatchedBookingRequest(
     
     return { created: false };
   } catch (e: unknown) {
-    logger.error('[Trackman Webhook] Failed to create unmatched booking_request', { error: e as Error });
+    const cause = (e as Error & { cause?: unknown })?.cause;
+    const causeObj = cause && typeof cause === 'object' ? cause as { message?: string; code?: string; detail?: string } : undefined;
+    logger.error('[Trackman Webhook] Failed to create unmatched booking_request', { 
+      error: e as Error,
+      extra: { cause: causeObj ? { message: causeObj.message, code: causeObj.code, detail: causeObj.detail } : undefined }
+    });
     return { created: false };
   }
 }
