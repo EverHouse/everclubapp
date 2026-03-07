@@ -3,7 +3,7 @@ export type { UserIdRow, PaidCheckRow, SessionCheckRow, PaymentIntentRow, Linked
 
 export { parseNotesForPlayers, parseCSVLine, parseCSVWithMultilineSupport, extractTime, extractDate } from './parser';
 
-export { getGolfInstructorEmails, getAllHubSpotMembers, resolveEmail, getUserIdByEmail, isEmailLinkedToUser, normalizeName, areNamesSimilar, findMembersByName, levenshteinDistance, autoLinkEmailToOwner, loadEmailMapping, isConvertedToPrivateEventBlock } from './matching';
+export { getGolfInstructorEmails, getAllHubSpotMembers, resolveEmail, getUserIdByEmail, isEmailLinkedToUser, autoLinkEmailToOwner, loadEmailMapping, isConvertedToPrivateEventBlock } from './matching';
 
 export { resolveUnmatchedBooking, getUnmatchedBookings, getImportRuns, cleanupHistoricalLessons } from './resolution';
 

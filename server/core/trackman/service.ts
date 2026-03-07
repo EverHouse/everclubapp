@@ -17,7 +17,7 @@ import { logger } from '../logger';
 import type { TrackmanRow, PaidCheckRow } from './constants';
 import { isPlaceholderEmail, normalizeStatus, isFutureBooking, isTimeWithinTolerance } from './constants';
 import { parseCSVWithMultilineSupport, extractTime, extractDate, parseNotesForPlayers } from './parser';
-import { getGolfInstructorEmails, getAllHubSpotMembers, loadEmailMapping, resolveEmail, isConvertedToPrivateEventBlock, areNamesSimilar, findMembersByName, autoLinkEmailToOwner, isEmailLinkedToUser } from './matching';
+import { getGolfInstructorEmails, getAllHubSpotMembers, loadEmailMapping, resolveEmail, isConvertedToPrivateEventBlock, autoLinkEmailToOwner, isEmailLinkedToUser } from './matching';
 import { createTrackmanSessionAndParticipants, transferRequestParticipantsToSession } from './sessionMapper';
 
 export async function importTrackmanBookings(csvPath: string, importedBy?: string): Promise<{
@@ -1347,52 +1347,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               
               const memberExists = membersByEmail.get(memberEmail) || trackmanEmailMapping.get(memberEmail);
               
-              if (!memberExists && row.playerCount === 1 && memberName) {
-                if (areNamesSimilar(memberName, row.userName)) {
-                  const linked = await autoLinkEmailToOwner(memberEmail, matchedEmail, 
-                    `Solo booking name match: "${memberName}" ~ "${row.userName}"`);
-                  if (linked) {
-                    continue;
-                  }
-                }
-              }
-              
               let resolvedMemberEmail = memberExists;
-              let skipAsDuplicateOwner = false;
-              
-              if (!memberExists && memberName) {
-                const nameMatch = await findMembersByName(memberName);
-                if (nameMatch.match === 'unique') {
-                  const matchedMember = nameMatch.members[0];
-                  
-                  if (matchedMember.email.toLowerCase() === matchedEmail.toLowerCase()) {
-                    process.stderr.write(`[Trackman Import] Name-match "${memberName}" resolved to owner ${matchedEmail} - skipping duplicate\n`);
-                    if (memberEmail !== matchedEmail.toLowerCase()) {
-                      await autoLinkEmailToOwner(
-                        memberEmail,
-                        matchedEmail,
-                        `Owner name-match auto-link: "${memberName}" is owner, linking ${memberEmail}`
-                      );
-                    }
-                    skipAsDuplicateOwner = true;
-                  } else {
-                    if (memberEmail !== matchedMember.email.toLowerCase()) {
-                      await autoLinkEmailToOwner(
-                        memberEmail,
-                        matchedMember.email,
-                        `Multi-player name-match: "${memberName}" matched to ${matchedMember.email}`
-                      );
-                    }
-                    
-                    resolvedMemberEmail = matchedMember.email;
-                    process.stderr.write(`[Trackman Import] Name-matched "${memberName}" to ${matchedMember.email} for booking_participants\n`);
-                  }
-                }
-              }
-              
-              if (skipAsDuplicateOwner) {
-                continue;
-              }
               
               if (memberSlot <= row.playerCount) {
                 if (resolvedMemberEmail && normalizedStatus === 'approved' && isUpcoming) {
