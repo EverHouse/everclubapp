@@ -223,13 +223,13 @@ const Landing: React.FC = () => {
       </div>
 
       <div className="px-4 py-12 bg-bone dark:bg-[#141414] animate-content-enter-delay-2">
-         <div className="relative rounded-xl overflow-hidden h-[400px] group backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:scale-[1.01] transition-all duration-[400ms] max-w-5xl mx-auto">
+         <div className="relative rounded-xl overflow-hidden h-[400px] group backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:scale-[1.01] transition-all duration-[400ms] max-w-5xl mx-auto cursor-pointer" onClick={() => navigate('/private-hire')} role="link" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/private-hire'); }}>
             <div className="absolute inset-0 bg-[url('/images/gallery/gallery-l1050555.webp')] bg-cover bg-center opacity-70 transition-transform duration-emphasis group-hover:scale-105"></div>
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/20"></div>
             <div className="absolute inset-0 p-8 flex flex-col justify-center items-center text-center">
                 <span className="w-fit px-2 py-1.5 bg-white/15 backdrop-blur-md border border-white/30 rounded-[4px] text-white/90 text-xs font-bold uppercase tracking-widest mb-4 shadow-[0_0_12px_rgba(255,255,255,0.1)]">Host with Us</span>
                 <h2 className="text-2xl text-white mb-6 leading-tight drop-shadow-lg" style={{ fontFamily: 'var(--font-headline)' }}>Private Events &<br/>Full Buyouts</h2>
-                <Link to="/private-hire" className="px-8 py-3 bg-white/95 backdrop-blur text-primary rounded-[4px] font-bold text-sm hover:scale-105 hover:bg-white transition-all duration-normal shadow-[0_8px_24px_rgba(0,0,0,0.2)] inline-block">
+                <Link to="/private-hire/inquire" className="px-8 py-3 bg-white/95 backdrop-blur text-primary rounded-[4px] font-bold text-sm hover:scale-105 hover:bg-white transition-all duration-normal shadow-[0_8px_24px_rgba(0,0,0,0.2)] inline-block" onClick={(e) => e.stopPropagation()}>
                     Inquire Now
                 </Link>
             </div>
