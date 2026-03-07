@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { logger } from '../../core/logger';
-import { sendNotificationToUser, broadcastToStaff } from '../../core/websocket';
+import { sendNotificationToUser, broadcastToStaff, broadcastAvailabilityUpdate } from '../../core/websocket';
 import { notifyMember } from '../../core/notificationService';
 import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
 import { linkAndNotifyParticipants } from '../../core/bookingEvents';
@@ -443,6 +443,12 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
           matchedUserId = bayTimeResult.memberEmail;
           isNewlyLinked = true;
           
+          broadcastAvailabilityUpdate({
+            resourceId,
+            date: v2Result.normalized.parsedDate!,
+            action: 'booked',
+          });
+
           broadcastToStaff({
             type: 'booking_auto_confirmed',
             title: 'Booking Auto-Confirmed',

@@ -720,7 +720,23 @@ export function broadcastToStaff(notification: {
   });
 
   if (sent > 0) {
-    logger.info(`[WebSocket] Broadcast to staff: ${sent} connections`);
+    logger.info(`[WebSocket] Broadcast to staff: ${sent} connections`, {
+      extra: { type: notification.type }
+    });
+  } else {
+    let totalConnections = 0;
+    let staffConnections = 0;
+    let openConnections = 0;
+    clients.forEach((connections) => {
+      connections.forEach(conn => {
+        totalConnections++;
+        if (conn.isStaff) staffConnections++;
+        if (conn.ws.readyState === WebSocket.OPEN) openConnections++;
+      });
+    });
+    logger.warn(`[WebSocket] Broadcast to staff: 0 sent (total=${totalConnections}, staff=${staffConnections}, open=${openConnections})`, {
+      extra: { type: notification.type }
+    });
   }
   return sent;
 }

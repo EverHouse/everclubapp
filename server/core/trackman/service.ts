@@ -592,12 +592,16 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         
         if (existing.isUnmatched && matchedEmail) {
           updateFields.userEmail = matchedEmail;
-          updateFields.userName = row.userName;
           updateFields.isUnmatched = false;
           changes.push(`member: linked ${matchedEmail}`);
 
-          const unmatchedUserIdResult = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${matchedEmail}) LIMIT 1`);
-          const unmatchedResolvedUserId = (unmatchedUserIdResult.rows as Array<{ id: string }>)[0]?.id;
+          const unmatchedUserIdResult = await db.execute(sql`SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER(${matchedEmail}) LIMIT 1`);
+          const unmatchedResolvedUser = (unmatchedUserIdResult.rows as Array<{ id: string; first_name: string | null; last_name: string | null }>)[0];
+          const unmatchedResolvedUserId = unmatchedResolvedUser?.id;
+          const resolvedMemberName = unmatchedResolvedUser
+            ? [unmatchedResolvedUser.first_name, unmatchedResolvedUser.last_name].filter(Boolean).join(' ')
+            : null;
+          updateFields.userName = resolvedMemberName || row.userName;
           if (unmatchedResolvedUserId) {
             updateFields.userId = unmatchedResolvedUserId;
           }
@@ -614,12 +618,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               const currentOwner = (ownerResult.rows as Array<{ id: number; user_id: string | null; current_email: string | null }>)[0];
               const currentOwnerEmail = currentOwner?.current_email?.toLowerCase();
               if (currentOwner && currentOwnerEmail !== matchedEmail.toLowerCase()) {
-                const newOwnerUser = unmatchedResolvedUserId
-                  ? (await db.execute(sql`SELECT first_name, last_name FROM users WHERE id = ${unmatchedResolvedUserId}`)).rows[0] as { first_name: string | null; last_name: string | null } | undefined
-                  : undefined;
-                const newDisplayName = newOwnerUser
-                  ? [newOwnerUser.first_name, newOwnerUser.last_name].filter(Boolean).join(' ') || row.userName || matchedEmail
-                  : row.userName || matchedEmail;
+                const newDisplayName = resolvedMemberName || row.userName || matchedEmail;
                 await db.execute(sql`
                   UPDATE booking_participants
                   SET user_id = ${unmatchedResolvedUserId || null},

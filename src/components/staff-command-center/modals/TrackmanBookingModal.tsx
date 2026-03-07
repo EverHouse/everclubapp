@@ -161,8 +161,31 @@ export function TrackmanBookingModal({
     };
 
     window.addEventListener('booking-auto-confirmed', handleAutoConfirmed as EventListener);
+
+    const alreadyLinked = !!booking.trackman_booking_id;
+
+    const pollInterval = !alreadyLinked ? setInterval(async () => {
+      if (autoApproved) return;
+      try {
+        const res = await fetch(`/api/booking-requests/${bookingId}`, { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const linked = data.trackman_booking_id;
+        if (linked) {
+          setExternalId(String(linked));
+          setAutoConfirmedId(String(linked));
+          setAutoApproved(true);
+          overlayTimerRef.current = setTimeout(() => setShowSuccessOverlay(true), 50);
+          closeTimerRef.current = setTimeout(() => {
+            onCloseRef.current();
+          }, 3500);
+        }
+      } catch {}
+    }, 5000) : null;
+
     return () => {
       window.removeEventListener('booking-auto-confirmed', handleAutoConfirmed as EventListener);
+      if (pollInterval) clearInterval(pollInterval);
       if (closeTimerRef.current) {
         clearTimeout(closeTimerRef.current);
         closeTimerRef.current = null;
@@ -176,7 +199,7 @@ export function TrackmanBookingModal({
         copyTimerRef.current = null;
       }
     };
-  }, [isOpen, booking]);
+  }, [isOpen, booking, autoApproved]);
 
   useEffect(() => {
     if (!isOpen || !booking) {
