@@ -74,7 +74,7 @@ class ErrorBoundary extends Component<Props, State> {
       const alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY);
       if (!alreadyReloaded) {
         sessionStorage.setItem(CHUNK_RELOAD_KEY, '1');
-        window.location.reload();
+        this.clearCachesAndReload();
         return;
       }
       sessionStorage.removeItem(CHUNK_RELOAD_KEY);
@@ -84,6 +84,25 @@ class ErrorBoundary extends Component<Props, State> {
   componentDidMount() {
     sessionStorage.removeItem(CHUNK_RELOAD_KEY);
     this.setState({ reloadAttempts: getGlobalReloadCount() });
+  }
+
+  private clearCachesAndReload() {
+    const doClear = async () => {
+      try {
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(key => caches.delete(key)));
+        }
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(reg => reg.unregister()));
+        }
+      } catch (err: unknown) {
+        console.error('[ErrorBoundary] Failed to clear caches:', err);
+      }
+      window.location.reload();
+    };
+    doClear();
   }
 
   handleReload = () => {

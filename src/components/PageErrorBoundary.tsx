@@ -100,9 +100,9 @@ class PageErrorBoundary extends Component<Props, State> {
       const reloadCount = getReloadCount();
       
       if (reloadCount < MAX_AUTO_RELOADS) {
-        console.log(`[PageErrorBoundary] Detected stale chunk error, auto-reload ${reloadCount + 1}/${MAX_AUTO_RELOADS}...`);
+        console.log(`[PageErrorBoundary] Detected stale chunk error, clearing caches and reloading (${reloadCount + 1}/${MAX_AUTO_RELOADS})...`);
         incrementReloadCount();
-        window.location.reload();
+        this.clearCachesAndReload();
         return;
       } else {
         console.log('[PageErrorBoundary] Max auto-reloads reached, showing error UI');
@@ -175,23 +175,28 @@ class PageErrorBoundary extends Component<Props, State> {
     window.location.reload();
   };
 
-  handleClearCacheAndReload = async () => {
+  private clearCachesAndReload() {
+    const doClear = async () => {
+      try {
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(key => caches.delete(key)));
+        }
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(reg => reg.unregister()));
+        }
+      } catch (err: unknown) {
+        console.error('[PageErrorBoundary] Failed to clear caches:', err);
+      }
+      window.location.reload();
+    };
+    doClear();
+  }
+
+  handleClearCacheAndReload = () => {
     clearReloadCount();
-    
-    try {
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map(key => caches.delete(key)));
-      }
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(registrations.map(reg => reg.unregister()));
-      }
-    } catch (err: unknown) {
-      console.error('Failed to clear caches:', err);
-    }
-    
-    window.location.reload();
+    this.clearCachesAndReload();
   };
 
   render() {
