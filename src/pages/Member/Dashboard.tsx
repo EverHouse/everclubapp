@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
@@ -203,16 +203,8 @@ const Dashboard: React.FC = () => {
   const [optimisticCancellingIds, setOptimisticCancellingIds] = useState<Set<number>>(new Set());
   const [optimisticCancelledIds, setOptimisticCancelledIds] = useState<Set<number>>(new Set());
   const [scheduleRef] = useAutoAnimate();
-  const [showFirstLoginModal, setShowFirstLoginModal] = useState(() => {
-    if (user?.email) {
-      const key = `eh_first_login_shown_${user.email}`;
-      if (!localStorage.getItem(key)) {
-        localStorage.setItem(key, 'true');
-        return true;
-      }
-    }
-    return false;
-  });
+  const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
+  const firstLoginCheckedRef = useRef(false);
   const [nfcCheckinData, setNfcCheckinData] = useState<{ type: 'success' | 'already_checked_in', memberName: string, tier?: string | null } | null>(() => {
     const stored = sessionStorage.getItem('nfc_checkin_result');
     if (stored) {
@@ -292,7 +284,15 @@ const Dashboard: React.FC = () => {
     return false;
   }, [user?.email, bannerAnnouncement]);
 
-
+  useEffect(() => {
+    if (!user?.email || firstLoginCheckedRef.current) return;
+    firstLoginCheckedRef.current = true;
+    const key = `eh_first_login_shown_${user.email}`;
+    if (!localStorage.getItem(key)) {
+      localStorage.setItem(key, 'true');
+      queueMicrotask(() => setShowFirstLoginModal(true));
+    }
+  }, [user?.email]);
 
   useEffect(() => {
     const handleCheckinNotification = (e: Event) => {

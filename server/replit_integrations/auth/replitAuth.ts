@@ -2,10 +2,35 @@ import session from "express-session";
 import type { RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
 import type { Pool } from "pg";
-import { pool } from "../../core/db";
+import { Pool as PgPool } from "pg";
+import { pool, isProduction } from "../../core/db";
 import { getSessionUser } from "../../types/session";
 import { getErrorMessage } from "../../utils/errorUtils";
 import { logger } from "../../core/logger";
+
+function stripSslMode(url: string | undefined): string | undefined {
+  if (!url) return url;
+  try {
+    const u = new URL(url);
+    u.searchParams.delete('sslmode');
+    return u.toString();
+  } catch {
+    return url.replace(/[?&]sslmode=[^&]*/g, '').replace(/\?$/, '');
+  }
+}
+
+const sessionPool = new PgPool({
+  connectionString: stripSslMode(process.env.DATABASE_URL),
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 60000,
+  max: 3,
+  ssl: isProduction ? { rejectUnauthorized: false } : undefined,
+  allowExitOnIdle: true,
+});
+
+sessionPool.on('error', (err) => {
+  logger.error('[Session Pool] Idle client error:', { extra: { detail: err.message } });
+});
 
 export function getAuthPool() {
   return pool;
@@ -40,7 +65,7 @@ export function getSession() {
     const sessionTtl = 30 * 24 * 60 * 60; // 30 days in seconds (connect-pg-simple expects seconds)
     const pgStore = connectPg(session);
     const sessionStore = new pgStore({
-      pool: pool as unknown as import("pg").Pool,
+      pool: sessionPool as unknown as import("pg").Pool,
       createTableIfMissing: true,
       ttl: sessionTtl,
       tableName: "sessions",
