@@ -88,7 +88,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
   }, []);
 
   const triggerRefresh = useCallback(async () => {
-    if (isRefreshing || isFillingScreen) return;
+    if (isRefreshing || isFillingScreen || isDismissing) return;
     
     wheelAccumulatorRef.current = 0;
     isWheelPullingRef.current = false;
@@ -108,7 +108,10 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
     }
     
     setIsRefreshing(false);
-  }, [isRefreshing, isFillingScreen, onRefresh]);
+    setIsDismissing(true);
+    await new Promise(resolve => setTimeout(resolve, 400));
+    setIsDismissing(false);
+  }, [isRefreshing, isFillingScreen, isDismissing, onRefresh]);
 
   useEffect(() => {
     if (!isTouchCapable) return;
@@ -277,6 +280,9 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
         }
 
         setIsRefreshing(false);
+        setIsDismissing(true);
+        await new Promise(resolve => setTimeout(resolve, 400));
+        setIsDismissing(false);
       } else {
         if (currentPullDistance > 5) {
           animateSpringBackRef.current(currentPullDistance);
@@ -300,7 +306,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
   }, [isTouchCapable]);
 
   useEffect(() => {
-    if (isRefreshing || isFillingScreen) {
+    if (isRefreshing || isFillingScreen || isDismissing) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -308,7 +314,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isRefreshing, isFillingScreen]);
+  }, [isRefreshing, isFillingScreen, isDismissing]);
 
   useEffect(() => {
     const pullProgress = Math.min(pullDistance / PULL_THRESHOLD, 1);
@@ -439,18 +445,22 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
         document.body
       )}
 
-      {isRefreshing && createPortal(
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 99999,
-          backgroundColor: '#293515',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'column',
-          gap: '12px',
-        }}>
+      {(isRefreshing || isDismissing) && createPortal(
+        <div
+          className="ptr-refresh-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            backgroundColor: '#293515',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            gap: '12px',
+            animation: isDismissing ? 'ptrSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards' : 'none',
+          }}
+        >
           <img
             src="/assets/logos/walking-mascot-white.gif"
             alt=""
@@ -462,7 +472,17 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
             fontWeight: 500,
             color: 'rgba(255,255,255,0.8)',
             letterSpacing: '0.5px',
-          }}>Refreshing...</span>
+          }}>{isDismissing ? 'Done' : 'Refreshing...'}</span>
+          <style>{`
+            @keyframes ptrSlideUp {
+              0% {
+                transform: translateY(0);
+              }
+              100% {
+                transform: translateY(-100%);
+              }
+            }
+          `}</style>
         </div>,
         document.body
       )}
