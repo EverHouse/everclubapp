@@ -776,7 +776,7 @@ router.post('/api/admin/linked-emails', isStaffOrAdmin, async (req: Request, res
       return res.status(409).json({ error: 'This email is already linked to a member' });
     }
     
-    const createdBy = (req.session as { email?: string })?.email || 'unknown';
+    const createdBy = req.session?.user?.email || 'unknown';
     
     await db.execute(sql`INSERT INTO user_linked_emails (primary_email, linked_email, source, created_by)
        VALUES (${primaryEmail.toLowerCase()}, ${linkedEmail.toLowerCase()}, ${'trackman_resolution'}, ${createdBy})`);

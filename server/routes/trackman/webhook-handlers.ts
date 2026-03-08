@@ -245,12 +245,16 @@ export async function handleBookingModification(
                AND bs.id != ${sessionId}
                AND tsrange(
                  (bs.session_date + bs.start_time)::timestamp,
-                 (bs.session_date + bs.end_time)::timestamp,
-                 '[)'
+                 CASE WHEN bs.end_time <= bs.start_time
+                   THEN (bs.session_date + bs.end_time + INTERVAL '1 day')::timestamp
+                   ELSE (bs.session_date + bs.end_time)::timestamp
+                 END, '[)'
                ) && tsrange(
                  (${newDate}::date + ${newStartTime}::time)::timestamp,
-                 (${newDate}::date + ${newEndTime}::time)::timestamp,
-                 '[)'
+                 CASE WHEN ${newEndTime}::time <= ${newStartTime}::time
+                   THEN (${newDate}::date + ${newEndTime}::time + INTERVAL '1 day')::timestamp
+                   ELSE (${newDate}::date + ${newEndTime}::time)::timestamp
+                 END, '[)'
                )`);
           if (conflictingSessions.rows.length > 0) {
             for (const row of conflictingSessions.rows) {

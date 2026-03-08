@@ -2,11 +2,6 @@ import { logger } from '../core/logger';
 import { Router } from 'express';
 import Stripe from 'stripe';
 
-interface SessionWithPassport {
-  passport?: { user?: { email?: string } };
-  user?: { email?: string; role?: string };
-}
-
 import { isStaffOrAdmin } from '../core/middleware';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
@@ -988,7 +983,7 @@ router.post('/api/member-billing/:email/migrate-to-stripe', isStaffOrAdmin, asyn
       return res.status(400).json({ error: `Tier '${currentTier}' does not have a valid Stripe price configured` });
     }
 
-    const staffEmail = req.session?.user?.email || (req.session as unknown as SessionWithPassport)?.passport?.user?.email || 'staff';
+    const staffEmail = req.session?.user?.email || 'staff';
 
     await db.execute(sql`UPDATE users SET 
       migration_status = 'pending',
