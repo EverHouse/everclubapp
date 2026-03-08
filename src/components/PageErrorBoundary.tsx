@@ -56,6 +56,7 @@ function isChunkLoadError(error: Error | null): boolean {
   if (!error) return false;
   const message = error.message?.toLowerCase() || '';
   return (
+    message.includes('importing a module script failed') ||
     message.includes('failed to fetch dynamically imported module') ||
     message.includes('loading chunk') ||
     message.includes('loading css chunk') ||

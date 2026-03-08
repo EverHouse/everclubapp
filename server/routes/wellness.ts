@@ -991,29 +991,30 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
     const formattedDate = formatDateDisplayWithDay(dateStr);
     const memberName = await getMemberDisplayName(user_email);
     
-    // Check capacity and determine if this should be a waitlist enrollment
-    const capacity = cls.capacity;
-    const enrolledCount = cls.enrolled_count as number;
     const waitlistEnabled = cls.waitlist_enabled;
-    const isAtCapacity = capacity !== null && capacity !== undefined && enrolledCount >= capacity;
-    
-    // If at capacity and no waitlist, reject enrollment
-    if (isAtCapacity && !waitlistEnabled) {
-      return res.status(400).json({ error: 'This class is full' });
-    }
-    
-    const isWaitlisted = isAtCapacity && waitlistEnabled;
-    
-    const memberMessage = isWaitlisted 
-      ? `You've been added to the waitlist for ${cls.title} with ${cls.instructor} on ${formattedDate} at ${cls.time}. We'll notify you if a spot opens up.`
-      : `You're enrolled in ${cls.title} with ${cls.instructor} on ${formattedDate} at ${cls.time}.`;
-    const staffMessage = isWaitlisted
-      ? `${memberName} joined the waitlist for ${cls.title} on ${formattedDate}`
-      : `${memberName} enrolled in ${cls.title} on ${formattedDate}`;
     
     let result;
     try {
       result = await db.transaction(async (tx) => {
+        const lockedClassResult = await tx.execute(sql`SELECT capacity,
+            COALESCE((SELECT COUNT(*) FROM wellness_enrollments WHERE class_id = ${class_id} AND status = 'confirmed' AND is_waitlisted = false), 0)::integer as enrolled_count
+          FROM wellness_classes WHERE id = ${class_id} FOR UPDATE`);
+        
+        const lockedCls = lockedClassResult.rows[0] as { capacity: number | null; enrolled_count: number };
+        const capacity = lockedCls.capacity;
+        const enrolledCount = lockedCls.enrolled_count;
+        const isAtCapacity = capacity !== null && capacity !== undefined && enrolledCount >= capacity;
+        
+        if (isAtCapacity && !waitlistEnabled) {
+          return { full: true as const };
+        }
+        
+        const isWaitlisted = isAtCapacity && waitlistEnabled;
+        
+        const memberMessage = isWaitlisted 
+          ? `You've been added to the waitlist for ${cls.title} with ${cls.instructor} on ${formattedDate} at ${cls.time}. We'll notify you if a spot opens up.`
+          : `You're enrolled in ${cls.title} with ${cls.instructor} on ${formattedDate} at ${cls.time}.`;
+        
         const enrollmentResult = await tx.insert(wellnessEnrollments)
           .values({
             classId: parseInt(class_id as string),
@@ -1032,7 +1033,7 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
           relatedType: 'wellness_class'
         });
         
-        return enrollmentResult[0];
+        return { full: false as const, enrollment: enrollmentResult[0], isWaitlisted, memberMessage };
       });
     } catch (txErr: unknown) {
       if (String(txErr).includes('wellness_enrollments_unique_active')) {
@@ -1041,6 +1042,15 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
       }
       throw txErr;
     }
+    
+    if (result.full) {
+      return res.status(400).json({ error: 'This class is full' });
+    }
+    
+    const { isWaitlisted, memberMessage } = result;
+    const staffMessage = isWaitlisted
+      ? `${memberName} joined the waitlist for ${cls.title} on ${formattedDate}`
+      : `${memberName} enrolled in ${cls.title} on ${formattedDate}`;
     
     notifyAllStaff(
       isWaitlisted ? 'New Waitlist Entry' : 'New Wellness Enrollment',
@@ -1055,7 +1065,6 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
       url: '/wellness'
     }).catch(err => logger.error('Push notification failed', { extra: { error: err } }));
     
-    // Send real-time WebSocket notification to member
     sendNotificationToUser(user_email, {
       type: 'notification',
       title: isWaitlisted ? 'Added to Waitlist' : 'Wellness Class Confirmed',
@@ -1063,7 +1072,6 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
       data: { classId: class_id, eventType: isWaitlisted ? 'wellness_waitlisted' : 'wellness_enrolled' }
     }, { action: isWaitlisted ? 'wellness_waitlisted' : 'wellness_enrolled', classId: class_id, triggerSource: 'wellness.ts' });
     
-    // Broadcast to staff for real-time updates
     broadcastToStaff({
       type: 'wellness_event',
       action: isWaitlisted ? 'waitlist_joined' : 'enrollment_created',
@@ -1071,10 +1079,9 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
       memberEmail: user_email
     });
     
-    // Broadcast waitlist update for real-time availability refresh
     broadcastWaitlistUpdate({ classId: class_id, action: 'enrolled' });
     
-    res.status(201).json({ ...result, isWaitlisted, message: isWaitlisted ? 'Added to waitlist' : 'Enrolled' });
+    res.status(201).json({ ...result.enrollment, isWaitlisted, message: isWaitlisted ? 'Added to waitlist' : 'Enrolled' });
   } catch (error: unknown) {
     logger.error('Wellness enrollment error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to enroll in class. Staff notification is required.' });
@@ -1192,6 +1199,15 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', isAuthenticated
             .set({ isWaitlisted: false })
             .where(eq(wellnessEnrollments.id, row.id as number));
           
+          await tx.insert(notifications).values({
+            userEmail: row.user_email as string,
+            title: 'Spot Available - You\'re In!',
+            message: `A spot opened up! You've been moved from the waitlist and are now enrolled in ${cls.title} with ${cls.instructor} on ${formattedDate} at ${cls.time}.`,
+            type: 'wellness_booking',
+            relatedId: parseInt(class_id as string),
+            relatedType: 'wellness_class'
+          });
+          
           return row;
         });
         
@@ -1200,16 +1216,6 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', isAuthenticated
           const promotedName = await getMemberDisplayName(promotedEmail as string);
           
           const promotedMessage = `A spot opened up! You've been moved from the waitlist and are now enrolled in ${cls.title} with ${cls.instructor} on ${formattedDate} at ${cls.time}.`;
-          
-          // Create notification for promoted user
-          await db.insert(notifications).values({
-            userEmail: promotedEmail as string,
-            title: 'Spot Available - You\'re In!',
-            message: promotedMessage,
-            type: 'wellness_booking',
-            relatedId: parseInt(class_id as string),
-            relatedType: 'wellness_class'
-          });
           
           // Send push notification
           sendPushNotification(promotedEmail as string, {
