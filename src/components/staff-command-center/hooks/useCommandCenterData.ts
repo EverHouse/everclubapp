@@ -415,8 +415,8 @@ export function useCommandCenterData(userEmail?: string) {
     activityQuery.dataUpdatedAt,
   ]);
 
-  const refresh = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: commandCenterKeys.all });
+  const refresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: commandCenterKeys.all });
   }, [queryClient]);
 
   const today = getTodayPacific();
