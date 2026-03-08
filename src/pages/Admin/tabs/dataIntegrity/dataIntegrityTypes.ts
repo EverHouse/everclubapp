@@ -45,7 +45,7 @@ export interface IssueContext {
   bayNumber?: string;
   userName?: string;
   userEmail?: string;
-  syncType?: 'hubspot' | 'calendar';
+  syncType?: 'hubspot' | 'calendar' | 'stripe';
   syncComparison?: SyncComparisonData[];
   hubspotContactId?: string;
   userId?: number;

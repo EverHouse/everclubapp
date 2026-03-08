@@ -301,6 +301,16 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
       try {
         await client.query(`SAVEPOINT ${savepointName}`);
         
+        if (booking.start_time >= booking.end_time) {
+          await client.query(`RELEASE SAVEPOINT ${savepointName}`);
+          errors.push({
+            bookingId: booking.id,
+            error: `Invalid time range: start_time (${booking.start_time}) >= end_time (${booking.end_time})`
+          });
+          logger.warn('[Backfill] Skipping booking with invalid time range', { extra: { bookingId: booking.id, startTime: booking.start_time, endTime: booking.end_time } });
+          continue;
+        }
+        
         const displayName = booking.user_name || booking.user_email || 'Unknown';
         const userId = booking.owner_user_id || booking.user_id;
         

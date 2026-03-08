@@ -1185,6 +1185,14 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
 
   const handleSyncPush = (issue: IntegrityIssue) => {
     if (!issue.context?.syncType) return;
+    if (issue.context.syncType === 'hubspot' && (!issue.context.userId || !issue.context.hubspotContactId)) {
+      showToast('Cannot push to HubSpot: member is missing a HubSpot contact link', 'error');
+      return;
+    }
+    if (issue.context.syncType === 'stripe' && !issue.context.stripeCustomerId) {
+      showToast('Cannot push to Stripe: member is missing a Stripe customer link', 'error');
+      return;
+    }
     const issueKey = `${issue.table}_${issue.recordId}`;
     state.setSyncingIssues(prev => new Set(prev).add(issueKey));
     syncPushMutation.mutate({
@@ -1198,6 +1206,14 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
 
   const handleSyncPull = (issue: IntegrityIssue) => {
     if (!issue.context?.syncType) return;
+    if (issue.context.syncType === 'hubspot' && !issue.context.hubspotContactId) {
+      showToast('Cannot pull from HubSpot: member is missing a HubSpot contact link', 'error');
+      return;
+    }
+    if (issue.context.syncType === 'stripe' && !issue.context.stripeCustomerId) {
+      showToast('Cannot pull from Stripe: member is missing a Stripe customer link', 'error');
+      return;
+    }
     const issueKey = `${issue.table}_${issue.recordId}`;
     state.setSyncingIssues(prev => new Set(prev).add(issueKey));
     syncPullMutation.mutate({
