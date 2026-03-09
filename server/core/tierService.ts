@@ -118,7 +118,13 @@ export async function getMemberTierByEmail(email: string, options?: { allowInact
     if (!options?.allowInactive) {
       const validStatuses = ['active', 'trialing', 'past_due'];
       if (!user.membership_status || !validStatuses.includes(user.membership_status)) {
-        logger.warn(`[TierService] Denying tier access for ${email} (Status: ${user.membership_status || 'none'})`);
+        const status = user.membership_status || 'none';
+        const isExpectedNonMember = status === 'visitor' || status === 'non-member' || status === 'cancelled';
+        if (isExpectedNonMember) {
+          logger.debug(`[TierService] No tier access for ${email} (Status: ${status})`);
+        } else {
+          logger.warn(`[TierService] Denying tier access for ${email} (Status: ${status})`);
+        }
         return null;
       }
     }

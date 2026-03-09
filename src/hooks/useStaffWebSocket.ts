@@ -155,6 +155,10 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
         try {
           const message = JSON.parse(event.data);
           
+          if (message.type === 'auth_success') {
+            ws.send(JSON.stringify({ type: 'staff_register' }));
+          }
+          
           if (message.type === 'booking_event') {
             if (import.meta.env.DEV) console.log('[StaffWebSocket] Received booking_event:', message.eventType);
             handleBookingEvent(message as BookingEvent);
