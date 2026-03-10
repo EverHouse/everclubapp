@@ -312,11 +312,17 @@ export async function ensureDatabaseConstraints() {
             AND bs.id != COALESCE(NEW.id, 0)
             AND tsrange(
               (bs.session_date + bs.start_time)::timestamp,
-              (bs.session_date + bs.end_time)::timestamp,
+              CASE WHEN bs.end_time <= bs.start_time
+                THEN (bs.session_date + bs.end_time + INTERVAL '1 day')::timestamp
+                ELSE (bs.session_date + bs.end_time)::timestamp
+              END,
               '[)'
             ) && tsrange(
               (NEW.session_date + NEW.start_time)::timestamp,
-              (NEW.session_date + NEW.end_time)::timestamp,
+              CASE WHEN NEW.end_time <= NEW.start_time
+                THEN (NEW.session_date + NEW.end_time + INTERVAL '1 day')::timestamp
+                ELSE (NEW.session_date + NEW.end_time)::timestamp
+              END,
               '[)'
             )
             AND EXISTS (

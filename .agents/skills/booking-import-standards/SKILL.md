@@ -48,6 +48,10 @@ Only INSERT if all 3 lookups fail. The INSERT uses `ON CONFLICT (trackman_bookin
 
 The `booking_sessions` table has a `prevent_booking_session_overlap` trigger that rejects INSERTs when time ranges overlap on the same bay. The 3-step lookup in `ensureSessionForBooking()` handles this by finding overlapping sessions BEFORE attempting INSERT. If an overlapping session exists (different Trackman ID but overlapping time), link the booking to that existing session. The booking keeps its own `trackman_booking_id` in `booking_requests` — only `session_id` is shared.
 
+**CRITICAL — Session lookup must NOT filter by booking status.** Steps 1-3 of `ensureSessionForBooking()` must find existing sessions regardless of whether their linked bookings are active or cancelled. The `booking_sessions_resource_datetime_unique` constraint on `(resource_id, session_date, start_time, end_time)` prevents duplicate sessions at the same slot — it doesn't care about booking status. If the lookup filters out sessions linked only to cancelled bookings, the INSERT will fail with a unique constraint violation. Reusing a session whose bookings are all cancelled is correct and safe.
+
+**CRITICAL — Midnight crossover in tsrange.** Both the overlap trigger (`prevent_booking_session_overlap` in `db-init.ts`) and Step 3 of `ensureSessionForBooking()` must handle bookings that cross midnight (e.g., 23:00 to 01:00). Use `CASE WHEN end_time <= start_time THEN ... + INTERVAL '1 day' ELSE ... END` when constructing tsrange bounds. Without this, Postgres rejects the range with "range lower bound must be less than or equal to range upper bound".
+
 ### Rule 1b — Backfill endpoint error handling
 
 The backfill endpoint (`POST /api/admin/backfill-sessions` in `server/routes/trackman/admin.ts`) uses savepoints per-booking so individual failures do not abort the entire transaction. When `ensureSessionForBooking` returns `sessionId: 0` with an error, roll back to the savepoint, record the error, and continue to the next booking.
