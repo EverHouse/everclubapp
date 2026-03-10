@@ -32,7 +32,7 @@ The monitoring system operates as a layered defense against data corruption, syn
 
 | Component | File | Purpose |
 |---|---|---|
-| Integrity Engine | `server/core/dataIntegrity.ts` | Run 30 integrity checks, store history, track issues, support ignore rules and audit log |
+| Integrity Engine | `server/core/dataIntegrity.ts` | Run 33 integrity checks, store history, track issues, support ignore rules and audit log |
 | Data Alerts | `server/core/dataAlerts.ts` | Send in-app staff notifications for integrity failures, sync errors, import issues |
 | Error Alerts | `server/core/errorAlerts.ts` | Send email alerts for server errors, payment failures, external service issues |
 | Monitoring Core | `server/core/monitoring.ts` | Log alerts to `system_alerts` table, provide in-memory recent alert buffer |
@@ -48,11 +48,11 @@ The monitoring system operates as a layered defense against data corruption, syn
 
 ### Integrity Check Severities
 
-Each of the 30 integrity checks has an assigned severity in `severityMap`:
+Each of the 33 integrity checks has an assigned severity in `severityMap`:
 
 - **Critical** — Require immediate attention. Trigger staff notifications on every run if status is `fail`. Examples: Stripe Subscription Sync, Billing Provider Hybrid State, Orphaned Payment Intents, Deal Stage Drift, Stuck Transitional Members, Invoice-Booking Reconciliation, Overlapping Bookings, Active Bookings Without Sessions.
-- **High** — Trigger notifications when issue count exceeds a threshold (default 10). Examples: Tier Reconciliation, Duplicate Stripe Customers, Members Without Email, HubSpot ID Duplicates, Guest Pass Accounting Drift, Stale Pending Bookings.
-- **Medium** — Logged and visible in dashboard but do not trigger proactive alerts. Examples: Orphan Booking Participants, MindBody Stale Sync, Unmatched Trackman Bookings.
+- **High** — Trigger notifications when issue count exceeds a threshold (default 10). Examples: Tier Reconciliation, Duplicate Stripe Customers, Members Without Email, HubSpot ID Duplicates, Guest Pass Accounting Drift, Stale Pending Bookings, Archived Member Lingering Data.
+- **Medium** — Logged and visible in dashboard but do not trigger proactive alerts. Examples: Orphan Booking Participants, MindBody Stale Sync, Unmatched Trackman Bookings, Active Members Without Waivers, Email Cascade Orphans.
 - **Low** — Informational. Examples: Sessions Without Participants, Items Needing Review.
 
 ### Error Alert Severities (Email)

@@ -407,7 +407,13 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
       logger.error('[Admin] HubSpot sync failed during archive', { extra: { error: getErrorMessage(hubspotErr) } });
     }
 
+    const userId = userResult[0].id;
     const client = await pool.connect();
+    let futureBookingsCancelled = 0;
+    let guestPassHoldsRemoved = 0;
+    let groupMembershipsRemoved = 0;
+    let pushSubscriptionsRemoved = 0;
+    let wellnessEnrollmentsCancelled = 0;
     try {
       await client.query('BEGIN');
 
@@ -415,6 +421,43 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
         'UPDATE users SET archived_at = $1, archived_by = $2, membership_status = $3, id_image_url = $4, updated_at = $5 WHERE LOWER(email) = $6',
         [new Date(), archivedBy, 'archived', null, new Date(), normalizedEmail]
       );
+
+      const futureBookingsResult = await client.query(
+        `UPDATE booking_requests SET status = 'cancelled', updated_at = NOW(),
+           staff_notes = COALESCE(staff_notes, '') || ' [Auto-cancelled: member archived]'
+         WHERE (LOWER(user_email) = $1 OR user_id = $2)
+           AND status IN ('pending', 'pending_approval', 'approved', 'confirmed')
+           AND request_date >= (NOW() AT TIME ZONE 'America/Los_Angeles')::date`,
+        [normalizedEmail, String(userId)]
+      );
+      futureBookingsCancelled = futureBookingsResult.rowCount || 0;
+
+      const holdsResult = await client.query(
+        `DELETE FROM guest_pass_holds WHERE booking_request_id IN (
+           SELECT id FROM booking_requests WHERE LOWER(user_email) = $1 OR user_id = $2
+         )`,
+        [normalizedEmail, String(userId)]
+      );
+      guestPassHoldsRemoved = holdsResult.rowCount || 0;
+
+      const groupResult = await client.query(
+        'DELETE FROM group_members WHERE LOWER(member_email) = $1',
+        [normalizedEmail]
+      );
+      groupMembershipsRemoved = groupResult.rowCount || 0;
+
+      const pushResult = await client.query(
+        'DELETE FROM push_subscriptions WHERE LOWER(user_email) = $1',
+        [normalizedEmail]
+      );
+      pushSubscriptionsRemoved = pushResult.rowCount || 0;
+
+      const wellnessResult = await client.query(
+        `UPDATE wellness_enrollments SET status = 'cancelled', updated_at = NOW()
+         WHERE LOWER(user_email) = $1 AND status = 'confirmed'`,
+        [normalizedEmail]
+      );
+      wellnessEnrollmentsCancelled = wellnessResult.rowCount || 0;
 
       await client.query('COMMIT');
     } catch (txError) {
@@ -424,12 +467,26 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
       safeRelease(client);
     }
 
+    if (futureBookingsCancelled > 0) {
+      logger.info('[Admin] Cancelled future bookings for archived member', { extra: { normalizedEmail, count: futureBookingsCancelled } });
+    }
+    if (guestPassHoldsRemoved > 0) {
+      logger.info('[Admin] Removed guest pass holds for archived member', { extra: { normalizedEmail, count: guestPassHoldsRemoved } });
+    }
+
     invalidateCache('members_directory');
     res.json({ 
       success: true, 
       archived: true,
       archivedBy,
       subscriptionCancelled,
+      cleanup: {
+        futureBookingsCancelled,
+        guestPassHoldsRemoved,
+        groupMembershipsRemoved,
+        pushSubscriptionsRemoved,
+        wellnessEnrollmentsCancelled
+      },
       message: 'Member archived successfully'
     });
 
@@ -462,6 +519,7 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
       firstName: users.firstName,
       lastName: users.lastName,
       stripeCustomerId: users.stripeCustomerId,
+      stripeSubscriptionId: users.stripeSubscriptionId,
       hubspotId: users.hubspotId,
       idImageUrl: users.idImageUrl
     })
@@ -476,6 +534,45 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     const memberName = `${userResult[0].firstName || ''} ${userResult[0].lastName || ''}`.trim();
     const stripeCustomerId = userResult[0].stripeCustomerId;
     const hubspotId = userResult[0].hubspotId;
+
+    if (userResult[0].stripeSubscriptionId || stripeCustomerId) {
+      try {
+        const { getStripeClient } = await import('../../core/stripe/client');
+        const stripe = await getStripeClient();
+        const activeSubIds: string[] = [];
+
+        if (userResult[0].stripeSubscriptionId) {
+          try {
+            const sub = await stripe.subscriptions.retrieve(userResult[0].stripeSubscriptionId);
+            if (['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status)) {
+              activeSubIds.push(sub.id);
+            }
+          } catch (subErr: unknown) {
+            const errMsg = getErrorMessage(subErr);
+            if (!errMsg.includes('No such subscription') && !errMsg.includes('resource_missing')) {
+              throw subErr;
+            }
+          }
+        }
+
+        if (activeSubIds.length === 0 && stripeCustomerId) {
+          for (const status of ['active', 'trialing', 'past_due'] as const) {
+            const subs = await stripe.subscriptions.list({ customer: stripeCustomerId, status, limit: 10 });
+            for (const s of subs.data) activeSubIds.push(s.id);
+          }
+        }
+
+        if (activeSubIds.length > 0) {
+          return res.status(400).json({ 
+            error: 'Cannot permanently delete a member with an active Stripe subscription. Archive the member first (which cancels their subscription), then permanently delete.',
+            activeSubscriptionIds: activeSubIds
+          });
+        }
+      } catch (stripeCheckErr: unknown) {
+        logger.error('[Admin] Failed to verify Stripe subscription status before permanent deletion', { extra: { normalizedEmail, error: getErrorMessage(stripeCheckErr) } });
+        return res.status(500).json({ error: 'Unable to verify Stripe subscription status. Please try again.' });
+      }
+    }
     
     const deletionLog: string[] = [];
     const warnings: string[] = [];

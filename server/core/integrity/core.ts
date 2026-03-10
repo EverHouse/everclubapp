@@ -475,6 +475,9 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Overlapping Bookings': 'critical',
   'Guest Pass Accounting Drift': 'high',
   'Stale Pending Bookings': 'high',
+  'Archived Member Lingering Data': 'high',
+  'Active Members Without Waivers': 'medium',
+  'Email Cascade Orphans': 'medium',
 };
 
 export function getCheckSeverity(checkName: string): 'critical' | 'high' | 'medium' | 'low' {
@@ -742,7 +745,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
   const { checkUnmatchedTrackmanBookings, checkParticipantUserRelationships, checkNeedsReviewItems, checkBookingTimeValidity, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings } = await import('./bookingChecks');
   const { checkHubSpotSyncMismatch, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
   const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation } = await import('./stripeChecks');
-  const { checkMembersWithoutEmail, checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkGuestPassesForNonExistentMembers } = await import('./memberChecks');
+  const { checkMembersWithoutEmail, checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkGuestPassesForNonExistentMembers, checkArchivedMemberLingeringData, checkActiveMembersWithoutWaivers, checkEmailOrphans } = await import('./memberChecks');
 
   const checks = await Promise.all([
     safeCheck(checkUnmatchedTrackmanBookings, 'Unmatched Trackman Bookings'),
@@ -768,6 +771,9 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     safeCheck(checkGuestPassAccountingDrift, 'Guest Pass Accounting Drift'),
     safeCheck(checkStalePendingBookings, 'Stale Pending Bookings'),
     safeCheck(checkStalePastTours, 'Stale Past Tours'),
+    safeCheck(checkArchivedMemberLingeringData, 'Archived Member Lingering Data'),
+    safeCheck(checkActiveMembersWithoutWaivers, 'Active Members Without Waivers'),
+    safeCheck(checkEmailOrphans, 'Email Cascade Orphans'),
   ]);
 
   const now = new Date();

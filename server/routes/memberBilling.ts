@@ -417,6 +417,49 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
       return res.status(404).json({ error: 'Member not found' });
     }
 
+    if (billingProvider === 'comped' || billingProvider === null) {
+      const stripeSubId = member.stripe_subscription_id;
+      const stripeCustId = member.stripe_customer_id;
+      if (stripeSubId || stripeCustId) {
+        try {
+          const stripe = await getStripeClient();
+          const activeSubIds: string[] = [];
+
+          if (stripeSubId) {
+            try {
+              const sub = await stripe.subscriptions.retrieve(stripeSubId);
+              if (['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status)) {
+                activeSubIds.push(sub.id);
+              }
+            } catch (subErr: unknown) {
+              const msg = getErrorMessage(subErr);
+              if (!msg.includes('No such subscription') && !msg.includes('resource_missing')) {
+                throw subErr;
+              }
+            }
+          }
+
+          if (activeSubIds.length === 0 && stripeCustId) {
+            for (const status of ['active', 'trialing', 'past_due'] as const) {
+              const subs = await stripe.subscriptions.list({ customer: stripeCustId, status, limit: 10 });
+              for (const s of subs.data) activeSubIds.push(s.id);
+            }
+          }
+
+          if (activeSubIds.length > 0) {
+            logger.warn('[MemberBilling] Blocked billing source change — active Stripe subscription exists', { extra: { email, billingProvider, subscriptionIds: activeSubIds.join(', ') } });
+            return res.status(400).json({
+              error: `Cannot change billing to '${billingProvider ?? 'manual'}' while an active Stripe subscription exists. Cancel the subscription first.`,
+              activeSubscriptionIds: activeSubIds,
+            });
+          }
+        } catch (stripeCheckError: unknown) {
+          logger.error('[MemberBilling] Failed to verify Stripe subscription status before billing source change', { extra: { email, error: getErrorMessage(stripeCheckError) } });
+          return res.status(500).json({ error: 'Unable to verify Stripe subscription status. Please try again.' });
+        }
+      }
+    }
+
     await db.execute(sql`UPDATE users SET billing_provider = ${billingProvider}, updated_at = NOW() WHERE LOWER(email) = ${(email as string).toLowerCase()}`);
 
     logger.info('[MemberBilling] Updated billing provider for to', { extra: { email, billingProvider } });

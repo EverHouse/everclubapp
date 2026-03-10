@@ -488,3 +488,219 @@ export async function checkGuestPassesForNonExistentMembers(): Promise<Integrity
     lastRun: new Date()
   };
 }
+
+interface ArchivedLingeringRow {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  issue_type: string;
+  issue_count: string;
+}
+
+export async function checkArchivedMemberLingeringData(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  const lingeringData = await db.execute(sql`
+    WITH archived AS (
+      SELECT id, email, first_name, last_name FROM users
+      WHERE membership_status = 'archived' AND archived_at IS NOT NULL
+    )
+    SELECT a.id, a.email, a.first_name, a.last_name, 'future_bookings' AS issue_type, COUNT(*)::text AS issue_count
+    FROM archived a
+    JOIN booking_requests br ON (LOWER(br.user_email) = LOWER(a.email) OR br.user_id = a.id)
+    WHERE br.status IN ('pending', 'pending_approval', 'approved', 'confirmed')
+      AND br.request_date >= (NOW() AT TIME ZONE 'America/Los_Angeles')::date
+    GROUP BY a.id, a.email, a.first_name, a.last_name
+
+    UNION ALL
+
+    SELECT a.id, a.email, a.first_name, a.last_name, 'guest_pass_holds' AS issue_type, COUNT(*)::text AS issue_count
+    FROM archived a
+    JOIN guest_pass_holds gph ON gph.booking_request_id IN (
+      SELECT br2.id FROM booking_requests br2 WHERE LOWER(br2.user_email) = LOWER(a.email) OR br2.user_id = a.id
+    )
+    GROUP BY a.id, a.email, a.first_name, a.last_name
+
+    UNION ALL
+
+    SELECT a.id, a.email, a.first_name, a.last_name, 'group_memberships' AS issue_type, COUNT(*)::text AS issue_count
+    FROM archived a
+    JOIN group_members gm ON LOWER(gm.member_email) = LOWER(a.email)
+    GROUP BY a.id, a.email, a.first_name, a.last_name
+
+    UNION ALL
+
+    SELECT a.id, a.email, a.first_name, a.last_name, 'push_subscriptions' AS issue_type, COUNT(*)::text AS issue_count
+    FROM archived a
+    JOIN push_subscriptions ps ON LOWER(ps.user_email) = LOWER(a.email)
+    GROUP BY a.id, a.email, a.first_name, a.last_name
+
+    UNION ALL
+
+    SELECT a.id, a.email, a.first_name, a.last_name, 'wellness_enrollments' AS issue_type, COUNT(*)::text AS issue_count
+    FROM archived a
+    JOIN wellness_enrollments we ON LOWER(we.user_email) = LOWER(a.email) AND we.status = 'confirmed'
+    GROUP BY a.id, a.email, a.first_name, a.last_name
+
+    LIMIT 100
+  `);
+
+  for (const row of lingeringData.rows as unknown as ArchivedLingeringRow[]) {
+    const name = [row.first_name, row.last_name].filter(Boolean).join(' ') || 'Unknown';
+    const typeLabels: Record<string, string> = {
+      future_bookings: 'future booking(s)',
+      guest_pass_holds: 'guest pass hold(s)',
+      group_memberships: 'group membership(s)',
+      push_subscriptions: 'push subscription(s)',
+      wellness_enrollments: 'active wellness enrollment(s)'
+    };
+    issues.push({
+      category: 'orphan_record',
+      severity: 'warning',
+      table: 'users',
+      recordId: row.id,
+      description: `Archived member "${name}" <${row.email}> still has ${row.issue_count} ${typeLabels[row.issue_type] || row.issue_type}`,
+      suggestion: 'Clean up lingering data for this archived member or re-archive them using the updated archive flow',
+      context: {
+        memberEmail: row.email,
+        memberName: name,
+        issueType: row.issue_type,
+        count: parseInt(row.issue_count)
+      }
+    });
+  }
+
+  return {
+    checkName: 'Archived Member Lingering Data',
+    status: issues.length === 0 ? 'pass' : issues.length > 10 ? 'fail' : 'warning',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
+interface MissingWaiverRow {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  tier: string | null;
+  created_at: string;
+}
+
+export async function checkActiveMembersWithoutWaivers(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  const missingWaivers = await db.execute(sql`
+    SELECT id, email, first_name, last_name, tier, created_at::text
+    FROM users
+    WHERE membership_status = 'active'
+      AND role = 'member'
+      AND (waiver_signed_at IS NULL AND waiver_version IS NULL)
+      AND created_at < NOW() - INTERVAL '7 days'
+    ORDER BY created_at ASC
+    LIMIT 100
+  `);
+
+  for (const row of missingWaivers.rows as unknown as MissingWaiverRow[]) {
+    const name = [row.first_name, row.last_name].filter(Boolean).join(' ') || 'Unknown';
+    issues.push({
+      category: 'data_quality',
+      severity: 'warning',
+      table: 'users',
+      recordId: row.id,
+      description: `Active member "${name}" <${row.email}> (${row.tier || 'no tier'}) has no signed waiver on file`,
+      suggestion: 'Request waiver signature from this member at their next visit',
+      context: {
+        memberEmail: row.email,
+        memberName: name,
+        memberTier: row.tier || undefined
+      }
+    });
+  }
+
+  return {
+    checkName: 'Active Members Without Waivers',
+    status: issues.length === 0 ? 'pass' : issues.length > 20 ? 'fail' : 'warning',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
+interface EmailOrphanRow {
+  source_table: string;
+  email_value: string;
+  record_count: string;
+}
+
+export async function checkEmailOrphans(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  const orphans = await db.execute(sql`
+    SELECT source_table, email_value, record_count::text FROM (
+      SELECT 'notifications' AS source_table, n.user_email AS email_value, COUNT(*)::text AS record_count
+      FROM notifications n
+      LEFT JOIN users u ON LOWER(n.user_email) = LOWER(u.email)
+      WHERE u.id IS NULL
+        AND n.user_email IS NOT NULL AND n.user_email != ''
+        AND n.created_at > NOW() - INTERVAL '90 days'
+      GROUP BY n.user_email
+
+      UNION ALL
+
+      SELECT 'booking_participants' AS source_table, bp.user_email AS email_value, COUNT(*)::text AS record_count
+      FROM booking_participants bp
+      LEFT JOIN users u ON LOWER(bp.user_email) = LOWER(u.email)
+      WHERE u.id IS NULL
+        AND bp.user_email IS NOT NULL AND bp.user_email != ''
+        AND bp.participant_type = 'owner'
+      GROUP BY bp.user_email
+
+      UNION ALL
+
+      SELECT 'event_rsvps' AS source_table, er.user_email AS email_value, COUNT(*)::text AS record_count
+      FROM event_rsvps er
+      LEFT JOIN users u ON LOWER(er.user_email) = LOWER(u.email)
+      WHERE u.id IS NULL
+        AND er.user_email IS NOT NULL AND er.user_email != ''
+      GROUP BY er.user_email
+
+      UNION ALL
+
+      SELECT 'push_subscriptions' AS source_table, ps.user_email AS email_value, COUNT(*)::text AS record_count
+      FROM push_subscriptions ps
+      LEFT JOIN users u ON LOWER(ps.user_email) = LOWER(u.email)
+      WHERE u.id IS NULL
+        AND ps.user_email IS NOT NULL AND ps.user_email != ''
+      GROUP BY ps.user_email
+    ) orphan_summary
+    ORDER BY record_count::int DESC
+    LIMIT 100
+  `);
+
+  for (const row of orphans.rows as unknown as EmailOrphanRow[]) {
+    issues.push({
+      category: 'orphan_record',
+      severity: 'warning',
+      table: row.source_table,
+      recordId: `${row.source_table}_${row.email_value}`,
+      description: `${row.record_count} record(s) in ${row.source_table} reference email "${row.email_value}" which does not match any user`,
+      suggestion: 'Link records to the correct user email or clean up orphaned records',
+      context: {
+        sourceTable: row.source_table,
+        email: row.email_value,
+        count: parseInt(row.record_count)
+      }
+    });
+  }
+
+  return {
+    checkName: 'Email Cascade Orphans',
+    status: issues.length === 0 ? 'pass' : issues.length > 10 ? 'fail' : 'warning',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}

@@ -128,6 +128,22 @@ Issues are categorized as: `orphan_record`, `sync_mismatch`, `data_quality`, `bo
 - **Detects**: Booking requests in pending or approved status whose start time has already passed (within last 30 days, using Pacific timezone).
 - **Action**: Mark as no-show, cancel, or confirm retroactively. Investigate why the booking was not processed before its start time.
 
+### Archived Member Lingering Data
+- **Detects**: Archived members who still have active future bookings, guest pass holds, group memberships, push subscriptions, or confirmed wellness enrollments.
+- **Action**: Clean up lingering data for the archived member or re-archive them using the updated archive flow (which now auto-cleans these records).
+
+---
+
+## Medium Severity Checks (Additional)
+
+### Active Members Without Waivers
+- **Detects**: Active members (status='active', role='member') who have no signed waiver on file (waiver_signed_at IS NULL AND waiver_version IS NULL), created more than 7 days ago.
+- **Action**: Request waiver signature from the member at their next visit.
+
+### Email Cascade Orphans
+- **Detects**: Records in notifications, booking_participants (owner type), event_rsvps, and push_subscriptions where the email does not match any user in the users table. These are typically caused by email changes that didn't cascade to all tables, or by user deletions.
+- **Action**: Link records to the correct user email or clean up orphaned records.
+
 ---
 
 ## Low Severity Checks

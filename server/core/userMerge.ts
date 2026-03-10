@@ -261,6 +261,15 @@ export async function executeMerge(
   if (!primaryUser) throw new Error('Primary user not found');
   if (!secondaryUser) throw new Error('Secondary user not found');
   if (primaryUserId === secondaryUserId) throw new Error('Cannot merge a user with themselves');
+
+  if (primaryUser.stripeSubscriptionId && secondaryUser.stripeSubscriptionId) {
+    throw new Error(
+      'Cannot merge: Both users have active Stripe subscriptions. ' +
+      `Primary subscription: ${primaryUser.stripeSubscriptionId}, ` +
+      `Secondary subscription: ${secondaryUser.stripeSubscriptionId}. ` +
+      'Cancel one subscription before merging to avoid orphaning a subscription.'
+    );
+  }
   
   const primaryEmail = normalizeEmail(primaryUser.email);
   const secondaryEmail = normalizeEmail(secondaryUser.email);
