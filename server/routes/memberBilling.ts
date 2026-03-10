@@ -440,7 +440,7 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
           }
 
           if (activeSubIds.length === 0 && stripeCustId) {
-            for (const status of ['active', 'trialing', 'past_due'] as const) {
+            for (const status of ['active', 'trialing', 'past_due', 'unpaid'] as const) {
               const subs = await stripe.subscriptions.list({ customer: stripeCustId, status, limit: 10 });
               for (const s of subs.data) activeSubIds.push(s.id);
             }

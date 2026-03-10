@@ -100,9 +100,6 @@ export async function cascadeEmailChange(
       rowCount = await updateTable('legacy_purchases', 'member_email');
       if (rowCount > 0) tablesUpdated.push({ tableName: 'legacy_purchases', rowsAffected: rowCount });
 
-      rowCount = await updateTable('usage_ledger', 'member_id');
-      if (rowCount > 0) tablesUpdated.push({ tableName: 'usage_ledger', rowsAffected: rowCount });
-
       rowCount = await updateTable('notifications', 'user_email');
       if (rowCount > 0) tablesUpdated.push({ tableName: 'notifications', rowsAffected: rowCount });
 
@@ -202,10 +199,8 @@ export async function previewEmailChangeImpact(
     { table: 'billing_groups', column: 'primary_email' },
     { table: 'group_members', column: 'member_email' },
     { table: 'booking_requests', column: 'user_email' },
-    { table: 'booking_participants', column: 'user_id' },
     { table: 'admin_audit_log', column: 'resource_id' },
     { table: 'legacy_purchases', column: 'member_email' },
-    { table: 'usage_ledger', column: 'member_id' },
     { table: 'notifications', column: 'user_email' },
     { table: 'push_subscriptions', column: 'user_email' },
     { table: 'event_rsvps', column: 'user_email' },

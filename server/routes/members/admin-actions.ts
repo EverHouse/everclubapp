@@ -587,7 +587,7 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
         }
 
         if (activeSubIds.length === 0 && stripeCustomerId) {
-          for (const status of ['active', 'trialing', 'past_due'] as const) {
+          for (const status of ['active', 'trialing', 'past_due', 'unpaid'] as const) {
             const subs = await stripe.subscriptions.list({ customer: stripeCustomerId, status, limit: 10 });
             for (const s of subs.data) activeSubIds.push(s.id);
           }
