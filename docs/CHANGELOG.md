@@ -2,6 +2,37 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.81.0] - 2026-03-10
+
+### Data Integrity Expansion
+- **Three New Checks**: Added `checkArchivedMemberLingeringData` (detects archived members with leftover bookings, guest passes, enrollments, group memberships, push subscriptions, or future RSVPs), `checkActiveMembersWithoutWaivers` (flags active members missing signed waivers after 7 days), and `checkEmailOrphans` (finds records in notifications, booking_participants, event_rsvps, push_subscriptions, wellness_enrollments, and user_dismissed_notices where the email doesn't match any user).
+- **New Resolution Tools**: `POST /api/data-integrity/fix/delete-orphan-records-by-email` cleans up all records for a non-existent email. `POST /api/data-integrity/fix/mark-waiver-signed` resolves missing waiver flags directly from the integrity dashboard.
+- **Event RSVP Filter**: Integrity checks now filter `COALESCE(er.source, 'local') = 'local'` to exclude Eventbrite-imported external guest RSVPs from orphan/lingering-data alerts.
+- **Files**: `server/core/integrity/memberChecks.ts`, `server/routes/dataIntegrity.ts`, `shared/validators/dataIntegrity.ts`, `src/pages/Admin/tabs/dataIntegrity/IntegrityResultsPanel.tsx`
+
+### Notification Refinements
+- **Synthetic Email Guard**: `isSyntheticEmail()` in `notificationService.ts` blocks notifications for synthetic/imported emails (`@trackman.local`, `@visitors.evenhouse.club`, `private-event@`, `classpass-*`, etc.) across all notification insertion paths. Early return skips DB insert, WebSocket, and push delivery.
+- **Staff Notification Safety**: All three staff notification fan-out paths (`notifyAllStaff`, `staffNotifications.getStaffAndAdminEmails`, `bookingEvents.getStaffEmails`) now INNER JOIN `staff_users` against `users` to prevent notifications for deleted/archived staff.
+- **Booking Notifications Restored**: Member notifications for booking approvals and declines were accidentally removed — now restored with deduplication to prevent double-sending.
+- **Files**: `server/core/notificationService.ts`, `server/core/bookingService/approvalService.ts`, `server/core/bookingEvents.ts`, `server/core/staffNotifications.ts`, `server/core/resource/cancellation.ts`, `server/core/resource/staffActions.ts`, `server/core/trackman/service.ts`
+
+### Member Archiving & Email Cascade
+- **Archive Cascade Cleanup**: Member deletion/archiving now cascades cleanups across `event_rsvps`, `booking_requests`, `wellness_enrollments`, `guest_pass_holds`, `group_members`, and `push_subscriptions`.
+- **Email Change Cascade**: `emailChangeService` expanded to update `notifications`, `event_rsvps`, `push_subscriptions`, `wellness_enrollments`, and `user_dismissed_notices` when a member's email changes.
+- **Files**: `server/routes/members/admin-actions.ts`, `server/core/memberService/emailChangeService.ts`
+
+### Mobile & Scrolling Stability
+- **Android Direction Lock**: PullToRefresh implements a direction lock to prevent horizontal swipes from triggering refresh.
+- **CSS Overflow Fix**: Adjusted overflow properties on Android Chrome to prevent content from getting stuck mid-scroll.
+- **Pixel/Chrome Touch Fix**: Touch listeners moved to document level to avoid Pixel Chrome compositor interference. Container-scoped guards (`containerRef.contains(e.target)`) and `hasActiveLocks()` prevent activation during overlays/menus.
+- **Edge Swipe Gesture**: `useEdgeSwipe.ts` now detects Android gesture navigation (`isAndroidGestureNav`) and defers to the system back gesture.
+- **Files**: `src/components/PullToRefresh.tsx`, `src/hooks/useEdgeSwipe.ts`, `src/index.css`
+
+### Other Improvements
+- **Print Styles**: Transitioned from backslash-escaped Tailwind class selectors to CSS attribute selectors for Lightning CSS compatibility.
+- **Logger Noise Reduction**: Noisy 404s for `/api/v1/*`, `/api/login`, `/callback`, `*.gz` and unauthenticated `/api/auth/session` requests downgraded to debug level. Added `server/core/suppressWarnings.ts` to filter pg-connection-string SSL mode warnings.
+- **Files**: `server/core/logger.ts`, `server/core/suppressWarnings.ts`, `server/index.ts`
+
 ## [8.80.0] - 2026-03-07
 
 ### Mark as Private Event Workflow

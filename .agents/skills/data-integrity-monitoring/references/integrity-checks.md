@@ -2,7 +2,7 @@
 
 ## Integrity Check Engine
 
-All checks are defined in `server/core/dataIntegrity.ts` and executed via `runAllIntegrityChecks()`. Each check returns a result with `status` (pass/warning/fail), `issueCount`, and an array of `IntegrityIssue` objects containing `category`, `severity`, `table`, `recordId`, `description`, `suggestion`, and `context`.
+All checks are defined in `server/core/integrity/` (modular split from `server/core/dataIntegrity.ts` in v8.69.0) and executed via `runAllIntegrityChecks()` in `server/core/integrity/core.ts`. Member-specific checks live in `server/core/integrity/memberChecks.ts`. Each check returns a result with `status` (pass/warning/fail), `issueCount`, and an array of `IntegrityIssue` objects containing `category`, `severity`, `table`, `recordId`, `description`, `suggestion`, and `context`.
 
 Issues are categorized as: `orphan_record`, `sync_mismatch`, `data_quality`, `booking_issue`, `billing_issue`.
 

@@ -8,6 +8,29 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.81.0",
+    date: "2026-03-10",
+    title: "Data Integrity, Notifications & Mobile Stability",
+    isMajor: true,
+    changes: [
+      "Feature: Three new data integrity checks — Archived Member Lingering Data detects archived members with leftover bookings, guest passes, or enrollments; Active Members Without Waivers flags members missing signed waivers after 7 days; Email Cascade Orphans finds records left behind after email changes or user deletions",
+      "Feature: New staff tools to resolve data integrity issues — 'Delete Orphan Records by Email' cleans up all records for a non-existent email, and 'Mark Waiver as Signed' resolves missing waiver flags directly from the integrity dashboard",
+      "Feature: Event RSVP integrity checks now correctly filter out Eventbrite-imported external guest RSVPs — these no longer appear as false-positive orphan records in data integrity reports",
+      "Improvement: Notifications are now blocked for synthetic and placeholder email addresses (Trackman imports, ClassPass placeholders, private events) — prevents ghost notifications that no real member would ever see",
+      "Improvement: All staff notification fan-out paths now verify staff members exist before sending — prevents notifications from being created for deleted or archived staff accounts",
+      "Improvement: Member archiving now automatically cleans up related records across event RSVPs, booking requests, wellness enrollments, guest pass holds, group memberships, and push subscriptions — no more lingering data after archiving",
+      "Improvement: Email change cascading now covers more tables — notifications, event RSVPs, push subscriptions, wellness enrollments, and user dismissed notices are all updated when a member's email changes",
+      "Fix: Members now correctly receive notifications when their bookings are approved or declined — a previous change had accidentally removed these notifications",
+      "Fix: Duplicate booking notifications eliminated — approval and decline flows no longer send the same notification twice to the booking owner",
+      "Fix: Pull-to-refresh on Android now works with a direction lock — prevents accidental horizontal swipes from triggering a refresh, making the gesture feel more intentional",
+      "Fix: Scrolling on Android devices no longer freezes or stutters — CSS overflow properties adjusted to prevent content from getting stuck mid-scroll",
+      "Fix: Touch scrolling on Pixel and stock Chrome devices improved — touch event listeners moved to document level to avoid compositor interference, with container-scoped guards to prevent activation during overlays",
+      "Fix: Edge swipe gesture on Android now correctly defers to the system back gesture when gesture navigation is active — no more conflicts between app navigation and the OS",
+      "Improvement: Print styles now use CSS attribute selectors for better compatibility with Lightning CSS and cleaner output",
+      "Improvement: Server logging noise reduced — frequent 404s for non-existent paths and unauthenticated session checks are now logged at debug level instead of cluttering the main logs",
+    ]
+  },
+  {
     version: "8.80.0",
     date: "2026-03-07",
     title: "Private Event & Notice Display Improvements",

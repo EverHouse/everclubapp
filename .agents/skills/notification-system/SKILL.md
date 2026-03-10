@@ -44,11 +44,12 @@ notifyMember(payload: NotificationPayload, options?: {
 
 Execution order:
 1. Validate required fields (`userEmail`, `title`, `message`, `type`).
-2. **Deduplication check (v8.5.0):** Before inserting, query `notifications` for an existing row with the same `title`, `user_email`, and `related_id` created within the last 60 seconds. If a duplicate is found, skip the insert and return early. This prevents multiple code paths (e.g., check-in handlers) from sending the same notification to a member.
-3. Insert to `notifications` table (database channel — always runs first).
-4. If `sendWebSocket` is true, call `sendNotificationToUser()` from `websocket.ts`.
-5. If `sendPush` is true, call `deliverViaPush()` which looks up `push_subscriptions` by email.
-6. If `sendEmail` is true AND `emailSubject` + `emailHtml` are provided, call `deliverViaEmail()` via Resend.
+2. **Synthetic email guard (v8.81.0):** `isSyntheticEmail(payload.userEmail)` checks if the email matches known synthetic/placeholder patterns (`@trackman.local`, `@visitors.evenhouse.club`, `private-event@`, `classpass-*`, etc.). If synthetic, returns early with a skip result — no DB insert, no WebSocket, no push. This is also used by callers in `approvalService.ts`, `cancellation.ts`, `staffActions.ts`, and `trackman/service.ts` to guard individual notification calls.
+3. **Deduplication check (v8.5.0):** Before inserting, query `notifications` for an existing row with the same `title`, `user_email`, and `related_id` created within the last 60 seconds. If a duplicate is found, skip the insert and return early. This prevents multiple code paths (e.g., check-in handlers) from sending the same notification to a member.
+4. Insert to `notifications` table (database channel — always runs first).
+5. If `sendWebSocket` is true, call `sendNotificationToUser()` from `websocket.ts`.
+6. If `sendPush` is true, call `deliverViaPush()` which looks up `push_subscriptions` by email.
+7. If `sendEmail` is true AND `emailSubject` + `emailHtml` are provided, call `deliverViaEmail()` via Resend.
 
 Return a `NotificationResult` with `notificationId`, `deliveryResults[]`, and `allSucceeded`.
 
@@ -69,10 +70,12 @@ notifyAllStaff(title, message, type, options?: {
 ```
 
 Steps:
-1. Query all active staff from `staff_users` where `is_active = true`.
+1. Query all active staff from `staff_users` INNER JOIN `users` where `is_active = true` (v8.81.0: INNER JOIN ensures deleted/archived staff with orphaned `staff_users` rows are excluded).
 2. Batch-insert notification rows for every staff email.
 3. If `sendWebSocket`, call `broadcastToStaff()` from `websocket.ts`.
 4. If `sendPush`, call `deliverPushToStaff()` which joins `push_subscriptions` with `users` on role `admin`/`staff`.
+
+**Staff deletion safety (v8.81.0):** Archive and permanent-delete flows deactivate the `staff_users` entry (`is_active = false`). All three fan-out paths (`notifyAllStaff`, `staffNotifications.getStaffAndAdminEmails`, `bookingEvents.getStaffEmails`) use INNER JOIN to prevent notifications for non-existent users.
 
 ## NotificationType
 
