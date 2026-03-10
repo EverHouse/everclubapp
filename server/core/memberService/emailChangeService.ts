@@ -121,11 +121,6 @@ export async function cascadeEmailChange(
       rowCount = await updateTable('user_dismissed_notices', 'user_email');
       if (rowCount > 0) tablesUpdated.push({ tableName: 'user_dismissed_notices', rowsAffected: rowCount });
 
-      const bpResult = await tx.execute(
-        sql`UPDATE booking_participants SET email = ${normalizedNewEmail} WHERE LOWER(email) = LOWER(${normalizedOldEmail})`
-      );
-      if ((bpResult.rowCount || 0) > 0) tablesUpdated.push({ tableName: 'booking_participants', rowsAffected: bpResult.rowCount || 0 });
-
       await logBillingAudit({
         memberEmail: normalizedNewEmail,
         actionType: 'email_changed',
@@ -207,7 +202,7 @@ export async function previewEmailChangeImpact(
     { table: 'billing_groups', column: 'primary_email' },
     { table: 'group_members', column: 'member_email' },
     { table: 'booking_requests', column: 'user_email' },
-    { table: 'booking_participants', column: 'email' },
+    { table: 'booking_participants', column: 'user_id' },
     { table: 'admin_audit_log', column: 'resource_id' },
     { table: 'legacy_purchases', column: 'member_email' },
     { table: 'usage_ledger', column: 'member_id' },

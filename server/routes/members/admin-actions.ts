@@ -470,14 +470,15 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
 
       const participantResult = await client.query(
         `DELETE FROM booking_participants
-         WHERE (user_id = $1 OR LOWER(email) = $2)
+         WHERE user_id = $1
            AND participant_type != 'owner'
-           AND booking_request_id IN (
-             SELECT id FROM booking_requests
-             WHERE status IN ('pending', 'pending_approval', 'approved', 'confirmed')
-               AND request_date >= (NOW() AT TIME ZONE 'America/Los_Angeles')::date
+           AND session_id IN (
+             SELECT br.session_id FROM booking_requests br
+             WHERE br.session_id IS NOT NULL
+               AND br.status IN ('pending', 'pending_approval', 'approved', 'confirmed')
+               AND br.request_date >= (NOW() AT TIME ZONE 'America/Los_Angeles')::date
            )`,
-        [String(userId), normalizedEmail]
+        [String(userId)]
       );
       bookingParticipantsRemoved = participantResult.rowCount || 0;
 

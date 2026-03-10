@@ -555,8 +555,9 @@ export async function checkArchivedMemberLingeringData(): Promise<IntegrityCheck
 
     SELECT a.id, a.email, a.first_name, a.last_name, 'booking_participations' AS issue_type, COUNT(*)::text AS issue_count
     FROM archived a
-    JOIN booking_participants bp ON (bp.user_id = a.id OR LOWER(bp.email) = LOWER(a.email))
-    JOIN booking_requests br ON br.id = bp.booking_request_id
+    JOIN booking_participants bp ON bp.user_id = a.id::text
+    JOIN booking_requests br ON br.session_id = bp.session_id
+      AND br.session_id IS NOT NULL
       AND br.status IN ('pending', 'pending_approval', 'approved', 'confirmed')
       AND br.request_date >= (NOW() AT TIME ZONE 'America/Los_Angeles')::date
     WHERE bp.participant_type != 'owner'
@@ -668,15 +669,6 @@ export async function checkEmailOrphans(): Promise<IntegrityCheckResult> {
         AND n.user_email IS NOT NULL AND n.user_email != ''
         AND n.created_at > NOW() - INTERVAL '90 days'
       GROUP BY n.user_email
-
-      UNION ALL
-
-      SELECT 'booking_participants' AS source_table, bp.email AS email_value, COUNT(*)::text AS record_count
-      FROM booking_participants bp
-      LEFT JOIN users u ON LOWER(bp.email) = LOWER(u.email)
-      WHERE u.id IS NULL
-        AND bp.email IS NOT NULL AND bp.email != ''
-      GROUP BY bp.email
 
       UNION ALL
 
