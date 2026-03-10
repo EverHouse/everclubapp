@@ -92,6 +92,19 @@ export async function normalizeExistingEmails(): Promise<{ updated: number }> {
   } catch (error: unknown) {
     logger.error('[DB Init] Failed to normalize existing emails:', { extra: { errorMessage: getErrorMessage(error) } });
   }
+
+  try {
+    const statusResult = await db.execute(sql`
+      UPDATE users SET membership_status = LOWER(membership_status), updated_at = NOW()
+      WHERE membership_status IS NOT NULL AND membership_status != LOWER(membership_status)
+    `);
+    const statusFixed = statusResult.rowCount || 0;
+    if (statusFixed > 0) {
+      logger.info(`[DB Init] Normalized ${statusFixed} membership_status values to lowercase`);
+    }
+  } catch (error: unknown) {
+    logger.error('[DB Init] Failed to normalize membership_status:', { extra: { errorMessage: getErrorMessage(error) } });
+  }
   
   return { updated: totalUpdated };
 }
@@ -880,10 +893,11 @@ export async function setupInstantDataTriggers(): Promise<void> {
 
     const orphanedResult = await db.execute(sql`
       UPDATE users SET role = CASE
-          WHEN membership_status IN ('active', 'trialing', 'past_due', 'pending') THEN 'member'
-          WHEN membership_status IN ('visitor', 'non-member') THEN 'visitor'
+          WHEN LOWER(membership_status) IN ('active', 'trialing', 'past_due', 'pending') THEN 'member'
+          WHEN LOWER(membership_status) IN ('visitor', 'non-member') THEN 'visitor'
           ELSE role
         END,
+        membership_status = LOWER(membership_status),
         updated_at = NOW()
       WHERE role = 'staff'
         AND LOWER(email) NOT IN (
