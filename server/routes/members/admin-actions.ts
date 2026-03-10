@@ -480,6 +480,11 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
       );
       bookingParticipantsRemoved = participantResult.rowCount || 0;
 
+      await client.query(
+        `UPDATE staff_users SET is_active = false WHERE LOWER(email) = $1`,
+        [normalizedEmail]
+      );
+
       await client.query('COMMIT');
     } catch (txError) {
       await client.query('ROLLBACK');
@@ -782,6 +787,9 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     
     await db.execute(sql`DELETE FROM notifications WHERE LOWER(user_email) = ${normalizedEmail}`);
     deletionLog.push('notifications');
+
+    await db.execute(sql`UPDATE staff_users SET is_active = false WHERE LOWER(email) = ${normalizedEmail}`);
+    deletionLog.push('staff_users_deactivated');
     
     await db.execute(sql`DELETE FROM magic_links WHERE LOWER(email) = ${normalizedEmail}`);
     deletionLog.push('magic_links');

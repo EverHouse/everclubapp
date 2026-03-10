@@ -472,6 +472,7 @@ export async function notifyAllStaff(
   try {
     const staffEmails = await db.select({ email: staffUsers.email })
       .from(staffUsers)
+      .innerJoin(users, eq(sql`LOWER(${staffUsers.email})`, sql`LOWER(${users.email})`))
       .where(eq(staffUsers.isActive, true));
     
     if (staffEmails.length === 0) {

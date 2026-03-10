@@ -1,11 +1,12 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '../db';
-import { notifications, staffUsers } from '../../shared/schema';
+import { notifications, staffUsers, users } from '../../shared/schema';
 
 import { logger } from './logger';
 export async function getStaffAndAdminEmails(): Promise<string[]> {
   const staffEmails = await db.select({ email: staffUsers.email })
     .from(staffUsers)
+    .innerJoin(users, eq(sql`LOWER(${staffUsers.email})`, sql`LOWER(${users.email})`))
     .where(eq(staffUsers.isActive, true));
   
   return staffEmails.map(row => row.email);

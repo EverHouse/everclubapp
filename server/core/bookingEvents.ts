@@ -239,6 +239,7 @@ async function getStaffEmails(): Promise<string[]> {
   try {
     const staff = await db.select({ email: staffUsers.email })
       .from(staffUsers)
+      .innerJoin(users, eq(sql`LOWER(${staffUsers.email})`, sql`LOWER(${users.email})`))
       .where(eq(staffUsers.isActive, true));
     return staff.map(s => s.email.toLowerCase());
   } catch (error: unknown) {
