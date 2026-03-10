@@ -435,10 +435,8 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
       futureBookingsCancelled = futureBookingsResult.rowCount || 0;
 
       const holdsResult = await client.query(
-        `DELETE FROM guest_pass_holds WHERE booking_request_id IN (
-           SELECT id FROM booking_requests WHERE LOWER(user_email) = $1 OR user_id = $2
-         )`,
-        [normalizedEmail, String(userId)]
+        `DELETE FROM guest_pass_holds WHERE LOWER(member_email) = $1`,
+        [normalizedEmail]
       );
       guestPassHoldsRemoved = holdsResult.rowCount || 0;
 

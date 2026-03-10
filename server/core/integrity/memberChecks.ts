@@ -517,9 +517,7 @@ export async function checkArchivedMemberLingeringData(): Promise<IntegrityCheck
 
     SELECT a.id, a.email, a.first_name, a.last_name, 'guest_pass_holds' AS issue_type, COUNT(*)::text AS issue_count
     FROM archived a
-    JOIN guest_pass_holds gph ON gph.booking_request_id IN (
-      SELECT br2.id FROM booking_requests br2 WHERE LOWER(br2.user_email) = LOWER(a.email) OR br2.user_id = a.id
-    )
+    JOIN guest_pass_holds gph ON LOWER(gph.member_email) = LOWER(a.email)
     GROUP BY a.id, a.email, a.first_name, a.last_name
 
     UNION ALL
