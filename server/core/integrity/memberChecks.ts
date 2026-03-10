@@ -546,6 +546,7 @@ export async function checkArchivedMemberLingeringData(): Promise<IntegrityCheck
     SELECT a.id, a.email, a.first_name, a.last_name, 'future_event_rsvps' AS issue_type, COUNT(*)::text AS issue_count
     FROM archived a
     JOIN event_rsvps er ON (LOWER(er.user_email) = LOWER(a.email) OR er.matched_user_id = a.id)
+      AND COALESCE(er.source, 'local') = 'local'
     JOIN events e ON e.id = er.event_id AND e.event_date >= (NOW() AT TIME ZONE 'America/Los_Angeles')::date
     GROUP BY a.id, a.email, a.first_name, a.last_name
 
