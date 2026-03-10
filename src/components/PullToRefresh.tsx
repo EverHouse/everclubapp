@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { hasActiveLocks } from '../hooks/useScrollLockManager';
 
 interface PullToRefreshProps {
   children: React.ReactNode;
@@ -216,13 +217,15 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
   useEffect(() => { onRefreshRef.current = onRefresh; }, [onRefresh]);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !isTouchCapable) return;
+    if (!isTouchCapable) return;
 
     const DIRECTION_LOCK_THRESHOLD = 10;
 
     const onTouchStart = (e: TouchEvent) => {
-      if (disabledRef.current || isModalOpenRef.current || isRefreshingRef.current || isSpringBackRef.current) return;
+      if (disabledRef.current || isModalOpenRef.current || isRefreshingRef.current || isSpringBackRef.current || hasActiveLocks()) return;
+
+      const container = containerRef.current;
+      if (container && !container.contains(e.target as Node)) return;
 
       const scrollTop = window.scrollY || document.documentElement.scrollTop;
       if (scrollTop <= 5) {
@@ -338,16 +341,16 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
       }
     };
 
-    container.addEventListener('touchstart', onTouchStart, { passive: true });
-    container.addEventListener('touchmove', onTouchMove, { passive: true });
-    container.addEventListener('touchend', onTouchEnd);
-    container.addEventListener('touchcancel', onTouchEnd);
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    document.addEventListener('touchmove', onTouchMove, { passive: true });
+    document.addEventListener('touchend', onTouchEnd);
+    document.addEventListener('touchcancel', onTouchEnd);
 
     return () => {
-      container.removeEventListener('touchstart', onTouchStart);
-      container.removeEventListener('touchmove', onTouchMove);
-      container.removeEventListener('touchend', onTouchEnd);
-      container.removeEventListener('touchcancel', onTouchEnd);
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+      document.removeEventListener('touchcancel', onTouchEnd);
     };
   }, [isTouchCapable]);
 
@@ -393,6 +396,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
     <div
       ref={containerRef}
       className={`min-h-full ${className}`}
+      style={{ touchAction: 'manipulation' }}
     >
       {showPullBar && createPortal(
         <div 
