@@ -161,6 +161,32 @@ router.put('/api/staff-users/:id', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Staff user not found' });
     }
     
+    if (is_active === false && result[0].email) {
+      const staffEmail = result[0].email.toLowerCase();
+      const otherActiveStaff = await db.select({ id: staffUsers.id })
+        .from(staffUsers)
+        .where(and(
+          eq(sql`LOWER(${staffUsers.email})`, staffEmail),
+          eq(staffUsers.isActive, true),
+          sql`${staffUsers.id} != ${parseInt(id as string)}`
+        ))
+        .limit(1);
+
+      if (otherActiveStaff.length === 0) {
+        await db.execute(
+          sql`UPDATE users SET role = CASE
+                WHEN membership_status IN ('active', 'trialing', 'past_due', 'pending') THEN 'member'
+                WHEN membership_status IN ('visitor', 'non-member') THEN 'visitor'
+                ELSE role
+              END,
+              updated_at = NOW()
+              WHERE LOWER(email) = ${staffEmail}
+                AND role = 'staff'`
+        );
+        logger.info(`[Staff] Reset role for ${staffEmail} based on membership status after staff deactivation`);
+      }
+    }
+
     logFromRequest(req, 'update_staff_user', 'staff_user', req.params.id as string, '', { changes: req.body });
     res.json({
       id: result[0].id,
@@ -206,6 +232,28 @@ router.delete('/api/staff-users/:id', isAdmin, async (req, res) => {
     
     if (result.length === 0) {
       return res.status(404).json({ error: 'Staff user not found' });
+    }
+
+    const deletedEmail = result[0].email;
+    if (deletedEmail) {
+      const stillStaff = await db.select({ id: staffUsers.id })
+        .from(staffUsers)
+        .where(eq(sql`LOWER(${staffUsers.email})`, deletedEmail.toLowerCase()))
+        .limit(1);
+
+      if (stillStaff.length === 0) {
+        await db.execute(
+          sql`UPDATE users SET role = CASE
+                WHEN membership_status IN ('active', 'trialing', 'past_due', 'pending') THEN 'member'
+                WHEN membership_status IN ('visitor', 'non-member') THEN 'visitor'
+                ELSE role
+              END,
+              updated_at = NOW()
+              WHERE LOWER(email) = ${deletedEmail.toLowerCase()}
+                AND role = 'staff'`
+        );
+        logger.info(`[Staff] Reset role for ${deletedEmail} based on membership status after staff removal`);
+      }
     }
     
     logFromRequest(req, 'delete_staff_user', 'staff_user', req.params.id as string, '', {});

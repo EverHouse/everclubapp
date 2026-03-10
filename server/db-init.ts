@@ -877,6 +877,26 @@ export async function setupInstantDataTriggers(): Promise<void> {
       EXECUTE FUNCTION auto_sync_staff_role();
     `);
     logger.info('[DB Init] Trigger: auto_sync_staff_role created');
+
+    const orphanedResult = await db.execute(sql`
+      UPDATE users SET role = CASE
+          WHEN membership_status IN ('active', 'trialing', 'past_due', 'pending') THEN 'member'
+          WHEN membership_status IN ('visitor', 'non-member') THEN 'visitor'
+          ELSE role
+        END,
+        updated_at = NOW()
+      WHERE role = 'staff'
+        AND LOWER(email) NOT IN (
+          SELECT LOWER(email) FROM staff_users WHERE is_active = true
+        )
+        AND role != 'admin'
+      RETURNING email, membership_status
+    `);
+    if (orphanedResult.rows.length > 0) {
+      logger.info(`[DB Init] Fixed ${orphanedResult.rows.length} orphaned staff roles`, {
+        extra: { emails: orphanedResult.rows.map((r: any) => r.email) }
+      });
+    }
   } catch (err: unknown) {
     logger.warn(`[DB Init] Skipping auto_sync_staff_role trigger: ${getErrorMessage(err)}`);
   }
