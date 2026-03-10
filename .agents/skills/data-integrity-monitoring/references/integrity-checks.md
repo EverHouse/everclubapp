@@ -129,7 +129,7 @@ Issues are categorized as: `orphan_record`, `sync_mismatch`, `data_quality`, `bo
 - **Action**: Mark as no-show, cancel, or confirm retroactively. Investigate why the booking was not processed before its start time.
 
 ### Archived Member Lingering Data
-- **Detects**: Archived members who still have active future bookings, guest pass holds, group memberships, push subscriptions, or confirmed wellness enrollments.
+- **Detects**: Archived members who still have active future bookings, guest pass holds, group memberships, push subscriptions, confirmed wellness enrollments, future event RSVPs, or booking participations in others' bookings.
 - **Action**: Clean up lingering data for the archived member or re-archive them using the updated archive flow (which now auto-cleans these records).
 
 ---

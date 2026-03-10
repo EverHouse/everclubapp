@@ -528,6 +528,9 @@ export async function executeMerge(
     
     const finalStripeId = resolvedStripeCustomerId || (transferStripeId ? secondaryUser.stripeCustomerId : null);
     const finalHubspotId = transferHubspotId ? secondaryUser.hubspotId : null;
+    const finalStripeSubId = (resolvedStripeCustomerId === secondaryUser.stripeCustomerId && secondaryUser.stripeSubscriptionId)
+      ? secondaryUser.stripeSubscriptionId
+      : null;
     
     await tx.execute(sql`UPDATE users SET
          lifetime_visits = ${combinedVisits},
@@ -536,6 +539,7 @@ export async function executeMerge(
          waiver_signed_at = ${newerWaiver.signedAt},
          tags = ${JSON.stringify(finalTags)},
          stripe_customer_id = COALESCE(${finalStripeId}, stripe_customer_id),
+         stripe_subscription_id = COALESCE(${finalStripeSubId}, stripe_subscription_id),
          hubspot_id = COALESCE(${finalHubspotId}, hubspot_id),
          updated_at = NOW()
        WHERE id = ${primaryUserId}`);

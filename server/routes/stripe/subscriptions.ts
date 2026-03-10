@@ -249,6 +249,16 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subsc
       memberName,
       tierName
     );
+
+    const stripeClient = await getStripeClient();
+    for (const status of ['active', 'trialing', 'past_due'] as const) {
+      const existingSubs = await stripeClient.subscriptions.list({ customer: customerId, status, limit: 1 });
+      if (existingSubs.data.length > 0) {
+        const existingSub = existingSubs.data[0];
+        logger.warn('[Stripe] Blocked subscription creation — customer already has active subscription in Stripe', { extra: { memberEmail, customerId, existingSubId: existingSub.id, existingStatus: existingSub.status } });
+        return res.status(400).json({ error: `Member already has an active subscription in Stripe (${existingSub.id}, status: ${existingSub.status}). Cancel it first to avoid duplicate billing.` });
+      }
+    }
     
     const subscriptionResult = await createSubscription({
       customerId,

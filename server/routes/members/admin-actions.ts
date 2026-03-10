@@ -414,6 +414,8 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
     let groupMembershipsRemoved = 0;
     let pushSubscriptionsRemoved = 0;
     let wellnessEnrollmentsCancelled = 0;
+    let eventRsvpsRemoved = 0;
+    let bookingParticipantsRemoved = 0;
     try {
       await client.query('BEGIN');
 
@@ -459,6 +461,26 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
       );
       wellnessEnrollmentsCancelled = wellnessResult.rowCount || 0;
 
+      const rsvpResult = await client.query(
+        `DELETE FROM event_rsvps WHERE (LOWER(user_email) = $1 OR matched_user_id = $2)
+           AND event_id IN (SELECT id FROM events WHERE event_date >= (NOW() AT TIME ZONE 'America/Los_Angeles')::date)`,
+        [normalizedEmail, userId]
+      );
+      eventRsvpsRemoved = rsvpResult.rowCount || 0;
+
+      const participantResult = await client.query(
+        `DELETE FROM booking_participants
+         WHERE (user_id = $1 OR LOWER(email) = $2)
+           AND participant_type != 'owner'
+           AND booking_request_id IN (
+             SELECT id FROM booking_requests
+             WHERE status IN ('pending', 'pending_approval', 'approved', 'confirmed')
+               AND request_date >= (NOW() AT TIME ZONE 'America/Los_Angeles')::date
+           )`,
+        [String(userId), normalizedEmail]
+      );
+      bookingParticipantsRemoved = participantResult.rowCount || 0;
+
       await client.query('COMMIT');
     } catch (txError) {
       await client.query('ROLLBACK');
@@ -473,6 +495,12 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
     if (guestPassHoldsRemoved > 0) {
       logger.info('[Admin] Removed guest pass holds for archived member', { extra: { normalizedEmail, count: guestPassHoldsRemoved } });
     }
+    if (eventRsvpsRemoved > 0) {
+      logger.info('[Admin] Removed future event RSVPs for archived member', { extra: { normalizedEmail, count: eventRsvpsRemoved } });
+    }
+    if (bookingParticipantsRemoved > 0) {
+      logger.info('[Admin] Removed booking participations for archived member', { extra: { normalizedEmail, count: bookingParticipantsRemoved } });
+    }
 
     invalidateCache('members_directory');
     res.json({ 
@@ -485,7 +513,9 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
         guestPassHoldsRemoved,
         groupMembershipsRemoved,
         pushSubscriptionsRemoved,
-        wellnessEnrollmentsCancelled
+        wellnessEnrollmentsCancelled,
+        eventRsvpsRemoved,
+        bookingParticipantsRemoved
       },
       message: 'Member archived successfully'
     });

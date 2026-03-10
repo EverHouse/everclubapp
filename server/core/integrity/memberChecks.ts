@@ -543,6 +543,25 @@ export async function checkArchivedMemberLingeringData(): Promise<IntegrityCheck
     JOIN wellness_enrollments we ON LOWER(we.user_email) = LOWER(a.email) AND we.status = 'confirmed'
     GROUP BY a.id, a.email, a.first_name, a.last_name
 
+    UNION ALL
+
+    SELECT a.id, a.email, a.first_name, a.last_name, 'future_event_rsvps' AS issue_type, COUNT(*)::text AS issue_count
+    FROM archived a
+    JOIN event_rsvps er ON (LOWER(er.user_email) = LOWER(a.email) OR er.matched_user_id = a.id)
+    JOIN events e ON e.id = er.event_id AND e.event_date >= (NOW() AT TIME ZONE 'America/Los_Angeles')::date
+    GROUP BY a.id, a.email, a.first_name, a.last_name
+
+    UNION ALL
+
+    SELECT a.id, a.email, a.first_name, a.last_name, 'booking_participations' AS issue_type, COUNT(*)::text AS issue_count
+    FROM archived a
+    JOIN booking_participants bp ON (bp.user_id = a.id OR LOWER(bp.email) = LOWER(a.email))
+    JOIN booking_requests br ON br.id = bp.booking_request_id
+      AND br.status IN ('pending', 'pending_approval', 'approved', 'confirmed')
+      AND br.request_date >= (NOW() AT TIME ZONE 'America/Los_Angeles')::date
+    WHERE bp.participant_type != 'owner'
+    GROUP BY a.id, a.email, a.first_name, a.last_name
+
     LIMIT 100
   `);
 
@@ -553,7 +572,9 @@ export async function checkArchivedMemberLingeringData(): Promise<IntegrityCheck
       guest_pass_holds: 'guest pass hold(s)',
       group_memberships: 'group membership(s)',
       push_subscriptions: 'push subscription(s)',
-      wellness_enrollments: 'active wellness enrollment(s)'
+      wellness_enrollments: 'active wellness enrollment(s)',
+      future_event_rsvps: 'future event RSVP(s)',
+      booking_participations: 'booking participation(s) in others\' bookings'
     };
     issues.push({
       category: 'orphan_record',

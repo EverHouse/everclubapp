@@ -417,7 +417,7 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
       return res.status(404).json({ error: 'Member not found' });
     }
 
-    if (billingProvider === 'comped' || billingProvider === null) {
+    if (billingProvider !== 'stripe' && billingProvider !== 'mindbody') {
       const stripeSubId = member.stripe_subscription_id;
       const stripeCustId = member.stripe_customer_id;
       if (stripeSubId || stripeCustId) {
