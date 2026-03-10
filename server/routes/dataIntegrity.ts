@@ -16,7 +16,7 @@ import { getSessionUser } from '../types/session';
 import type { Request } from 'express';
 import { getErrorMessage, safeErrorDetail } from '../utils/errorUtils';
 import { validateBody } from '../middleware/validate';
-import { resolveIssueSchema, syncPushPullSchema, ignoreIssueSchema, bulkIgnoreSchema, placeholderDeleteSchema, recordIdSchema, userIdSchema, unlinkHubspotSchema, mergeHubspotSchema, mergeStripeSchema, changeBillingProviderSchema, acceptTierSchema, reviewItemSchema, assignSessionOwnerSchema, cancelOrphanedPiSchema, dryRunSchema, updateTourStatusSchema, clearStripeIdSchema } from '../../shared/validators/dataIntegrity';
+import { resolveIssueSchema, syncPushPullSchema, ignoreIssueSchema, bulkIgnoreSchema, placeholderDeleteSchema, recordIdSchema, userIdSchema, unlinkHubspotSchema, mergeHubspotSchema, mergeStripeSchema, changeBillingProviderSchema, acceptTierSchema, reviewItemSchema, assignSessionOwnerSchema, cancelOrphanedPiSchema, dryRunSchema, updateTourStatusSchema, clearStripeIdSchema, deleteOrphanByEmailSchema } from '../../shared/validators/dataIntegrity';
 import { queueIntegrityFixSync } from '../core/hubspot/queueHelpers';
 
 const router = Router();
@@ -1508,6 +1508,53 @@ router.post('/api/data-integrity/fix/delete-orphan-rsvp', isAdmin, validateBody(
     res.json({ success: true, message: `Deleted orphaned event RSVP #${recordId}` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Delete orphan RSVP error', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+  }
+});
+
+router.post('/api/data-integrity/fix/delete-orphan-records-by-email', isAdmin, validateBody(deleteOrphanByEmailSchema), async (req: Request, res) => {
+  try {
+    const { table, email } = req.body;
+
+    const columnMap: Record<string, string> = {
+      notifications: 'user_email',
+      push_subscriptions: 'user_email',
+      user_dismissed_notices: 'user_email',
+    };
+    const emailColumn = columnMap[table];
+
+    const result = await pool.query(
+      `DELETE FROM ${table} WHERE LOWER(${emailColumn}) = LOWER($1) AND NOT EXISTS (SELECT 1 FROM users u WHERE LOWER(u.email) = LOWER($1))`,
+      [email]
+    );
+
+    const deleted = result.rowCount || 0;
+    logFromRequest(req, 'delete_orphan_records', table, email, `Deleted ${deleted} orphaned ${table} records for email ${email} via data integrity`, { email, table, deleted });
+
+    res.json({ success: true, message: `Deleted ${deleted} orphaned record(s) from ${table}` });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Delete orphan records by email error', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+  }
+});
+
+router.post('/api/data-integrity/fix/mark-waiver-signed', isAdmin, validateBody(recordIdSchema), async (req: Request, res) => {
+  try {
+    const { recordId } = req.body;
+
+    const result = await db.execute(
+      sql`UPDATE users SET waiver_signed_at = NOW(), waiver_version = 'staff_marked', updated_at = NOW() WHERE id = ${recordId} AND membership_status = 'active'`
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Active member not found' });
+    }
+
+    logFromRequest(req, 'mark_waiver_signed', 'user', String(recordId), `Marked waiver as signed for member ${recordId} via data integrity`, { userId: recordId });
+
+    res.json({ success: true, message: 'Waiver marked as signed' });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Mark waiver signed error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
   }
 });

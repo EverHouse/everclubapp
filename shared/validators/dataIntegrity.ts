@@ -122,6 +122,11 @@ export const clearStripeIdSchema = z.object({
   userId: z.string().min(1, 'userId is required'),
 });
 
+export const deleteOrphanByEmailSchema = z.object({
+  table: z.enum(['notifications', 'push_subscriptions', 'user_dismissed_notices'], { message: 'Invalid table for orphan cleanup' }),
+  email: z.string().min(1, 'email is required').transform(v => v.trim().toLowerCase()),
+});
+
 export type ResolveIssueInput = z.infer<typeof resolveIssueSchema>;
 export type SyncPushPullInput = z.infer<typeof syncPushPullSchema>;
 export type IgnoreIssueInput = z.infer<typeof ignoreIssueSchema>;

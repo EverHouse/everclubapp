@@ -1630,6 +1630,26 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       )}
                                     </button>
                                   )}
+                                  {!issue.ignored && (issue.table === 'notifications' || issue.table === 'push_subscriptions' || issue.table === 'user_dismissed_notices') && issue.category === 'orphan_record' && issue.context?.email && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const count = issue.context?.count || 'all';
+                                        if (confirm(`Delete ${count} orphaned ${issue.table?.replace(/_/g, ' ')} record(s) for "${issue.context?.email}"?`)) {
+                                          fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/delete-orphan-records-by-email', body: { table: issue.table, email: issue.context?.email } });
+                                        }
+                                      }}
+                                      disabled={fixingIssues.has(String(issue.recordId))}
+                                      className="p-1.5 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 rounded transition-colors disabled:opacity-50"
+                                      title={`Delete orphaned ${issue.table?.replace(/_/g, ' ')} records`}
+                                    >
+                                      {fixingIssues.has(String(issue.recordId)) ? (
+                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                      ) : (
+                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                      )}
+                                    </button>
+                                  )}
                                   {!issue.ignored && issue.table === 'users' && issue.category === 'sync_mismatch' && issue.description?.toLowerCase().includes('tier') && issue.context?.userId && (
                                     <>
                                       <button
@@ -1862,6 +1882,38 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
                                         ) : (
                                           <span className="material-symbols-outlined text-[16px]">edit_note</span>
+                                        )}
+                                      </button>
+                                    </>
+                                  )}
+                                  {!issue.ignored && issue.table === 'users' && issue.category === 'data_quality' && issue.description?.includes('waiver') && (
+                                    <>
+                                      {issue.context?.memberEmail && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleViewProfile(issue.context!.memberEmail!)}
+                                          disabled={loadingMemberEmail === issue.context?.memberEmail}
+                                          className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
+                                          title="View member profile"
+                                        >
+                                          <span className="material-symbols-outlined text-[16px]">person</span>
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (confirm(`Mark waiver as signed for "${issue.context?.memberName || 'this member'}"? Use this if the member has signed their waiver in person.`)) {
+                                            fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/mark-waiver-signed', body: { recordId: issue.recordId } });
+                                          }
+                                        }}
+                                        disabled={fixingIssues.has(String(issue.recordId))}
+                                        className="p-1.5 text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30 rounded transition-colors disabled:opacity-50"
+                                        title="Mark waiver as signed"
+                                      >
+                                        {fixingIssues.has(String(issue.recordId)) ? (
+                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        ) : (
+                                          <span className="material-symbols-outlined text-[16px]">verified</span>
                                         )}
                                       </button>
                                     </>
