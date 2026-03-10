@@ -327,12 +327,8 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Only apply overscroll-behavior-y: none on touch devices to prevent pull-to-refresh interference
-   while allowing native wheel scroll on desktop */
-@media (pointer: coarse) {
-  html, body {
-    overscroll-behavior-y: none;
-  }
+body {
+  overscroll-behavior-y: contain;
 }
 
 html.dark, html.dark body {
