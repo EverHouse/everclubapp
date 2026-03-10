@@ -627,9 +627,19 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               }
             }
           }
-        } else if (existing.isUnmatched && !matchedEmail && row.userName && row.userName !== 'Unknown' && !existing.userName?.includes(row.userName)) {
-          updateFields.userName = row.userName;
-          changes.push(`name: "${existing.userName}" -> "${row.userName}" (still unmatched)`);
+        } else if (existing.isUnmatched && !matchedEmail) {
+          if (row.userName && row.userName !== 'Unknown' && !existing.userName?.includes(row.userName)) {
+            updateFields.userName = row.userName;
+            changes.push(`name: "${existing.userName}" -> "${row.userName}" (still unmatched)`);
+          }
+          const csvEmail = row.userEmail?.toLowerCase().trim();
+          if (csvEmail && csvEmail.includes('@')) {
+            const noteText = `Original name: ${row.userName}, Original email: ${csvEmail}`;
+            if (!existing.trackmanCustomerNotes || !existing.trackmanCustomerNotes.includes(csvEmail)) {
+              updateFields.trackmanCustomerNotes = noteText;
+              changes.push(`notes: stored CSV email ${csvEmail} for manual resolution`);
+            }
+          }
         }
         
         if (financiallyFrozen) {
