@@ -29,6 +29,9 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
   const containerRef = useRef<HTMLDivElement>(null);
   const startYRef = useRef<number | null>(null);
   const isPullingRef = useRef(false);
+  const isTouchActiveRef = useRef(false);
+  const directionLockedRef = useRef(false);
+  const startXRef = useRef<number | null>(null);
   const wheelAccumulatorRef = useRef(0);
   const wheelTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isWheelPullingRef = useRef(false);
@@ -216,22 +219,65 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
     const container = containerRef.current;
     if (!container || !isTouchCapable) return;
 
+    const DIRECTION_LOCK_THRESHOLD = 10;
+
     const onTouchStart = (e: TouchEvent) => {
       if (disabledRef.current || isModalOpenRef.current || isRefreshingRef.current || isSpringBackRef.current) return;
 
       const scrollTop = window.scrollY || document.documentElement.scrollTop;
       if (scrollTop <= 5) {
         startYRef.current = e.touches[0].clientY;
-        isPullingRef.current = true;
+        startXRef.current = e.touches[0].clientX;
+        isTouchActiveRef.current = true;
+        isPullingRef.current = false;
+        directionLockedRef.current = false;
       }
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (!isPullingRef.current || startYRef.current === null || disabledRef.current || isModalOpenRef.current || isRefreshingRef.current || isSpringBackRef.current) return;
+      if (!isTouchActiveRef.current || startYRef.current === null || disabledRef.current || isModalOpenRef.current || isRefreshingRef.current || isSpringBackRef.current) return;
+
+      const currentY = e.touches[0].clientY;
+      const diffY = currentY - startYRef.current;
+
+      if (!directionLockedRef.current) {
+        const absDiffY = Math.abs(diffY);
+        const absDiffX = Math.abs(e.touches[0].clientX - (startXRef.current ?? 0));
+
+        if (absDiffY < DIRECTION_LOCK_THRESHOLD && absDiffX < DIRECTION_LOCK_THRESHOLD) {
+          return;
+        }
+
+        directionLockedRef.current = true;
+
+        if (absDiffX > absDiffY) {
+          isTouchActiveRef.current = false;
+          isPullingRef.current = false;
+          return;
+        }
+
+        if (diffY <= 0) {
+          isTouchActiveRef.current = false;
+          isPullingRef.current = false;
+          return;
+        }
+
+        const scrollTop = window.scrollY || document.documentElement.scrollTop;
+        if (scrollTop > 5) {
+          isTouchActiveRef.current = false;
+          isPullingRef.current = false;
+          return;
+        }
+
+        isPullingRef.current = true;
+      }
+
+      if (!isPullingRef.current) return;
 
       const scrollTop = window.scrollY || document.documentElement.scrollTop;
       if (scrollTop > 5) {
         isPullingRef.current = false;
+        isTouchActiveRef.current = false;
         const currentDistance = pullDistanceRef.current;
         if (currentDistance > 5) {
           animateSpringBackRef.current(currentDistance);
@@ -241,20 +287,24 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
         return;
       }
 
-      const currentY = e.touches[0].clientY;
-      const diff = currentY - startYRef.current;
-
-      if (diff > 0) {
+      if (diffY > 0) {
         const resistance = 0.33;
-        const distance = Math.min(diff * resistance, MAX_PULL);
+        const distance = Math.min(diffY * resistance, MAX_PULL);
         setPullDistance(distance);
-      } else {
-        setPullDistance(0);
       }
     };
 
     const onTouchEnd = async () => {
-      if (!isPullingRef.current || disabledRef.current || isModalOpenRef.current) return;
+      const wasPulling = isPullingRef.current;
+      isTouchActiveRef.current = false;
+      directionLockedRef.current = false;
+      startXRef.current = null;
+
+      if (!wasPulling || disabledRef.current || isModalOpenRef.current) {
+        isPullingRef.current = false;
+        startYRef.current = null;
+        return;
+      }
 
       isPullingRef.current = false;
       startYRef.current = null;
