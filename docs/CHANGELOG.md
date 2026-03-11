@@ -2,6 +2,22 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.82.0] - 2026-03-11
+
+### Session & Auth Fixes
+- **Session TTL Alignment**: Internal session `expires_at` changed from 7 days to 30 days across all login paths (OTP verification, password login, Google OAuth token, Google OAuth callback, dev login). Now matches the cookie `maxAge` and Postgres session store TTL, preventing "logged in but expired" states after 7 days.
+- **Files**: `server/routes/auth.ts`, `server/routes/auth-google.ts`
+
+### Billing & Fee Safety
+- **Fee Calculator Null Guard**: `feeCalculator.ts` now guards `ledger_fee` against null/NaN before `parseFloat()`. Prevents incorrect `NaN`-based billing when a `LEFT JOIN` on `usage_ledger` returns no match for a participant.
+- **Invoice Rounding Fix**: `addLineItemsToInvoice()` in `bookingInvoiceService.ts` now checks that fee amounts are exact multiples of the Stripe rate before using price × quantity. If there's a remainder (due to manual adjustments or legacy data), falls back to raw cent amounts to prevent rounding discrepancies. Rate must be > 0 for the price-based branch.
+- **Files**: `server/core/billing/feeCalculator.ts`, `server/core/billing/bookingInvoiceService.ts`
+
+### Booking & Guest Pass Consistency
+- **Conference Room Approval Status**: Conference room bookings now go through `'approved'` status like simulators, instead of skipping directly to `'attended'`. Fixes conference rooms being non-cancellable after approval and ensures reminder/notification logic works consistently for all resource types.
+- **Guest Pass Refund Window**: Staff/system cancellation cascade (`cancellation.ts`) changed from 24-hour to 1-hour refund threshold, matching member-facing cancellation logic. Member cancellation now also gates guest pass refunds behind the `shouldSkipRefund` check. Both paths use `>= 1 hour` consistently. Notification message updated to reflect "1 hour" window.
+- **Files**: `server/core/bookingService/approvalService.ts`, `server/core/resource/cancellation.ts`, `server/routes/bays/bookings.ts`
+
 ## [8.81.0] - 2026-03-10
 
 ### Data Integrity Expansion

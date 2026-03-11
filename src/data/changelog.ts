@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.82.0",
+    date: "2026-03-11",
+    title: "Session Security, Billing Safety & Booking Consistency",
+    changes: [
+      "Fix: Login sessions no longer expire after 7 days while your browser still thinks you're logged in — session duration is now consistently 30 days across all login methods (email code, password, Google sign-in)",
+      "Fix: Guest pass refunds now work the same way whether you cancel your own booking or staff cancels it — passes are refunded if cancellation happens at least 1 hour before the booking starts",
+      "Fix: Conference room bookings can now be properly cancelled after approval — previously they were stuck in a non-cancellable state",
+      "Fix: Fee calculations no longer risk incorrect amounts when billing data is missing from the database — added safety checks to prevent bad math",
+      "Fix: Stripe invoice amounts now match the exact calculated fee even when amounts don't divide evenly into standard rate blocks — prevents billing discrepancies",
+    ]
+  },
+  {
     version: "8.81.0",
     date: "2026-03-10",
     title: "Data Integrity, Notifications & Mobile Stability",

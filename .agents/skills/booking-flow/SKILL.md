@@ -57,7 +57,7 @@ Staff approves via `PUT /api/booking-requests/:id` with `status: 'approved'`. Th
    a. Verify bay is assigned (`resource_id` required before approval).
    b. Run conflict detection within the transaction: booking time overlaps (approved/confirmed/attended), closure conflicts, availability block conflicts.
    c. Create Google Calendar event: `getCalendarNameForBayAsync()` → `getCalendarIdByName()` → `createCalendarEventOnCalendar()`.
-   d. Determine final status: conference rooms → `'attended'`, simulators → `'approved'`.
+   d. Determine final status: `'approved'` for all resource types (conference rooms and simulators).
    e. If `pending_trackman_sync` flag is set without a `trackman_booking_id`, append `[PENDING_TRACKMAN_SYNC]` marker to `staff_notes`.
    f. Build participant list from `request_participants` JSON column:
       - Start with owner as first participant (resolve `userId` from email if needed).
@@ -204,9 +204,9 @@ Is resource a conference room?
 ### Conference Room vs Simulator at Approval
 
 ```
-Resource type?
-├── conference_room → Final status = 'attended' (skip 'approved' stage)
-└── simulator → Final status = 'approved'
+All resource types → Final status = 'approved'
+(Conference rooms no longer skip to 'attended' — fixed in v8.82.0 to ensure
+ cancellation, reminder, and notification logic works consistently.)
 ```
 
 ## Key Invariants

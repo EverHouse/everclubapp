@@ -188,6 +188,7 @@ The GET endpoint calculates pending guest count by:
 - Reject placeholder guests (`"Guest 1"`, `"Guest 2"`, etc.) from pass consumption via regex `/^Guest \d+$/i`
 - Guest pass holds expire after 30 days
 - **Hold-to-usage conversion must use `Math.min(passesHeld, guestPassesUsed)`** — never trust that holds match the final guest count. Mark only `actualPassesDeducted` guests as `payment_status = 'paid'`; shortfall guests must flow through standard fee billing.
+- **Guest pass refund window (v8.82.0):** Both member-facing cancellation (`bookings.ts`) and staff/system cancellation cascade (`cancellation.ts`) use the same 1-hour threshold — guest passes are refunded only when cancellation occurs >= 1 hour before booking start time. Late cancellations (< 1 hour) forfeit guest passes. Member cancellation also skips pass refunds when `shouldSkipRefund` is true.
 - **Never refund guest passes from `tryLinkCancelledBooking`** — cancellation workflows already handle their own refunds. Delayed Trackman links must only update the Trackman ID and notes, not trigger secondary financial actions.
 - Call `broadcastMemberStatsUpdated(email, { guestPasses: remaining })` after pass use/refund to update the UI via WebSocket
 - All transactional operations use `BEGIN`/`COMMIT`/`ROLLBACK` with proper error handling
