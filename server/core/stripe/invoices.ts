@@ -635,7 +635,7 @@ export async function createDraftBookingFeeInvoice(
     description,
     metadata: invoiceMetadata,
     pending_invoice_items_behavior: 'exclude',
-  }, { idempotencyKey: `invoice_draftbookingfee_${customerId}_${bookingId}_${sessionId}` });
+  }, { idempotencyKey: `invoice_draftbookingfee_${customerId}_${bookingId}_${sessionId}_${Math.floor(Date.now() / 300000)}` });
 
   for (const li of feeLineItems) {
     if (li.totalCents <= 0) continue;

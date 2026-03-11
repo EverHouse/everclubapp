@@ -240,6 +240,24 @@ async function handleExistingInvoicePayment(params: {
     logger.warn('[Stripe] Failed to use existing draft invoice, falling back to new invoice', {
       extra: { bookingId, existingInvoiceId, error: getErrorMessage(invoiceErr) }
     });
+
+    try {
+      const { getStripeClient } = await import('../../core/stripe');
+      const stripe = await getStripeClient();
+      const staleInvoice = await stripe.invoices.retrieve(existingInvoiceId);
+      if (staleInvoice.status === 'draft') {
+        await stripe.invoices.del(existingInvoiceId);
+        logger.info('[Stripe] Deleted stale draft invoice before retry', { extra: { bookingId, invoiceId: existingInvoiceId } });
+      } else if (staleInvoice.status === 'open') {
+        await stripe.invoices.voidInvoice(existingInvoiceId);
+        logger.info('[Stripe] Voided stale open invoice before retry', { extra: { bookingId, invoiceId: existingInvoiceId } });
+      }
+    } catch (cleanupErr: unknown) {
+      logger.warn('[Stripe] Could not clean up stale invoice', { extra: { bookingId, invoiceId: existingInvoiceId, error: getErrorMessage(cleanupErr) } });
+    }
+
+    await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = ${bookingId}`);
+
     return null;
   }
 }
@@ -284,6 +302,18 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       return res.status(400).json({ error: 'Booking has no session' });
     }
 
+    let breakdown;
+    try {
+      breakdown = await computeFeeBreakdown({
+        sessionId: booking.session_id,
+        source: 'stripe' as const
+      });
+      await applyFeeBreakdownToParticipants(booking.session_id, breakdown);
+    } catch (feeError: unknown) {
+      logger.error('[Stripe] Failed to compute fees', { extra: { feeError } });
+      return res.status(500).json({ error: 'Failed to calculate fees' });
+    }
+
     const pendingParticipants = await db.execute(sql`
       SELECT bp.id, bp.participant_type, bp.display_name, bp.cached_fee_cents
        FROM booking_participants bp
@@ -298,18 +328,6 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
 
     const typedParticipants = pendingParticipants.rows as unknown as ParticipantRow[];
     const participantIds = typedParticipants.map(r => r.id);
-    
-    let breakdown;
-    try {
-      breakdown = await computeFeeBreakdown({
-        sessionId: booking.session_id,
-        source: 'stripe' as const
-      });
-      await applyFeeBreakdownToParticipants(booking.session_id, breakdown);
-    } catch (feeError: unknown) {
-      logger.error('[Stripe] Failed to compute fees', { extra: { feeError } });
-      return res.status(500).json({ error: 'Failed to calculate fees' });
-    }
 
     const pendingFees = breakdown.participants.filter(p => 
       p.participantId && participantIds.includes(p.participantId) && p.totalCents > 0
