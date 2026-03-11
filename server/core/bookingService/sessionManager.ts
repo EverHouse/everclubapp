@@ -74,6 +74,7 @@ export async function createSession(
       createdBy: request.createdBy
     };
     
+    await dbCtx.execute(sql`SET LOCAL app.bypass_overlap_check = 'true'`);
     const [session] = await dbCtx
       .insert(bookingSessions)
       .values(sessionData)
@@ -680,76 +681,6 @@ async function resolveUserIdToEmail(userId: string): Promise<string | null> {
       error,
       extra: { userId }
     });
-    return null;
-  }
-}
-
-/**
- * Find an existing session that overlaps with the given time range.
- * Uses range overlap detection (not exact time matching) to handle
- * Trackman sessions that start/end at slightly different times than bookings.
- */
-export async function findOverlappingSession(
-  resourceId: number,
-  sessionDate: string,
-  startTime: string,
-  endTime: string,
-  tx?: TransactionContext
-): Promise<BookingSession | null> {
-  const dbCtx = tx || db;
-  try {
-    const result = await db.execute(sql`
-      SELECT id, resource_id, session_date, start_time, end_time, 
-             trackman_booking_id, source, created_by, created_at
-      FROM booking_sessions 
-      WHERE resource_id = ${resourceId} 
-        AND session_date = ${sessionDate}
-        AND start_time != end_time
-        AND tsrange(
-          (session_date + start_time)::timestamp,
-          CASE WHEN end_time <= start_time
-            THEN (session_date + end_time + INTERVAL '1 day')::timestamp
-            ELSE (session_date + end_time)::timestamp
-          END,
-          '[)'
-        ) && tsrange(
-          (${sessionDate}::date + ${startTime}::time)::timestamp,
-          CASE WHEN ${endTime}::time <= ${startTime}::time
-            THEN (${sessionDate}::date + ${endTime}::time + INTERVAL '1 day')::timestamp
-            ELSE (${sessionDate}::date + ${endTime}::time)::timestamp
-          END,
-          '[)'
-        )
-      ORDER BY start_time
-      LIMIT 1
-    `);
-    
-    if (result.rows.length > 0) {
-      const row = result.rows[0];
-      logger.info('[findOverlappingSession] Found existing session', {
-        extra: { 
-          sessionId: row.id, 
-          resourceId, 
-          sessionDate, 
-          existingRange: `${row.start_time}-${row.end_time}`,
-          requestedRange: `${startTime}-${endTime}`
-        }
-      });
-      return {
-        id: row.id,
-        resourceId: row.resource_id,
-        sessionDate: row.session_date,
-        startTime: row.start_time,
-        endTime: row.end_time,
-        trackmanBookingId: row.trackman_booking_id,
-        source: row.source,
-        createdBy: row.created_by,
-        createdAt: row.created_at
-      } as BookingSession;
-    }
-    return null;
-  } catch (error: unknown) {
-    logger.error('[findOverlappingSession] Error:', { error });
     return null;
   }
 }
