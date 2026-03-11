@@ -839,11 +839,17 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
         });
       }
 
-      // Create invoice for conference room fees (auto-applies Stripe customer credit balance)
-      try {
-        const sessionResult = await db.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${row.id} LIMIT 1`);
-        const confSessionId = sessionResult.rows[0]?.session_id as number | null;
-        if (confSessionId) {
+      const sessionCheck = await db.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${row.id} LIMIT 1`);
+      const confSessionId = sessionCheck.rows[0]?.session_id as number | null;
+
+      if (!confSessionId) {
+        logger.error('[ConferenceRoom] Session creation failed — no session_id after all attempts, reverting to pending', {
+          extra: { bookingId: row.id }
+        });
+        await db.execute(sql`UPDATE booking_requests SET status = 'pending', staff_notes = 'Auto-confirm failed: session could not be created. Please review and approve manually.', updated_at = NOW() WHERE id = ${row.id}`);
+        row.status = 'pending';
+      } else {
+        try {
           await recalculateSessionFees(confSessionId, 'approval');
           await syncBookingInvoice(row.id, confSessionId);
           
@@ -860,11 +866,11 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
             await db.execute(sql`UPDATE booking_requests SET status = 'pending', updated_at = NOW() WHERE id = ${row.id}`);
             row.status = 'pending';
           }
+        } catch (invoiceErr: unknown) {
+          logger.warn('[ConferenceRoom] Non-blocking: Failed to create invoice after booking', {
+            extra: { bookingId: row.id, error: (invoiceErr as Error).message }
+          });
         }
-      } catch (invoiceErr: unknown) {
-        logger.warn('[ConferenceRoom] Non-blocking: Failed to create invoice after booking', {
-          extra: { bookingId: row.id, error: (invoiceErr as Error).message }
-        });
       }
     }
 

@@ -1122,6 +1122,12 @@ export async function createSessionWithUsageTracking(
         }
       }
 
+      if (request.bookingId) {
+        await tx.execute(
+          sql`UPDATE booking_requests SET session_id = ${session.id}, updated_at = NOW() WHERE id = ${request.bookingId}`
+        );
+      }
+
       return { session, linkedParticipants, ledgerEntriesCreated };
     };
     
@@ -1147,7 +1153,7 @@ export async function createSessionWithUsageTracking(
         source
       }
     });
-    
+
     const result = {
       success: true as const,
       session: txResult.session,

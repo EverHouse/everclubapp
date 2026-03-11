@@ -805,6 +805,8 @@ const BookGolf: React.FC = () => {
         } else {
           showToast('Conference room booked! Overage fee will be collected at check-in.', 'success', 4000);
         }
+      } else if (activeTab === 'conference' && bookingResult.status === 'pending') {
+        showToast('Conference room request submitted! Staff will confirm shortly.', 'success', 4000);
       } else if (activeTab === 'conference') {
         showToast('Conference room booked!', 'success', 4000);
       } else {
