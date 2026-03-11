@@ -234,7 +234,6 @@ export const bookingSessions = pgTable("booking_sessions", {
 }, (table) => [
   index("booking_sessions_resource_date_idx").on(table.resourceId, table.sessionDate),
   index("booking_sessions_trackman_idx").on(table.trackmanBookingId),
-  uniqueIndex("booking_sessions_resource_datetime_unique").on(table.resourceId, table.sessionDate, table.startTime, table.endTime),
 ]);
 
 // Guests table - persistent guest tracking across bookings
