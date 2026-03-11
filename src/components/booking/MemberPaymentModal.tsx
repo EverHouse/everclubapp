@@ -55,6 +55,7 @@ export function MemberPaymentModal({
   const [paymentData, setPaymentData] = useState<PayFeesResponse | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const paymentSucceededRef = useRef(false);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const initializePayment = useCallback(async () => {
     try {
@@ -76,7 +77,8 @@ export function MemberPaymentModal({
           setPaymentIntentId(data.paymentIntentId);
         }
         if (data.paidInFull) {
-          setTimeout(() => onSuccess(), 1500);
+          if (successTimerRef.current) clearTimeout(successTimerRef.current);
+          successTimerRef.current = setTimeout(() => onSuccess(), 1500);
         }
       } else {
         setError(apiError || "We couldn't set up your payment. Please try again.");
@@ -92,6 +94,12 @@ export function MemberPaymentModal({
     if (isOpen) {
       initializePayment();
     }
+    return () => {
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
+        successTimerRef.current = null;
+      }
+    };
   }, [isOpen, initializePayment]);
 
   useEffect(() => {

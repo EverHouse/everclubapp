@@ -197,7 +197,7 @@ export async function getDailyUsageFromLedger(
     return parseInt((result.rows[0] as { total_minutes: string }).total_minutes as string) || 0;
   } catch (error: unknown) {
     logger.error('[getDailyUsageFromLedger] Error:', { error });
-    return 0;
+    throw error;
   }
 }
 
@@ -226,7 +226,7 @@ export async function getGuestPassInfo(
     return { remaining, hasGuestPassBenefit: true };
   } catch (error: unknown) {
     logger.error('[getGuestPassInfo] Error:', { error });
-    return { remaining: 0, hasGuestPassBenefit: false };
+    throw error;
   }
 }
 

@@ -1419,8 +1419,8 @@ export async function cancelBooking(params: CancelBookingParams) {
       });
     });
 
-    db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_action')`).catch((err: unknown) => {
-      logger.warn('[Staff Cancel] Non-blocking: failed to mark remaining fee snapshots as cancelled', { extra: { bookingId, error: getErrorMessage(err) } });
+    await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_action')`).catch((err: unknown) => {
+      logger.warn('[Staff Cancel] Failed to mark remaining fee snapshots as cancelled', { extra: { bookingId, error: getErrorMessage(err) } });
     });
   }
 
