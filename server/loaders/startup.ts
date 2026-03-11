@@ -372,14 +372,19 @@ export async function runStartupTasks(): Promise<void> {
   }
 
   try {
-    const ownerFixResult = await db.execute(sql`
-      UPDATE booking_participants bp
-      SET user_id = active_br.user_id,
-          display_name = active_br.user_name
+    const mismatchedSessions = await db.execute(sql`
+      SELECT active_br.session_id,
+             active_br.user_id AS correct_user_id,
+             active_br.user_name AS correct_user_name,
+             active_br.user_email AS correct_user_email,
+             active_br.request_participants,
+             active_br.start_time,
+             active_br.end_time
       FROM booking_requests active_br
-      WHERE bp.session_id = active_br.session_id
+      JOIN booking_participants bp
+        ON bp.session_id = active_br.session_id
         AND bp.participant_type = 'owner'
-        AND active_br.status IN ('approved', 'pending')
+      WHERE active_br.status IN ('approved', 'pending')
         AND bp.user_id IS DISTINCT FROM active_br.user_id
         AND active_br.user_id IS NOT NULL
         AND EXISTS (
@@ -395,9 +400,79 @@ export async function runStartupTasks(): Promise<void> {
             AND other_active.id != active_br.id
         )
     `);
-    const ownerFixCount = (ownerFixResult as { rowCount?: number })?.rowCount || 0;
-    if (ownerFixCount > 0) {
-      logger.info(`[Startup] Fixed ${ownerFixCount} session owner(s) mismatched from cancelled booking reuse`);
+
+    const rows = mismatchedSessions.rows as Array<{
+      session_id: number;
+      correct_user_id: string;
+      correct_user_name: string;
+      correct_user_email: string;
+      request_participants: Array<{ email?: string; type?: string; name?: string; userId?: string }> | null;
+      start_time: string;
+      end_time: string;
+    }>;
+
+    if (rows.length > 0) {
+      let fixedCount = 0;
+      for (const row of rows) {
+        try {
+          await db.transaction(async (tx) => {
+            await tx.execute(sql`DELETE FROM booking_participants WHERE session_id = ${row.session_id}`);
+
+            let slotDuration = 60;
+            try {
+              const [sH, sM] = row.start_time.split(':').map(Number);
+              const [eH, eM] = row.end_time.split(':').map(Number);
+              slotDuration = (eH * 60 + eM) - (sH * 60 + sM);
+              if (slotDuration <= 0) slotDuration = 60;
+            } catch (_) {}
+
+            await tx.execute(sql`
+              INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, invited_at)
+              VALUES (${row.session_id}, ${row.correct_user_id}, 'owner', ${row.correct_user_name || row.correct_user_email}, ${slotDuration}, NOW())
+            `);
+
+            const requestParticipants = row.request_participants;
+            if (requestParticipants && Array.isArray(requestParticipants)) {
+              const ownerEmail = row.correct_user_email?.toLowerCase();
+              for (const rp of requestParticipants) {
+                if (!rp || typeof rp !== 'object') continue;
+                const rpEmail = rp.email?.toLowerCase()?.trim() || '';
+                if (rpEmail && rpEmail === ownerEmail) continue;
+                if (rp.userId && rp.userId === row.correct_user_id) continue;
+
+                let resolvedUserId: string | null = rp.userId || null;
+                let resolvedName = rp.name || rpEmail || 'Participant';
+                let participantType = rp.type === 'member' ? 'member' : 'guest';
+
+                if (!resolvedUserId && rpEmail) {
+                  const userLookup = await tx.execute(sql`
+                    SELECT id, first_name, last_name FROM users WHERE LOWER(email) = ${rpEmail} LIMIT 1
+                  `);
+                  const found = (userLookup.rows as Array<{ id: string; first_name?: string; last_name?: string }>)[0];
+                  if (found) {
+                    resolvedUserId = found.id;
+                    participantType = 'member';
+                    const fullName = [found.first_name, found.last_name].filter(Boolean).join(' ');
+                    if (fullName) resolvedName = fullName;
+                  }
+                }
+
+                await tx.execute(sql`
+                  INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, invited_at)
+                  VALUES (${row.session_id}, ${resolvedUserId}, ${participantType}, ${resolvedName}, ${slotDuration}, NOW())
+                `);
+              }
+            }
+          });
+          fixedCount++;
+          logger.info(`[Startup] Rebuilt participants for session ${row.session_id} (owner: ${row.correct_user_name})`);
+        } catch (sessionErr: unknown) {
+          logger.warn(`[Startup] Failed to rebuild participants for session ${row.session_id} (non-critical)`, { error: sessionErr instanceof Error ? sessionErr : new Error(String(sessionErr)) });
+        }
+      }
+      if (fixedCount > 0) {
+        logger.info(`[Startup] Fixed ${fixedCount} session(s) with mismatched owners from cancelled booking reuse`);
+      }
     }
   } catch (err: unknown) {
     logger.warn('[Startup] Session owner mismatch fix failed (non-critical)', { error: err instanceof Error ? err : new Error(String(err)) });
