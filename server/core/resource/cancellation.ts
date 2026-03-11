@@ -172,7 +172,10 @@ export async function handleCancellationCascade(
               }
             });
           } else {
-            logger.warn('[cancellation-cascade] Cannot refund balance - no customer ID', {
+            await db.execute(sql`UPDATE stripe_payment_intents 
+               SET status = 'succeeded', updated_at = NOW() 
+               WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id} AND status = 'refunding'`);
+            logger.warn('[cancellation-cascade] Cannot refund balance - no customer ID, reverted to succeeded', {
               extra: { bookingId, paymentIntentId: row.stripe_payment_intent_id }
             });
           }
