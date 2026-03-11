@@ -237,6 +237,14 @@ async function handleExistingInvoicePayment(params: {
       amount: f.totalCents / 100
     }));
 
+    if (existingInvoice.status === 'void' || existingInvoice.status === 'uncollectible') {
+      logger.info('[Stripe] Existing invoice is void/uncollectible, clearing and falling back to new invoice', {
+        extra: { bookingId, invoiceId: existingInvoiceId, status: existingInvoice.status }
+      });
+      await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = ${bookingId}`);
+      return null;
+    }
+
     if (existingInvoice.status === 'paid') {
       const paidParticipantIds = pendingFees.map(f => f.participantId!).filter(Boolean);
       if (paidParticipantIds.length > 0) {
@@ -264,6 +272,11 @@ async function handleExistingInvoicePayment(params: {
       });
       await stripe.invoices.finalizeInvoice(existingInvoiceId, { auto_advance: false });
       logger.info('[Stripe] Finalized draft invoice as charge_automatically for interactive member payment', { extra: { bookingId, invoiceId: existingInvoiceId } });
+    } else if (existingInvoice.status === 'open' && existingInvoice.collection_method === 'send_invoice') {
+      await stripe.invoices.update(existingInvoiceId, {
+        collection_method: 'charge_automatically',
+      });
+      logger.info('[Stripe] Switched existing open invoice from send_invoice to charge_automatically', { extra: { bookingId, invoiceId: existingInvoiceId } });
     }
 
     const { piId: invoicePiId, clientSecret: invoicePiSecret } = await retrieveInvoicePaymentIntent(stripe, existingInvoiceId);
@@ -556,7 +569,13 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       participantFees: participantFeesList,
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error creating member payment intent', { error: error instanceof Error ? error : new Error(String(error)) });
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const stripeCode = (error as { code?: string })?.code;
+    const stripeType = (error as { type?: string })?.type;
+    logger.error('[Stripe] Error creating member payment intent', { 
+      error: error instanceof Error ? error : new Error(String(error)),
+      extra: { stripeCode, stripeType, message: errMsg }
+    });
     await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'create member payment intent');
     res.status(500).json({ 
       error: 'Payment processing failed. Please try again.',
