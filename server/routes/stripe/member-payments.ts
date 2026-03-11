@@ -65,9 +65,25 @@ async function finalizeInvoiceWithPi(
   });
 
   if (finalized.confirmation_secret?.client_secret) {
-    const piId = finalized.payment_intent
-      ? (typeof finalized.payment_intent === 'string' ? finalized.payment_intent : (finalized.payment_intent as Stripe.PaymentIntent).id)
-      : `pi_from_${invoiceId}`;
+    let piId: string | undefined;
+    if (finalized.payment_intent) {
+      piId = typeof finalized.payment_intent === 'string' ? finalized.payment_intent : (finalized.payment_intent as Stripe.PaymentIntent).id;
+    }
+    if (!piId) {
+      const secretMatch = finalized.confirmation_secret.client_secret.match(/^(pi_[A-Za-z0-9]+)_secret_/);
+      if (secretMatch) {
+        piId = secretMatch[1];
+      }
+    }
+    if (!piId) {
+      const refetched = await stripe.invoices.retrieve(invoiceId, { expand: ['payment_intent'] });
+      if (refetched.payment_intent) {
+        piId = typeof refetched.payment_intent === 'string' ? refetched.payment_intent : (refetched.payment_intent as Stripe.PaymentIntent).id;
+      }
+    }
+    if (!piId) {
+      throw new Error(`Invoice ${invoiceId} finalized with confirmation_secret but no PaymentIntent ID could be resolved`);
+    }
     logger.info('[Stripe] Got client_secret via confirmation_secret', { extra: { invoiceId, piId } });
     return { piId, clientSecret: finalized.confirmation_secret.client_secret };
   }
@@ -105,9 +121,25 @@ async function retrieveInvoicePaymentIntent(
   });
 
   if (inv.confirmation_secret?.client_secret) {
-    const piId = inv.payment_intent
-      ? (typeof inv.payment_intent === 'string' ? inv.payment_intent : (inv.payment_intent as Stripe.PaymentIntent).id)
-      : `pi_from_${invoiceId}`;
+    let piId: string | undefined;
+    if (inv.payment_intent) {
+      piId = typeof inv.payment_intent === 'string' ? inv.payment_intent : (inv.payment_intent as Stripe.PaymentIntent).id;
+    }
+    if (!piId) {
+      const secretMatch = inv.confirmation_secret.client_secret.match(/^(pi_[A-Za-z0-9]+)_secret_/);
+      if (secretMatch) {
+        piId = secretMatch[1];
+      }
+    }
+    if (!piId) {
+      const refetched = await stripe.invoices.retrieve(invoiceId, { expand: ['payment_intent'] });
+      if (refetched.payment_intent) {
+        piId = typeof refetched.payment_intent === 'string' ? refetched.payment_intent : (refetched.payment_intent as Stripe.PaymentIntent).id;
+      }
+    }
+    if (!piId) {
+      throw new Error(`Invoice ${invoiceId} has confirmation_secret but no PaymentIntent ID could be resolved`);
+    }
     return { piId, clientSecret: inv.confirmation_secret.client_secret };
   }
 
