@@ -72,7 +72,7 @@ export async function calculateAndCacheParticipantFees(
         if (row.cached_fee_cents > 0) {
           amountCents = row.cached_fee_cents;
           source = 'cached';
-        } else if (parseFloat(row.ledger_fee) > 0) {
+        } else if (row.ledger_fee != null && !isNaN(parseFloat(row.ledger_fee)) && parseFloat(row.ledger_fee) > 0) {
           amountCents = Math.round(parseFloat(row.ledger_fee) * 100);
           source = 'ledger';
         } else if (row.participant_type === 'guest') {

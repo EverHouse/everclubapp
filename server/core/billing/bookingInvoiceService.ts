@@ -188,8 +188,9 @@ async function addLineItemsToInvoice(
 
       const overageRateCents = PRICING.OVERAGE_RATE_CENTS;
       const quantity = overageRateCents > 0 ? Math.round(li.overageCents / overageRateCents) : 1;
+      const overageRemainder = overageRateCents > 0 ? li.overageCents % overageRateCents : 0;
 
-      if (overagePriceId && quantity > 0) {
+      if (overagePriceId && overageRateCents > 0 && quantity > 0 && overageRemainder === 0) {
         await stripe.invoiceItems.create({
           customer: customerId,
           invoice: invoiceId,
@@ -223,14 +224,16 @@ async function addLineItemsToInvoice(
     }
 
     if (li.guestCents > 0) {
-      if (guestPriceId) {
-        const guestRateCents = PRICING.GUEST_FEE_CENTS;
-        const guestQty = guestRateCents > 0 ? Math.round(li.guestCents / guestRateCents) : 1;
+      const guestRateCents = PRICING.GUEST_FEE_CENTS;
+      const guestQty = guestPriceId && guestRateCents > 0 ? Math.round(li.guestCents / guestRateCents) : 1;
+      const guestRemainder = guestRateCents > 0 ? li.guestCents % guestRateCents : 0;
+
+      if (guestPriceId && guestRateCents > 0 && guestQty > 0 && guestRemainder === 0) {
         await stripe.invoiceItems.create({
           customer: customerId,
           invoice: invoiceId,
           pricing: { price: guestPriceId },
-          quantity: guestQty > 0 ? guestQty : 1,
+          quantity: guestQty,
           description: `Guest fee — ${li.displayName}`,
           metadata: {
             participantId: li.participantId?.toString() || '',

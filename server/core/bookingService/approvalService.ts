@@ -360,7 +360,7 @@ export async function approveBooking(params: ApproveBookingParams) {
     let calendarEventId: string | null = req_data.calendarEventId || null;
     const calendarName = await getCalendarNameForBayAsync(assignedBayId);
 
-    const finalStatus = isConferenceRoom ? 'attended' : 'approved';
+    const finalStatus = 'approved';
 
     let finalStaffNotes = staff_notes;
     if (pending_trackman_sync && !trackman_booking_id) {
