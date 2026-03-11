@@ -296,11 +296,20 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
       const resolved = await resolveUserByEmail(email);
       if (resolved) {
         logger.info(`[Stripe Webhook] User found via ${resolved.matchType} for ${email} -> ${resolved.primaryEmail}, updating Stripe customer ID`);
-        const preUpdateCheck = await client.query('SELECT archived_at FROM users WHERE id = $1', [resolved.userId]);
-        await client.query(
-          `UPDATE users SET stripe_customer_id = $1, membership_status = 'active', billing_provider = 'stripe', archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $2`,
+        const preUpdateCheck = await client.query('SELECT archived_at, stripe_customer_id FROM users WHERE id = $1', [resolved.userId]);
+        const existingStripeId = preUpdateCheck.rows[0]?.stripe_customer_id;
+        if (existingStripeId && existingStripeId !== customerId) {
+          logger.error(`[Stripe Webhook] CONFLICT: Staff invite checkout attempted to overwrite stripe_customer_id for user ${resolved.primaryEmail}. Existing: ${existingStripeId}, Incoming: ${customerId}. Refusing update.`);
+          return deferredActions;
+        }
+        const updateResult = await client.query(
+          `UPDATE users SET stripe_customer_id = $1, membership_status = 'active', billing_provider = 'stripe', archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $2 AND (stripe_customer_id IS NULL OR stripe_customer_id = $1)`,
           [customerId, resolved.userId]
         );
+        if (updateResult.rowCount === 0) {
+          logger.error(`[Stripe Webhook] CONFLICT: Concurrent stripe_customer_id update detected for user ${resolved.primaryEmail}. Incoming: ${customerId}. Refusing update.`);
+          return deferredActions;
+        }
         if (preUpdateCheck.rows[0]?.archived_at) {
           logger.info(`[Auto-Unarchive] User ${resolved.primaryEmail} unarchived after receiving Stripe customer ID`);
         }
@@ -317,17 +326,26 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
         });
       } else {
         const existingUser = await client.query(
-          'SELECT id, status FROM users WHERE LOWER(email) = LOWER($1)',
+          'SELECT id, status, stripe_customer_id FROM users WHERE LOWER(email) = LOWER($1)',
           [email]
         );
         
         if (existingUser.rows.length > 0) {
+          const existingStripeIdDirect = existingUser.rows[0].stripe_customer_id;
+          if (existingStripeIdDirect && existingStripeIdDirect !== customerId) {
+            logger.error(`[Stripe Webhook] CONFLICT: Staff invite checkout attempted to overwrite stripe_customer_id for user ${email}. Existing: ${existingStripeIdDirect}, Incoming: ${customerId}. Refusing update.`);
+            return deferredActions;
+          }
           logger.info(`[Stripe Webhook] User ${email} exists, updating Stripe customer ID and billing provider`);
           const preUpdateCheckDirect = await client.query('SELECT archived_at FROM users WHERE LOWER(email) = LOWER($1)', [email]);
-          await client.query(
-            `UPDATE users SET stripe_customer_id = $1, membership_status = 'active', billing_provider = 'stripe', archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE LOWER(email) = LOWER($2)`,
+          const updateResultDirect = await client.query(
+            `UPDATE users SET stripe_customer_id = $1, membership_status = 'active', billing_provider = 'stripe', archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE LOWER(email) = LOWER($2) AND (stripe_customer_id IS NULL OR stripe_customer_id = $1)`,
             [customerId, email]
           );
+          if (updateResultDirect.rowCount === 0) {
+            logger.error(`[Stripe Webhook] CONFLICT: Concurrent stripe_customer_id update detected for user ${email}. Incoming: ${customerId}. Refusing update.`);
+            return deferredActions;
+          }
           if (preUpdateCheckDirect.rows[0]?.archived_at) {
             logger.info(`[Auto-Unarchive] User ${email} unarchived after receiving Stripe customer ID`);
           }
@@ -360,7 +378,7 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
           }
         }
         
-        await client.query(
+        const upsertResult = await client.query(
           `INSERT INTO users (email, first_name, last_name, tier, membership_status, stripe_customer_id, billing_provider, join_date, created_at, updated_at)
            VALUES ($1, $2, $3, $4, 'active', $5, 'stripe', NOW(), NOW(), NOW())
            ON CONFLICT (email) DO UPDATE SET 
@@ -372,9 +390,14 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
              archived_by = NULL,
              join_date = COALESCE(users.join_date, NOW()),
              tier = COALESCE(EXCLUDED.tier, users.tier),
-             updated_at = NOW()`,
+             updated_at = NOW()
+           WHERE users.stripe_customer_id IS NULL OR users.stripe_customer_id = EXCLUDED.stripe_customer_id`,
           [email, firstName || '', lastName || '', tierSlug, customerId]
         );
+        if (upsertResult.rowCount === 0) {
+          logger.error(`[Stripe Webhook] CONFLICT: Staff invite upsert refused — user ${email} already has a different stripe_customer_id. Incoming: ${customerId}. Refusing update.`);
+          return deferredActions;
+        }
         
         logger.info(`[Stripe Webhook] Created user ${email} with tier ${tierSlug || 'none'}`);
         }

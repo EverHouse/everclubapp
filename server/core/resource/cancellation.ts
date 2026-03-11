@@ -5,8 +5,8 @@ import { logger } from '../logger';
 import { createPacificDate, formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
 import { notifyMember, notifyAllStaff, isSyntheticEmail } from '../notificationService';
 import { refundGuestPass } from '../../routes/guestPasses';
-import { cancelPaymentIntent, getStripeClient } from '../stripe';
 import { broadcastAvailabilityUpdate } from '../websocket';
+import { queueJob } from '../jobQueue';
 import { createCalendarEventOnCalendar, getCalendarIdByName, deleteCalendarEvent, CALENDAR_CONFIG } from '../calendar/index';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { bookingEvents } from '../bookingEvents';
@@ -119,12 +119,15 @@ export async function handleCancellationCascade(
     
   for (const row of txResult.pendingIntents) {
     try {
-      await cancelPaymentIntent(row.stripe_payment_intent_id);
-      logger.info('[cancellation-cascade] Cancelled payment intent', {
+      await queueJob('stripe_cancel_payment_intent', {
+        paymentIntentId: row.stripe_payment_intent_id,
+        markParticipantsRefunded: false,
+      }, { maxRetries: 5 });
+      logger.info('[cancellation-cascade] Queued payment intent cancellation', {
         extra: { bookingId, paymentIntentId: row.stripe_payment_intent_id }
       });
     } catch (cancelErr: unknown) {
-      const errorMsg = `Failed to cancel payment intent ${row.stripe_payment_intent_id}: ${getErrorMessage(cancelErr)}`;
+      const errorMsg = `Failed to queue cancel for payment intent ${row.stripe_payment_intent_id}: ${getErrorMessage(cancelErr)}`;
       result.errors.push(errorMsg);
       logger.warn('[cancellation-cascade] ' + errorMsg);
     }
@@ -148,29 +151,22 @@ export async function handleCancellationCascade(
           return;
         }
         
-        const stripe = await getStripeClient();
-        
         if (row.stripe_payment_intent_id.startsWith('balance-')) {
           if (row.stripe_customer_id) {
-            const balanceTransaction = await stripe.customers.createBalanceTransaction(
-              row.stripe_customer_id,
-              {
-                amount: -(row.amount_cents as number),
-                currency: 'usd',
-                description: `Refund for cancelled booking #${bookingId}`,
-              }
-            );
-            
-            await db.execute(sql`UPDATE stripe_payment_intents 
-               SET status = 'refunded', updated_at = NOW() 
-               WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
+            await queueJob('stripe_balance_refund', {
+              stripeCustomerId: row.stripe_customer_id,
+              amountCents: row.amount_cents as number,
+              description: `Refund for cancelled booking #${bookingId}`,
+              balanceRecordId: row.stripe_payment_intent_id,
+              bookingId,
+              idempotencyKey: `balance_refund_cascade_${bookingId}_${row.stripe_payment_intent_id}`,
+            }, { maxRetries: 5 });
             
             result.prepaymentRefunds++;
-            logger.info('[cancellation-cascade] Credited balance for cancelled prepayment', {
+            logger.info('[cancellation-cascade] Queued balance refund for cancelled prepayment', {
               extra: { 
                 bookingId, 
                 paymentIntentId: row.stripe_payment_intent_id,
-                balanceTransactionId: balanceTransaction.id,
                 amountCents: row.amount_cents
               }
             });
@@ -180,54 +176,38 @@ export async function handleCancellationCascade(
             });
           }
         } else {
-          const paymentIntent = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id);
+          const idempotencyKey = `refund-booking-${bookingId}-${row.stripe_payment_intent_id}`;
+          await queueJob('stripe_auto_refund', {
+            paymentIntentId: row.stripe_payment_intent_id,
+            reason: 'requested_by_customer',
+            metadata: {
+              reason: 'booking_cancellation',
+              bookingId: bookingId.toString(),
+            },
+            amountCents: row.amount_cents || undefined,
+            idempotencyKey,
+          }, { maxRetries: 5 });
           
-          if (paymentIntent.status === 'succeeded' && paymentIntent.latest_charge) {
-            const idempotencyKey = `refund-booking-${bookingId}-${row.stripe_payment_intent_id}`;
-            
-            const refund = await stripe.refunds.create({
-              charge: typeof paymentIntent.latest_charge === 'string' 
-                ? paymentIntent.latest_charge 
-                : paymentIntent.latest_charge.id,
-              reason: 'requested_by_customer',
-              metadata: {
-                reason: 'booking_cancellation',
-                bookingId: bookingId.toString()
-              }
-            }, {
-              idempotencyKey
-            });
-            
-            await db.execute(sql`UPDATE stripe_payment_intents 
-               SET status = 'refunded', updated_at = NOW() 
-               WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
-            
-            result.prepaymentRefunds++;
-            logger.info('[cancellation-cascade] Refunded prepayment', {
-              extra: { 
-                bookingId, 
-                paymentIntentId: row.stripe_payment_intent_id,
-                refundId: refund.id,
-                amountCents: row.amount_cents
-              }
-            });
-          } else {
-            await db.execute(sql`UPDATE stripe_payment_intents 
-               SET status = 'succeeded', updated_at = NOW() 
-               WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
-          }
+          result.prepaymentRefunds++;
+          logger.info('[cancellation-cascade] Queued prepayment refund', {
+            extra: { 
+              bookingId, 
+              paymentIntentId: row.stripe_payment_intent_id,
+              amountCents: row.amount_cents
+            }
+          });
         }
       } catch (refundErr: unknown) {
         await db.execute(sql`UPDATE stripe_payment_intents 
            SET status = 'succeeded', updated_at = NOW() 
            WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id} AND status = 'refunding'`).catch((rollbackErr) => {
-          logger.error('[cancellation-cascade] CRITICAL: Failed to rollback payment_intent status after refund failure', {
+          logger.error('[cancellation-cascade] CRITICAL: Failed to rollback payment_intent status after refund queue failure', {
             error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)),
             extra: { paymentIntentId: row.stripe_payment_intent_id }
           });
         });
         
-        const errorMsg = `Failed to refund prepayment ${row.stripe_payment_intent_id}: ${getErrorMessage(refundErr)}`;
+        const errorMsg = `Failed to queue refund for prepayment ${row.stripe_payment_intent_id}: ${getErrorMessage(refundErr)}`;
         result.errors.push(errorMsg);
         logger.warn('[cancellation-cascade] ' + errorMsg);
       }

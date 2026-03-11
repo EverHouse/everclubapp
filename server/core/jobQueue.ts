@@ -54,6 +54,8 @@ export type JobType =
   | 'stripe_credit_refund'
   | 'stripe_credit_consume'
   | 'stripe_auto_refund'
+  | 'stripe_balance_refund'
+  | 'stripe_cancel_payment_intent'
   | 'generic_async_task';
 
 interface QueueJobOptions {
@@ -296,6 +298,47 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
             );
           }
           throw refundError;
+        }
+        break;
+      }
+      case 'stripe_balance_refund': {
+        const { getStripeClient: getStripeForBalance } = await import('./stripe/client');
+        const stripeBalance = await getStripeForBalance();
+        const balanceTxn = await stripeBalance.customers.createBalanceTransaction(
+          payload.stripeCustomerId as string,
+          {
+            amount: -(payload.amountCents as number),
+            currency: 'usd',
+            description: payload.description as string,
+          },
+          { idempotencyKey: payload.idempotencyKey as string }
+        );
+        logger.info(`[JobQueue] Balance refund issued: ${balanceTxn.id} for customer ${payload.stripeCustomerId}, amount: $${((payload.amountCents as number) / 100).toFixed(2)}`);
+        if (payload.balanceRecordId) {
+          await queryWithRetry(
+            `UPDATE stripe_payment_intents SET status = 'refunded', updated_at = NOW(), description = COALESCE(description, '') || $1 WHERE stripe_payment_intent_id = $2 AND status = 'succeeded'`,
+            [` [Refund: ${balanceTxn.id}]`, payload.balanceRecordId as string],
+            3
+          );
+        }
+        break;
+      }
+      case 'stripe_cancel_payment_intent': {
+        const { getStripeClient: getStripeForCancel } = await import('./stripe/client');
+        const stripeCancel = await getStripeForCancel();
+        const pi = await stripeCancel.paymentIntents.retrieve(payload.paymentIntentId as string);
+        if (pi.status !== 'canceled') {
+          await stripeCancel.paymentIntents.cancel(payload.paymentIntentId as string);
+          logger.info(`[JobQueue] Cancelled payment intent: ${payload.paymentIntentId}`);
+        } else {
+          logger.info(`[JobQueue] Payment intent already cancelled: ${payload.paymentIntentId}`);
+        }
+        if (payload.markParticipantsRefunded) {
+          await queryWithRetry(
+            `UPDATE booking_participants SET payment_status = 'refunded', refunded_at = NOW() WHERE stripe_payment_intent_id = $1 AND payment_status = 'refund_pending'`,
+            [payload.paymentIntentId as string],
+            3
+          );
         }
         break;
       }
