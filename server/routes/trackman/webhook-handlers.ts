@@ -811,17 +811,35 @@ export async function createUnmatchedBookingRequest(
       }
     }
     
-    const result = await db.execute(sql`INSERT INTO booking_requests 
-       (request_date, start_time, end_time, duration_minutes, resource_id,
-        user_email, user_name, status, trackman_booking_id, trackman_external_id,
-        trackman_player_count, is_unmatched, staff_notes,
-        origin, last_sync_source, last_trackman_sync_at, created_at, updated_at)
-       VALUES (${slotDate}, ${startTime}, ${endTime}, ${durationMinutes}, ${resourceId}, ${customerEmail || ''}, ${customerName || 'Unknown (Trackman)'}, ${bookingStatus}, ${trackmanBookingId}, ${externalBookingId || null}, ${playerCount}, true, ${conflictNote || null},
-               'trackman_webhook', 'trackman_webhook', NOW(), NOW(), NOW())
-       ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO UPDATE SET
-         last_trackman_sync_at = NOW(),
-         updated_at = NOW()
-       RETURNING id, (xmax = 0) AS was_inserted`);
+    let result;
+    try {
+      result = await db.execute(sql`INSERT INTO booking_requests 
+         (request_date, start_time, end_time, duration_minutes, resource_id,
+          user_email, user_name, status, trackman_booking_id, trackman_external_id,
+          trackman_player_count, is_unmatched, staff_notes,
+          origin, last_sync_source, last_trackman_sync_at, created_at, updated_at)
+         VALUES (${slotDate}, ${startTime}, ${endTime}, ${durationMinutes}, ${resourceId}, ${customerEmail || ''}, ${customerName || 'Unknown (Trackman)'}, ${bookingStatus}, ${trackmanBookingId}, ${externalBookingId || null}, ${playerCount}, true, ${conflictNote || null},
+                 'trackman_webhook', 'trackman_webhook', NOW(), NOW(), NOW())
+         ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO UPDATE SET
+           last_trackman_sync_at = NOW(),
+           updated_at = NOW()
+         RETURNING id, (xmax = 0) AS was_inserted`);
+    } catch (insertError: unknown) {
+      const errMsg = insertError instanceof Error ? insertError.message : String(insertError);
+      const cause = (insertError as { cause?: { code?: string } })?.cause;
+      if (cause?.code === '23P01' || errMsg.includes('booking_requests_no_overlap') || errMsg.includes('23P01')) {
+        logger.warn('[Trackman Webhook] Overlap exclusion constraint — existing booking blocks this time slot', {
+          extra: { trackmanBookingId, date: slotDate, time: startTime, endTime, resourceId }
+        });
+        const existingRows = await db.execute(sql`SELECT id FROM booking_requests 
+           WHERE trackman_booking_id = ${trackmanBookingId} AND trackman_booking_id IS NOT NULL LIMIT 1`);
+        if ((existingRows.rows as { id: number }[]).length > 0) {
+          return { created: false, bookingId: (existingRows.rows as { id: number }[])[0].id };
+        }
+        return { created: false };
+      }
+      throw insertError;
+    }
     
     const insertedBookingRows = result.rows as unknown as InsertedBookingRow[];
     if (insertedBookingRows.length > 0) {

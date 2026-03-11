@@ -48,27 +48,72 @@ export async function syncSmsPreferencesToHubSpot(
 
     const contactId = searchResponse.results[0].id;
 
-    // Map our fields to HubSpot SMS consent properties
+    const smsPropertyMap: Record<string, { value: boolean | null; hubspotProp: string }> = {
+      smsPromoOptIn: { value: preferences.smsPromoOptIn, hubspotProp: 'hs_sms_promotional' },
+      smsTransactionalOptIn: { value: preferences.smsTransactionalOptIn, hubspotProp: 'hs_sms_customer_updates' },
+      smsRemindersOptIn: { value: preferences.smsRemindersOptIn, hubspotProp: 'hs_sms_reminders' },
+    };
+
     const properties: Record<string, string> = {};
-    
-    if (preferences.smsPromoOptIn !== null) {
-      properties.hs_sms_promotional = preferences.smsPromoOptIn ? 'true' : 'false';
-    }
-    if (preferences.smsTransactionalOptIn !== null) {
-      properties.hs_sms_customer_updates = preferences.smsTransactionalOptIn ? 'true' : 'false';
-    }
-    if (preferences.smsRemindersOptIn !== null) {
-      properties.hs_sms_reminders = preferences.smsRemindersOptIn ? 'true' : 'false';
+    for (const entry of Object.values(smsPropertyMap)) {
+      if (entry.value !== null) {
+        properties[entry.hubspotProp] = entry.value ? 'true' : 'false';
+      }
     }
 
     if (Object.keys(properties).length === 0) {
-      return { success: true }; // Nothing to update
+      return { success: true };
     }
 
-    // Update contact with SMS preferences
-    await retryableHubSpotRequest(() =>
-      hubspot.crm.contacts.basicApi.update(contactId, { properties })
-    );
+    try {
+      await retryableHubSpotRequest(() =>
+        hubspot.crm.contacts.basicApi.update(contactId, { properties })
+      );
+    } catch (updateError: unknown) {
+      const errMsg = getErrorMessage(updateError);
+      if (errMsg.includes('PROPERTY_DOESNT_EXIST')) {
+        const missingProps = new Set<string>();
+        try {
+          const body = (updateError as { body?: string })?.body;
+          if (body) {
+            const parsed = JSON.parse(body);
+            const errors = parsed?.errors as { context?: { propertyName?: string[] } }[] | undefined;
+            if (Array.isArray(errors)) {
+              for (const err of errors) {
+                const names = err?.context?.propertyName;
+                if (Array.isArray(names)) {
+                  for (const n of names) missingProps.add(n);
+                }
+              }
+            }
+          }
+        } catch {
+          for (const entry of Object.values(smsPropertyMap)) {
+            if (errMsg.includes(entry.hubspotProp)) {
+              missingProps.add(entry.hubspotProp);
+            }
+          }
+        }
+
+        const existingProps: Record<string, string> = {};
+        for (const [, entry] of Object.entries(smsPropertyMap)) {
+          if (entry.value !== null && !missingProps.has(entry.hubspotProp)) {
+            existingProps[entry.hubspotProp] = entry.value ? 'true' : 'false';
+          }
+        }
+
+        if (Object.keys(existingProps).length > 0) {
+          await retryableHubSpotRequest(() =>
+            hubspot.crm.contacts.basicApi.update(contactId, { properties: existingProps })
+          );
+        }
+        logger.warn('[HubSpot SMS Sync] Some SMS properties do not exist in HubSpot — skipped missing properties', {
+          extra: { contactId, missingProps: Array.from(missingProps) }
+        });
+        return { success: true };
+      }
+      throw updateError;
+    }
 
     if (!isProduction) {
       logger.info(`[HubSpot SMS Sync] Updated SMS preferences for contact ${contactId}`);

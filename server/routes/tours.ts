@@ -255,7 +255,7 @@ router.patch('/api/tours/:id/confirm', checkoutRateLimiter, async (req, res) => 
       return res.status(400).json({ error: 'Email is required to confirm a tour' });
     }
 
-    const tourId = parseInt(id);
+    const tourId = parseInt(Array.isArray(id) ? id[0] : id);
     if (isNaN(tourId)) {
       return res.status(400).json({ error: 'Invalid tour ID' });
     }

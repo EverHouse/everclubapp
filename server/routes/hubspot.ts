@@ -646,6 +646,7 @@ router.get('/api/hubspot/contacts', isStaffOrAdmin, async (req, res) => {
     if (!backgroundRefreshInProgress) {
       backgroundRefreshInProgress = true;
       backgroundRefreshPromise = fetchAllHubSpotContacts(forceRefresh)
+        .then(() => {})
         .catch(err => {
           if (!isProduction) logger.warn('[HubSpot] Background full sync failed', { extra: { err } });
         })
@@ -661,6 +662,7 @@ router.get('/api/hubspot/contacts', isStaffOrAdmin, async (req, res) => {
   if (!backgroundRefreshInProgress) {
     backgroundRefreshInProgress = true;
     backgroundRefreshPromise = fetchAllHubSpotContacts(true)
+      .then(() => {})
       .catch(err => {
         logger.warn('[HubSpot] Initial sync failed', { extra: { err: err instanceof Error ? err.message : String(err) } });
       })
