@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   index,
+  uniqueIndex,
   jsonb,
   pgTable,
   timestamp,
@@ -89,6 +90,9 @@ export const bookingFeeSnapshots = pgTable(
   (table) => [
     index("idx_fee_snapshots_booking").on(table.bookingId),
     index("idx_fee_snapshots_intent").on(table.stripePaymentIntentId),
+    uniqueIndex("idx_booking_fee_snapshots_session_completed")
+      .on(table.sessionId)
+      .where(sql`status = 'completed'`),
   ],
 );
 
