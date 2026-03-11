@@ -962,7 +962,7 @@ const Dashboard: React.FC = () => {
                 const isCancelling = optimisticCancellingIds.has(Number(item.dbId));
                 
                 if (item.type === 'booking' || item.type === 'booking_request') {
-                  const bookingStatus = (item as DashboardBookingItem).status;
+                  const bookingStatus = (item as DashboardBookingItem).status as string;
                   const isConfirmed = bookingStatus === 'approved' || bookingStatus === 'confirmed';
                   const rawBooking = item.raw as DBBookingRequest | DBBooking;
                   const startTime24 = 'start_time' in rawBooking ? rawBooking.start_time : '';
@@ -997,7 +997,7 @@ const Dashboard: React.FC = () => {
                       ...(!isLinkedMember && !bookingHasStarted && bookingStatus !== 'attended' ? [
                         { icon: 'close', label: 'Cancel', onClick: () => handleCancelBooking(Number(item.dbId), item.type) }
                       ] : []),
-                      ...(isLinkedMember && isConfirmed && !bookingHasStarted && bookingStatus !== 'attended' ? [{
+                      ...(isLinkedMember && isConfirmed && !bookingHasStarted && (bookingStatus as string) !== 'attended' ? [{
                         icon: 'logout',
                         label: 'Leave',
                         onClick: () => handleLeaveBooking(Number(item.dbId), primaryBookerName)

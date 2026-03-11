@@ -347,7 +347,7 @@ const BookGolf: React.FC = () => {
       guardian_relationship?: string;
       guardian_phone?: string;
       guardian_consent?: boolean;
-    }) => postWithCredentials<{ id: number; invoicePayment?: { paidInFull: boolean; status: string; clientSecret: string | null; amountFromBalance: number } }>('/api/booking-requests', bookingData),
+    }) => postWithCredentials<{ id: number; status: string; invoicePayment?: { paidInFull: boolean; status: string; clientSecret: string | null; amountFromBalance: number } }>('/api/booking-requests', bookingData),
     onMutate: async (bookingData) => {
       await queryClient.cancelQueries({ queryKey: bookGolfKeys.all });
 

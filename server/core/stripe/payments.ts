@@ -448,8 +448,9 @@ export async function cancelPaymentIntent(
       return { success: true };
     }
 
-    if (pi.invoice) {
-      const invoiceId = typeof pi.invoice === 'string' ? pi.invoice : pi.invoice.id;
+    const piInvoice = (pi as unknown as Record<string, unknown>).invoice;
+    if (piInvoice) {
+      const invoiceId = typeof piInvoice === 'string' ? piInvoice : (piInvoice as { id: string }).id;
       const invoice = await stripe.invoices.retrieve(invoiceId);
       if (invoice.status === 'open' || invoice.status === 'uncollectible') {
         await stripe.invoices.voidInvoice(invoiceId);

@@ -1,9 +1,10 @@
 import Stripe from 'stripe';
 
-interface StripeInvoiceExpanded extends Stripe.Invoice {
+type StripeInvoiceExpanded = Stripe.Invoice & {
   payment_intent: string | Stripe.PaymentIntent | null;
+  confirmation_secret?: { client_secret: string; type: string } | null;
   metadata: Record<string, string> | null;
-}
+};
 
 import { logger } from '../../core/logger';
 import { Router, Request, Response } from 'express';
@@ -62,7 +63,7 @@ async function finalizeInvoiceWithPi(
   const finalized = await stripe.invoices.finalizeInvoice(invoiceId, {
     auto_advance: false,
     expand: ['payment_intent', 'confirmation_secret'],
-  });
+  }) as unknown as StripeInvoiceExpanded;
 
   if (finalized.confirmation_secret?.client_secret) {
     let piId: string | undefined;
@@ -76,7 +77,7 @@ async function finalizeInvoiceWithPi(
       }
     }
     if (!piId) {
-      const refetched = await stripe.invoices.retrieve(invoiceId, { expand: ['payment_intent'] });
+      const refetched = await stripe.invoices.retrieve(invoiceId, { expand: ['payment_intent'] }) as unknown as StripeInvoiceExpanded;
       if (refetched.payment_intent) {
         piId = typeof refetched.payment_intent === 'string' ? refetched.payment_intent : (refetched.payment_intent as Stripe.PaymentIntent).id;
       }
@@ -118,7 +119,7 @@ async function retrieveInvoicePaymentIntent(
 ): Promise<{ piId: string; clientSecret: string }> {
   const inv = await stripe.invoices.retrieve(invoiceId, {
     expand: ['payment_intent', 'confirmation_secret'],
-  });
+  }) as unknown as StripeInvoiceExpanded;
 
   if (inv.confirmation_secret?.client_secret) {
     let piId: string | undefined;
@@ -132,7 +133,7 @@ async function retrieveInvoicePaymentIntent(
       }
     }
     if (!piId) {
-      const refetched = await stripe.invoices.retrieve(invoiceId, { expand: ['payment_intent'] });
+      const refetched = await stripe.invoices.retrieve(invoiceId, { expand: ['payment_intent'] }) as unknown as StripeInvoiceExpanded;
       if (refetched.payment_intent) {
         piId = typeof refetched.payment_intent === 'string' ? refetched.payment_intent : (refetched.payment_intent as Stripe.PaymentIntent).id;
       }

@@ -908,7 +908,7 @@ router.get('/api/financials/invoices', isStaffOrAdmin, async (req: Request, res:
     const invoiceItems: InvoiceListItem[] = invoices.data.map(invoice => {
       const customer = invoice.customer as Stripe.Customer | null;
       
-      let effectiveStatus = invoice.status || 'draft';
+      let effectiveStatus: string = invoice.status || 'draft';
       const bookingId = invoice.metadata?.bookingId;
       if (effectiveStatus === 'paid' && bookingId && cancelledRefundedBookings.has(Number(bookingId))) {
         effectiveStatus = 'refunded';
