@@ -1,8 +1,12 @@
 export const CLUB_TIMEZONE = 'America/Los_Angeles';
 
+function extractDatePart(dateStr: string): string {
+  return dateStr.substring(0, 10);
+}
+
 export function parseLocalDate(dateStr: string): Date {
   if (!dateStr) return new Date();
-  const cleanDate = dateStr.split('T')[0];
+  const cleanDate = extractDatePart(dateStr);
   const [year, month, day] = cleanDate.split('-').map(Number);
   return new Date(year, month - 1, day);
 }
@@ -30,7 +34,7 @@ const LONG_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'Ju
 
 export function formatDateLocal(dateStr: string, options?: Intl.DateTimeFormatOptions): string {
   if (!dateStr) return 'Unknown date';
-  const cleanDate = dateStr.split('T')[0];
+  const cleanDate = extractDatePart(dateStr);
   const [year, month, day] = cleanDate.split('-').map(Number);
   const dayOfWeek = getDayOfWeek(year, month, day);
   
@@ -49,8 +53,7 @@ export function formatDateShort(dateStr: string): string {
 
 export function formatDateDisplay(dateStr: string): string {
   if (!dateStr) return 'Unknown date';
-  const normalized = String(dateStr).replace(' ', 'T');
-  const cleanDate = normalized.split('T')[0];
+  const cleanDate = extractDatePart(String(dateStr));
   const [, month, day] = cleanDate.split('-').map(Number);
   if (!month || !day || month < 1 || month > 12) return 'Unknown date';
   return `${SHORT_MONTHS[month - 1]} ${day}`;
@@ -59,7 +62,7 @@ export function formatDateDisplay(dateStr: string): string {
 export function formatMemberSince(dateStr: string): string {
   if (!dateStr) return '';
   try {
-    const cleanDate = dateStr.split('T')[0];
+    const cleanDate = extractDatePart(dateStr);
     const [year, month] = cleanDate.split('-').map(Number);
     if (!year || !month || month < 1 || month > 12) return dateStr;
     return `${LONG_MONTHS[month - 1]} ${year}`;
@@ -131,7 +134,7 @@ export function addDaysToPacificDate(dateStr: string, days: number): string {
 
 export function formatDateDisplayWithDay(dateStr: string | null | undefined): string {
   if (!dateStr) return 'Unknown date';
-  const cleanDate = dateStr.split('T')[0];
+  const cleanDate = extractDatePart(dateStr);
   const [year, month, day] = cleanDate.split('-').map(Number);
   const dayOfWeek = getDayOfWeek(year, month, day);
   return `${SHORT_DAYS[dayOfWeek]}, ${SHORT_MONTHS[month - 1]} ${day}`;
@@ -262,7 +265,7 @@ export function isFacilityOpen(displayHours?: { monday?: string; tuesdayThursday
 export function getRelativeDateLabel(dateStr: string): string {
   if (!dateStr) return 'Unknown date';
   const today = getTodayPacific();
-  const cleanDate = dateStr.split('T')[0];
+  const cleanDate = extractDatePart(dateStr);
   
   if (cleanDate === today) {
     return 'Today';

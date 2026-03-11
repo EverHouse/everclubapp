@@ -202,7 +202,7 @@ const History: React.FC = () => {
                             )}
                           </div>
                           <p className={`font-bold ${isDark ? 'text-white' : 'text-primary'}`}>
-                            {getRelativeDateLabel(visit.date?.split('T')[0] || visit.date)}
+                            {getRelativeDateLabel(visit.date)}
                           </p>
                           {visit.startTime && (
                             <p className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
@@ -400,7 +400,7 @@ const History: React.FC = () => {
                                       {purchase.itemName}
                                     </p>
                                     <p className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                                      {getRelativeDateLabel(purchase.date?.split('T')[0] || purchase.date)}
+                                      {getRelativeDateLabel(purchase.date)}
                                     </p>
                                   </div>
                                   <div className="text-right flex-shrink-0">

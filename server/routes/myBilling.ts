@@ -980,6 +980,7 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
       stripePaymentIntentId: string | null;
       stripeInvoiceId?: string;
       hostedInvoiceUrl?: string | null;
+      bookingId?: number | null;
     }> = [];
 
     for (const row of stripeResult.rows as Array<Record<string, unknown>>) {
@@ -993,6 +994,7 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
         status: row.status as string,
         source: 'Stripe',
         stripePaymentIntentId: row.stripe_payment_intent_id as string,
+        bookingId: row.booking_id as number | null,
       });
     }
 
@@ -1024,6 +1026,8 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
     const userResult = await db.execute(sql`SELECT stripe_customer_id FROM users WHERE LOWER(email) = ${userEmail} AND stripe_customer_id IS NOT NULL LIMIT 1`);
     const stripeCustomerId = (userResult.rows as Array<Record<string, unknown>>)[0]?.stripe_customer_id as string | undefined;
 
+    const invoiceBookingIds = new Set<string>();
+
     if (stripeCustomerId) {
       try {
         const invoices = await stripe.invoices.list({
@@ -1034,6 +1038,10 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
 
         for (const inv of invoices.data) {
           if (inv.amount_due > 0) {
+            const bookingId = inv.metadata?.booking_id;
+            if (bookingId) {
+              invoiceBookingIds.add(bookingId);
+            }
             purchases.push({
               id: `inv-${inv.id}`,
               type: 'stripe',
@@ -1054,8 +1062,15 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
       }
     }
 
-    purchases.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    res.json(purchases);
+    const deduped = purchases.filter(p => {
+      if (p.itemCategory === 'invoice') return true;
+      if (!p.id.startsWith('stripe-')) return true;
+      if (p.bookingId && invoiceBookingIds.has(String(p.bookingId))) return false;
+      return true;
+    });
+
+    deduped.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    res.json(deduped);
   } catch (error: unknown) {
     logger.error('[MyBilling] Payment history error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to fetch payment history' });
