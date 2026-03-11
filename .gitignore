@@ -35,6 +35,9 @@ attached_assets/
 .upm/
 .pythonlibs/
 
+# Build cache
+tsconfig.tsbuildinfo
+
 # Test output
 coverage/
 

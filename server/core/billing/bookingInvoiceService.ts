@@ -317,7 +317,7 @@ export async function createDraftInvoiceForBooking(
     metadata: invoiceMetadata,
     pending_invoice_items_behavior: 'exclude',
   }, {
-    idempotencyKey: `invoice_booking_draft_${bookingId}_${sessionId}_${createHash('sha256').update(JSON.stringify(feeLineItems.map(li => ({ id: li.participantId, o: li.overageCents, g: li.guestCents, t: li.totalCents })).sort((a, b) => (a.id || '').localeCompare(b.id || '')))).digest('hex').substring(0, 12)}`
+    idempotencyKey: `invoice_booking_draft_${bookingId}_${sessionId}_${createHash('sha256').update(JSON.stringify(feeLineItems.map(li => ({ id: li.participantId, o: li.overageCents, g: li.guestCents, t: li.totalCents })).sort((a, b) => String(a.id || '').localeCompare(String(b.id || ''))))).digest('hex').substring(0, 12)}`
   });
 
   try {
