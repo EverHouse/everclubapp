@@ -416,7 +416,7 @@ const History: React.FC = () => {
                                         Pay Now
                                       </button>
                                     )}
-                                    {purchase.hostedInvoiceUrl && purchase.status !== 'open' && (
+                                    {purchase.hostedInvoiceUrl && purchase.status !== 'open' && purchase.status !== 'draft' && (
                                       <a 
                                         href={purchase.hostedInvoiceUrl}
                                         target="_blank"

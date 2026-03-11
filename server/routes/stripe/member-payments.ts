@@ -173,6 +173,18 @@ async function handleExistingInvoicePayment(params: {
       return null;
     }
 
+    if (existingInvoice.status === 'draft') {
+      const draftTotal = existingInvoice.lines?.data?.reduce((sum: number, li: { amount: number }) => sum + li.amount, 0) ?? 0;
+      if (draftTotal !== serverTotal) {
+        logger.info('[Stripe] Existing draft invoice amount stale, deleting and falling back to new invoice', {
+          extra: { bookingId, invoiceId: existingInvoiceId, oldAmount: draftTotal, newAmount: serverTotal }
+        });
+        await stripe.invoices.del(existingInvoiceId);
+        await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = ${bookingId}`);
+        return null;
+      }
+    }
+
     const invoiceResult = await finalizeAndPayInvoice({ bookingId });
 
     const participantFeesList = pendingFees.map(f => ({
@@ -719,9 +731,13 @@ router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, async (
           const { getStripeClient } = await import('../../core/stripe/client');
           const stripe = await getStripeClient();
           const inv = await stripe.invoices.retrieve(invoiceId);
-          if (inv.status === 'open') {
+          if (inv.status === 'draft') {
+            await stripe.invoices.finalizeInvoice(invoiceId);
+            logger.info('[Stripe] Finalized draft invoice before OOB settlement', { extra: { bookingId, invoiceId } });
+          }
+          if (inv.status === 'open' || inv.status === 'draft') {
             await stripe.invoices.pay(invoiceId, { paid_out_of_band: true });
-            logger.info('[Stripe] Marked open invoice as paid OOB after standalone PI payment', { extra: { bookingId, invoiceId, paymentIntentId } });
+            logger.info('[Stripe] Marked invoice as paid OOB after standalone PI payment', { extra: { bookingId, invoiceId, paymentIntentId } });
           }
         }
       } catch (invoiceSettleErr: unknown) {
@@ -901,7 +917,17 @@ router.post('/api/member/invoices/:invoiceId/confirm', isAuthenticated, async (r
     }
 
     try {
-      const invoice = await stripe.invoices.retrieve(invoiceId);
+      let invoice = await stripe.invoices.retrieve(invoiceId);
+
+      if (invoice.customer !== stripeCustomerId) {
+        return res.status(403).json({ error: 'You do not have permission to confirm this invoice' });
+      }
+
+      if (invoice.status === 'draft') {
+        invoice = await stripe.invoices.finalizeInvoice(invoiceId);
+        logger.info('[Stripe] Finalized draft invoice before OOB reconciliation', { extra: { invoiceId } });
+      }
+
       const rawPi = (invoice as unknown as StripeInvoiceExpanded).payment_intent;
       const invoicePiId = typeof rawPi === 'string'
         ? rawPi

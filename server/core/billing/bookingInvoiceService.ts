@@ -316,10 +316,9 @@ export async function updateDraftInvoiceLineItems(params: {
 
   const trackmanResult = await db.execute(sql`SELECT trackman_booking_id FROM booking_requests WHERE id = ${bookingId} LIMIT 1`);
   const trackmanBookingId = (trackmanResult.rows as unknown as TrackmanBookingIdRow[])[0]?.trackman_booking_id || null;
-  const bookingRef = trackmanBookingId ? `TM-${trackmanBookingId}` : `#${bookingId}`;
 
   await stripe.invoices.update(invoiceId, {
-    description: `Booking ${bookingRef} fees - Overage: $${(totalOverageCents / 100).toFixed(2)}, Guest fees: $${(totalGuestCents / 100).toFixed(2)}`,
+    description: buildInvoiceDescription(bookingId, trackmanBookingId, feeLineItems),
     metadata: {
       ...(invoice.metadata || {}),
       overageCents: totalOverageCents.toString(),

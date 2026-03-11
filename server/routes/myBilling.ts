@@ -1049,7 +1049,7 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
               itemCategory: 'invoice',
               amountCents: inv.amount_due,
               date: new Date(inv.created * 1000).toISOString(),
-              status: 'open',
+              status: inv.status || 'open',
               source: 'Stripe',
               stripePaymentIntentId: null,
               stripeInvoiceId: inv.id,
