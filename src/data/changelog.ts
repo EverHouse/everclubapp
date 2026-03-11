@@ -20,6 +20,60 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
+    version: "8.81.3",
+    date: "2026-03-11",
+    title: "Cancellation Safeguards & UI Polish",
+    changes: [
+      "Fix: Cancelling a booking now properly refunds all related payments and voids any open invoices — previously some payments could be left behind, causing member confusion",
+      "Fix: Cancellation no longer gets stuck in a 'refunding' state if a Stripe refund fails — the system now handles partial failures gracefully and completes the cancellation",
+      "Fix: Booking cancellation now correctly updates the saved fee snapshot — prevents stale fee data from appearing on cancelled bookings",
+      "Fix: Members can no longer cancel bookings that already happened or were attended — the cancel button is hidden for past sessions on both the app and backend",
+      "Fix: Lesson events from Google Calendar no longer create unwanted facility closure notices — past lesson closures are automatically cleaned up on startup",
+      "Improvement: Command Center now displays affected areas (bays, rooms) more clearly on notices — shows proper labels instead of raw data",
+      "Improvement: Hamburger menu is easier to open on mobile — edge swipe zone widened for more comfortable one-handed use",
+      "Improvement: Dropdowns across the app now behave consistently on all devices — fixed appearance and usability issues on iOS and Android",
+      "Fix: Conference room booking notes section spacing corrected for cleaner layout",
+    ]
+  },
+  {
+    version: "8.81.2",
+    date: "2026-03-11",
+    title: "Billing Accuracy & Empty Slot Fees",
+    changes: [
+      "Feature: Empty booking slots are now automatically charged as guest fees — if a 4-player booking only has 2 members assigned, the 2 empty slots incur guest fees just like bringing outside guests",
+      "Feature: Members can now view full invoice receipts for all past payments directly from their billing history — no more navigating to Stripe to find a receipt",
+      "Feature: Invoice filter now includes Refunded and Void statuses — staff and members can track the full lifecycle of every invoice",
+      "Fix: Guest pass eligibility now correctly checks all booking participants — previously some edge cases allowed passes to be applied when they shouldn't be",
+      "Fix: Placeholder guests (system-generated during imports) are now consistently identified across billing, roster, and fee calculations — prevents billing mismatches",
+      "Fix: Fee calculation correctly accounts for included member minutes — members were sometimes being overcharged because their tier allowance wasn't applied properly",
+      "Fix: Billing history no longer shows duplicate entries for the same booking — deduplication logic now handles bookings with multiple payment events",
+      "Fix: Old payment intents are now properly cancelled when an invoice is updated with a new payment — prevents orphaned Stripe charges",
+      "Fix: Payment history only shows completed and refunded transactions — pending and cancelled attempts no longer clutter the list",
+      "Fix: Billing now uses the correct Stripe product IDs for overage and guest fees — ensures line items match your Stripe dashboard",
+    ]
+  },
+  {
+    version: "8.81.1",
+    date: "2026-03-10",
+    title: "Invoice Payments, Multi-Booking & Mobile Navigation",
+    changes: [
+      "Feature: Members can now pay draft invoices directly from their dashboard — choose between card on file or entering a new card, with clear fee breakdowns before confirming",
+      "Feature: Members can now book multiple simulator slots on the same day — the old one-booking-per-day restriction has been removed while keeping the one-pending-request limit",
+      "Feature: Edge swipe gesture opens the hamburger menu on mobile and PWA — swipe from the left edge of the screen to quickly access navigation without reaching for the menu button",
+      "Improvement: Conference room bookings can now be paid later instead of requiring immediate payment at booking time — gives members flexibility to settle fees before their session",
+      "Improvement: Date selector on the booking calendar now appears as a full-width sheet on mobile — easier to tap dates on smaller screens",
+      "Improvement: Sidebar scrolling improved — background page no longer scrolls when scrolling inside the sidebar menu",
+      "Improvement: All Stripe payment intents now include descriptive text — easier to identify charges in Stripe dashboard and member bank statements",
+      "Improvement: Booking status messages now clearly distinguish between 'requests' (pending) and 'confirmed bookings' for better member clarity",
+      "Fix: Invoice payment confirmations now reliably show the success screen — resolved a race condition where the payment intent wasn't available immediately after Stripe processed it",
+      "Fix: Email templates now pull the correct club address from settings instead of using a hardcoded value",
+      "Fix: Mismatched booking owners are automatically corrected on server startup — prevents display name inconsistencies after Trackman imports",
+      "Fix: Booking sessions no longer reuse cancelled sessions — each new booking gets a fresh session to avoid data conflicts",
+      "Fix: Overlapping booking sessions for the same resource are now supported — resolves errors when back-to-back bookings share a time boundary",
+      "Fix: Scheduler state management improved with better error handling — background tasks recover more reliably after temporary failures",
+    ]
+  },
+  {
     version: "8.81.0",
     date: "2026-03-10",
     title: "Data Integrity, Notifications & Mobile Stability",

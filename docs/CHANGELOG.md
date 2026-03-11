@@ -18,6 +18,63 @@ All notable changes to the Ever Club Members App are documented here.
 - **Guest Pass Refund Window**: Staff/system cancellation cascade (`cancellation.ts`) changed from 24-hour to 1-hour refund threshold, matching member-facing cancellation logic. Member cancellation now also gates guest pass refunds behind the `shouldSkipRefund` check. Both paths use `>= 1 hour` consistently. Notification message updated to reflect "1 hour" window.
 - **Files**: `server/core/bookingService/approvalService.ts`, `server/core/resource/cancellation.ts`, `server/routes/bays/bookings.ts`
 
+## [8.81.3] - 2026-03-11
+
+### Cancellation Safeguards
+- **Full Refund on Cancel**: Cancelling a booking now refunds all related payments and voids any open invoices — previously some payments could be left behind.
+- **Stuck Refund Prevention**: Cancellation no longer gets stuck in a 'refunding' state if a Stripe refund fails — handles partial failures gracefully.
+- **Fee Snapshot Update**: Booking cancellation now correctly updates the saved fee snapshot — prevents stale fee data on cancelled bookings.
+- **Past Booking Protection**: Members can no longer cancel bookings that already happened or were attended — button hidden on frontend and enforced on backend.
+- **Lesson Closure Cleanup**: Lesson events from Google Calendar no longer create unwanted facility closure notices — past lesson closures auto-cleaned on startup.
+- **Files**: `server/core/resource/cancellation.ts`, `server/core/billing/bookingInvoiceService.ts`, `server/core/databaseCleanup.ts`, `server/loaders/startup.ts`
+
+### UI Polish
+- **Command Center Notices**: Affected areas (bays, rooms) display proper labels instead of raw data.
+- **Edge Swipe**: Hamburger menu easier to open on mobile — edge swipe zone widened.
+- **Dropdown Consistency**: Dropdowns behave consistently across iOS and Android.
+- **Conference Room Notes**: Spacing corrected on booking notes section.
+- **Files**: `src/hooks/useEdgeSwipe.ts`, `src/components/booking/GuestPaymentChoiceModal.tsx`
+
+## [8.81.2] - 2026-03-11
+
+### Billing Accuracy & Empty Slot Fees
+- **Empty Slot Charges**: Empty booking slots are now automatically charged as guest fees — if a 4-player booking has 2 empty slots, those slots incur guest fees.
+- **Invoice Receipts**: Members can view full invoice receipts for all past payments directly from billing history.
+- **Invoice Filters**: Invoice filter now includes Refunded and Void statuses for full lifecycle tracking.
+- **Guest Pass Eligibility**: Guest pass eligibility now correctly checks all booking participants — edge cases fixed.
+- **Placeholder Guest Standardization**: Placeholder guests (system-generated during imports) consistently identified across billing, roster, and fee calculations.
+- **Member Minutes Fix**: Fee calculation correctly accounts for included member minutes — members were sometimes overcharged.
+- **Billing History Dedup**: Billing history no longer shows duplicate entries for the same booking.
+- **Stale Payment Intent Cleanup**: Old payment intents properly cancelled when an invoice is updated with a new payment.
+- **Payment History Filter**: Payment history only shows completed and refunded transactions — pending/cancelled attempts removed.
+- **Stripe Product IDs**: Billing now uses correct Stripe product IDs for overage and guest fees.
+- **Files**: `server/core/billing/unifiedFeeService.ts`, `server/core/billing/bookingInvoiceService.ts`, `server/routes/stripe/member-payments.ts`
+
+## [8.81.1] - 2026-03-10
+
+### Invoice Payments & Multi-Booking
+- **Draft Invoice Payments**: Members can pay draft invoices directly from their dashboard — choose between card on file or new card entry.
+- **Multi-Slot Booking**: Members can book multiple simulator slots on the same day — old one-booking-per-day restriction removed while keeping one-pending-request limit.
+- **Conference Room Pay Later**: Conference room bookings can be paid later instead of requiring immediate payment at booking time.
+- **Booking Status Messages**: Status messages now clearly distinguish between 'requests' (pending) and 'confirmed bookings'.
+- **Files**: `server/routes/stripe/member-payments.ts`, `server/routes/bays/bookings.ts`, `src/pages/Member/BookGolf.tsx`
+
+### Mobile Navigation
+- **Edge Swipe Menu**: Swipe from the left edge of the screen to open the hamburger menu on mobile and PWA.
+- **Mobile Date Picker**: Date selector on booking calendar appears as a full-width sheet on mobile.
+- **Sidebar Scroll Fix**: Background page no longer scrolls when scrolling inside the sidebar.
+- **Files**: `src/hooks/useEdgeSwipe.ts`, `src/pages/Admin/tabs/simulator/CalendarGrid.tsx`
+
+### Reliability
+- **Payment Intent Descriptions**: All Stripe payment intents include descriptive text for easier identification.
+- **Payment Confirmation Race Fix**: Invoice payment confirmations reliably show the success screen — resolved race condition.
+- **Email Template Address**: Email templates pull the correct club address from settings instead of hardcoded value.
+- **Booking Owner Auto-Fix**: Mismatched booking owners automatically corrected on server startup.
+- **Session Reuse Prevention**: Booking sessions no longer reuse cancelled sessions — each gets a fresh session.
+- **Overlapping Sessions**: Overlapping booking sessions for the same resource now supported — resolves back-to-back boundary errors.
+- **Scheduler Recovery**: Scheduler state management improved with better error handling.
+- **Files**: `server/core/emailTemplatePreview.ts`, `server/loaders/startup.ts`, `server/core/bookingService/sessionManager.ts`
+
 ## [8.81.0] - 2026-03-10
 
 ### Data Integrity Expansion
