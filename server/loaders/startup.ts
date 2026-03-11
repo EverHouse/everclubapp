@@ -371,6 +371,38 @@ export async function runStartupTasks(): Promise<void> {
     logger.warn('[Startup] last_tier backfill failed (non-critical)', { error: err instanceof Error ? err : new Error(String(err)) });
   }
 
+  try {
+    const ownerFixResult = await db.execute(sql`
+      UPDATE booking_participants bp
+      SET user_id = active_br.user_id,
+          display_name = active_br.user_name
+      FROM booking_requests active_br
+      WHERE bp.session_id = active_br.session_id
+        AND bp.participant_type = 'owner'
+        AND active_br.status IN ('approved', 'pending')
+        AND bp.user_id IS DISTINCT FROM active_br.user_id
+        AND active_br.user_id IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM booking_requests cancelled_br
+          WHERE cancelled_br.session_id = active_br.session_id
+            AND cancelled_br.status IN ('cancelled', 'deleted')
+            AND cancelled_br.id != active_br.id
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM booking_requests other_active
+          WHERE other_active.session_id = active_br.session_id
+            AND other_active.status IN ('approved', 'pending')
+            AND other_active.id != active_br.id
+        )
+    `);
+    const ownerFixCount = (ownerFixResult as { rowCount?: number })?.rowCount || 0;
+    if (ownerFixCount > 0) {
+      logger.info(`[Startup] Fixed ${ownerFixCount} session owner(s) mismatched from cancelled booking reuse`);
+    }
+  } catch (err: unknown) {
+    logger.warn('[Startup] Session owner mismatch fix failed (non-critical)', { error: err instanceof Error ? err : new Error(String(err)) });
+  }
+
   startupHealth.completedAt = new Date().toISOString();
   
   if (startupHealth.criticalFailures.length > 0) {
