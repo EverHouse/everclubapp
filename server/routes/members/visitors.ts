@@ -1093,7 +1093,7 @@ router.get('/api/visitors/check-email', isStaffOrAdmin, async (req, res) => {
     const linkedResult = await db.execute(sql`
       SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.membership_status
       FROM users u
-      INNER JOIN user_linked_emails ule ON ule.user_id = u.id
+      INNER JOIN user_linked_emails ule ON LOWER(ule.primary_email) = LOWER(u.email)
       WHERE LOWER(ule.linked_email) = ${email}
       AND u.archived_at IS NULL
       LIMIT 1
