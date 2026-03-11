@@ -203,20 +203,27 @@ export async function ensureSessionForBooking(params: {
 
     if (!sessionId) {
       try {
-        const insertResult = await lockClient.query(
-          `INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-           ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL
-           DO UPDATE SET updated_at = NOW()
-           RETURNING id`,
-          [params.resourceId, params.sessionDate, params.startTime, params.endTime, params.trackmanBookingId || null, params.source, params.createdBy]
-        );
-        sessionId = insertResult.rows[0].id;
-        created = true;
+        await lockClient.query(`SET app.bypass_overlap_check = 'true'`);
+        try {
+          const insertResult = await lockClient.query(
+            `INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+             ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL
+             DO UPDATE SET updated_at = NOW()
+             RETURNING id`,
+            [params.resourceId, params.sessionDate, params.startTime, params.endTime, params.trackmanBookingId || null, params.source, params.createdBy]
+          );
+          sessionId = insertResult.rows[0].id;
+          created = true;
+        } finally {
+          await lockClient.query(`RESET app.bypass_overlap_check`).catch(() => {});
+        }
       } catch (insertErr: unknown) {
         const errCode = getErrorCode(insertErr);
+        const errMsg = getErrorMessage(insertErr);
         const errConstraint = (insertErr && typeof insertErr === 'object' && 'constraint' in insertErr) ? String((insertErr as Record<string, unknown>).constraint) : '';
-        if (errCode === '23505' && errConstraint === 'booking_sessions_resource_datetime_unique') {
+        if (errCode === '23505' && (errConstraint === 'booking_sessions_resource_datetime_unique' || errConstraint === 'booking_sessions_trackman_booking_id_unique')) {
+          logger.info(`[SessionManager] Unique constraint hit: ${errConstraint}, attempting fallback lookup`);
           const fallback = await lockClient.query(
             `SELECT id FROM booking_sessions
              WHERE resource_id = $1 AND session_date = $2 AND start_time = $3 AND end_time = $4
@@ -226,9 +233,26 @@ export async function ensureSessionForBooking(params: {
           if (fallback.rows.length > 0) {
             sessionId = fallback.rows[0].id;
             logger.info(`[SessionManager] Resolved unique constraint race: linked to existing session ${sessionId}`);
+          } else if (errConstraint === 'booking_sessions_resource_datetime_unique') {
+            const broadFallback = await lockClient.query(
+              `SELECT id FROM booking_sessions
+               WHERE resource_id = $1 AND session_date = $2 AND start_time = $3
+               ORDER BY created_at DESC
+               LIMIT 1`,
+              [params.resourceId, params.sessionDate, params.startTime]
+            );
+            if (broadFallback.rows.length > 0) {
+              sessionId = broadFallback.rows[0].id;
+              logger.info(`[SessionManager] Resolved constraint race via broad match: linked to existing session ${sessionId}`, { extra: { constraint: errConstraint, resourceId: params.resourceId, sessionDate: params.sessionDate, startTime: params.startTime } });
+            } else {
+              throw insertErr;
+            }
           } else {
             throw insertErr;
           }
+        } else if (errMsg.includes('range lower bound') || errMsg.includes('range upper bound') || errCode === '22000') {
+          logger.warn('[SessionManager] INSERT trigger failed due to corrupt session range data, retrying with bypass', { error: insertErr });
+          throw insertErr;
         } else {
           throw insertErr;
         }
@@ -753,17 +777,18 @@ export async function findOverlappingSession(
              trackman_booking_id, source, created_by, created_at
       FROM booking_sessions 
       WHERE resource_id = ${resourceId} 
-        AND session_date = ${sessionDate} 
+        AND session_date = ${sessionDate}
+        AND start_time != end_time
         AND tsrange(
           (session_date + start_time)::timestamp,
-          CASE WHEN end_time < start_time
+          CASE WHEN end_time <= start_time
             THEN (session_date + end_time + INTERVAL '1 day')::timestamp
             ELSE (session_date + end_time)::timestamp
           END,
           '[)'
         ) && tsrange(
           (${sessionDate}::date + ${startTime}::time)::timestamp,
-          CASE WHEN ${endTime}::time < ${startTime}::time
+          CASE WHEN ${endTime}::time <= ${startTime}::time
             THEN (${sessionDate}::date + ${endTime}::time + INTERVAL '1 day')::timestamp
             ELSE (${sessionDate}::date + ${endTime}::time)::timestamp
           END,
