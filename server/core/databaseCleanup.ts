@@ -243,29 +243,36 @@ export async function cleanupOldAvailabilityBlocks(daysOld: number = 30): Promis
   }
 }
 
-export async function cleanupOldFacilityClosures(daysOld: number = 30): Promise<number> {
+export async function cleanupLessonClosures(): Promise<number> {
   try {
     const result = await db.execute(sql`
       UPDATE facility_closures
       SET is_active = false
       WHERE is_active = true
-        AND end_date < CURRENT_DATE - ${daysOld} * INTERVAL '1 day'
+        AND end_date < CURRENT_DATE
+        AND (
+          LOWER(title) LIKE 'lesson%'
+          OR LOWER(title) LIKE 'private lesson%'
+          OR LOWER(title) LIKE 'kids lesson%'
+          OR LOWER(title) LIKE 'group lesson%'
+          OR LOWER(title) LIKE 'beginner group lesson%'
+        )
     `);
 
     const execResult = result as unknown as DrizzleExecuteResult;
     const count = Number(execResult.rowCount || execResult.rows?.length || 0);
 
     if (count > 0) {
-      logger.info(`[Cleanup] Deactivated ${count} old facility closures (>${daysOld} days past)`, {
-        extra: { event: 'cleanup.old_facility_closures', count, daysOld }
+      logger.info(`[Cleanup] Deactivated ${count} past lesson closures`, {
+        extra: { event: 'cleanup.lesson_closures', count }
       });
     }
 
     return count;
   } catch (error: unknown) {
-    logger.error('[Cleanup] Old facility closures cleanup failed', {
+    logger.error('[Cleanup] Lesson closures cleanup failed', {
       error: error instanceof Error ? error.message : String(error),
-      extra: { event: 'cleanup.old_facility_closures_failed' }
+      extra: { event: 'cleanup.lesson_closures_failed' }
     });
     throw error;
   }
@@ -296,7 +303,7 @@ export async function runScheduledCleanup(): Promise<void> {
     await cleanupOldNotifications(90);
     await cleanupOldUnreadNotifications(60);
     await cleanupOldAvailabilityBlocks(30);
-    await cleanupOldFacilityClosures(30);
+    await cleanupLessonClosures();
     await cleanupOldJobs(7);
     
     logger.info('[Cleanup] Scheduled cleanup completed', {

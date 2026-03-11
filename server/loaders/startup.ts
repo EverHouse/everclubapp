@@ -479,13 +479,13 @@ export async function runStartupTasks(): Promise<void> {
   }
 
   try {
-    const { cleanupOldFacilityClosures } = await import('../core/databaseCleanup');
-    const deactivated = await cleanupOldFacilityClosures(30);
+    const { cleanupLessonClosures } = await import('../core/databaseCleanup');
+    const deactivated = await cleanupLessonClosures();
     if (deactivated > 0) {
-      logger.info(`[Startup] Deactivated ${deactivated} old facility closures (>30 days past)`);
+      logger.info(`[Startup] Deactivated ${deactivated} past lesson closures`);
     }
   } catch (err: unknown) {
-    logger.warn('[Startup] Old facility closures cleanup failed (non-critical)', { error: err instanceof Error ? err : new Error(String(err)) });
+    logger.warn('[Startup] Lesson closures cleanup failed (non-critical)', { error: err instanceof Error ? err : new Error(String(err)) });
   }
 
   startupHealth.completedAt = new Date().toISOString();
