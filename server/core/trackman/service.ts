@@ -1709,7 +1709,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
   }
 
   if (csvMinDate && csvMaxDate) {
-    const importIdArray = Array.from(importBookingIds);
+    const pgArrayLiteral = `{${Array.from(importBookingIds).join(',')}}`;
     const staleUnmatched = await db.execute(sql`
       UPDATE booking_requests 
       SET is_unmatched = false, 
@@ -1727,7 +1727,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         AND trackman_booking_id IS NOT NULL
         AND request_date >= ${csvMinDate}::date 
         AND request_date <= ${csvMaxDate}::date
-        AND trackman_booking_id <> ALL(${importIdArray}::text[])
+        AND trackman_booking_id <> ALL(${pgArrayLiteral}::text[])
       RETURNING id, trackman_booking_id
     `);
     const staleCount = staleUnmatched.rowCount || 0;
