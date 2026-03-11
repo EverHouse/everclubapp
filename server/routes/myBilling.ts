@@ -1037,10 +1037,14 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
         ]);
         const invoices = { data: [...openInvoices.data, ...draftInvoices.data] };
 
-        for (const inv of invoices.data) {
+        const seenInvoiceBookingIds = new Set<string>();
+        const sortedInvoices = [...invoices.data].sort((a, b) => b.created - a.created);
+        for (const inv of sortedInvoices) {
           if (inv.amount_due > 0) {
             const bookingId = inv.metadata?.bookingId || inv.metadata?.booking_id;
             if (bookingId) {
+              if (seenInvoiceBookingIds.has(bookingId)) continue;
+              seenInvoiceBookingIds.add(bookingId);
               invoiceBookingIds.add(bookingId);
             }
             const invBookingId = bookingId ? parseInt(bookingId) : null;
