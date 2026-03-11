@@ -153,6 +153,11 @@ const MAINTENANCE_HTML = `<!DOCTYPE html>
 
 httpServer = http.createServer((req, res) => {
   if (req.url === '/healthz' || req.url === '/_health') {
+    if (isShuttingDown) {
+      res.writeHead(503, { 'Content-Type': 'text/plain' });
+      res.end('SHUTTING_DOWN');
+      return;
+    }
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('OK');
     return;
@@ -228,10 +233,10 @@ async function initializeApp() {
   const app = express();
 
   app.get('/healthz', (req, res) => {
-    res.status(200).send('OK');
+    res.status(isShuttingDown ? 503 : 200).send(isShuttingDown ? 'SHUTTING_DOWN' : 'OK');
   });
   app.get('/_health', (req, res) => {
-    res.status(200).send('OK');
+    res.status(isShuttingDown ? 503 : 200).send(isShuttingDown ? 'SHUTTING_DOWN' : 'OK');
   });
 
   app.get('/api/ready', async (req, res) => {
@@ -341,6 +346,16 @@ async function initializeApp() {
     next();
   });
 
+  app.use((req, res, next) => {
+    if (isShuttingDown) {
+      res.setHeader('Connection', 'close');
+      if (req.path.startsWith('/api/')) {
+        return res.status(503).json({ error: 'Server is shutting down', reason: 'shutting_down' });
+      }
+    }
+    next();
+  });
+
   app.use(requestIdMiddleware);
   app.use(logRequest);
   app.use(cors(corsOptions));
@@ -382,7 +397,7 @@ async function initializeApp() {
   const LARGE_BODY_PATHS = ['/api/admin/scan-id', '/api/admin/save-id-image'];
   app.use((req, res, next) => {
     if (LARGE_BODY_PATHS.includes(req.path)) {
-      return next();
+      return express.json({ limit: '10mb' })(req, res, next);
     }
     express.json({
       limit: '1mb',
@@ -397,6 +412,20 @@ async function initializeApp() {
   app.use(express.urlencoded({ limit: '1mb' }));
   app.use(getSession());
   app.use(globalRateLimiter);
+
+  app.use((req, res, next) => {
+    if (req.path === '/healthz' || req.path === '/_health' || req.path === '/api/stripe/webhook') {
+      return next();
+    }
+    const timeout = req.path.startsWith('/api/admin/') ? 120000 : 60000;
+    req.setTimeout(timeout, () => {
+      if (!res.headersSent) {
+        logger.warn(`[Timeout] Request timed out after ${timeout}ms`, { extra: { method: req.method, path: req.path } });
+        res.status(504).json({ error: 'Request timed out' });
+      }
+    });
+    next();
+  });
 
   app.get('/api/health', async (req, res) => {
     if (!isReady) {
