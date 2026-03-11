@@ -573,7 +573,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const anyMenuOpen = isMenuOpen || isMemberMenuOpen || isStaffMenuOpen;
   const { isActive: isEdgeSwipeActive, progress: edgeSwipeProgress } = useEdgeSwipe({
     enabled: !anyMenuOpen,
-    edgeWidth: 44,
+    edgeWidth: 100,
     threshold: 100,
     onSwipe: () => {
       if (isAdminRoute) {
