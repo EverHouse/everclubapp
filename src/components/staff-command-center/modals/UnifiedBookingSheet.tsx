@@ -8,6 +8,7 @@ import { ErrorBoundary } from '../../ErrorBoundary';
 import { useUnifiedBookingLogic } from './useUnifiedBookingLogic';
 import { isPlaceholderEmail } from './bookingSheetTypes';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
+import { formatTime12Hour } from '../../../utils/dateUtils';
 import type { UnifiedBookingSheetProps } from './bookingSheetTypes';
 
 export type { BookingType, SheetMode, UnifiedBookingSheetProps } from './bookingSheetTypes';
@@ -255,7 +256,10 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
     );
   }
 
-  const drawerTitle = `${bayName || 'Booking'}${timeSlot ? ` • ${timeSlot}` : ''}`;
+  const formattedTimeSlot = timeSlot && !/[AP]M/i.test(timeSlot)
+    ? timeSlot.replace(/\b(\d{1,2}:\d{2}(:\d{2})?)\b/g, (m) => formatTime12Hour(m))
+    : timeSlot;
+  const drawerTitle = `${bayName || 'Booking'}${formattedTimeSlot ? ` • ${formattedTimeSlot}` : ''}`;
 
   const stickyFooterContent = (
     <AssignModeFooter

@@ -4,7 +4,7 @@ import EmptyState from '../../../components/EmptyState';
 import { usePageReady } from '../../../contexts/PageReadyContext';
 import { useData } from '../../../contexts/DataContext';
 import { useToast } from '../../../components/Toast';
-import { formatDateTimePacific, formatDateDisplayWithDay } from '../../../utils/dateUtils';
+import { formatDateTimePacific, formatDateDisplayWithDay, formatTime12Hour } from '../../../utils/dateUtils';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 import ModalShell from '../../../components/ModalShell';
 import RosterManager from '../../../components/booking/RosterManager';
@@ -17,14 +17,6 @@ interface OptimisticAction {
   type: 'linking' | 'unlinking';
   targetEmail?: string;
 }
-
-const formatTime12Hour = (time: string | null | undefined): string => {
-  if (!time) return '';
-  const [hours, minutes] = time.split(':').map(Number);
-  const period = hours >= 12 ? 'PM' : 'AM';
-  const displayHours = hours % 12 || 12;
-  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
-};
 
 const ITEMS_PER_PAGE = 20;
 
@@ -1120,8 +1112,8 @@ const TrackmanTab: React.FC = () => {
           mode="assign"
           trackmanBookingId={String(assignPlayersModal.booking.trackmanBookingId || assignPlayersModal.booking.trackman_booking_id || '')}
           bayName={`Bay ${assignPlayersModal.booking.bayNumber || assignPlayersModal.booking.bay_number}`}
-          bookingDate={formatDateDisplayWithDay(assignPlayersModal.booking.bookingDate || assignPlayersModal.booking.booking_date)}
-          timeSlot={`${assignPlayersModal.booking.startTime || assignPlayersModal.booking.start_time} - ${assignPlayersModal.booking.endTime || assignPlayersModal.booking.end_time}`}
+          bookingDate={assignPlayersModal.booking.bookingDate || assignPlayersModal.booking.booking_date}
+          timeSlot={`${formatTime12Hour(assignPlayersModal.booking.startTime || assignPlayersModal.booking.start_time)} - ${formatTime12Hour(assignPlayersModal.booking.endTime || assignPlayersModal.booking.end_time)}`}
           matchedBookingId={undefined}
           currentMemberName={undefined}
           currentMemberEmail={undefined}

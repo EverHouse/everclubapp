@@ -2,15 +2,32 @@ import { BookingContextType, ManageModeRosterData, FetchedContext } from './book
 import TrackmanIcon from '../../icons/TrackmanIcon';
 import { formatTime12Hour } from '../../memberProfile/memberProfileTypes';
 
-const formatDateForDisplay = (dateStr: string): string => {
+const formatTimeSlot = (slot: string): string => {
+  if (!slot) return slot;
+  const militaryPattern = /\b(\d{1,2}:\d{2}(:\d{2})?)\b/g;
+  return slot.replace(militaryPattern, (match) => {
+    const [h, m] = match.split(':').map(Number);
+    if (isNaN(h) || isNaN(m)) return match;
+    if (h > 23 || m > 59) return match;
+    const alreadyFormatted = /[AP]M/i.test(slot);
+    if (alreadyFormatted) return match;
+    return formatTime12Hour(match);
+  });
+};
+
+const formatDateForDisplay = (dateStr: string | unknown): string => {
   if (!dateStr) return 'No Date';
-  const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+  const str = dateStr instanceof Date
+    ? dateStr.toISOString()
+    : String(dateStr);
+  const datePart = str.includes('T') ? str.split('T')[0] : str;
   try {
     const [y, m, d] = datePart.split('-').map(Number);
+    if (!y || !m || !d) return str;
     const date = new Date(y, m - 1, d);
     return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' });
   } catch {
-    return dateStr;
+    return str;
   }
 };
 
@@ -91,7 +108,7 @@ export function SheetHeader({
             ) : (timeSlot || fetchedContext?.timeSlot) ? (
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">schedule</span>
-                <span className="text-primary/80 dark:text-white/80">{timeSlot || fetchedContext?.timeSlot}</span>
+                <span className="text-primary/80 dark:text-white/80">{formatTimeSlot(timeSlot || fetchedContext?.timeSlot || '')}</span>
               </div>
             ) : null}
             {(bookingContext?.durationMinutes || fetchedContext?.durationMinutes) && (
@@ -209,7 +226,7 @@ export function SheetHeader({
             {timeSlot && (
               <p className="flex items-center gap-1">
                 <span className="material-symbols-outlined text-sm">schedule</span>
-                {timeSlot}
+                {formatTimeSlot(timeSlot)}
               </p>
             )}
             {trackmanBookingId && (
@@ -243,7 +260,7 @@ export function SheetHeader({
             {timeSlot && (
               <p className="flex items-center gap-1">
                 <span className="material-symbols-outlined text-sm">schedule</span>
-                {timeSlot}
+                {formatTimeSlot(timeSlot)}
               </p>
             )}
           </div>
