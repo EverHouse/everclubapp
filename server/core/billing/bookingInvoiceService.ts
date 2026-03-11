@@ -38,6 +38,9 @@ interface BookingInfoRow {
   session_id: number;
   trackman_booking_id: string | null;
   status: string;
+  resource_id?: number;
+  declared_player_count?: number;
+  resource_type?: string;
 }
 
 interface PaymentIntentLookupRow {
@@ -1003,8 +1006,11 @@ export async function voidBookingInvoice(bookingId: number): Promise<{
 
 export async function recreateDraftInvoiceFromBooking(bookingId: number): Promise<{ success: boolean; invoiceId?: string }> {
   try {
-    const bookingResult = await db.execute(sql`SELECT br.user_email, br.session_id, br.trackman_booking_id, br.status
+    const bookingResult = await db.execute(sql`SELECT br.user_email, br.session_id, br.trackman_booking_id, br.status, br.resource_id,
+              br.declared_player_count,
+              COALESCE(r.type, 'simulator') as resource_type
        FROM booking_requests br
+       LEFT JOIN resources r ON br.resource_id = r.id
        WHERE br.id = ${bookingId} LIMIT 1`);
 
     if (bookingResult.rows.length === 0) {
@@ -1043,6 +1049,23 @@ export async function recreateDraftInvoiceFromBooking(bookingId: number): Promis
         totalCents,
       };
     });
+
+    if (booking.resource_type !== 'conference_room') {
+      const allParticipantResult = await db.execute(sql`SELECT COUNT(*) as cnt FROM booking_participants WHERE session_id = ${booking.session_id}`);
+      const actualCount = parseInt((allParticipantResult.rows[0] as { cnt: string }).cnt) || 0;
+      const declaredCount = booking.declared_player_count || actualCount;
+      const emptySlots = Math.max(0, declaredCount - actualCount);
+      if (emptySlots > 0) {
+        const emptySlotFeeCents = emptySlots * PRICING.GUEST_FEE_CENTS;
+        feeLineItems.push({
+          displayName: `Empty Slot${emptySlots > 1 ? 's' : ''}`,
+          participantType: 'guest',
+          overageCents: 0,
+          guestCents: emptySlotFeeCents,
+          totalCents: emptySlotFeeCents,
+        });
+      }
+    }
 
     const totalFees = feeLineItems.reduce((sum, li) => sum + li.totalCents, 0);
 

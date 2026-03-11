@@ -755,9 +755,13 @@ async function buildFallbackPreview(params: FallbackPreviewParams): Promise<Prev
     ? await getGuestPassesRemaining(booking.owner_email)
     : 0;
 
-  const guestsWithoutPass = Math.max(0, guestCount - Math.min(guestCount, guestPassesRemaining));
+  const passEligibleGuests = participantsForFeeCalc.filter(p =>
+    p.participantType === 'guest' && !isPlaceholderGuestName(p.displayName)
+  ).length;
+  const placeholderGuests = guestCount - passEligibleGuests;
+  const passEligibleWithoutPass = Math.max(0, passEligibleGuests - Math.min(passEligibleGuests, guestPassesRemaining));
   const emptySlotGuestFees = !isConferenceRoom ? unfilledSlots * PRICING.GUEST_FEE_DOLLARS : 0;
-  const realGuestFees = !isConferenceRoom ? guestsWithoutPass * PRICING.GUEST_FEE_DOLLARS : 0;
+  const realGuestFees = !isConferenceRoom ? (passEligibleWithoutPass + placeholderGuests) * PRICING.GUEST_FEE_DOLLARS : 0;
   const estimatedGuestFees = realGuestFees + emptySlotGuestFees;
   const estimatedTotalFees = overageFee + estimatedGuestFees;
 
