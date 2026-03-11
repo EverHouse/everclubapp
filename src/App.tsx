@@ -809,7 +809,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         Skip to main content
       </a>
       
-      {/* Edge swipe indicator - menu icon that fades and slides in */}
+      {/* Edge swipe indicator - "Menu" pill that slides in from left edge */}
       <div 
         className={`fixed left-0 top-1/2 -translate-y-1/2 pointer-events-none transition-all duration-fast ${isEdgeSwipeActive ? 'opacity-100' : 'opacity-0'}`}
         style={{ 
@@ -819,10 +819,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         }}
       >
         <div 
-          className="w-10 h-10 rounded-full bg-accent/90 backdrop-blur-sm flex items-center justify-center shadow-lg"
+          className="px-3 py-2 rounded-full bg-accent/90 backdrop-blur-sm flex items-center gap-1.5 shadow-lg"
           style={{ opacity: Math.min(edgeSwipeProgress * 1.5, 1) }}
         >
-          <span className="material-symbols-outlined text-white text-xl">menu</span>
+          <span className="material-symbols-outlined text-white text-base">menu</span>
+          <span className="text-white text-xs font-semibold tracking-wide">Menu</span>
         </div>
       </div>
 
