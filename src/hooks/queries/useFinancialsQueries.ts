@@ -202,7 +202,8 @@ export function useInvoices(statusFilter: string = 'all', startDate?: string, en
     queryKey: financialsKeys.invoices({ status: statusFilter, startDate, endDate }),
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (statusFilter !== 'all') params.append('status', statusFilter);
+      const stripeStatus = statusFilter === 'refunded' ? 'paid' : statusFilter;
+      if (stripeStatus !== 'all') params.append('status', stripeStatus);
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
       params.append('limit', '50');

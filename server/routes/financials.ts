@@ -831,6 +831,7 @@ interface InvoiceListItem {
   number: string | null;
   amountDue: number;
   amountPaid: number;
+  amountRefunded: number;
   currency: string;
   status: string;
   created: number;
@@ -876,9 +877,42 @@ router.get('/api/financials/invoices', isStaffOrAdmin, async (req: Request, res:
 
     const invoices = await stripe.invoices.list(listParams);
 
+    const bookingIdsByInvoice = new Map<string, string>();
+    for (const inv of invoices.data) {
+      if (inv.status === 'paid' && inv.metadata?.bookingId) {
+        bookingIdsByInvoice.set(inv.id, inv.metadata.bookingId);
+      }
+    }
+
+    const cancelledRefundedBookings = new Set<number>();
+    if (bookingIdsByInvoice.size > 0) {
+      const bookingIds = [...new Set([...bookingIdsByInvoice.values()])].map(Number).filter(n => !isNaN(n));
+      if (bookingIds.length > 0) {
+        const refundResult = await db.execute(sql`
+          SELECT DISTINCT br.id
+          FROM booking_requests br
+          WHERE br.id = ANY(${bookingIds})
+            AND br.status = 'cancelled'
+            AND EXISTS (
+              SELECT 1 FROM stripe_payment_intents spi
+              WHERE spi.booking_id = br.id AND spi.status = 'refunded'
+            )
+        `);
+        for (const row of refundResult.rows) {
+          cancelledRefundedBookings.add(Number(row.id));
+        }
+      }
+    }
+
     const invoiceItems: InvoiceListItem[] = invoices.data.map(invoice => {
       const customer = invoice.customer as Stripe.Customer | null;
       
+      let effectiveStatus = invoice.status || 'draft';
+      const bookingId = invoice.metadata?.bookingId;
+      if (effectiveStatus === 'paid' && bookingId && cancelledRefundedBookings.has(Number(bookingId))) {
+        effectiveStatus = 'refunded';
+      }
+
       return {
         id: invoice.id,
         memberEmail: customer?.email || invoice.customer_email || 'Unknown',
@@ -886,8 +920,9 @@ router.get('/api/financials/invoices', isStaffOrAdmin, async (req: Request, res:
         number: invoice.number,
         amountDue: invoice.amount_due,
         amountPaid: invoice.amount_paid,
+        amountRefunded: 0,
         currency: invoice.currency,
-        status: invoice.status || 'draft',
+        status: effectiveStatus,
         created: invoice.created,
         hostedInvoiceUrl: invoice.hosted_invoice_url,
         invoicePdf: invoice.invoice_pdf,

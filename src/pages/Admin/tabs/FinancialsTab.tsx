@@ -34,6 +34,7 @@ interface InvoiceListItem {
   number: string | null;
   amountDue: number;
   amountPaid: number;
+  amountRefunded: number;
   currency: string;
   status: string;
   created: number;
@@ -521,7 +522,7 @@ const SubscriptionsSubTab: React.FC = () => {
 };
 
 const InvoicesSubTab: React.FC = () => {
-  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'open' | 'void' | 'uncollectible'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'open' | 'void' | 'uncollectible' | 'refunded'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -539,6 +540,8 @@ const InvoicesSubTab: React.FC = () => {
 
   const statusFilteredInvoices = statusFilter === 'all'
     ? invoices.filter(inv => inv.status !== 'void' && inv.status !== 'draft')
+    : statusFilter === 'refunded'
+    ? invoices.filter(inv => inv.status === 'refunded' || inv.status === 'partially_refunded')
     : invoices;
 
   const filteredInvoices = searchQuery.trim()
@@ -594,6 +597,7 @@ const InvoicesSubTab: React.FC = () => {
     all: invoices.filter(i => i.status !== 'void' && i.status !== 'draft').length,
     paid: invoices.filter(i => i.status === 'paid').length,
     open: invoices.filter(i => i.status === 'open').length,
+    refunded: invoices.filter(i => i.status === 'refunded' || i.status === 'partially_refunded').length,
     void: invoices.filter(i => i.status === 'void').length,
     uncollectible: invoices.filter(i => i.status === 'uncollectible').length,
   };
@@ -627,7 +631,7 @@ const InvoicesSubTab: React.FC = () => {
           </div>
           
           <div className="flex gap-1.5 overflow-x-auto pb-1">
-            {(['all', 'paid', 'open', 'void', 'uncollectible'] as const).map(status => (
+            {(['all', 'paid', 'open', 'refunded', 'void', 'uncollectible'] as const).map(status => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
@@ -706,7 +710,7 @@ const InvoicesSubTab: React.FC = () => {
                     <p className="text-xs text-primary/60 dark:text-white/60 truncate">{invoice.memberEmail}</p>
                   </div>
                   <span className={`px-2 py-0.5 rounded-[4px] text-xs font-medium ml-2 flex-shrink-0 ${getInvoiceStatusBadge(invoice.status)}`}>
-                    {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                    {invoice.status === 'partially_refunded' ? 'Partial Refund' : invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm mb-3">
@@ -801,7 +805,7 @@ const InvoicesSubTab: React.FC = () => {
                       </td>
                       <td className="px-4 py-3">
                         <span className={`px-2.5 py-1 rounded-[4px] text-xs font-medium ${getInvoiceStatusBadge(invoice.status)}`}>
-                          {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                          {invoice.status === 'partially_refunded' ? 'Partial Refund' : invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                         </span>
                       </td>
                       <td className="px-4 py-3">

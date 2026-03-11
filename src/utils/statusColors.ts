@@ -225,6 +225,10 @@ export function getInvoiceStatusBadge(status: string): string {
       return 'bg-gray-100 text-gray-800 dark:bg-gray-700/30 dark:text-gray-400';
     case 'draft':
       return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+    case 'refunded':
+      return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
+    case 'partially_refunded':
+      return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400';
     default:
       return 'bg-gray-100 text-gray-600 dark:bg-gray-700/30 dark:text-gray-400';
   }
