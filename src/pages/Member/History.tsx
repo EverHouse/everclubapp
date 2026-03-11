@@ -427,7 +427,7 @@ const History: React.FC = () => {
                                         <span className="material-symbols-outlined text-xs">open_in_new</span>
                                       </a>
                                     )}
-                                    {!purchase.hostedInvoiceUrl && purchase.stripePaymentIntentId && (
+                                    {!purchase.hostedInvoiceUrl && purchase.stripePaymentIntentId && purchase.status === 'succeeded' && (
                                       <button
                                         type="button"
                                         onClick={async () => {
