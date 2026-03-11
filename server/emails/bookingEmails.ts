@@ -1,6 +1,6 @@
 import { getResendClient } from '../utils/resend';
 import { logger } from '../core/logger';
-import { isEmailCategoryEnabled } from '../core/settingsHelper';
+import { isEmailCategoryEnabled, getSettingValue } from '../core/settingsHelper';
 
 const CLUB_COLORS = {
   deepGreen: '#293515',
@@ -17,6 +17,8 @@ interface BookingConfirmationData {
   bayName: string;
   memberName: string;
   durationMinutes?: number;
+  addressLine1?: string;
+  cityStateZip?: string;
 }
 
 export function getBookingConfirmationHtml(data: BookingConfirmationData): string {
@@ -128,7 +130,7 @@ export function getBookingConfirmationHtml(data: BookingConfirmationData): strin
                 Need to make changes? You can reschedule or cancel from your bookings page.
               </p>
               <p style="margin: 16px 0 0 0; font-size: 12px; color: ${CLUB_COLORS.textMuted};">
-                Ever Club • 123 Golf Club Drive • Los Angeles, CA
+                Ever Club &bull; ${data.addressLine1 || '15771 Red Hill Ave, Ste 500'} &bull; ${data.cityStateZip || 'Tustin, CA 92780'}
               </p>
             </td>
           </tr>
@@ -157,7 +159,9 @@ export async function sendBookingConfirmationEmail(
       return false;
     }
     
-    const html = getBookingConfirmationHtml(data);
+    const addressLine1 = await getSettingValue('contact.address_line1', '15771 Red Hill Ave, Ste 500');
+    const cityStateZip = await getSettingValue('contact.city_state_zip', 'Tustin, CA 92780');
+    const html = getBookingConfirmationHtml({ ...data, addressLine1, cityStateZip });
     
     await resendResult.client.emails.send({
       from: resendResult.fromEmail,

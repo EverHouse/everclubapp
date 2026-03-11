@@ -10,6 +10,7 @@ import { getTourConfirmationHtml } from '../emails/tourEmails';
 import { getOtpEmailHtml } from '../emails/otpEmail';
 import { getNudge24hHtml, getNudge72hHtml, getNudge7dHtml } from '../emails/onboardingNudgeEmails';
 import { getMembershipInviteHtml, getWinBackHtml, getAccountDeletionHtml } from '../emails/memberInviteEmail';
+import { getSettingValue } from './settingsHelper';
 import type { IntegrityCheckResult } from './dataIntegrity';
 
 export interface EmailTemplateInfo {
@@ -63,14 +64,17 @@ export async function renderTemplatePreview(templateId: string): Promise<string 
     case 'account-deletion':
       return getAccountDeletionHtml({ firstName: 'Alex' });
 
-    case 'tour-confirmation':
+    case 'tour-confirmation': {
+      const tourAddr = await getSettingValue('contact.address_line1', '15771 Red Hill Ave, Ste 500');
+      const tourCsz = await getSettingValue('contact.city_state_zip', 'Tustin, CA 92780');
       return getTourConfirmationHtml({
         guestName: 'Jordan Smith',
         date: '2026-03-20',
         time: '14:00',
-        addressLine1: '1234 Club Drive',
-        cityStateZip: 'Los Angeles, CA 90001',
+        addressLine1: tourAddr,
+        cityStateZip: tourCsz,
       });
+    }
 
     case 'welcome':
       return getWelcomeEmailHtml('Alex');
@@ -86,14 +90,19 @@ export async function renderTemplatePreview(templateId: string): Promise<string 
     case 'first-visit':
       return getFirstVisitHtml({ firstName: 'Alex' });
 
-    case 'booking-confirmation':
+    case 'booking-confirmation': {
+      const bookingAddr = await getSettingValue('contact.address_line1', '15771 Red Hill Ave, Ste 500');
+      const bookingCsz = await getSettingValue('contact.city_state_zip', 'Tustin, CA 92780');
       return getBookingConfirmationHtml({
         date: '2026-03-15',
         time: '14:00',
         bayName: 'Bay 3',
         memberName: 'Alex Johnson',
         durationMinutes: 60,
+        addressLine1: bookingAddr,
+        cityStateZip: bookingCsz,
       });
+    }
 
     case 'pass-with-qr':
       return await getPassWithQrHtml({
