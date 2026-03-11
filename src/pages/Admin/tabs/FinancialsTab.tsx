@@ -521,7 +521,7 @@ const SubscriptionsSubTab: React.FC = () => {
 };
 
 const InvoicesSubTab: React.FC = () => {
-  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'open' | 'uncollectible'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'open' | 'void' | 'uncollectible'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -537,13 +537,17 @@ const InvoicesSubTab: React.FC = () => {
 
   const error = queryError instanceof Error ? queryError.message : null;
 
+  const statusFilteredInvoices = statusFilter === 'all'
+    ? invoices.filter(inv => inv.status !== 'void' && inv.status !== 'draft')
+    : invoices;
+
   const filteredInvoices = searchQuery.trim()
-    ? invoices.filter(inv => 
+    ? statusFilteredInvoices.filter(inv => 
         inv.memberName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         inv.memberEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (inv.number && inv.number.toLowerCase().includes(searchQuery.toLowerCase()))
       )
-    : invoices;
+    : statusFilteredInvoices;
 
   const handleLoadMore = () => {
     // Note: Pagination would need additional query implementation
@@ -587,9 +591,10 @@ const InvoicesSubTab: React.FC = () => {
   };
 
   const statusCounts = {
-    all: invoices.length,
+    all: invoices.filter(i => i.status !== 'void' && i.status !== 'draft').length,
     paid: invoices.filter(i => i.status === 'paid').length,
     open: invoices.filter(i => i.status === 'open').length,
+    void: invoices.filter(i => i.status === 'void').length,
     uncollectible: invoices.filter(i => i.status === 'uncollectible').length,
   };
 
@@ -621,19 +626,19 @@ const InvoicesSubTab: React.FC = () => {
             </div>
           </div>
           
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {(['all', 'paid', 'open', 'uncollectible'] as const).map(status => (
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {(['all', 'paid', 'open', 'void', 'uncollectible'] as const).map(status => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
-                className={`px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-colors ${
+                className={`px-2.5 py-1.5 rounded-full font-medium text-xs whitespace-nowrap transition-colors ${
                   statusFilter === status
                     ? 'bg-primary dark:bg-accent text-white dark:text-primary'
                     : 'bg-white/60 dark:bg-white/10 text-primary/60 dark:text-white/60 hover:bg-white/80 dark:hover:bg-white/15'
                 }`}
               >
                 {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
-                <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-black/10 dark:bg-white/10">
+                <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-black/10 dark:bg-white/10">
                   {statusCounts[status]}
                 </span>
               </button>
