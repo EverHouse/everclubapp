@@ -339,7 +339,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                 onClick={() => setShowDatePicker(false)}
                             >
                                 <div 
-                                    className={`rounded-t-2xl sm:rounded-xl shadow-2xl p-5 pb-8 sm:pb-5 w-full max-w-[320px] sm:max-w-[280px] mx-auto overflow-hidden ${isDark ? 'bg-[#1a1d15] border-t sm:border border-white/10' : 'bg-white border-t sm:border border-gray-300'}`}
+                                    className={`rounded-t-2xl sm:rounded-xl shadow-2xl p-5 pb-8 sm:pb-5 w-full sm:max-w-[280px] overflow-hidden ${isDark ? 'bg-[#1a1d15] border-t sm:border border-white/10' : 'bg-white border-t sm:border border-gray-300'}`}
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <div className="flex flex-col gap-4 min-w-0">
