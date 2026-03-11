@@ -288,6 +288,17 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
             { idempotencyKey: payload.idempotencyKey as string }
           );
           logger.info(`[JobQueue] Auto-refund issued: ${refund.id} for PI ${payload.paymentIntentId}, amount: ${payload.amountCents || 'full'}`);
+
+          try {
+            const { markPaymentRefunded } = await import('./billing/PaymentStatusService');
+            await markPaymentRefunded({
+              paymentIntentId: payload.paymentIntentId as string,
+              refundId: refund.id,
+              amountCents: payload.amountCents as number | undefined,
+            });
+          } catch (statusErr: unknown) {
+            logger.warn(`[JobQueue] Non-blocking: failed to mark payment refunded for PI ${payload.paymentIntentId}`, { error: statusErr });
+          }
         } catch (refundError: unknown) {
           logger.error(`[JobQueue] Auto-refund failed for PI ${payload.paymentIntentId} — flagging for manual review`, { error: refundError });
           if (payload.sessionId) {
@@ -315,8 +326,15 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
         );
         logger.info(`[JobQueue] Balance refund issued: ${balanceTxn.id} for customer ${payload.stripeCustomerId}, amount: $${((payload.amountCents as number) / 100).toFixed(2)}`);
         if (payload.balanceRecordId) {
+          const { markPaymentRefunded } = await import('./billing/PaymentStatusService');
+          await markPaymentRefunded({
+            paymentIntentId: payload.balanceRecordId as string,
+            refundId: balanceTxn.id,
+            amountCents: payload.amountCents as number | undefined,
+          });
+
           await queryWithRetry(
-            `UPDATE stripe_payment_intents SET status = 'refunded', updated_at = NOW(), description = COALESCE(description, '') || $1 WHERE stripe_payment_intent_id = $2 AND status = 'succeeded'`,
+            `UPDATE stripe_payment_intents SET description = COALESCE(description, '') || $1, updated_at = NOW() WHERE stripe_payment_intent_id = $2`,
             [` [Refund: ${balanceTxn.id}]`, payload.balanceRecordId as string],
             3
           );

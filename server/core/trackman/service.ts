@@ -10,7 +10,7 @@ import { ensureSessionForBooking } from '../bookingService/sessionManager';
 import { recalculateSessionFees } from '../billing/unifiedFeeService';
 import { voidBookingInvoice } from '../billing/bookingInvoiceService';
 import { useGuestPass } from '../../routes/guestPasses';
-import { cancelPendingPaymentIntentsForBooking } from '../billing/paymentIntentCleanup';
+import { cancelPendingPaymentIntentsForBooking, refundSucceededPaymentIntentsForBooking } from '../billing/paymentIntentCleanup';
 import { alertOnTrackmanImportIssues } from '../dataAlerts';
 import { logger } from '../logger';
 import { isSyntheticEmail } from '../notificationService';
@@ -289,6 +289,12 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             
             await cancelPendingPaymentIntentsForBooking(booking.id);
             
+            try {
+              await refundSucceededPaymentIntentsForBooking(booking.id);
+            } catch (refundErr: unknown) {
+              process.stderr.write(`[Trackman Import] Failed to refund succeeded PIs for booking #${booking.id}: ${getErrorMessage(refundErr)}\n`);
+            }
+
             try {
               await voidBookingInvoice(booking.id);
             } catch (voidErr: unknown) {
@@ -1654,6 +1660,12 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         
         await cancelPendingPaymentIntentsForBooking(booking.id);
         
+        try {
+          await refundSucceededPaymentIntentsForBooking(booking.id);
+        } catch (refundErr: unknown) {
+          process.stderr.write(`[Trackman Import] Failed to refund succeeded PIs for stale booking #${booking.id}: ${getErrorMessage(refundErr)}\n`);
+        }
+
         try {
           await voidBookingInvoice(booking.id);
         } catch (voidErr: unknown) {

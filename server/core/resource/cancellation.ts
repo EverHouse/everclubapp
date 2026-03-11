@@ -13,6 +13,7 @@ import { bookingEvents } from '../bookingEvents';
 import { logMemberAction } from '../auditLog';
 import { sendPushNotification } from '../../routes/push';
 import { sendNotificationToUser } from '../websocket';
+import { releaseGuestPassHold } from '../billing/guestPassHoldService';
 
 interface BookingParticipantRow {
   id: number;
@@ -329,6 +330,14 @@ export async function deleteBooking(bookingId: number, archivedBy: string, hardD
   
   if (hardDelete) {
     try {
+      await releaseGuestPassHold(bookingId);
+    } catch (holdErr: unknown) {
+      logger.warn('[DELETE /api/bookings] Failed to release guest pass hold before hard delete', {
+        extra: { bookingId, error: getErrorMessage(holdErr) }
+      });
+    }
+
+    try {
       const { voidBookingInvoice } = await import('../billing/bookingInvoiceService');
       await voidBookingInvoice(bookingId);
     } catch (voidErr: unknown) {
@@ -391,6 +400,12 @@ export async function deleteBooking(bookingId: number, archivedBy: string, hardD
       });
     }
     
+    await releaseGuestPassHold(bookingId);
+
+    db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_action')`).catch((err: unknown) => {
+      logger.warn('[DELETE /api/bookings] Non-blocking: failed to cancel fee snapshots', { extra: { bookingId, error: getErrorMessage(err) } });
+    });
+
     logger.info('[DELETE /api/bookings] Soft delete complete', {
       extra: {
         bookingId,
@@ -598,6 +613,8 @@ export async function memberCancelBooking(bookingId: number, userEmail: string, 
     });
   }
   
+  await releaseGuestPassHold(bookingId);
+
   db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_action')`).catch((err: unknown) => {
     logger.warn('[Member Cancel] Non-blocking: failed to cancel fee snapshots', { extra: { bookingId, error: getErrorMessage(err) } });
   });
