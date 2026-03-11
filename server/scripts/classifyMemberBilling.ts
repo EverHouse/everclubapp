@@ -120,7 +120,7 @@ export async function getMembersNeedingStripeMigration(): Promise<MemberBillingI
 
 export async function updateMemberBillingProvider(
   memberId: string, 
-  billingProvider: 'stripe' | 'mindbody' | 'manual'
+  billingProvider: 'stripe' | 'manual'
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await db.update(users)

@@ -407,7 +407,7 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
     const email = (req.params.email as string).trim().toLowerCase();
     const { billingProvider } = req.body;
 
-    const validProviders = ['stripe', 'mindbody', 'family_addon', 'comped', null];
+    const validProviders = ['stripe', 'manual', 'family_addon', 'comped', null];
     if (!validProviders.includes(billingProvider)) {
       return res.status(400).json({ error: 'Invalid billing provider' });
     }
@@ -417,7 +417,7 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
       return res.status(404).json({ error: 'Member not found' });
     }
 
-    if (billingProvider !== 'stripe' && billingProvider !== 'mindbody') {
+    if (billingProvider !== 'stripe') {
       const stripeSubId = member.stripe_subscription_id;
       const stripeCustId = member.stripe_customer_id;
       if (stripeSubId || stripeCustId) {
