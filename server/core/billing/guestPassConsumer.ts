@@ -58,7 +58,7 @@ export async function consumeGuestPassForParticipant(
       
       const tierResult = await tx.execute(sql`SELECT mt.guest_passes_per_month 
        FROM users u 
-       JOIN membership_tiers mt ON LOWER(u.tier) = LOWER(mt.name)
+       JOIN membership_tiers mt ON u.tier_id = mt.id
        WHERE LOWER(u.email) = ${ownerEmailLower}`);
       const tierGuestPasses = (tierResult.rows[0] as unknown as TierGuestPassRow)?.guest_passes_per_month ?? 4;
       
@@ -182,7 +182,7 @@ export async function canUseGuestPass(ownerEmail: string): Promise<{
   try {
     const tierResult = await db.execute(sql`SELECT mt.guest_passes_per_month 
        FROM users u 
-       JOIN membership_tiers mt ON LOWER(u.tier) = LOWER(mt.name)
+       JOIN membership_tiers mt ON u.tier_id = mt.id
        WHERE LOWER(u.email) = ${ownerEmailLower}`);
     const tierGuestPasses = (tierResult.rows[0] as unknown as TierGuestPassRow)?.guest_passes_per_month ?? 4;
     

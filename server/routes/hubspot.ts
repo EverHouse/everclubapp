@@ -1397,6 +1397,13 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
                       stripe_delinquent: 'stripe_delinquent',
                     };
 
+                    const ALLOWED_USER_COLUMNS = new Set([
+                      ...Object.values(COALESCE_MAP),
+                      ...Object.values(DATE_COALESCE_MAP),
+                      ...Object.values(OVERWRITE_MAP),
+                      ...Object.values(OPT_IN_MAP),
+                    ]);
+
                     let updated = false;
 
                     const normalizeDate = (v: string): string | null => {
@@ -1410,10 +1417,12 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
 
                     if (COALESCE_MAP[propertyName] && val) {
                       const dbCol = COALESCE_MAP[propertyName];
+                      if (!ALLOWED_USER_COLUMNS.has(dbCol)) throw new Error(`Invalid column: ${dbCol}`);
                       const result = await db.execute(sql`UPDATE users SET ${sql.raw(dbCol)} = ${val}, updated_at = NOW() WHERE LOWER(email) = ${email} AND (${sql.raw(dbCol)} IS NULL OR ${sql.raw(dbCol)} = '')`);
                       updated = (result.rowCount ?? 0) > 0;
                     } else if (DATE_COALESCE_MAP[propertyName] && val) {
                       const dbCol = DATE_COALESCE_MAP[propertyName];
+                      if (!ALLOWED_USER_COLUMNS.has(dbCol)) throw new Error(`Invalid column: ${dbCol}`);
                       const dateVal = normalizeDate(val);
                       if (dateVal) {
                         const result = await db.execute(sql`UPDATE users SET ${sql.raw(dbCol)} = ${dateVal}::date, updated_at = NOW() WHERE LOWER(email) = ${email} AND ${sql.raw(dbCol)} IS NULL`);
@@ -1421,6 +1430,7 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
                       }
                     } else if (OVERWRITE_MAP[propertyName]) {
                       const dbCol = OVERWRITE_MAP[propertyName];
+                      if (!ALLOWED_USER_COLUMNS.has(dbCol)) throw new Error(`Invalid column: ${dbCol}`);
                       await db.execute(sql`UPDATE users SET ${sql.raw(dbCol)} = ${val || null}, updated_at = NOW() WHERE LOWER(email) = ${email}`);
                       updated = true;
                     } else if (propertyName === JOIN_DATE_PROP && val) {
@@ -1431,6 +1441,7 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
                       updated = (result.rowCount ?? 0) > 0;
                     } else if (OPT_IN_MAP[propertyName]) {
                       const dbCol = OPT_IN_MAP[propertyName];
+                      if (!ALLOWED_USER_COLUMNS.has(dbCol)) throw new Error(`Invalid column: ${dbCol}`);
                       const boolVal = parseOptIn(val);
                       if (boolVal !== null) {
                         await db.execute(sql`UPDATE users SET ${sql.raw(dbCol)} = ${boolVal}, updated_at = NOW() WHERE LOWER(email) = ${email}`);

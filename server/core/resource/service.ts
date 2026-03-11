@@ -10,6 +10,7 @@ import { checkAllConflicts } from '../bookingValidation';
 import { DEFAULT_TIER } from '../../../shared/constants/tiers';
 import { ensureSessionForBooking } from '../bookingService/sessionManager';
 import { getCached, setCache } from '../queryCache';
+import { AppError } from '../errors';
 
 interface ResourceTypeRow {
   type: string;
@@ -216,7 +217,7 @@ export async function approveBooking(bookingId: number) {
     const [booking] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
     
     if (!booking) {
-      throw { statusCode: 404, error: 'Booking not found' };
+      throw new AppError(404, 'Booking not found');
     }
     
     const conflictCheck = await checkAllConflicts(
@@ -229,17 +230,13 @@ export async function approveBooking(bookingId: number) {
     
     if (conflictCheck.hasConflict) {
       if (conflictCheck.conflictType === 'closure') {
-        throw { 
-          statusCode: 409, 
-          error: 'Cannot approve booking during closure',
+        throw new AppError(409, 'Cannot approve booking during closure', {
           message: `This time slot conflicts with "${conflictCheck.conflictTitle}". Please decline this request or wait until the closure ends.`
-        };
+        });
       } else if (conflictCheck.conflictType === 'availability_block') {
-        throw { 
-          statusCode: 409, 
-          error: 'Cannot approve booking during event block',
+        throw new AppError(409, 'Cannot approve booking during event block', {
           message: `This time slot is blocked: ${conflictCheck.conflictTitle || 'Event block'}. Please decline this request or reschedule.`
-        };
+        });
       }
     }
     
@@ -263,11 +260,9 @@ export async function approveBooking(bookingId: number) {
       ));
     
     if (existingConflicts.length > 0) {
-      throw { 
-        statusCode: 409, 
-        error: 'Time slot already booked',
+      throw new AppError(409, 'Time slot already booked', {
         message: 'Another booking has already been approved for this time slot. Please decline this request or suggest an alternative time.'
-      };
+      });
     }
     
     const [updated] = await tx.update(bookingRequests)
@@ -324,7 +319,7 @@ export async function declineBooking(bookingId: number, reason?: string) {
     const [existing] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
     
     if (!existing) {
-      throw { statusCode: 404, error: 'Booking not found' };
+      throw new AppError(404, 'Booking not found');
     }
     
     const [updated] = await tx.update(bookingRequests)
@@ -385,12 +380,10 @@ export async function createBookingRequest(params: {
   const isMemberAuthorized = await isAuthorizedForMemberBooking(userTier);
   
   if (!isMemberAuthorized) {
-    throw { 
-      statusCode: 402,
-      error: 'Membership upgrade required',
+    throw new AppError(402, 'Membership upgrade required', {
       bookingType: 'upgrade_required',
       message: 'Simulator booking is available for Core, Premium, VIP, and Corporate members'
-    };
+    });
   }
   
   const startParts = params.startTime.split(':').map(Number);
@@ -405,11 +398,9 @@ export async function createBookingRequest(params: {
   
   const limitCheck = await checkDailyBookingLimit(params.userEmail, params.bookingDate, durationMinutes, userTier, resourceType);
   if (!limitCheck.allowed) {
-    throw {
-      statusCode: 403,
-      error: limitCheck.reason,
+    throw new AppError(403, limitCheck.reason, {
       remainingMinutes: limitCheck.remainingMinutes
-    };
+    });
   }
   
   const existingResult = await db.select()
@@ -439,29 +430,23 @@ export async function createBookingRequest(params: {
     ));
   
   if (existingResult.length > 0) {
-    throw { statusCode: 409, error: 'This time slot is already requested or booked' };
+    throw new AppError(409, 'This time slot is already requested or booked');
   }
   
   const conflictCheck = await checkAllConflicts(params.resourceId, params.bookingDate, params.startTime, params.endTime);
   if (conflictCheck.hasConflict) {
     if (conflictCheck.conflictType === 'closure') {
-      throw { 
-        statusCode: 409,
-        error: 'Time slot conflicts with a facility closure',
+      throw new AppError(409, 'Time slot conflicts with a facility closure', {
         message: `This time slot conflicts with "${conflictCheck.conflictTitle}".`
-      };
+      });
     } else if (conflictCheck.conflictType === 'availability_block') {
-      throw { 
-        statusCode: 409,
-        error: 'Time slot is blocked for an event',
+      throw new AppError(409, 'Time slot is blocked for an event', {
         message: `This time slot is blocked: ${conflictCheck.conflictTitle || 'Event block'}.`
-      };
+      });
     } else {
-      throw { 
-        statusCode: 409,
-        error: 'Time slot already booked',
+      throw new AppError(409, 'Time slot already booked', {
         message: 'Another booking already exists for this time slot.'
-      };
+      });
     }
   }
   
@@ -495,7 +480,7 @@ export async function getCascadePreview(bookingId: number) {
   .where(eq(bookingRequests.id, bookingId));
   
   if (!booking) {
-    throw { statusCode: 404, error: 'Booking not found' };
+    throw new AppError(404, 'Booking not found');
   }
   
   let participantsCount = 0;

@@ -273,7 +273,7 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
     };
   } catch (error: unknown) {
     logger.error('[UnifiedFeeService] Error loading session data:', { error });
-    return null;
+    throw error;
   }
 }
 
@@ -492,29 +492,12 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
             ${timeFilterFrag}
             ${resourceTypeFrag}
         ),
-        session_participant_bookings AS (
-          SELECT LOWER(u.email) as identifier,
-                 br.id as booking_id,
-                 FLOOR(br.duration_minutes::float / GREATEST(1, COALESCE(br.declared_player_count, 1))) as minutes_share
-          FROM booking_participants bp
-          JOIN booking_sessions bs ON bp.session_id = bs.id
-          JOIN booking_requests br ON br.session_id = bs.id
-          JOIN users u ON bp.user_id = u.id
-          WHERE LOWER(u.email) = ANY(${emailsLowerLiteral}::text[])
-            AND br.request_date = ${sessionDate}
-            AND br.status IN ('pending', 'approved', 'attended')
-            AND LOWER(u.email) != LOWER(br.user_email)
-            ${timeFilterFrag}
-            ${resourceTypeFrag}
-        ),
         all_usage AS (
           SELECT DISTINCT ON (identifier, booking_id) identifier, booking_id, minutes_share 
           FROM (
             SELECT identifier, booking_id, minutes_share FROM owned_bookings
             UNION ALL
             SELECT identifier, booking_id, minutes_share FROM member_bookings
-            UNION ALL
-            SELECT identifier, booking_id, minutes_share FROM session_participant_bookings
           ) combined
         )
         SELECT identifier, COALESCE(SUM(minutes_share), 0) as used

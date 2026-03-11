@@ -11,6 +11,7 @@ import { recalculateSessionFees } from '../billing/unifiedFeeService';
 import { createPrepaymentIntent } from '../billing/prepaymentService';
 import { ensureSessionForBooking } from '../bookingService/sessionManager';
 import { createCalendarEventOnCalendar, getCalendarIdByName, CALENDAR_CONFIG } from '../calendar/index';
+import { AppError } from '../errors';
 
 interface MemberLookupRow {
   id: string;
@@ -29,11 +30,11 @@ export async function assignMemberToBooking(bookingId: number, memberEmail: stri
     const [existing] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
     
     if (!existing) {
-      throw { statusCode: 404, error: 'Booking not found' };
+      throw new AppError(404, 'Booking not found');
     }
     
     if (!existing.isUnmatched) {
-      throw { statusCode: 400, error: 'Booking is not an unmatched booking' };
+      throw new AppError(400, 'Booking is not an unmatched booking');
     }
     
     const [updated] = await tx.update(bookingRequests)
@@ -112,7 +113,7 @@ export async function assignWithPlayers(
       .where(eq(bookingRequests.id, bookingId));
     
     if (!existingBooking) {
-      throw { statusCode: 404, error: 'Booking not found' };
+      throw new AppError(404, 'Booking not found');
     }
     
     const newNote = ` [Assigned by staff: ${owner.name} with ${totalPlayerCount} players]`;
@@ -324,7 +325,7 @@ export async function changeBookingOwner(bookingId: number, newEmail: string, ne
     .where(eq(bookingRequests.id, bookingId));
   
   if (!existingBooking) {
-    throw { statusCode: 404, error: 'Booking not found' };
+    throw new AppError(404, 'Booking not found');
   }
   
   const previousOwner = existingBooking.userName || existingBooking.userEmail;
@@ -393,12 +394,12 @@ export async function createManualBooking(params: {
 }) {
   const validSources = ['Trackman', 'YGB', 'Mindbody', 'Texted Concierge', 'Called', 'Other'];
   if (!validSources.includes(params.bookingSource)) {
-    throw { statusCode: 400, error: 'Invalid booking source' };
+    throw new AppError(400, 'Invalid booking source');
   }
 
   const validDurations = [30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360];
   if (!validDurations.includes(params.durationMinutes)) {
-    throw { statusCode: 400, error: 'Invalid duration. Must be between 30 and 360 minutes in 30-minute increments.' };
+    throw new AppError(400, 'Invalid duration. Must be between 30 and 360 minutes in 30-minute increments.');
   }
 
   const [member] = await db.select()
@@ -406,7 +407,7 @@ export async function createManualBooking(params: {
     .where(eq(users.email, params.memberEmail));
 
   if (!member) {
-    throw { statusCode: 404, error: 'Member not found with that email' };
+    throw new AppError(404, 'Member not found with that email');
   }
 
   const [resource] = await db.select()
@@ -414,7 +415,7 @@ export async function createManualBooking(params: {
     .where(eq(resources.id, params.resourceId));
 
   if (!resource) {
-    throw { statusCode: 404, error: 'Resource not found' };
+    throw new AppError(404, 'Resource not found');
   }
 
   const startParts = params.startTime.split(':').map(Number);
@@ -427,23 +428,17 @@ export async function createManualBooking(params: {
   const conflictCheck = await checkAllConflicts(params.resourceId, params.bookingDate, params.startTime, endTime);
   if (conflictCheck.hasConflict) {
     if (conflictCheck.conflictType === 'closure') {
-      throw { 
-        statusCode: 409,
-        error: 'Time slot conflicts with a facility closure',
+      throw new AppError(409, 'Time slot conflicts with a facility closure', {
         message: `This time slot conflicts with "${conflictCheck.conflictTitle}".`
-      };
+      });
     } else if (conflictCheck.conflictType === 'availability_block') {
-      throw { 
-        statusCode: 409,
-        error: 'Time slot is blocked for an event',
+      throw new AppError(409, 'Time slot is blocked for an event', {
         message: `This time slot is blocked: ${conflictCheck.conflictTitle || 'Event block'}.`
-      };
+      });
     } else {
-      throw { 
-        statusCode: 409,
-        error: 'Time slot already booked',
+      throw new AppError(409, 'Time slot already booked', {
         message: 'Another booking already exists for this time slot.'
-      };
+      });
     }
   }
 

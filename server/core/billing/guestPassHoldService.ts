@@ -23,7 +23,7 @@ export async function getAvailableGuestPasses(
     const tierResult = await client.query(
       `SELECT mt.guest_passes_per_month 
        FROM users u 
-       JOIN membership_tiers mt ON LOWER(u.tier) = LOWER(mt.name)
+       JOIN membership_tiers mt ON u.tier_id = mt.id
        WHERE LOWER(u.email) = $1`,
       [emailLower]
     );
@@ -205,7 +205,7 @@ export async function convertHoldToUsage(
       if (updateResult.rowCount === 0) {
         const tierResult = await client.query(
           `SELECT mt.guest_passes_per_month 
-           FROM users u JOIN membership_tiers mt ON LOWER(u.tier) = LOWER(mt.name)
+           FROM users u JOIN membership_tiers mt ON u.tier_id = mt.id
            WHERE LOWER(u.email) = $1 LIMIT 1`,
           [emailLower]
         );

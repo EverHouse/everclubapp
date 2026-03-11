@@ -14,6 +14,7 @@ import { logMemberAction } from '../auditLog';
 import { sendPushNotification } from '../../routes/push';
 import { sendNotificationToUser } from '../websocket';
 import { releaseGuestPassHold } from '../billing/guestPassHoldService';
+import { AppError } from '../errors';
 
 interface BookingParticipantRow {
   id: number;
@@ -87,12 +88,25 @@ export async function handleCancellationCascade(
          FROM booking_participants WHERE session_id = ${sessionId}`);
       const participants = participantsResult.rows as unknown as BookingParticipantRow[];
 
+      const memberUserIds = participants
+        .filter(p => p.participant_type === 'member' && p.user_id)
+        .map(p => p.user_id as string);
+
+      const userEmailMap = new Map<string, string>();
+      if (memberUserIds.length > 0) {
+        const emailsResult = await tx.execute(sql`SELECT id::text, email FROM users WHERE id::text = ANY(${memberUserIds}) OR LOWER(email) = ANY(SELECT LOWER(unnest(${memberUserIds}::text[])))`);
+        for (const row of emailsResult.rows as unknown as { id: string; email: string }[]) {
+          userEmailMap.set(row.id, row.email);
+          userEmailMap.set(row.email.toLowerCase(), row.email);
+        }
+      }
+
       for (const participant of participants) {
         if (participant.participant_type === 'member' && participant.user_id) {
-          const userResult = await tx.execute(sql`SELECT email FROM users WHERE id = ${participant.user_id} OR LOWER(email) = LOWER(${participant.user_id}) LIMIT 1`);
-          if ((userResult.rows as unknown as UserEmailRow[]).length > 0) {
+          const email = userEmailMap.get(participant.user_id) || userEmailMap.get(participant.user_id.toLowerCase());
+          if (email) {
             membersToNotify.push({
-              email: (userResult.rows as unknown as UserEmailRow[])[0].email,
+              email,
               participantId: participant.id
             });
           }
@@ -314,11 +328,11 @@ export async function deleteBooking(bookingId: number, archivedBy: string, hardD
   .where(eq(bookingRequests.id, bookingId));
   
   if (!booking) {
-    throw { statusCode: 404, error: 'Booking not found' };
+    throw new AppError(404, 'Booking not found');
   }
   
   if (!hardDelete && booking.archivedAt) {
-    throw { statusCode: 400, error: 'Booking is already archived' };
+    throw new AppError(400, 'Booking is already archived');
   }
   
   let resourceName: string | undefined;
@@ -475,7 +489,7 @@ export async function memberCancelBooking(bookingId: number, userEmail: string, 
     .where(eq(bookingRequests.id, bookingId));
   
   if (!existing) {
-    throw { statusCode: 404, error: 'Booking not found' };
+    throw new AppError(404, 'Booking not found');
   }
   
   const bookingEmail = existing.userEmail?.toLowerCase();
@@ -484,9 +498,7 @@ export async function memberCancelBooking(bookingId: number, userEmail: string, 
   const isValidViewAs = isAdminViewingAs && bookingEmail === actingAsEmail;
   
   if (!isOwnBooking && !isValidViewAs) {
-    throw { 
-      statusCode: 403, 
-      error: 'You can only cancel your own bookings',
+    throw new AppError(403, 'You can only cancel your own bookings', {
       _logData: {
         bookingId,
         bookingEmail: existing.userEmail,
@@ -495,20 +507,20 @@ export async function memberCancelBooking(bookingId: number, userEmail: string, 
         normalizedBookingEmail: bookingEmail,
         normalizedSessionEmail: userEmail
       }
-    };
+    });
   }
   
   if (existing.status === 'cancelled') {
-    throw { statusCode: 400, error: 'Booking is already cancelled' };
+    throw new AppError(400, 'Booking is already cancelled');
   }
   if (existing.status === 'cancellation_pending') {
-    throw { statusCode: 400, error: 'Cancellation is already in progress' };
+    throw new AppError(400, 'Cancellation is already in progress');
   }
 
   if (!isAdminViewingAs && existing.requestDate && existing.startTime) {
     const bookingStart = new Date(`${existing.requestDate}T${existing.startTime}`);
     if (bookingStart <= new Date()) {
-      throw { statusCode: 400, error: 'This booking has already started and cannot be cancelled' };
+      throw new AppError(400, 'This booking has already started and cannot be cancelled');
     }
   }
   

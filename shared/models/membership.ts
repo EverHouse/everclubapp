@@ -78,7 +78,9 @@ export const memberNotes = pgTable("member_notes", {
   isPinned: boolean("is_pinned").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("member_notes_member_email_idx").on(table.memberEmail),
+]);
 
 // Communication logs table - prepared for HubSpot 2-way sync
 export const communicationLogs = pgTable("communication_logs", {
@@ -96,7 +98,9 @@ export const communicationLogs = pgTable("communication_logs", {
   occurredAt: timestamp("occurred_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("communication_logs_member_email_idx").on(table.memberEmail),
+]);
 
 // Guest check-ins table - tracking guest visits by member
 export const guestCheckIns = pgTable("guest_check_ins", {

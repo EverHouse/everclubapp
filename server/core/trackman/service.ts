@@ -825,9 +825,18 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             }
           }
           
-          const setFragments = Object.entries(updateFields).map(([key, value]) => 
-            sql`${sql.raw(key)} = ${value}`
-          );
+          const ALLOWED_BOOKING_COLUMNS = new Set([
+            'resource_id', 'start_time', 'end_time', 'duration_minutes',
+            'request_date', 'user_email', 'user_name', 'user_id',
+            'trackman_booking_id', 'trackman_player_count', 'declared_player_count',
+            'guest_count', 'notes', 'trackman_customer_notes', 'staff_notes',
+            'is_unmatched', 'status', 'last_sync_source', 'last_trackman_sync_at',
+            'updated_at', 'origin', 'session_id',
+          ]);
+          const setFragments = Object.entries(updateFields).map(([key, value]) => {
+            if (!ALLOWED_BOOKING_COLUMNS.has(key)) throw new Error(`Invalid column for booking_requests update: ${key}`);
+            return sql`${sql.raw(key)} = ${value}`;
+          });
           
           await db.execute(sql`UPDATE booking_requests SET ${sql.join(setFragments, sql`, `)} WHERE id = ${placeholder.id}`);
           

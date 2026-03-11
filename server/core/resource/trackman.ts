@@ -5,6 +5,7 @@ import { logger } from '../logger';
 import { parseTimeToMinutes } from '../bookingValidation';
 import { recalculateSessionFees } from '../billing/unifiedFeeService';
 import { ensureSessionForBooking } from '../bookingService/sessionManager';
+import { AppError } from '../errors';
 
 interface DrizzleExecuteResult<T = Record<string, unknown>> {
   rows?: T[];
@@ -292,7 +293,7 @@ export async function linkTrackmanToMember(
       const webhookLog = (webhookResult as unknown as DrizzleExecuteResult<TrackmanWebhookRow>).rows?.[0];
       
       if (!webhookLog) {
-        throw { statusCode: 404, error: 'Trackman booking not found in webhook logs' };
+        throw new AppError(404, 'Trackman booking not found in webhook logs');
       }
       
       let payload: Record<string, unknown>;
@@ -302,7 +303,7 @@ export async function linkTrackmanToMember(
           : webhookLog.payload as unknown as TrackmanPayloadData;
       } catch (parseErr) {
         logger.error('[resourceService] Failed to parse trackman webhook payload', { error: parseErr instanceof Error ? parseErr : new Error(String(parseErr)), extra: { trackmanBookingId } });
-        throw { statusCode: 500, error: 'Failed to parse webhook payload data' };
+        throw new AppError(500, 'Failed to parse webhook payload data');
       }
       const bookingData = ((payload?.data || payload?.booking || {}) as unknown as TrackmanPayloadData);
       
@@ -311,7 +312,7 @@ export async function linkTrackmanToMember(
       const bayRef = bookingData?.bay?.ref;
       
       if (!startStr || !endStr) {
-        throw { statusCode: 400, error: 'Cannot extract booking time from webhook data' };
+        throw new AppError(400, 'Cannot extract booking time from webhook data');
       }
       
       const startDate = new Date(startStr.includes('T') ? startStr : startStr.replace(' ', 'T') + 'Z');
@@ -542,7 +543,7 @@ export async function markBookingAsEvent(params: {
   }
   
   if (!primaryBooking) {
-    throw { statusCode: 404, error: 'Booking not found' };
+    throw new AppError(404, 'Booking not found');
   }
   
   const userName = primaryBooking.userName?.toLowerCase()?.trim();

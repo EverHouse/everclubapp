@@ -69,6 +69,103 @@ import {
   handleSetupIntentFailed,
 } from './handlers/customers';
 
+async function dispatchWebhookEvent(
+  client: import('pg').PoolClient,
+  eventType: string,
+  dataObject: any,
+  previousAttributes?: any
+): Promise<DeferredAction[]> {
+  if (eventType === 'payment_intent.processing' || eventType === 'payment_intent.requires_action') {
+    return handlePaymentIntentStatusUpdate(client, dataObject);
+  } else if (eventType === 'payment_intent.succeeded') {
+    return handlePaymentIntentSucceeded(client, dataObject);
+  } else if (eventType === 'payment_intent.payment_failed') {
+    return handlePaymentIntentFailed(client, dataObject);
+  } else if (eventType === 'payment_intent.canceled') {
+    return handlePaymentIntentCanceled(client, dataObject);
+  } else if (eventType === 'charge.refunded') {
+    return handleChargeRefunded(client, dataObject);
+  } else if (eventType === 'invoice.payment_succeeded') {
+    return handleInvoicePaymentSucceeded(client, dataObject);
+  } else if (eventType === 'invoice.payment_failed') {
+    return handleInvoicePaymentFailed(client, dataObject);
+  } else if (eventType === 'invoice.created' || eventType === 'invoice.finalized' || eventType === 'invoice.updated') {
+    return handleInvoiceLifecycle(client, dataObject, eventType);
+  } else if (eventType === 'invoice.voided' || eventType === 'invoice.marked_uncollectible') {
+    return handleInvoiceVoided(client, dataObject, eventType);
+  } else if (eventType === 'checkout.session.completed') {
+    return handleCheckoutSessionCompleted(client, dataObject);
+  } else if (eventType === 'customer.subscription.created') {
+    return handleSubscriptionCreated(client, dataObject);
+  } else if (eventType === 'customer.subscription.updated') {
+    return handleSubscriptionUpdated(client, dataObject, previousAttributes);
+  } else if (eventType === 'customer.subscription.paused') {
+    return handleSubscriptionPaused(client, dataObject);
+  } else if (eventType === 'customer.subscription.resumed') {
+    return handleSubscriptionResumed(client, dataObject);
+  } else if (eventType === 'customer.subscription.deleted') {
+    return handleSubscriptionDeleted(client, dataObject);
+  } else if (eventType === 'charge.dispute.created') {
+    return handleChargeDisputeCreated(client, dataObject);
+  } else if (eventType === 'charge.dispute.closed') {
+    return handleChargeDisputeClosed(client, dataObject);
+  } else if (eventType === 'product.updated') {
+    return handleProductUpdated(client, dataObject as StripeProductWithMarketingFeatures);
+  } else if (eventType === 'product.created') {
+    return handleProductCreated(client, dataObject as StripeProductWithMarketingFeatures);
+  } else if (eventType === 'product.deleted') {
+    return handleProductDeleted(client, dataObject);
+  } else if (eventType === 'price.updated' || eventType === 'price.created') {
+    return handlePriceChange(client, dataObject);
+  } else if (eventType === 'coupon.updated' || eventType === 'coupon.created') {
+    const coupon = dataObject as Stripe.Coupon;
+    if (coupon.id === 'FAMILY20' && coupon.percent_off) {
+      updateFamilyDiscountPercent(coupon.percent_off);
+      logger.info(`[Stripe Webhook] FAMILY20 coupon ${eventType}: ${coupon.percent_off}% off`);
+    }
+  } else if (eventType === 'coupon.deleted') {
+    const coupon = dataObject as Stripe.Coupon;
+    if (coupon.id === 'FAMILY20') {
+      logger.info('[Stripe Webhook] FAMILY20 coupon deleted - will be recreated on next use');
+    }
+  } else if (eventType === 'credit_note.created') {
+    return handleCreditNoteCreated(client, dataObject as Stripe.CreditNote);
+  } else if (eventType === 'customer.updated') {
+    return handleCustomerUpdated(client, dataObject as Stripe.Customer);
+  } else if (eventType === 'customer.subscription.trial_will_end') {
+    return handleTrialWillEnd(client, dataObject as Stripe.Subscription);
+  } else if (eventType === 'payment_method.attached') {
+    return handlePaymentMethodAttached(client, dataObject as Stripe.PaymentMethod);
+  } else if (eventType === 'customer.created') {
+    return handleCustomerCreated(client, dataObject as Stripe.Customer);
+  } else if (eventType === 'customer.deleted') {
+    return handleCustomerDeleted(client, dataObject as Stripe.Customer);
+  } else if (eventType === 'payment_method.detached') {
+    return handlePaymentMethodDetached(client, dataObject as Stripe.PaymentMethod);
+  } else if (eventType === 'payment_method.updated') {
+    return handlePaymentMethodUpdated(client, dataObject as Stripe.PaymentMethod);
+  } else if (eventType === 'payment_method.automatically_updated') {
+    return handlePaymentMethodAutoUpdated(client, dataObject as Stripe.PaymentMethod);
+  } else if (eventType === 'charge.dispute.updated') {
+    return handleChargeDisputeUpdated(client, dataObject as Stripe.Dispute);
+  } else if (eventType === 'checkout.session.expired') {
+    return handleCheckoutSessionExpired(client, dataObject as Stripe.Checkout.Session);
+  } else if (eventType === 'checkout.session.async_payment_failed') {
+    return handleCheckoutSessionAsyncPaymentFailed(client, dataObject as Stripe.Checkout.Session);
+  } else if (eventType === 'checkout.session.async_payment_succeeded') {
+    return handleCheckoutSessionAsyncPaymentSucceeded(client, dataObject as Stripe.Checkout.Session);
+  } else if (eventType === 'invoice.payment_action_required') {
+    return handleInvoicePaymentActionRequired(client, dataObject as InvoiceWithLegacyFields);
+  } else if (eventType === 'invoice.overdue') {
+    return handleInvoiceOverdue(client, dataObject as InvoiceWithLegacyFields);
+  } else if (eventType === 'setup_intent.succeeded') {
+    return handleSetupIntentSucceeded(client, dataObject as Stripe.SetupIntent);
+  } else if (eventType === 'setup_intent.setup_failed') {
+    return handleSetupIntentFailed(client, dataObject as Stripe.SetupIntent);
+  }
+  return [];
+}
+
 export async function processStripeWebhook(
   payload: Buffer,
   signature: string
@@ -89,7 +186,6 @@ export async function processStripeWebhook(
 
   const resourceId = extractResourceId(event);
   const client = await pool.connect();
-  let deferredActions: DeferredAction[] = [];
 
   try {
     await client.query('BEGIN');
@@ -113,94 +209,7 @@ export async function processStripeWebhook(
 
     logger.info(`[Stripe Webhook] Processing event: ${event.id} (${event.type})`);
 
-    if (event.type === 'payment_intent.processing' || event.type === 'payment_intent.requires_action') {
-      deferredActions = await handlePaymentIntentStatusUpdate(client, event.data.object);
-    } else if (event.type === 'payment_intent.succeeded') {
-      deferredActions = await handlePaymentIntentSucceeded(client, event.data.object);
-    } else if (event.type === 'payment_intent.payment_failed') {
-      deferredActions = await handlePaymentIntentFailed(client, event.data.object);
-    } else if (event.type === 'payment_intent.canceled') {
-      deferredActions = await handlePaymentIntentCanceled(client, event.data.object);
-    } else if (event.type === 'charge.refunded') {
-      deferredActions = await handleChargeRefunded(client, event.data.object);
-    } else if (event.type === 'invoice.payment_succeeded') {
-      deferredActions = await handleInvoicePaymentSucceeded(client, event.data.object);
-    } else if (event.type === 'invoice.payment_failed') {
-      deferredActions = await handleInvoicePaymentFailed(client, event.data.object);
-    } else if (event.type === 'invoice.created' || event.type === 'invoice.finalized' || event.type === 'invoice.updated') {
-      deferredActions = await handleInvoiceLifecycle(client, event.data.object, event.type);
-    } else if (event.type === 'invoice.voided' || event.type === 'invoice.marked_uncollectible') {
-      deferredActions = await handleInvoiceVoided(client, event.data.object, event.type);
-    } else if (event.type === 'checkout.session.completed') {
-      deferredActions = await handleCheckoutSessionCompleted(client, event.data.object);
-    } else if (event.type === 'customer.subscription.created') {
-      deferredActions = await handleSubscriptionCreated(client, event.data.object);
-    } else if (event.type === 'customer.subscription.updated') {
-      deferredActions = await handleSubscriptionUpdated(client, event.data.object, event.data.previous_attributes);
-    } else if (event.type === 'customer.subscription.paused') {
-      deferredActions = await handleSubscriptionPaused(client, event.data.object);
-    } else if (event.type === 'customer.subscription.resumed') {
-      deferredActions = await handleSubscriptionResumed(client, event.data.object);
-    } else if (event.type === 'customer.subscription.deleted') {
-      deferredActions = await handleSubscriptionDeleted(client, event.data.object);
-    } else if (event.type === 'charge.dispute.created') {
-      deferredActions = await handleChargeDisputeCreated(client, event.data.object);
-    } else if (event.type === 'charge.dispute.closed') {
-      deferredActions = await handleChargeDisputeClosed(client, event.data.object);
-    } else if (event.type === 'product.updated') {
-      deferredActions = await handleProductUpdated(client, event.data.object as StripeProductWithMarketingFeatures);
-    } else if (event.type === 'product.created') {
-      deferredActions = await handleProductCreated(client, event.data.object as StripeProductWithMarketingFeatures);
-    } else if (event.type === 'product.deleted') {
-      deferredActions = await handleProductDeleted(client, event.data.object);
-    } else if (event.type === 'price.updated' || event.type === 'price.created') {
-      deferredActions = await handlePriceChange(client, event.data.object);
-    } else if (event.type === 'coupon.updated' || event.type === 'coupon.created') {
-      const coupon = event.data.object as Stripe.Coupon;
-      if (coupon.id === 'FAMILY20' && coupon.percent_off) {
-        updateFamilyDiscountPercent(coupon.percent_off);
-        logger.info(`[Stripe Webhook] FAMILY20 coupon ${event.type}: ${coupon.percent_off}% off`);
-      }
-    } else if (event.type === 'coupon.deleted') {
-      const coupon = event.data.object as Stripe.Coupon;
-      if (coupon.id === 'FAMILY20') {
-        logger.info('[Stripe Webhook] FAMILY20 coupon deleted - will be recreated on next use');
-      }
-    } else if (event.type === 'credit_note.created') {
-      deferredActions = await handleCreditNoteCreated(client, event.data.object as Stripe.CreditNote);
-    } else if (event.type === 'customer.updated') {
-      deferredActions = await handleCustomerUpdated(client, event.data.object as Stripe.Customer);
-    } else if (event.type === 'customer.subscription.trial_will_end') {
-      deferredActions = await handleTrialWillEnd(client, event.data.object as Stripe.Subscription);
-    } else if (event.type === 'payment_method.attached') {
-      deferredActions = await handlePaymentMethodAttached(client, event.data.object as Stripe.PaymentMethod);
-    } else if (event.type === 'customer.created') {
-      deferredActions = await handleCustomerCreated(client, event.data.object as Stripe.Customer);
-    } else if (event.type === 'customer.deleted') {
-      deferredActions = await handleCustomerDeleted(client, event.data.object as Stripe.Customer);
-    } else if (event.type === 'payment_method.detached') {
-      deferredActions = await handlePaymentMethodDetached(client, event.data.object as Stripe.PaymentMethod);
-    } else if (event.type === 'payment_method.updated') {
-      deferredActions = await handlePaymentMethodUpdated(client, event.data.object as Stripe.PaymentMethod);
-    } else if (event.type === 'payment_method.automatically_updated') {
-      deferredActions = await handlePaymentMethodAutoUpdated(client, event.data.object as Stripe.PaymentMethod);
-    } else if (event.type === 'charge.dispute.updated') {
-      deferredActions = await handleChargeDisputeUpdated(client, event.data.object as Stripe.Dispute);
-    } else if (event.type === 'checkout.session.expired') {
-      deferredActions = await handleCheckoutSessionExpired(client, event.data.object as Stripe.Checkout.Session);
-    } else if (event.type === 'checkout.session.async_payment_failed') {
-      deferredActions = await handleCheckoutSessionAsyncPaymentFailed(client, event.data.object as Stripe.Checkout.Session);
-    } else if (event.type === 'checkout.session.async_payment_succeeded') {
-      deferredActions = await handleCheckoutSessionAsyncPaymentSucceeded(client, event.data.object as Stripe.Checkout.Session);
-    } else if (event.type === 'invoice.payment_action_required') {
-      deferredActions = await handleInvoicePaymentActionRequired(client, event.data.object as InvoiceWithLegacyFields);
-    } else if (event.type === 'invoice.overdue') {
-      deferredActions = await handleInvoiceOverdue(client, event.data.object as InvoiceWithLegacyFields);
-    } else if (event.type === 'setup_intent.succeeded') {
-      deferredActions = await handleSetupIntentSucceeded(client, event.data.object as Stripe.SetupIntent);
-    } else if (event.type === 'setup_intent.setup_failed') {
-      deferredActions = await handleSetupIntentFailed(client, event.data.object as Stripe.SetupIntent);
-    }
+    const deferredActions = await dispatchWebhookEvent(client, event.type, event.data.object, event.data.previous_attributes);
 
     await client.query('COMMIT');
     logger.info(`[Stripe Webhook] Event ${event.id} committed successfully`);
@@ -231,7 +240,6 @@ export async function replayStripeEvent(
 
   const resourceId = extractResourceId(event);
   const client = await pool.connect();
-  let deferredActions: DeferredAction[] = [];
 
   try {
     await client.query('BEGIN');
@@ -257,94 +265,7 @@ export async function replayStripeEvent(
 
     logger.info(`[Stripe Webhook Replay] Processing event: ${event.id} (${event.type})`);
 
-    if (event.type === 'payment_intent.processing' || event.type === 'payment_intent.requires_action') {
-      deferredActions = await handlePaymentIntentStatusUpdate(client, event.data.object);
-    } else if (event.type === 'payment_intent.succeeded') {
-      deferredActions = await handlePaymentIntentSucceeded(client, event.data.object);
-    } else if (event.type === 'payment_intent.payment_failed') {
-      deferredActions = await handlePaymentIntentFailed(client, event.data.object);
-    } else if (event.type === 'payment_intent.canceled') {
-      deferredActions = await handlePaymentIntentCanceled(client, event.data.object);
-    } else if (event.type === 'charge.refunded') {
-      deferredActions = await handleChargeRefunded(client, event.data.object);
-    } else if (event.type === 'invoice.payment_succeeded') {
-      deferredActions = await handleInvoicePaymentSucceeded(client, event.data.object);
-    } else if (event.type === 'invoice.payment_failed') {
-      deferredActions = await handleInvoicePaymentFailed(client, event.data.object);
-    } else if (event.type === 'invoice.created' || event.type === 'invoice.finalized' || event.type === 'invoice.updated') {
-      deferredActions = await handleInvoiceLifecycle(client, event.data.object, event.type);
-    } else if (event.type === 'invoice.voided' || event.type === 'invoice.marked_uncollectible') {
-      deferredActions = await handleInvoiceVoided(client, event.data.object, event.type);
-    } else if (event.type === 'checkout.session.completed') {
-      deferredActions = await handleCheckoutSessionCompleted(client, event.data.object);
-    } else if (event.type === 'customer.subscription.created') {
-      deferredActions = await handleSubscriptionCreated(client, event.data.object);
-    } else if (event.type === 'customer.subscription.updated') {
-      deferredActions = await handleSubscriptionUpdated(client, event.data.object, event.data.previous_attributes);
-    } else if (event.type === 'customer.subscription.paused') {
-      deferredActions = await handleSubscriptionPaused(client, event.data.object);
-    } else if (event.type === 'customer.subscription.resumed') {
-      deferredActions = await handleSubscriptionResumed(client, event.data.object);
-    } else if (event.type === 'customer.subscription.deleted') {
-      deferredActions = await handleSubscriptionDeleted(client, event.data.object);
-    } else if (event.type === 'charge.dispute.created') {
-      deferredActions = await handleChargeDisputeCreated(client, event.data.object);
-    } else if (event.type === 'charge.dispute.closed') {
-      deferredActions = await handleChargeDisputeClosed(client, event.data.object);
-    } else if (event.type === 'product.updated') {
-      deferredActions = await handleProductUpdated(client, event.data.object as StripeProductWithMarketingFeatures);
-    } else if (event.type === 'product.created') {
-      deferredActions = await handleProductCreated(client, event.data.object as StripeProductWithMarketingFeatures);
-    } else if (event.type === 'product.deleted') {
-      deferredActions = await handleProductDeleted(client, event.data.object);
-    } else if (event.type === 'price.updated' || event.type === 'price.created') {
-      deferredActions = await handlePriceChange(client, event.data.object);
-    } else if (event.type === 'coupon.updated' || event.type === 'coupon.created') {
-      const coupon = event.data.object as Stripe.Coupon;
-      if (coupon.id === 'FAMILY20' && coupon.percent_off) {
-        updateFamilyDiscountPercent(coupon.percent_off);
-        logger.info(`[Stripe Webhook Replay] FAMILY20 coupon ${event.type}: ${coupon.percent_off}% off`);
-      }
-    } else if (event.type === 'coupon.deleted') {
-      const coupon = event.data.object as Stripe.Coupon;
-      if (coupon.id === 'FAMILY20') {
-        logger.info('[Stripe Webhook Replay] FAMILY20 coupon deleted - will be recreated on next use');
-      }
-    } else if (event.type === 'credit_note.created') {
-      deferredActions = await handleCreditNoteCreated(client, event.data.object as Stripe.CreditNote);
-    } else if (event.type === 'customer.updated') {
-      deferredActions = await handleCustomerUpdated(client, event.data.object as Stripe.Customer);
-    } else if (event.type === 'customer.subscription.trial_will_end') {
-      deferredActions = await handleTrialWillEnd(client, event.data.object as Stripe.Subscription);
-    } else if (event.type === 'payment_method.attached') {
-      deferredActions = await handlePaymentMethodAttached(client, event.data.object as Stripe.PaymentMethod);
-    } else if (event.type === 'customer.created') {
-      deferredActions = await handleCustomerCreated(client, event.data.object as Stripe.Customer);
-    } else if (event.type === 'customer.deleted') {
-      deferredActions = await handleCustomerDeleted(client, event.data.object as Stripe.Customer);
-    } else if (event.type === 'payment_method.detached') {
-      deferredActions = await handlePaymentMethodDetached(client, event.data.object as Stripe.PaymentMethod);
-    } else if (event.type === 'payment_method.updated') {
-      deferredActions = await handlePaymentMethodUpdated(client, event.data.object as Stripe.PaymentMethod);
-    } else if (event.type === 'payment_method.automatically_updated') {
-      deferredActions = await handlePaymentMethodAutoUpdated(client, event.data.object as Stripe.PaymentMethod);
-    } else if (event.type === 'charge.dispute.updated') {
-      deferredActions = await handleChargeDisputeUpdated(client, event.data.object as Stripe.Dispute);
-    } else if (event.type === 'checkout.session.expired') {
-      deferredActions = await handleCheckoutSessionExpired(client, event.data.object as Stripe.Checkout.Session);
-    } else if (event.type === 'checkout.session.async_payment_failed') {
-      deferredActions = await handleCheckoutSessionAsyncPaymentFailed(client, event.data.object as Stripe.Checkout.Session);
-    } else if (event.type === 'checkout.session.async_payment_succeeded') {
-      deferredActions = await handleCheckoutSessionAsyncPaymentSucceeded(client, event.data.object as Stripe.Checkout.Session);
-    } else if (event.type === 'invoice.payment_action_required') {
-      deferredActions = await handleInvoicePaymentActionRequired(client, event.data.object as InvoiceWithLegacyFields);
-    } else if (event.type === 'invoice.overdue') {
-      deferredActions = await handleInvoiceOverdue(client, event.data.object as InvoiceWithLegacyFields);
-    } else if (event.type === 'setup_intent.succeeded') {
-      deferredActions = await handleSetupIntentSucceeded(client, event.data.object as Stripe.SetupIntent);
-    } else if (event.type === 'setup_intent.setup_failed') {
-      deferredActions = await handleSetupIntentFailed(client, event.data.object as Stripe.SetupIntent);
-    }
+    const deferredActions = await dispatchWebhookEvent(client, event.type, event.data.object, event.data.previous_attributes);
 
     await client.query('COMMIT');
     logger.info(`[Stripe Webhook Replay] Event ${event.id} committed successfully`);

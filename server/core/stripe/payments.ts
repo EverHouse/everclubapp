@@ -157,7 +157,7 @@ export async function createPaymentIntent(
     metadata?.feeSnapshotId || `${userId}-${email}`.replace(/[^a-zA-Z0-9-]/g, '')
   ];
   if (!isBookingPayment) {
-    idempotencyComponents.push(Date.now().toString());
+    idempotencyComponents.push(Math.floor(Date.now() / 300000).toString());
   }
   const idempotencyKey = `pi_${idempotencyComponents.join('_')}`;
   

@@ -1,6 +1,6 @@
 import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
 
-const RETRYABLE_ERRORS = [
+export const RETRYABLE_ERRORS = [
   'ECONNRESET',
   'ECONNREFUSED',
   'ETIMEDOUT',
@@ -11,6 +11,8 @@ const RETRYABLE_ERRORS = [
   'sorry, too many clients already',
   'Connection refused',
   'socket hang up',
+  'Connection terminated due to connection timeout',
+  'connection terminated due to connection timeout',
 ];
 
 export function isRetryableError(error: unknown): boolean {

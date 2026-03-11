@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { getStripeClient } from '../stripe/client';
 import { db } from '../../db';
 import { logger } from '../logger';
@@ -60,6 +61,16 @@ interface InvoiceSyncRow {
 
 interface TrackmanBookingIdRow {
   trackman_booking_id: string | null;
+}
+
+function safeBroadcast(params: Parameters<typeof broadcastBookingInvoiceUpdate>[0]): void {
+  try {
+    broadcastBookingInvoiceUpdate(params);
+  } catch (err: unknown) {
+    logger.warn('[BookingInvoice] Failed to broadcast invoice update', {
+      extra: { bookingId: params.bookingId, action: params.action, error: getErrorMessage(err) }
+    });
+  }
 }
 
 export interface DraftInvoiceParams {
@@ -306,7 +317,7 @@ export async function createDraftInvoiceForBooking(
     metadata: invoiceMetadata,
     pending_invoice_items_behavior: 'exclude',
   }, {
-    idempotencyKey: `invoice_booking_draft_${bookingId}_${sessionId}_${Date.now()}`
+    idempotencyKey: `invoice_booking_draft_${bookingId}_${sessionId}_${createHash('sha256').update(JSON.stringify(feeLineItems.map(li => ({ id: li.participantId, o: li.overageCents, g: li.guestCents, t: li.totalCents })).sort((a, b) => (a.id || '').localeCompare(b.id || '')))).digest('hex').substring(0, 12)}`
   });
 
   try {
@@ -347,13 +358,7 @@ export async function createDraftInvoiceForBooking(
     extra: { bookingId, sessionId, invoiceId: invoice.id, totalCents, lineItems: feeLineItems.length }
   });
 
-  try {
-    broadcastBookingInvoiceUpdate({ bookingId, sessionId, action: 'invoice_created', invoiceId: invoice.id, totalCents });
-  } catch (err: unknown) {
-    logger.warn('[BookingInvoice] Failed to broadcast invoice creation', {
-      extra: { bookingId, invoiceId: invoice.id, error: getErrorMessage(err) }
-    });
-  }
+  safeBroadcast({ bookingId, sessionId, action: 'invoice_created', invoiceId: invoice.id, totalCents });
 
   return { invoiceId: invoice.id, totalCents };
 }
@@ -411,13 +416,7 @@ export async function updateDraftInvoiceLineItems(params: {
     extra: { bookingId, sessionId, invoiceId, totalCents, lineItems: feeLineItems.length }
   });
 
-  try {
-    broadcastBookingInvoiceUpdate({ bookingId, sessionId, action: 'invoice_updated', invoiceId, totalCents });
-  } catch (err: unknown) {
-    logger.warn('[BookingInvoice] Failed to broadcast invoice update', {
-      extra: { bookingId, invoiceId, error: getErrorMessage(err) }
-    });
-  }
+  safeBroadcast({ bookingId, sessionId, action: 'invoice_updated', invoiceId, totalCents });
 
   return { invoiceId, totalCents };
 }
@@ -465,19 +464,13 @@ export async function finalizeAndPayInvoice(params: {
   const invoice = await stripe.invoices.retrieve(invoiceId);
 
   if (invoice.status === 'paid') {
-    try {
-      broadcastBookingInvoiceUpdate({
-        bookingId,
-        action: 'invoice_paid',
-        invoiceId,
-        paidInFull: true,
-        totalCents: invoice.amount_paid,
-      });
-    } catch (err: unknown) {
-      logger.warn('[BookingInvoice] Failed to broadcast invoice paid (early return)', {
-        extra: { bookingId, invoiceId, error: getErrorMessage(err) }
-      });
-    }
+    safeBroadcast({
+      bookingId,
+      action: 'invoice_paid',
+      invoiceId,
+      paidInFull: true,
+      totalCents: invoice.amount_paid,
+    });
     return {
       invoiceId,
       paymentIntentId: extractPaymentIntentId(invoice) || `invoice-balance-${invoiceId}`,
@@ -517,18 +510,12 @@ export async function finalizeAndPayInvoice(params: {
         });
 
         if (oobResult.success) {
-          try {
-            broadcastBookingInvoiceUpdate({
-              bookingId,
-              action: 'invoice_paid',
-              invoiceId,
-              paidInFull: true,
-            });
-          } catch (err: unknown) {
-            logger.warn('[BookingInvoice] Failed to broadcast invoice paid (terminal path)', {
-              extra: { bookingId, invoiceId, error: getErrorMessage(err) }
-            });
-          }
+          safeBroadcast({
+            bookingId,
+            action: 'invoice_paid',
+            invoiceId,
+            paidInFull: true,
+          });
           return {
             invoiceId,
             paymentIntentId: existingPi.stripe_payment_intent_id,
@@ -563,19 +550,13 @@ export async function finalizeAndPayInvoice(params: {
   if (finalizedInvoice.status === 'paid') {
     const paidInvoice = await stripe.invoices.retrieve(invoiceId, { expand: ['lines.data'] });
     const amountFromBalance = computeBalanceApplied(paidInvoice);
-    try {
-      broadcastBookingInvoiceUpdate({
-        bookingId,
-        action: 'invoice_paid',
-        invoiceId,
-        paidInFull: true,
-        totalCents: paidInvoice.amount_paid,
-      });
-    } catch (err: unknown) {
-      logger.warn('[BookingInvoice] Failed to broadcast invoice paid (finalized path)', {
-        extra: { bookingId, invoiceId, error: getErrorMessage(err) }
-      });
-    }
+    safeBroadcast({
+      bookingId,
+      action: 'invoice_paid',
+      invoiceId,
+      paidInFull: true,
+      totalCents: paidInvoice.amount_paid,
+    });
     return {
       invoiceId,
       paymentIntentId: extractPaymentIntentId(paidInvoice) || `invoice-balance-${invoiceId}`,
@@ -602,19 +583,13 @@ export async function finalizeAndPayInvoice(params: {
     const amountCharged = paidInvoice.amount_paid - amountFromBalance;
     const resultPiId = extractPaymentIntentId(paidInvoice) || `invoice-pay-${invoiceId}`;
 
-    try {
-      broadcastBookingInvoiceUpdate({
-        bookingId,
-        action: 'invoice_paid',
-        invoiceId,
-        paidInFull: true,
-        totalCents: paidInvoice.amount_paid,
-      });
-    } catch (err: unknown) {
-      logger.warn('[BookingInvoice] Failed to broadcast invoice paid (explicit pay path)', {
-        extra: { bookingId, invoiceId, error: getErrorMessage(err) }
-      });
-    }
+    safeBroadcast({
+      bookingId,
+      action: 'invoice_paid',
+      invoiceId,
+      paidInFull: true,
+      totalCents: paidInvoice.amount_paid,
+    });
 
     return {
       invoiceId,
@@ -680,24 +655,18 @@ export async function finalizeAndPayInvoice(params: {
       extra: { bookingId, invoiceId, paymentIntentId: invoicePiId, status: pi.status }
     });
 
-    try {
-      const broadcastAction = pi.status === 'succeeded' 
-        ? 'invoice_paid' 
-        : pi.status === 'requires_action' 
-          ? 'payment_requires_action' 
-          : 'payment_confirmed';
-      broadcastBookingInvoiceUpdate({
-        bookingId,
-        action: broadcastAction,
-        invoiceId,
-        paidInFull: pi.status === 'succeeded',
-        totalCents: paidInvoice.amount_paid,
-      });
-    } catch (err: unknown) {
-      logger.warn('[BookingInvoice] Failed to broadcast invoice payment (off-session path)', {
-        extra: { bookingId, invoiceId, error: getErrorMessage(err) }
-      });
-    }
+    const broadcastAction = pi.status === 'succeeded' 
+      ? 'invoice_paid' 
+      : pi.status === 'requires_action' 
+        ? 'payment_requires_action' 
+        : 'payment_confirmed';
+    safeBroadcast({
+      bookingId,
+      action: broadcastAction,
+      invoiceId,
+      paidInFull: pi.status === 'succeeded',
+      totalCents: paidInvoice.amount_paid,
+    });
 
     return {
       invoiceId,
@@ -848,13 +817,7 @@ export async function finalizeInvoicePaidOutOfBand(params: {
       extra: { bookingId, invoiceId, paidVia, terminalPaymentIntentId }
     });
 
-    try {
-      broadcastBookingInvoiceUpdate({ bookingId, action: 'invoice_paid', invoiceId });
-    } catch (err: unknown) {
-      logger.warn('[BookingInvoice] Failed to broadcast invoice paid (OOB path)', {
-        extra: { bookingId, invoiceId, error: getErrorMessage(err) }
-      });
-    }
+    safeBroadcast({ bookingId, action: 'invoice_paid', invoiceId });
 
     return {
       success: true,
@@ -938,13 +901,7 @@ export async function voidBookingInvoice(bookingId: number): Promise<{
 
   await db.update(bookingRequests).set({ stripeInvoiceId: null, updatedAt: new Date() }).where(eq(bookingRequests.id, bookingId));
 
-  try {
-    broadcastBookingInvoiceUpdate({ bookingId, action: 'invoice_voided', invoiceId: invoiceIds[0] });
-  } catch (err: unknown) {
-    logger.warn('[BookingInvoice] Failed to broadcast invoice voided', {
-      extra: { bookingId, error: getErrorMessage(err) }
-    });
-  }
+  safeBroadcast({ bookingId, action: 'invoice_voided', invoiceId: invoiceIds[0] });
 
   if (errors.length > 0) {
     return { success: false, error: errors.join('; ') };
@@ -1114,13 +1071,7 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
         extra: { bookingId, sessionId, invoiceId: draftResult.invoiceId, totalCents: draftResult.totalCents }
       });
 
-      try {
-        broadcastBookingInvoiceUpdate({ bookingId, sessionId, action: 'invoice_created', invoiceId: draftResult.invoiceId });
-      } catch (err: unknown) {
-        logger.warn('[BookingInvoice] Failed to broadcast invoice creation in syncBookingInvoice', {
-          extra: { bookingId, sessionId, error: getErrorMessage(err) }
-        });
-      }
+      safeBroadcast({ bookingId, sessionId, action: 'invoice_created', invoiceId: draftResult.invoiceId });
       return;
     }
 
@@ -1197,13 +1148,7 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
         extra: { bookingId, sessionId, invoiceId: stripeInvoiceId }
       });
 
-      try {
-        broadcastBookingInvoiceUpdate({ bookingId, sessionId, action: 'invoice_deleted', invoiceId: stripeInvoiceId });
-      } catch (err: unknown) {
-        logger.warn('[BookingInvoice] Failed to broadcast invoice deletion in syncBookingInvoice', {
-          extra: { bookingId, sessionId, error: getErrorMessage(err) }
-        });
-      }
+      safeBroadcast({ bookingId, sessionId, action: 'invoice_deleted', invoiceId: stripeInvoiceId });
     }
   } catch (err: unknown) {
     logger.warn('[BookingInvoice] Non-blocking: syncBookingInvoice failed', {

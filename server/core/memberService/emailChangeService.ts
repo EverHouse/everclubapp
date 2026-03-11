@@ -20,6 +20,20 @@ export interface EmailChangeResult {
   error?: string;
 }
 
+const ALLOWED_EMAIL_CHANGE_TABLES = new Set([
+  'users', 'hubspot_deals', 'guest_passes', 'member_notes',
+  'communication_logs', 'guest_check_ins', 'billing_groups',
+  'group_members', 'booking_requests', 'admin_audit_log',
+  'hubspot_line_items', 'legacy_purchases', 'notifications',
+  'push_subscriptions', 'event_rsvps', 'wellness_enrollments',
+  'user_linked_emails', 'user_dismissed_notices',
+]);
+
+const ALLOWED_EMAIL_CHANGE_COLUMNS = new Set([
+  'email', 'member_email', 'primary_email', 'user_email',
+  'resource_id', 'created_by',
+]);
+
 export async function cascadeEmailChange(
   oldEmail: string,
   newEmail: string,
@@ -53,6 +67,12 @@ export async function cascadeEmailChange(
         emailColumn: string,
         additionalCondition?: string
       ): Promise<number> => {
+        if (!ALLOWED_EMAIL_CHANGE_TABLES.has(tableName)) {
+          throw new Error(`Invalid table for email change: ${tableName}`);
+        }
+        if (!ALLOWED_EMAIL_CHANGE_COLUMNS.has(emailColumn)) {
+          throw new Error(`Invalid column for email change: ${emailColumn}`);
+        }
         const result = await tx.execute(
           sql`UPDATE ${sql.raw(tableName)} SET ${sql.raw(emailColumn)} = ${normalizedNewEmail} WHERE LOWER(${sql.raw(emailColumn)}) = LOWER(${normalizedOldEmail}) ${additionalCondition ? sql.raw(additionalCondition) : sql``}`
         );
@@ -211,6 +231,8 @@ export async function previewEmailChangeImpact(
 
   for (const { table, column } of tablesToCheck) {
     try {
+      if (!ALLOWED_EMAIL_CHANGE_TABLES.has(table)) throw new Error(`Invalid table for email preview: ${table}`);
+      if (!ALLOWED_EMAIL_CHANGE_COLUMNS.has(column)) throw new Error(`Invalid column for email preview: ${column}`);
       const result = await db.execute(
         sql`SELECT COUNT(*) as count FROM ${sql.raw(table)} WHERE LOWER(${sql.raw(column)}) = LOWER(${email.toLowerCase().trim()})`
       );

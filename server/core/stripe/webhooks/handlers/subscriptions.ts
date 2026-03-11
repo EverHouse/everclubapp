@@ -1593,13 +1593,19 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
         const { getTodayPacific, formatTimePacific } = await import('../../../../utils/dateUtils');
         const todayStr = getTodayPacific();
         const nowTimePacific = formatTimePacific(new Date());
-        const futureBookingsResult = await client.query(
-          `SELECT id, request_date, start_time, status FROM booking_requests 
-           WHERE LOWER(user_email) = LOWER($1) 
-           AND status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'cancellation_pending')
-           AND (request_date > $2 OR (request_date = $2 AND start_time > $3))`,
-          [email, todayStr, nowTimePacific]
-        );
+        const deferredClient = await pool.connect();
+        let futureBookingsResult;
+        try {
+          futureBookingsResult = await deferredClient.query(
+            `SELECT id, request_date, start_time, status FROM booking_requests 
+             WHERE LOWER(user_email) = LOWER($1) 
+             AND status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'cancellation_pending')
+             AND (request_date > $2 OR (request_date = $2 AND start_time > $3))`,
+            [email, todayStr, nowTimePacific]
+          );
+        } finally {
+          safeRelease(deferredClient);
+        }
 
         if (futureBookingsResult.rows.length > 0) {
           const { BookingStateService } = await import('../../../bookingService/bookingStateService');

@@ -1003,6 +1003,23 @@ async function initializeApp() {
   }
 
   app.use((err: Error, req: import('express').Request, res: import('express').Response, _next: import('express').NextFunction) => {
+    const appErr = err as unknown as { statusCode?: number; error?: string; details?: Record<string, unknown> };
+    if (err.constructor?.name === 'AppError' && typeof appErr.statusCode === 'number' && typeof appErr.error === 'string') {
+      logger.warn('[Express] AppError', {
+        error: err,
+        extra: { method: req.method, url: req.originalUrl, status: appErr.statusCode }
+      });
+      if (!res.headersSent) {
+        const body: Record<string, unknown> = { error: appErr.error };
+        if (appErr.details) {
+          for (const [key, value] of Object.entries(appErr.details)) {
+            body[key] = value;
+          }
+        }
+        res.status(appErr.statusCode).json(body);
+      }
+      return;
+    }
     const status = getErrorStatusCode(err) || 500;
     logger.error('[Express] Unhandled route error', {
       error: err,

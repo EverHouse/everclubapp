@@ -110,7 +110,7 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, validateBody(quick
         metadata: guestMetadata,
         payment_method_types: ['card_present', 'card'],
       }, {
-        idempotencyKey: `guest_pos_${staffEmail}_${numericAmount}_${finalDescription.substring(0, 40)}_${Math.floor(Date.now() / 300000)}`
+        idempotencyKey: `guest_pos_${staffEmail}_${numericAmount}_${Math.floor(Date.now() / 300000)}`
       });
 
       try {
@@ -392,7 +392,7 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, validateBo
         if (exclusionCheck.rows.length > 0) {
           logger.warn('[Stripe] Skipping user creation for permanently deleted member after payment', { extra: { memberEmail } });
         } else {
-          const userId = require('crypto').randomUUID();
+          const userId = randomUUID();
           await db.execute(sql`INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, stripe_customer_id, created_at)
              VALUES (${userId}, ${memberEmail.toLowerCase()}, ${firstName}, ${lastName}, ${phone}, ${dob}, ${validatedTierName}, 'inactive', 'stripe', ${stripeCustomerId || null}, NOW())`);
           logger.info('[Stripe] Created user with tier after payment confirmation', { extra: { memberEmail, validatedTierName } });

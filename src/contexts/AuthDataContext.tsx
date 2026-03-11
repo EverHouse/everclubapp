@@ -244,7 +244,7 @@ export const AuthDataProvider: React.FC<{children: ReactNode}> = ({ children }) 
   const loginWithMember = useCallback((member: MemberProfile) => {
     const memberProfile: MemberProfile = {
       id: member.id,
-      name: [(member as unknown as { firstName?: string }).firstName, (member as unknown as { lastName?: string }).lastName].filter(Boolean).join(' ') || member.email || 'Member',
+      name: member.name || member.email || 'Member',
       tier: member.tier || 'Core',
       tags: member.tags || [],
       status: 'Active',
@@ -282,45 +282,10 @@ export const AuthDataProvider: React.FC<{children: ReactNode}> = ({ children }) 
     setViewAsUserState(null);
   }, []);
 
-  const refreshUser = useCallback(async () => {
-    if (!actualUser?.email) return;
-
-    try {
-      const res = await fetch('/api/auth/verify-member', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: actualUser.email })
-      });
-
-      if (res.ok) {
-        const { member } = await res.json();
-        const memberProfile: MemberProfile = {
-          id: member.id,
-          name: [member.firstName, member.lastName].filter(Boolean).join(' ') || member.email || 'Member',
-          tier: member.tier || 'Core',
-          tags: member.tags || [],
-          status: 'Active',
-          email: member.email,
-          phone: member.phone || '',
-          jobTitle: member.jobTitle || '',
-          role: member.role || 'member',
-          mindbodyClientId: member.mindbodyClientId || '',
-          lifetimeVisits: member.lifetimeVisits || 0,
-          lastBookingDate: member.lastBookingDate || undefined
-        };
-
-        localStorage.setItem('eh_member', JSON.stringify(memberProfile));
-        setActualUser(memberProfile);
-      }
-    } catch (err: unknown) {
-      console.error('Failed to refresh user data:', err);
-    }
-  }, [actualUser?.email]);
-
-
-
-
   const refreshUserRef = useRef<() => Promise<void>>(undefined);
+  const refreshUser = useCallback(async () => {
+    await refreshUserRef.current?.();
+  }, []);
   useEffect(() => {
     refreshUserRef.current = async () => {
       const currentEmail = actualUserRef.current?.email;

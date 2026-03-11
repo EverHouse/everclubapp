@@ -78,61 +78,75 @@ export async function checkStuckTransitionalMembers(): Promise<IntegrityCheckRes
     logger.debug('[DataIntegrity] Could not connect to Stripe for stuck member check');
   }
 
-  for (const member of stuckMembers) {
-    const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'Unknown';
-    const subId = member.stripe_subscription_id;
+  const STUCK_BATCH_SIZE = 10;
+  for (let i = 0; i < stuckMembers.length; i += STUCK_BATCH_SIZE) {
+    const batch = stuckMembers.slice(i, i + STUCK_BATCH_SIZE);
+    const results = await Promise.allSettled(batch.map(async (member) => {
+      const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'Unknown';
+      const subId = member.stripe_subscription_id;
 
-    if (stripe && subId) {
-      try {
-        const sub = await stripe.subscriptions.retrieve(subId);
-        const deadStatuses = ['incomplete_expired', 'canceled'];
-        if (deadStatuses.includes(sub.status)) {
-          await db.execute(sql`
-            UPDATE users 
-            SET stripe_subscription_id = NULL, 
-                membership_status = 'non-member',
-                updated_at = NOW()
-            WHERE id = ${member.id}
-              AND stripe_subscription_id = ${subId}
-          `);
-          logger.info(`[DataIntegrity] Auto-cleaned dead subscription for "${memberName}" <${member.email}> (Stripe status: ${sub.status})`);
-          continue;
+      if (stripe && subId) {
+        try {
+          const sub = await stripe.subscriptions.retrieve(subId);
+          const deadStatuses = ['incomplete_expired', 'canceled'];
+          if (deadStatuses.includes(sub.status)) {
+            await db.execute(sql`
+              UPDATE users 
+              SET stripe_subscription_id = NULL, 
+                  membership_status = 'non-member',
+                  updated_at = NOW()
+              WHERE id = ${member.id}
+                AND stripe_subscription_id = ${subId}
+            `);
+            logger.info(`[DataIntegrity] Auto-cleaned dead subscription for "${memberName}" <${member.email}> (Stripe status: ${sub.status})`);
+            return { cleaned: true };
+          }
+        } catch (err: unknown) {
+          const errMsg = getErrorMessage(err);
+          if (errMsg.includes('No such subscription') || errMsg.includes('resource_missing')) {
+            await db.execute(sql`
+              UPDATE users 
+              SET stripe_subscription_id = NULL, 
+                  membership_status = 'non-member',
+                  updated_at = NOW()
+              WHERE id = ${member.id}
+                AND stripe_subscription_id = ${subId}
+            `);
+            logger.info(`[DataIntegrity] Auto-cleaned missing subscription for "${memberName}" <${member.email}> (subscription not found in Stripe)`);
+            return { cleaned: true };
+          }
+          logger.debug(`[DataIntegrity] Could not verify subscription for "${memberName}": ${errMsg}`);
         }
-      } catch (err: unknown) {
-        const errMsg = getErrorMessage(err);
-        if (errMsg.includes('No such subscription') || errMsg.includes('resource_missing')) {
-          await db.execute(sql`
-            UPDATE users 
-            SET stripe_subscription_id = NULL, 
-                membership_status = 'non-member',
-                updated_at = NOW()
-            WHERE id = ${member.id}
-              AND stripe_subscription_id = ${subId}
-          `);
-          logger.info(`[DataIntegrity] Auto-cleaned missing subscription for "${memberName}" <${member.email}> (subscription not found in Stripe)`);
-          continue;
+      }
+
+      const hoursStuck = Math.round((Date.now() - new Date(member.updated_at).getTime()) / (1000 * 60 * 60));
+      return {
+        cleaned: false,
+        issue: {
+          category: 'sync_mismatch' as const,
+          severity: 'error' as const,
+          table: 'users',
+          recordId: member.id,
+          description: `Member "${memberName}" has Stripe subscription but is stuck in '${member.membership_status}' status for ${hoursStuck} hours`,
+          suggestion: 'Check Stripe webhook delivery or manually sync membership status',
+          context: {
+            memberName,
+            memberEmail: member.email,
+            memberTier: member.tier,
+            stripeCustomerId: member.stripe_subscription_id,
+            userId: Number(member.id)
+          }
         }
-        logger.debug(`[DataIntegrity] Could not verify subscription for "${memberName}": ${errMsg}`);
+      };
+    }));
+
+    for (const result of results) {
+      if (result.status === 'fulfilled' && !result.value.cleaned && result.value.issue) {
+        issues.push(result.value.issue);
+      } else if (result.status === 'rejected') {
+        logger.warn('[DataIntegrity] Stuck member check batch item failed', { error: result.reason });
       }
     }
-
-    const hoursStuck = Math.round((Date.now() - new Date(member.updated_at).getTime()) / (1000 * 60 * 60));
-
-    issues.push({
-      category: 'sync_mismatch',
-      severity: 'error',
-      table: 'users',
-      recordId: member.id,
-      description: `Member "${memberName}" has Stripe subscription but is stuck in '${member.membership_status}' status for ${hoursStuck} hours`,
-      suggestion: 'Check Stripe webhook delivery or manually sync membership status',
-      context: {
-        memberName,
-        memberEmail: member.email,
-        memberTier: member.tier,
-        stripeCustomerId: member.stripe_subscription_id,
-        userId: Number(member.id)
-      }
-    });
   }
 
   return {

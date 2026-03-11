@@ -133,5 +133,19 @@ export const useData = (): DataContextType => {
     bookings: booking.bookings,
     addBooking: booking.addBooking,
     deleteBooking: booking.deleteBooking
-  }), [auth, member, cafe, event, announcement, booking, isDataReady]);
+  }), [
+    auth.user, auth.actualUser, auth.viewAsUser, auth.isViewingAs,
+    auth.isLoading, auth.sessionChecked, auth.sessionVersion,
+    auth.loginWithMember, auth.logout, auth.refreshUser,
+    auth.setViewAsUser, auth.clearViewAsUser,
+    member.members, member.formerMembers, member.fetchFormerMembers,
+    member.fetchMembersPaginated, member.membersPagination, member.isFetchingMembers,
+    member.updateMember, member.refreshMembers,
+    cafe.cafeMenu, cafe.addCafeItem, cafe.updateCafeItem, cafe.deleteCafeItem, cafe.refreshCafeMenu,
+    event.events, event.addEvent, event.updateEvent, event.deleteEvent, event.syncEventbrite,
+    announcement.announcements, announcement.addAnnouncement, announcement.updateAnnouncement,
+    announcement.deleteAnnouncement, announcement.refreshAnnouncements,
+    booking.bookings, booking.addBooking, booking.deleteBooking,
+    isDataReady
+  ]);
 };

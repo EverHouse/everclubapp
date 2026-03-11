@@ -108,6 +108,8 @@ export const users = pgTable("users", {
   index("users_membership_status_idx").on(table.membershipStatus),
   index("users_billing_group_id_idx").on(table.billingGroupId),
   index("users_visitor_type_idx").on(table.visitorType),
+  index("users_hubspot_id_idx").on(table.hubspotId),
+  index("users_tier_id_idx").on(table.tierId),
 ]);
 
 // Staff users table - emails that get staff or admin access
@@ -135,7 +137,9 @@ export const magicLinks = pgTable("magic_links", {
   expiresAt: timestamp("expires_at").notNull(),
   used: boolean("used").default(false),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("magic_links_token_idx").on(table.token),
+]);
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;

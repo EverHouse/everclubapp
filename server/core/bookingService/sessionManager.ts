@@ -165,7 +165,10 @@ export async function ensureSessionForBooking(params: {
 
     if (!sessionId) {
       try {
-        await lockClient.query(`SET app.bypass_overlap_check = 'true'`);
+        if (manageLockClient) {
+          await lockClient.query('BEGIN');
+        }
+        await lockClient.query(`SET LOCAL app.bypass_overlap_check = 'true'`);
         try {
           const insertResult = await lockClient.query(
             `INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by, created_at)
@@ -188,15 +191,14 @@ export async function ensureSessionForBooking(params: {
               reusedStaleSession = true;
             }
           }
-        } finally {
-          try {
-            await lockClient.query(`RESET app.bypass_overlap_check`);
-          } catch (resetErr) {
-            logger.warn('[SessionManager] Failed to reset bypass_overlap_check, destroying connection to prevent leak', { error: resetErr });
-            if (manageLockClient) {
-              try { lockClient.release(true); } catch (_) {}
-            }
+          if (manageLockClient) {
+            await lockClient.query('COMMIT');
           }
+        } catch (innerErr) {
+          if (manageLockClient) {
+            try { await lockClient.query('ROLLBACK'); } catch (_) {}
+          }
+          throw innerErr;
         }
       } catch (insertErr: unknown) {
         const errMsg = getErrorMessage(insertErr);
@@ -479,30 +481,20 @@ export async function recordUsage(
 }
 
 export async function getSessionById(sessionId: number): Promise<BookingSession | null> {
-  try {
-    const sessions = await db
-      .select()
-      .from(bookingSessions)
-      .where(eq(bookingSessions.id, sessionId))
-      .limit(1);
-    
-    return sessions[0] || null;
-  } catch (error: unknown) {
-    logger.error('[getSessionById] Error:', { error });
-    return null;
-  }
+  const sessions = await db
+    .select()
+    .from(bookingSessions)
+    .where(eq(bookingSessions.id, sessionId))
+    .limit(1);
+  
+  return sessions[0] || null;
 }
 
 export async function getSessionParticipants(sessionId: number): Promise<BookingParticipant[]> {
-  try {
-    return await db
-      .select()
-      .from(bookingParticipants)
-      .where(eq(bookingParticipants.sessionId, sessionId));
-  } catch (error: unknown) {
-    logger.error('[getSessionParticipants] Error:', { error });
-    return [];
-  }
+  return await db
+    .select()
+    .from(bookingParticipants)
+    .where(eq(bookingParticipants.sessionId, sessionId));
 }
 
 export async function createOrFindGuest(
@@ -653,9 +645,11 @@ async function deductGuestPassesInternal(
     logger.warn('[deductGuestPasses] Insufficient passes after race resolution', { extra: { memberEmail, passCount } });
     return { success: false, passesDeducted: 0 };
   } catch (error: unknown) {
-    if (manageTransaction) await client.query('ROLLBACK');
+    if (manageTransaction) {
+      try { await client.query('ROLLBACK'); } catch (_) {}
+    }
     logger.error('[deductGuestPasses] Error:', { error });
-    return { success: false, passesDeducted: 0 };
+    throw error;
   } finally {
     if (manageTransaction) safeRelease(client);
   }

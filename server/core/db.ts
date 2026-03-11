@@ -1,5 +1,6 @@
 import { Pool, PoolClient, QueryResult } from 'pg';
-import { getErrorMessage, getErrorCode, getErrorDetail } from '../utils/errorUtils';
+import { getErrorCode, getErrorDetail } from '../utils/errorUtils';
+import { isRetryableError as _isRetryableError } from './retry';
 
 import { logger } from './logger';
 export const isProduction = process.env.NODE_ENV === 'production';
@@ -62,24 +63,8 @@ if (usingPooler && directPool !== pool) {
   });
 }
 
-const RETRYABLE_ERRORS = [
-  'ECONNRESET',
-  'ECONNREFUSED',
-  'ETIMEDOUT',
-  'EPIPE',
-  'connection terminated unexpectedly',
-  'Connection terminated unexpectedly',
-  'timeout expired',
-  'sorry, too many clients already',
-  'Connection terminated due to connection timeout',
-  'connection terminated due to connection timeout',
-];
-
 function isRetryableError(error: unknown): boolean {
-  if (!error) return false;
-  const message = getErrorMessage(error);
-  const code = getErrorCode(error);
-  return RETRYABLE_ERRORS.some(e => message.includes(e) || code === e);
+  return _isRetryableError(error);
 }
 
 export function isConstraintError(error: unknown): { type: 'unique' | 'foreign_key' | null, detail?: string } {

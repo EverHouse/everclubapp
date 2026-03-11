@@ -23,6 +23,7 @@ import { releaseGuestPassHold } from '../billing/guestPassHoldService';
 import { createPrepaymentIntent } from '../billing/prepaymentService';
 import { voidBookingInvoice, finalizeAndPayInvoice } from '../billing/bookingInvoiceService';
 import { getErrorMessage, getErrorStatusCode } from '../../utils/errorUtils';
+import { AppError } from '../errors';
 import { logPaymentAudit } from '../auditLog';
 
 type SqlQueryParam = string | number | boolean | null | Date;
@@ -288,7 +289,7 @@ export async function approveBooking(params: ApproveBookingParams) {
     const [req_data] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
 
     if (!req_data) {
-      throw { statusCode: 404, error: 'Request not found' };
+      throw new AppError(404, 'Request not found');
     }
 
     const assignedBayForLock = resource_id || req_data.resourceId;
@@ -308,13 +309,13 @@ export async function approveBooking(params: ApproveBookingParams) {
         const [refreshed] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
         return { updated: refreshed, bayName: null, approvalMessage: null, isConferenceRoom: false, calendarData: null, prepaymentData: null };
       }
-      throw { statusCode: 409, error: `Booking is already ${req_data.status}. Please refresh the page.` };
+      throw new AppError(409, `Booking is already ${req_data.status}. Please refresh the page.`);
     }
 
     const assignedBayId = resource_id || req_data.resourceId;
 
     if (!assignedBayId) {
-      throw { statusCode: 400, error: 'Bay must be assigned before approval' };
+      throw new AppError(400, 'Bay must be assigned before approval');
     }
 
     const conflicts = await tx.select().from(bookingRequests).where(and(
@@ -335,25 +336,21 @@ export async function approveBooking(params: ApproveBookingParams) {
     ));
 
     if (conflicts.length > 0) {
-      throw { statusCode: 409, error: 'Time slot conflicts with existing booking' };
+      throw new AppError(409, 'Time slot conflicts with existing booking');
     }
 
     const closureCheck = await checkClosureConflict(assignedBayId, req_data.requestDate, req_data.startTime, req_data.endTime);
     if (closureCheck.hasConflict) {
-      throw {
-        statusCode: 409,
-        error: 'Cannot approve booking during closure',
+      throw new AppError(409, 'Cannot approve booking during closure', {
         message: `This time slot conflicts with "${closureCheck.closureTitle}". Please decline this request or wait until the closure ends.`
-      };
+      });
     }
 
     const blockCheck = await checkAvailabilityBlockConflict(assignedBayId, req_data.requestDate, req_data.startTime, req_data.endTime);
     if (blockCheck.hasConflict) {
-      throw {
-        statusCode: 409,
-        error: 'Cannot approve booking during event block',
+      throw new AppError(409, 'Cannot approve booking during event block', {
         message: `This time slot is blocked: ${blockCheck.blockType || 'Event block'}. Please decline this request or reschedule.`
-      };
+      });
     }
 
     const bayResult = await tx.select({ name: resources.name, type: resources.type }).from(resources).where(eq(resources.id, assignedBayId));
@@ -389,7 +386,7 @@ export async function approveBooking(params: ApproveBookingParams) {
       .returning();
 
     if (!updatedRow) {
-      throw { statusCode: 409, error: 'Booking was modified by another staff member. Please refresh and try again.' };
+      throw new AppError(409, 'Booking was modified by another staff member. Please refresh and try again.');
     }
 
     let createdSessionId: number | null = null;
@@ -565,11 +562,12 @@ export async function approveBooking(params: ApproveBookingParams) {
           logger.info('[Booking Approval] Created session for booking with participants, ledger entries', { extra: { createdSessionId, bookingId, createdParticipantIdsLength: createdParticipantIds.length, sessionResultUsageLedgerEntries_0: sessionResult.usageLedgerEntries || 0 } });
         } else {
           logger.error('[Booking Approval] Session creation failed', { extra: { sessionResultError: sessionResult.error } });
-          throw { statusCode: 500, error: 'Failed to create booking session. Please try again.', details: sessionResult.error };
+          throw new AppError(500, 'Failed to create booking session. Please try again.', { details: sessionResult.error });
         }
       } catch (sessionError: unknown) {
+        if (sessionError instanceof AppError) throw sessionError;
         logger.error('[Booking Approval] Failed to create session', { extra: { sessionError } });
-        throw { statusCode: 500, error: 'Failed to create booking session. Please try again.', details: getErrorMessage(sessionError) || sessionError };
+        throw new AppError(500, 'Failed to create booking session. Please try again.', { details: getErrorMessage(sessionError) || sessionError });
       }
     }
 
@@ -887,12 +885,12 @@ export async function declineBooking(params: DeclineBookingParams) {
     const [existing] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
 
     if (!existing) {
-      throw { statusCode: 404, error: 'Booking request not found' };
+      throw new AppError(404, 'Booking request not found');
     }
 
     const declinableStatuses = ['pending', 'pending_approval'];
     if (!declinableStatuses.includes(existing.status || '')) {
-      throw { statusCode: 409, error: `Cannot decline a booking that is already ${existing.status}. Use cancel instead.` };
+      throw new AppError(409, `Cannot decline a booking that is already ${existing.status}. Use cancel instead.`);
     }
 
     let resourceTypeName = 'simulator';
@@ -920,7 +918,7 @@ export async function declineBooking(params: DeclineBookingParams) {
       .returning();
 
     if (!updatedRow) {
-      throw { statusCode: 409, error: 'Booking was modified by another staff member. Please refresh.' };
+      throw new AppError(409, 'Booking was modified by another staff member. Please refresh.');
     }
 
     const declineMessage = suggested_time
@@ -1027,7 +1025,7 @@ export async function cancelBooking(params: CancelBookingParams) {
       .where(eq(bookingRequests.id, bookingId));
 
     if (!existing) {
-      throw { statusCode: 404, error: 'Booking request not found' };
+      throw new AppError(404, 'Booking request not found');
     }
 
     if (existing.status === 'cancellation_pending') {
@@ -1157,7 +1155,7 @@ export async function cancelBooking(params: CancelBookingParams) {
       .returning();
 
     if (!updatedRow) {
-      throw { statusCode: 409, error: 'Booking was modified by another staff member. Please refresh.' };
+      throw new AppError(409, 'Booking was modified by another staff member. Please refresh.');
     }
 
     const sessionResult = await tx.select({ sessionId: bookingRequests.sessionId })
@@ -2073,7 +2071,7 @@ export async function devConfirmBooking(params: DevConfirmParams) {
         logger.error('[Dev Confirm] Session creation failed — cannot approve without billing session', {
           extra: { bookingId, resourceId: booking.resource_id }
         });
-        throw { statusCode: 500, error: 'Failed to create billing session. Cannot approve booking without billing.' };
+        throw new AppError(500, 'Failed to create billing session. Cannot approve booking without billing.');
       }
     }
 

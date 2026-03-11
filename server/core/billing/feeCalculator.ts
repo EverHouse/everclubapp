@@ -130,11 +130,7 @@ export async function calculateAndCacheParticipantFees(
 export async function clearCachedFees(participantIds: number[]): Promise<void> {
   if (participantIds.length === 0) return;
   
-  try {
-    await db.execute(
-      sql`UPDATE booking_participants SET cached_fee_cents = 0 WHERE id = ANY(${toIntArrayLiteral(participantIds)}::int[])`
-    );
-  } catch (error: unknown) {
-    logger.error('[FeeCalculator] Error clearing cached fees:', { error: error });
-  }
+  await db.execute(
+    sql`UPDATE booking_participants SET cached_fee_cents = 0 WHERE id = ANY(${toIntArrayLiteral(participantIds)}::int[])`
+  );
 }
