@@ -161,28 +161,31 @@ async function handleExistingInvoicePayment(params: {
   if (!existingInvoiceId) return null;
 
   try {
-    const invoiceResult = await finalizeAndPayInvoice({ bookingId });
-
-    await db.transaction(async (tx) => {
-      await tx.execute(sql`
-        INSERT INTO booking_fee_snapshots (booking_id, session_id, participant_fees, total_cents, status, stripe_payment_intent_id)
-         VALUES (${bookingId}, ${sessionId}, ${JSON.stringify(serverFees)}, ${serverTotal}, 
-         ${invoiceResult.paidInFull ? 'completed' : 'pending'}, ${invoiceResult.paymentIntentId})
-      `);
-    });
-
-    if (invoiceResult.paymentIntentId && !invoiceResult.paidInFull) {
-      await db.execute(sql`
-        INSERT INTO stripe_payment_intents 
-         (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
-         VALUES (${resolvedUserId || bookingEmail}, ${invoiceResult.paymentIntentId}, ${stripeCustomerId},
-         ${serverTotal}, ${'booking_fee'}, ${bookingId}, ${sessionId},
-         ${`Member payment invoice for booking ${trackmanId ? `TM-${trackmanId}` : `#${bookingId}`}`}, ${'pending'})
-         ON CONFLICT (stripe_payment_intent_id) DO NOTHING
-      `);
+    const { getStripeClient } = await import('../../core/stripe/client');
+    const stripe = await getStripeClient();
+    const existingInvoice = await stripe.invoices.retrieve(existingInvoiceId);
+    if (existingInvoice.status === 'open' && existingInvoice.amount_due !== serverTotal) {
+      logger.info('[Stripe] Existing open invoice amount stale, voiding and falling back to new invoice', {
+        extra: { bookingId, invoiceId: existingInvoiceId, oldAmount: existingInvoice.amount_due, newAmount: serverTotal }
+      });
+      await stripe.invoices.voidInvoice(existingInvoiceId);
+      await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = ${bookingId}`);
+      return null;
     }
 
+    const invoiceResult = await finalizeAndPayInvoice({ bookingId });
+
+    const participantFeesList = pendingFees.map(f => ({
+      id: f.participantId,
+      displayName: f.displayName,
+      amount: f.totalCents / 100
+    }));
+
     if (invoiceResult.paidInFull) {
+      await db.execute(sql`
+        INSERT INTO booking_fee_snapshots (booking_id, session_id, participant_fees, total_cents, status, stripe_payment_intent_id)
+         VALUES (${bookingId}, ${sessionId}, ${JSON.stringify(serverFees)}, ${serverTotal}, 'completed', ${invoiceResult.paymentIntentId})
+      `);
       const paidParticipantIds = pendingFees.map(f => f.participantId!).filter(Boolean);
       if (paidParticipantIds.length > 0) {
         await db.execute(sql`
@@ -212,29 +215,64 @@ async function handleExistingInvoicePayment(params: {
         remainingAmount: 0,
         hostedInvoiceUrl: invoiceResult.hostedInvoiceUrl || null,
         invoicePdf: invoiceResult.invoicePdf || null,
-        participantFees: pendingFees.map(f => ({
-          id: f.participantId,
-          displayName: f.displayName,
-          amount: f.totalCents / 100
-        }))
+        participantFees: participantFeesList,
       };
+    }
+
+    let clientSecret = invoiceResult.clientSecret;
+    let paymentIntentId = invoiceResult.paymentIntentId;
+
+    if (!clientSecret || !paymentIntentId) {
+      const standalonePi = await stripe.paymentIntents.create({
+        amount: serverTotal,
+        currency: 'usd',
+        customer: stripeCustomerId,
+        metadata: {
+          invoice_id: invoiceResult.invoiceId,
+          booking_id: bookingId.toString(),
+          purpose: 'booking_fee',
+          member_email: bookingEmail,
+          source: 'ever_house_member_portal',
+        },
+        description: `Booking fees for ${trackmanId ? `TM-${trackmanId}` : `#${bookingId}`}`,
+        automatic_payment_methods: { enabled: true },
+      }, {
+        idempotencyKey: `pay_fees_existing_standalone_${bookingId}_${sessionId}_${Math.floor(Date.now() / 300000)}`
+      });
+      clientSecret = standalonePi.client_secret || '';
+      paymentIntentId = standalonePi.id;
+      logger.info('[Stripe] Created standalone PI for existing invoice payment (no invoice PI)', {
+        extra: { bookingId, invoiceId: invoiceResult.invoiceId, paymentIntentId: standalonePi.id }
+      });
+    }
+
+    await db.execute(sql`
+      INSERT INTO booking_fee_snapshots (booking_id, session_id, participant_fees, total_cents, status, stripe_payment_intent_id)
+       VALUES (${bookingId}, ${sessionId}, ${JSON.stringify(serverFees)}, ${serverTotal}, 'pending', ${paymentIntentId})
+    `);
+
+    if (paymentIntentId) {
+      await db.execute(sql`
+        INSERT INTO stripe_payment_intents 
+         (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
+         VALUES (${resolvedUserId || bookingEmail}, ${paymentIntentId}, ${stripeCustomerId},
+         ${serverTotal}, ${'booking_fee'}, ${bookingId}, ${sessionId},
+         ${`Member payment invoice for booking ${trackmanId ? `TM-${trackmanId}` : `#${bookingId}`}`}, ${'pending'})
+         ON CONFLICT (stripe_payment_intent_id) DO NOTHING
+      `);
     }
 
     return {
       paidInFull: false,
-      clientSecret: invoiceResult.clientSecret,
-      paymentIntentId: invoiceResult.paymentIntentId,
+      clientSecret,
+      paymentIntentId,
       invoiceId: invoiceResult.invoiceId,
       totalAmount: serverTotal / 100,
       balanceApplied: 0,
       remainingAmount: serverTotal / 100,
       hostedInvoiceUrl: invoiceResult.hostedInvoiceUrl || null,
       invoicePdf: invoiceResult.invoicePdf || null,
-      participantFees: pendingFees.map(f => ({
-        id: f.participantId,
-        displayName: f.displayName,
-        amount: f.totalCents / 100
-      }))
+      participantFees: participantFeesList,
     };
   } catch (invoiceErr: unknown) {
     logger.warn('[Stripe] Failed to use existing draft invoice, falling back to new invoice', {
@@ -446,22 +484,6 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
 
     const invoiceResult = await finalizeAndPayInvoice({ bookingId });
 
-    await db.execute(sql`
-      UPDATE booking_fee_snapshots SET stripe_payment_intent_id = ${invoiceResult.paymentIntentId}, status = ${invoiceResult.paidInFull ? 'completed' : 'pending'} WHERE id = ${snapshotId}
-    `);
-
-    await db.execute(sql`
-      INSERT INTO stripe_payment_intents 
-       (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
-       VALUES (${resolvedUserId || booking.user_email}, ${invoiceResult.paymentIntentId}, ${stripeCustomerId},
-       ${serverTotal}, ${'booking_fee'}, ${bookingId}, ${booking.session_id},
-       ${`Member payment invoice for booking ${trackmanId ? `TM-${trackmanId}` : `#${bookingId}`}`},
-       ${invoiceResult.paidInFull ? 'succeeded' : 'pending'})
-       ON CONFLICT (stripe_payment_intent_id) DO NOTHING
-    `);
-
-    logger.info('[Stripe] Member invoice payment created for booking', { extra: { bookingId, invoiceId: draftResult.invoiceId, paymentIntentId: invoiceResult.paymentIntentId, totalDollars: (serverTotal / 100).toFixed(2) } });
-
     const participantFeesList = pendingFees.map(f => {
       const participant = typedParticipants.find(p => p.id === f.participantId);
       return {
@@ -472,6 +494,20 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
     });
 
     if (invoiceResult.paidInFull) {
+      await db.execute(sql`
+        UPDATE booking_fee_snapshots SET stripe_payment_intent_id = ${invoiceResult.paymentIntentId}, status = 'completed' WHERE id = ${snapshotId}
+      `);
+      if (invoiceResult.paymentIntentId) {
+        await db.execute(sql`
+          INSERT INTO stripe_payment_intents 
+           (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
+           VALUES (${resolvedUserId || booking.user_email}, ${invoiceResult.paymentIntentId}, ${stripeCustomerId},
+           ${serverTotal}, ${'booking_fee'}, ${bookingId}, ${booking.session_id},
+           ${`Member payment invoice for booking ${trackmanId ? `TM-${trackmanId}` : `#${bookingId}`}`},
+           'succeeded')
+           ON CONFLICT (stripe_payment_intent_id) DO NOTHING
+        `);
+      }
       const paidIds = pendingFees.map(f => f.participantId!).filter(Boolean);
       if (paidIds.length > 0) {
         await db.execute(sql`
@@ -505,10 +541,54 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       });
     }
 
+    let clientSecret = invoiceResult.clientSecret;
+    let paymentIntentId = invoiceResult.paymentIntentId;
+
+    if (!clientSecret || !paymentIntentId) {
+      const { getStripeClient } = await import('../../core/stripe/client');
+      const stripe = await getStripeClient();
+      const standalonePi = await stripe.paymentIntents.create({
+        amount: serverTotal,
+        currency: 'usd',
+        customer: stripeCustomerId,
+        metadata: {
+          invoice_id: invoiceResult.invoiceId,
+          booking_id: bookingId.toString(),
+          purpose: 'booking_fee',
+          member_email: booking.user_email,
+          source: 'ever_house_member_portal',
+        },
+        description: `Booking fees for ${trackmanId ? `TM-${trackmanId}` : `#${bookingId}`}`,
+        automatic_payment_methods: { enabled: true },
+      }, {
+        idempotencyKey: `pay_fees_standalone_${bookingId}_${booking.session_id}_${Math.floor(Date.now() / 300000)}`
+      });
+      clientSecret = standalonePi.client_secret || '';
+      paymentIntentId = standalonePi.id;
+      logger.info('[Stripe] Created standalone PI for member payment (no invoice PI)', {
+        extra: { bookingId, invoiceId: invoiceResult.invoiceId, paymentIntentId: standalonePi.id }
+      });
+    }
+
+    await db.execute(sql`
+      UPDATE booking_fee_snapshots SET stripe_payment_intent_id = ${paymentIntentId}, status = 'pending' WHERE id = ${snapshotId}
+    `);
+    await db.execute(sql`
+      INSERT INTO stripe_payment_intents 
+       (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
+       VALUES (${resolvedUserId || booking.user_email}, ${paymentIntentId}, ${stripeCustomerId},
+       ${serverTotal}, ${'booking_fee'}, ${bookingId}, ${booking.session_id},
+       ${`Member payment invoice for booking ${trackmanId ? `TM-${trackmanId}` : `#${bookingId}`}`},
+       'pending')
+       ON CONFLICT (stripe_payment_intent_id) DO NOTHING
+    `);
+
+    logger.info('[Stripe] Member invoice payment created for booking', { extra: { bookingId, invoiceId: draftResult.invoiceId, paymentIntentId, totalDollars: (serverTotal / 100).toFixed(2) } });
+
     res.json({
       paidInFull: false,
-      clientSecret: invoiceResult.clientSecret,
-      paymentIntentId: invoiceResult.paymentIntentId,
+      clientSecret,
+      paymentIntentId,
       invoiceId: invoiceResult.invoiceId,
       totalAmount: serverTotal / 100,
       balanceApplied: 0,
@@ -631,8 +711,23 @@ router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, async (
       });
 
       logger.info('[Stripe] Member payment confirmed for booking , participants marked as paid (transaction committed)', { extra: { bookingId, participantIdsLength: participantIds.length } });
-      
-      // Notify member and broadcast billing update
+
+      try {
+        const invoiceIdResult = await db.execute(sql`SELECT stripe_invoice_id FROM booking_requests WHERE id = ${bookingId} AND stripe_invoice_id IS NOT NULL LIMIT 1`);
+        const invoiceId = (invoiceIdResult.rows[0] as Record<string, unknown> | undefined)?.stripe_invoice_id as string | undefined;
+        if (invoiceId) {
+          const { getStripeClient } = await import('../../core/stripe/client');
+          const stripe = await getStripeClient();
+          const inv = await stripe.invoices.retrieve(invoiceId);
+          if (inv.status === 'open') {
+            await stripe.invoices.pay(invoiceId, { paid_out_of_band: true });
+            logger.info('[Stripe] Marked open invoice as paid OOB after standalone PI payment', { extra: { bookingId, invoiceId, paymentIntentId } });
+          }
+        }
+      } catch (invoiceSettleErr: unknown) {
+        logger.warn('[Stripe] Non-blocking: Failed to settle invoice after confirm-payment', { extra: { bookingId, error: getErrorMessage(invoiceSettleErr) } });
+      }
+
       sendNotificationToUser(sessionEmail, {
         type: 'billing_update',
         title: 'Payment Successful',

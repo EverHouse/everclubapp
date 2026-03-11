@@ -978,6 +978,8 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
       source: string;
       quantity?: number;
       stripePaymentIntentId: string | null;
+      stripeInvoiceId?: string;
+      hostedInvoiceUrl?: string | null;
     }> = [];
 
     for (const row of stripeResult.rows as Array<Record<string, unknown>>) {
@@ -1042,6 +1044,8 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
               status: 'open',
               source: 'Stripe',
               stripePaymentIntentId: null,
+              stripeInvoiceId: inv.id,
+              hostedInvoiceUrl: inv.hosted_invoice_url,
             });
           }
         }

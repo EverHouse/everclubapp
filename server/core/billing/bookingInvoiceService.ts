@@ -189,6 +189,21 @@ export async function createDraftInvoiceForBooking(
         });
         return { invoiceId: existingInvoiceId, totalCents: existingInvoice.amount_paid };
       }
+      if (existingInvoice.status === 'open') {
+        const newTotal = feeLineItems.reduce((sum, li) => sum + li.totalCents, 0);
+        if (existingInvoice.amount_due !== newTotal) {
+          logger.info('[BookingInvoice] Open invoice amount stale, voiding and recreating', {
+            extra: { bookingId, invoiceId: existingInvoiceId, oldAmount: existingInvoice.amount_due, newAmount: newTotal }
+          });
+          await stripe.invoices.voidInvoice(existingInvoiceId);
+          await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL WHERE id = ${bookingId}`);
+        } else {
+          logger.info('[BookingInvoice] Open invoice exists with correct amount, reusing', {
+            extra: { bookingId, invoiceId: existingInvoiceId }
+          });
+          return { invoiceId: existingInvoiceId, totalCents: existingInvoice.amount_due };
+        }
+      }
     } catch (retrieveErr: unknown) {
       logger.warn('[BookingInvoice] Could not retrieve existing invoice, creating new one', {
         extra: { bookingId, existingInvoiceId, error: getErrorMessage(retrieveErr) }
@@ -532,7 +547,20 @@ export async function finalizeAndPayInvoice(params: {
   }
 
   if (!invoicePiId) {
-    throw new Error('Invoice finalization did not create a PaymentIntent');
+    logger.info('[BookingInvoice] No PaymentIntent after finalization (member likely has no default payment method)', {
+      extra: { bookingId, invoiceId, invoiceStatus: finalizedInvoice.status }
+    });
+    return {
+      invoiceId,
+      paymentIntentId: '',
+      clientSecret: '',
+      status: 'requires_payment_method',
+      paidInFull: false,
+      hostedInvoiceUrl: finalizedInvoice.hosted_invoice_url,
+      invoicePdf: finalizedInvoice.invoice_pdf,
+      amountFromBalance: 0,
+      amountCharged: 0,
+    };
   }
 
   const invoiceMeta = finalizedInvoice.metadata || {};
