@@ -29,16 +29,30 @@ import { alertOnExternalServiceError } from '../../core/errorAlerts';
 import { getErrorCode, getErrorMessage } from '../../utils/errorUtils';
 import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { getBookingInvoiceId, createDraftInvoiceForBooking, buildInvoiceDescription } from '../../core/billing/bookingInvoiceService';
+import { PRICING } from '../../core/billing/pricingConfig';
 
-function extractPiFromInvoice(inv: Stripe.Invoice): { piId: string; clientSecret: string } | null {
-  const rawPi = (inv as unknown as { payment_intent: string | Stripe.PaymentIntent | null }).payment_intent;
-  if (typeof rawPi === 'object' && rawPi !== null) {
-    const piObj = rawPi as Stripe.PaymentIntent;
-    if (piObj.status !== 'canceled' && piObj.client_secret) {
-      return { piId: piObj.id, clientSecret: piObj.client_secret };
-    }
+function describeFee(
+  isGuest: boolean,
+  overageCents: number,
+  guestCents: number,
+): { feeType: 'overage' | 'guest' | 'mixed'; feeDescription: string } {
+  if (isGuest && guestCents > 0) {
+    return { feeType: 'guest', feeDescription: 'Guest Fee' };
   }
-  return null;
+  if (overageCents > 0 && guestCents > 0) {
+    return { feeType: 'mixed', feeDescription: 'Overage Fee + Guest Fee' };
+  }
+  if (overageCents > 0) {
+    const overageRateCents = Math.round(PRICING.OVERAGE_RATE_DOLLARS * 100);
+    const blocks = Math.round(overageCents / overageRateCents);
+    const mins = blocks * 30;
+    const label = blocks === 1 ? `Overage Fee × 1 (${mins} min)` : `Overage Fee × ${blocks} (${mins} min)`;
+    return { feeType: 'overage', feeDescription: label };
+  }
+  if (guestCents > 0) {
+    return { feeType: 'guest', feeDescription: 'Guest Fee' };
+  }
+  return { feeType: 'overage', feeDescription: '' };
 }
 
 async function finalizeInvoiceWithPi(
@@ -47,39 +61,77 @@ async function finalizeInvoiceWithPi(
 ): Promise<{ piId: string; clientSecret: string }> {
   const finalized = await stripe.invoices.finalizeInvoice(invoiceId, {
     auto_advance: false,
-    expand: ['payment_intent'],
-  } as Stripe.InvoiceFinalizeInvoiceParams);
+    expand: ['payment_intent', 'confirmation_secret'],
+  });
 
-  const result = extractPiFromInvoice(finalized);
-  if (result) return result;
-
-  const piField = (finalized as unknown as { payment_intent: string | Stripe.PaymentIntent | null }).payment_intent;
-  if (typeof piField === 'string') {
-    const pi = await stripe.paymentIntents.retrieve(piField);
-    if (pi.client_secret) return { piId: pi.id, clientSecret: pi.client_secret };
+  if (finalized.confirmation_secret?.client_secret) {
+    const piId = finalized.payment_intent
+      ? (typeof finalized.payment_intent === 'string' ? finalized.payment_intent : (finalized.payment_intent as Stripe.PaymentIntent).id)
+      : `pi_from_${invoiceId}`;
+    logger.info('[Stripe] Got client_secret via confirmation_secret', { extra: { invoiceId, piId } });
+    return { piId, clientSecret: finalized.confirmation_secret.client_secret };
   }
 
-  throw new Error(`Invoice ${invoiceId} has no PaymentIntent after finalization`);
+  if (finalized.payment_intent) {
+    if (typeof finalized.payment_intent === 'string') {
+      const fullPi = await stripe.paymentIntents.retrieve(finalized.payment_intent);
+      if (fullPi.client_secret) {
+        return { piId: fullPi.id, clientSecret: fullPi.client_secret };
+      }
+    } else {
+      const pi = finalized.payment_intent as Stripe.PaymentIntent;
+      if (pi.status !== 'canceled' && pi.client_secret) {
+        logger.info('[Stripe] Got client_secret via expanded payment_intent', { extra: { invoiceId, piId: pi.id } });
+        return { piId: pi.id, clientSecret: pi.client_secret };
+      }
+      if (pi.id) {
+        const fullPi = await stripe.paymentIntents.retrieve(pi.id);
+        if (fullPi.client_secret) {
+          return { piId: fullPi.id, clientSecret: fullPi.client_secret };
+        }
+      }
+    }
+  }
+
+  throw new Error(`Invoice ${invoiceId} has no PaymentIntent after finalization (status: ${finalized.status})`);
 }
 
 async function retrieveInvoicePaymentIntent(
   stripe: Stripe,
   invoiceId: string,
 ): Promise<{ piId: string; clientSecret: string }> {
-  const inv = await stripe.invoices.retrieve(invoiceId, { expand: ['payment_intent'] });
+  const inv = await stripe.invoices.retrieve(invoiceId, {
+    expand: ['payment_intent', 'confirmation_secret'],
+  });
 
-  const result = extractPiFromInvoice(inv);
-  if (result) return result;
+  if (inv.confirmation_secret?.client_secret) {
+    const piId = inv.payment_intent
+      ? (typeof inv.payment_intent === 'string' ? inv.payment_intent : (inv.payment_intent as Stripe.PaymentIntent).id)
+      : `pi_from_${invoiceId}`;
+    return { piId, clientSecret: inv.confirmation_secret.client_secret };
+  }
 
-  const piField = (inv as unknown as { payment_intent: string | Stripe.PaymentIntent | null }).payment_intent;
-  if (typeof piField === 'string') {
-    const pi = await stripe.paymentIntents.retrieve(piField);
-    if (pi.status !== 'canceled' && pi.client_secret) {
-      return { piId: pi.id, clientSecret: pi.client_secret };
+  if (inv.payment_intent) {
+    if (typeof inv.payment_intent === 'string') {
+      const fullPi = await stripe.paymentIntents.retrieve(inv.payment_intent);
+      if (fullPi.status !== 'canceled' && fullPi.client_secret) {
+        return { piId: fullPi.id, clientSecret: fullPi.client_secret };
+      }
+    } else {
+      const pi = inv.payment_intent as Stripe.PaymentIntent;
+      if (pi.status !== 'canceled' && pi.client_secret) {
+        return { piId: pi.id, clientSecret: pi.client_secret };
+      }
+      if (pi.id) {
+        const fullPi = await stripe.paymentIntents.retrieve(pi.id);
+        if (fullPi.status !== 'canceled' && fullPi.client_secret) {
+          return { piId: fullPi.id, clientSecret: fullPi.client_secret };
+        }
+      }
     }
   }
 
-  throw new Error(`Invoice ${invoiceId} has no usable PaymentIntent`);
+  throw new Error(`Invoice ${invoiceId} has no usable PaymentIntent (status: ${inv.status})`);
 }
 
 interface BookingRow {
@@ -202,7 +254,7 @@ async function handleExistingInvoicePayment(params: {
   bookingEmail: string;
   serverFees: Array<{ id: number; amountCents: number }>;
   serverTotal: number;
-  pendingFees: Array<{ participantId: number | null; displayName: string; totalCents: number }>;
+  pendingFees: Array<{ participantId: number | null; displayName: string; totalCents: number; overageCents?: number; guestCents?: number; participantType?: string; minutesAllocated?: number }>;
   resolvedUserId: string | null;
   stripeCustomerId: string;
   trackmanId: string | null;
@@ -237,11 +289,18 @@ async function handleExistingInvoicePayment(params: {
       }
     }
 
-    const participantFeesList = pendingFees.map(f => ({
-      id: f.participantId,
-      displayName: f.displayName,
-      amount: f.totalCents / 100
-    }));
+    const participantFeesList = pendingFees.map(f => {
+      const isGuest = f.participantType === 'guest';
+      const { feeType, feeDescription } = describeFee(isGuest, f.overageCents || 0, f.guestCents || 0);
+      return {
+        id: f.participantId,
+        displayName: f.displayName,
+        amount: f.totalCents / 100,
+        feeType,
+        feeDescription,
+        participantType: f.participantType || 'member',
+      };
+    });
 
     if (existingInvoice.status === 'void' || existingInvoice.status === 'uncollectible') {
       logger.info('[Stripe] Existing invoice is void/uncollectible, clearing and falling back to new invoice', {
@@ -535,10 +594,20 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
 
     const participantFeesList = pendingFees.map(f => {
       const participant = typedParticipants.find(p => p.id === f.participantId);
+      const pType = participant?.participant_type as 'owner' | 'member' | 'guest' | undefined;
+      const isGuest = pType === 'guest';
+      const overageCents = 'overageCents' in f ? (f as { overageCents: number }).overageCents : 0;
+      const guestCents = 'guestCents' in f ? (f as { guestCents: number }).guestCents : 0;
+
+      const { feeType, feeDescription } = describeFee(isGuest, overageCents, guestCents);
+
       return {
         id: f.participantId,
-        displayName: participant?.display_name || 'Guest',
-        amount: f.totalCents / 100
+        displayName: participant?.display_name || (isGuest ? 'Guest' : 'Member'),
+        amount: f.totalCents / 100,
+        feeType,
+        feeDescription,
+        participantType: pType || 'member',
       };
     });
 

@@ -9,6 +9,7 @@ import { SegmentedButton } from '../../components/ui/SegmentedButton';
 import SwipeablePage from '../../components/SwipeablePage';
 import { formatTime12Hour, getRelativeDateLabel } from '../../utils/dateUtils';
 import InvoicePaymentModal from '../../components/billing/InvoicePaymentModal';
+import { MemberPaymentModal } from '../../components/booking/MemberPaymentModal';
 import { AnimatedPage, MotionListItem } from '../../components/motion';
 import { TabTransition } from '../../components/motion/TabTransition';
 
@@ -38,6 +39,7 @@ interface UnifiedPurchase {
   hostedInvoiceUrl?: string | null;
   stripeInvoiceId?: string;
   stripePaymentIntentId?: string | null;
+  bookingId?: number | null;
 }
 
 const History: React.FC = () => {
@@ -477,15 +479,28 @@ const History: React.FC = () => {
 
       </SwipeablePage>
 
-      {user && (
+      {user && payingInvoice && payingInvoice.bookingId ? (
+        <MemberPaymentModal
+          isOpen={!!payingInvoice}
+          bookingId={payingInvoice.bookingId}
+          sessionId={0}
+          ownerEmail={user.email || ''}
+          ownerName={user.name || user.email?.split('@')[0] || 'Member'}
+          onSuccess={() => {
+            setPayingInvoice(null);
+            queryClient.invalidateQueries({ queryKey: ['my-purchases', user?.email] });
+          }}
+          onClose={() => setPayingInvoice(null)}
+        />
+      ) : user && payingInvoice && payingInvoice.stripeInvoiceId ? (
         <InvoicePaymentModal
-          isOpen={!!(payingInvoice && payingInvoice.stripeInvoiceId)}
+          isOpen={!!payingInvoice}
           invoice={{
-            id: payingInvoice?.stripeInvoiceId || '',
-            status: payingInvoice?.status || '',
-            amountDue: payingInvoice?.amountCents || 0,
-            description: payingInvoice?.itemName || null,
-            lines: [{ description: payingInvoice?.itemName || '', amount: payingInvoice?.amountCents || 0, quantity: 1 }],
+            id: payingInvoice.stripeInvoiceId,
+            status: payingInvoice.status,
+            amountDue: payingInvoice.amountCents,
+            description: payingInvoice.itemName || null,
+            lines: [{ description: payingInvoice.itemName || '', amount: payingInvoice.amountCents || 0, quantity: 1 }],
           }}
           userEmail={user.email || ''}
           userName={user.name || user.email?.split('@')[0] || 'Member'}
@@ -495,7 +510,7 @@ const History: React.FC = () => {
           }}
           onClose={() => setPayingInvoice(null)}
         />
-      )}
+      ) : null}
     </AnimatedPage>
   );
 };

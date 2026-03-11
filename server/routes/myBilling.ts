@@ -1038,10 +1038,11 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
 
         for (const inv of invoices.data) {
           if (inv.amount_due > 0) {
-            const bookingId = inv.metadata?.bookingId;
+            const bookingId = inv.metadata?.bookingId || inv.metadata?.booking_id;
             if (bookingId) {
               invoiceBookingIds.add(bookingId);
             }
+            const invBookingId = bookingId ? parseInt(bookingId) : null;
             purchases.push({
               id: `inv-${inv.id}`,
               type: 'stripe',
@@ -1054,6 +1055,7 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
               stripePaymentIntentId: null,
               stripeInvoiceId: inv.id,
               hostedInvoiceUrl: inv.hosted_invoice_url,
+              bookingId: isNaN(invBookingId as number) ? null : invBookingId,
             });
           }
         }

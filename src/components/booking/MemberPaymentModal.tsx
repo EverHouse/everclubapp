@@ -9,6 +9,9 @@ interface ParticipantFee {
   id: number;
   displayName: string;
   amount: number;
+  feeType?: 'overage' | 'guest' | 'mixed';
+  feeDescription?: string;
+  participantType?: 'owner' | 'member' | 'guest';
 }
 
 export interface MemberPaymentModalProps {
@@ -197,25 +200,36 @@ export function MemberPaymentModal({
                 Fee Summary
               </h4>
               <div className="space-y-2">
-                {paymentData.participantFees.map((fee) => (
-                  <div key={fee.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                        isDark
-                          ? 'bg-amber-500/20 text-amber-400'
-                          : 'bg-amber-100 text-amber-700'
-                      }`}>
-                        G
-                      </span>
-                      <span className={`text-sm ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
-                        {fee.displayName}
+                {paymentData.participantFees.map((fee) => {
+                  const isGuest = fee.participantType === 'guest';
+                  const iconLetter = isGuest ? 'G' : fee.displayName?.charAt(0)?.toUpperCase() || 'M';
+                  const iconColors = isGuest
+                    ? (isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700')
+                    : (isDark ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700');
+
+                  return (
+                    <div key={fee.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${iconColors}`}>
+                          {iconLetter}
+                        </span>
+                        <div className="flex flex-col">
+                          <span className={`text-sm ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
+                            {fee.displayName}
+                          </span>
+                          {fee.feeDescription && (
+                            <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
+                              {fee.feeDescription}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-primary'}`}>
+                        ${fee.amount.toFixed(2)}
                       </span>
                     </div>
-                    <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-primary'}`}>
-                      ${fee.amount.toFixed(2)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <div className={`mt-3 pt-3 border-t flex items-center justify-between ${isDark ? 'border-white/10' : 'border-primary/10'}`}>
                 <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>
