@@ -66,26 +66,22 @@ interface ParticipantBillingWithTier {
   guestFee: number;
 }
 
-interface VisitorArchiveJob {
-  id: string;
-  status: 'running' | 'completed' | 'failed';
-  dryRun: boolean;
-  startedAt: Date;
-  completedAt?: Date;
-  progress: {
-    phase: 'scanning' | 'checking_stripe' | 'archiving' | 'done';
-    totalVisitors: number;
-    checked: number;
-    eligibleCount: number;
-    keptCount: number;
-    archived: number;
-    errors: number;
-  };
-  result?: Record<string, unknown>;
-  error?: string;
+import { createBackgroundJob, updateJobProgress, completeJob, failJob, getActiveJob, getLatestJob } from '../../core/backgroundJobStore';
+
+const VISITOR_ARCHIVE_JOB_TYPE = 'visitor_archive';
+
+interface VisitorArchiveProgress {
+  phase: 'scanning' | 'checking_stripe' | 'archiving' | 'done';
+  totalVisitors: number;
+  checked: number;
+  eligibleCount: number;
+  keptCount: number;
+  archived: number;
+  errors: number;
 }
 
-let activeVisitorArchiveJob: VisitorArchiveJob | null = null;
+let currentVisitorArchiveJobId: string | null = null;
+let currentVisitorArchiveProgress: VisitorArchiveProgress | null = null;
 
 const router = Router();
 
@@ -865,8 +861,9 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
 
 router.post('/api/data-tools/archive-stale-visitors', isAdmin, async (req: Request, res: Response) => {
   try {
-    if (activeVisitorArchiveJob?.status === 'running') {
-      return res.status(409).json({ error: 'A visitor archive job is already running', jobId: activeVisitorArchiveJob.id });
+    const existingJob = await getActiveJob(VISITOR_ARCHIVE_JOB_TYPE);
+    if (existingJob) {
+      return res.status(409).json({ error: 'A visitor archive job is already running', jobId: existingJob.id });
     }
 
     const dryRun = req.body.dryRun !== false;
@@ -874,24 +871,29 @@ router.post('/api/data-tools/archive-stale-visitors', isAdmin, async (req: Reque
 
     logger.info('[DataTools] Visitor archive initiated by (dryRun: )', { extra: { staffEmail, dryRun } });
 
-    const jobId = Date.now().toString(36);
-    activeVisitorArchiveJob = {
-      id: jobId,
-      status: 'running',
-      dryRun,
-      startedAt: new Date(),
-      progress: {
-        phase: 'scanning',
-        totalVisitors: 0,
-        checked: 0,
-        eligibleCount: 0,
-        keptCount: 0,
-        archived: 0,
-        errors: 0
-      }
+    const jobId = `va_${Date.now().toString(36)}`;
+    const initialProgress: VisitorArchiveProgress = {
+      phase: 'scanning',
+      totalVisitors: 0,
+      checked: 0,
+      eligibleCount: 0,
+      keptCount: 0,
+      archived: 0,
+      errors: 0,
     };
 
-    runVisitorArchiveInBackground(dryRun, staffEmail, req);
+    await createBackgroundJob({
+      id: jobId,
+      jobType: VISITOR_ARCHIVE_JOB_TYPE,
+      dryRun,
+      progress: initialProgress as unknown as Record<string, unknown>,
+      startedBy: staffEmail,
+    });
+
+    currentVisitorArchiveJobId = jobId;
+    currentVisitorArchiveProgress = { ...initialProgress };
+
+    runVisitorArchiveInBackground(jobId, dryRun, staffEmail, req);
 
     res.json({ success: true, jobId, message: 'Archive job started' });
   } catch (error: unknown) {
@@ -901,16 +903,51 @@ router.post('/api/data-tools/archive-stale-visitors', isAdmin, async (req: Reque
 });
 
 router.get('/api/data-tools/archive-stale-visitors/status', isAdmin, async (req: Request, res: Response) => {
-  if (!activeVisitorArchiveJob) {
-    return res.json({ hasJob: false });
+  try {
+    const job = await getLatestJob(VISITOR_ARCHIVE_JOB_TYPE);
+    if (!job) {
+      return res.json({ hasJob: false });
+    }
+    const progress = currentVisitorArchiveJobId === job.id && currentVisitorArchiveProgress
+      ? currentVisitorArchiveProgress
+      : job.progress;
+    res.json({
+      hasJob: true,
+      job: {
+        id: job.id,
+        status: job.status,
+        dryRun: job.dryRun,
+        startedAt: job.startedAt,
+        completedAt: job.completedAt,
+        progress,
+        result: job.result,
+        error: job.error,
+      },
+    });
+  } catch {
+    res.json({ hasJob: false });
   }
-  res.json({ hasJob: true, job: activeVisitorArchiveJob });
 });
 
-async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string, req: Request) {
+async function runVisitorArchiveInBackground(jobId: string, dryRun: boolean, staffEmail: string, req: Request) {
+  const progress: VisitorArchiveProgress = {
+    phase: 'scanning',
+    totalVisitors: 0,
+    checked: 0,
+    eligibleCount: 0,
+    keptCount: 0,
+    archived: 0,
+    errors: 0,
+  };
+
+  const syncProgress = async () => {
+    currentVisitorArchiveProgress = { ...progress };
+    await updateJobProgress(jobId, progress as unknown as Record<string, unknown>).catch(() => {});
+  };
+
   try {
-    activeVisitorArchiveJob!.progress.phase = 'scanning';
-    broadcastToStaff({ type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress });
+    progress.phase = 'scanning';
+    broadcastToStaff({ type: 'visitor_archive_progress', data: progress });
 
     const candidatesResult = await db.execute(sql`
       SELECT u.id, u.email, u.first_name, u.last_name, u.stripe_customer_id, u.membership_status
@@ -928,13 +965,14 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
     `);
 
     const candidates = candidatesResult.rows;
-    activeVisitorArchiveJob!.progress.totalVisitors = candidates.length;
-    broadcastToStaff({ type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress });
+    progress.totalVisitors = candidates.length;
+    broadcastToStaff({ type: 'visitor_archive_progress', data: progress });
+    await syncProgress();
 
     logger.info('[DataTools] Found visitor/non-member candidates with no local activity', { extra: { candidatesLength: candidates.length } });
 
-    activeVisitorArchiveJob!.progress.phase = 'checking_stripe';
-    broadcastToStaff({ type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress });
+    progress.phase = 'checking_stripe';
+    broadcastToStaff({ type: 'visitor_archive_progress', data: progress });
 
     const visitorsWithStripe = candidates.filter(c => c.stripe_customer_id);
     const visitorsWithoutStripe = candidates.filter(c => !c.stripe_customer_id);
@@ -964,14 +1002,15 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
           } catch (err: unknown) {
             logger.error('[DataTools] Error checking Stripe transactions for', { extra: { email: visitor.email, error: getErrorMessage(err) } });
             keptCount++;
-            activeVisitorArchiveJob!.progress.errors++;
+            progress.errors++;
           }
         }));
 
-        activeVisitorArchiveJob!.progress.checked = Math.min(i + BATCH_SIZE, visitorsWithStripe.length);
-        activeVisitorArchiveJob!.progress.keptCount = keptCount;
-        activeVisitorArchiveJob!.progress.eligibleCount = eligible.length;
-        broadcastToStaff({ type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress });
+        progress.checked = Math.min(i + BATCH_SIZE, visitorsWithStripe.length);
+        progress.keptCount = keptCount;
+        progress.eligibleCount = eligible.length;
+        broadcastToStaff({ type: 'visitor_archive_progress', data: progress });
+        await syncProgress();
 
         if (i + BATCH_SIZE < visitorsWithStripe.length) {
           await new Promise(resolve => setTimeout(resolve, 200));
@@ -979,10 +1018,11 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
       }
     }
 
-    activeVisitorArchiveJob!.progress.eligibleCount = eligible.length;
-    activeVisitorArchiveJob!.progress.keptCount = keptCount;
-    activeVisitorArchiveJob!.progress.checked = visitorsWithStripe.length;
-    broadcastToStaff({ type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress });
+    progress.eligibleCount = eligible.length;
+    progress.keptCount = keptCount;
+    progress.checked = visitorsWithStripe.length;
+    broadcastToStaff({ type: 'visitor_archive_progress', data: progress });
+    await syncProgress();
 
     logger.info('[DataTools] eligible for archive, kept (has Stripe charges)', { extra: { eligibleLength: eligible.length, keptCount } });
 
@@ -994,8 +1034,9 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
     let archivedCount = 0;
 
     if (!dryRun && eligible.length > 0) {
-      activeVisitorArchiveJob!.progress.phase = 'archiving';
-      broadcastToStaff({ type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress });
+      progress.phase = 'archiving';
+      broadcastToStaff({ type: 'visitor_archive_progress', data: progress });
+      await syncProgress();
 
       const ARCHIVE_BATCH_SIZE = 100;
       for (let i = 0; i < eligible.length; i += ARCHIVE_BATCH_SIZE) {
@@ -1009,15 +1050,16 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
           archivedCount += batch.length;
         } catch (err: unknown) {
           logger.error('[DataTools] Error archiving batch ( ids)', { extra: { length: ids.length, error: getErrorMessage(err) } });
-          activeVisitorArchiveJob!.progress.errors++;
+          progress.errors++;
         }
 
-        activeVisitorArchiveJob!.progress.archived = archivedCount;
-        broadcastToStaff({ type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress });
+        progress.archived = archivedCount;
+        broadcastToStaff({ type: 'visitor_archive_progress', data: progress });
+        await syncProgress();
       }
     }
 
-    const result = {
+    const jobResult = {
       success: true,
       message: dryRun
         ? `Preview: Found ${eligible.length} stale visitors eligible for archiving (out of ${candidates.length} scanned). ${keptCount} kept (has Stripe charges).`
@@ -1039,18 +1081,16 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
       staffEmail
     });
 
-    activeVisitorArchiveJob!.status = 'completed';
-    activeVisitorArchiveJob!.completedAt = new Date();
-    activeVisitorArchiveJob!.result = result;
-    activeVisitorArchiveJob!.progress.phase = 'done';
-    broadcastToStaff({ type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress, result });
+    progress.phase = 'done';
+    await completeJob(jobId, jobResult as unknown as Record<string, unknown>, progress as unknown as Record<string, unknown>);
+    currentVisitorArchiveProgress = { ...progress };
+    broadcastToStaff({ type: 'visitor_archive_progress', data: progress, result: jobResult });
   } catch (error: unknown) {
     logger.error('[DataTools] Visitor archive error', { error: error instanceof Error ? error : new Error(String(error)) });
-    activeVisitorArchiveJob!.status = 'failed';
-    activeVisitorArchiveJob!.completedAt = new Date();
-    activeVisitorArchiveJob!.error = getErrorMessage(error);
-    activeVisitorArchiveJob!.progress.phase = 'done';
-    broadcastToStaff({ type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress, error: getErrorMessage(error) });
+    progress.phase = 'done';
+    await failJob(jobId, getErrorMessage(error), progress as unknown as Record<string, unknown>);
+    currentVisitorArchiveProgress = { ...progress };
+    broadcastToStaff({ type: 'visitor_archive_progress', data: progress, error: getErrorMessage(error) });
   }
 }
 

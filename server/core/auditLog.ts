@@ -303,7 +303,6 @@ export type AuditAction =
   | 'get_invoice_link'
   | 'delete_orphan_records'
   | 'mark_waiver_signed'
-  | 'mark_all_waivers_signed'
   | 'update_tour_status'
   | 'clear_stripe_customer_id';
 

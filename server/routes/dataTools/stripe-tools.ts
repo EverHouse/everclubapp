@@ -26,26 +26,22 @@ interface DbUserRow {
   billing_provider: string | null;
 }
 
-interface StripeCleanupJob {
-  id: string;
-  status: 'running' | 'completed' | 'failed';
-  dryRun: boolean;
-  startedAt: Date;
-  completedAt?: Date;
-  progress: {
-    phase: 'fetching' | 'checking' | 'deleting' | 'done';
-    totalCustomers: number;
-    checked: number;
-    emptyFound: number;
-    skippedActiveCount: number;
-    deleted: number;
-    errors: number;
-  };
-  result?: Record<string, unknown>;
-  error?: string;
+import { createBackgroundJob, updateJobProgress, completeJob, failJob, getActiveJob, getLatestJob } from '../../core/backgroundJobStore';
+
+const STRIPE_CLEANUP_JOB_TYPE = 'stripe_cleanup';
+
+interface StripeCleanupProgress {
+  phase: 'fetching' | 'checking' | 'deleting' | 'done';
+  totalCustomers: number;
+  checked: number;
+  emptyFound: number;
+  skippedActiveCount: number;
+  deleted: number;
+  errors: number;
 }
 
-let activeCleanupJob: StripeCleanupJob | null = null;
+let currentCleanupJobId: string | null = null;
+let currentCleanupProgress: StripeCleanupProgress | null = null;
 
 const router = Router();
 
@@ -86,6 +82,37 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
       'paused': 'frozen'
     };
     
+    const subscriptionsByCustomer = new Map<string, Stripe.Subscription>();
+
+    for (const status of ['active', 'trialing', 'past_due', 'canceled', 'unpaid', 'incomplete', 'paused'] as const) {
+      let hasMore = true;
+      let startingAfter: string | undefined;
+
+      while (hasMore) {
+        const params: Stripe.SubscriptionListParams = { status, limit: 100 };
+        if (startingAfter) params.starting_after = startingAfter;
+
+        const batch = await stripe.subscriptions.list(params);
+
+        for (const sub of batch.data) {
+          const custId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+          const existing = subscriptionsByCustomer.get(custId);
+          if (!existing || ['active', 'trialing', 'past_due'].includes(sub.status)) {
+            if (!existing || !['active', 'trialing', 'past_due'].includes(existing.status)) {
+              subscriptionsByCustomer.set(custId, sub);
+            }
+          }
+        }
+
+        hasMore = batch.has_more;
+        if (batch.data.length > 0) {
+          startingAfter = batch.data[batch.data.length - 1].id;
+        }
+      }
+    }
+
+    logger.info('[DataTools] Fetched all Stripe subscriptions for comparison', { extra: { totalSubscriptions: subscriptionsByCustomer.size } });
+
     const mismatches: Array<{
       email: string;
       name: string;
@@ -99,26 +126,13 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
     const updated: Array<{ email: string; oldStatus: string; newStatus: string }> = [];
     const errors: string[] = [];
     
-    const BATCH_SIZE = 10;
-    const BATCH_DELAY_MS = 100;
-    
-    for (let i = 0; i < membersWithStripe.rows.length; i += BATCH_SIZE) {
-      const batch = membersWithStripe.rows.slice(i, i + BATCH_SIZE) as unknown as DbUserRow[];
-      
-      await Promise.all(batch.map(async (member) => {
-        try {
+    for (const row of membersWithStripe.rows) {
+      const member = row as unknown as DbUserRow;
+      try {
           const customerId = member.stripe_customer_id;
-          if (!customerId) return;
+          if (!customerId) continue;
           
-          const customerSubs = await stripe.subscriptions.list({
-            customer: customerId,
-            status: 'all',
-            limit: 10
-          });
-          
-          const activeSub = customerSubs.data?.find((s: Stripe.Subscription) => 
-            ['active', 'trialing', 'past_due'].includes(s.status)
-          ) || customerSubs.data?.[0];
+          const activeSub = subscriptionsByCustomer.get(customerId);
           
           let stripeStatus = 'no_subscription';
           let expectedAppStatus = 'inactive';
@@ -197,11 +211,6 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
             logger.error('[DataTools] Error checking subscription for', { extra: { email: member.email, error: getErrorMessage(err) } });
           }
         }
-      }));
-      
-      if (i + BATCH_SIZE < membersWithStripe.rows.length) {
-        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
-      }
     }
     
     if (!dryRun && updated.length > 0) {
@@ -694,13 +703,28 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
   }
 });
 
-async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: Request) {
+async function runCleanupInBackground(jobId: string, dryRun: boolean, staffEmail: string, req: Request) {
+  const progress: StripeCleanupProgress = {
+    phase: 'fetching',
+    totalCustomers: 0,
+    checked: 0,
+    emptyFound: 0,
+    skippedActiveCount: 0,
+    deleted: 0,
+    errors: 0,
+  };
+
+  const syncProgress = async () => {
+    currentCleanupProgress = { ...progress };
+    await updateJobProgress(jobId, progress as unknown as Record<string, unknown>).catch(() => {});
+  };
+
   try {
     const { getStripeClient } = await import('../../core/stripe/client');
     const stripe = await getStripeClient();
     
-    activeCleanupJob!.progress.phase = 'fetching';
-    broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress });
+    progress.phase = 'fetching';
+    broadcastToStaff({ type: 'stripe_cleanup_progress', data: progress });
     
     const allCustomers: Array<{ id: string; email: string | null; name: string | null; created: number }> = [];
     let hasMore = true;
@@ -729,9 +753,10 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
     }
     
     logger.info('[DataTools] Found total Stripe customers', { extra: { allCustomersLength: allCustomers.length } });
-    activeCleanupJob!.progress.totalCustomers = allCustomers.length;
-    activeCleanupJob!.progress.phase = 'checking';
-    broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress });
+    progress.totalCustomers = allCustomers.length;
+    progress.phase = 'checking';
+    broadcastToStaff({ type: 'stripe_cleanup_progress', data: progress });
+    await syncProgress();
     
     const activeUsersResult = await db.execute(sql`
       SELECT stripe_customer_id FROM users 
@@ -747,41 +772,43 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
       try {
         if (activeStripeIds.has(customer.id)) {
           skippedActiveCount++;
-          activeCleanupJob!.progress.skippedActiveCount = skippedActiveCount;
-          activeCleanupJob!.progress.checked++;
-          if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress });
+          progress.skippedActiveCount = skippedActiveCount;
+          progress.checked++;
+          if (progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: progress });
           continue;
         }
         
         const charges = await stripe.charges.list({ customer: customer.id, limit: 1 });
-        if (charges.data.length > 0) { activeCleanupJob!.progress.checked++; if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress }); continue; }
+        if (charges.data.length > 0) { progress.checked++; if (progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: progress }); continue; }
         
         const subscriptions = await stripe.subscriptions.list({ customer: customer.id, limit: 1, status: 'all' });
-        if (subscriptions.data.length > 0) { activeCleanupJob!.progress.checked++; if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress }); continue; }
+        if (subscriptions.data.length > 0) { progress.checked++; if (progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: progress }); continue; }
         
         const invoices = await stripe.invoices.list({ customer: customer.id, limit: 1 });
-        if (invoices.data.length > 0) { activeCleanupJob!.progress.checked++; if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress }); continue; }
+        if (invoices.data.length > 0) { progress.checked++; if (progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: progress }); continue; }
         
         const paymentIntents = await stripe.paymentIntents.list({ customer: customer.id, limit: 1 });
-        if (paymentIntents.data.length > 0) { activeCleanupJob!.progress.checked++; if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress }); continue; }
+        if (paymentIntents.data.length > 0) { progress.checked++; if (progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: progress }); continue; }
         
         emptyCustomers.push(customer);
-        activeCleanupJob!.progress.emptyFound = emptyCustomers.length;
-        activeCleanupJob!.progress.checked++;
-        if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress });
+        progress.emptyFound = emptyCustomers.length;
+        progress.checked++;
+        if (progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: progress });
       } catch (err: unknown) {
         logger.error('[DataTools] Error checking customer', { extra: { id: customer.id, error: getErrorMessage(err) } });
-        activeCleanupJob!.progress.errors++;
-        activeCleanupJob!.progress.checked++;
-        if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress });
+        progress.errors++;
+        progress.checked++;
+        if (progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: progress });
       }
       
-      if (activeCleanupJob!.progress.checked % 25 === 0) {
+      if (progress.checked % 25 === 0) {
+        await syncProgress();
         await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
     
-    broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress });
+    broadcastToStaff({ type: 'stripe_cleanup_progress', data: progress });
+    await syncProgress();
     
     logger.info('[DataTools] Found customers with zero transactions out of total', { extra: { emptyCustomersLength: emptyCustomers.length, allCustomersLength: allCustomers.length } });
     logger.info('[DataTools] Skipping active members with zero transactions (keeping for future charges)', { extra: { skippedActiveCount } });
@@ -795,7 +822,7 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
         staffEmail
       });
       
-      const result = {
+      const jobResult = {
         success: true,
         dryRun: true,
         message: `Found ${emptyCustomers.length} Stripe customers with zero transactions (out of ${allCustomers.length} total). Skipped ${skippedActiveCount} active members.`,
@@ -810,16 +837,16 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
         }))
       };
       
-      activeCleanupJob!.status = 'completed';
-      activeCleanupJob!.completedAt = new Date();
-      activeCleanupJob!.result = result;
-      activeCleanupJob!.progress.phase = 'done';
-      broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress, result });
+      progress.phase = 'done';
+      await completeJob(jobId, jobResult as unknown as Record<string, unknown>, progress as unknown as Record<string, unknown>);
+      currentCleanupProgress = { ...progress };
+      broadcastToStaff({ type: 'stripe_cleanup_progress', data: progress, result: jobResult });
       return;
     }
     
-    activeCleanupJob!.progress.phase = 'deleting';
-    broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress });
+    progress.phase = 'deleting';
+    broadcastToStaff({ type: 'stripe_cleanup_progress', data: progress });
+    await syncProgress();
     
     let deleted = 0;
     let errors: string[] = [];
@@ -836,11 +863,11 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
         
         deletedList.push({ id: customer.id, email: customer.email });
         deleted++;
-        activeCleanupJob!.progress.deleted = deleted;
-        if (deleted % 10 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress });
+        progress.deleted = deleted;
+        if (deleted % 10 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: progress });
       } catch (err: unknown) {
         errors.push(`${customer.id} (${customer.email}): ${getErrorMessage(err)}`);
-        activeCleanupJob!.progress.errors++;
+        progress.errors++;
         logger.error('[DataTools] Failed to delete customer', { extra: { id: customer.id, error: getErrorMessage(err) } });
       }
     }
@@ -857,7 +884,7 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
     
     logger.info('[DataTools] Stripe customer cleanup complete: deleted, errors', { extra: { deleted, errorsLength: errors.length } });
     
-    const result = {
+    const jobResult = {
       success: true,
       dryRun: false,
       message: `Deleted ${deleted} of ${emptyCustomers.length} empty Stripe customers. Skipped ${skippedActiveCount} active members.`,
@@ -869,25 +896,24 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
       errors: errors.slice(0, 20)
     };
     
-    activeCleanupJob!.status = 'completed';
-    activeCleanupJob!.completedAt = new Date();
-    activeCleanupJob!.result = result;
-    activeCleanupJob!.progress.phase = 'done';
-    broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress, result });
+    progress.phase = 'done';
+    await completeJob(jobId, jobResult as unknown as Record<string, unknown>, progress as unknown as Record<string, unknown>);
+    currentCleanupProgress = { ...progress };
+    broadcastToStaff({ type: 'stripe_cleanup_progress', data: progress, result: jobResult });
   } catch (error: unknown) {
     logger.error('[DataTools] Stripe customer cleanup error', { error: error instanceof Error ? error : new Error(String(error)) });
-    activeCleanupJob!.status = 'failed';
-    activeCleanupJob!.completedAt = new Date();
-    activeCleanupJob!.error = getErrorMessage(error);
-    activeCleanupJob!.progress.phase = 'done';
-    broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress, error: getErrorMessage(error) });
+    progress.phase = 'done';
+    await failJob(jobId, getErrorMessage(error), progress as unknown as Record<string, unknown>);
+    currentCleanupProgress = { ...progress };
+    broadcastToStaff({ type: 'stripe_cleanup_progress', data: progress, error: getErrorMessage(error) });
   }
 }
 
 router.post('/api/data-tools/cleanup-stripe-customers', isAdmin, async (req: Request, res: Response) => {
   try {
-    if (activeCleanupJob?.status === 'running') {
-      return res.status(409).json({ error: 'A cleanup job is already running', jobId: activeCleanupJob.id });
+    const existingJob = await getActiveJob(STRIPE_CLEANUP_JOB_TYPE);
+    if (existingJob) {
+      return res.status(409).json({ error: 'A cleanup job is already running', jobId: existingJob.id });
     }
     
     const dryRun = req.body.dryRun !== false;
@@ -895,24 +921,29 @@ router.post('/api/data-tools/cleanup-stripe-customers', isAdmin, async (req: Req
     
     logger.info('[DataTools] Stripe customer cleanup initiated by (dryRun: )', { extra: { staffEmail, dryRun } });
     
-    const jobId = Date.now().toString(36);
-    activeCleanupJob = {
-      id: jobId,
-      status: 'running',
-      dryRun,
-      startedAt: new Date(),
-      progress: {
-        phase: 'fetching',
-        totalCustomers: 0,
-        checked: 0,
-        emptyFound: 0,
-        skippedActiveCount: 0,
-        deleted: 0,
-        errors: 0
-      }
+    const jobId = `sc_${Date.now().toString(36)}`;
+    const initialProgress: StripeCleanupProgress = {
+      phase: 'fetching',
+      totalCustomers: 0,
+      checked: 0,
+      emptyFound: 0,
+      skippedActiveCount: 0,
+      deleted: 0,
+      errors: 0,
     };
+
+    await createBackgroundJob({
+      id: jobId,
+      jobType: STRIPE_CLEANUP_JOB_TYPE,
+      dryRun,
+      progress: initialProgress as unknown as Record<string, unknown>,
+      startedBy: staffEmail,
+    });
+
+    currentCleanupJobId = jobId;
+    currentCleanupProgress = { ...initialProgress };
     
-    runCleanupInBackground(dryRun, staffEmail, req);
+    runCleanupInBackground(jobId, dryRun, staffEmail, req);
     
     res.json({ success: true, jobId, message: 'Cleanup job started' });
   } catch (error: unknown) {
@@ -922,10 +953,30 @@ router.post('/api/data-tools/cleanup-stripe-customers', isAdmin, async (req: Req
 });
 
 router.get('/api/data-tools/cleanup-stripe-customers/status', isAdmin, async (req: Request, res: Response) => {
-  if (!activeCleanupJob) {
-    return res.json({ hasJob: false });
+  try {
+    const job = await getLatestJob(STRIPE_CLEANUP_JOB_TYPE);
+    if (!job) {
+      return res.json({ hasJob: false });
+    }
+    const jobProgress = currentCleanupJobId === job.id && currentCleanupProgress
+      ? currentCleanupProgress
+      : job.progress;
+    res.json({
+      hasJob: true,
+      job: {
+        id: job.id,
+        status: job.status,
+        dryRun: job.dryRun,
+        startedAt: job.startedAt,
+        completedAt: job.completedAt,
+        progress: jobProgress,
+        result: job.result,
+        error: job.error,
+      },
+    });
+  } catch {
+    res.json({ hasJob: false });
   }
-  res.json({ hasJob: true, job: activeCleanupJob });
 });
 
 export default router;

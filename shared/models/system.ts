@@ -192,3 +192,22 @@ export const jobQueue = pgTable("job_queue", {
 
 export type JobQueue = typeof jobQueue.$inferSelect;
 export type InsertJobQueue = typeof jobQueue.$inferInsert;
+
+export const backgroundJobs = pgTable("background_jobs", {
+  id: varchar("id", { length: 100 }).primaryKey(),
+  jobType: varchar("job_type", { length: 100 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull().default('running'),
+  dryRun: boolean("dry_run").default(false),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  progress: jsonb("progress").notNull().default(sql`'{}'::jsonb`),
+  result: jsonb("result"),
+  error: text("error"),
+  startedBy: varchar("started_by", { length: 255 }),
+}, (table) => ({
+  jobTypeIdx: index("background_jobs_job_type_idx").on(table.jobType),
+  statusIdx: index("background_jobs_status_idx").on(table.status),
+}));
+
+export type BackgroundJob = typeof backgroundJobs.$inferSelect;
+export type InsertBackgroundJob = typeof backgroundJobs.$inferInsert;
