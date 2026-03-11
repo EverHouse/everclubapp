@@ -565,13 +565,29 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   useDebugLayout();
   useKeyboardDetection();
 
-  // Edge swipe back navigation for member and staff pages on touch devices
-  const isRootPage = location.pathname === '/dashboard' || location.pathname === '/admin';
-  const isMemberOrStaff = !!user && (user.role === 'member' || user.role === 'staff' || user.role === 'admin');
+  // Route classification (used by edge swipe + layout)
+  const isMemberRoute = ['/dashboard', '/book', '/events', '/wellness', '/profile', '/updates', '/history'].some(path => location.pathname.startsWith(path));
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
+  // Edge swipe to open hamburger menu on touch devices
+  const anyMenuOpen = isMenuOpen || isMemberMenuOpen || isStaffMenuOpen;
   const { isActive: isEdgeSwipeActive, progress: edgeSwipeProgress } = useEdgeSwipe({
-    enabled: isMemberOrStaff && !isRootPage && !isMenuOpen && !isMemberMenuOpen,
+    enabled: !anyMenuOpen,
     edgeWidth: 20,
-    threshold: 100
+    threshold: 100,
+    onSwipe: () => {
+      if (isAdminRoute) {
+        setIsStaffMenuOpen(true);
+      } else if (isMemberRoute) {
+        if (location.pathname === '/profile' && isStaffOrAdmin && !isViewingAs) {
+          setIsStaffMenuOpen(true);
+        } else {
+          setIsMemberMenuOpen(true);
+        }
+      } else {
+        setIsMenuOpen(true);
+      }
+    }
   });
 
   useEffect(() => {
@@ -591,8 +607,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     }
   }, [location.pathname]);
   
-  const isMemberRoute = ['/dashboard', '/book', '/events', '/wellness', '/profile', '/updates', '/history'].some(path => location.pathname.startsWith(path));
-  const isAdminRoute = location.pathname.startsWith('/admin');
   const isLandingPage = location.pathname === '/';
   const isFullBleedHeroPage = isLandingPage || location.pathname === '/private-hire';
   const isDarkTheme = (isAdminRoute || isMemberRoute) && effectiveTheme === 'dark';
@@ -795,7 +809,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         Skip to main content
       </a>
       
-      {/* Edge swipe indicator - back arrow that fades and bounces */}
+      {/* Edge swipe indicator - menu icon that fades and slides in */}
       <div 
         className={`fixed left-0 top-1/2 -translate-y-1/2 pointer-events-none transition-all duration-fast ${isEdgeSwipeActive ? 'opacity-100' : 'opacity-0'}`}
         style={{ 
@@ -808,7 +822,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           className="w-10 h-10 rounded-full bg-accent/90 backdrop-blur-sm flex items-center justify-center shadow-lg"
           style={{ opacity: Math.min(edgeSwipeProgress * 1.5, 1) }}
         >
-          <span className="material-symbols-outlined text-white text-xl">arrow_back</span>
+          <span className="material-symbols-outlined text-white text-xl">menu</span>
         </div>
       </div>
 

@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 interface EdgeSwipeConfig {
   edgeWidth?: number;
   threshold?: number;
   velocityThreshold?: number;
   enabled?: boolean;
+  onSwipe?: () => void;
+  /** @deprecated Use onSwipe instead */
   onBack?: () => void;
 }
 
@@ -23,10 +24,9 @@ export function useEdgeSwipe(config: EdgeSwipeConfig = {}) {
     threshold = 100,
     velocityThreshold = 0.3,
     enabled = true,
+    onSwipe,
     onBack
   } = config;
-
-  const navigate = useNavigate();
   const [state, setState] = useState<EdgeSwipeState>({
     isActive: false,
     progress: 0,
@@ -98,10 +98,9 @@ export function useEdgeSwipe(config: EdgeSwipeConfig = {}) {
                            (velocity > velocityThreshold && deltaX > threshold * 0.5);
 
     if (shouldNavigate && isHorizontalRef.current) {
-      if (onBack) {
-        onBack();
-      } else {
-        navigate(-1);
+      const handler = onSwipe || onBack;
+      if (handler) {
+        handler();
       }
     }
 
@@ -113,7 +112,7 @@ export function useEdgeSwipe(config: EdgeSwipeConfig = {}) {
       currentX: 0
     });
     isHorizontalRef.current = null;
-  }, [state.isActive, state.currentX, state.startX, threshold, velocityThreshold, navigate, onBack]);
+  }, [state.isActive, state.currentX, state.startX, threshold, velocityThreshold, onSwipe, onBack]);
 
   useEffect(() => {
     if (!enabled || !isTouchDevice || isStandalonePWA || isAndroidGestureNav) return;
