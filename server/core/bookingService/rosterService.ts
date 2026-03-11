@@ -599,10 +599,11 @@ export async function previewRosterFees(
 
   const ownerLineItem = breakdown.participants.find(p => p.participantType === 'owner');
   const ownerMinutes = ownerLineItem?.minutesAllocated || breakdown.metadata.sessionDuration;
-  const guestMinutes = breakdown.participants
-    .filter(p => p.participantType === 'guest')
+  const realGuestMinutes = breakdown.participants
+    .filter(p => p.participantType === 'guest' && p.participantId !== undefined && p.displayName !== 'Empty Slot')
     .reduce((sum, p) => sum + p.minutesAllocated, 0);
-  const totalOwnerResponsibleMinutes = ownerMinutes + guestMinutes;
+  const totalOwnerResponsibleMinutes = ownerMinutes;
+  const guestMinutes = realGuestMinutes;
 
   const overageFee = Math.round(breakdown.totals.overageCents / 100);
   const overageMinutes = overageFee > 0 ? Math.ceil(overageFee / PRICING.OVERAGE_RATE_DOLLARS) * PRICING.OVERAGE_BLOCK_MINUTES : 0;
