@@ -186,7 +186,7 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
             </div>
             
             <nav
-              className="flex flex-col gap-0.5 flex-1 overflow-y-auto scrollbar-hide py-2 px-2"
+              className="flex flex-col gap-0.5 flex-1 overflow-y-auto scrollbar-hide py-2 px-2" data-scroll-lock-allow
               onTouchStart={(e) => {
                 touchStartYRef.current = e.touches[0].clientY;
                 if (scrollCooldownRef.current) {

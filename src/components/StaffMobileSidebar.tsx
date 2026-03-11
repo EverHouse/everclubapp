@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNavigationLoading } from '../contexts/NavigationLoadingContext';
+import { useScrollLockManager } from '../hooks/useScrollLockManager';
 import { getLatestVersion } from '../data/changelog-version';
 import { TabType, tabToPath } from '../lib/nav-constants';
 import { MAIN_NAV_ITEMS, ADMIN_NAV_ITEMS } from '../pages/Admin/layout/types';
@@ -48,16 +49,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
     }
   }, [navigate, startNavigation, activeTab]);
 
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
+  useScrollLockManager(isOpen);
 
   const handleNavClick = (tab: TabType) => {
     navigateToTab(tab);
@@ -122,7 +114,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
           </div>
         </button>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
+        <nav className="flex-1 overflow-y-auto px-3 py-4" data-scroll-lock-allow>
           <div className="space-y-0.5">
             {MAIN_NAV_ITEMS.map(item => (
               <NavButton key={item.id} item={item} />
