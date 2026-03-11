@@ -437,7 +437,37 @@ export async function cancelPaymentIntent(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const stripe = await getStripeClient();
-    await stripe.paymentIntents.cancel(paymentIntentId);
+
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (pi.status === 'canceled') {
+      logger.info(`[Stripe] Payment ${paymentIntentId} already canceled, updating local record`);
+      await db.execute(sql`UPDATE stripe_payment_intents 
+         SET status = 'canceled', updated_at = NOW() 
+         WHERE stripe_payment_intent_id = ${paymentIntentId}`);
+      return { success: true };
+    }
+
+    if (pi.invoice) {
+      const invoiceId = typeof pi.invoice === 'string' ? pi.invoice : pi.invoice.id;
+      const invoice = await stripe.invoices.retrieve(invoiceId);
+      if (invoice.status === 'open' || invoice.status === 'uncollectible') {
+        await stripe.invoices.voidInvoice(invoiceId);
+        logger.info(`[Stripe] Voided ${invoice.status} invoice ${invoiceId} to cancel invoice-created PI ${paymentIntentId}`);
+      } else if (invoice.status === 'draft') {
+        await stripe.invoices.del(invoiceId);
+        logger.info(`[Stripe] Deleted draft invoice ${invoiceId} to cancel invoice-created PI ${paymentIntentId}`);
+      } else if (invoice.status === 'void') {
+        logger.info(`[Stripe] Invoice ${invoiceId} already void for PI ${paymentIntentId}`);
+      } else {
+        logger.warn(`[Stripe] Cannot cancel PI ${paymentIntentId} — invoice ${invoiceId} is ${invoice.status}`, {
+          extra: { paymentIntentId, invoiceId, invoiceStatus: invoice.status }
+        });
+        return { success: false, error: `Invoice is ${invoice.status}, cannot cancel payment` };
+      }
+    } else {
+      await stripe.paymentIntents.cancel(paymentIntentId);
+    }
 
     await db.execute(sql`UPDATE stripe_payment_intents 
        SET status = 'canceled', updated_at = NOW() 
