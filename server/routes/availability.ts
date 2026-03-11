@@ -12,8 +12,6 @@ import { getSettingValue } from '../core/settingsHelper';
 
 const router = Router();
 
-// Conference room resource ID constant
-const CONFERENCE_ROOM_RESOURCE_ID = 11;
 
 interface APISlot {
   start_time: string;

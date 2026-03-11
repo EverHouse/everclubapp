@@ -73,8 +73,9 @@ export const parseAffectedBayIds = (affectedAreas: string | null | undefined, re
         return resources.filter(r => r.type === 'simulator').map(r => r.id);
     }
     
-    if (affectedAreas === 'conference_room') {
-        return [11];
+    if (affectedAreas === 'conference_room' || affectedAreas === 'Conference Room') {
+        const confRoom = resources.find(r => r.type === 'conference_room' || r.name?.toLowerCase().includes('conference'));
+        return confRoom ? [confRoom.id] : [];
     }
     
     if (affectedAreas.startsWith('bay_') && !affectedAreas.includes(',') && !affectedAreas.includes('[')) {
@@ -82,21 +83,26 @@ export const parseAffectedBayIds = (affectedAreas: string | null | undefined, re
         return isNaN(areaId) ? [] : [areaId];
     }
     
-    if (affectedAreas.includes(',') && !affectedAreas.startsWith('[')) {
-        const ids: number[] = [];
-        for (const item of affectedAreas.split(',')) {
-            const trimmed = item.trim();
-            if (trimmed.startsWith('bay_')) {
-                const areaId = parseInt(trimmed.replace('bay_', ''));
-                if (!isNaN(areaId)) ids.push(areaId);
-            } else {
-                const areaId = parseInt(trimmed);
-                if (!isNaN(areaId)) ids.push(areaId);
-            }
+    const resolveToken = (token: string): number[] => {
+        const t = token.toLowerCase().trim();
+        if (t === 'entire_facility') return resources.map(r => r.id);
+        if (t === 'all_bays') return resources.filter(r => r.type === 'simulator').map(r => r.id);
+        if (t === 'conference_room' || t === 'conference room') {
+            const confRoom = resources.find(r => r.type === 'conference_room' || r.name?.toLowerCase().includes('conference'));
+            return confRoom ? [confRoom.id] : [];
         }
-        return ids;
-    }
-    
+        if (t.startsWith('bay_')) {
+            const areaId = parseInt(t.replace('bay_', ''));
+            return isNaN(areaId) ? [] : [areaId];
+        }
+        const areaId = parseInt(t);
+        if (!isNaN(areaId)) return [areaId];
+        const matched = resources.find(r => r.name?.toLowerCase() === t);
+        return matched ? [matched.id] : [];
+    };
+
+    const dedupe = (ids: number[]): number[] => [...new Set(ids)];
+
     try {
         const parsed = JSON.parse(affectedAreas);
         if (Array.isArray(parsed)) {
@@ -105,20 +111,22 @@ export const parseAffectedBayIds = (affectedAreas: string | null | undefined, re
                 if (typeof item === 'number') {
                     ids.push(item);
                 } else if (typeof item === 'string') {
-                    if (item.startsWith('bay_')) {
-                        const areaId = parseInt(item.replace('bay_', ''));
-                        if (!isNaN(areaId)) ids.push(areaId);
-                    } else {
-                        const areaId = parseInt(item);
-                        if (!isNaN(areaId)) ids.push(areaId);
-                    }
+                    ids.push(...resolveToken(item));
                 }
             }
-            return ids;
+            return dedupe(ids);
         }
-    } catch (e) { console.warn('[SimulatorUtils] Failed to parse affected bay IDs:', e); }
-    
-    return [];
+    } catch (_e) { /* fall through to comma/token parsing */ }
+
+    if (affectedAreas.includes(',')) {
+        const ids: number[] = [];
+        for (const part of affectedAreas.split(',')) {
+            ids.push(...resolveToken(part));
+        }
+        return dedupe(ids);
+    }
+
+    return resolveToken(affectedAreas);
 };
 
 export const getClosureForSlot = (

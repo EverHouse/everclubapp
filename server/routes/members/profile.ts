@@ -498,7 +498,7 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
         or(
           eq(bookingRequests.status, 'attended'),
           and(
-            eq(bookingRequests.resourceId, 11),
+            sql`${bookingRequests.resourceId} IN (SELECT id FROM resources WHERE type = 'conference_room' OR LOWER(name) LIKE '%conference%')`,
             eq(bookingRequests.status, 'approved'),
             sql`${bookingRequests.requestDate} < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date`
           )
