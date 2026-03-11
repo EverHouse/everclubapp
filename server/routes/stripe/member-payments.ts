@@ -776,25 +776,75 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
       });
       await stripe.invoices.finalizeInvoice(invoiceId as string, { auto_advance: false });
       logger.info('[Stripe] Finalized draft invoice as send_invoice for interactive member payment', { extra: { invoiceId } });
-    } else if (stripeInvoice.status === 'open' && stripeInvoice.collection_method === 'charge_automatically') {
-      logger.info('[Stripe] Invoice already open with charge_automatically — using existing PI', { extra: { invoiceId } });
+    } else if (stripeInvoice.status === 'open') {
+      if (stripeInvoice.collection_method === 'charge_automatically') {
+        await stripe.invoices.update(invoiceId as string, {
+          collection_method: 'send_invoice',
+          days_until_due: 30,
+        });
+        logger.info('[Stripe] Switched open invoice from charge_automatically to send_invoice', { extra: { invoiceId } });
+      } else {
+        logger.info('[Stripe] Invoice already open with send_invoice — using existing PI', { extra: { invoiceId } });
+      }
     }
 
-    const finalizedInvoice = await stripe.invoices.retrieve(invoiceId as string, { expand: ['payment_intent'] });
-    const rawPi = (finalizedInvoice as unknown as { payment_intent: string | Stripe.PaymentIntent | null }).payment_intent;
+    let finalizedInvoice = await stripe.invoices.retrieve(invoiceId as string, { expand: ['payment_intent'] });
+    let rawPi = (finalizedInvoice as unknown as { payment_intent: string | Stripe.PaymentIntent | null }).payment_intent;
     let invoicePiId: string | null = null;
     let invoicePiSecret: string | null = null;
 
     if (typeof rawPi === 'object' && rawPi !== null) {
-      invoicePiId = (rawPi as Stripe.PaymentIntent).id;
-      invoicePiSecret = (rawPi as Stripe.PaymentIntent).client_secret;
+      const piObj = rawPi as Stripe.PaymentIntent;
+      if (piObj.status === 'canceled') {
+        logger.warn('[Stripe] Invoice PI is canceled, will need new PI', { extra: { invoiceId, piId: piObj.id } });
+        rawPi = null;
+      } else {
+        invoicePiId = piObj.id;
+        invoicePiSecret = piObj.client_secret;
+      }
     } else if (typeof rawPi === 'string') {
       const pi = await stripe.paymentIntents.retrieve(rawPi);
-      invoicePiId = pi.id;
-      invoicePiSecret = pi.client_secret;
+      if (pi.status === 'canceled') {
+        logger.warn('[Stripe] Invoice PI is canceled, will need new PI', { extra: { invoiceId, piId: pi.id } });
+      } else {
+        invoicePiId = pi.id;
+        invoicePiSecret = pi.client_secret;
+      }
     }
 
     if (!invoicePiId || !invoicePiSecret) {
+      logger.warn('[Stripe] No valid PI on invoice — attempting to create one via pay() with payment_behavior', {
+        extra: { invoiceId, status: finalizedInvoice.status, collectionMethod: finalizedInvoice.collection_method, rawPiType: typeof rawPi, rawPiValue: rawPi }
+      });
+
+      try {
+        const payResult = await stripe.invoices.pay(invoiceId as string, {
+          payment_behavior: 'default_incomplete',
+        } as Stripe.InvoicePayParams);
+        finalizedInvoice = await stripe.invoices.retrieve(invoiceId as string, { expand: ['payment_intent'] });
+        rawPi = (finalizedInvoice as unknown as { payment_intent: string | Stripe.PaymentIntent | null }).payment_intent;
+
+        if (typeof rawPi === 'object' && rawPi !== null) {
+          invoicePiId = (rawPi as Stripe.PaymentIntent).id;
+          invoicePiSecret = (rawPi as Stripe.PaymentIntent).client_secret;
+        } else if (typeof rawPi === 'string') {
+          const pi = await stripe.paymentIntents.retrieve(rawPi);
+          invoicePiId = pi.id;
+          invoicePiSecret = pi.client_secret;
+        }
+
+        if (invoicePiId && invoicePiSecret) {
+          logger.info('[Stripe] Successfully created PI via pay() for invoice', { extra: { invoiceId, piId: invoicePiId } });
+        }
+      } catch (payErr: unknown) {
+        logger.error('[Stripe] Failed to create PI via pay() for invoice', { extra: { invoiceId, error: getErrorMessage(payErr) } });
+      }
+    }
+
+    if (!invoicePiId || !invoicePiSecret) {
+      logger.error('[Stripe] All attempts to get a PI for invoice failed', {
+        extra: { invoiceId, status: finalizedInvoice.status, collectionMethod: finalizedInvoice.collection_method }
+      });
       return res.status(500).json({ error: 'Unable to create payment for this invoice. Please contact support.' });
     }
 
