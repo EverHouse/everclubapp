@@ -133,21 +133,19 @@ export async function updateMemberBillingProvider(
   }
 }
 
-export async function bulkClassifyMindbodyMembers(): Promise<{ updated: number; errors: string[] }> {
+export async function bulkClassifyUnclassifiedMembers(): Promise<{ updated: number; errors: string[] }> {
   const errors: string[] = [];
   let updated = 0;
   
   try {
     const result = await db.update(users)
-      .set({ billingProvider: 'mindbody', updatedAt: new Date() })
+      .set({ billingProvider: 'stripe', updatedAt: new Date() })
       .where(and(
-        isNotNull(users.mindbodyClientId),
-        isNull(users.stripeSubscriptionId),
         sql`${users.billingProvider} IS NULL OR ${users.billingProvider} = ''`
       ));
     
     updated = (result as unknown as DrizzleExecuteResult).rowCount || 0;
-    logger.info(`[BillingClassify] Updated ${updated} members with Mindbody IDs to mindbody provider`);
+    logger.info(`[BillingClassify] Set billing_provider='stripe' for ${updated} unclassified members`);
     
     return { updated, errors };
   } catch (error: unknown) {

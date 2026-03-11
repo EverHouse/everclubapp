@@ -869,11 +869,7 @@ export async function setupInstantDataTriggers(): Promise<void> {
       AS $$
       BEGIN
         IF NEW.billing_provider IS NULL OR NEW.billing_provider = '' THEN
-          IF NEW.stripe_subscription_id IS NOT NULL AND NEW.stripe_subscription_id != '' THEN
-            NEW.billing_provider := 'stripe';
-          ELSIF NEW.mindbody_client_id IS NOT NULL AND NEW.mindbody_client_id != '' THEN
-            NEW.billing_provider := 'mindbody';
-          END IF;
+          NEW.billing_provider := 'stripe';
         END IF;
         RETURN NEW;
       END;

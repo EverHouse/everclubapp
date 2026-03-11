@@ -466,8 +466,6 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
             logger.info(`[MemberSync] APP DB PRIMARY: Skipping status/tier update for ${email} (billing: ${existingUser[0]?.billingProvider || 'default'}, HubSpot status: ${status})`);
           }
 
-          const newBillingProvider = status === 'active' && contact.properties.mindbody_client_id ? 'mindbody' : 'stripe';
-          
           const streetAddress = contact.properties.address?.trim() || null;
           const city = contact.properties.city?.trim() || null;
           const state = contact.properties.state?.trim() || null;
@@ -493,7 +491,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
               tags: tags.length > 0 ? tags : [],
               hubspotId: contact.id,
               membershipStatus: status,
-              billingProvider: newBillingProvider,
+              billingProvider: 'stripe',
               mindbodyClientId: contact.properties.mindbody_client_id || null,
               joinDate,
               emailOptIn,
@@ -1035,8 +1033,6 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
             logger.info(`[MemberSync] APP DB PRIMARY: Skipping status/tier update for ${email} (billing: ${existingUser[0]?.billingProvider || 'default'}, HubSpot status: ${status})`);
           }
 
-          const newBillingProvider = status === 'active' && contact.properties.mindbody_client_id ? 'mindbody' : 'stripe';
-          
           const streetAddress = contact.properties.address?.trim() || null;
           const city = contact.properties.city?.trim() || null;
           const state = contact.properties.state?.trim() || null;
@@ -1062,7 +1058,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
               tags: tags.length > 0 ? tags : [],
               hubspotId: contact.id,
               membershipStatus: status,
-              billingProvider: newBillingProvider,
+              billingProvider: 'stripe',
               mindbodyClientId: contact.properties.mindbody_client_id || null,
               joinDate,
               emailOptIn,

@@ -211,7 +211,7 @@ async function runPeriodicAutoFix(): Promise<void> {
       logger.info(`[Auto-Fix] Normalized membership_status case for ${result.normalizedStatusCase} members`);
     }
     if (result.fixedBillingProvider > 0) {
-      logger.info(`[Auto-Fix] Set billing_provider='mindbody' for ${result.fixedBillingProvider} members with MindBody IDs`);
+      logger.info(`[Auto-Fix] Set billing_provider='stripe' for ${result.fixedBillingProvider} unclassified active members`);
     }
     if (result.fixedFromAlternateEmail > 0) {
       logger.info(`[Auto-Fix] Cleared tier/status for ${result.fixedFromAlternateEmail} linked user records (data belongs to primary)`);

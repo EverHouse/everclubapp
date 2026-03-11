@@ -145,23 +145,20 @@ export async function autoFixMissingTiers(): Promise<{
       logger.info(`[AutoFix] Set billing_provider='stripe' for ${fixedStripeProvider} members with Stripe subscriptions: ${emails}`);
     }
 
-    const billingProviderResult = await db.execute(sql`
-      UPDATE users SET billing_provider = 'mindbody', updated_at = NOW()
+    const remainingProviderResult = await db.execute(sql`
+      UPDATE users SET billing_provider = 'stripe', updated_at = NOW()
       WHERE membership_status = 'active'
         AND (billing_provider IS NULL OR billing_provider = '')
-        AND mindbody_client_id IS NOT NULL
-        AND mindbody_client_id != ''
-        AND stripe_subscription_id IS NULL
         AND role != 'visitor'
         AND email NOT LIKE '%test%'
         AND email NOT LIKE '%example.com'
         AND (last_manual_fix_at IS NULL OR last_manual_fix_at < NOW() - INTERVAL '1 hour')
       RETURNING email
     `);
-    fixedBillingProvider = billingProviderResult.rows.length + fixedStripeProvider;
-    if (billingProviderResult.rows.length > 0) {
-      const emails = (billingProviderResult.rows as unknown as EmailRow[]).map(r => r.email).join(', ');
-      logger.info(`[AutoFix] Set billing_provider='mindbody' for ${billingProviderResult.rows.length} members with MindBody IDs: ${emails}`);
+    fixedBillingProvider = remainingProviderResult.rows.length + fixedStripeProvider;
+    if (remainingProviderResult.rows.length > 0) {
+      const emails = (remainingProviderResult.rows as unknown as EmailRow[]).map(r => r.email).join(', ');
+      logger.info(`[AutoFix] Set billing_provider='stripe' for ${remainingProviderResult.rows.length} active members with unclassified billing: ${emails}`);
     }
 
     await db.execute(sql`
