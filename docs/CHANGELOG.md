@@ -26,14 +26,17 @@ All notable changes to the Ever Club Members App are documented here.
 - **Fee Snapshot Update**: Booking cancellation now correctly updates the saved fee snapshot — prevents stale fee data on cancelled bookings.
 - **Past Booking Protection**: Members can no longer cancel bookings that already happened or were attended — button hidden on frontend and enforced on backend.
 - **Lesson Closure Cleanup**: Lesson events from Google Calendar no longer create unwanted facility closure notices — past lesson closures auto-cleaned on startup.
-- **Files**: `server/core/resource/cancellation.ts`, `server/core/billing/bookingInvoiceService.ts`, `server/core/databaseCleanup.ts`, `server/loaders/startup.ts`
+- **Billing Calculation Fix**: Usage calculator and approval service edge cases resolved during check-in.
+- **Manual Booking Validation**: Staff manual booking modal validates all required fields before submission.
+- **Files**: `server/core/resource/cancellation.ts`, `server/core/billing/bookingInvoiceService.ts`, `server/core/databaseCleanup.ts`, `server/loaders/startup.ts`, `server/core/bookingService/approvalService.ts`, `server/core/bookingService/usageCalculator.ts`
 
 ### UI Polish
 - **Command Center Notices**: Affected areas (bays, rooms) display proper labels instead of raw data.
 - **Edge Swipe**: Hamburger menu easier to open on mobile — edge swipe zone widened.
 - **Dropdown Consistency**: Dropdowns behave consistently across iOS and Android.
 - **Conference Room Notes**: Spacing corrected on booking notes section.
-- **Files**: `src/hooks/useEdgeSwipe.ts`, `src/components/booking/GuestPaymentChoiceModal.tsx`
+- **Data Integrity Validation**: Integrity actions validate inputs more strictly.
+- **Files**: `src/hooks/useEdgeSwipe.ts`, `src/components/booking/GuestPaymentChoiceModal.tsx`, `server/routes/dataIntegrity.ts`
 
 ## [8.81.2] - 2026-03-11
 
@@ -47,8 +50,14 @@ All notable changes to the Ever Club Members App are documented here.
 - **Billing History Dedup**: Billing history no longer shows duplicate entries for the same booking.
 - **Stale Payment Intent Cleanup**: Old payment intents properly cancelled when an invoice is updated with a new payment.
 - **Payment History Filter**: Payment history only shows completed and refunded transactions — pending/cancelled attempts removed.
+- **Unified Billing Modal**: Billing and payment now use a unified modal for invoices.
+- **Cancelled Booking Exclusion**: Fee calculation now excludes cancelled bookings from daily usage totals.
+- **Billing History Dates**: Date formatting corrected for consistent display across all entries.
+- **Stale Invoice Cleanup**: Stale invoices cleaned up before creating new payment intents.
+- **Invoice Metadata Fix**: Booking IDs correctly extracted from invoice metadata for billing history lookups.
+- **View Button Fix**: 'View' button on payment receipts only appears for successfully completed payments.
 - **Stripe Product IDs**: Billing now uses correct Stripe product IDs for overage and guest fees.
-- **Files**: `server/core/billing/unifiedFeeService.ts`, `server/core/billing/bookingInvoiceService.ts`, `server/routes/stripe/member-payments.ts`
+- **Files**: `server/core/billing/unifiedFeeService.ts`, `server/core/billing/bookingInvoiceService.ts`, `server/routes/stripe/member-payments.ts`, `server/routes/myBilling.ts`, `src/pages/Member/History.tsx`
 
 ## [8.81.1] - 2026-03-10
 
@@ -72,8 +81,19 @@ All notable changes to the Ever Club Members App are documented here.
 - **Booking Owner Auto-Fix**: Mismatched booking owners automatically corrected on server startup.
 - **Session Reuse Prevention**: Booking sessions no longer reuse cancelled sessions — each gets a fresh session.
 - **Overlapping Sessions**: Overlapping booking sessions for the same resource now supported — resolves back-to-back boundary errors.
+- **Session-Booking Linking**: Sessions properly linked to bookings at creation — prevents orphaned sessions.
+- **Session Participant Sync**: Session participants updated when roster changes — old participants removed and new ones added on startup.
+- **Session Creation Logic**: Session creation and overlap detection improved for adjacent time slots.
+- **Fee Backfill**: Backfill process computes fees for newly created sessions — ensures historical bookings have billing data.
+- **Booking Format Parsing**: Booking request format interpretation improved for various date/time formats.
+- **Lesson Closure Filter**: Lesson events from Google Calendar filtered out during event sync — no longer create closure notices.
+- **Participant Transactions**: Roster changes no longer cause database constraint violations.
+- **HubSpot Queue**: Queue processing no longer stalls on invalid entries — skips malformed jobs.
+- **Session Error Handling**: Session creation error handling improved — prevents unnecessary error logs.
+- **Error Boundaries**: App error boundaries simplified for cleaner recovery.
+- **Financial Loading UX**: Financial page loading skeletons improved on mobile.
 - **Scheduler Recovery**: Scheduler state management improved with better error handling.
-- **Files**: `server/core/emailTemplatePreview.ts`, `server/loaders/startup.ts`, `server/core/bookingService/sessionManager.ts`
+- **Files**: `server/core/emailTemplatePreview.ts`, `server/loaders/startup.ts`, `server/core/bookingService/sessionManager.ts`, `server/core/bookingService/rosterService.ts`, `server/core/hubspot/queue.ts`, `server/routes/trackman/admin-maintenance.ts`
 
 ## [8.81.0] - 2026-03-10
 
@@ -100,6 +120,31 @@ All notable changes to the Ever Club Members App are documented here.
 - **Pixel/Chrome Touch Fix**: Touch listeners moved to document level to avoid Pixel Chrome compositor interference. Container-scoped guards (`containerRef.contains(e.target)`) and `hasActiveLocks()` prevent activation during overlays/menus.
 - **Edge Swipe Gesture**: `useEdgeSwipe.ts` now detects Android gesture navigation (`isAndroidGestureNav`) and defers to the system back gesture.
 - **Files**: `src/components/PullToRefresh.tsx`, `src/hooks/useEdgeSwipe.ts`, `src/index.css`
+
+### Security Hardening
+- **IP Spoofing Prevention**: Audit log and session manager hardened against forged requests.
+- **Rate Limiting**: Authentication endpoints enforce stricter validation to prevent duplicate OTP emails and IP spoofing.
+- **Files**: `server/core/auditLog.ts`, `server/core/bookingService/sessionManager.ts`, `server/routes/auth.ts`
+
+### Booking Import & Matching
+- **Placeholder Email Matching**: Trackman booking imports now match members using placeholder emails — reduces unmatched bookings.
+- **Broader Email Resolution**: Unmatched bookings during CSV imports handled more gracefully with broader email matching.
+- **Matched Status Enforcement**: All bookings properly marked as matched after assignment — prevents lingering in unmatched queue.
+- **Unmatched Booking Handling**: Improved cancellation and resolution for unmatched Trackman bookings.
+- **Files**: `server/core/trackman/service.ts`, `server/core/bookingService/approvalService.ts`, `server/db-init.ts`, `server/routes/trackman/admin-resolution.ts`
+
+### Staff Tools & Directory
+- **Bulk Waiver Action**: 'Mark All Waivers Signed' bulk action added to data integrity dashboard.
+- **Activity Log Removed**: Activity log section removed from data integrity page — cleaner interface.
+- **Self-Linking Prevention**: Members can no longer accidentally link their account to themselves.
+- **Staff Role Auto-Sync**: User roles automatically corrected when staff status changes.
+- **Member Directory**: Visibility and data consistency improvements for search results.
+- **Files**: `server/routes/dataIntegrity.ts`, `server/routes/users.ts`, `server/db-init.ts`, `server/routes/members/search.ts`
+
+### HubSpot Sync
+- **Status Mapping Fix**: HubSpot sync correctly maps membership status and billing provider.
+- **Contact ID Lookup**: Data integrity sync fetches contact IDs directly from the database for reliability.
+- **Files**: `server/core/hubspot/members.ts`, `server/core/integrity/resolution.ts`
 
 ### Other Improvements
 - **Print Styles**: Transitioned from backslash-escaped Tailwind class selectors to CSS attribute selectors for Lightning CSS compatibility.
