@@ -305,31 +305,40 @@ export async function ensureDatabaseConstraints() {
             RETURN NEW;
           END IF;
 
-          SELECT COUNT(*) INTO conflict_count
-          FROM public.booking_sessions bs
-          WHERE bs.resource_id = NEW.resource_id
-            AND bs.session_date = NEW.session_date
-            AND bs.id != COALESCE(NEW.id, 0)
-            AND tsrange(
-              (bs.session_date + bs.start_time)::timestamp,
-              CASE WHEN bs.end_time <= bs.start_time
-                THEN (bs.session_date + bs.end_time + INTERVAL '1 day')::timestamp
-                ELSE (bs.session_date + bs.end_time)::timestamp
-              END,
-              '[)'
-            ) && tsrange(
-              (NEW.session_date + NEW.start_time)::timestamp,
-              CASE WHEN NEW.end_time <= NEW.start_time
-                THEN (NEW.session_date + NEW.end_time + INTERVAL '1 day')::timestamp
-                ELSE (NEW.session_date + NEW.end_time)::timestamp
-              END,
-              '[)'
-            )
-            AND EXISTS (
-              SELECT 1 FROM public.booking_requests br
-              WHERE br.session_id = bs.id
-                AND br.status NOT IN ('cancelled', 'deleted')
-            );
+          IF NEW.start_time = NEW.end_time THEN
+            RETURN NEW;
+          END IF;
+
+          BEGIN
+            SELECT COUNT(*) INTO conflict_count
+            FROM public.booking_sessions bs
+            WHERE bs.resource_id = NEW.resource_id
+              AND bs.session_date = NEW.session_date
+              AND bs.id != COALESCE(NEW.id, 0)
+              AND bs.start_time != bs.end_time
+              AND tsrange(
+                (bs.session_date + bs.start_time)::timestamp,
+                CASE WHEN bs.end_time <= bs.start_time
+                  THEN (bs.session_date + bs.end_time + INTERVAL '1 day')::timestamp
+                  ELSE (bs.session_date + bs.end_time)::timestamp
+                END,
+                '[)'
+              ) && tsrange(
+                (NEW.session_date + NEW.start_time)::timestamp,
+                CASE WHEN NEW.end_time <= NEW.start_time
+                  THEN (NEW.session_date + NEW.end_time + INTERVAL '1 day')::timestamp
+                  ELSE (NEW.session_date + NEW.end_time)::timestamp
+                END,
+                '[)'
+              )
+              AND EXISTS (
+                SELECT 1 FROM public.booking_requests br
+                WHERE br.session_id = bs.id
+                  AND br.status NOT IN ('cancelled', 'deleted')
+              );
+          EXCEPTION WHEN data_exception THEN
+            conflict_count := 0;
+          END;
           
           IF conflict_count > 0 THEN
             RAISE EXCEPTION 'Double-booking not allowed: This time slot on this bay already has a session';

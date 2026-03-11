@@ -166,42 +166,72 @@ export async function ensureSessionForBooking(params: {
     }
 
     if (!sessionId && params.startTime !== params.endTime) {
-      const overlapSession = await lockClient.query(
-        `SELECT bs.id FROM booking_sessions bs
-         WHERE bs.resource_id = $1 AND bs.session_date = $2
-         AND tsrange(
-           (bs.session_date + bs.start_time)::timestamp,
-           CASE WHEN bs.end_time <= bs.start_time
-             THEN (bs.session_date + bs.end_time + INTERVAL '1 day')::timestamp
-             ELSE (bs.session_date + bs.end_time)::timestamp
-           END, '[)'
-         ) && tsrange(
-           ($2::date + $3::time)::timestamp,
-           CASE WHEN $4::time <= $3::time
-             THEN ($2::date + $4::time + INTERVAL '1 day')::timestamp
-             ELSE ($2::date + $4::time)::timestamp
-           END, '[)'
-         )
-         ORDER BY bs.updated_at DESC NULLS LAST
-         LIMIT 1`,
-        [params.resourceId, params.sessionDate, params.startTime, params.endTime]
-      );
-      if (overlapSession.rows.length > 0) {
-        sessionId = overlapSession.rows[0].id;
+      try {
+        const overlapSession = await lockClient.query(
+          `SELECT bs.id FROM booking_sessions bs
+           WHERE bs.resource_id = $1 AND bs.session_date = $2
+           AND bs.start_time != bs.end_time
+           AND tsrange(
+             (bs.session_date + bs.start_time)::timestamp,
+             CASE WHEN bs.end_time <= bs.start_time
+               THEN (bs.session_date + bs.end_time + INTERVAL '1 day')::timestamp
+               ELSE (bs.session_date + bs.end_time)::timestamp
+             END, '[)'
+           ) && tsrange(
+             ($2::date + $3::time)::timestamp,
+             CASE WHEN $4::time <= $3::time
+               THEN ($2::date + $4::time + INTERVAL '1 day')::timestamp
+               ELSE ($2::date + $4::time)::timestamp
+             END, '[)'
+           )
+           ORDER BY bs.updated_at DESC NULLS LAST
+           LIMIT 1`,
+          [params.resourceId, params.sessionDate, params.startTime, params.endTime]
+        );
+        if (overlapSession.rows.length > 0) {
+          sessionId = overlapSession.rows[0].id;
+        }
+      } catch (rangeErr: unknown) {
+        const rangeErrMsg = getErrorMessage(rangeErr);
+        if (rangeErrMsg.includes('range lower bound') || rangeErrMsg.includes('range upper bound') || getErrorCode(rangeErr) === '22000') {
+          logger.warn('[SessionManager] Overlap query failed due to corrupt session range data, skipping overlap check', { error: rangeErr });
+        } else {
+          throw rangeErr;
+        }
       }
     }
 
     if (!sessionId) {
-      const insertResult = await lockClient.query(
-        `INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-         ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL
-         DO UPDATE SET updated_at = NOW()
-         RETURNING id`,
-        [params.resourceId, params.sessionDate, params.startTime, params.endTime, params.trackmanBookingId || null, params.source, params.createdBy]
-      );
-      sessionId = insertResult.rows[0].id;
-      created = true;
+      try {
+        const insertResult = await lockClient.query(
+          `INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+           ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL
+           DO UPDATE SET updated_at = NOW()
+           RETURNING id`,
+          [params.resourceId, params.sessionDate, params.startTime, params.endTime, params.trackmanBookingId || null, params.source, params.createdBy]
+        );
+        sessionId = insertResult.rows[0].id;
+        created = true;
+      } catch (insertErr: unknown) {
+        const errMsg = getErrorMessage(insertErr);
+        if (errMsg.includes('booking_sessions_resource_datetime_unique')) {
+          const fallback = await lockClient.query(
+            `SELECT id FROM booking_sessions
+             WHERE resource_id = $1 AND session_date = $2 AND start_time = $3 AND end_time = $4
+             LIMIT 1`,
+            [params.resourceId, params.sessionDate, params.startTime, params.endTime]
+          );
+          if (fallback.rows.length > 0) {
+            sessionId = fallback.rows[0].id;
+            logger.info(`[SessionManager] Resolved unique constraint race: linked to existing session ${sessionId}`);
+          } else {
+            throw insertErr;
+          }
+        } else {
+          throw insertErr;
+        }
+      }
     }
 
     const existingOwner = await lockClient.query(
