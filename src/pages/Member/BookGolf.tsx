@@ -1425,7 +1425,7 @@ const BookGolf: React.FC = () => {
           )}
 
           {selectedResource && (
-            <section className="animate-content-enter pb-32">
+            <section className={`animate-content-enter ${activeTab === 'conference' ? (conferencePaymentRequired && conferenceOverageFee > 0 ? 'pb-96' : 'pb-56') : 'pb-32'}`}>
               <h3 className={`text-[11px] font-bold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>
                 Notes for Staff <span className="font-normal opacity-60">(optional)</span>
               </h3>
