@@ -153,65 +153,6 @@ export async function ensureSessionForBooking(params: {
     }
 
     if (!sessionId) {
-      const existingSession = await lockClient.query(
-        `SELECT bs.id FROM booking_sessions bs
-         WHERE bs.resource_id = $1 AND bs.session_date = $2 AND bs.start_time = $3
-         AND EXISTS (
-           SELECT 1 FROM booking_requests br
-           WHERE br.session_id = bs.id
-           AND br.status NOT IN ('cancelled', 'declined', 'no_show')
-         )
-         ORDER BY bs.updated_at DESC NULLS LAST
-         LIMIT 1`,
-        [params.resourceId, params.sessionDate, params.startTime]
-      );
-      if (existingSession.rows.length > 0) {
-        sessionId = existingSession.rows[0].id;
-      }
-    }
-
-    if (!sessionId && params.startTime !== params.endTime) {
-      try {
-        const overlapSession = await lockClient.query(
-          `SELECT bs.id FROM booking_sessions bs
-           WHERE bs.resource_id = $1 AND bs.session_date = $2
-           AND bs.start_time != bs.end_time
-           AND EXISTS (
-             SELECT 1 FROM booking_requests br
-             WHERE br.session_id = bs.id
-             AND br.status NOT IN ('cancelled', 'declined', 'no_show')
-           )
-           AND tsrange(
-             (bs.session_date + bs.start_time)::timestamp,
-             CASE WHEN bs.end_time <= bs.start_time
-               THEN (bs.session_date + bs.end_time + INTERVAL '1 day')::timestamp
-               ELSE (bs.session_date + bs.end_time)::timestamp
-             END, '[)'
-           ) && tsrange(
-             ($2::date + $3::time)::timestamp,
-             CASE WHEN $4::time <= $3::time
-               THEN ($2::date + $4::time + INTERVAL '1 day')::timestamp
-               ELSE ($2::date + $4::time)::timestamp
-             END, '[)'
-           )
-           ORDER BY bs.updated_at DESC NULLS LAST
-           LIMIT 1`,
-          [params.resourceId, params.sessionDate, params.startTime, params.endTime]
-        );
-        if (overlapSession.rows.length > 0) {
-          sessionId = overlapSession.rows[0].id;
-        }
-      } catch (rangeErr: unknown) {
-        const rangeErrMsg = getErrorMessage(rangeErr);
-        if (rangeErrMsg.includes('range lower bound') || rangeErrMsg.includes('range upper bound') || getErrorCode(rangeErr) === '22000') {
-          logger.warn('[SessionManager] Overlap query failed due to corrupt session range data, skipping overlap check', { error: rangeErr });
-        } else {
-          throw rangeErr;
-        }
-      }
-    }
-
-    if (!sessionId) {
       try {
         await lockClient.query(`SET app.bypass_overlap_check = 'true'`);
         try {
@@ -236,43 +177,11 @@ export async function ensureSessionForBooking(params: {
           }
         }
       } catch (insertErr: unknown) {
-        const errCode = getErrorCode(insertErr);
         const errMsg = getErrorMessage(insertErr);
-        const errConstraint = (insertErr && typeof insertErr === 'object' && 'constraint' in insertErr) ? String((insertErr as Record<string, unknown>).constraint) : '';
-        if (errCode === '23505' && (errConstraint === 'booking_sessions_resource_datetime_unique' || errConstraint === 'booking_sessions_trackman_booking_id_unique')) {
-          logger.info(`[SessionManager] Unique constraint hit: ${errConstraint}, attempting fallback lookup`);
-          const fallback = await lockClient.query(
-            `SELECT id FROM booking_sessions
-             WHERE resource_id = $1 AND session_date = $2 AND start_time = $3 AND end_time = $4
-             LIMIT 1`,
-            [params.resourceId, params.sessionDate, params.startTime, params.endTime]
-          );
-          if (fallback.rows.length > 0) {
-            sessionId = fallback.rows[0].id;
-            logger.info(`[SessionManager] Resolved unique constraint race: linked to existing session ${sessionId}`);
-          } else if (errConstraint === 'booking_sessions_resource_datetime_unique') {
-            const broadFallback = await lockClient.query(
-              `SELECT id FROM booking_sessions
-               WHERE resource_id = $1 AND session_date = $2 AND start_time = $3
-               ORDER BY created_at DESC
-               LIMIT 1`,
-              [params.resourceId, params.sessionDate, params.startTime]
-            );
-            if (broadFallback.rows.length > 0) {
-              sessionId = broadFallback.rows[0].id;
-              logger.info(`[SessionManager] Resolved constraint race via broad match: linked to existing session ${sessionId}`, { extra: { constraint: errConstraint, resourceId: params.resourceId, sessionDate: params.sessionDate, startTime: params.startTime } });
-            } else {
-              throw insertErr;
-            }
-          } else {
-            throw insertErr;
-          }
-        } else if (errMsg.includes('range lower bound') || errMsg.includes('range upper bound') || errCode === '22000') {
+        if (errMsg.includes('range lower bound') || errMsg.includes('range upper bound') || getErrorCode(insertErr) === '22000') {
           logger.warn('[SessionManager] INSERT trigger failed due to corrupt session range data, retrying with bypass', { error: insertErr });
-          throw insertErr;
-        } else {
-          throw insertErr;
         }
+        throw insertErr;
       }
     }
 
@@ -963,49 +872,21 @@ export async function createSessionWithUsageTracking(
     );
     
     const executeDbWrites = async (tx: TransactionContext) => {
-      // FIRST: Check if an overlapping session already exists (e.g., from Trackman import)
-      // This prevents "Double-booking not allowed" errors when Trackman sessions
-      // have slightly different start/end times than booking requests
-      const existingSession = await findOverlappingSession(
-        request.resourceId,
-        request.sessionDate,
-        request.startTime,
-        request.endTime
+      const result = await createSession(
+        {
+          resourceId: request.resourceId,
+          sessionDate: request.sessionDate,
+          startTime: request.startTime,
+          endTime: request.endTime,
+          trackmanBookingId: request.trackmanBookingId,
+          createdBy: request.ownerEmail
+        },
+        request.participants,
+        source,
+        tx
       );
-      
-      let session: BookingSession;
-      let linkedParticipants: BookingParticipant[];
-      
-      if (existingSession) {
-        // Use existing session and link participants to it
-        session = existingSession;
-        linkedParticipants = await linkParticipants(session.id, request.participants, tx);
-        logger.info('[createSessionWithUsageTracking] Linked to existing session', {
-          extra: { 
-            sessionId: session.id, 
-            existingTimes: `${session.startTime}-${session.endTime}`,
-            requestedTimes: `${request.startTime}-${request.endTime}`,
-            participantCount: linkedParticipants.length
-          }
-        });
-      } else {
-        // No existing session - create a new one
-        const result = await createSession(
-          {
-            resourceId: request.resourceId,
-            sessionDate: request.sessionDate,
-            startTime: request.startTime,
-            endTime: request.endTime,
-            trackmanBookingId: request.trackmanBookingId,
-            createdBy: request.ownerEmail
-          },
-          request.participants,
-          source,
-          tx
-        );
-        session = result.session;
-        linkedParticipants = result.participants;
-      }
+      const session = result.session;
+      const linkedParticipants = result.participants;
       
       // Record usage ledger entries within the same transaction
       // IMPORTANT: Aggregate fees per member to avoid idempotency guard blocking valid entries
