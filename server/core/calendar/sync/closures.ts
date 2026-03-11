@@ -293,6 +293,11 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
         continue;
       }
       
+      const titleLower = event.summary.toLowerCase().trim();
+      if (titleLower.startsWith('lesson') || titleLower.startsWith('private lesson') || titleLower.startsWith('kids lesson') || titleLower.startsWith('group lesson')) {
+        continue;
+      }
+      
       fetchedEventIds.add(event.id);
       const internalCalendarId = event.id;
       const rawTitle = event.summary;
