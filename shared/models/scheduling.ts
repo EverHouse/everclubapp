@@ -267,13 +267,14 @@ export const usageLedger = pgTable("usage_ledger", {
   index("usage_ledger_session_idx").on(table.sessionId),
   index("usage_ledger_member_idx").on(table.memberId),
   index("usage_ledger_stripe_payment_intent_idx").on(table.stripePaymentIntentId),
+  uniqueIndex("usage_ledger_session_member_source_uniq").on(table.sessionId, table.memberId, table.source),
 ]);
 
 // Booking participants table - unified table for all participants (replaces booking_members/booking_guests)
 export const bookingParticipants = pgTable("booking_participants", {
   id: serial("id").primaryKey(),
   sessionId: integer("session_id").notNull().references(() => bookingSessions.id, { onDelete: 'cascade' }),
-  userId: varchar("user_id"),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
   guestId: integer("guest_id").references(() => guests.id, { onDelete: 'set null' }),
   participantType: participantTypeEnum("participant_type").notNull(),
   displayName: varchar("display_name").notNull(),

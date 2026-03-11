@@ -181,6 +181,7 @@ httpServer.listen(PORT, '0.0.0.0', () => {
 
   initializeApp().catch((err) => {
     logger.error('[Startup] Express initialization failed:', { error: err as Error });
+    process.exit(1);
   });
 });
 
@@ -1031,8 +1032,7 @@ async function initializeApp() {
   });
 
   expressApp = app;
-  isReady = true;
-  logger.info('[Startup] Express app fully initialized and accepting requests');
+  logger.info('[Startup] Express app initialized, waiting for background services...');
 
   if (isProduction) {
     try {
@@ -1140,6 +1140,9 @@ async function initializeApp() {
     } catch (err: unknown) {
       logger.error('[Startup] Scheduler initialization failed:', { error: err as Error });
     }
+
+    isReady = true;
+    logger.info('[Startup] All background services initialized — app is fully ready');
   }, heavyTaskDelay);
 }
 

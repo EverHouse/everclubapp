@@ -3,9 +3,8 @@ import { getErrorMessage } from '../utils/errorUtils';
 import { Server, IncomingMessage } from 'http';
 import { parse as parseCookie } from 'cookie';
 import { unsign } from 'cookie-signature';
-import { Pool } from 'pg';
 import { logger } from './logger';
-import { stripSslMode } from './db';
+import { pool as sharedPool } from './db';
 
 interface ClientConnection {
   ws: WebSocket;
@@ -53,34 +52,9 @@ const clients: Map<string, ClientConnection[]> = new Map();
 const staffEmails: Set<string> = new Set();
 
 let wss: WebSocketServer | null = null;
-let sessionPool: Pool | null = null;
 
-function getSessionPool(): Pool | null {
-  if (sessionPool) return sessionPool;
-  
-  const poolerUrl = stripSslMode(process.env.DATABASE_POOLER_URL);
-  const directUrl = stripSslMode(process.env.DATABASE_URL);
-  const usePooler = process.env.ENABLE_PGBOUNCER === 'true' && !!poolerUrl;
-  const dbUrl = usePooler ? poolerUrl : directUrl;
-  if (!dbUrl) {
-    logger.warn('[WebSocket] No database URL configured - session verification disabled');
-    return null;
-  }
-  
-  try {
-    const needsSsl = process.env.NODE_ENV === 'production' || usePooler;
-    sessionPool = new Pool({ 
-      connectionString: dbUrl,
-      connectionTimeoutMillis: 5000,
-      max: 5,
-      idleTimeoutMillis: 30000,
-      ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
-    });
-    return sessionPool;
-  } catch (err: unknown) {
-    logger.warn('[WebSocket] Failed to create session pool:', { extra: { detail: getErrorMessage(err) } });
-    return null;
-  }
+function getSessionPool() {
+  return sharedPool;
 }
 
 function parseSessionId(cookieHeader: string | undefined, sessionSecret: string): string | null {
@@ -241,12 +215,6 @@ export function closeWebSocketServer(): void {
     wss = null;
   }
 
-  if (sessionPool) {
-    sessionPool.end().catch((err) => {
-      logger.error('[WebSocket] Error closing session pool:', { error: err });
-    });
-    sessionPool = null;
-  }
 }
 
 export function initWebSocketServer(server: Server) {

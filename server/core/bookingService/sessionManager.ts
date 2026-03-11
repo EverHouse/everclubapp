@@ -64,6 +64,9 @@ export async function createSession(
 ): Promise<{ session: BookingSession; participants: BookingParticipant[] }> {
   const dbCtx = tx || db;
   try {
+    const lockKey = `${request.resourceId}::${request.sessionDate}`;
+    await dbCtx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`);
+
     const sessionData: InsertBookingSession = {
       resourceId: request.resourceId,
       sessionDate: request.sessionDate,

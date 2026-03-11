@@ -124,6 +124,9 @@ export function useApproveBooking() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
     },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
+    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
     },
@@ -137,6 +140,9 @@ export function useDeclineBooking() {
       postWithCredentials<{ success: boolean }>(`/api/booking-requests/${bookingId}/decline`, { reason }),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
@@ -152,6 +158,9 @@ export function useCancelBooking() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
     },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
+    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
     },
@@ -165,6 +174,9 @@ export function useCheckInBooking() {
       postWithCredentials<{ success: boolean }>(`/api/bookings/sessions/${sessionId}/check-in`, { actualPlayerCount, waiverWaived }),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: bookingsKeys.all });

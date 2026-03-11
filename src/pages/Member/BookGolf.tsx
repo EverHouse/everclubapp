@@ -164,10 +164,11 @@ const BookGolf: React.FC = () => {
     staleTime: 1000 * 60 * 5,
   });
 
-  // Availability Query
+  // Availability Query — short staleTime to prevent stale slot bookings
   const resourceIds = resources.map(r => r.dbId);
   const { data: availableSlots = [], isLoading: availabilityLoading } = useQuery({
     queryKey: bookGolfKeys.availability(resourceIds, selectedDateObj?.date || '', duration, undefined, effectiveUser?.email),
+    staleTime: 1000 * 15,
     queryFn: async () => {
       if (!selectedDateObj?.date || resourceIds.length === 0) return [];
       

@@ -100,10 +100,10 @@ export class PaymentStatusService {
               const pendingRows = pendingResult.rows as unknown as PendingParticipantRow[];
               if (pendingRows.length > 0) {
                 const totalPendingCents = pendingRows.reduce((sum, row) => sum + (row.cached_fee_cents || 0), 0);
-                const tolerance = 50;
+                const tolerance = 5;
                 
                 if (Math.abs(totalPendingCents - piRow.amount_cents) > tolerance) {
-                  logger.warn(`[PaymentStatusService] No-snapshot fallback: amount mismatch for booking ${piRow.booking_id} (pending=${totalPendingCents}, paid=${piRow.amount_cents}) - skipping update`);
+                  logger.warn(`[PaymentStatusService] No-snapshot fallback: amount mismatch for booking ${piRow.booking_id} (pending=${totalPendingCents}c, paid=${piRow.amount_cents}c, diff=${Math.abs(totalPendingCents - piRow.amount_cents)}c) - skipping update`);
                   return { success: true, participantsUpdated: 0, snapshotsUpdated: 0 } as PaymentStatusResult;
                 }
 

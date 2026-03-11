@@ -102,7 +102,8 @@ export function calculateOverageFee(
   const overageMinutes = minutesUsed - tierAllowance;
   
   const thirtyMinBlocks = Math.ceil(overageMinutes / PRICING.OVERAGE_BLOCK_MINUTES);
-  const overageFee = thirtyMinBlocks * PRICING.OVERAGE_RATE_DOLLARS;
+  const overageFeeCents = thirtyMinBlocks * PRICING.OVERAGE_RATE_CENTS;
+  const overageFee = overageFeeCents / 100;
   
   return {
     hasOverage: true,

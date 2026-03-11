@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   index,
+  jsonb,
   pgTable,
   timestamp,
   varchar,
@@ -8,6 +9,8 @@ import {
   text,
   serial,
 } from "drizzle-orm/pg-core";
+import { bookingRequests } from "./scheduling";
+import { bookingSessions } from "./scheduling";
 
 // --- Unified Fee Service Types ---
 
@@ -68,6 +71,29 @@ export interface FeeComputeParams {
   excludeSessionFromUsage?: boolean;
   isConferenceRoom?: boolean;
 }
+
+// --- Booking Fee Snapshots Table ---
+export const bookingFeeSnapshots = pgTable(
+  "booking_fee_snapshots",
+  {
+    id: serial("id").primaryKey(),
+    bookingId: integer("booking_id").notNull().references(() => bookingRequests.id, { onDelete: 'cascade' }),
+    sessionId: integer("session_id").references(() => bookingSessions.id, { onDelete: 'cascade' }),
+    participantFees: jsonb("participant_fees").notNull(),
+    totalCents: integer("total_cents").notNull(),
+    stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
+    status: varchar("status", { length: 20 }).notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("idx_fee_snapshots_booking").on(table.bookingId),
+    index("idx_fee_snapshots_intent").on(table.stripePaymentIntentId),
+  ],
+);
+
+export type BookingFeeSnapshot = typeof bookingFeeSnapshots.$inferSelect;
+export type InsertBookingFeeSnapshot = typeof bookingFeeSnapshots.$inferInsert;
 
 // --- Day Pass & Redemptions Tables ---
 

@@ -245,8 +245,8 @@ router.post('/api/tours/book', checkoutRateLimiter, async (req, res) => {
   }
 });
 
-// PUBLIC ROUTE
-router.patch('/api/tours/:id/confirm', async (req, res) => {
+// PUBLIC ROUTE — rate-limited to prevent abuse
+router.patch('/api/tours/:id/confirm', checkoutRateLimiter, async (req, res) => {
   try {
     const { id } = req.params;
     const { email } = req.body;

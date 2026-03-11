@@ -3,6 +3,7 @@ import type { RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
 import type { Pool } from "pg";
 import { Pool as PgPool } from "pg";
+import { randomBytes } from "crypto";
 import { pool, isProduction } from "../../core/db";
 import { getSessionUser } from "../../types/session";
 import { getErrorMessage } from "../../utils/errorUtils";
@@ -51,10 +52,11 @@ export function getSession() {
     if (isProduction) {
       throw new Error('[Session] FATAL: SESSION_SECRET is required in production. Set it in your environment variables.');
     }
-    logger.warn('[Session] SESSION_SECRET is missing - using development fallback (NOT SAFE FOR PRODUCTION)');
+    const fallbackSecret = randomBytes(32).toString('hex');
+    logger.warn('[Session] SESSION_SECRET is missing - using random fallback (NOT SAFE FOR PRODUCTION, sessions will not persist across restarts)');
     logger.info('[Session] Using MemoryStore');
     return session({
-      secret: 'dev-only-fallback-secret-' + Date.now(),
+      secret: fallbackSecret,
       resave: false,
       saveUninitialized: false,
       cookie: cookieConfig,
