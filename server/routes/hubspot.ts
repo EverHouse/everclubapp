@@ -1243,12 +1243,8 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
       logger.info('[HubSpot Webhook] Received: for object , =', { extra: { subscriptionType, objectId, propertyName, propertyValue } });
       
       if (subscriptionType === 'contact.propertyChange') {
-        allContactsCache.timestamp = 0;
-        invalidateCache('members_directory');
-        broadcastDirectoryUpdate('synced');
-
         const PROFILE_PROPERTIES = new Set([
-          'firstname', 'lastname', 'phone',
+          'firstname', 'lastname', 'email', 'phone', 'company',
           'address', 'city', 'state', 'zip',
           'date_of_birth', 'mindbody_client_id',
           'membership_discount_reason', 'membership_start_date',
@@ -1261,6 +1257,9 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
         const isProfileProperty = PROFILE_PROPERTIES.has(propertyName);
 
         if (isStatusOrTier || isProfileProperty) {
+          allContactsCache.timestamp = 0;
+          invalidateCache('members_directory');
+          broadcastDirectoryUpdate('synced');
           logger.info('[HubSpot Webhook] Contact property changed', { extra: { objectId, propertyName, propertyValue } });
 
           try {

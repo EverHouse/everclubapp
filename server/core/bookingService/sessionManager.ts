@@ -166,42 +166,34 @@ export async function ensureSessionForBooking(params: {
       }
     }
 
+    if (manageLockClient) {
+      await lockClient.query('BEGIN');
+    }
+    try {
+
     if (!sessionId) {
       try {
-        if (manageLockClient) {
-          await lockClient.query('BEGIN');
-        }
         await lockClient.query(`SET LOCAL app.bypass_overlap_check = 'true'`);
-        try {
-          const insertResult = await lockClient.query(
-            `INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-             ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL
-             DO UPDATE SET updated_at = NOW()
-             RETURNING id, (xmax = 0) AS was_inserted`,
-            [params.resourceId, params.sessionDate, params.startTime, params.endTime, params.trackmanBookingId || null, params.source, params.createdBy]
+        const insertResult = await lockClient.query(
+          `INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+           ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL
+           DO UPDATE SET updated_at = NOW()
+           RETURNING id, (xmax = 0) AS was_inserted`,
+          [params.resourceId, params.sessionDate, params.startTime, params.endTime, params.trackmanBookingId || null, params.source, params.createdBy]
+        );
+        sessionId = insertResult.rows[0].id;
+        const wasInserted = insertResult.rows[0].was_inserted;
+        created = wasInserted;
+        if (!wasInserted) {
+          const activeCheck = await lockClient.query(
+            `SELECT COUNT(*) as cnt FROM booking_requests
+             WHERE session_id = $1 AND status NOT IN ('cancelled', 'deleted', 'declined')`,
+            [sessionId]
           );
-          sessionId = insertResult.rows[0].id;
-          const wasInserted = insertResult.rows[0].was_inserted;
-          created = wasInserted;
-          if (!wasInserted) {
-            const activeCheck = await lockClient.query(
-              `SELECT COUNT(*) as cnt FROM booking_requests
-               WHERE session_id = $1 AND status NOT IN ('cancelled', 'deleted', 'declined')`,
-              [sessionId]
-            );
-            if (parseInt(activeCheck.rows[0].cnt) === 0) {
-              reusedStaleSession = true;
-            }
+          if (parseInt(activeCheck.rows[0].cnt) === 0) {
+            reusedStaleSession = true;
           }
-          if (manageLockClient) {
-            await lockClient.query('COMMIT');
-          }
-        } catch (innerErr) {
-          if (manageLockClient) {
-            try { await lockClient.query('ROLLBACK'); } catch (_) {}
-          }
-          throw innerErr;
         }
       } catch (insertErr: unknown) {
         const errMsg = getErrorMessage(insertErr);
@@ -276,6 +268,17 @@ export async function ensureSessionForBooking(params: {
       `UPDATE booking_requests SET session_id = $1, updated_at = NOW() WHERE id = $2`,
       [sessionId, params.bookingId]
     );
+
+    if (manageLockClient) {
+      await lockClient.query('COMMIT');
+    }
+
+    } catch (txErr) {
+      if (manageLockClient) {
+        try { await lockClient.query('ROLLBACK'); } catch (_) {}
+      }
+      throw txErr;
+    }
 
     return { sessionId, created };
 
@@ -918,10 +921,25 @@ export async function createSessionWithUsageTracking(
                 const passes_total = passRow.passes_total as number;
                 const passes_used = passRow.passes_used as number;
                 if (passes_used + passesToConvert > passes_total) {
-                  throw new Error(
-                    `Insufficient guest passes: have ${passes_total - passes_used}, need ${passesToConvert}. ` +
-                    `Transaction rolled back.`
-                  );
+                  logger.warn('[createSessionWithUsageTracking] Insufficient guest passes for hold conversion, extra guests will be charged as paid', {
+                    extra: { ownerEmail: request.ownerEmail, available: passes_total - passes_used, needed: passesToConvert }
+                  });
+                  const canConvert = Math.max(0, passes_total - passes_used);
+                  if (canConvert > 0) {
+                    await tx.execute(sql`
+                      UPDATE guest_passes 
+                      SET passes_used = ${passes_total}
+                      WHERE LOWER(member_email) = ${emailLower}
+                    `);
+                    actualPassesDeducted = canConvert;
+                  }
+                } else {
+                  await tx.execute(sql`
+                    UPDATE guest_passes 
+                    SET passes_used = passes_used + ${passesToConvert}
+                    WHERE LOWER(member_email) = ${emailLower}
+                  `);
+                  actualPassesDeducted = passesToConvert;
                 }
               } else {
                 const tierResult = await tx.execute(sql`
@@ -935,28 +953,27 @@ export async function createSessionWithUsageTracking(
                   : 0;
                 
                 if (monthlyAllocation < passesToConvert) {
-                  throw new Error(
-                    `Insufficient guest pass allocation: tier allows ${monthlyAllocation}, need ${passesToConvert}. ` +
-                    `Transaction rolled back.`
-                  );
+                  logger.warn('[createSessionWithUsageTracking] Member tier has insufficient guest pass allocation for hold conversion, extra guests will be charged as paid', {
+                    extra: { ownerEmail: request.ownerEmail, monthlyAllocation, passesToConvert }
+                  });
+                  if (monthlyAllocation > 0) {
+                    await tx.execute(sql`
+                      INSERT INTO guest_passes (member_email, passes_total, passes_used)
+                      VALUES (${emailLower}, ${monthlyAllocation}, ${monthlyAllocation})
+                    `);
+                    actualPassesDeducted = monthlyAllocation;
+                  }
+                } else {
+                  await tx.execute(sql`
+                    INSERT INTO guest_passes (member_email, passes_total, passes_used)
+                    VALUES (${emailLower}, ${monthlyAllocation}, ${passesToConvert})
+                  `);
+                  actualPassesDeducted = passesToConvert;
+                  logger.info('[createSessionWithUsageTracking] Created guest pass record for first-time user (hold conversion)', {
+                    extra: { ownerEmail: request.ownerEmail, monthlyAllocation, passesToConvert }
+                  });
                 }
-                
-                await tx.execute(sql`
-                  INSERT INTO guest_passes (member_email, passes_total, passes_used)
-                  VALUES (${emailLower}, ${monthlyAllocation}, 0)
-                `);
-                logger.info('[createSessionWithUsageTracking] Created guest pass record for first-time user (hold conversion)', {
-                  extra: { ownerEmail: request.ownerEmail, monthlyAllocation, passesToConvert }
-                });
               }
-              
-              // Convert hold to actual usage
-              await tx.execute(sql`
-                UPDATE guest_passes 
-                SET passes_used = passes_used + ${passesToConvert}
-                WHERE LOWER(member_email) = ${emailLower}
-              `);
-              actualPassesDeducted = passesToConvert;
             }
             
             // Delete the hold
@@ -992,20 +1009,29 @@ export async function createSessionWithUsageTracking(
               const available = passes_total - passes_used;
               
               if (available < passesNeeded) {
-                throw new Error(
-                  `Insufficient guest passes: have ${available}, need ${passesNeeded}. Transaction rolled back.`
-                );
+                logger.warn('[createSessionWithUsageTracking] Insufficient guest passes for direct deduction (hold fallback), extra guests will be charged as paid', {
+                  extra: { ownerEmail: request.ownerEmail, available, needed: passesNeeded }
+                });
+                const canDeduct = Math.max(0, available);
+                if (canDeduct > 0) {
+                  await tx.execute(sql`
+                    UPDATE guest_passes 
+                    SET passes_used = ${passes_total}
+                    WHERE LOWER(member_email) = ${emailLower}
+                  `);
+                  actualPassesDeducted = canDeduct;
+                }
+              } else {
+                await tx.execute(sql`
+                  UPDATE guest_passes 
+                  SET passes_used = passes_used + ${passesNeeded}
+                  WHERE LOWER(member_email) = ${emailLower}
+                `);
+                actualPassesDeducted = passesNeeded;
               }
               
-              await tx.execute(sql`
-                UPDATE guest_passes 
-                SET passes_used = passes_used + ${passesNeeded}
-                WHERE LOWER(member_email) = ${emailLower}
-              `);
-              actualPassesDeducted = passesNeeded;
-              
               logger.info('[createSessionWithUsageTracking] Directly deducted guest passes (hold fallback)', {
-                extra: { bookingId: request.bookingId, ownerEmail: request.ownerEmail, passesDeducted: passesNeeded }
+                extra: { bookingId: request.bookingId, ownerEmail: request.ownerEmail, passesDeducted: actualPassesDeducted, passesNeeded }
               });
             } else {
               // First-time guest pass user (hold fallback) — create record with tier allocation
@@ -1052,21 +1078,29 @@ export async function createSessionWithUsageTracking(
             const available = passes_total - passes_used;
             
             if (available < passesNeeded) {
-              throw new Error(
-                `Insufficient guest passes for ${request.ownerEmail}: have ${available}, need ${passesNeeded}. ` +
-                `Transaction rolled back.`
-              );
+              logger.warn('[createSessionWithUsageTracking] Insufficient guest passes for direct deduction, extra guests will be charged as paid', {
+                extra: { ownerEmail: request.ownerEmail, available, needed: passesNeeded }
+              });
+              const canDeduct = Math.max(0, available);
+              if (canDeduct > 0) {
+                await tx.execute(sql`
+                  UPDATE guest_passes 
+                  SET passes_used = ${passes_total}
+                  WHERE LOWER(member_email) = ${emailLower}
+                `);
+                actualPassesDeducted = canDeduct;
+              }
+            } else {
+              await tx.execute(sql`
+                UPDATE guest_passes 
+                SET passes_used = passes_used + ${passesNeeded}
+                WHERE LOWER(member_email) = ${emailLower}
+              `);
+              actualPassesDeducted = passesNeeded;
             }
             
-            await tx.execute(sql`
-              UPDATE guest_passes 
-              SET passes_used = passes_used + ${passesNeeded}
-              WHERE LOWER(member_email) = ${emailLower}
-            `);
-            actualPassesDeducted = passesNeeded;
-            
             logger.info('[createSessionWithUsageTracking] Deducted guest passes (atomic, no holds)', {
-              extra: { ownerEmail: request.ownerEmail, passesDeducted: passesNeeded }
+              extra: { ownerEmail: request.ownerEmail, passesDeducted: actualPassesDeducted, passesNeeded }
             });
           } else {
             // First-time guest pass user — create record with tier allocation
