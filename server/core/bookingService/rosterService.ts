@@ -734,7 +734,7 @@ async function buildFallbackPreview(params: FallbackPreviewParams): Promise<Prev
   const guestMinutes = allocations
     .filter(a => a.participantType === 'guest')
     .reduce((sum, a) => sum + a.minutesAllocated, 0);
-  const totalOwnerResponsibleMinutes = ownerMinutes + guestMinutes;
+  const totalOwnerResponsibleMinutes = ownerMinutes;
 
   let overageFee = 0;
   let overageMinutes = 0;
@@ -1469,7 +1469,7 @@ export async function removeParticipant(params: RemoveParticipantParams): Promis
     }
 
     let guestPassesRemaining: number | undefined;
-    if (participant.participantType === 'guest') {
+    if (participant.participantType === 'guest' && participant.usedGuestPass === true) {
       deferredRemoveRefund = { ownerEmail: booking.owner_email, guestName: participant.displayName || undefined };
     }
 

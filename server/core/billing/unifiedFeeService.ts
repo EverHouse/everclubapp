@@ -878,10 +878,8 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
   const ownerCount = participants.filter(p => p.participantType === 'owner').length;
   const emptySlots = Math.max(0, effectivePlayerCount - ownerCount - actualMemberCount - actualGuestCount);
 
-  // Owner absorbs time from both empty slots and guest slots for overage calculation
   const emptySlotMinutes = emptySlots > 0 ? emptySlots * minutesPerParticipant : 0;
-  const guestSlotMinutes = actualGuestCount > 0 ? actualGuestCount * minutesPerParticipant : 0;
-  const nonMemberMinutes = emptySlotMinutes + guestSlotMinutes;
+  const nonMemberMinutes = emptySlotMinutes;
 
   if (nonMemberMinutes > 0 && !isConferenceRoom) {
     const ownerLineItem = lineItems.find(li => li.participantType === 'owner') ||
@@ -908,12 +906,10 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         ownerLineItem.totalCents = ownerLineItem.overageCents;
         totalOverageCents += ownerLineItem.overageCents;
 
-        logger.info('[FeeBreakdown] Owner overage recalculated with empty slot and guest slot time', {
+        logger.info('[FeeBreakdown] Owner overage recalculated with empty slot time', {
           extra: {
             emptySlots,
             emptySlotMinutes,
-            guestCount: actualGuestCount,
-            guestSlotMinutes,
             totalNonMemberMinutes: nonMemberMinutes,
             newMinutesAllocated: ownerLineItem.minutesAllocated,
             totalAfterSession,

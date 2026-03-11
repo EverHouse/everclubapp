@@ -71,7 +71,7 @@ export async function createInvoice(params: CreateInvoiceParams): Promise<{
         await stripe.invoiceItems.create({
           customer: customerId,
           invoice: invoice.id,
-          price: item.priceId as string,
+          pricing: { price: item.priceId as string },
           quantity: item.quantity ?? 1,
         } as Stripe.InvoiceItemCreateParams, { idempotencyKey: `invitem_${invoice.id}_${idx}_${item.priceId}` });
       } else if (item.amountCents && item.description) {

@@ -178,7 +178,7 @@ async function addLineItemsToInvoice(
         await stripe.invoiceItems.create({
           customer: customerId,
           invoice: invoiceId,
-          price: overagePriceId,
+          pricing: { price: overagePriceId },
           quantity,
           description: overageDesc,
           metadata: {
@@ -214,7 +214,7 @@ async function addLineItemsToInvoice(
         await stripe.invoiceItems.create({
           customer: customerId,
           invoice: invoiceId,
-          price: guestPriceId,
+          pricing: { price: guestPriceId },
           quantity: guestQty > 0 ? guestQty : 1,
           description: `Guest fee — ${li.displayName}`,
           metadata: {
