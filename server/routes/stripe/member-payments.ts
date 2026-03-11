@@ -306,6 +306,7 @@ async function handleExistingInvoicePayment(params: {
       });
       await stripe.invoices.voidInvoice(existingInvoiceId);
       await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = ${bookingId}`);
+      await db.execute(sql`UPDATE stripe_payment_intents SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${bookingId} AND status = 'pending'`);
       return null;
     }
 
@@ -317,6 +318,7 @@ async function handleExistingInvoicePayment(params: {
         });
         await stripe.invoices.del(existingInvoiceId);
         await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = ${bookingId}`);
+        await db.execute(sql`UPDATE stripe_payment_intents SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${bookingId} AND status = 'pending'`);
         return null;
       }
     }
@@ -438,6 +440,7 @@ async function handleExistingInvoicePayment(params: {
     }
 
     await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = ${bookingId}`);
+    await db.execute(sql`UPDATE stripe_payment_intents SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${bookingId} AND status = 'pending'`);
 
     return null;
   }
