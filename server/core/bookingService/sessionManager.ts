@@ -156,6 +156,11 @@ export async function ensureSessionForBooking(params: {
       const existingSession = await lockClient.query(
         `SELECT bs.id FROM booking_sessions bs
          WHERE bs.resource_id = $1 AND bs.session_date = $2 AND bs.start_time = $3
+         AND EXISTS (
+           SELECT 1 FROM booking_requests br
+           WHERE br.session_id = bs.id
+           AND br.status NOT IN ('cancelled', 'declined', 'no_show')
+         )
          ORDER BY bs.updated_at DESC NULLS LAST
          LIMIT 1`,
         [params.resourceId, params.sessionDate, params.startTime]
@@ -171,6 +176,11 @@ export async function ensureSessionForBooking(params: {
           `SELECT bs.id FROM booking_sessions bs
            WHERE bs.resource_id = $1 AND bs.session_date = $2
            AND bs.start_time != bs.end_time
+           AND EXISTS (
+             SELECT 1 FROM booking_requests br
+             WHERE br.session_id = bs.id
+             AND br.status NOT IN ('cancelled', 'declined', 'no_show')
+           )
            AND tsrange(
              (bs.session_date + bs.start_time)::timestamp,
              CASE WHEN bs.end_time <= bs.start_time
