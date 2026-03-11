@@ -888,10 +888,11 @@ router.get('/api/financials/invoices', isStaffOrAdmin, async (req: Request, res:
     if (bookingIdsByInvoice.size > 0) {
       const bookingIds = [...new Set([...bookingIdsByInvoice.values()])].map(Number).filter(n => !isNaN(n));
       if (bookingIds.length > 0) {
+        const bookingIdsStr = `{${bookingIds.join(',')}}`;
         const refundResult = await db.execute(sql`
           SELECT DISTINCT br.id
           FROM booking_requests br
-          WHERE br.id = ANY(${bookingIds})
+          WHERE br.id = ANY(${bookingIdsStr}::int[])
             AND br.status = 'cancelled'
             AND EXISTS (
               SELECT 1 FROM stripe_payment_intents spi

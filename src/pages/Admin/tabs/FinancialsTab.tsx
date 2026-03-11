@@ -539,9 +539,11 @@ const InvoicesSubTab: React.FC = () => {
   const error = queryError instanceof Error ? queryError.message : null;
 
   const statusFilteredInvoices = statusFilter === 'all'
-    ? invoices.filter(inv => inv.status !== 'void' && inv.status !== 'draft')
+    ? invoices.filter(inv => inv.status !== 'void' && inv.status !== 'draft' && inv.status !== 'refunded' && inv.status !== 'partially_refunded')
     : statusFilter === 'refunded'
     ? invoices.filter(inv => inv.status === 'refunded' || inv.status === 'partially_refunded')
+    : statusFilter === 'paid'
+    ? invoices.filter(inv => inv.status === 'paid')
     : invoices;
 
   const filteredInvoices = searchQuery.trim()
@@ -616,7 +618,7 @@ const InvoicesSubTab: React.FC = () => {
       )}
 
       <div className="flex flex-col gap-4 animate-content-enter-delay-1">
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col gap-4">
           <div className="flex-1">
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary/40 dark:text-white/40">search</span>
@@ -630,12 +632,12 @@ const InvoicesSubTab: React.FC = () => {
             </div>
           </div>
           
-          <div className="flex gap-1.5 overflow-x-auto pb-1">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
             {(['all', 'paid', 'open', 'refunded', 'void', 'uncollectible'] as const).map(status => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
-                className={`px-2.5 py-1.5 rounded-full font-medium text-xs whitespace-nowrap transition-colors ${
+                className={`px-2.5 py-1.5 rounded-full font-medium text-xs whitespace-nowrap flex-shrink-0 transition-colors ${
                   statusFilter === status
                     ? 'bg-primary dark:bg-accent text-white dark:text-primary'
                     : 'bg-white/60 dark:bg-white/10 text-primary/60 dark:text-white/60 hover:bg-white/80 dark:hover:bg-white/15'
