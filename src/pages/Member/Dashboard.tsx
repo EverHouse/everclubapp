@@ -994,10 +994,10 @@ const Dashboard: React.FC = () => {
                           endTime: endTime24
                         }, `EverClub_${item.rawDate}_${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`)
                       }] : []),
-                      ...(!isLinkedMember && !bookingHasStarted ? [
+                      ...(!isLinkedMember && !bookingHasStarted && bookingStatus !== 'attended' ? [
                         { icon: 'close', label: 'Cancel', onClick: () => handleCancelBooking(Number(item.dbId), item.type) }
                       ] : []),
-                      ...(isLinkedMember && isConfirmed && !bookingHasStarted ? [{
+                      ...(isLinkedMember && isConfirmed && !bookingHasStarted && bookingStatus !== 'attended' ? [{
                         icon: 'logout',
                         label: 'Leave',
                         onClick: () => handleLeaveBooking(Number(item.dbId), primaryBookerName)
