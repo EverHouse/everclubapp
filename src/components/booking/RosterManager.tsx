@@ -519,10 +519,12 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                 <>
                   <div className="flex items-center justify-between">
                     <span className={`text-sm ${isDark ? 'text-white/60' : 'text-[#293515]/60'}`}>
-                      Included (daily)
+                      {feePreview.ownerFees.minutesWithinAllowance < feePreview.ownerFees.dailyAllowance
+                        ? `Included (${feePreview.ownerFees.minutesWithinAllowance} of ${feePreview.ownerFees.dailyAllowance} remaining)`
+                        : 'Included (daily)'}
                     </span>
                     <span className={`text-sm font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                      {feePreview.ownerFees.dailyAllowance} min
+                      {feePreview.ownerFees.minutesWithinAllowance} min
                     </span>
                   </div>
                   

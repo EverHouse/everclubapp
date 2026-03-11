@@ -427,8 +427,8 @@ export async function runStartupTasks(): Promise<void> {
             } catch (_) {}
 
             await tx.execute(sql`
-              INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, invited_at)
-              VALUES (${row.session_id}, ${row.correct_user_id}, 'owner', ${row.correct_user_name || row.correct_user_email}, ${slotDuration}, NOW())
+              INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, payment_status, invited_at)
+              VALUES (${row.session_id}, ${row.correct_user_id}, 'owner', ${row.correct_user_name || row.correct_user_email}, ${slotDuration}, 'pending', NOW())
             `);
 
             const requestParticipants = row.request_participants;
@@ -458,8 +458,8 @@ export async function runStartupTasks(): Promise<void> {
                 }
 
                 await tx.execute(sql`
-                  INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, invited_at)
-                  VALUES (${row.session_id}, ${resolvedUserId}, ${participantType}, ${resolvedName}, ${slotDuration}, NOW())
+                  INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, payment_status, invited_at)
+                  VALUES (${row.session_id}, ${resolvedUserId}, ${participantType}, ${resolvedName}, ${slotDuration}, 'pending', NOW())
                 `);
               }
             }
