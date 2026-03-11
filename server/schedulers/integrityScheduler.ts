@@ -13,13 +13,18 @@ import { getSettingBoolean } from '../core/settingsHelper';
 const INTEGRITY_CHECK_HOUR = 0;
 const INTEGRITY_SETTING_KEY = 'last_integrity_check_date';
 
+const STALE_RUNNING_TIMEOUT_MS = 30 * 60 * 1000;
+
 async function tryClaimIntegritySlot(todayStr: string): Promise<boolean> {
   try {
+    const runningValue = `running:${todayStr}`;
+    const completedValue = `completed:${todayStr}`;
+    const staleThreshold = new Date(Date.now() - STALE_RUNNING_TIMEOUT_MS);
     const result = await db
       .insert(systemSettings)
       .values({
         key: INTEGRITY_SETTING_KEY,
-        value: todayStr,
+        value: runningValue,
         category: 'scheduler',
         updatedBy: 'system',
         updatedAt: new Date(),
@@ -27,10 +32,10 @@ async function tryClaimIntegritySlot(todayStr: string): Promise<boolean> {
       .onConflictDoUpdate({
         target: systemSettings.key,
         set: {
-          value: todayStr,
+          value: runningValue,
           updatedAt: new Date(),
         },
-        where: sql`${systemSettings.value} IS DISTINCT FROM ${todayStr}`,
+        where: sql`${systemSettings.value} IS DISTINCT FROM ${completedValue} AND ${systemSettings.value} IS DISTINCT FROM ${todayStr} AND (${systemSettings.value} IS DISTINCT FROM ${runningValue} OR ${systemSettings.updatedAt} < ${staleThreshold})`,
       })
       .returning({ key: systemSettings.key });
     
@@ -45,6 +50,28 @@ async function tryClaimIntegritySlot(todayStr: string): Promise<boolean> {
       logger.error('[Integrity Check] Failed to send staff alert:', { error: alertErr as Error });
     });
     return false;
+  }
+}
+
+async function markIntegritySlotCompleted(todayStr: string): Promise<void> {
+  try {
+    await db
+      .update(systemSettings)
+      .set({ value: `completed:${todayStr}`, updatedAt: new Date() })
+      .where(sql`${systemSettings.key} = ${INTEGRITY_SETTING_KEY}`);
+  } catch (err: unknown) {
+    logger.error('[Integrity Check] Failed to mark slot as completed:', { error: err as Error });
+  }
+}
+
+async function markIntegritySlotFailed(todayStr: string): Promise<void> {
+  try {
+    await db
+      .update(systemSettings)
+      .set({ value: `failed:${todayStr}`, updatedAt: new Date() })
+      .where(sql`${systemSettings.key} = ${INTEGRITY_SETTING_KEY}`);
+  } catch (err: unknown) {
+    logger.error('[Integrity Check] Failed to mark slot as failed:', { error: err as Error });
   }
 }
 
@@ -147,9 +174,11 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
             logger.info('[Integrity Check] No critical issues found, no alert needed');
           }
           schedulerTracker.recordRun('Integrity Check', true);
+          await markIntegritySlotCompleted(todayStr);
         } catch (err: unknown) {
           logger.error('[Integrity Check] Check failed:', { error: err as Error });
           schedulerTracker.recordRun('Integrity Check', false, String(err));
+          await markIntegritySlotFailed(todayStr);
           
           alertOnScheduledTaskFailure(
             'Daily Integrity Check',

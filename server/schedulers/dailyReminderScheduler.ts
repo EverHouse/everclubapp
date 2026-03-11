@@ -10,13 +10,18 @@ import { getSettingValue } from '../core/settingsHelper';
 const DEFAULT_REMINDER_HOUR = 18;
 const REMINDER_SETTING_KEY = 'last_daily_reminder_date';
 
+const STALE_RUNNING_TIMEOUT_MS = 30 * 60 * 1000;
+
 async function tryClaimReminderSlot(todayStr: string): Promise<boolean> {
   try {
+    const runningValue = `running:${todayStr}`;
+    const completedValue = `completed:${todayStr}`;
+    const staleThreshold = new Date(Date.now() - STALE_RUNNING_TIMEOUT_MS);
     const result = await db
       .insert(systemSettings)
       .values({
         key: REMINDER_SETTING_KEY,
-        value: todayStr,
+        value: runningValue,
         category: 'scheduler',
         updatedBy: 'system',
         updatedAt: new Date(),
@@ -24,10 +29,10 @@ async function tryClaimReminderSlot(todayStr: string): Promise<boolean> {
       .onConflictDoUpdate({
         target: systemSettings.key,
         set: {
-          value: todayStr,
+          value: runningValue,
           updatedAt: new Date(),
         },
-        where: sql`${systemSettings.value} IS DISTINCT FROM ${todayStr}`,
+        where: sql`${systemSettings.value} IS DISTINCT FROM ${completedValue} AND ${systemSettings.value} IS DISTINCT FROM ${todayStr} AND (${systemSettings.value} IS DISTINCT FROM ${runningValue} OR ${systemSettings.updatedAt} < ${staleThreshold})`,
       })
       .returning({ key: systemSettings.key });
     
@@ -36,6 +41,22 @@ async function tryClaimReminderSlot(todayStr: string): Promise<boolean> {
     logger.error('[Daily Reminders] Database error:', { error: err as Error });
     schedulerTracker.recordRun('Daily Reminder', false, String(err));
     return false;
+  }
+}
+
+async function markReminderSlotCompleted(todayStr: string): Promise<void> {
+  try {
+    await db.update(systemSettings).set({ value: `completed:${todayStr}`, updatedAt: new Date() }).where(sql`${systemSettings.key} = ${REMINDER_SETTING_KEY}`);
+  } catch (err: unknown) {
+    logger.error('[Daily Reminders] Failed to mark slot as completed:', { error: err as Error });
+  }
+}
+
+async function markReminderSlotFailed(todayStr: string): Promise<void> {
+  try {
+    await db.update(systemSettings).set({ value: `failed:${todayStr}`, updatedAt: new Date() }).where(sql`${systemSettings.key} = ${REMINDER_SETTING_KEY}`);
+  } catch (err: unknown) {
+    logger.error('[Daily Reminders] Failed to mark slot as failed:', { error: err as Error });
   }
 }
 
@@ -55,9 +76,11 @@ async function checkAndSendReminders(): Promise<void> {
           const result = await sendDailyReminders();
           logger.info(`[Daily Reminders] Completed: ${result.message}`);
           schedulerTracker.recordRun('Daily Reminder', true);
+          await markReminderSlotCompleted(todayStr);
         } catch (err: unknown) {
           logger.error('[Daily Reminders] Send failed:', { error: err as Error });
           schedulerTracker.recordRun('Daily Reminder', false, String(err));
+          await markReminderSlotFailed(todayStr);
         }
       }
     }

@@ -10,13 +10,18 @@ import { logger } from '../core/logger';
 const UNRESOLVED_TRACKMAN_CHECK_HOUR = 9;
 const UNRESOLVED_TRACKMAN_SETTING_KEY = 'last_unresolved_trackman_check_date';
 
+const STALE_RUNNING_TIMEOUT_MS = 30 * 60 * 1000;
+
 async function tryClaimUnresolvedTrackmanSlot(todayStr: string): Promise<boolean> {
   try {
+    const runningValue = `running:${todayStr}`;
+    const completedValue = `completed:${todayStr}`;
+    const staleThreshold = new Date(Date.now() - STALE_RUNNING_TIMEOUT_MS);
     const result = await db
       .insert(systemSettings)
       .values({
         key: UNRESOLVED_TRACKMAN_SETTING_KEY,
-        value: todayStr,
+        value: runningValue,
         category: 'scheduler',
         updatedBy: 'system',
         updatedAt: new Date(),
@@ -24,10 +29,10 @@ async function tryClaimUnresolvedTrackmanSlot(todayStr: string): Promise<boolean
       .onConflictDoUpdate({
         target: systemSettings.key,
         set: {
-          value: todayStr,
+          value: runningValue,
           updatedAt: new Date(),
         },
-        where: sql`${systemSettings.value} IS DISTINCT FROM ${todayStr}`,
+        where: sql`${systemSettings.value} IS DISTINCT FROM ${completedValue} AND ${systemSettings.value} IS DISTINCT FROM ${todayStr} AND (${systemSettings.value} IS DISTINCT FROM ${runningValue} OR ${systemSettings.updatedAt} < ${staleThreshold})`,
       })
       .returning({ key: systemSettings.key });
     
@@ -36,6 +41,22 @@ async function tryClaimUnresolvedTrackmanSlot(todayStr: string): Promise<boolean
     logger.error('[Unresolved Trackman Check] Database error:', { error: err as Error });
     schedulerTracker.recordRun('Unresolved Trackman', false, String(err));
     return false;
+  }
+}
+
+async function markTrackmanSlotCompleted(todayStr: string): Promise<void> {
+  try {
+    await db.update(systemSettings).set({ value: `completed:${todayStr}`, updatedAt: new Date() }).where(sql`${systemSettings.key} = ${UNRESOLVED_TRACKMAN_SETTING_KEY}`);
+  } catch (err: unknown) {
+    logger.error('[Unresolved Trackman Check] Failed to mark slot as completed:', { error: err as Error });
+  }
+}
+
+async function markTrackmanSlotFailed(todayStr: string): Promise<void> {
+  try {
+    await db.update(systemSettings).set({ value: `failed:${todayStr}`, updatedAt: new Date() }).where(sql`${systemSettings.key} = ${UNRESOLVED_TRACKMAN_SETTING_KEY}`);
+  } catch (err: unknown) {
+    logger.error('[Unresolved Trackman Check] Failed to mark slot as failed:', { error: err as Error });
   }
 }
 
@@ -86,9 +107,11 @@ async function checkUnresolvedTrackmanBookings(): Promise<void> {
           } else {
             logger.info('[Unresolved Trackman Check] No unresolved bookings found');
           }
+          await markTrackmanSlotCompleted(todayStr);
         } catch (err: unknown) {
           logger.error('[Unresolved Trackman Check] Check failed:', { error: err as Error });
           schedulerTracker.recordRun('Unresolved Trackman', false, String(err));
+          await markTrackmanSlotFailed(todayStr);
         }
       }
     }

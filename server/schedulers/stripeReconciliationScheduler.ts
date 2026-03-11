@@ -9,13 +9,18 @@ import { logger } from '../core/logger';
 const RECONCILIATION_HOUR = 5;
 const RECONCILIATION_SETTING_KEY = 'last_stripe_reconciliation_date';
 
+const STALE_RUNNING_TIMEOUT_MS = 30 * 60 * 1000;
+
 async function tryClaimReconciliationSlot(todayStr: string): Promise<boolean> {
   try {
+    const runningValue = `running:${todayStr}`;
+    const completedValue = `completed:${todayStr}`;
+    const staleThreshold = new Date(Date.now() - STALE_RUNNING_TIMEOUT_MS);
     const result = await db
       .insert(systemSettings)
       .values({
         key: RECONCILIATION_SETTING_KEY,
-        value: todayStr,
+        value: runningValue,
         category: 'scheduler',
         updatedBy: 'system',
         updatedAt: new Date(),
@@ -23,10 +28,10 @@ async function tryClaimReconciliationSlot(todayStr: string): Promise<boolean> {
       .onConflictDoUpdate({
         target: systemSettings.key,
         set: {
-          value: todayStr,
+          value: runningValue,
           updatedAt: new Date(),
         },
-        where: sql`${systemSettings.value} IS DISTINCT FROM ${todayStr}`,
+        where: sql`${systemSettings.value} IS DISTINCT FROM ${completedValue} AND ${systemSettings.value} IS DISTINCT FROM ${todayStr} AND (${systemSettings.value} IS DISTINCT FROM ${runningValue} OR ${systemSettings.updatedAt} < ${staleThreshold})`,
       })
       .returning({ key: systemSettings.key });
     
@@ -35,6 +40,28 @@ async function tryClaimReconciliationSlot(todayStr: string): Promise<boolean> {
     logger.error('[Stripe Reconciliation] Database error:', { error: err as Error });
     schedulerTracker.recordRun('Stripe Reconciliation', false, String(err));
     return false;
+  }
+}
+
+async function markReconciliationSlotCompleted(todayStr: string): Promise<void> {
+  try {
+    await db
+      .update(systemSettings)
+      .set({ value: `completed:${todayStr}`, updatedAt: new Date() })
+      .where(sql`${systemSettings.key} = ${RECONCILIATION_SETTING_KEY}`);
+  } catch (err: unknown) {
+    logger.error('[Stripe Reconciliation] Failed to mark slot as completed:', { error: err as Error });
+  }
+}
+
+async function markReconciliationSlotFailed(todayStr: string): Promise<void> {
+  try {
+    await db
+      .update(systemSettings)
+      .set({ value: `failed:${todayStr}`, updatedAt: new Date() })
+      .where(sql`${systemSettings.key} = ${RECONCILIATION_SETTING_KEY}`);
+  } catch (err: unknown) {
+    logger.error('[Stripe Reconciliation] Failed to mark slot as failed:', { error: err as Error });
   }
 }
 
@@ -62,11 +89,12 @@ async function checkAndRunReconciliation(): Promise<void> {
           const refundResults = await reconcileDailyRefunds();
           logger.info('[Stripe Reconciliation] Refund reconciliation complete:', { extra: { results: refundResults } });
           schedulerTracker.recordRun('Stripe Reconciliation', true);
+          await markReconciliationSlotCompleted(todayStr);
         } catch (error: unknown) {
           logger.error('[Stripe Reconciliation] Error running reconciliation:', { error: error as Error });
           schedulerTracker.recordRun('Stripe Reconciliation', false, String(error));
+          await markReconciliationSlotFailed(todayStr);
           
-          // Alert staff so financial discrepancies don't go unnoticed
           const { alertOnScheduledTaskFailure } = await import('../core/dataAlerts');
           await alertOnScheduledTaskFailure(
             'Daily Stripe Reconciliation',
