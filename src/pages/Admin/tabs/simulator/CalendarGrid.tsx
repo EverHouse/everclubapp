@@ -334,15 +334,16 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                         
                         {showDatePicker && ReactDOM.createPortal(
                             <div 
-                                className="fixed inset-0 bg-black/30 flex items-center justify-center p-4"
+                                className="fixed inset-0 bg-black/30 flex items-end sm:items-center justify-center sm:p-4"
                                 style={{ zIndex: 9999 }}
                                 onClick={() => setShowDatePicker(false)}
                             >
                                 <div 
-                                    className={`rounded-xl shadow-2xl p-5 w-full max-w-[280px] ${isDark ? 'bg-[#1a1d15] border border-white/10' : 'bg-white border border-gray-300'}`}
+                                    className={`rounded-t-2xl sm:rounded-xl shadow-2xl p-5 pb-8 sm:pb-5 w-full max-w-[320px] sm:max-w-[280px] mx-auto overflow-hidden ${isDark ? 'bg-[#1a1d15] border-t sm:border border-white/10' : 'bg-white border-t sm:border border-gray-300'}`}
                                     onClick={(e) => e.stopPropagation()}
                                 >
-                                    <div className="flex flex-col gap-4">
+                                    <div className="flex flex-col gap-4 min-w-0">
+                                        <div className="w-10 h-1 bg-gray-300 dark:bg-white/20 rounded-full mx-auto sm:hidden" />
                                         <div className={`text-center text-sm font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-700'}`}>
                                             Jump to Date
                                         </div>
@@ -355,7 +356,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                                     setShowDatePicker(false);
                                                 }
                                             }}
-                                            className={`w-full px-4 py-3 rounded-lg text-base font-medium focus:outline-none focus:ring-2 cursor-pointer ${isDark ? 'border border-white/20 bg-white/10 text-white focus:ring-lavender' : 'border border-gray-300 bg-gray-50 text-gray-900 focus:ring-primary'}`}
+                                            className={`w-full max-w-full box-border px-4 py-3 rounded-lg text-base font-medium focus:outline-none focus:ring-2 cursor-pointer appearance-none [&::-webkit-date-and-time-value]:text-left ${isDark ? 'border border-white/20 bg-white/10 text-white focus:ring-lavender' : 'border border-gray-300 bg-gray-50 text-gray-900 focus:ring-primary'}`}
                                         />
                                         <button
                                             type="button"

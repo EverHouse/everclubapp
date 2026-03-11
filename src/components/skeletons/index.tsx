@@ -443,9 +443,9 @@ export const FinancialsTabSkeleton: React.FC<SkeletonCardProps> = ({ isDark = fa
   const bg = isDark ? bgDark : bgAuto;
   return (
     <div className="pb-32 space-y-6">
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className={`${shimmerClass} ${bg} h-10 w-32 rounded-full`} />
+          <div key={i} className={`${shimmerClass} ${bg} h-10 w-28 sm:w-32 rounded-full flex-shrink-0`} />
         ))}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -547,9 +547,9 @@ export const DataIntegritySkeleton: React.FC<SkeletonCardProps> = ({ isDark = fa
         </div>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className={`${shimmerClass} ${bg} flex-1 h-12 rounded-xl`} />
-        <div className={`${shimmerClass} ${bg} h-12 w-36 rounded-xl`} />
+        <div className={`${shimmerClass} ${bg} h-12 w-full sm:w-36 rounded-xl`} />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -582,14 +582,14 @@ export const FinancialsSubTabSkeleton: React.FC<SkeletonCardProps> = ({ isDark =
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row gap-4">
         <div className={`${shimmerClass} ${bg} flex-1 h-11 rounded-xl`} />
-        <div className="flex gap-2">
+        <div className="flex gap-2 overflow-x-auto">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className={`${shimmerClass} ${bg} h-10 w-24 rounded-full`} />
+            <div key={i} className={`${shimmerClass} ${bg} h-10 w-20 sm:w-24 rounded-full flex-shrink-0`} />
           ))}
         </div>
       </div>
 
-      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl overflow-hidden">
+      <div className="hidden sm:block bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl overflow-hidden">
         <div className="p-4 border-b border-primary/10 dark:border-white/10">
           <div className="grid grid-cols-6 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -611,6 +611,24 @@ export const FinancialsSubTabSkeleton: React.FC<SkeletonCardProps> = ({ isDark =
               <div className="flex justify-end gap-2">
                 <div className={`${shimmerClass} ${bg} h-8 w-16 rounded-lg`} />
               </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="sm:hidden space-y-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="space-y-1.5">
+                <div className={`${shimmerClass} ${bg} h-4 w-28 rounded`} />
+                <div className={`${shimmerClass} ${bg} h-3 w-36 rounded`} />
+              </div>
+              <div className={`${shimmerClass} ${bg} h-6 w-16 rounded-[4px]`} />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className={`${shimmerClass} ${bg} h-4 w-20 rounded`} />
+              <div className={`${shimmerClass} ${bg} h-8 w-16 rounded-lg`} />
             </div>
           </div>
         ))}
