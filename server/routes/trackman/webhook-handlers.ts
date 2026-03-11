@@ -828,17 +828,61 @@ export async function createUnmatchedBookingRequest(
       const errMsg = insertError instanceof Error ? insertError.message : String(insertError);
       const cause = (insertError as { cause?: { code?: string } })?.cause;
       if (cause?.code === '23P01' || errMsg.includes('booking_requests_no_overlap') || errMsg.includes('23P01')) {
-        logger.warn('[Trackman Webhook] Overlap exclusion constraint — existing booking blocks this time slot', {
+        logger.info('[Trackman Webhook] Overlap constraint hit — cancelling conflicting bookings (Trackman is authoritative)', {
           extra: { trackmanBookingId, date: slotDate, time: startTime, endTime, resourceId }
         });
-        const existingRows = await db.execute(sql`SELECT id FROM booking_requests 
-           WHERE trackman_booking_id = ${trackmanBookingId} AND trackman_booking_id IS NOT NULL LIMIT 1`);
-        if ((existingRows.rows as { id: number }[]).length > 0) {
-          return { created: false, bookingId: (existingRows.rows as { id: number }[])[0].id };
+
+        const conflicting = await db.execute(sql`
+          SELECT id, trackman_booking_id, user_email, status
+          FROM booking_requests
+          WHERE resource_id = ${resourceId}
+            AND request_date = ${slotDate}
+            AND status IN ('pending', 'approved', 'confirmed')
+            AND start_time < ${endTime}
+            AND end_time > ${startTime}
+            AND (trackman_booking_id IS NULL OR trackman_booking_id != ${trackmanBookingId})`);
+
+        const conflictingRows = conflicting.rows as { id: number; trackman_booking_id: string | null; user_email: string; status: string }[];
+
+        if (conflictingRows.length > 0) {
+          const conflictIds = conflictingRows.map(r => r.id);
+          await db.execute(sql`
+            UPDATE booking_requests 
+            SET status = 'cancelled', updated_at = NOW(),
+                staff_notes = COALESCE(staff_notes, '') || ${`\n[Auto-cancelled: superseded by Trackman booking ${trackmanBookingId}]`}
+            WHERE id = ANY(${conflictIds})`);
+
+          logger.info('[Trackman Webhook] Cancelled conflicting bookings to make room for Trackman booking', {
+            extra: { 
+              trackmanBookingId, 
+              cancelledBookingIds: conflictIds,
+              cancelledDetails: conflictingRows.map(r => ({ id: r.id, trackmanId: r.trackman_booking_id, email: r.user_email }))
+            }
+          });
         }
-        return { created: false };
+
+        try {
+          result = await db.execute(sql`INSERT INTO booking_requests 
+             (request_date, start_time, end_time, duration_minutes, resource_id,
+              user_email, user_name, status, trackman_booking_id, trackman_external_id,
+              trackman_player_count, is_unmatched, staff_notes,
+              origin, last_sync_source, last_trackman_sync_at, created_at, updated_at)
+             VALUES (${slotDate}, ${startTime}, ${endTime}, ${durationMinutes}, ${resourceId}, ${customerEmail || ''}, ${customerName || 'Unknown (Trackman)'}, ${bookingStatus}, ${trackmanBookingId}, ${externalBookingId || null}, ${playerCount}, true, ${conflictNote || null},
+                     'trackman_webhook', 'trackman_webhook', NOW(), NOW(), NOW())
+             ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO UPDATE SET
+               last_trackman_sync_at = NOW(),
+               updated_at = NOW()
+             RETURNING id, (xmax = 0) AS was_inserted`);
+        } catch (retryError: unknown) {
+          logger.error('[Trackman Webhook] Failed to create booking even after cancelling conflicts', {
+            error: retryError instanceof Error ? retryError : new Error(String(retryError)),
+            extra: { trackmanBookingId, date: slotDate, time: startTime }
+          });
+          return { created: false };
+        }
+      } else {
+        throw insertError;
       }
-      throw insertError;
     }
     
     const insertedBookingRows = result.rows as unknown as InsertedBookingRow[];
