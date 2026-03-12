@@ -1315,7 +1315,7 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
             const guestCents = parseInt(typedFees[0]?.guest_cents || '0');
             
             if (totalCents > 0) {
-              const ownerResult = await db.execute(sql`SELECT id, COALESCE(first_name || ' ' || last_name, email) as name 
+              const ownerResult = await db.execute(sql`SELECT id, COALESCE(NULLIF(TRIM(CONCAT(first_name, ' ', last_name)), ''), email) as name 
                  FROM users WHERE LOWER(email) = LOWER(${booking.owner_email}) LIMIT 1`);
               const owner = (ownerResult.rows as unknown as OwnerRow[])[0];
               
@@ -1404,7 +1404,7 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
           const guestCents = parseInt(typedFees2[0]?.guest_cents || '0');
           
           if (totalCents > 0) {
-            const ownerResult = await db.execute(sql`SELECT id, COALESCE(first_name || ' ' || last_name, email) as name 
+            const ownerResult = await db.execute(sql`SELECT id, COALESCE(NULLIF(TRIM(CONCAT(first_name, ' ', last_name)), ''), email) as name 
                FROM users WHERE LOWER(email) = LOWER(${booking.owner_email}) LIMIT 1`);
             const owner = (ownerResult.rows as unknown as OwnerRow[])[0];
             
