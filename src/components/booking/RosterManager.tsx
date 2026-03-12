@@ -227,7 +227,21 @@ const RosterManager: React.FC<RosterManagerProps> = ({
         haptic.success();
         showToast(`${member.name} added to booking`, 'success');
         setShowAddMemberModal(false);
-        await fetchAllBookingData();
+        const newParticipant: RosterParticipant = {
+          id: data.participant?.id ? Number(data.participant.id) : -Date.now(),
+          sessionId: 0,
+          userId: member.id,
+          guestId: null,
+          participantType: 'member',
+          displayName: member.name,
+          slotDuration: null,
+          paymentStatus: null,
+          createdAt: new Date().toISOString(),
+        };
+        setParticipants(prev => [...prev, newParticipant]);
+        setApiRemainingSlots(prev => Math.max(0, prev - 1));
+        setApiCurrentParticipantCount(prev => prev + 1);
+        fetchAllBookingData();
         onUpdate?.();
       } else {
         haptic.error();
@@ -265,8 +279,24 @@ const RosterManager: React.FC<RosterManagerProps> = ({
   };
 
   const handleRemoveParticipant = async (participantId: number, displayName: string) => {
+    if (removingId !== null) return;
     setRemovingId(participantId);
     haptic.light();
+
+    const snapshot = {
+      participants: [...participants],
+      remainingSlots: apiRemainingSlots,
+      participantCount: apiCurrentParticipantCount,
+    };
+    setParticipants(prev => prev.filter(p => p.id !== participantId));
+    setApiRemainingSlots(snapshot.remainingSlots + 1);
+    setApiCurrentParticipantCount(Math.max(1, snapshot.participantCount - 1));
+
+    const rollback = () => {
+      setParticipants(snapshot.participants);
+      setApiRemainingSlots(snapshot.remainingSlots);
+      setApiCurrentParticipantCount(snapshot.participantCount);
+    };
 
     try {
       const { ok, error } = await apiRequest(
@@ -277,14 +307,16 @@ const RosterManager: React.FC<RosterManagerProps> = ({
       if (ok) {
         haptic.success();
         showToast(`${displayName} removed from booking`, 'success');
-        await fetchAllBookingData();
+        fetchAllBookingData();
         onUpdate?.();
       } else {
         haptic.error();
+        rollback();
         showToast(error || 'Failed to remove participant', 'error');
       }
     } catch {
       haptic.error();
+      rollback();
       showToast('Failed to remove participant', 'error');
     } finally {
       setRemovingId(null);

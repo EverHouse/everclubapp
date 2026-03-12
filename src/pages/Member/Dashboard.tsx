@@ -200,7 +200,6 @@ const Dashboard: React.FC = () => {
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   // Optimistic UI state
-  const [optimisticCancellingIds, setOptimisticCancellingIds] = useState<Set<number>>(new Set());
   const [optimisticCancelledIds, setOptimisticCancelledIds] = useState<Set<number>>(new Set());
   const [scheduleRef] = useAutoAnimate();
   const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
@@ -552,8 +551,8 @@ const Dashboard: React.FC = () => {
       onConfirm: async () => {
         setConfirmModal(null);
         
-        // Optimistic UI: immediately show cancelling state
-        setOptimisticCancellingIds(prev => new Set(prev).add(bookingId));
+        setOptimisticCancelledIds(prev => new Set(prev).add(bookingId));
+        setSelectedBooking(null);
         
         try {
           let res;
@@ -578,25 +577,20 @@ const Dashboard: React.FC = () => {
           if (res.ok) {
             const data = await res.json().catch(() => ({}));
             
-            setOptimisticCancellingIds(prev => {
-              const next = new Set(prev);
-              next.delete(bookingId);
-              return next;
-            });
-            
             if (data.status === 'cancellation_pending') {
+              setOptimisticCancelledIds(prev => {
+                const next = new Set(prev);
+                next.delete(bookingId);
+                return next;
+              });
               showToast('Cancellation request submitted. You\'ll be notified when it\'s complete.', 'success');
-              refetchAllData();
             } else {
-              setOptimisticCancelledIds(prev => new Set(prev).add(bookingId));
-              setSelectedBooking(null);
               deleteBooking(String(bookingId));
               showToast('Booking cancelled successfully', 'success');
-              refetchAllData();
             }
+            refetchAllData();
           } else {
-            // Revert optimistic state on failure
-            setOptimisticCancellingIds(prev => {
+            setOptimisticCancelledIds(prev => {
               const next = new Set(prev);
               next.delete(bookingId);
               return next;
@@ -605,8 +599,7 @@ const Dashboard: React.FC = () => {
             showToast(data.error || 'Failed to cancel booking', 'error');
           }
         } catch (err: unknown) {
-          // Revert optimistic state on error
-          setOptimisticCancellingIds(prev => {
+          setOptimisticCancelledIds(prev => {
             const next = new Set(prev);
             next.delete(bookingId);
             return next;
@@ -959,8 +952,6 @@ const Dashboard: React.FC = () => {
             <div ref={scheduleRef} className="space-y-3">
               {upcomingItemsFiltered.length > 0 ? upcomingItemsFiltered.slice(0, 6).map((item, idx) => {
                 let actions;
-                const isCancelling = optimisticCancellingIds.has(Number(item.dbId));
-                
                 if (item.type === 'booking' || item.type === 'booking_request') {
                   const bookingStatus = (item as DashboardBookingItem).status as string;
                   const isConfirmed = bookingStatus === 'approved' || bookingStatus === 'confirmed';
@@ -977,8 +968,7 @@ const Dashboard: React.FC = () => {
                     ? new Date(`${item.rawDate}T${startTime24}`) <= new Date()
                     : false;
                   
-                  // When cancelling or cancellation_pending, show no actions (disabled state)
-                  if (isCancelling || isCancellationPending) {
+                  if (isCancellationPending) {
                     actions = [];
                   } else {
                     actions = [
@@ -1049,16 +1039,6 @@ const Dashboard: React.FC = () => {
                   
                   const badges: React.ReactNode[] = [];
                   
-                  // Show "Cancelling..." badge when optimistically cancelling
-                  if (isCancelling) {
-                    badges.push(
-                      <span key="cancelling" className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs animate-spin">progress_activity</span>
-                        Cancelling...
-                      </span>
-                    );
-                    return <div className="flex gap-1.5 flex-wrap">{badges}</div>;
-                  }
                   
                   if (isLinked) {
                     badges.push(
@@ -1099,7 +1079,6 @@ const Dashboard: React.FC = () => {
                 const rawBookingData = item.raw as DBBookingRequest;
 
                 const getScheduleStatus = () => {
-                  if (isCancelling) return { label: 'Cancelling', color: 'bg-red-500' };
                   if (item.type === 'booking' || item.type === 'booking_request') {
                     const s = (item as DashboardBookingItem).status;
                     if (s === 'approved' || s === 'confirmed') return { label: 'Confirmed', color: 'bg-green-500' };
