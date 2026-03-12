@@ -317,7 +317,7 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
       const extProps = event.extendedProperties?.private || {};
       
       const hasExtProps = !!(extProps['ehApp_affectedAreas'] || extProps['ehApp_notifyMembers']);
-      const calendarNotes = hasExtProps ? (rawDescription || null) : (getBaseDescription(rawDescription) || null);
+      const calendarNotes = hasExtProps ? null : (getBaseDescription(rawDescription) || null);
       
       if (noticeType) {
         await ensureNoticeTypeExists(noticeType);
