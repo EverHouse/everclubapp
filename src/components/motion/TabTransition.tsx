@@ -14,7 +14,6 @@ export const TabTransition: React.FC<TabTransitionProps> = ({
   const [animationPhase, setAnimationPhase] = useState<'idle' | 'exiting' | 'entering'>('idle');
   const prevKeyRef = useRef(activeKey);
   const isFirstRender = useRef(true);
-  const frozenChildrenRef = useRef<React.ReactNode>(null);
   const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const enterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -29,7 +28,6 @@ export const TabTransition: React.FC<TabTransitionProps> = ({
       if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
       if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
 
-      frozenChildrenRef.current = null;
       setAnimationPhase('exiting');
       
       exitTimerRef.current = setTimeout(() => {
@@ -38,8 +36,8 @@ export const TabTransition: React.FC<TabTransitionProps> = ({
         
         enterTimerRef.current = setTimeout(() => {
           setAnimationPhase('idle');
-        }, 250);
-      }, 120);
+        }, 200);
+      }, 100);
     }
 
     return () => {
