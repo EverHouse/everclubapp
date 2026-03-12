@@ -1456,7 +1456,7 @@ export async function cancelBooking(params: CancelBookingParams) {
   }
 
   if (!isPendingCancel) {
-    voidBookingInvoice(bookingId).catch((err: unknown) => {
+    await voidBookingInvoice(bookingId).catch((err: unknown) => {
       logger.error('[Staff Cancel] Failed to void/refund booking invoice (non-blocking)', {
         extra: { bookingId, error: getErrorMessage(err) }
       });
@@ -1512,7 +1512,7 @@ export async function handleCancelPostTransaction(
 ) {
   await releaseGuestPassHold(bookingId);
 
-  voidBookingInvoice(bookingId).catch(err => {
+  await voidBookingInvoice(bookingId).catch(err => {
     logger.warn('[Cancel] Non-blocking: failed to void draft invoice', { extra: { bookingId, error: getErrorMessage(err) } });
   });
 

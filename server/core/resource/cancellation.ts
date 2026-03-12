@@ -419,7 +419,7 @@ export async function deleteBooking(bookingId: number, archivedBy: string, hardD
     
     await releaseGuestPassHold(bookingId);
 
-    db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_action')`).catch((err: unknown) => {
+    await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_action')`).catch((err: unknown) => {
       logger.warn('[DELETE /api/bookings] Non-blocking: failed to cancel fee snapshots', { extra: { bookingId, error: getErrorMessage(err) } });
     });
 
@@ -630,7 +630,7 @@ export async function memberCancelBooking(bookingId: number, userEmail: string, 
   
   await releaseGuestPassHold(bookingId);
 
-  db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_action')`).catch((err: unknown) => {
+  await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_action')`).catch((err: unknown) => {
     logger.warn('[Member Cancel] Non-blocking: failed to cancel fee snapshots', { extra: { bookingId, error: getErrorMessage(err) } });
   });
   
@@ -709,7 +709,7 @@ export async function memberCancelBooking(bookingId: number, userEmail: string, 
     notifyStaff: true, 
     cleanupNotifications: true 
   }).catch(err => logger.error('Booking event publish failed', { extra: { error: err } }));
-  
+
   return { 
     success: true,
     existing,

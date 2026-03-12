@@ -80,7 +80,7 @@ export function useDirectoryData({
 
     const [formerLoading, setFormerLoading] = useState(false);
     const [formerError, setFormerError] = useState(false);
-    const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'warning' | 'error'; text: string } | null>(null);
     const [optimisticTiers, setOptimisticTiers] = useState<Record<string, string>>({});
     const [pendingTierUpdates, setPendingTierUpdates] = useState<Set<string>>(new Set());
 
@@ -199,7 +199,7 @@ export function useDirectoryData({
                 setSyncMessage({ type: 'error', text: 'Failed to sync' });
             } else {
                 setSyncMessage({
-                    type: hasAnyError ? 'success' : 'success',
+                    type: hasAnyError ? 'warning' : 'success',
                     text: parts.length > 0 ? parts.join('. ') : 'All up to date'
                 });
             }
