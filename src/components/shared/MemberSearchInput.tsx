@@ -201,12 +201,11 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
 
     const vv = window.visualViewport;
     const viewportHeight = vv ? vv.height : window.innerHeight;
-    const viewportOffsetTop = vv ? vv.offsetTop : 0;
+    const vvOffsetTop = vv ? vv.offsetTop : 0;
+    const vvOffsetLeft = vv ? vv.offsetLeft : 0;
 
-    const rectTopInVV = rect.top - viewportOffsetTop;
-    const rectBottomInVV = rect.bottom - viewportOffsetTop;
-    const spaceBelow = viewportHeight - rectBottomInVV;
-    const spaceAbove = rectTopInVV;
+    const spaceBelow = viewportHeight - (rect.bottom - vvOffsetTop);
+    const spaceAbove = rect.top - vvOffsetTop;
     const maxDropdownHeight = 256;
     const keyboardOpen = vv && vv.height < window.innerHeight * 0.75;
     const placeAbove = !keyboardOpen && spaceBelow < Math.min(maxDropdownHeight, 120) && spaceAbove > spaceBelow;
@@ -214,8 +213,10 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
 
     setDropdownStyle({
       position: 'fixed',
-      top: placeAbove ? (rect.top - clampedHeight - 4) : rect.bottom + 4,
-      left: rect.left,
+      top: placeAbove
+        ? (rect.top + vvOffsetTop - clampedHeight - 4)
+        : (rect.bottom + vvOffsetTop + 4),
+      left: rect.left + vvOffsetLeft,
       width: rect.width,
       maxHeight: clampedHeight,
       zIndex: 99999,
