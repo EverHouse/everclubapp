@@ -15,6 +15,8 @@ interface PassData {
   dailyConfRoomMinutes: number | null;
   guestPassesRemaining: number | null;
   guestPassesTotal: number | null;
+  authenticationToken?: string;
+  webServiceURL?: string;
 }
 
 interface TierColors {
@@ -132,7 +134,7 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
     });
   }
 
-  return {
+  const passJson: Record<string, unknown> = {
     formatVersion: 1,
     passTypeIdentifier: config.passTypeId,
     serialNumber: `EVERCLUB-${data.memberId}`,
@@ -143,37 +145,47 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
     foregroundColor: hexToRgb(colors.foreground),
     backgroundColor: hexToRgb(colors.bg),
     labelColor: hexToRgb(colors.label),
-    generic: {
-      primaryFields: [
-        {
-          key: 'memberName',
-          label: 'MEMBER',
-          value: data.memberName,
-        },
-      ],
-      secondaryFields: [
-        {
-          key: 'tier',
-          label: 'TIER',
-          value: data.tier,
-        },
-      ],
-      auxiliaryFields,
-      backFields,
-    },
-    barcode: {
+  };
+
+  if (data.webServiceURL && data.authenticationToken) {
+    passJson.webServiceURL = data.webServiceURL;
+    passJson.authenticationToken = data.authenticationToken;
+  }
+
+  passJson.generic = {
+    primaryFields: [
+      {
+        key: 'memberName',
+        label: 'MEMBER',
+        value: data.memberName,
+      },
+    ],
+    secondaryFields: [
+      {
+        key: 'tier',
+        label: 'TIER',
+        value: data.tier,
+      },
+    ],
+    auxiliaryFields,
+    backFields,
+  };
+
+  passJson.barcode = {
+    message: `MEMBER:${data.memberId}`,
+    format: 'PKBarcodeFormatQR',
+    messageEncoding: 'iso-8859-1',
+  };
+
+  passJson.barcodes = [
+    {
       message: `MEMBER:${data.memberId}`,
       format: 'PKBarcodeFormatQR',
       messageEncoding: 'iso-8859-1',
     },
-    barcodes: [
-      {
-        message: `MEMBER:${data.memberId}`,
-        format: 'PKBarcodeFormatQR',
-        messageEncoding: 'iso-8859-1',
-      },
-    ],
-  };
+  ];
+
+  return passJson;
 }
 
 function selectLogoSource(colors: TierColors): string {

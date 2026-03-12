@@ -6,6 +6,8 @@ import { users, membershipTiers, guestPasses } from '../../shared/schema';
 import { sql } from 'drizzle-orm';
 import { normalizeTierName } from '../../shared/constants/tiers';
 import { generatePkPass, type PassData, type WalletConfig, type TierColors } from '../walletPass/passGenerator';
+import { getOrCreateAuthToken } from '../walletPass/apnPushService';
+import { getWebServiceURL } from '../walletPass/passService';
 import { getSessionUser } from '../types/session';
 import { getSettingValue, getSettingBoolean } from '../core/settingsHelper';
 
@@ -157,6 +159,10 @@ router.get('/api/member/wallet-pass', isAuthenticated, async (req, res) => {
       memberSince = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     }
 
+    const serialNumber = `EVERCLUB-${user.id}`;
+    const authToken = await getOrCreateAuthToken(serialNumber, user.id);
+    const webServiceURL = await getWebServiceURL();
+
     const passData: PassData = {
       memberId: user.id,
       memberName,
@@ -166,6 +172,8 @@ router.get('/api/member/wallet-pass', isAuthenticated, async (req, res) => {
       dailyConfRoomMinutes: tierData?.dailyConfRoomMinutes ?? null,
       guestPassesRemaining: guestPassData ? (guestPassData.passesTotal - guestPassData.passesUsed) : null,
       guestPassesTotal: guestPassData?.passesTotal ?? null,
+      authenticationToken: authToken,
+      webServiceURL: webServiceURL || undefined,
     };
 
     const pkpassBuffer = await generatePkPass(passData, walletConfig, dbColors);

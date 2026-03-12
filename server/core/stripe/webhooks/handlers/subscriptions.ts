@@ -12,6 +12,7 @@ import type { PoolClient } from 'pg';
 import type { DeferredAction, SubscriptionPreviousAttributes } from '../types';
 import { getErrorMessage } from '../../../../utils/errorUtils';
 import { normalizeTierName } from '../../../../utils/tierUtils';
+import { sendPassUpdateForMemberByEmail } from '../../../../walletPass/apnPushService';
 
 export async function handleSubscriptionCreated(client: PoolClient, subscription: Stripe.Subscription): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
@@ -799,6 +800,14 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
             });
           } catch (notifyErr: unknown) {
             logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+          }
+        });
+
+        deferredActions.push(async () => {
+          try {
+            await sendPassUpdateForMemberByEmail(deferredTierEmail);
+          } catch (pushErr: unknown) {
+            logger.warn('[Stripe Webhook] Wallet pass push failed (non-fatal):', { extra: { error: getErrorMessage(pushErr) } });
           }
         });
       }

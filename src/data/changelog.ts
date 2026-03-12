@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.83.0",
+    date: "2026-03-12",
+    title: "Apple Wallet Pass Push Updates",
+    changes: [
+      "Feature: Your Apple Wallet membership pass now updates automatically when your membership changes — tier upgrades/downgrades, name changes, and monthly guest pass resets are reflected on your pass without needing to re-download it",
+      "Feature: Apple Wallet push update infrastructure added — devices register with the server and receive silent push notifications when pass data changes, triggering iOS to fetch the latest version",
+    ]
+  },
+  {
     version: "8.82.0",
     date: "2026-03-11",
     title: "Session Security, Billing Safety & Booking Consistency",

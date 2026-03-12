@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { getHubSpotClient } from '../../core/integrations';
 import { retryableHubSpotRequest } from '../../core/hubspot/request';
 import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
+import { sendPassUpdateForMemberByEmail } from '../../walletPass/apnPushService';
 
 const router = Router();
 
@@ -214,6 +215,10 @@ router.put('/api/member/profile', isAuthenticated, async (req, res) => {
 
     syncProfileToExternalServices(email, firstName, lastName, phone).catch((err) => {
       logger.error('[onboarding] Background sync to Stripe/HubSpot failed', { error: err instanceof Error ? err : new Error(String(err)) });
+    });
+
+    sendPassUpdateForMemberByEmail(email).catch((err) => {
+      logger.warn('[onboarding] Wallet pass push failed after profile update', { extra: { email, error: err instanceof Error ? err.message : String(err) } });
     });
 
     res.json({

@@ -58,6 +58,7 @@ import monitoringRouter from '../routes/monitoring';
 import nfcCheckinRouter from '../routes/nfcCheckin';
 import analyticsRouter from '../routes/analytics';
 import walletPassRouter from '../routes/walletPass';
+import walletPassWebServiceRouter from '../routes/walletPassWebService';
 import mapkitRouter from '../routes/mapkit';
 import { registerObjectStorageRoutes } from '../replit_integrations/object_storage';
 import { registerImageRoutes } from '../replit_integrations/image';
@@ -121,6 +122,7 @@ export function registerRoutes(app: Express): void {
   app.use(nfcCheckinRouter);
   app.use(analyticsRouter);
   app.use(walletPassRouter);
+  app.use('/api/wallet', walletPassWebServiceRouter);
   app.use(mapkitRouter);
   registerObjectStorageRoutes(app);
   registerImageRoutes(app);

@@ -7,6 +7,7 @@ import Stripe from 'stripe';
 import { getErrorMessage } from '../../utils/errorUtils';
 
 import { logger } from '../logger';
+import { sendPassUpdateForMemberByEmail } from '../../walletPass/apnPushService';
 export interface SubscriptionSyncResult {
   success: boolean;
   created: number;
@@ -273,6 +274,9 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
                 tier,
               });
               logger.info(`[Stripe Sync] Updated user ${email} with tier ${tier}`);
+              sendPassUpdateForMemberByEmail(email).catch(err => {
+                logger.warn('[Stripe Sync] Wallet pass push failed', { extra: { email, error: getErrorMessage(err) } });
+              });
             } else {
               result.skipped++;
               result.details.push({

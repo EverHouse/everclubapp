@@ -175,3 +175,32 @@ export type TierFeature = typeof tierFeatures.$inferSelect;
 export type InsertTierFeature = typeof tierFeatures.$inferInsert;
 export type TierFeatureValue = typeof tierFeatureValues.$inferSelect;
 export type InsertTierFeatureValue = typeof tierFeatureValues.$inferInsert;
+
+export const walletPassDeviceRegistrations = pgTable("wallet_pass_device_registrations", {
+  id: serial("id").primaryKey(),
+  deviceLibraryId: varchar("device_library_id").notNull(),
+  pushToken: varchar("push_token").notNull(),
+  passTypeId: varchar("pass_type_id").notNull(),
+  serialNumber: varchar("serial_number").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("wallet_pass_device_serial_idx").on(table.deviceLibraryId, table.passTypeId, table.serialNumber),
+  index("wallet_pass_serial_idx").on(table.serialNumber),
+]);
+
+export const walletPassAuthTokens = pgTable("wallet_pass_auth_tokens", {
+  id: serial("id").primaryKey(),
+  serialNumber: varchar("serial_number").notNull().unique(),
+  authToken: varchar("auth_token").notNull(),
+  memberId: varchar("member_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("wallet_pass_auth_member_idx").on(table.memberId),
+]);
+
+export type WalletPassDeviceRegistration = typeof walletPassDeviceRegistrations.$inferSelect;
+export type InsertWalletPassDeviceRegistration = typeof walletPassDeviceRegistrations.$inferInsert;
+export type WalletPassAuthToken = typeof walletPassAuthTokens.$inferSelect;
+export type InsertWalletPassAuthToken = typeof walletPassAuthTokens.$inferInsert;

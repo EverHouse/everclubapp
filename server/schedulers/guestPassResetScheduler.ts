@@ -3,6 +3,7 @@ import { alertOnScheduledTaskFailure } from '../core/dataAlerts';
 import { queryWithRetry } from '../core/db';
 import { getPacificHour, getPacificDayOfMonth, getPacificDateParts } from '../utils/dateUtils';
 import { logger } from '../core/logger';
+import { sendPassUpdateForMemberByEmail } from '../walletPass/apnPushService';
 
 const RESET_HOUR = 3;
 
@@ -75,6 +76,10 @@ async function resetGuestPasses(): Promise<void> {
     for (const row of result.rows) {
       logger.info(`[Guest Pass Reset] Reset ${row.member_email}: 0/${row.passes_total} passes used`);
       schedulerTracker.recordRun('Guest Pass Reset', true);
+
+      sendPassUpdateForMemberByEmail(row.member_email).catch(err => {
+        logger.warn('[Guest Pass Reset] Wallet pass push failed', { extra: { email: row.member_email, error: String(err) } });
+      });
     }
     
   } catch (error: unknown) {

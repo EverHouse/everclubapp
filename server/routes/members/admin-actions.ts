@@ -21,6 +21,7 @@ import { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
 import { invalidateCache } from '../../core/queryCache';
 import { validateBody } from '../../middleware/validate';
 import { tierChangeSchema, createMemberSchema } from '../../../shared/validators/members';
+import { sendPassUpdateForMemberByEmail } from '../../walletPass/apnPushService';
 
 const router = Router();
 
@@ -162,6 +163,10 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, validateBody(tierChange
     });
 
     invalidateCache('members_directory');
+
+    sendPassUpdateForMemberByEmail(normalizedEmail).catch(err => {
+      logger.warn('[Members] Wallet pass push failed after tier change', { extra: { normalizedEmail, error: getErrorMessage(err) } });
+    });
 
     broadcastTierUpdate({
       action: normalizedTier ? 'updated' : 'removed',
