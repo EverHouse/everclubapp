@@ -930,6 +930,7 @@ const Profile: React.FC = () => {
                      onError={(err) => showToast(err, 'error')}
                      disabled={appleLinking}
                      compact
+                     label="Link"
                    />
                  )}
                </div>
