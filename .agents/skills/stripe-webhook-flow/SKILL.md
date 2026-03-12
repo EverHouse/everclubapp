@@ -286,7 +286,7 @@ Each cascade respects the billing provider guard — sub-members with non-Stripe
 `handleInvoicePaymentFailed` starts a grace period:
 - Sets `grace_period_start` and `grace_period_email_count` on the user
 - Only applies when `billing_provider = 'stripe'`
-- Grace period lasts 7 days before suspension
+- Grace period lasts 3 days by default (configurable via `scheduling.grace_period_days` setting) before termination
 
 `handleInvoicePaymentSucceeded` clears the grace period:
 - Resets `grace_period_start = NULL` and `grace_period_email_count = 0`

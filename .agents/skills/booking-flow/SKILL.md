@@ -156,7 +156,7 @@ Cancellation uses a **transactional status update** (v8.66.0) — the booking st
 
 ### 8. Auto Check-In (status: `attended`)
 
-The auto-complete scheduler (`server/schedulers/bookingAutoCompleteScheduler.ts`) runs every 2 hours. It marks approved/confirmed bookings as `attended` (auto checked-in) when 24 hours have passed since the booking's end time. This assumes most members attended their bookings and avoids noisy false no-show notifications. Staff can still manually mark a booking as `no_show` via the BookingStatusDropdown if needed.
+The auto-complete scheduler (`server/schedulers/bookingAutoCompleteScheduler.ts`) runs every 1 hour. It marks approved/confirmed bookings as `attended` (auto checked-in) 30 minutes after end time for same-day bookings, or next day for overnight sessions. **Fee guard**: only auto-completes if the session has no unpaid fees (`cached_fee_cents > 0` with `payment_status = 'pending'` blocks auto-complete). Also calls `ensureSessionForBooking()` for each booking without a session. Staff can still manually mark a booking as `no_show` via the BookingStatusDropdown if needed.
 
 - Uses Pacific timezone via `getTodayPacific()` / `formatTimePacific()`
 - Notifies staff when 2+ bookings are auto checked-in
@@ -213,7 +213,7 @@ All resource types → Final status = 'approved'
 
 1. **Session before roster**: A `booking_sessions` row must exist before any `booking_participants` can be linked. The session is the anchor for the participant roster and usage ledger.
 
-2. **Conflict detection scope**: `findConflictingBookings()` checks OCCUPIED_STATUSES = `['pending', 'pending_approval', 'approved', 'confirmed', 'checked_in', 'attended']`. It checks both owner bookings and participant bookings on the same date. The `attended` status was added in v8.6.0 to prevent double-booking against checked-in sessions. The auto-complete scheduler moves stale `approved`/`confirmed` bookings to `attended` after 24h, removing them from conflict detection.
+2. **Conflict detection scope**: `findConflictingBookings()` checks OCCUPIED_STATUSES = `['pending', 'pending_approval', 'approved', 'confirmed', 'checked_in', 'attended']`. It checks both owner bookings and participant bookings on the same date. The `attended` status was added in v8.6.0 to prevent double-booking against checked-in sessions. The auto-complete scheduler (runs every 1 hour) moves stale `approved`/`confirmed` bookings to `attended` 30 minutes after end time for same-day bookings or next day for overnight sessions, removing them from conflict detection.
 
 3. **Availability guard layers**: `checkUnifiedAvailability()` runs three checks in order:
    - Facility closures (`facility_closures` table)
@@ -224,7 +224,7 @@ All resource types → Final status = 'approved'
 
 4. **Guest pass atomicity**: Guest pass deduction happens INSIDE the session creation transaction. If session creation fails, guest passes are not deducted. Two paths: hold-then-convert (booking request flow) vs direct deduction (staff/Trackman flow).
 
-5. **Social tier restriction**: Social tier members cannot bring guests. Enforced by `enforceSocialTierRules()` before session creation. This is a hard block, not a warning.
+5. **Social tier guest fees**: Social tier members CAN bring guests, but they pay full guest fees (0 complimentary passes). `enforceSocialTierRules()` always returns `{ allowed: true }` — the restriction is economic, not a hard block. The fee calculation system (`unifiedFeeService`) handles charging guest fees automatically.
 
 6. **Overlapping session reuse**: `findOverlappingSession()` uses Postgres `tsrange` overlap operator (`&&`) to find existing sessions within the time window. If a session already exists (e.g., from Trackman import), participants are linked to it rather than creating a duplicate.
 
