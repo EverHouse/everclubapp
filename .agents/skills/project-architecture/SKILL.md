@@ -7,6 +7,45 @@ description: Master map of the Ever Club Members App codebase. Check this FIRST 
 
 Single source of truth for where everything lives. Check here FIRST before modifying any code.
 
+## Skill Routing Table
+
+Load the right domain skill BEFORE making changes. If your task spans multiple domains, load all relevant skills.
+
+| If you're modifying… | Load this skill | Also consider |
+|---|---|---|
+| Booking creation, approval, cancellation, lifecycle | `booking-flow` | `fee-calculation`, `guest-pass-system` |
+| Trackman CSV import, webhook matching, bay slot cache | `booking-import-standards` | `booking-flow` |
+| Staff check-in, QR scan, billing at check-in | `checkin-flow` | `fee-calculation`, `guest-pass-system` |
+| Fee computation, overage, guest fees, invoices | `fee-calculation` | `booking-flow`, `checkin-flow` |
+| Guest pass holds, consumption, refunds, monthly reset | `guest-pass-system` | `fee-calculation`, `checkin-flow` |
+| Member status, tier changes, onboarding, cancellation | `member-lifecycle` | `stripe-webhook-flow`, `hubspot-sync` |
+| Notifications, WebSocket, push notifications | `notification-system` | — |
+| Scheduled jobs, background tasks, job queue | `scheduler-jobs` | `data-integrity-monitoring` |
+| Stripe webhooks, subscription sync, payment events | `stripe-webhook-flow` | `member-lifecycle`, `fee-calculation` |
+| HubSpot contacts, deals, queue sync, form submissions | `hubspot-sync` | `member-lifecycle` |
+| Integrity checks, monitoring, alerts, health checks | `data-integrity-monitoring` | `scheduler-jobs` |
+
+### Decision Tree — Which Skill?
+
+```
+What are you changing?
+├── A booking endpoint or booking UI?
+│   ├── CSV import or Trackman webhook? → booking-import-standards
+│   ├── Check-in or billing modal? → checkin-flow
+│   ├── Fee/overage/guest fee logic? → fee-calculation
+│   ├── Guest pass logic? → guest-pass-system
+│   └── Anything else booking-related → booking-flow
+├── A Stripe webhook handler? → stripe-webhook-flow
+├── A member status/tier/onboarding change? → member-lifecycle
+├── A HubSpot sync or contact/deal operation? → hubspot-sync
+├── A notification, WebSocket, or push? → notification-system
+├── A scheduler or background job? → scheduler-jobs
+├── An integrity check or monitoring? → data-integrity-monitoring
+└── File structure, conventions, or general architecture? → Stay here (project-architecture)
+```
+
+---
+
 ## Project Structure Overview
 
 ```

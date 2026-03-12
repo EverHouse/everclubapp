@@ -5,149 +5,130 @@ description: "Scheduled maintenance tasks — daily, hourly, and continuous back
 
 # Scheduler Jobs
 
-## Overview
+All schedulers registered in `server/schedulers/index.ts` via `initSchedulers()`. Health tracked by `schedulerTracker` (`server/core/schedulerTracker.ts`). Time gates use Pacific timezone via `getPacificHour()` / `getTodayPacific()`.
 
-All schedulers are registered and started in `server/schedulers/index.ts` via the `initSchedulers()` function. Each scheduler uses `schedulerTracker` (from `server/core/schedulerTracker.ts`) to report its health status. All time-gated schedulers use Pacific timezone via `getPacificHour()` and `getTodayPacific()` from `server/utils/dateUtils`.
+## File Map
 
-## Key Files
+| Task | Primary File(s) | When to touch |
+|---|---|---|
+| Scheduler registry | `server/schedulers/index.ts` | Import, register, start all schedulers |
+| Scheduler health tracking | `server/core/schedulerTracker.ts` | In-memory tracker for admin dashboard |
+| Job queue processor | `server/core/jobQueue.ts` | Background job processing |
+| Individual schedulers | `server/schedulers/*.ts` | Each scheduler implementation |
 
-- `server/schedulers/index.ts` — registry: import, register, and start all schedulers
-- `server/core/schedulerTracker.ts` — in-memory tracker reporting scheduler health to admin dashboard
-- `server/core/jobQueue.ts` — generic background job queue processor
-- `server/schedulers/*.ts` — individual scheduler implementations
-
-## Scheduler Registry
-
-All schedulers registered in `initSchedulers()`:
+## Scheduler Registry (27 tasks)
 
 | Name | File | Interval | Time Gate | Purpose |
-|------|------|----------|-----------|---------|
-| Background Sync | backgroundSyncScheduler.ts | 5 min | None | Sync Google Calendar events, wellness, tours, closures, conference rooms |
-| Daily Reminder | dailyReminderScheduler.ts | 30 min | 6 PM Pacific | Send tomorrow's event/booking/wellness reminders (defined in push.ts, triggered by dailyReminderScheduler) |
-| Morning Closure | morningClosureScheduler.ts | 30 min | 8 AM Pacific | Notify members about today's facility closures (defined in push.ts, triggered by morningClosureScheduler) |
-| Weekly Cleanup | weeklyCleanupScheduler.ts | 1 hr | Sunday 3 AM Pacific | Clean up old data, expired records, stale sessions |
-| Integrity Check | integrityScheduler.ts | 30 min | Midnight Pacific | Run data integrity checks, send alert emails |
-| Auto-Fix Tiers | integrityScheduler.ts | 4 hr | None | Sub-task of Integrity Scheduler: Fix missing tiers, normalize membership_status case |
-| Abandoned Pending Cleanup | integrityScheduler.ts | 6 hr | None | Sub-task of Integrity Scheduler: Delete abandoned pending users (24h+ old, no subscription) |
-| Waiver Review | waiverReviewScheduler.ts | 4 hr | None | Check for waivers pending staff review > 12 hours. Uses persistent database-level deduplication (6-hour window) to prevent repeated notifications (v8.57.0). |
-| Stripe Reconciliation | stripeReconciliationScheduler.ts | 1 hr | 5 AM Pacific | Reconcile Stripe subscriptions and payments with DB |
-| Fee Snapshot Reconciliation | feeSnapshotReconciliationScheduler.ts | 15 min | None | Reconcile pending fee snapshots, cancel abandoned payment intents |
-| Grace Period | gracePeriodScheduler.ts | 1 hr | 10 AM Pacific | Process membership grace periods, send reminder emails, terminate |
-| Booking Expiry | bookingExpiryScheduler.ts | 1 hr | None | Expire past-due pending/pending_approval bookings (20-min grace period past start_time) |
-| Booking Auto-Complete | bookingAutoCompleteScheduler.ts | 1 hr | None | Mark approved/confirmed bookings as attended (auto checked-in) 30 min after end time for same-day bookings, or next day for overnight sessions. **Fee guard**: only auto-completes if session has no unpaid fees (`cached_fee_cents > 0` with `payment_status = 'pending'` blocks auto-complete). Also calls `ensureSessionForBooking()` for each booking without a session. |
-| Communication Logs Sync | communicationLogsScheduler.ts | 30 min | None | Sync communication log records |
-| Webhook Log Cleanup | webhookLogCleanupScheduler.ts | 1 hr | 4 AM Pacific | Delete webhook logs older than 30 days |
-| Session Cleanup | sessionCleanupScheduler.ts | 1 hr | 2 AM Pacific | Clean up expired HTTP sessions |
-| Unresolved Trackman | unresolvedTrackmanScheduler.ts | 15 min | 9 AM Pacific | Alert staff about unmatched Trackman bookings > 24h |
-| HubSpot Queue | hubspotQueueScheduler.ts | 2 min | None | Process queued HubSpot sync operations (batch of 20) |
-| HubSpot Form Sync | hubspotFormSyncScheduler.ts | 30 min | None | Sync HubSpot form submissions |
-| Member Sync | memberSyncScheduler.ts | 24 hr | 3 AM Pacific | Full daily member data sync from HubSpot |
-| Duplicate Cleanup | duplicateCleanupScheduler.ts | 1 hr | 4 AM Pacific | Remove duplicate Trackman bookings (keep earliest) |
-| Guest Pass Reset | guestPassResetScheduler.ts | 1 hr | 3 AM Pacific, 1st of month | Reset monthly guest pass counters |
-| Stuck Cancellation | stuckCancellationScheduler.ts | 2 hr | None | Alert staff about bookings stuck in cancellation_pending > 4h |
-| Pending User Cleanup | pendingUserCleanupScheduler.ts | 6 hr | None | Delete old pending Stripe users (48h+, no subscription), cancel Stripe customer |
-| Webhook Event Cleanup | webhookEventCleanupScheduler.ts | 24 hr | None | Remove webhook_processed_events older than 7 days |
-| Onboarding Nudge | onboardingNudgeScheduler.ts | 1 hr | 10 AM Pacific | Send graduated onboarding nudge emails to stalled members |
-| Supabase Heartbeat | supabaseHeartbeatScheduler.ts | 6 hr | None | Ping Supabase to keep connection alive and verify user count |
-| Job Queue Processor | jobQueue.ts | 5 sec | None | Process background job queue (emails, notifications, syncs) |
+|---|---|---|---|---|
+| Background Sync | backgroundSyncScheduler.ts | 5 min | None | Google Calendar, wellness, tours, closures, conference rooms |
+| Daily Reminder | dailyReminderScheduler.ts | 30 min | 6 PM Pacific | Tomorrow's reminders (push.ts) |
+| Morning Closure | morningClosureScheduler.ts | 30 min | 8 AM Pacific | Today's closure alerts (push.ts) |
+| Weekly Cleanup | weeklyCleanupScheduler.ts | 1 hr | Sun 3 AM Pacific | Old data cleanup |
+| Integrity Check | integrityScheduler.ts | 30 min | Midnight Pacific | Data integrity checks + email |
+| Auto-Fix Tiers | integrityScheduler.ts | 24 hr | None | Fix missing tiers, normalize status |
+| Abandoned Pending | integrityScheduler.ts | 6 hr | None | Delete 24h+ pending users |
+| Waiver Review | waiverReviewScheduler.ts | 4 hr | None | Stale waivers >12h (6h dedup) |
+| Stripe Reconciliation | stripeReconciliationScheduler.ts | 1 hr | 5 AM Pacific | Stripe vs DB reconciliation |
+| Fee Snapshot Recon | feeSnapshotReconciliationScheduler.ts | 15 min | None | Pending fee snapshots |
+| Grace Period | gracePeriodScheduler.ts | 1 hr | 10 AM Pacific | Payment failure follow-up |
+| Booking Expiry | bookingExpiryScheduler.ts | 1 hr | None | Expire stale pending bookings |
+| Booking Auto-Complete | bookingAutoCompleteScheduler.ts | 1 hr | None | Auto check-in 30 min after end |
+| Communication Logs | communicationLogsScheduler.ts | 30 min | None | Sync communication logs |
+| Webhook Log Cleanup | webhookLogCleanupScheduler.ts | 1 hr | 4 AM Pacific | Delete 30-day-old webhook logs |
+| Session Cleanup | sessionCleanupScheduler.ts | 1 hr | 2 AM Pacific | Expired HTTP sessions |
+| Unresolved Trackman | unresolvedTrackmanScheduler.ts | 15 min | 9 AM Pacific | Unmatched Trackman >24h alert |
+| HubSpot Queue | hubspotQueueScheduler.ts | 2 min | None | Process HubSpot sync ops (batch 20) |
+| HubSpot Form Sync | hubspotFormSyncScheduler.ts | 30 min | None | Ingest HubSpot forms |
+| Member Sync | memberSyncScheduler.ts | 24 hr | 3 AM Pacific | Full HubSpot member sync |
+| Duplicate Cleanup | duplicateCleanupScheduler.ts | 24 hr | 4 AM Pacific | Remove duplicate Trackman bookings |
+| Guest Pass Reset | guestPassResetScheduler.ts | 1 hr | 3 AM, 1st of month | Monthly pass counter reset |
+| Stuck Cancellation | stuckCancellationScheduler.ts | 2 hr | None | Alert for cancellation_pending >4h |
+| Pending User Cleanup | pendingUserCleanupScheduler.ts | 6 hr | None | Delete 48h+ pending users |
+| Webhook Event Cleanup | webhookEventCleanupScheduler.ts | 24 hr | None | Remove 7-day-old processed events |
+| Onboarding Nudge | onboardingNudgeScheduler.ts | 1 hr | 10 AM Pacific | Stalled member nudge emails |
+| Supabase Heartbeat | supabaseHeartbeatScheduler.ts | 6 hr | None | Keep Supabase connection alive |
+| Job Queue Processor | jobQueue.ts | 5 sec | None | Process background jobs |
 
-## Scheduler Tracker
+## Hard Rules — Adding a New Scheduler
 
-`SchedulerTracker` class in `server/core/schedulerTracker.ts` provides in-memory tracking of all scheduler runs.
-
-### API
-
-- `registerScheduler(name, intervalMs)` — register a scheduler with its expected interval; call during `initSchedulers()`
-- `recordRun(name, success, error?, durationMs?)` — record a run result; updates `lastRunAt`, `nextRunAt`, `runCount`
-- `getSchedulerStatuses()` — return sorted array of all scheduler statuses for admin dashboard
-
-### Status Fields
-
-- `taskName` — scheduler display name
-- `lastRunAt` — timestamp of last run (null if never run)
-- `lastResult` — `'success'` | `'error'` | `'pending'`
-- `lastError` — error message from last failed run
-- `intervalMs` — expected interval between runs
-- `nextRunAt` — computed next expected run time
-- `runCount` — total number of recorded runs
-- `lastDurationMs` — duration of last run in milliseconds
+1. Create file in `server/schedulers/`, export `startMyScheduler()`.
+2. Import and call in `server/schedulers/index.ts`.
+3. `schedulerTracker.registerScheduler('Name', intervalMs)` in `initSchedulers()`.
+4. `schedulerTracker.recordRun('Name', true/false, error?, durationMs?)` on each run.
+5. Use `getPacificHour()` / `getTodayPacific()` for time gating.
+6. Use `tryClaimSlot` pattern (`INSERT ON CONFLICT`) for once-per-day/month idempotency.
+7. Wrap main logic in try/catch — never crash the interval.
+8. Add `[Startup]` console.log in start function.
+9. **`isRunning` overlap guard required (v8.78.0).** Module-scope `let isRunning = false`, check + set at top, reset in `finally`. All 25 schedulers have this.
+10. **Store all timer IDs** (`setTimeout`/`setInterval`) in a variable/collection. `stopSchedulers()` must clear all.
+11. **Export `stopXxxScheduler()` for setTimeout chains.** Both `memberSyncScheduler` and `backgroundSyncScheduler` follow this.
+12. **Booking expiry targets `pending` AND `pending_approval`.** 20-min grace past start_time. Trackman-linked → `cancellation_pending`. Non-Trackman → `expired`. Call `broadcastAvailabilityUpdate()` after each.
 
 ## Idempotency Patterns
 
-Prevent double execution of time-gated schedulers. See `references/idempotency-patterns.md` for code examples.
+| Pattern | When to use | How |
+|---|---|---|
+| Time Gate | Scheduler runs on a specific hour | `if (getPacificHour() !== TARGET) return` |
+| Claim Slot (DB) | Once per day/month, crash-safe | `INSERT INTO system_settings ON CONFLICT DO UPDATE WHERE value IS DISTINCT FROM <key>` |
+| Local Variable | Simple hour gate, non-critical | `lastCleanupDate` in memory vs `getTodayPacific()` |
+| Monthly Gate | Once per month | Day-of-month check + month key claim slot |
+| Weekly Gate | Once per week | `getDay() === 0` + hour + week-number tracking |
 
-### Time Gate
+See [references/idempotency-patterns.md](references/idempotency-patterns.md) for code examples.
 
-Check `getPacificHour()` against a target hour constant. Only proceed when current hour matches.
+## Anti-Patterns (NEVER)
 
-### Claim Slot (Database)
+1. NEVER let errors propagate out of interval callbacks — always try/catch.
+2. NEVER skip the `isRunning` overlap guard.
+3. NEVER leave timer IDs untracked — all must be clearable on shutdown.
+4. NEVER run time-gated schedulers without Pacific timezone helpers.
 
-Use `INSERT INTO system_settings ON CONFLICT DO UPDATE ... WHERE value IS DISTINCT FROM <today>` to atomically claim a daily slot. Return `true` only if the row was actually updated (first run today).
+## Cross-References
 
-### Local Variable Gate
+- **Integrity checks** → `data-integrity-monitoring` skill
+- **HubSpot queue processing** → `hubspot-sync` skill
+- **Booking auto-complete** → `booking-flow` skill
+- **Guest pass reset** → `guest-pass-system` skill
+- **Grace period** → `member-lifecycle` skill
 
-Track `lastCleanupDate` in memory; compare to `getTodayPacific()`. Simpler but not crash-safe.
+## Detailed Reference
 
-### Monthly Gate
+- **[references/idempotency-patterns.md](references/idempotency-patterns.md)** — Code examples for all 5 idempotency patterns.
+- **[references/scheduler-details.md](references/scheduler-details.md)** — Individual scheduler internals, edge cases, and timing details.
 
-Use a month key (`YYYY-MM`) instead of a date key in the claim slot pattern. Combine with day-of-month check (`getPacificDayOfMonth() === 1`).
-
-### Weekly Gate
-
-Check `getDay() === 0` (Sunday) + hour check + week-number tracking to prevent re-runs within the same week.
-
-## Adding a New Scheduler
-
-1. Create a new file in `server/schedulers/` (e.g., `myNewScheduler.ts`)
-2. Export a `startMyNewScheduler()` function that sets up `setInterval`
-3. Import and call the start function in `server/schedulers/index.ts`
-4. Register with `schedulerTracker.registerScheduler('My New Scheduler', intervalMs)` in `initSchedulers()`
-5. Call `schedulerTracker.recordRun('My New Scheduler', true)` on success
-6. Call `schedulerTracker.recordRun('My New Scheduler', false, String(error))` on failure
-7. Use `getPacificHour()` / `getTodayPacific()` for time gating if needed
-8. Use the `tryClaimSlot` pattern (INSERT ON CONFLICT) for idempotency if the task must run only once per day/month
-9. Wrap the main logic in try/catch — never let errors crash the interval
-10. Add a `[Startup]` console.log in the start function for boot visibility
-11. **Add an `isRunning` overlap guard** to prevent concurrent executions if a task runs longer than its interval. Pattern: set `let isRunning = false` at module scope; at the top of the interval callback, `if (isRunning) { logger.info('Skipping...'); return; }`, then `isRunning = true;` before work starts, and `finally { isRunning = false; }` after. All 25 schedulers now have this pattern (v8.78.0). For schedulers with multiple concurrent sub-tasks, use `Promise.allSettled` with a single guard wrapping all sub-tasks.
-12. **All `setTimeout()` and `setInterval()` timer IDs must be stored in a variable or collection** so they can be cleared on shutdown. The `stopSchedulers()` function must clear all interval AND timeout IDs. The booking expiry scheduler stores individual setTimeout IDs in a `Map` and clears them in its stop function. (v8.26.7)
-13. **Booking expiry targets both `pending` and `pending_approval`** statuses. A 20-minute grace period past `start_time` prevents premature expiry for members arriving at the front desk. **Trackman-linked bookings** (those with `trackman_booking_id IS NOT NULL`) are set to `cancellation_pending` instead of `expired` so the Trackman hardware cleanup flow can unlock the physical bay. Non-Trackman bookings are set to `expired` directly. After each status change, the scheduler calls `broadcastAvailabilityUpdate()` for every booking that has a `resourceId`, so front desk iPads and member phones update instantly without manual refresh. (v8.26.7)
-14. **Every scheduler using `setTimeout` chains must store the current timeout ID** in a module-level variable and export a `stopXxxScheduler()` function that clears it. This prevents zombie processes on hot-reload or graceful restart. Both `memberSyncScheduler` and `backgroundSyncScheduler` follow this pattern. All stop functions must be called in `stopSchedulers()` in `server/schedulers/index.ts`. (v8.26.7)
+---
 
 ## Job Queue
 
-`server/core/jobQueue.ts` provides a generic database-backed job queue for deferred work.
-
-### How It Works
+`server/core/jobQueue.ts` — database-backed background job processor.
 
 - Poll every 5 seconds for pending jobs
-- Claim jobs atomically with `FOR UPDATE SKIP LOCKED` (prevents double-processing)
-- Execute each job by type (switch/case dispatcher)
-- Mark completed or failed with exponential backoff retry
+- Claim atomically with `FOR UPDATE SKIP LOCKED`
 - Lock timeout: 5 minutes (auto-release stale locks)
-- Batch size: 10 jobs per poll cycle
-- Max retries: 3 (configurable per job)
+- Batch size: 10 jobs per poll
+- Max retries: 3 (configurable)
+- Exponential backoff on failure
 
 ### Job Types
 
 `send_payment_receipt`, `send_payment_failed_email`, `send_membership_renewal_email`, `send_membership_failed_email`, `send_pass_with_qr_email`, `notify_payment_success`, `notify_payment_failed`, `notify_staff_payment_failed`, `notify_member`, `notify_all_staff`, `broadcast_billing_update`, `broadcast_day_pass_update`, `send_notification_to_user`, `sync_to_hubspot`, `sync_company_to_hubspot`, `sync_day_pass_to_hubspot`, `upsert_transaction_cache`, `update_member_tier`, `stripe_credit_refund`, `stripe_credit_consume`, `generic_async_task`
 
-### Queueing Jobs
+### Queueing
 
 ```typescript
 import { queueJob } from '../core/jobQueue';
-
-await queueJob('send_payment_receipt', {
-  to: email,
-  memberName: name,
-  amount: '$50.00',
-  date: '2026-02-18',
-  description: 'Bay booking fee'
-}, { priority: 0, maxRetries: 3 });
+await queueJob('send_payment_receipt', { to: email, ... }, { priority: 0, maxRetries: 3 });
 ```
 
-Use `queueJobInTransaction(client, ...)` to enqueue within an existing DB transaction. Use `queueJobs([...])` for batch inserts.
+Use `queueJobInTransaction(client, ...)` for in-transaction enqueue. Use `queueJobs([...])` for batch.
 
 ### Monitoring
 
-- `getJobQueueStats()` — returns counts by status (pending, processing, completed, failed)
-- `cleanupOldJobs(daysToKeep)` — remove completed/failed jobs older than N days
+- `getJobQueueStats()` — counts by status
+- `cleanupOldJobs(daysToKeep)` — remove old completed/failed
+
+## Scheduler Tracker API
+
+- `registerScheduler(name, intervalMs)` — register at startup
+- `recordRun(name, success, error?, durationMs?)` — record result
+- `getSchedulerStatuses()` — sorted array for admin dashboard

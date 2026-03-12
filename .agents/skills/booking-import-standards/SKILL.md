@@ -1,451 +1,109 @@
 ---
 name: booking-import-standards
-description: Mandatory rules for booking management, Trackman CSV import, billing sessions, cancellation flow, roster protection, and fee calculation in the Ever Club Members App. Use whenever creating or modifying booking endpoints, CSV import logic, billing/fee code, cancellation flows, or roster/participant management.
+description: Mandatory rules for booking management, Trackman CSV import, billing sessions, cancellation flow, roster protection, and fee calculation in the Ever Club Members App. Use whenever creating or modifying booking endpoints, CSV import logic, billing/fee code, cancellation flows, roster/participant management, or Trackman webhook handlers. Triggers on trackman, CSV import, booking import, session creation, cancellation pending, roster lock, ensureSessionForBooking.
 ---
 
 # Booking & Import Standards
 
-Follow these rules whenever touching booking, import, billing, or cancellation code. Violating any of these rules has caused real data integrity issues in the past.
+Violating any of these rules has caused real data integrity issues in the past.
 
-## Key Files
+## File Map
 
-- `server/core/bookingService/sessionManager.ts` — `ensureSessionForBooking()`, `createSession()`, `linkParticipants()`
-- `server/core/trackmanImport.ts` — CSV import, placeholder merging, Notes parsing
-- `server/core/billing/unifiedFeeService.ts` — `computeFeeBreakdown()`, fee line items
-- `server/routes/bays/bookings.ts` — Booking CRUD, member booking creation
-- `server/routes/bays/approval.ts` — Approval, prepayment creation
-- `server/routes/bays/staff-conference-booking.ts` — Staff conference room booking
-- `server/routes/staff/manualBooking.ts` — Staff manual booking creation
-- `server/routes/staffCheckin.ts` — Staff check-in flow, session creation at check-in
-- `server/routes/roster.ts` — Roster changes, optimistic locking
-- `server/routes/trackman/webhook-handlers.ts` — Webhook booking updates
-- `server/routes/trackman/webhook-billing.ts` — Webhook billing, session creation, fee recalculation
-- `server/routes/dataTools.ts` — Data tools, backfill, session repair
-- `server/routes/resources.ts` — Resource management, session linking
-- `server/core/calendar/sync/conference-room.ts` — Conference room calendar sync, auto-session creation
-- `server/core/visitors/autoMatchService.ts` — Visitor auto-match, session linking
-- `server/core/bookingService/bookingStateService.ts` — `BookingStateService`: centralized cancellation with side-effects manifest
-- `server/schedulers/stuckCancellationScheduler.ts` — Safety net for stuck cancellations
-- `server/core/billing/bookingInvoiceService.ts` — Invoice lifecycle: draft, sync, finalize, void
-- `server/core/bookingService/rosterService.ts` — Roster changes with invoice-paid lock guard
+| Task | Primary File(s) | When to touch |
+|---|---|---|
+| Session creation/linking | `server/core/bookingService/sessionManager.ts` | Any session creation code |
+| CSV import | `server/core/trackmanImport.ts` | CSV parsing, member matching |
+| Fee calculation | `server/core/billing/unifiedFeeService.ts` | Fee computation |
+| Booking CRUD | `server/routes/bays/bookings.ts` | Member booking creation |
+| Booking approval | `server/routes/bays/approval.ts` | Approval, prepayment |
+| Conference booking | `server/routes/bays/staff-conference-booking.ts` | Staff conference room booking |
+| Manual booking | `server/routes/staff/manualBooking.ts` | Staff manual booking |
+| Check-in | `server/routes/staffCheckin.ts` | Check-in flow, session creation |
+| Roster changes | `server/routes/roster.ts` | Roster edits, optimistic locking |
+| Webhook handlers | `server/routes/trackman/webhook-handlers.ts` | Webhook booking updates |
+| Webhook billing | `server/routes/trackman/webhook-billing.ts` | Session creation, fee recalc |
+| Cancellation | `server/core/bookingService/bookingStateService.ts` | Centralized cancel with side-effects |
+| Invoice lifecycle | `server/core/billing/bookingInvoiceService.ts` | Draft, sync, finalize, void |
+| Roster service | `server/core/bookingService/rosterService.ts` | Roster changes with invoice lock |
 
----
+## Decision Trees
 
-## Section 1: Session Safety
+### Creating a session — which path?
 
-### Rule 1 — Every booking MUST have a billing session
-
-Use `ensureSessionForBooking()` from `sessionManager.ts` for ALL session creation. It implements a 3-step lookup chain:
-1. Match by `trackman_booking_id` (exact)
-2. Match by `resource_id + session_date + start_time` (exact)
-3. Match by `resource_id + session_date + time range overlap` (tsrange intersection)
-
-Only INSERT if all 3 lookups fail. The INSERT uses `ON CONFLICT (trackman_booking_id)` to handle race conditions. On failure, write `[SESSION_CREATION_FAILED]` with a truncated error message to the booking's `staff_notes` for observability (v8.69.0). When called with a `client` (transaction), uses `pg_advisory_xact_lock` (auto-released on COMMIT/ROLLBACK) and throws immediately on failure (no retry). When using the default pool connection, uses session-level `pg_advisory_lock` with explicit unlock and a 500ms retry on failure (v8.69.0).
-
-**NEVER** write raw `INSERT INTO booking_sessions` anywhere outside this function. Every entry point that creates or links a booking must call `ensureSessionForBooking()`.
-
-### Rule 1a — Overlap detection prevents double-booking trigger failures
-
-The `booking_sessions` table has a `prevent_booking_session_overlap` trigger that rejects INSERTs when time ranges overlap on the same bay. The 3-step lookup in `ensureSessionForBooking()` handles this by finding overlapping sessions BEFORE attempting INSERT. If an overlapping session exists (different Trackman ID but overlapping time), link the booking to that existing session. The booking keeps its own `trackman_booking_id` in `booking_requests` — only `session_id` is shared.
-
-**CRITICAL — Session lookup must NOT filter by booking status.** Steps 1-3 of `ensureSessionForBooking()` must find existing sessions regardless of whether their linked bookings are active or cancelled. The `booking_sessions_resource_datetime_unique` constraint on `(resource_id, session_date, start_time, end_time)` prevents duplicate sessions at the same slot — it doesn't care about booking status. If the lookup filters out sessions linked only to cancelled bookings, the INSERT will fail with a unique constraint violation. Reusing a session whose bookings are all cancelled is correct and safe.
-
-**CRITICAL — Midnight crossover in tsrange.** Both the overlap trigger (`prevent_booking_session_overlap` in `db-init.ts`) and Step 3 of `ensureSessionForBooking()` must handle bookings that cross midnight (e.g., 23:00 to 01:00). Use `CASE WHEN end_time <= start_time THEN ... + INTERVAL '1 day' ELSE ... END` when constructing tsrange bounds. Without this, Postgres rejects the range with "range lower bound must be less than or equal to range upper bound".
-
-### Rule 1b — Backfill endpoint error handling
-
-The backfill endpoint (`POST /api/admin/backfill-sessions` in `server/routes/trackman/admin.ts`) uses savepoints per-booking so individual failures do not abort the entire transaction. When `ensureSessionForBooking` returns `sessionId: 0` with an error, roll back to the savepoint, record the error, and continue to the next booking.
-
-### Rule 1c — Auto-complete prevents stale booking accumulation
-
-The auto-complete scheduler (`bookingAutoCompleteScheduler.ts`, every 2h) marks approved/confirmed bookings as `attended` (auto checked-in) when 24h have passed since the booking end time. This assumes most members attended and prevents stale bookings from:
-- Appearing in conflict detection (OCCUPIED_STATUSES includes `approved` and `confirmed`)
-- Inflating active booking counts
-- Causing false overlap warnings during CSV import
-Staff can manually correct to `no_show` via the BookingStatusDropdown if needed.
-
-CASCADE constraints on `wellness_enrollments.class_id → wellness_classes.id` and `booking_participants.session_id → booking_sessions.id` ensure orphan records are automatically cleaned up when parent records are deleted.
-
-### Rule 2 — All entry points covered
-
-Every code path that can create or approve a booking must call `ensureSessionForBooking()`:
-- Member booking request approval (`server/routes/bays/approval.ts`)
-- Staff manual booking (`server/routes/staff/manualBooking.ts`)
-- Staff check-in flow (`server/routes/staffCheckin.ts`)
-- Trackman webhook auto-create (`server/routes/trackman/webhook-handlers.ts`)
-- Trackman webhook billing (`server/routes/trackman/webhook-billing.ts`)
-- Trackman webhook index (`server/routes/trackman/webhook-index.ts`)
-- CSV import — new bookings AND merged placeholders (`server/core/trackmanImport.ts`)
-- Conference room calendar sync (`server/core/calendar/sync/conference-room.ts`)
-- Data tools / backfill (`server/routes/dataTools.ts`)
-- Resource management (`server/routes/resources.ts`)
-- Auto-match service (`server/core/visitors/autoMatchService.ts`)
-- Backfill admin endpoint (`server/routes/trackman/admin.ts`)
-
-If you add a new entry point, it MUST call `ensureSessionForBooking()`.
-
----
-
-## Section 2: Cancellation Flow
-
-### Rule 3 — Trackman-linked bookings use cancellation_pending
-
-When a member or staff cancels an approved simulator booking that has a `trackman_booking_id`:
-1. Set status to `cancellation_pending` (NOT `cancelled`)
-2. Set `cancellation_pending_at = NOW()`
-3. Notify staff to cancel in Trackman first
-4. Show member "Cancellation Pending — your request is being processed"
-
-Non-Trackman bookings (conference rooms, etc.) keep instant cancel behavior.
-
-### Rule 4 — Financial cleanup BEFORE status change
-
-When completing a cancellation (via webhook or manual):
-1. **First**: Refund Stripe charges, clear fee snapshots, refund guest passes
-2. **First (continued)**: After each successful Stripe refund, call `PaymentStatusService.markPaymentRefunded()` to update the participant and payment records to `'refunded'`. Each participant's status update must only happen after its individual refund succeeds — never bulk-update all participants before confirming each refund. (v8.26.7, Bugs 12 & 15)
-3. **Then**: Update status to `cancelled`
-4. **Then**: Notify member
-
-This ordering prevents partial cancellation states where the status changed but money was not returned.
-
-### Rule 5 — Call cancelPendingPaymentIntentsForBooking()
-
-When any booking is cancelled (CSV import cancellation path, regular cancellation, webhook cancellation), always call `cancelPendingPaymentIntentsForBooking(bookingId)` to clean up outstanding payment intents.
-
-### Rule 6 — Availability stays reserved during cancellation_pending
-
-Time slots remain occupied while a booking is in `cancellation_pending`. Availability queries must exclude both `approved` AND `cancellation_pending` slots to prevent double-booking.
-
-**Soft lock extension**: The member-facing availability endpoint (`server/routes/availability.ts`) also reserves slots for `pending` and `pending_approval` booking requests on specific bays. This "soft lock" prevents members from requesting a bay/time that another member has already requested but not yet been approved. The requesting member's own pending bookings are excluded from the lock. See booking-flow skill Key Invariant #15.
-
-### Rule 7 — Status filtering: cancellation_pending everywhere
-
-Handle `cancellation_pending` status in every query that filters by booking status:
-- Availability checks (treat as occupied)
-- Active booking counts (include in active)
-- Payment guards (block new payments)
-- Command center views (show with special badge)
-- Member booking lists (show with pending message)
-
-When adding new booking queries, always ask: "Does this query need to handle cancellation_pending?"
-
-### Rule 8 — Stuck cancellation safety net
-
-`stuckCancellationScheduler.ts` runs every 2 hours:
-- Find bookings in `cancellation_pending` for 4+ hours
-- Deduplicate alerts (check if staff was already notified in the last 4 hours for each booking)
-- Send summary notification to all staff
-- Staff can use manual completion endpoint as fallback
-
----
-
-## Section 3: CSV Import & Data Parsing
-
-### Rule 8a — `trackman_booking_id` is THE key for all Trackman matching
-
-The `trackman_booking_id` field (stored as VARCHAR on `booking_requests`, `booking_sessions`) is the **stable unique identifier** from Trackman. Use it for:
-- CSV import deduplication: `ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO NOTHING`
-- Webhook matching: `tryAutoApproveBooking()` matches by `trackman_booking_id`
-- Session creation: `ensureSessionForBooking()` first checks `booking_sessions.trackman_booking_id`
-- Ghost booking detection: CSV import checks if a ghost booking already exists with the same `trackman_booking_id` before creating a new one
-
-**NEVER** match Trackman bookings by name, time alone, or other fuzzy criteria. `trackman_booking_id` is the only reliable key.
-
-### Rule 8b — CSV Backfill Strategy: Update-then-Insert
-
-The CSV import uses a strict **Update-first, Insert-second** strategy to prevent duplicates:
-
-1. **Ghost match by `trackman_booking_id`**: Check if a booking already exists with this Trackman ID. If yes, UPDATE it (merge member data, update status, populate roster).
-2. **Placeholder merge by time/resource (±2 min)**: Check if a webhook-created placeholder exists at the same bay/date/time. If yes, UPDATE it with the CSV data (Rule 12).
-3. **Insert new**: Only if both checks fail, INSERT a new `booking_requests` row with `ON CONFLICT (trackman_booking_id) DO NOTHING` as a safety net.
-
-This ordering guarantees no duplicate bookings for the same Trackman slot.
-
-### Rule 9 — Parse member tags from Notes field
-
-The CSV `Notes` field contains member identification strings in two formats:
-
-**New pipe-separated format** (4 fields):
 ```
-M|email|firstname|lastname
+Does a session exist for this booking?
+├── Check 1: Match by trackman_booking_id (exact)
+├── Check 2: Match by resource_id + date + start_time (exact)
+├── Check 3: Match by resource_id + date + time range overlap (tsrange)
+├── Any match? → Link to existing session (don't create duplicate)
+└── No match → INSERT new session (ON CONFLICT safety net)
 ```
 
-**Legacy colon format**:
+### Cancelling a Trackman-linked booking
+
 ```
-M: email | Name
-```
-
-Parse both `M|email|firstname|lastname` and `M: email | Name` patterns to extract the member's email for matching. This is the primary source of member identity in the CSV data. Without parsing this, the system cannot link bookings to members.
-
-### Rule 10 — Parse guest tags from Notes field (including INLINE tags)
-
-The CSV `Notes` field also contains guest identification strings in two formats:
-
-**New pipe-separated format**:
-```
-G|email|firstname|lastname
+Has trackman_booking_id?
+├── Yes → status = 'cancellation_pending' (NOT 'cancelled')
+│   ├── Set cancellation_pending_at = NOW()
+│   ├── Notify staff to cancel in Trackman first
+│   └── Time slot stays OCCUPIED until Trackman confirms
+└── No → Instant cancel to 'cancelled'
 ```
 
-**Legacy colon format**:
+### Cancellation financial cleanup order
+
 ```
-G: Guest Name
-```
-
-Parse `G|...|firstname|lastname` and `G: name` tags to fill booking guest slots with actual guest names. This directly prevents Rule 17 (empty slot = guest fee) from incorrectly charging guest fees when a guest name was actually provided in the data.
-
-**CRITICAL: Inline G: tags must also be parsed.** Guest tags often appear inline on the same line as the M: tag or within freeform text, NOT on their own line:
-```
-M: member@email.com | Member Name Guests pay separately G: Chris G: Alex G: Dalton NO additional charge.
-```
-The parser (`parseNotesForPlayers()`) MUST scan for `G: Name` patterns anywhere in the line, not just at line start (`^G:`). The regex uses a negative lookahead to stop name capture before the next `G:`, `M:`, `NO`, `Used`, or `additional` keyword.
-
-### Rule 10a — Imported bookings must IMMEDIATELY populate booking_participants
-
-When a Trackman CSV import identifies a member (via Notes parsing), immediately populate the `booking_participants` table:
-
-1. **Owner at Slot 1**: Create a `booking_participants` record with `slot_number: 1`, `participant_type: 'owner'`, and the member's email.
-2. **Guests at Slots 2-4**: For each parsed guest tag, create a `booking_participants` record at the next available slot with `participant_type: 'guest'` and the guest name.
-3. **Session participants**: Call `createTrackmanSessionAndParticipants()` which creates the `booking_participants` records (the table the roster UI reads from).
-
-Legacy tables `booking_members` and `booking_guests` no longer receive writes (v7.92.0). `booking_participants` is the sole source of truth for rosters.
-
-This ensures the roster is fully populated immediately after import — no empty "Search" slots when guest names were provided in the CSV data.
-
-### Rule 11 — Strict email-only member matching
-
-Match members by email ONLY. No name-based fallback matching (no partial name, no Levenshtein distance, no first-name-only matching). This was removed because multiple members share similar names, causing incorrect booking links.
-
-If the parsed email does not match a known member, the booking stays unmatched. This is a deliberate tradeoff: accuracy over coverage.
-
-### Rule 12 — Placeholder merging (±2 min tolerance)
-
-When a CSV row matches a simulator + date + time that already has a webhook-created placeholder booking ("Unknown (Trackman)"), UPDATE that record instead of creating a duplicate.
-
-Query rules:
-- Match by `resource_id`, `request_date`, and `start_time` within ±2 minutes (`ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))) <= 120`)
-- Only match placeholders: `is_unmatched = true OR LOWER(user_name) LIKE '%unknown%' OR '%unassigned%'`
-- Only match unlinked: `trackman_booking_id IS NULL`
-- Exclude terminal statuses: `status NOT IN ('cancelled', 'declined', 'cancellation_pending')`
-- **Deterministic**: If multiple candidates match, SKIP the merge and log for manual resolution. Never auto-merge when ambiguous.
-- After merge: call `ensureSessionForBooking()` (Rule 1)
-
-### Rule 13 — Force Approved on new CSV bookings
-
-Set any newly created booking from CSV import that is successfully linked to a member to `status = 'approved'` immediately. Do NOT leave it as `pending` or use whatever status Trackman provides.
-
-Unmatched bookings (no member email found) keep their original status.
-
-### Rule 14 — Post-import auto-approve (timestamp-guarded)
-
-After processing all CSV rows, a cleanup query auto-approves remaining `pending` bookings that:
-- Have `origin = 'trackman_import'`
-- Have a non-empty `user_email`
-- Have `is_unmatched IS NOT TRUE`
-- Were touched in THIS import run: `last_trackman_sync_at >= NOW() - INTERVAL '1 hour'`
-
-The 1-hour constraint prevents accidentally flipping legacy pending bookings from previous imports.
-
-### Rule 14a — Private event block detection
-
-Before creating an unmatched booking during CSV import, check if the time slot has been converted to a private event block via `isConvertedToPrivateEventBlock()`. This prevents creating duplicate unmatched bookings when re-importing CSV data after a booking was marked as a private event. The check looks for `availability_blocks` linked to `facility_closures` with `notice_type = 'private_event'` that overlap the booking's time range.
-
-**Mark-as-event flow (v8.80.0):** `markBookingAsEvent` in `server/core/resource/trackman.ts` accepts an optional `eventTitle` parameter (defaults to "Private Event") that becomes the notice title. Affected areas are stored as comma-separated strings (`bay_1,bay_2`) — NOT JSON arrays. The `markAsEventSchema` in `shared/validators/resources.ts` validates the optional `eventTitle` field. Staff can either link to an existing notice or create a new one with a custom title via the `AssignModeFooter.tsx` UI.
-
-### Rule 14b — Trackman webhook SQL null safety
-
-All Trackman webhook handlers that use Drizzle `sql` template literals with optional parameters MUST coalesce `undefined` to `null` using `?? null`. This prevents Drizzle from producing empty SQL placeholders.
-
-**Affected functions:**
-- `updateBaySlotCache()` in `webhook-billing.ts` — `customerEmail`, `customerName`
-- `logWebhookEvent()` in `webhook-validation.ts` — `trackmanUserId`, `matchedBookingId`, `matchedUserId`, `error`
-
-**Pattern:**
-```typescript
-sql`INSERT INTO table (col) VALUES (${optionalValue ?? null})`
+1. Refund Stripe charges (individual participant, not bulk)
+2. After EACH successful refund → mark that participant 'refunded'
+3. Clear fee snapshots, refund guest passes
+4. THEN update status to 'cancelled'
+5. THEN notify member
 ```
 
-This was a production bug discovered Feb 2026 — undefined optional params caused `VALUES ($1, $2, , $3)` syntax errors that silently failed Trackman webhook processing for all incoming bookings.
+## Hard Rules
 
----
+1. **Every booking MUST have a billing session.** Use `ensureSessionForBooking()` for ALL session creation. NEVER write raw `INSERT INTO booking_sessions`.
+2. **All entry points covered.** Every code path that creates or approves a booking must call `ensureSessionForBooking()`. If you add a new entry point, it MUST call this function.
+3. **`trackman_booking_id` is THE key.** Match Trackman bookings by this field only. NEVER match by name, time alone, or fuzzy criteria.
+4. **Financial cleanup BEFORE status change.** Refund Stripe → mark participants → update status → notify. Prevents partial cancellation states.
+5. **Individual refund status updates.** Update each participant's `payment_status` to `'refunded'` AFTER confirming its individual Stripe refund. NEVER bulk-update before confirming.
+6. **Availability stays reserved during cancellation_pending.** Treat as occupied in ALL availability queries.
+7. **Handle `cancellation_pending` in every booking status query.** Availability checks, active counts, payment guards, command center, member lists.
+8. **Email-only member matching.** No name-based fallback. If email doesn't match, booking stays unmatched.
+9. **Placeholder merging ±2 min tolerance.** Match by `resource_id`, `request_date`, `start_time` within ±2 min. Multiple candidates → SKIP (log for manual resolution).
+10. **Force Approved on linked CSV bookings.** Set `status = 'approved'` for CSV imports linked to a member. Don't use Trackman's status.
+11. **Parse both Notes formats.** `M|email|first|last` (pipe) and `M: email | Name` (colon). Also parse inline `G: Name` guest tags anywhere in the line.
+12. **Immediately populate `booking_participants`.** Owner at slot 1, guests at slots 2-4. `booking_participants` is the sole roster table (legacy tables deprecated v7.92.0).
+13. **Optimistic locking with `roster_version`.** `SELECT FOR UPDATE` → compare version → perform change → increment version.
+14. **Fee calculation is post-commit.** `recalculateSessionFees()` uses global `db` pool. NEVER call inside `db.transaction()`.
+15. **Duration uses `GREATEST(session, booking)`.** Always use the longer to avoid undercharging.
+16. **Empty slots generate guest fee line items.** Dollar amounts from Stripe prices, never hardcoded.
+17. **Outstanding balance queries MUST filter:** (a) 90-day lookback, (b) exclude cancelled/declined bookings, (c) exclude completed/paid snapshots.
+18. **One Stripe invoice per booking.** Draft at approval → sync on roster changes → finalize at payment → void on cancel.
+19. **Roster lock after paid invoice.** `enforceRosterLock()` blocks edits. Staff override with reason. Fail-open if Stripe check fails.
+20. **Auto-complete runs every 1 hr.** Marks approved/confirmed as `attended` 30 min after end time (same-day) or next day (overnight). Fee guard blocks if unpaid fees exist.
+21. **Terminal status MUST clear `is_unmatched`.** Three defense layers: DB trigger, application code, scheduler safety net.
+22. **Drizzle SQL null safety.** All optional values in `sql` template literals MUST use `?? null`. Prevents empty placeholder syntax errors.
+23. **Session lookup must NOT filter by booking status.** Cancelled bookings may share sessions. Filtering causes unique constraint violations.
+24. **Stuck cancellation safety net.** Scheduler runs every 2 hr, alerts staff about bookings in `cancellation_pending` for 4+ hours.
 
-## Section 4: Billing & Fees
+## Anti-Patterns (NEVER)
 
-### Rule 15 — Unified fee calculation via computeFeeBreakdown()
+1. NEVER write `INSERT INTO booking_sessions` outside `ensureSessionForBooking()`.
+2. NEVER match Trackman bookings by name or fuzzy time matching.
+3. NEVER bulk-update participant payment_status before confirming individual refunds.
+4. NEVER call `recalculateSessionFees()` inside a `db.transaction()`.
+5. NEVER skip `syncBookingInvoice()` after fee recalculation when a Stripe invoice exists.
+6. NEVER create separate roster editors — use the Unified Booking Sheet.
+7. NEVER refund guest passes from `tryLinkCancelledBooking` — cancellation workflows handle their own refunds.
+8. NEVER pass `undefined` to Drizzle `sql` template literals — use `?? null`.
+9. NEVER filter session lookups by booking status — sessions can be shared across bookings including cancelled ones.
 
-Route ALL fee calculations through `computeFeeBreakdown()` in `unifiedFeeService.ts`. Never calculate fees inline or in route handlers.
+## Cross-References
 
-**CRITICAL — Transaction isolation:** `recalculateSessionFees()` and `computeFeeBreakdown()` use the global `db` pool. They MUST NEVER be called inside a `db.transaction()` block. The global pool cannot see uncommitted rows from an active transaction (Postgres Read Committed), causing $0 fees or deadlock. Always call fee calculation AFTER the transaction commits. (v8.26.7, Bug 22)
-
-### Rule 15a — Fee Order of Operations (CRITICAL)
-
-Follow this exact order for fee calculation. Getting this wrong causes incorrect charges.
-
-1. **Status Check**: Is the booking in a billable status (`approved`, `confirmed`, `attended`)? If `cancelled`, `declined`, or `cancellation_pending` — STOP. Fee is $0.
-2. **Staff Check**: Is the participant a staff member? Check `staff_users` table by email. If staff → $0, no further checks.
-3. **Active Membership Check**: Does the participant have `membership_status IN ('active', 'trial', 'past_due')`? If NOT active, treat as guest (guest fee applies, charged to the booking HOST).
-4. **Tier Lookup**: Get the participant's tier and tier limits via `getTierLimits()`.
-5. **Unlimited Check**: If tier has `daily_sim_minutes >= 999` or `unlimited_access = true` → $0.
-6. **Social Tier Check**: If tier is `Social`, ALL minutes are overage (no included daily allowance).
-7. **Daily Usage Check**: Calculate `usedToday` via `getTotalDailyUsageMinutes()`, then compute overage = `MAX(0, (usedToday + perPersonMins) - dailyAllowance)`.
-8. **Overage Blocks**: Round overage up to 30-minute blocks, multiply by `PRICING.OVERAGE_RATE_DOLLARS` (sourced from Stripe).
-
-**NEVER** skip step 1 (status check). A cancelled booking must never generate fees. **NEVER** skip step 3 (active membership check). An inactive member is treated as a guest.
-
-### Rule 16 — Duration uses GREATEST(session, booking)
-
-Use `GREATEST(session_duration, booking_duration)` for fee duration because:
-- Session times come from Trackman imports and may not reflect staff-updated extensions
-- Booking duration reflects staff-updated times and is authoritative
-- Always use the longer of the two to avoid undercharging
-
-### Rule 17 — Empty slots generate guest fee line items
-
-Empty booking slots (declared player count minus actual participants) generate synthetic guest fee line items. The business logic (empty slot = guest fee, 30-min overage blocks, guest pass rules) is hardcoded, but dollar amounts ALWAYS come from Stripe product prices — never hardcode dollar amounts.
-
-This is why Rule 10 (parsing guest tags) is critical: filling guest slots with actual names prevents false guest fees.
-
-### Rule 17a — Outstanding balance queries must filter cancelled bookings and paid snapshots
-
-Any query that computes a member's outstanding (unpaid) fees MUST include these three filters on every sub-query:
-
-1. **90-day lookback**: `session_date >= CURRENT_DATE - INTERVAL '90 days'`
-2. **Exclude cancelled/declined bookings**: `NOT EXISTS (SELECT 1 FROM booking_requests WHERE session_id = bs.id AND status IN ('cancelled', 'declined', 'cancellation_pending'))`
-3. **Exclude already-settled sessions**: `NOT EXISTS (SELECT 1 FROM booking_fee_snapshots WHERE session_id = bp.session_id AND status IN ('completed', 'paid'))`
-
-Without these filters, `cached_fee_cents` from cancelled bookings and already-paid sessions appear as phantom outstanding fees. This was a production bug (v8.86.0) where the Overview tab's `/api/member/balance` endpoint showed 14 items ($850) for a member who had no real outstanding fees.
-
-Two endpoints serve outstanding fees:
-- `/api/member/balance` (Overview tab) — `server/routes/stripe/member-payments.ts`
-- `/api/member-billing/:email/outstanding` (Billing tab) — `server/routes/memberBilling.ts`
-
----
-
-## Section 4a: Invoice Lifecycle
-
-### Rule 15b — One Stripe invoice per simulator booking
-
-Each simulator booking has at most one Stripe invoice, tracked by `booking_requests.stripe_invoice_id`. The invoice lifecycle:
-
-1. **Draft created at approval**: When a simulator booking is approved (staff or Trackman auto-approve) with fees > 0, `createDraftInvoiceForBooking()` creates a draft Stripe invoice with itemized line items (one per participant fee).
-2. **Updated on roster changes**: When participants are added/removed or player count changes, `syncBookingInvoice()` updates the draft invoice line items. If fees drop to $0, the draft invoice is deleted. This includes Trackman admin reassignment (`PUT /api/admin/booking/:id/reassign`) — after `recalculateSessionFees()`, `syncBookingInvoice()` must be called to propagate the new fee totals to the Stripe invoice.
-3. **Finalized at payment**: At check-in or member payment, the invoice is finalized and marked paid via `finalizeAndPayInvoice()` or `finalizeInvoicePaidOutOfBand()`.
-4. **Voided on cancellation**: When a booking is cancelled, `voidBookingInvoice()` voids the draft/open invoice.
-
-**Note:** As of v8.16.0 (2026-02-24), conference room bookings use the same invoice-based flow as simulators. Old `conference_prepayments` records are grandfathered at check-in.
-
-### Rule 15c — Roster lock after paid invoice
-
-Once a booking's Stripe invoice is paid, roster edits are blocked by `enforceRosterLock()` in `rosterService.ts`. This prevents changes that would invalidate a paid invoice. Staff can override with `forceOverride: true` and a required `overrideReason` (logged via `logger.warn`, not the formal audit trail). The lock is fail-open: if the Stripe API check fails, edits proceed to avoid blocking staff.
-
----
-
-## Section 5: Unified Player Management
-
-### Rule 20 — Single-Sheet Roster Management
-
-Perform all booking roster edits, owner assignments, and guest additions exclusively via the **Unified Booking Sheet** (`src/components/staff-command-center/modals/UnifiedBookingSheet.tsx`).
-
-Sub-components:
-- `SheetHeader.tsx` — Header with booking info
-- `PaymentSection.tsx` — Fee display and payment status
-- `AssignModeSlots.tsx` — Slot assignment UI for unlinked bookings
-- `AssignModeFooter.tsx` — Footer actions for assign mode
-- `ManageModeRoster.tsx` — Roster editing for existing bookings
-- `CheckinBillingModal.tsx` — Check-in billing flow
-- `CheckInConfirmationModal.tsx` — Check-in confirmation
-
-**NEVER** create separate inline roster editors or "complete roster" popups. The Unified Booking Sheet is the single source of truth for:
-- Validating slot counts (declared player count vs filled slots)
-- Guest pass usage tracking and auto-application
-- Fee updates and real-time recalculation
-- Owner assignment (slot 1, required) and player slots (2-4, optional)
-- Check-in roster completion flow
-
-**Two sheet modes:**
-- **Mode A (Assign Players):** Unlinked bookings — "Assign & Confirm" button
-- **Mode B (Manage Players):** Existing bookings — pre-fills roster from `/api/admin/booking/:id/members`, "Save Changes" button
-
-The backend populates `booking_participants` directly. Legacy tables `booking_members` and `booking_guests` no longer receive writes (v7.92.0). All **staff-facing UI** for viewing and editing rosters goes through the Unified Booking Sheet.
-
----
-
-## Section 6: Roster Protection
-
-### Rule 18 — Optimistic locking with roster_version
-
-For any participant/roster change on a booking:
-1. `SELECT roster_version FROM booking_requests WHERE id = $1 FOR UPDATE` (row-level lock)
-2. Compare the version against what the client sent
-3. Perform the change
-4. `UPDATE booking_requests SET roster_version = COALESCE(roster_version, 0) + 1 WHERE id = $1`
-
-This prevents concurrent roster edits from silently overwriting each other.
-
----
-
-## Section 7: Prepayment Lifecycle
-
-### Rule 19 — Prepayment after approval
-
-After a booking is approved (or auto-linked via Trackman), create a prepayment intent for expected fees (overage, guests). Members can pay from their dashboard. Check-in is blocked until fees are paid. Cancellations auto-refund succeeded prepayments with idempotency protection.
-
----
-
-## Section 8: Terminal Status Invariants
-
-### Rule 21 — Terminal status MUST clear is_unmatched
-
-When a booking reaches any terminal status (`cancelled`, `declined`, `deleted`, `attended`, `no_show`, `expired`), `is_unmatched` MUST be set to `false`. This prevents stale unmatched bookings from cluttering the admin resolution UI.
-
-**Defense layers (all three required):**
-
-1. **DB trigger (catch-all):** `trg_clear_unmatched_on_terminal` — a `BEFORE INSERT OR UPDATE` trigger on `booking_requests` that automatically sets `is_unmatched = false` when status is terminal. Created in `setupInstantDataTriggers()` in `server/db-init.ts`. This catches every code path, including future ones.
-2. **Application code (explicit):** Every code path that transitions a booking to a terminal status should explicitly set `isUnmatched: false` in its UPDATE statement. This makes the intent visible and debuggable.
-3. **Query filter (UI safety net):** Admin queries that list unmatched bookings must exclude all terminal statuses from results, so even if a stale flag exists, it won't appear.
-
-**Code paths that transition to terminal statuses (must all set isUnmatched: false):**
-- `BookingStateService.cancelBooking()` and `completePendingCancellation()` — cancellation flow
-- `cancelBookingByTrackmanId()` — webhook cancellation handler
-- `approvalService.declineBooking()` — staff decline and auto-decline
-- `bookingAutoCompleteScheduler` — marks bookings as `attended`
-- Booking expiry scheduler — marks bookings as `expired`
-- CSV import stale cleanup — bulk-cancels stale bookings
-- Data integrity bulk operations — any fix that sets terminal status
-- `admin-resolution.ts` — staff-initiated status changes on unmatched bookings
-
-**Why this happened:** The `is_unmatched` flag was introduced to track Trackman bookings that couldn't be linked to a member, but the "clear on terminal" rule was never codified. Every code path that changed a booking's status was written independently, and none knew about the flag. This caused 400+ stale unmatched bookings to accumulate in production.
-
-### Rule 22 — Boolean flags require lifecycle rules
-
-When adding any new boolean flag to `booking_requests` (or similar state tables), you MUST define:
-1. **When it becomes true** — what sets the flag
-2. **When it becomes false** — what clears the flag (especially on terminal transitions)
-3. **Where the enforcement lives** — DB trigger, application code, or both
-
-Document the lifecycle in this skill file. Undocumented flags accumulate stale data silently.
-
----
-
-## Quick Checklist for New Booking Features
-
-When adding any new booking-related code, verify:
-
-- [ ] Does it call `ensureSessionForBooking()`? (Rule 1)
-- [ ] Does it handle `cancellation_pending` status? (Rule 7)
-- [ ] Does financial cleanup happen BEFORE status change? (Rule 4)
-- [ ] Does it call `cancelPendingPaymentIntentsForBooking()` on cancel? (Rule 5)
-- [ ] Does it use `computeFeeBreakdown()` for fees? (Rule 15)
-- [ ] Does it check `roster_version` for participant changes? (Rule 18)
-- [ ] For CSV import: Does it parse `M|email|firstname|lastname` and `G|...|firstname|lastname` from Notes (including INLINE G: tags)? (Rules 9-10)
-- [ ] For CSV import: Does it immediately populate booking_participants? (Rule 10a)
-- [ ] For CSV import: Does it force `approved` status for member-linked bookings? (Rule 13)
-- [ ] For CSV import: Does it attempt placeholder merge before creating new? (Rule 12)
-- [ ] For CSV import: Does it check for private event block conversion? (Rule 14a)
-- [ ] For staff UI: Does roster editing go through the Unified Booking Sheet? (Rule 20)
-- [ ] For simulator bookings: Does approval create a draft invoice? (Rule 15b)
-- [ ] For cancellation: Does it void the booking invoice? (Rule 15b)
-- [ ] For roster changes: Does it check roster lock via `enforceRosterLock()`? (Rule 15c)
-- [ ] Does the invoice sync after fee recalculation? (Rule 15b)
-- [ ] Does the availability endpoint account for pending booking requests on specific bays? (Rule 6, soft lock)
-- [ ] Does any terminal status transition clear `is_unmatched`? (Rule 21)
-- [ ] If adding a new boolean flag, is its full lifecycle (set/clear/enforcement) documented? (Rule 22)
+- **Booking lifecycle** → `booking-flow` skill
+- **Fee calculation details** → `fee-calculation` skill
+- **Check-in billing** → `checkin-flow` skill
+- **Guest pass lifecycle** → `guest-pass-system` skill
+- **Stripe invoice handling** → `stripe-webhook-flow` skill
+- **Unified Booking Sheet** → `project-architecture` skill

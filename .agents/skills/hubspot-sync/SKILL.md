@@ -5,217 +5,158 @@ description: HubSpot CRM synchronization system — queue-based sync of contacts
 
 # HubSpot Synchronization System
 
-## Architecture Overview
+**App DB is primary brain.** HubSpot provides profile fill-in data only. The app controls `membership_status`, `tier`, `role`, and `billing_provider`.
 
-The app integrates with HubSpot CRM as a member directory. **The app database is the single source of truth** for `membership_status`, `tier`, `role`, and `billing_provider`:
+## File Map
 
-- **HubSpot → App (read direction):** The daily member sync (`syncAllMembersFromHubSpot`) pulls contacts from HubSpot and upserts them into the local `users` table. HubSpot provides **profile fill-in data only** — name, phone, address, DOB, communication preferences, and notes. These use `COALESCE(hubspot_value, existing_value)` so HubSpot never overwrites existing app data. **The app is authoritative for `membership_status`, `tier`, `role`, and `billing_provider`** for all members. **Exception**: MindBody-billed active members (`billing_provider = 'mindbody'` AND `membership_status = 'active'`) — HubSpot can update their `membership_status` since MindBody pushes status to HubSpot. When a MindBody member's status changes from `active` to any non-active value, the app triggers a **deactivation cascade**: tier is removed (saved to `last_tier`), `billing_provider` is set to `'stripe'`, and changes are pushed back to HubSpot. The member must reactivate through Stripe.
-- **App → HubSpot (write direction):** The app pushes `membership_status`, `membership_tier`, `billing_provider`, and `lifecyclestage` to HubSpot for ALL members via `syncTierToHubSpot`. Discrete changes (payments, day pass purchases, company associations) go through a **persistent queue** (`hubspot_sync_queue` table). Deal creation is currently disabled.
-- **Form submissions (HubSpot → App):** A separate scheduler pulls form submissions from HubSpot Forms API every 30 minutes and inserts them into the local `form_submissions` table.
+| Task | Primary File(s) | When to touch |
+|---|---|---|
+| Queue engine | `server/core/hubspot/queue.ts` | Enqueue, process, retry, stats |
+| Queue helpers | `server/core/hubspot/queueHelpers.ts` | Typed enqueue functions |
+| Contact CRUD | `server/core/hubspot/members.ts` | Contact create/update, tier sync, cancel |
+| SMS/day-pass contacts | `server/core/hubspot/contacts.ts` | SMS prefs, day-pass creation |
+| Company sync | `server/core/hubspot/companies.ts` | Company find-or-create, associate |
+| Deal stage management | `server/core/hubspot/stages.ts` | Status writes, property provisioning |
+| Constants/mappings | `server/core/hubspot/constants.ts` | Tier slugs → HubSpot labels |
+| Discount rules | `server/core/hubspot/discounts.ts` | Max-wins rule (not additive) |
+| Admin discount CRUD | `server/core/hubspot/admin.ts` | Discount rules, billing audit |
+| Request wrapper | `server/core/hubspot/request.ts` | Rate-limit-aware p-retry |
+| Form submissions | `server/core/hubspot/formSync.ts` | Form ingestion from HubSpot |
+| Full member sync | `server/core/memberSync.ts` | Daily inbound reconciliation |
+| Payment line items | `server/core/hubspot/queueHelpers.ts` | Stripe → HubSpot line items (via queue) |
+| Queue monitor | `server/core/hubspotQueueMonitor.ts` | Admin dashboard stats |
+| Queue scheduler | `server/schedulers/hubspotQueueScheduler.ts` | Every 2 min |
+| Member sync scheduler | `server/schedulers/memberSyncScheduler.ts` | Daily 3 AM Pacific |
+| Form sync scheduler | `server/schedulers/hubspotFormSyncScheduler.ts` | Every 30 min |
+| Routes + cache | `server/routes/hubspot.ts` | API, contact cache, webhooks |
 
-### Protection Rules
+## Decision Trees
 
-1. **App DB is primary brain:** Status, tier, role, and billing_provider are controlled by the app. HubSpot cannot overwrite these fields (except for the MindBody exception above).
-2. **MindBody deactivation cascade:** When a MindBody-billed active member's HubSpot status changes to non-active, the app: (a) sets `tier = NULL`, saves current tier to `last_tier`, (b) sets `billing_provider = 'stripe'`, (c) pushes the changes to HubSpot. The member must go through Stripe signup to reactivate.
-3. **Visitor protection:** Users with `role = 'visitor'` are not overwritten to `role = 'member'` by the HubSpot sync.
-4. **New users from HubSpot:** Get `billing_provider = 'mindbody'` if they have active status AND `mindbody_client_id`; otherwise get `billing_provider = 'stripe'`.
+### Data direction — which way does it flow?
 
-## Queue Model
+```
+App → HubSpot (write)
+├── Status/tier/billing_provider → always pushed (app is authoritative)
+├── Stripe fields → only in live Stripe environment
+├── Payments/day passes → line items on member deal (via queue)
+└── Company association → find-or-create + associate (via queue)
 
-All outbound writes to HubSpot go through a PostgreSQL-backed job queue stored in the `hubspot_sync_queue` table. This decouples the user-facing request from the HubSpot API call.
+HubSpot → App (read)
+├── Webhook (primary, real-time)
+│   ├── Status/tier → STRIPE WINS guard, visitor protection
+│   ├── Profile fields → COALESCE (fill-in only, never overwrite)
+│   ├── Overwrite fields → membership_discount_reason
+│   └── Opt-in preferences → always overwrite (HubSpot authoritative)
+├── Daily sync (safety net, 3 AM Pacific)
+│   ├── Same rules as webhook
+│   └── MindBody exception: can update status for active MindBody members
+└── Form submissions (every 30 min)
+    └── Deduplicate by hubspot_submission_id + fuzzy ±5 min window
+```
 
-### Supported Operations
+### MindBody member HubSpot status changes
 
-| Operation       | Priority | Description                                      |
-|-----------------|----------|--------------------------------------------------|
-| `create_contact`| 5        | Find or create a HubSpot contact by email        |
-| `update_contact`| 5        | Update contact membership status                 |
-| `sync_tier`     | 2        | Push tier change to contact + deal properties     |
-| `sync_company`  | 5        | Find-or-create company, associate with contact   |
-| `sync_payment`  | 3        | Add Stripe payment as line item on member deal   |
-| `sync_day_pass` | 3        | Add day-pass purchase as line item on member deal|
-| `sync_member`   | 3        | Full member sync (currently disabled)            |
-| `create_deal`   | 5        | Create membership deal (currently disabled)      |
+```
+MindBody-billed active member's HubSpot status changes to non-active
+├── migration_status = 'pending'? → SKIP cascade (stay active during Stripe migration)
+└── Not pending → Deactivation cascade:
+    ├── tier → NULL (saved to last_tier)
+    ├── billing_provider → 'stripe'
+    └── Push changes back to HubSpot
+```
 
-### Enqueue Flow
+## Hard Rules
 
-1. A business operation (e.g., tier change, Stripe webhook) calls a helper in `server/core/hubspot/queueHelpers.ts` (e.g., `queueTierSync`, `queuePaymentSyncToHubSpot`).
-2. The helper calls `enqueueHubSpotSync(operation, payload, options)` which inserts a row into `hubspot_sync_queue`.
-3. Each job has an **idempotency key** built from the operation context (e.g., `tier_sync_<email>_<old>_to_<new>`). If a pending/processing job with the same key exists, the duplicate is skipped.
-4. Priority is 1–10 (lower = higher priority). Tier syncs use priority 2; payments use 3; contact/company operations use 5.
+1. **App DB is primary brain.** HubSpot CANNOT overwrite `membership_status`, `tier`, `role`, or `billing_provider` for Stripe-billed members.
+2. **STRIPE WINS rule.** When `billing_provider = 'stripe'`, Stripe is authoritative. Skip HubSpot status/tier updates.
+3. **Visitor protection.** `role = 'visitor'` never overwritten to `'member'` by sync.
+4. **Profile fields use COALESCE.** HubSpot fills gaps, never overwrites existing app data.
+5. **MindBody exception.** Only MindBody-billed active members allow HubSpot status updates. Non-active transition triggers deactivation cascade.
+6. **Migration-pending skip.** `migration_status = 'pending'` blocks deactivation cascade.
+7. **Idempotency keys prevent duplicate queue jobs.** Same operation for same entity is deduplicated.
+8. **Unrecoverable errors go straight to dead.** 401, 403, `MISSING_SCOPES` — no retry, staff notified.
+9. **Queue uses `FOR UPDATE SKIP LOCKED`.** Safe for concurrent workers.
+10. **Stripe fields only pushed in live Stripe environment.** Sandbox data never reaches HubSpot.
+11. **Sync exclusions table.** Permanently deleted members excluded from inbound sync.
+12. **Placeholder emails rejected.** `isPlaceholderEmail` check prevents syncing test/internal emails.
+13. **Tier denormalization required.** Use `DB_TIER_TO_HUBSPOT` map in `constants.ts` when pushing tiers.
+14. **Never write membership_status to HubSpot for MindBody-billed members.** Prevents MindBody ↔ HubSpot loop.
 
-### Processing
+## Anti-Patterns (NEVER)
 
-The queue scheduler (`server/schedulers/hubspotQueueScheduler.ts`) runs every **2 minutes**:
+1. NEVER overwrite status/tier from HubSpot for Stripe-billed members.
+2. NEVER overwrite visitor role from HubSpot sync.
+3. NEVER write membership_status to HubSpot for MindBody-billed members.
+4. NEVER skip the sync exclusions check on inbound sync.
+5. NEVER push Stripe fields (customer ID, subscription ID) in sandbox environments.
 
-1. Recover stuck jobs (processing > 10 minutes → reset to failed with 5-minute retry).
-2. Atomically claim up to 20 pending/retryable jobs using `FOR UPDATE SKIP LOCKED`.
-3. Execute each job via `executeHubSpotOperation` which dynamically imports the handler module.
-4. Mark succeeded jobs as `completed`; failed jobs get exponential backoff retry or go to `dead` state.
+## Cross-References
 
-See [references/queue-processing.md](references/queue-processing.md) for full retry/backoff details.
+- **Member lifecycle/status rules** → `member-lifecycle` skill
+- **Stripe webhook triggers** → `stripe-webhook-flow` skill
+- **Queue scheduler** → `scheduler-jobs` skill
+- **Data integrity (HubSpot checks)** → `data-integrity-monitoring` skill
 
-## Data Flow: App → HubSpot
+## Detailed Reference
 
-### Contact Properties Written
+- **[references/queue-processing.md](references/queue-processing.md)** — Retry strategy, backoff, dead letter, monitoring, operation priorities.
+- **[references/sync-operations.md](references/sync-operations.md)** — Field mappings, contact/company/product sync, form pipeline, deal management.
 
-When the app creates or updates a HubSpot contact, it sets:
+---
 
-| App Field            | HubSpot Property         | Notes                                      |
-|----------------------|--------------------------|--------------------------------------------|
-| email                | email                    | Always lowercased                           |
-| firstName / lastName | firstname / lastname     |                                             |
-| phone                | phone                    |                                             |
-| tier (denormalized)  | membership_tier          | Uses `denormalizeTierForHubSpot` mapping    |
-| membership_status    | membership_status        | Always pushed (app is primary brain)        |
-| billing_provider     | billing_provider         | Custom enumeration property                 |
-| lifecycle stage      | lifecyclestage           | `customer` for active, `other` for inactive |
-| join date            | membership_start_date    | Midnight UTC timestamp (timezone-corrected v8.57.0) |
-| Stripe fields        | stripe_customer_id, etc. | Only pushed in live Stripe environments     |
+## Queue Operations
 
-### Tier Denormalization
+| Operation | Priority | Description |
+|---|---|---|
+| `sync_tier` | 2 | Push tier change to contact + deal |
+| `sync_payment` | 3 | Stripe payment → line item on deal |
+| `sync_day_pass` | 3 | Day-pass → line item on deal |
+| `create_contact` | 5 | Find or create contact by email |
+| `update_contact` | 5 | Update contact membership status |
+| `sync_company` | 5 | Find-or-create company, associate contact |
+| `sync_member` | 3 | Full member sync (currently disabled) |
+| `create_deal` | 5 | Create membership deal (currently disabled) |
 
-The app stores normalized tier slugs (e.g., `core`, `premium-founding`). The `DB_TIER_TO_HUBSPOT` map in `server/core/hubspot/constants.ts` translates these to HubSpot dropdown labels (e.g., `Core Membership`, `Premium Membership Founding Members`).
+Queue scheduler: every 2 min, claim up to 20 jobs, exponential backoff on failure.
 
-### Company Sync
+## Contact Properties Written (App → HubSpot)
 
-For corporate memberships, `syncCompanyToHubSpot` searches HubSpot by company name or email domain, creates the company if missing (handling 409 duplicates), then associates the contact with the company using association type 280.
+| App Field | HubSpot Property | Notes |
+|---|---|---|
+| email | email | Always lowercased |
+| tier | membership_tier | `denormalizeTierForHubSpot` mapping |
+| membership_status | membership_status | Always pushed |
+| billing_provider | billing_provider | Custom enum |
+| lifecycle | lifecyclestage | `customer` (active) / `other` (inactive) |
+| join date | membership_start_date | UTC midnight timestamp |
 
-### Product and Line Item Sync
+## Contact Properties Read (HubSpot → App)
 
-- Products are mapped in the `hubspot_product_mappings` table (tier → HubSpot product ID).
-- `addLineItemToDeal` creates a HubSpot line item, associates it with the deal (association type 20), and records it locally in `hubspot_line_items`.
-- Line items carry discount percentage and reason, preserved across tier changes.
-- Stripe payments and day-pass purchases are synced as line items on the member's existing deal.
+| HubSpot Property | Local Field | Rule |
+|---|---|---|
+| firstname/lastname | first_name/last_name | COALESCE |
+| membership_tier | tier | Normalize via `normalizeTierName` |
+| membership_status | membership_status | Lowercased, protection rules apply |
+| mindbody_client_id | mindbody_client_id | COALESCE |
+| eh_email_updates_opt_in | email_opt_in | Boolean, always overwrites |
+| eh_sms_updates_opt_in | sms_opt_in | Boolean, always overwrites |
+| address/city/state/zip | street_address/city/state/zip_code | COALESCE |
 
-### Deal Pipeline
+## Deal Pipeline Stages
 
-The membership pipeline has these stages (defined in `server/core/hubspot/constants.ts`):
+| Stage | ID | Usage |
+|---|---|---|
+| Day Pass / Tour Request | 2414796536 | Initial inquiry |
+| Tour Booked | 2413968103 | Tour scheduled |
+| Visited / Day Pass | 2414796537 | Visited the club |
+| Application Submitted | 2414797498 | Applied |
+| Billing Setup | 2825519819 | Payment config |
+| Closed Won (Active) | closedwon | Active member |
+| Payment Declined | 2825519820 | Payment issues |
+| Closed Lost | closedlost | Terminated/cancelled |
 
-| Stage                    | ID              | Usage                    |
-|--------------------------|-----------------|--------------------------|
-| Day Pass / Tour Request  | 2414796536      | Initial inquiry          |
-| Tour Booked              | 2413968103      | Tour scheduled           |
-| Visited / Day Pass       | 2414796537      | Visited the club         |
-| Application Submitted    | 2414797498      | Applied for membership   |
-| Billing Setup            | 2825519819      | Payment being configured |
-| Closed Won (Active)      | closedwon       | Active member            |
-| Payment Declined         | 2825519820      | Payment issues           |
-| Closed Lost              | closedlost      | Terminated/cancelled     |
+Deal creation is currently disabled. Pipeline infrastructure and stage sync remain active for existing deals.
 
-Deal creation is currently disabled (functions return early). The pipeline infrastructure and stage sync remain active for existing deals.
+## Contact Cache
 
-## Data Flow: HubSpot → App
-
-### Webhook-First Inbound Sync (Primary)
-
-The `POST /api/hubspot/webhooks` endpoint handles `contact.propertyChange` events in real-time. This is the primary mechanism for HubSpot → App data flow:
-
-- **Status/tier changes**: `membership_status` and `membership_tier` — applied immediately with STRIPE WINS and visitor protection rules.
-- **Profile properties**: `firstname`, `lastname`, `phone`, `address`, `city`, `state`, `zip`, `date_of_birth`, `mindbody_client_id`, `membership_start_date` — COALESCE (only fill if DB value is null/empty).
-- **Overwrite properties**: `membership_discount_reason` — always overwrites DB value.
-- **Opt-in preferences**: `eh_email_updates_opt_in`, `eh_sms_updates_opt_in`, `hs_sms_promotional`, `hs_sms_customer_updates`, `hs_sms_reminders`, `stripe_delinquent` — parsed as boolean, always overwrites (HubSpot is authoritative for communication preferences).
-- **Protection rules**: Skip if in `sync_exclusions`, skip if `archived_at IS NOT NULL`, STRIPE WINS for status/tier, skip visitors for status changes, skip unknown users (no upsert).
-- **Cache invalidation**: Every handled property change invalidates the contact cache and broadcasts a directory update via WebSocket.
-
-### Daily Reconciliation Sync (Safety Net — Daily 3 AM Pacific)
-
-`syncAllMembersFromHubSpot` in `server/core/memberSync.ts` runs daily as a safety net:
-
-1. Fetch all contacts from HubSpot (paginated, 100 per page).
-2. Skip contacts in the `sync_exclusions` table (permanently deleted members).
-3. For each contact, upsert into `users` with `ON CONFLICT (email) DO UPDATE`.
-4. **Tier normalization:** Only recognized tiers (matching `TIER_NAMES`) are written; unrecognized tiers log a warning and preserve the existing DB tier.
-5. **Status/tier protection (app is primary brain):** ALL users are protected from status/tier overwrite EXCEPT MindBody-billed active members. For MindBody active members, HubSpot can update `membership_status` only. If a MindBody member's status changes from active → non-active, the deactivation cascade fires (tier removed, billing_provider → stripe). **Exception:** Members with `migration_status = 'pending'` skip the deactivation cascade — they stay active while their Stripe subscription is being provisioned.
-6. **New users:** Get `billing_provider = 'mindbody'` if active + has `mindbody_client_id`; otherwise `'stripe'`.
-7. **Notes sync:** Membership notes and messages from HubSpot are hashed; new notes create `member_notes` entries attributed to "HubSpot Sync (Mindbody)".
-8. **Linked emails:** Merged contact IDs (`hs_merged_object_ids`) are batch-fetched and stored in `user_linked_emails` for email deduplication.
-9. **Deal stage sync:** After the main sync, contacts with deal-relevant statuses get their deal stages updated in batches of 5 with 2-second delays.
-10. **Status change notifications:** When a member's status changes to a problematic state (past_due, declined, etc.), the app notifies the member and staff, and starts a grace period for Mindbody members.
-11. **Pending migration processing:** After the main member sync completes, `processPendingMigrations()` runs to check for stale migrations (>14 days pending) and send alerts. This hooks into the existing `syncAllMembersFromHubSpot` flow — no separate scheduler is needed.
-
-### HubSpot Contact Properties Read
-
-The sync reads these HubSpot properties and maps them to local fields:
-
-| HubSpot Property              | Local Field                | Notes                          |
-|-------------------------------|----------------------------|--------------------------------|
-| firstname / lastname          | first_name / last_name     | COALESCE with existing         |
-| email                         | email                      | Primary key for upsert         |
-| phone                         | phone                      |                                |
-| membership_tier               | tier                       | Normalized via `normalizeTierName` |
-| membership_status             | membership_status          | Lowercased                     |
-| membership_discount_reason    | discount_code              |                                |
-| mindbody_client_id            | mindbody_client_id         |                                |
-| membership_start_date         | join_date                  | Preferred over createdate      |
-| eh_email_updates_opt_in       | email_opt_in               | Parsed as boolean              |
-| eh_sms_updates_opt_in         | sms_opt_in                 |                                |
-| hs_sms_promotional            | sms_promo_opt_in           | Granular SMS consent           |
-| hs_sms_customer_updates       | sms_transactional_opt_in   |                                |
-| hs_sms_reminders              | sms_reminders_opt_in       |                                |
-| address / city / state / zip  | street_address / city / state / zip_code |                  |
-| date_of_birth                 | date_of_birth              | YYYY-MM-DD format              |
-| stripe_delinquent             | stripe_delinquent          |                                |
-
-### Form Submission Sync (Every 30 Minutes)
-
-`syncHubSpotFormSubmissions` in `server/core/hubspot/formSync.ts`:
-
-1. Fetch submissions from configured HubSpot form IDs (tour-request, membership, private-hire, event-inquiry, guest-checkin, contact).
-2. Deduplicate by `hubspot_submission_id` (exact match) and by email+formType within a ±5 minute window (fuzzy match for locally-created submissions).
-3. Extract standard fields (email, firstName, lastName, phone, message) and store remaining fields as JSON metadata.
-4. Infer form type from page URL when multiple form types share the same HubSpot form ID.
-
-See [references/sync-operations.md](references/sync-operations.md) for detailed field mappings and transformations.
-
-## HubSpot Contact Cache (Routes Layer)
-
-The `/api/hubspot/contacts` endpoint maintains an in-memory cache:
-
-- **Full refresh:** Every 30 minutes, fetch all contacts and enrich with DB data (visit counts, join dates, booking history).
-- **Webhook-driven invalidation:** When a HubSpot webhook fires for any handled property change, the cache timestamp is reset to 0, forcing a fresh rebuild on the next request.
-
-The 5-minute incremental poll (`fetchRecentlyModifiedContacts`) was removed — webhooks handle real-time changes.
-
-Contacts are enriched with: lifetime visits (bookings + events + wellness + walk-ins), computed join date (batch-import-aware logic with Nov 12, 2025 cutoff), and former-member classification.
-
-## Key Invariants
-
-1. **Never write membership_status to HubSpot for Mindbody-billed members** — prevents Mindbody ↔ HubSpot loop.
-2. **Never overwrite Stripe-protected members' status/tier from HubSpot** — Stripe is authoritative.
-3. **Never overwrite visitor role from HubSpot** — visitors must be explicitly converted.
-4. **Migration-aware deactivation cascade** — MindBody members with `migration_status = 'pending'` skip the deactivation cascade during daily sync. The member stays active while their Stripe subscription is being set up.
-5. **Placeholder emails are rejected** — `isPlaceholderEmail` check prevents syncing test/internal emails.
-6. **Idempotency keys prevent duplicate queue jobs** — same operation for the same entity is deduplicated.
-7. **Unrecoverable errors (401, 403, MISSING_SCOPES) go straight to dead** — no retry, staff notified immediately.
-8. **Queue uses FOR UPDATE SKIP LOCKED** — safe for concurrent workers, no double-processing.
-9. **Stripe fields only pushed in live Stripe environment** — sandbox Stripe data never reaches HubSpot.
-10. **Sync exclusions list** — permanently deleted members are excluded from the inbound sync.
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `server/core/hubspot/queue.ts` | Queue engine: enqueue, process, retry, stats |
-| `server/core/hubspot/queueHelpers.ts` | Typed helpers to enqueue specific operations |
-| `server/core/hubspot/request.ts` | Rate-limit-aware request wrapper (p-retry) |
-| `server/core/hubspot/members.ts` | Contact CRUD, deal creation, tier sync, cancellation |
-| `server/core/hubspot/contacts.ts` | SMS preference sync, day-pass contact creation |
-| `server/core/hubspot/companies.ts` | Company find-or-create and contact association |
-| `server/core/hubspot/stages.ts` | Contact status writes, property provisioning |
-| `server/core/hubspot/constants.ts` | Status/tier/billing property mappings |
-| `server/core/hubspot/admin.ts` | Discount rule CRUD and billing audit log queries |
-| `server/core/hubspot/discounts.ts` | Discount calculation (max-wins rule, not additive) |
-| `server/core/hubspot/formSync.ts` | Form submission ingestion from HubSpot |
-| `server/core/memberSync.ts` | Full inbound member sync from HubSpot |
-| `server/core/hubspotQueueMonitor.ts` | Queue stats for admin dashboard |
-| `server/core/stripe/hubspotSync.ts` | Payment and day-pass line item sync |
-| `server/schedulers/hubspotQueueScheduler.ts` | Queue processor (every 2 min) |
-| `server/schedulers/memberSyncScheduler.ts` | Daily member sync (3 AM Pacific) |
-| `server/schedulers/hubspotFormSyncScheduler.ts` | Form sync (every 30 min) |
-| `server/routes/hubspot.ts` | API routes, contact cache, webhook validation |
-
-## Reference Files
-
-- [Queue Processing](references/queue-processing.md) — retry strategy, backoff, dead letter handling, monitoring
-- [Sync Operations](references/sync-operations.md) — field mappings, contact/company/product sync, form pipeline, deal management
+In-memory cache at `/api/hubspot/contacts`, full refresh every 30 min. Webhook-driven invalidation resets timestamp to 0. Contacts enriched with: lifetime visits, computed join date, former-member classification.

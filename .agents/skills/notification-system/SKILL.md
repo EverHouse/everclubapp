@@ -5,32 +5,90 @@ description: "3-channel notification delivery system — in-app database, WebSoc
 
 # Notification System
 
-## Overview
+Deliver through 3 channels in sequence: **database** (always) → **WebSocket** (real-time) → **push** (web push). Optional **email** channel defaults to off.
 
-Deliver notifications through 3 channels in sequence: **database** (always) → **WebSocket** (real-time) → **push** (web push). An optional **email** channel exists but defaults to off.
+## File Map
 
-Every notification starts as a database row, then fans out to real-time channels. Use `notifyMember()` as the single entry point for member notifications and `notifyAllStaff()` for staff-wide broadcasts.
+| Task | Primary File(s) | When to touch |
+|---|---|---|
+| Send member notification | `server/core/notificationService.ts` | `notifyMember()` — single entry point |
+| Send staff-wide notification | `server/core/notificationService.ts` | `notifyAllStaff()` |
+| WebSocket server/broadcasts | `server/core/websocket.ts` | Connection mgmt, broadcast functions |
+| Legacy staff notifications | `server/core/staffNotifications.ts` | DB-only (no WS/push) |
+| Notification CRUD API | `server/routes/notifications.ts` | REST endpoints |
+| Push subscription endpoints | `server/routes/push.ts` | VAPID, subscribe, daily reminders |
+| Recent activity feed | `server/routes/bays/notifications.ts` | `GET /api/recent-activity` |
+| Frontend notification state | `src/stores/notificationStore.ts` | Zustand store |
+| Notification panel context | `src/contexts/NotificationContext.tsx` | `openNotifications()` |
+| Frontend push subscription | `src/services/pushNotifications.ts` | Subscribe/unsubscribe |
+| Notification sounds | `src/hooks/useNotificationSounds.ts` | Sound playback on new notifs |
 
-## Key Files
+## Decision Trees
 
-| File | Purpose |
-|---|---|
-| `server/core/notificationService.ts` | Main entry: `notifyMember()`, `notifyAllStaff()`, convenience helpers, delivery orchestration |
-| `server/core/websocket.ts` | WebSocket server, connection management, broadcast functions |
-| `server/core/staffNotifications.ts` | Legacy staff notification helpers (DB-only, no WS/push) |
-| `server/routes/notifications.ts` | REST API for notification CRUD |
-| `server/routes/push.ts` | Push subscription endpoints, VAPID config, daily reminders, morning closures |
-| `server/routes/bays/notifications.ts` | Recent activity feed (`GET /api/recent-activity`) |
-| `src/stores/notificationStore.ts` | Zustand store for frontend notification state |
-| `src/contexts/NotificationContext.tsx` | React context exposing `openNotifications()` |
-| `src/services/pushNotifications.ts` | Frontend push subscription lifecycle |
-| `src/hooks/useNotificationSounds.ts` | Sound playback on new notifications |
+### Sending a notification — which function?
 
-## notifyMember()
+```
+Who receives it?
+├── Single member → notifyMember(payload, options?)
+│   ├── Synthetic email? → Skipped automatically (v8.81.0)
+│   ├── Duplicate within 60s? → Skipped (dedup check)
+│   └── Channels: DB → WebSocket → Push → (optional Email)
+├── All staff → notifyAllStaff(title, message, type, options?)
+│   └── Uses INNER JOIN with users table (excludes deleted staff)
+└── All members → sendPushNotificationToAllMembers(payload)
+    └── Push + in-app to all members
+```
 
-**File:** `server/core/notificationService.ts`
+### Adding a new notification type
 
-Main entry point for sending a notification to a single member. Accept a `NotificationPayload` and an options object.
+```
+1. Add to NotificationType union in notificationService.ts
+2. Use notifyMember() or notifyAllStaff() — never insert into notifications table directly
+3. Add sound mapping in useNotificationSounds.ts (staff and/or member map)
+4. If scheduled → add to appropriate scheduler
+```
+
+## Hard Rules
+
+1. **Always use `notifyMember()` from `notificationService.ts`.** NEVER insert directly into the `notifications` table.
+2. **Use `notifyAllStaff()` not `staffNotifications.ts`.** Legacy version only does DB inserts — no WebSocket, no push.
+3. **Email requires both `emailSubject` AND `emailHtml`.** Otherwise email step silently skips.
+4. **Push requires VAPID env vars.** `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`. If not set, push returns error.
+5. **`relatedId` must be number or null.** Never pass strings or undefined.
+6. **WebSocket is fire-and-forget.** No connection = notification still persists in DB.
+7. **WebSocket auth uses `cookie-signature.unsign()`.** NEVER raw string extraction. Invalid signatures must be rejected.
+8. **WebSocket debounce keys must include action type.** E.g., `ws_revalidate_${email}` vs `ws_notify_${email}` — prevents cross-action collisions.
+9. **On `ws.close`, check remaining connections for staff status.** `filtered.some(c => c.isStaff)` — don't assume remaining connections inherit staff.
+10. **Session revalidation pool: `max: 20`** (not 5) to handle reconnection storms during deploys.
+11. **Prevent duplicate WebSocket registrations.** Check `!existing.some(c => c.ws === ws)` before pushing to clients map.
+12. **`staff_register` handler needs DB fallback.** Mobile clients authenticating via `{ type: 'auth', sessionId }` have empty `req`. Fall back to direct DB lookup of user role.
+13. **Synthetic email guard (v8.81.0).** `isSyntheticEmail()` blocks notifications to `@trackman.local`, `@visitors.evenhouse.club`, `private-event@`, `classpass-*`.
+14. **Deduplication (v8.5.0).** Same `title` + `user_email` + `related_id` within 60 seconds → skip.
+15. **Staff deletion safety (v8.81.0).** All fan-out paths use INNER JOIN with `users` table. Deleted/archived staff with orphaned `staff_users` rows are excluded.
+
+## Anti-Patterns (NEVER)
+
+1. NEVER insert directly into the `notifications` table for member notifications.
+2. NEVER use `staffNotifications.ts` for new code — use `notifyAllStaff()`.
+3. NEVER strip `s:` prefix from session cookies without cryptographic verification.
+4. NEVER assume remaining WebSocket connections inherit staff status from a closed connection.
+
+## Cross-References
+
+- **Booking event notifications** → `booking-flow` skill
+- **Check-in notifications** → `checkin-flow` skill
+- **Scheduled reminders** → `scheduler-jobs` skill
+- **Billing migration notifications** → `member-lifecycle` skill
+- **Status change source attribution** → See below
+
+## Detailed Reference
+
+- **[references/delivery-channels.md](references/delivery-channels.md)** — Channel-level details: push subscription lifecycle, email delivery, VAPID config, daily reminders, morning closures.
+- **[references/websocket-architecture.md](references/websocket-architecture.md)** — Connection management, heartbeat, reconnection, broadcast function table, session revalidation.
+
+---
+
+## notifyMember() Signature
 
 ```ts
 notifyMember(payload: NotificationPayload, options?: {
@@ -42,22 +100,7 @@ notifyMember(payload: NotificationPayload, options?: {
 })
 ```
 
-Execution order:
-1. Validate required fields (`userEmail`, `title`, `message`, `type`).
-2. **Synthetic email guard (v8.81.0):** `isSyntheticEmail(payload.userEmail)` checks if the email matches known synthetic/placeholder patterns (`@trackman.local`, `@visitors.evenhouse.club`, `private-event@`, `classpass-*`, etc.). If synthetic, returns early with a skip result — no DB insert, no WebSocket, no push. This is also used by callers in `approvalService.ts`, `cancellation.ts`, `staffActions.ts`, and `trackman/service.ts` to guard individual notification calls.
-3. **Deduplication check (v8.5.0):** Before inserting, query `notifications` for an existing row with the same `title`, `user_email`, and `related_id` created within the last 60 seconds. If a duplicate is found, skip the insert and return early. This prevents multiple code paths (e.g., check-in handlers) from sending the same notification to a member.
-4. Insert to `notifications` table (database channel — always runs first).
-5. If `sendWebSocket` is true, call `sendNotificationToUser()` from `websocket.ts`.
-6. If `sendPush` is true, call `deliverViaPush()` which looks up `push_subscriptions` by email.
-7. If `sendEmail` is true AND `emailSubject` + `emailHtml` are provided, call `deliverViaEmail()` via Resend.
-
-Return a `NotificationResult` with `notificationId`, `deliveryResults[]`, and `allSucceeded`.
-
-## notifyAllStaff()
-
-**File:** `server/core/notificationService.ts`
-
-Send a notification to every active staff member.
+## notifyAllStaff() Signature
 
 ```ts
 notifyAllStaff(title, message, type, options?: {
@@ -69,250 +112,67 @@ notifyAllStaff(title, message, type, options?: {
 })
 ```
 
-Steps:
-1. Query all active staff from `staff_users` INNER JOIN `users` where `is_active = true` (v8.81.0: INNER JOIN ensures deleted/archived staff with orphaned `staff_users` rows are excluded).
-2. Batch-insert notification rows for every staff email.
-3. If `sendWebSocket`, call `broadcastToStaff()` from `websocket.ts`.
-4. If `sendPush`, call `deliverPushToStaff()` which joins `push_subscriptions` with `users` on role `admin`/`staff`.
-
-**Staff deletion safety (v8.81.0):** Archive and permanent-delete flows deactivate the `staff_users` entry (`is_active = false`). All three fan-out paths (`notifyAllStaff`, `staffNotifications.getStaffAndAdminEmails`, `bookingEvents.getStaffEmails`) use INNER JOIN to prevent notifications for non-existent users.
-
-## NotificationType
-
-80+ string literal types organized by domain:
-
-| Category | Types |
-|---|---|
-| General | `info`, `success`, `warning`, `error`, `system` |
-| Booking | `booking`, `booking_approved`, `booking_declined`, `booking_reminder`, `booking_cancelled`, `booking_cancelled_by_staff`, `booking_cancelled_via_trackman`, `booking_invite`, `booking_update`, `booking_updated`, `booking_confirmed`, `booking_auto_confirmed`, `booking_checked_in`, `booking_created`, `booking_participant_added`, `booking_request` |
-| Closure | `closure`, `closure_today`, `closure_created` |
-| Wellness | `wellness_booking`, `wellness_enrollment`, `wellness_cancellation`, `wellness_reminder`, `wellness_class`, `wellness` |
-| Events | `event`, `event_rsvp`, `event_rsvp_cancelled`, `event_reminder` |
-| Tours | `tour`, `tour_scheduled`, `tour_reminder` |
-| Payments | `payment_method_update`, `payment_success`, `payment_failed`, `payment_receipt`, `payment_error`, `outstanding_balance`, `fee_waived` |
-| Membership | `membership_renewed`, `membership_failed`, `membership_past_due`, `membership_cancelled`, `membership_terminated`, `membership_cancellation` |
-| Billing | `billing`, `billing_alert`, `billing_migration` |
-| Passes | `guest_pass`, `day_pass` |
-| Trackman | `trackman_booking`, `trackman_unmatched`, `trackman_cancelled_link` |
-| Terminal | `terminal_refund`, `terminal_dispute`, `terminal_dispute_closed`, `terminal_payment_canceled` |
-| Staff/Admin | `announcement`, `new_member`, `member_status_change`, `card_expiring`, `staff_note`, `account_deletion`, `funds_added`, `trial_expired`, `trial_ending`, `waiver_review`, `cancellation_pending`, `cancellation_stuck`, `bug_report`, `import_failure`, `integration_error`, `attendance` |
-
-Add new types to the `NotificationType` union in `notificationService.ts`.
-
 ## Convenience Functions
 
 | Function | Wraps |
 |---|---|
-| `notifyPaymentSuccess(email, amount, description, opts?)` | `notifyMember()` with type `payment_success`, optional email channel |
-| `notifyPaymentFailed(email, amount, reason, opts?)` | `notifyMember()` with type `payment_failed`, optional email channel |
+| `notifyPaymentSuccess(email, amount, description, opts?)` | `notifyMember()` with type `payment_success` |
+| `notifyPaymentFailed(email, amount, reason, opts?)` | `notifyMember()` with type `payment_failed` |
 | `notifyFeeWaived(email, amount, reason, bookingId?)` | `notifyMember()` with type `fee_waived` |
-| `notifyOutstandingBalance(email, amount, description, opts?)` | `notifyMember()` with type `outstanding_balance`, optional email channel |
+| `notifyOutstandingBalance(email, amount, description, opts?)` | `notifyMember()` with type `outstanding_balance` |
 
-All format the dollar amount as `$X.XX` and set appropriate `relatedType`/`relatedId`.
-
-## WebSocket Layer
-
-**File:** `server/core/websocket.ts`
-
-- Initialize with `initWebSocketServer(server)` on path `/ws`.
-- Session-based authentication: parse `connect.sid` cookie using `cookie-signature.unsign()` for cryptographic verification → look up session in DB → extract user email and role.
-- Fallback: unauthenticated clients can send an `auth` message with optional `sessionId` field (for mobile/React Native clients that cannot attach cookies); max 3 attempts within 10s timeout. When `sessionId` is provided in the auth message, it is verified directly against the session store instead of re-reading cookies from the upgrade request.
-- Connection map: `Map<email, ClientConnection[]>` — supports multiple connections per user.
-- Staff tracking: `Set<string>` of staff emails for targeted broadcasts. On `ws.on('close')`, if remaining connections exist for a user, check `filtered.some(c => c.isStaff)` — if no remaining connection is a staff session, the user is removed from `staffEmails`. This prevents false-positive staff presence after a staff tab closes but a member tab remains open.
-- Session revalidation: every 5 minutes, all connections are re-verified against the database. Expired or revoked sessions are terminated automatically. Uses a dedicated connection pool (`max: 20`) to handle reconnection storms during deploys.
-- Heartbeat: every 30s, ping all connections. Terminate unresponsive ones. The heartbeat handler revalidates sessions when the 5-minute interval has elapsed (tracked via `lastSessionCheck` per connection), using the same `debounceKey` pattern that includes the action type to prevent cross-action debounce collisions.
-- Origin validation: allow Replit domains, localhost, production domains, and `ALLOWED_ORIGINS` env var.
-- Frontend reconnection: member WebSocket hook (`useWebSocket.ts`) uses randomized jitter (2-5s delay) for reconnection to prevent thundering herd. Uses `intentionalCloseRef` to suppress reconnection on intentional close (component unmount), and a stale-socket guard (`wsRef.current === ws`) in `onclose` to prevent zombie reconnection loops during rapid email/view-as switches (v8.69.0). Staff WebSocket hook (`useStaffWebSocket.ts`) uses exponential backoff with `Math.pow(2, attempt)` scaling up to 30s max delay.
-
-### Broadcast Functions
+## WebSocket Broadcast Functions
 
 | Function | Target | Message type |
 |---|---|---|
 | `sendNotificationToUser(email, notification)` | Single user | `notification` |
-| `broadcastToStaff(notification)` | Staff connections only | `notification` |
-| `broadcastToAllMembers(notification)` | All connected users | `notification` |
+| `broadcastToStaff(notification)` | Staff only | `notification` |
+| `broadcastToAllMembers(notification)` | All users | `notification` |
 | `broadcastBookingEvent(event)` | Staff only | `booking_event` |
-| `broadcastAnnouncementUpdate(action, announcement?)` | All users | `announcement_update` |
 | `broadcastAvailabilityUpdate(data)` | All users | `availability_update` |
-| `broadcastWaitlistUpdate(data)` | All users | `waitlist_update` |
-| `broadcastDirectoryUpdate(action)` | Staff only | `directory_update` |
 | `broadcastMemberStatsUpdated(email, data)` | Member + staff | `member_stats_updated` |
 | `broadcastClosureUpdate(action, closureId?)` | All users | `closure_update` |
 | `broadcastBillingUpdate(data)` | Member + staff | `billing_update` |
+| `broadcastBookingRosterUpdate(data)` | Member + staff | `booking_roster_update` |
+| `broadcastDataIntegrityUpdate(action, details?)` | Staff only | `data_integrity_update` |
+| `broadcastAnnouncementUpdate(action, announcement?)` | All users | `announcement_update` |
+| `broadcastWaitlistUpdate(data)` | All users | `waitlist_update` |
+| `broadcastDirectoryUpdate(action)` | Staff only | `directory_update` |
 | `broadcastTierUpdate(data)` | Member + staff | `tier_update` |
 | `broadcastMemberDataUpdated(emails)` | Staff only | `member_data_updated` |
 | `broadcastDayPassUpdate(data)` | Staff only | `day_pass_update` |
 | `broadcastCafeMenuUpdate(action)` | All users | `cafe_menu_update` |
-| `broadcastDataIntegrityUpdate(action, details?)` | Staff only | `data_integrity_update` |
-| `broadcastBookingRosterUpdate(data)` | Member + staff | `booking_roster_update` |
 
-See `references/websocket-architecture.md` for full details.
+## NotificationType Categories
 
-## Push Notification Layer
+80+ types: `info`, `success`, `warning`, `error`, `system`, `booking_*` (16 types), `closure_*`, `wellness_*`, `event_*`, `tour_*`, `payment_*`, `membership_*`, `billing_*`, `guest_pass`, `day_pass`, `trackman_*`, `terminal_*`, `staff/admin types` (announcement, new_member, staff_note, bug_report, etc.).
 
-**File:** `server/routes/push.ts`
-
-- Configure VAPID keys from `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` env vars.
-- Call `webpush.setVapidDetails('mailto:hello@everclub.app', publicKey, privateKey)` at module load.
-- Store subscriptions in `push_subscriptions` table (columns: `user_email`, `endpoint`, `p256dh`, `auth`).
-- On HTTP 410 response from push endpoint, delete the stale subscription.
-
-### Key Functions
-
-| Function | Purpose |
-|---|---|
-| `sendPushNotification(email, payload)` | Send push to one user's subscriptions |
-| `sendPushNotificationToStaff(payload)` | Send push to all staff (join with `users` on role) |
-| `sendPushNotificationToAllMembers(payload)` | Send push + in-app to all members |
-| `isPushNotificationsEnabled()` | Check if VAPID keys are configured |
-
-### Endpoints
-
-| Method | Path | Auth | Purpose |
-|---|---|---|---|
-| `GET` | `/api/push/vapid-public-key` | None | Return VAPID public key |
-| `POST` | `/api/push/subscribe` | Authenticated | Save push subscription |
-| `POST` | `/api/push/unsubscribe` | Authenticated | Remove push subscription |
-| `POST` | `/api/push/test` | Authenticated | Send test push to current user |
-| `POST` | `/api/push/send-daily-reminders` | Staff/Admin | Trigger daily reminders manually |
-| `POST` | `/api/push/send-morning-closure-notifications` | Staff/Admin | Trigger morning closure alerts manually |
-
-See `references/delivery-channels.md` for channel-level details.
-
-## Scheduled Notifications
-
-### sendDailyReminders()
-
-**Defined in:** `server/routes/push.ts`  
-**Triggered by:** `server/schedulers/dailyReminderScheduler.ts`  
-**Time:** 6 PM Pacific
-
-Query tomorrow's confirmed events, approved bookings, and confirmed wellness enrollments. For each:
-1. Batch-insert in-app notification rows.
-2. Send push notification per user.
-3. Send WebSocket notification per user via `sendNotificationToUser()`.
-
-### sendMorningClosureNotifications()
-
-**Defined in:** `server/routes/push.ts`  
-**Triggered by:** `server/schedulers/morningClosureScheduler.ts`  
-**Time:** 8 AM Pacific
-
-Find facility closures starting today that are published (`needsReview = false`) and active. Idempotent: check for existing `closure_today` notifications with matching `relatedId` before sending. For each new closure:
-1. Create in-app notifications for all members.
-2. Send push notifications to all member subscriptions.
-
-## Frontend Architecture
-
-### NotificationContext (`src/contexts/NotificationContext.tsx`)
-
-Expose `openNotifications(tab?)` to open the notification panel from anywhere.
-
-### notificationStore (`src/stores/notificationStore.ts`)
-
-Zustand store managing:
-- `notifications[]`, `unreadCount`, `isLoading`, `lastFetched`
-- `fetchNotifications(email)` — GET `/api/notifications`
-- `fetchUnreadCount(email)` — GET `/api/notifications?unread_only=true`
-- `addNotification(n)` — prepend and increment unread
-- `markAsRead(id)` / `markAllAsRead()` — update local state
-- `setNotifications(list)` — bulk set with auto-computed unread count
-
-### pushNotifications service (`src/services/pushNotifications.ts`)
-
-- `subscribeToPush(email)` — request permission, register service worker, fetch VAPID key, subscribe via Push API, POST to `/api/push/subscribe`.
-- `unsubscribeFromPush()` — unsubscribe via Push API, POST to `/api/push/unsubscribe`.
-- `isSubscribedToPush()` — check current subscription status.
-- `registerServiceWorker()` — register `/sw.js`.
-
-### useNotificationSounds (`src/hooks/useNotificationSounds.ts`)
-
-Play contextual sounds on new notifications. Maintain a `seenIds` set; on first load, seed the set silently. On subsequent calls, detect new unread notifications and play the mapped sound.
-
-Sound maps:
-- **Staff:** booking/event_rsvp/wellness_enrollment → `newBookingRequest`; cancellations → `bookingCancelled`.
-- **Member:** approvals/confirmations → `bookingApproved`; declined → `bookingDeclined`; cancelled → `bookingCancelled`.
-- Fallback: `notification` sound for unmapped types.
-
-## Notification API Endpoints
-
-**File:** `server/routes/notifications.ts`
-
-| Method | Path | Auth | Purpose |
-|---|---|---|---|
-| `GET` | `/api/notifications` | Authenticated | Fetch notifications (optional `user_email`, `unread_only` params). Limit 50. Staff can query other users. |
-| `GET` | `/api/notifications/count` | Authenticated | Get unread count |
-| `PUT` | `/api/notifications/:id/read` | Authenticated | Mark single notification as read |
-| `PUT` | `/api/notifications/mark-all-read` | Authenticated | Mark all notifications as read |
-| `DELETE` | `/api/notifications/dismiss-all` | Authenticated | Delete all notifications for user |
-| `DELETE` | `/api/notifications/:id` | Authenticated | Delete single notification |
-
-## Recent Activity Feed
-
-**File:** `server/routes/bays/notifications.ts`
-
-`GET /api/recent-activity` — staff-only endpoint with 24-hour lookback. Aggregate:
-- Notification records for the requesting user.
-- Booking activity (created, approved, attended, cancelled).
-- Walk-in check-ins.
-
-Return sorted by timestamp, limited to 20 items.
-
-## Billing Migration Notifications
-
-The MindBody → Stripe migration flow uses notification type `billing_migration` for all migration-related notifications. These are triggered at key points in the migration lifecycle:
-
-| Trigger | Recipients | Description |
-|---------|-----------|-------------|
-| Card saved for MindBody member | Staff | When a MindBody member saves a card via terminal, `payment_method.attached`, or `setup_intent.succeeded` — staff are notified the member is now eligible for migration |
-| Migration initiated | Staff + Member | Staff member starts the migration; both parties are notified |
-| Migration completed | Staff + Member | Stripe subscription confirmed via webhook; both parties notified of successful migration |
-| Migration failed | Staff | Subscription creation or processing failed; staff notified for manual intervention |
-| Stale migration alert | Staff | Migration has been in `pending` status for >14 days; staff notified to investigate. Triggered by `processPendingMigrations()` which runs after the daily HubSpot member sync |
-
-All migration notifications use `type: 'billing_migration'` (already listed in the NotificationType union above).
+Add new types to the `NotificationType` union in `notificationService.ts`.
 
 ## Status Change Source Attribution
 
-When member status changes, staff notifications include a dynamic "change source" string that identifies HOW the change originated. The attribution logic lives in the **caller** (not the notification service itself).
+Notification messages include a source string showing HOW the change originated:
 
-### HubSpot Sync Attribution (`server/routes/hubspot.ts`)
-
-The HubSpot webhook handler determines the source using a priority chain based on the user's `billing_provider`, `data_source`, and `visitor_type`:
-
-| Condition | Source String |
+| Source | Attribution |
 |---|---|
-| `billing_provider = 'mindbody'` or `mindbody_client_id` exists | "via MindBody" |
-| `billing_provider = 'stripe'` | "via Stripe" |
-| `visitor_type = 'day_pass'` | "via Quick Guest Checkout" |
-| `data_source = 'APP'` | "via App" |
-| Default | "via HubSpot sync" |
+| HubSpot sync | `billing_provider`/`data_source` priority chain → "via MindBody", "via Stripe", "via App", "via HubSpot sync" |
+| Stripe webhook | Implicit from event type: "paused (frozen)", "resumed", "reactivated" |
+| Staff action | Audit-logged with staff email. Member sees action, not staff identity. |
 
-The source string is interpolated into the notification message: `"...status changed to ${newStatus} ${changeSource}."` New guest contacts that enter as non-members are filtered out to prevent incorrect status change notifications.
+## Scheduled Notifications
 
-### Stripe Webhook Attribution (`server/core/stripe/webhooks.ts`)
+| Scheduler | Time | What |
+|---|---|---|
+| Daily Reminders | 6 PM Pacific | Tomorrow's events, bookings, wellness |
+| Morning Closures | 8 AM Pacific | Today's facility closures (idempotent) |
 
-Stripe webhook notifications are implicitly attributed by event type:
-- `customer.subscription.paused` → "membership has been paused (frozen)"
-- `customer.subscription.resumed` → "membership has been resumed"
-- Reactivation from cancelled/deleted → "membership has been reactivated (was ${previousStatus})"
+## Notification API Endpoints
 
-### Staff Action Attribution (`server/routes/members/admin-actions.ts`)
-
-Staff tier/status changes are audit-logged with the performing staff member's email via `logFromRequest()`. The member receives a notification describing the action (Upgraded, Updated, Cleared) without exposing the staff member's identity.
-
-## Rules
-
-1. Always use `notifyMember()` from `notificationService.ts` — never insert directly into the `notifications` table for member notifications.
-2. Email channel requires both `emailSubject` and `emailHtml` in options; otherwise the email step is silently skipped.
-3. Push notifications require `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` environment variables. If not set, push delivery returns `{ success: false, error: 'VAPID keys not configured' }`.
-4. Add new notification types to the `NotificationType` union in `notificationService.ts`.
-5. Use `notifyAllStaff()` from `notificationService.ts` (not `staffNotifications.ts`) for full 3-channel delivery. The `staffNotifications.ts` version only does DB inserts.
-6. Handle `relatedId` defensively — it must be a valid number or null. Never pass strings or undefined.
-7. WebSocket broadcasts are fire-and-forget. If no connections exist for the target, the notification still persists in the database.
-8. WebSocket `parseSessionId()` must use `cookie-signature.unsign()` for cryptographic verification — never raw string extraction (e.g., `s:` prefix stripping without signature check). Invalid signatures must be rejected.
-9. WebSocket debounce keys must include the action type (e.g., `ws_revalidate_${email}` vs `ws_notify_${email}`) to prevent cross-action debounce collisions.
-10. On `ws.close`, always check `filtered.some(c => c.isStaff)` on remaining connections — do not assume remaining connections inherit staff status from the closed connection.
-11. The session revalidation pool must use `max: 20` (not 5) to handle reconnection storms during deploys without exhausting connections.
-12. Before pushing a connection to the clients map, always check `!existing.some(c => c.ws === ws)` to prevent duplicate socket registrations. Mobile clients on flaky networks may retransmit the `{ type: 'auth' }` message multiple times, which without this guard would push the same WebSocket object into the array repeatedly, causing duplicate broadcasts and frontend re-render thrashing.
-13. The `staff_register` handler must NOT rely solely on `getVerifiedUserFromRequest(req)` because mobile clients that authenticated via the `{ type: 'auth', sessionId }` message (not cookies) will have an empty `req`. It falls back to a direct DB lookup of the user's role via `userEmail`. Without this fallback, managers using the mobile app will never receive real-time staff alerts.
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/notifications` | Fetch (limit 50, optional filters) |
+| `GET` | `/api/notifications/count` | Unread count |
+| `PUT` | `/api/notifications/:id/read` | Mark read |
+| `PUT` | `/api/notifications/mark-all-read` | Mark all read |
+| `DELETE` | `/api/notifications/dismiss-all` | Delete all for user |
+| `DELETE` | `/api/notifications/:id` | Delete single |

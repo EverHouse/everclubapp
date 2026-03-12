@@ -1,261 +1,103 @@
 ---
 name: stripe-webhook-flow
-description: End-to-end Stripe webhook handling pipeline for the Ever Club Members App. Covers stripe webhook processing, webhook handling flow, stripe wins rule for billing authority, subscription sync from webhooks, webhook dedup via processed events table, stripe events dispatch and routing, payment webhook succeeded/failed/refunded handling, subscription webhook lifecycle (created/updated/deleted/paused/resumed), deferred action pattern, resource-based event ordering, and ghost reactivation blocking.
+description: End-to-end Stripe webhook handling pipeline for the Ever Club Members App. Covers stripe webhook processing, webhook handling flow, stripe wins rule for billing authority, subscription sync from webhooks, webhook dedup via processed events table, stripe events dispatch and routing, payment webhook succeeded/failed/refunded handling, subscription webhook lifecycle (created/updated/deleted/paused/resumed), deferred action pattern, resource-based event ordering, and ghost reactivation blocking. Use when modifying Stripe webhook handlers, adding new event types, changing subscription status mapping, or debugging payment/billing webhook issues.
 ---
 
 # Stripe Webhook Flow
 
-How Stripe webhook events flow through the Ever Club Members App — from raw HTTP receipt to downstream side effects.
+For billing rules, see the `fee-calculation` skill. For member status transitions, see `member-lifecycle`.
 
-For billing rules and the 10 Commandments, see the `billing-stripe-expert` skill.
+## File Map
+
+| Task | Primary File(s) | When to touch |
+|---|---|---|
+| Webhook pipeline & dispatch | `server/core/stripe/webhooks.ts` | Adding event types, changing dedup/ordering |
+| Payment handlers (succeeded/failed/refunded) | `server/core/stripe/webhooks.ts` | Payment event handling |
+| Subscription handlers (CRUD/pause/resume) | `server/core/stripe/webhooks.ts` | Subscription lifecycle |
+| Invoice handlers | `server/core/stripe/webhooks.ts` | Invoice payment success/failure |
+| Checkout session handler | `server/core/stripe/webhooks.ts` | Checkout flows (add_funds, day_pass, activation) |
+| Group billing cascade | `server/core/stripe/groupBilling.ts` | Family/corporate status propagation |
+| Subscription sync | `server/core/stripe/subscriptionSync.ts` | Full subscription reconciliation |
+| Reconciliation | `server/core/stripe/reconciliation.ts` | Daily payment reconciliation |
+| Environment validation | `server/core/stripe/environmentValidation.ts` | Startup Stripe ID validation |
+| Transaction cache | `server/core/stripe/transactionCache.ts` | Payment history cache |
+| Webhook route | `server/index.ts` (line ~365) | HTTP endpoint, raw buffer handling |
 
 ## The Webhook Pipeline
 
 Every Stripe webhook follows this exact sequence:
 
 ```
-Stripe POST → raw Buffer received → signature verified via Stripe SDK
-  → event parsed → dedup check (tryClaimEvent) → resource order check
-  → BEGIN transaction → dispatch to handler → COMMIT
-  → execute deferred actions → cleanup old events
+Stripe POST → raw Buffer → signature verify → parse event
+  → tryClaimEvent (dedup) → checkResourceEventOrder
+  → BEGIN tx → dispatch to handler → COMMIT
+  → execute deferred actions → cleanup old events (5% probabilistic)
 ```
 
-### 1. Receive and Verify
+## Decision Trees
 
-`processStripeWebhook(payload: Buffer, signature: string)` in `webhooks.ts` is the entry point.
-
-- Payload MUST be a raw `Buffer` — if `express.json()` parses it first, the signature check fails.
-- The Stripe SDK (`getStripeSync().processWebhook()`) verifies the webhook signature against the endpoint secret.
-- After verification, the payload is parsed as JSON to extract the event.
-
-### 2. Dedup Check — Prevent Double-Processing
-
-`tryClaimEvent(client, eventId, eventType, eventTimestamp, resourceId)` inserts a row into `webhook_processed_events`:
-
-```sql
-INSERT INTO webhook_processed_events (event_id, event_type, resource_id, processed_at)
-VALUES ($1, $2, $3, NOW())
-ON CONFLICT (event_id) DO NOTHING
-RETURNING event_id
-```
-
-If `rowCount === 0`, the event was already processed → skip it. This is the primary dedup mechanism.
-
-Old events are cleaned up after each webhook via `cleanupOldProcessedEvents()`, which deletes rows older than 7 days (`EVENT_DEDUP_WINDOW_DAYS = 7`).
-
-### 3. Resource-Based Event Ordering
-
-`checkResourceEventOrder(client, resourceId, eventType, eventTimestamp)` prevents out-of-order processing for the same Stripe resource (subscription, payment intent, invoice).
-
-`extractResourceId(event)` maps event types to their resource ID:
-- `payment_intent.*` → `obj.id`
-- `invoice.*` → `obj.id`
-- `customer.subscription.*` → `obj.id`
-- `checkout.session.*` → `obj.id`
-- `charge.*` → `obj.payment_intent || obj.id`
-
-Each event type has a priority number in `EVENT_PRIORITY`:
+### Adding a new webhook event type
 
 ```
-Payment lifecycle:     created(1) → processing(2) → requires_action(3) → succeeded/failed(10) → refunded(20) → dispute(25-26)
-Invoice lifecycle:     created(1) → finalized(2) → payment_succeeded/failed(10) → paid(11) → voided/uncollectible(20)
-Subscription lifecycle: created(1) → updated(5) → paused(8) → resumed(9) → deleted(20)
+1. Add handler function in webhooks.ts
+2. Add if/else if branch in dispatch chain
+3. Handler MUST return DeferredAction[]
+4. All DB writes inside the transaction
+5. All notifications/emails/syncs in deferred actions
+6. Add event type to EVENT_PRIORITY map
 ```
 
-If the last processed event for that resource has a HIGHER priority than the incoming event, the incoming event is blocked.
-
-#### Ghost Reactivation Blocking
-
-Special case: if `subscription.created` arrives AFTER `subscription.deleted` for the same resource, it is blocked. This prevents a delayed `created` event from reactivating a cancelled member.
-
-However, `subscription.created` is allowed through for all other out-of-order scenarios because subscription creation should never be silently dropped.
-
-### Subscription ID Match Guard (Invoice Failures)
-
-`handleInvoicePaymentFailed` includes a subscription ID match guard to prevent late-arriving failed invoices from old subscriptions from downgrading active members:
+### Where does this code go — transaction or deferred?
 
 ```
-1. Extract subscription ID from invoice
-2. Query user's current stripe_subscription_id
-3. If user has a different current subscription → SKIP (stale invoice from old sub)
-4. If user is already cancelled/inactive → SKIP
-5. Only proceed with grace period if subscription IDs match
+Does it write to the database?
+├── Yes → Inside transaction (handler body)
+└── No
+    Does it call an external API (Stripe, HubSpot, etc.)?
+    ├── Yes → Deferred action (after COMMIT)
+    │   └── Does it move money? → STOP. Money ops MUST be in handler body with idempotency key.
+    └── No (WebSocket broadcast, cache update) → Either is fine, deferred preferred
 ```
 
-This prevents the scenario where a member cancels Subscription A, starts Subscription B, and a retried failed invoice from Subscription A sets them to `past_due` despite actively paying on Subscription B.
+## Hard Rules
 
-### 4. Transaction Boundary and Dispatch
+1. **Raw Buffer required.** Payload MUST be a raw `Buffer` for signature verification. If `express.json()` parses first, signature check fails.
+2. **Stripe Wins rule.** When `billing_provider = 'stripe'`, Stripe is authoritative for `membership_status` and `tier`. Every handler checks `billing_provider` before modifying the user — if not `'stripe'`, SKIP the update.
+3. **No external API calls in transactions.** HTTP calls to Stripe/HubSpot inside `BEGIN`/`COMMIT` exhaust the connection pool. Move to deferred actions. Five documented exceptions exist with `Promise.race()` 5s timeout and `// NOTE: Must stay in transaction` comments.
+4. **Deferred actions never roll back committed data.** Each deferred action is wrapped in try/catch. Failures are logged but never propagate.
+5. **Deferred actions must NOT move money.** Any operation that creates/transfers/destroys money MUST be in the handler body with an idempotency key. Deferred actions already returned 200 — Stripe won't retry.
+6. **Ghost reactivation blocked.** `subscription.created` after `subscription.deleted` for the same resource is blocked to prevent reactivating cancelled members.
+7. **Subscription ID match guard on invoice failures.** `handleInvoicePaymentFailed` checks that the invoice's subscription matches the user's current `stripe_subscription_id`. Stale invoices from old subscriptions are skipped.
+8. **Grace period is 3 days.** Default `DEFAULT_GRACE_PERIOD_DAYS = 3`, configurable via `scheduling.grace_period_days`.
+9. **Cascade must NOT overwrite sub-member billing_provider.** Group status cascades only change `membership_status` and `updated_at` — never force `billing_provider = 'stripe'` on sub-members.
+10. **Event dedup via `webhook_processed_events`.** `tryClaimEvent` uses `INSERT ON CONFLICT DO NOTHING`. If `rowCount === 0`, event already processed → skip.
+11. **Async payment handlers must maintain payload parity.** Any change to the synchronous checkout handler must be mirrored in `handleCheckoutSessionAsyncPaymentSucceeded`.
 
-All handler work runs inside a single PostgreSQL transaction (`BEGIN` / `COMMIT`). If any handler throws, the transaction is rolled back and the error propagates to Stripe (which will retry).
+## Anti-Patterns (NEVER)
 
-The dispatch is a chain of `if/else if` blocks matching `event.type` to handler functions. See `references/event-handling.md` for the complete mapping.
+1. NEVER make Stripe/HubSpot API calls inside a DB transaction without the 5s `Promise.race()` timeout.
+2. NEVER put money-moving operations in deferred actions.
+3. NEVER overwrite `billing_provider` during group cascade updates.
+4. NEVER skip the `billing_provider` guard — non-Stripe members must not have their status changed by Stripe events.
+5. NEVER use `express.json()` on the webhook route — it destroys the raw buffer needed for signature verification.
+6. NEVER process a `subscription.created` event that arrives after `subscription.deleted` for the same subscription.
 
-### 5. The Deferred Action Pattern
+## Cross-References
 
-Every handler returns `DeferredAction[]` — an array of async closures. These represent non-critical side effects:
+- **Member status transitions** → `member-lifecycle` skill
+- **Fee calculation after payment events** → `fee-calculation` skill
+- **Group billing operations** → `member-lifecycle` skill (Group Billing section)
+- **HubSpot sync from webhooks** → `hubspot-sync` skill
+- **Booking invoice lifecycle** → `fee-calculation` skill (Invoice Lifecycle section)
 
-- Transaction cache updates (`upsertTransactionCache`)
-- WebSocket broadcasts (`broadcastBillingUpdate`)
-- Notifications (member + staff)
-- Email sends (receipts, failed payment alerts)
-- Audit log entries (`logSystemAction`)
-- HubSpot syncs (`syncMemberToHubSpot`, `handleTierChange`)
+## Detailed Reference
 
-Deferred actions run AFTER the transaction commits via `executeDeferredActions()`. Each action is wrapped in try/catch — a deferred action failure is logged but never rolls back the committed transaction.
+- **[references/event-handling.md](references/event-handling.md)** — Complete event type → handler mapping, subscription status mapping table, checkout session routing, product catalog sync, payment retry/dunning.
+- **[references/hubspot-bridge.md](references/hubspot-bridge.md)** — HubSpot sync triggered by webhook handlers, deal stage updates, company sync.
 
-### Webhook Dedup Table Cleanup
-
-After deferred actions execute, `cleanupOldProcessedEvents()` is called probabilistically (5% of webhooks) to delete `webhook_processed_events` rows older than 7 days. This fire-and-forget call prevents unbounded table growth without impacting webhook latency. Errors are logged but never propagated.
-
-Critical operations (DB writes, status changes, booking payment updates) happen INSIDE the transaction. Non-critical operations (notifications, emails, syncs) are deferred.
-
-**Webhook Response Timing:** Currently, the webhook handler awaits full processing before returning 200. The `tryClaimEvent()` dedup mechanism prevents double-processing on Stripe retries. However, if processing takes >30s, Stripe may timeout and retry. The deferred actions pattern keeps heavy work (notifications, CRM sync) after COMMIT but still before the HTTP response. This is a known trade-off — moving to fully async processing would require a job queue.
-
-Some operations use `queueJobInTransaction(client, jobType, payload, options)` to enqueue jobs that run asynchronously via the job queue system. These jobs are inserted within the transaction but executed later by a worker.
-
-### Transaction Safety: No External API Calls Inside Transactions (v8.12.0)
-
-**RULE: Never make HTTP calls (Stripe API, HubSpot, etc.) inside a BEGIN/COMMIT transaction block.**
-
-External API calls hold the database connection while waiting for a network response. During high-traffic periods (subscription renewal batches), this exhausts the connection pool and causes cascading failures.
-
-**Enforced patterns:**
-
-1. **Replace with DB query** — If checking Stripe resource status, query the local database instead. Example: `handleInvoicePaymentFailed` checks `users.membership_status` instead of calling `stripe.subscriptions.retrieve()`.
-2. **Move to deferred action** — Non-critical enrichment (phone fetch for HubSpot, product name lookups for tier matching) should be pushed to `deferredActions[]` and run after COMMIT.
-3. **Timeout wrapper** — If an external call is unavoidable inside a transaction (e.g., customer retrieve for new user creation), wrap it with `Promise.race()` and a 5-second timeout to prevent indefinite blocking.
-
-### Documented In-Transaction Exceptions (v8.12.0)
-
-Five legitimate Stripe/external API calls have been audited and approved to stay inside transactions because their results are required for immediate DB writes:
-
-1. **`stripe.customers.retrieve()` in `handleSubscriptionCreated`** — When creating a new user from a subscription event (no matching user exists), the customer email and name are required to populate the user record. This call is unavoidable.
-
-2. **`stripe.products.retrieve()` in `handleSubscriptionUpdated`** — When tier matching via `price_id` fails (product may have been deleted), the product name is fetched as a fallback to attempt legacy name-based matching. Required before DB writes to `users.tier`.
-
-3. **`stripe.paymentMethods.list()` in `handlePaymentMethodDetached`** — Determines the count of remaining payment methods on the customer. If zero, `requires_card_update` must be set to `true` on the user record in the same transaction.
-
-4. **`syncCompanyToHubSpot()` in `handleCheckoutSessionCompleted`** — Syncs a new company to HubSpot and returns `hubspotCompanyId`. This ID must be written to both `users.hubspot_company_id` and `billing_groups.hubspot_company_id` in the same transaction.
-
-5. **`stripe.prices.retrieve()` in `guestPassConsumer.ts`** — Fetches the guest pass Stripe price to determine `cached_fee_cents` for the booking participant record. The fee amount must be written to `booking_participants.cached_fee_cents` in the same transaction to maintain consistency.
-
-### Timeout Wrapper Pattern
-
-Every in-transaction exception MUST be wrapped with `Promise.race()` and a 5-second timeout to prevent indefinite network blocking:
-
-```typescript
-// NOTE: Must stay in transaction - result needed for DB writes (reason why)
-const result = await Promise.race([
-  stripe.someApi.call(params),
-  new Promise<never>((_, reject) => 
-    setTimeout(() => reject(new Error('Description timed out after 5s')), 5000)
-  )
-]) as ExpectedType;
-```
-
-Every documented exception MUST have BOTH:
-- A `// NOTE: Must stay in transaction - result needed for DB writes (reason)` comment explaining why the call cannot be deferred
-- A 5-second `Promise.race()` timeout wrapper to prevent connection pool exhaustion during high-traffic periods
-
-### broadcastBillingUpdate
-
-`broadcastBillingUpdate()` is a **local WebSocket broadcast** (not an external HTTP call to an external service). It pushes real-time updates to connected staff/admin clients.
-
-Because it does **NOT** make external API calls, it does **NOT** need to be deferred and can safely be called inside or outside transactions. It is lightweight and non-blocking.
-
-Note: `broadcastBillingUpdate()` calls are sometimes placed in deferred actions for organizational clarity (to group side effects together), but this is optional — they can be called inline within a transaction without risk of connection pool exhaustion.
-
-## The "Stripe Wins" Rule
-
-When `billing_provider = 'stripe'`, Stripe is the authoritative source for `membership_status` and `tier`.
-
-### How It Works
-
-Every subscription and invoice handler checks `billing_provider` before modifying the user:
-
-```
-1. Look up user by stripe_customer_id
-2. Read user.billing_provider
-3. If billing_provider is set AND billing_provider !== 'stripe' → SKIP the update
-4. Log: "Skipping [event] for {email} — billing_provider is '{provider}', not 'stripe'"
-```
-
-This guard appears in:
-- `handleSubscriptionUpdated` — skips status/tier changes
-- `handleSubscriptionPaused` — skips freeze
-- `handleSubscriptionResumed` — skips unfreeze
-- `handleSubscriptionDeleted` — skips cancellation
-- `handleSubscriptionCreated` (existing user path) — skips if billing_provider is not stripe
-- `handleInvoicePaymentSucceeded` — skips grace period clearing
-- `handleInvoicePaymentFailed` — skips grace period start
-- `handleInvoicePaymentFailed` — skips grace period if billing_provider is not stripe, AND skips if invoice's subscription doesn't match user's current subscription
-
-### Why It Prevents Loops
-
-Members billed through Mindbody, manual, or comped billing providers have their `billing_provider` set to something other than `'stripe'`. Without this guard, a stale Stripe subscription event could overwrite their status — e.g., marking a Mindbody member as "cancelled" because their old Stripe subscription expired.
-
-### Sub-Member Billing Provider Guard
-
-Group billing operations (family/corporate) also check billing_provider before propagating status to sub-members:
-
-```sql
-AND (u.billing_provider IS NULL OR u.billing_provider = '' OR u.billing_provider = 'stripe' OR u.billing_provider = 'family_addon')
-```
-
-This protects sub-members who have their own non-Stripe billing arrangement.
-
-## Subscription Sync Race Condition Guard
-
-When `handleSubscriptionCreated` processes a new subscription for an existing user, it uses a conditional update pattern:
-
-```sql
-UPDATE users SET
-  membership_status = CASE
-    WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member') THEN $status
-    ELSE membership_status
-  END
-WHERE LOWER(email) = LOWER($email)
-```
-
-This prevents a `subscription.created` webhook from overwriting a status that was set by a later event (e.g., if `subscription.updated` with `status=active` arrived and was processed before `subscription.created`).
-
-Similarly, `handleSubscriptionDeleted` includes a subscription ID match guard:
-
-```sql
-WHERE LOWER(email) = LOWER($1) AND (stripe_subscription_id = $2 OR stripe_subscription_id IS NULL)
-```
-
-This prevents cancellation of a user who has already been assigned a newer subscription.
-
-## MindBody → Stripe Migration Webhook Handling
-
-When `handleSubscriptionCreated` processes a new subscription, it checks `subscription.metadata.migration === 'true'` to detect migration subscriptions.
-
-### Migration Subscription Metadata
-
-Migration subscriptions are created with specific metadata that identifies them:
-
-| Key | Value | Purpose |
-|-----|-------|---------|
-| `tier_slug` | e.g. `premium` | The tier being migrated to |
-| `tier_name` | e.g. `Premium Membership` | Human-readable tier name |
-| `migration` | `'true'` | Flags this as a migration subscription |
-| `source` | `'even_house_app'` | Identifies the app as the origin |
-
-### Webhook Processing for Migrations
-
-When `handleSubscriptionCreated` detects `metadata.migration === 'true'`:
-
-1. Sets `migration_status = 'completed'` on the user record
-2. The user's `billing_provider` is already `'stripe'` at this point — it was flipped from `'mindbody'` to `'stripe'` before the subscription was created in the migration initiation step
-3. Standard subscription processing continues (status sync, tier assignment, HubSpot sync)
-4. Deferred actions send migration-completed notifications to both staff and member
-
-This means the billing_provider guard in `handleSubscriptionCreated` will NOT skip this user, since `billing_provider` is already `'stripe'` when the webhook fires.
+---
 
 ## Subscription Status Mapping
-
-Stripe subscription statuses map to app membership statuses:
 
 | Stripe Status | App Status |
 |---|---|
@@ -268,253 +110,43 @@ Stripe subscription statuses map to app membership statuses:
 | `incomplete` | `pending` |
 | `incomplete_expired` | `pending` |
 
-## Group Billing Cascade
+## Resource-Based Event Ordering
 
-Subscription status changes cascade to sub-members in billing groups:
+Each event type has a priority number. If the last processed event for a resource has a HIGHER priority, the incoming event is blocked:
 
-- `active` → reactivate all suspended/past_due sub-members
-- `past_due` → mark all active sub-members as past_due
-- `unpaid` → suspend all active sub-members
-- `deleted` → `handlePrimarySubscriptionCancelled(subscriptionId)` deactivates group members
-
-Each cascade respects the billing provider guard — sub-members with non-Stripe billing are not affected.
-
-**RULE (v8.51.0): Cascade UPDATEs must NOT overwrite sub-member `billing_provider`.** Sub-members may have `billing_provider = 'family_addon'` or `'corporate'`. The cascade only changes `membership_status` and `updated_at` — never forces `billing_provider = 'stripe'` on sub-members. Doing so destroys their billing type label and causes data integrity check failures (Stripe billing provider with no subscription ID).
-
-## Invoice Grace Period System
-
-`handleInvoicePaymentFailed` starts a grace period:
-- Sets `grace_period_start` and `grace_period_email_count` on the user
-- Only applies when `billing_provider = 'stripe'`
-- Grace period lasts 3 days by default (configurable via `scheduling.grace_period_days` setting) before termination
-
-`handleInvoicePaymentSucceeded` clears the grace period:
-- Resets `grace_period_start = NULL` and `grace_period_email_count = 0`
-- Restores tier from price ID if available
-- Only applies when `billing_provider = 'stripe'`
-
-## Payment Retry and Dunning
-
-`handlePaymentIntentFailed` tracks retry attempts:
-- `MAX_RETRY_ATTEMPTS = 3`
-- Increments `retry_count` on `stripe_payment_intents`
-- After 3 failures, sets `requires_card_update = true`
-- Sends escalating notifications to member and staff
-
-## Supporting Stripe Services
-
-The webhook system relies on several supporting services. These are not triggered by webhooks themselves, but are called by webhook handlers or used for data validation:
-
-### `groupBilling.ts` — Family & Corporate Billing Groups
-Manages group subscriptions where a primary account pays for sub-members (family or corporate teams). When a primary subscription status changes, cascades updates to all active group members (respecting their billing provider). Syncs family coupon (`FAMILY20`) and group add-on products to Stripe. Used by `handleSubscriptionUpdated` and `handleSubscriptionDeleted`.
-
-### `discounts.ts` — Discount Rule Sync
-Syncs discount rules from the local `discount_rules` table to Stripe coupons. Each rule becomes a coupon with ID format `{TAG}_{PERCENT}PCT`. Called manually via admin routes but also referenced by `handleCouponUpdated` to detect family discount changes. Enables staff to manage discount codes that apply to checkouts.
-
-### `invoices.ts` — Invoice Creation & Management
-CRUD operations for one-time invoices (outside subscriptions): create draft, add line items, finalize, send, void, charge one-time fees. Automatically applies customer balance credits before charging the card. Used by webhook handlers (`handleInvoicePaymentSucceeded`, `handleInvoicePaymentFailed`) to track invoice state and by `handleCheckoutSessionCompleted` for add_funds and day pass purposes.
-
-### `paymentRepository.ts` — Payment Queries
-Query interfaces for admin dashboards: `getRefundablePayments()` (succeeded in last 30 days), `getFailedPayments()` (failed/requires_action), `getPendingAuthorizations()` (pre-authorized/incomplete). Provides visibility into payment status without hitting Stripe API repeatedly.
-
-### `customerSync.ts` — MindBody Customer Metadata Sync
-Updates Stripe customer metadata for users with `billing_provider = 'mindbody'` to keep tier and billing info synchronized. Detects and clears stale customer IDs if they've been deleted in Stripe. Prevents out-of-date metadata from influencing webhook logic.
-
-### `environmentValidation.ts` — Stripe Environment Validation
-Startup task that validates stored Stripe IDs (products, prices, subscription IDs) actually exist in the current Stripe account. Clears stale IDs if environment changed (e.g., test → production). Warns if subscription tiers or cafe items lost their Stripe links. Prevents webhooks from failing due to invalid resource references.
-
-### `transactionCache.ts` — Transaction Cache
-Lightweight local cache of Stripe transactions (payments, invoices, refunds) for reconciliation reporting and audit logs. Currently a stub; full implementation planned. Deferred actions upsert into this cache after each webhook commit so admins can see transaction history without querying Stripe API.
-
-## Product Catalog Sync
-
-Product/price webhooks keep the local catalog in sync with Stripe:
-
-- `product.updated` → update `membership_tiers.highlighted_features` from marketing features, update cafe items
-- `product.created` → trigger `pullTierFeaturesFromStripe()` if matched to a tier
-- `product.deleted` → clear Stripe references from tier, deactivate cafe items
-- `price.updated/created` → update `cafe_items.price` and `membership_tiers.price_cents`, update overage/guest fee configs
-- `coupon.updated/created` → update family discount percent for `FAMILY20` coupon
-
-## Checkout Session Handling
-
-`handleCheckoutSessionCompleted` routes based on `session.metadata`:
-
-1. **`purpose === 'add_funds'`** — Credit member's Stripe customer balance via `stripe.customers.createBalanceTransaction()`, send receipt email, notify staff
-2. **`company_name` present** — Sync company to HubSpot via `syncCompanyToHubSpot`, update user and billing_group with `hubspot_company_id`
-3. **`source === 'activation_link'`** — Activate pending user: set `membership_status = 'active'`, `billing_provider = 'stripe'`, attach `stripe_customer_id` and `stripe_subscription_id`. Sync contact and deal to HubSpot.
-4. **`source === 'staff_invite'`** — Resolve user via `resolveUserByEmail` (handles linked emails). If user exists, update Stripe customer ID and activate. If not, check `sync_exclusions` (permanently deleted users), then create new user. Auto-unarchive if archived. Sync to HubSpot. Mark `form_submissions` as converted.
-5. **`purpose === 'day_pass'`** — Record day pass via `recordDayPassPurchaseFromWebhook`, send QR code email via `sendPassWithQrEmail`, notify staff, broadcast day pass update, queue HubSpot sync via `queueDayPassSyncToHubSpot`
-
-### Async Payment Handlers
-
-`handleCheckoutSessionAsyncPaymentSucceeded` handles delayed payment methods (ACH, Klarna, Affirm). For day pass purchases, it must:
-
-1. Extract the same metadata fields as the synchronous handler (`product_slug`, `email`, `first_name`, `last_name`, `phone`)
-2. Call `recordDayPassPurchaseFromWebhook()` with the correct object payload (NOT positional args)
-3. **Throw** on failure so Stripe retries the webhook — never silently swallow errors for financial operations
-
-**Rule**: Async payment handlers must maintain **payload parity** with their synchronous counterparts. Any change to the synchronous handler's payload construction must be mirrored in the async handler.
-
-## Linked Email Resolution
-
-Several checkout handlers use `resolveUserByEmail(email)` from `customers.ts` to find users who may have registered with a different email. This handles cases where a member's Stripe email differs from their app email (e.g., personal vs. work email). The resolution returns:
-- `userId` — the matched user's ID
-- `primaryEmail` — the canonical email
-- `matchType` — `'direct'` or the type of linked email match
-
-## Sync Exclusions
-
-Before creating a new user from a webhook, handlers check the `sync_exclusions` table:
-
-```sql
-SELECT 1 FROM sync_exclusions WHERE email = $1
+```
+Payment:      created(1) → processing(2) → requires_action(3) → succeeded/failed(10) → refunded(20)
+Invoice:      created(1) → finalized(2) → payment_succeeded/failed(10) → paid(11) → voided(20)
+Subscription: created(1) → updated(5) → paused(8) → resumed(9) → deleted(20)
 ```
 
-If a match is found, the user was permanently deleted and should not be recreated. The webhook logs this and skips user creation.
+## Migration Webhook Handling
 
-## Event Replay
+Migration subscriptions have `metadata.migration === 'true'`. When detected in `handleSubscriptionCreated`:
+- Sets `migration_status = 'completed'`
+- `billing_provider` is already `'stripe'` (flipped during migration initiation)
+- Standard subscription processing continues
 
-`replayStripeEvent(eventId, forceReplay)` re-fetches an event from Stripe and re-processes it through the same pipeline. With `forceReplay = false`, it respects dedup (won't re-process already-claimed events). With `forceReplay = true`, it skips the claim check but still respects resource ordering to prevent out-of-order processing.
+## Checkout Session Routing
 
-Replay is exposed via `POST /api/admin/stripe/replay-webhook` (admin-only).
+`handleCheckoutSessionCompleted` routes on `session.metadata`:
 
-## Transaction Cache
+| Metadata | Action |
+|---|---|
+| `purpose === 'add_funds'` | Credit member's Stripe balance, send receipt |
+| `company_name` present | Sync company to HubSpot, update billing group |
+| `source === 'activation_link'` | Activate pending user |
+| `source === 'staff_invite'` | Resolve via linked emails, create/activate user |
+| `purpose === 'day_pass'` | Record day pass, send QR email |
 
-Every payment, invoice, refund, and charge event upserts into `stripe_transaction_cache` via deferred `upsertTransactionCache()`. This local cache enables reconciliation reporting without hitting the Stripe API.
+## Supporting Services
 
-## Reconciliation
-
-`reconcileDailyPayments()` in `reconciliation.ts` scans Stripe for succeeded payment intents from the last 24 hours, compares against the local `stripe_payment_intents` table, and heals any missing or mismatched records by calling `confirmPaymentSuccess()`.
-
-`reconcileSubscriptions()` cross-references active DB members against their Stripe subscription status to detect drift.
-
-## Audit Findings (Feb 2026)
-
-### Error Handling Audit Results
-A comprehensive code-reviewer audit confirmed:
-- **Zero empty catch blocks** across all webhook handlers — every catch re-throws, logs via `logger.error`/`logger.warn`, or uses `safeDbOperation()`
-- **Financial operation errors always propagate** — async day pass, payment intents, invoice finalization all throw on failure to enable Stripe retry
-- **Savepoint usage in batch operations** (trackman/admin.ts) uses internally-generated names (`sp_${counter}`), NOT user input — verified safe from SQL injection
-
-### Deferred Action Error Isolation
-Deferred actions (HubSpot sync, email, notifications) execute AFTER the database transaction commits. Errors in deferred actions are logged but never propagate back to the webhook response — this is by design, to prevent non-critical side-effect failures from triggering unnecessary Stripe retries.
-
-### Billing Provider Guard Coverage
-The following handlers include `billing_provider` guards:
-- `handleCustomerSubscriptionUpdated` — skips if billing_provider ≠ stripe
-- `handleCustomerSubscriptionDeleted` — skips if billing_provider ≠ stripe  
-- `handleInvoicePaymentFailed` — skips if billing_provider ≠ stripe, AND skips if invoice's subscription doesn't match user's current subscription
-- `handleInvoicePaymentSucceeded` — skips if billing_provider ≠ stripe
-
-Handlers that do NOT need billing_provider guards (they operate on Stripe-specific resources):
-- `handlePaymentIntentSucceeded` — operates on payment intents, always from Stripe
-- `handleChargeRefunded` — operates on charges, always from Stripe
-- `handleCheckoutSessionCompleted` — operates on checkout sessions, always from Stripe
-
-### Drizzle SQL Template Literal Safety (Feb 2026)
-
-**RULE: Always coalesce `undefined` to `null` in Drizzle `sql` template literals.**
-
-When optional parameters are `undefined`, Drizzle's `sql` tagged template literal produces empty SQL placeholders (e.g., `$7, , $8`) instead of NULL, causing query syntax errors. This was discovered in production via Trackman webhook handlers.
-
-**Fix pattern:**
-```typescript
-// BAD — undefined produces empty placeholder
-sql`INSERT INTO table (col) VALUES (${optionalValue})`
-
-// GOOD — coalesce to null
-sql`INSERT INTO table (col) VALUES (${optionalValue ?? null})`
-```
-
-**Affected files (fixed Feb 2026):**
-- `server/routes/trackman/webhook-billing.ts` — `updateBaySlotCache()`: `customerEmail`, `customerName` params
-- `server/routes/trackman/webhook-validation.ts` — `logWebhookEvent()`: `trackmanUserId`, `matchedBookingId`, `matchedUserId`, `error` params
-
-Apply this rule to ALL `sql` template literals where optional/nullable values are interpolated.
-
-### Overpayment Auto-Refund (v8.26.7, Bug 23)
-
-When `handlePaymentIntentSucceeded` processes a fee snapshot payment, it checks each participant's current `payment_status`. If a participant is already `paid` or `waived` (e.g., staff marked them as paid via cash while the Stripe checkout was still loading), that participant is skipped.
-
-**Before v8.26.7:** The webhook logged a warning and flagged the session for manual review, but kept the Stripe payment — silently double-charging the member.
-
-**After v8.26.7:** The webhook automatically issues a Stripe refund:
-- **All participants already paid** (`validatedParticipantIds.length === 0`): Full refund of the Payment Intent, reason `'duplicate'`, metadata `reason: 'all_participants_already_paid'`.
-- **Some participants already paid**: Partial refund for the overpayment amount (payment minus unpaid total), reason `'duplicate'`, metadata `reason: 'partial_participants_already_paid'`.
-
-Both refund paths run as deferred actions (after COMMIT). If the refund fails (e.g., Stripe error), the session is flagged `needs_review = true` with the error details for staff manual resolution.
-
-Both refund calls include deterministic idempotency keys (v8.51.0): `refund_overpayment_full_${paymentIntentId}_${bookingId}` and `refund_overpayment_partial_${paymentIntentId}_${bookingId}_${overpaymentCents}`. This prevents duplicate refunds if the webhook retries after a network timeout.
-
-**Rule:** When a webhook payment handler detects that work is already done (participant already paid, subscription already active, etc.), it must UNDO the financial side effect (refund), not just skip the database update.
-
-### Terminal Payment Refund Handling (v8.52.0)
-
-When `voidBookingInvoice` processes a paid invoice, it resolves the `paymentIntentId` from `invoice.payment_intent` OR from `invoice.metadata.terminalPaymentIntentId`. Invoices paid out-of-band via the physical card reader have no native `payment_intent` — without checking metadata, the system falls into the balance-credit branch and gives store credit instead of a real card refund.
-
-**Rule:** When resolving a payment intent for refund, always check `invoice.metadata.terminalPaymentIntentId` as a fallback after `invoice.payment_intent`.
-
-### add_funds Must Not Be Deferred (v8.53.0)
-
-The `createBalanceTransaction` call for `add_funds` checkout sessions must execute inside the main webhook handler (not as a deferred action). If the Stripe API call fails, the webhook must return 500 so Stripe retries. Only notifications and emails should be deferred. This is an **approved exception** to the "no external API in handlers" rule because the financial operation has an idempotency key (`add_funds_${sessionId}`) and must not be silently lost.
-
-**Rule:** Any deferred action that creates, transfers, or destroys money must be moved into the main handler with an idempotency key. Only notifications, emails, and cache updates belong in deferred actions.
-
-### 3D Secure Broadcast Accuracy (v8.54.0)
-
-When `finalizeAndPayInvoice` pays an invoice off-session and the bank requires 3D Secure (`pi.status === 'requires_action'`), the WebSocket broadcast must send `payment_requires_action` — NOT `payment_confirmed`. The frontend listens for `invoice_paid` and `payment_confirmed` to trigger the success UI; sending `payment_confirmed` for a `requires_action` PI causes staff to see a false payment success.
-
-**Rule:** All booking invoice WebSocket broadcasts must accurately reflect the Stripe PI status. Map `succeeded` → `invoice_paid`, `requires_action` → `payment_requires_action`, other → `payment_confirmed`.
-
-### Fallback Query Row Locking (v8.54.0)
-
-The booking-fee fallback path in `handlePaymentIntentSucceeded` (when no `feeSnapshotId` exists) must use `FOR UPDATE` on the `booking_participants` SELECT. Without it, concurrent webhook retries can both read the same pending participants and attempt to double-process them.
-
-**Rule:** Any SELECT used to find rows that will be updated in the same transaction must include `FOR UPDATE` to prevent concurrent processing.
-
-### Day Pass Deferred Action Pattern (v8.26.7, Bug 18)
-
-Day pass purchases from `handleCheckoutSessionCompleted` and `handleCheckoutSessionAsyncPaymentSucceeded` record the purchase via `recordDayPassPurchaseFromWebhook()` as a **deferred action** (runs after COMMIT), not inside the webhook transaction. This ensures the day pass recording doesn't hold the transaction open during Stripe API calls, and the existing idempotency protection in `recordDayPassPurchaseFromWebhook` prevents duplicates if Stripe retries.
-
-### Day Pass Financial Integrity (Feb 2026)
-
-Three gaps were closed in day pass financial reporting:
-
-1. **Double-counting prevention**: The financials query (`server/routes/financials.ts`) now excludes `stripe_transaction_cache` entries whose `stripe_payment_intent_id` matches a `day_pass_purchases` record. `day_pass_purchases` is the single source of truth for day pass transactions.
-
-2. **Transaction cache resilience**: `handleCheckoutSessionCompleted` now calls `upsertTransactionCache()` for day pass purchases, ensuring the transaction cache is populated even if the `payment_intent.succeeded` webhook fails or arrives late.
-
-3. **Unique constraint**: Partial unique index `day_pass_purchases_stripe_pi_unique` on `stripe_payment_intent_id WHERE stripe_payment_intent_id IS NOT NULL` prevents duplicate day pass records from webhook retries.
-
-### Async Webhook Payload Parity (Feb 2026 — Expanded)
-
-`handleCheckoutSessionAsyncPaymentSucceeded` was calling `recordDayPassPurchaseFromWebhook(client, session)` with wrong arguments (positional instead of object payload). Fixed to pass the same object payload as the synchronous handler. This enforces the existing rule that async handlers must maintain **payload parity** with their synchronous counterparts.
-
-### Late-Arriving Invoice Guard (Feb 2026)
-
-`handleInvoicePaymentFailed` now verifies the invoice's `subscription` field matches the user's current `stripe_subscription_id` before applying `past_due` status. This prevents old subscription invoices from downgrading members who have already started a new subscription.
-
-### Out-of-Order Refund Protection (Feb 2026)
-
-`handleChargeRefunded` uses `GREATEST(COALESCE(refund_amount_cents, 0), $newAmount)` to prevent lower cumulative refund amounts from overwriting higher ones when webhooks arrive out of order.
-
-### Booking Fee Row Locking (Feb 2026)
-
-The `booking_participants` fallback query in `handlePaymentIntentSucceeded` now includes `FOR UPDATE` to prevent concurrent webhook retries from racing on the same booking fee record.
-
-### Lock Ordering Rule (v8.51.0)
-
-**RULE: All webhook handlers must lock `users` before `hubspot_deals`.** When `subscription.created` and `invoice.payment_succeeded` fire simultaneously for the same member, both handlers run in parallel transactions. If they update tables in opposite order, PostgreSQL detects a deadlock and kills one transaction. Standardized order: `users` first, then `hubspot_deals`.
-
-`handleInvoicePaymentSucceeded` was fixed in v8.51.0 — previously updated `hubspot_deals` before `users`. Now updates `users` first (grace period clearing, billing provider) then `hubspot_deals` (payment status).
-
-### Deferred Variable Scoping Rule (v8.51.0)
-
-**RULE: Deferred action closures must capture finalized canonical variables, not raw payload variables.** In `handleSubscriptionCreated`, the canonical variables (`email`, `first_name`, `last_name`) are assigned from different sources depending on whether the user exists. Deferred actions must reference these finalized values (set after both code paths merge), not the intermediate `customerEmail`/`firstName`/`lastName` variables from the Stripe payload. This prevents silent sync mismatches if email normalization or name resolution logic changes.
-
-## Key References
-
-- `references/event-handling.md` — Complete event type → handler → downstream effects mapping
-- `references/hubspot-bridge.md` — How webhook events sync to HubSpot
-- `billing-stripe-expert` skill — The 10 Commandments of billing and billing provider rules
+| Service | File | Purpose |
+|---|---|---|
+| Group Billing | `groupBilling.ts` | Family/corporate cascade, coupon sync |
+| Discounts | `discounts.ts` | Discount rule → Stripe coupon sync |
+| Invoices | `invoices.ts` | One-time invoice CRUD, balance credit application |
+| Payment Queries | `paymentRepository.ts` | Admin dashboard payment queries |
+| Customer Sync | `customerSync.ts` | MindBody customer metadata sync |
+| Environment Validation | `environmentValidation.ts` | Startup Stripe ID validation |
+| Transaction Cache | `transactionCache.ts` | Local payment history cache |

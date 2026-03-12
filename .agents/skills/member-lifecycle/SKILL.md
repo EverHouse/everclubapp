@@ -1,392 +1,151 @@
 ---
 name: member-lifecycle
-description: Member status transitions, onboarding flow, cancellation, reactivation, grace periods, tier changes, application pipeline, and membership state machine for the Ever Club Members App.
+description: Member status transitions, onboarding flow, cancellation, reactivation, grace periods, tier changes, application pipeline, and membership state machine for the Ever Club Members App. Use when modifying member status, tier changes, billing provider logic, onboarding steps, grace period handling, group billing, MindBody migration, subscription creation, or member sync.
 ---
 
 # Member Lifecycle
 
-## State Machine Overview
+## File Map
 
-Every member has a `membership_status` column in the `users` table. The following values are valid:
+| Task | Primary File(s) | When to touch |
+|---|---|---|
+| Login + auto-fix | `server/routes/auth.ts` | Login flow, Stripe status correction |
+| Member service | `server/core/memberService/MemberService.ts` | Member lookup, cache |
+| Member cache | `server/core/memberService/memberCache.ts` | Cache config, invalidation |
+| Email change | `server/core/memberService/emailChangeService.ts` | `cascadeEmailChange()` |
+| Member types | `server/core/memberService/memberTypes.ts` | `MemberRecord`, identifier utils |
+| Member sync (HubSpot) | `server/core/memberSync.ts` | Daily inbound sync |
+| Subscription sync | `server/core/stripe/subscriptionSync.ts` | Stripe → DB reconciliation |
+| Subscription creation | `server/core/stripe/subscriptions.ts` | New subscription safeguards |
+| Billing migration | `server/core/stripe/billingMigration.ts` | MindBody → Stripe migration |
+| Group billing | `server/core/stripe/groupBilling.ts` | Family/corporate billing |
+| Grace period | `server/schedulers/gracePeriodScheduler.ts` | Failed payment follow-up |
+| Onboarding | `server/routes/members/onboarding.ts` | 4-step checklist |
+| Application pipeline | `server/routes/members/applicationPipeline.ts` | Membership applications |
+| Admin actions | `server/routes/members/admin-actions.ts` | Staff tier/status changes |
+| Member billing | `server/routes/memberBilling.ts` | Billing tab, migration API |
+| Welcome emails | `server/emails/welcomeEmail.ts`, `trialWelcomeEmail.ts` | Onboarding emails |
+| Nudge scheduler | `server/schedulers/onboardingNudgeScheduler.ts` | Stalled member nudges |
+
+## Decision Trees
+
+### What controls a member's status?
+
+```
+What is billing_provider?
+├── 'stripe' → Stripe is authoritative (webhooks + login auto-fix)
+├── 'mindbody' → HubSpot can update status (MindBody pushes to HubSpot)
+│   └── Status changes from active → non-active?
+│       ├── migration_status = 'pending'? → SKIP cascade (stay active)
+│       └── Otherwise → Deactivation cascade: tier=NULL, billing_provider='stripe'
+├── 'manual' / 'comped' → Staff-managed, webhooks skip
+└── 'family_addon' → Group billing cascade from primary
+```
+
+### Subscription cancellation → what status?
+
+```
+Was the member trialing?
+├── Yes → status = 'paused' (account preserved, booking blocked)
+└── No → status = 'cancelled', tier → last_tier, tier = NULL
+    └── Primary on billing group?
+        ├── Yes → Deactivate all sub-members + group
+        └── No → Just this member
+```
+
+### Grace period flow
+
+```
+invoice.payment_failed webhook fires
+  → billing_provider = 'stripe'? (if not, skip)
+  → Set grace_period_start = NOW(), status = 'past_due'
+  → Scheduler runs daily at 10 AM Pacific
+    ├── Send up to 3 emails (1/day) with billing portal link
+    └── After 3 days + 3 emails → status = 'terminated', tier = NULL
+```
+
+## Hard Rules
+
+1. **App DB is the primary brain.** The database is source of truth for `membership_status`, `tier`, `role`, `billing_provider`. HubSpot only provides profile fill-in data (name, phone, address).
+2. **Stripe Wins.** When `billing_provider = 'stripe'`, Stripe is authoritative. All webhook handlers check and bail if `billing_provider != 'stripe'`.
+3. **Default billing_provider is `'stripe'`.** Schema default, db-init ALTER, and explicit setting in creation paths.
+4. **Staff = VIP.** Staff/admin/golf_instructor auto-set to `tier = 'VIP'`, `status = 'active'` on every login. $0 booking fees.
+5. **Email is primary identifier.** All lookups normalize to lowercase. `findByEmail` checks `users.email`, `trackman_email`, and `linked_emails` JSONB.
+6. **Grace period is 3 days.** `DEFAULT_GRACE_PERIOD_DAYS = 3`, configurable via `scheduling.grace_period_days`.
+7. **Group billing rollback completeness.** Add failure → reset `membership_status = 'pending'` AND `tier = NULL`. Remove → set `cancelled`, save `last_tier`. Lock ordering: `billing_groups` FOR UPDATE before `group_members`.
+8. **Group creation atomicity.** INSERT `billing_groups` + UPDATE `users.billing_group_id` in single `db.transaction()`.
+9. **Cascade must NOT overwrite sub-member billing_provider.** Only change `membership_status` and `updated_at`.
+10. **Subscription creation safeguards.** Rate limiter + per-email operation lock + idempotency keys + existing subscription reuse.
+11. **Migration-pending members skip deactivation cascade.** `migration_status = 'pending'` blocks MindBody deactivation during HubSpot sync.
+12. **Email change uses `cascadeEmailChange()`.** Updates all tables atomically. NEVER update email in a single table.
+13. **Reactivation clears archived flag.** `archived = false`, `archived_at = NULL` when member reactivated.
+
+## Anti-Patterns (NEVER)
+
+1. NEVER overwrite status/tier from HubSpot for Stripe-billed members (Stripe Wins rule).
+2. NEVER overwrite visitor role from HubSpot sync.
+3. NEVER update member email in a single table — use `cascadeEmailChange()`.
+4. NEVER overwrite sub-member `billing_provider` during group status cascade.
+5. NEVER create a billing group without wrapping INSERT + user UPDATE in a transaction.
+6. NEVER skip the per-email operation lock during subscription creation.
+
+## Cross-References
+
+- **Stripe webhook status changes** → `stripe-webhook-flow` skill
+- **HubSpot sync rules** → `hubspot-sync` skill
+- **Grace period scheduler** → `scheduler-jobs` skill
+- **Booking fee impact of tier** → `fee-calculation` skill
+
+## Detailed Reference
+
+- **[references/transitions.md](references/transitions.md)** — All status transitions with triggers, guards, and side effects.
+- **[references/tier-changes.md](references/tier-changes.md)** — Tier change flow, proration, HubSpot sync.
+
+---
+
+## Status Values
 
 | Status | Meaning |
-|--------|---------|
+|---|---|
 | `active` | Paying member with full access |
-| `trialing` | Free trial member (7-day trial via Stripe) |
-| `past_due` | Payment failed; grace period started; still has access |
-| `suspended` | Admin-initiated pause (Stripe `pause_collection` or manual Mindbody pause) |
-| `frozen` | Stripe webhook `customer.subscription.paused` sets this automatically |
-| `paused` | Trial ended without conversion; account preserved but booking blocked |
-| `cancelled` | Subscription deleted in Stripe; tier cleared, `last_tier` preserved |
-| `terminated` | Grace period expired after 3 days of failed payment; Mindbody members only |
-| `pending` | Stripe subscription `incomplete` — waiting for initial payment |
-| `inactive` | Catch-all for other deactivation scenarios |
-| `archived` | Soft-deleted by staff; `archived_at` timestamp set |
-| `non-member` | Tier cleared by admin; no active membership |
-| `merged` | Duplicate record merged into another user |
-
-Former-member statuses (used for filtering/archival):
-`expired`, `terminated`, `former_member`, `cancelled`, `canceled`, `inactive`, `churned`, `declined`, `suspended`, `frozen`, `froze`, `pending`, `non-member`.
-
-## Key Invariants
-
-### App DB Is the Primary Brain
-
-The app database is the single source of truth for `membership_status`, `tier`, `role`, and `billing_provider` for ALL members. HubSpot → App sync only provides profile fill-in data (name, phone, address, DOB, preferences) — it never overwrites existing values for these authoritative fields.
-
-### Stripe Is Authoritative for Stripe-Billed Members
-
-When `billing_provider = 'stripe'`, Stripe is the source of truth for `membership_status` and `tier`. The database is corrected from Stripe on login (auto-fix) and via webhooks. All Stripe webhook handlers check `billing_provider` before processing and bail out if it is not `'stripe'` (e.g., `'mindbody'`, `'manual'`, `'comped'`).
-
-### MindBody Members — Status from HubSpot, Deactivation Cascade
-
-When `billing_provider = 'mindbody'` AND `membership_status = 'active'`, HubSpot can update `membership_status` during the daily sync (since MindBody pushes status to HubSpot). However, if HubSpot reports a MindBody member's status changed FROM `active` to any non-active value, the app triggers a **deactivation cascade**:
-1. `tier` is set to `NULL`, current tier saved to `last_tier`
-2. `billing_provider` is set to `'stripe'` (they must reactivate via Stripe)
-3. Changes are pushed to HubSpot via `syncTierToHubSpot`
-4. Grace period is started for reminder emails
-
-For all other billing providers (or MindBody members who are already non-active), HubSpot cannot overwrite `membership_status`.
-
-### Default billing_provider Is 'stripe'
-
-All new users default to `billing_provider = 'stripe'` (schema default, db-init ALTER, and explicit setting in creation paths). Only users who are `active` AND have a `mindbody_client_id` AND have no `stripe_subscription_id` get `billing_provider = 'mindbody'` (set by auto-fix every 4 hours and during HubSpot sync for new contacts).
-
-### Staff = VIP Rule
-
-All staff, admin, and golf instructor users are automatically set to `tier = 'VIP'` and `membership_status = 'active'` on every login. The `upsertUserWithTier` function in `server/routes/auth.ts` enforces this with: `UPDATE users SET membership_status = 'active', tier = 'VIP', membership_tier = 'VIP'`. Booking fee service applies $0 fees to staff. The `BookingMember.isStaff` flag is the explicit source of truth for staff detection in booking/roster contexts.
-
-### Email Is the Primary Identifier
-
-All lookups normalize email to lowercase. `MemberService.findByEmail` checks three sources in one query: `users.email`, `users.trackman_email`, and each element of the `users.linked_emails` JSONB array. The `resolveUserByEmail` function in `server/core/stripe/customers.ts` handles linked-email resolution for login, sync, and subscription matching — preventing duplicate user creation for members who use multiple email addresses.
-
-### Billing Provider Guards
-
-The `billing_provider` column controls which system manages a member. Valid values: `'stripe'`, `'mindbody'`, `'manual'`, `'comped'`, `'family_addon'`. Default is `'stripe'`. Subscription sync preserves non-stripe providers: `CASE WHEN billing_provider IN ('mindbody', 'manual', 'comped') THEN billing_provider ELSE 'stripe' END`. Comped members have full access without billing.
-
-### Member Cache
-
-`MemberService` uses an in-memory cache (`server/core/memberService/memberCache.ts`) to reduce database load:
-
-- **TTL**: 5 minutes per entry
-- **Max size**: 1000 entries per cache (total ~3000 across all caches)
-- **Caching strategy**: Caches by normalized email AND by member ID for fast lookups in both directions. All linked emails (from `linked_emails` JSONB and `trackman_email`) are also cached to the same entry.
-- **Staff cache**: Separate from member cache; staff lookup via `getStaffByEmail(email)` queries a dedicated `staffByEmail` map.
-- **Invalidation**: Individual entries are auto-evicted on TTL expiry. Manual invalidation via `invalidateMember(emailOrId)` or `invalidateStaff(email)` when member data is updated.
-- **Bypass**: Pass `{ bypassCache: true }` to `MemberService.findByEmail()` or `MemberService.findById()` to force a database read and update the cache.
-
-The cache is shared globally in memory (`memberCache` singleton) and is not persistent across server restarts.
-
-### Email Change Cascade
-
-`cascadeEmailChange()` in `server/core/memberService/emailChangeService.ts` updates a member's email across all tables atomically: users, bookings, sessions, guest passes, billing records, notifications, audit logs, and more. Returns a report of tables and rows affected. Always call this instead of updating email in a single table.
-
-### Type Definitions
-
-`server/core/memberService/memberTypes.ts` defines `MemberRecord`, `StaffRecord`, `BillingMemberMatch`, `MemberLookupOptions`, and identifier detection utilities (`isUUID`, `isEmail`, `isHubSpotId`, `detectIdentifierType`, `normalizeEmail`).
-
-## Login-Time Auto-Fix (Stripe Member Auto-Fix)
-
-When a Stripe-billed member logs in and their database `membership_status` is not in `['active', 'trialing', 'past_due']`:
-
-1. Retrieve the Stripe subscription via `stripe.subscriptions.retrieve(stripeSubscriptionId)`
-2. If Stripe says `active`, `trialing`, or `past_due`, update the database to match
-3. Sync the corrected status to HubSpot via `syncMemberToHubSpot`
-4. If Stripe confirms the subscription is not active, reject login with 403
-
-This runs in both the Google sign-in path and the OTP verification path in `server/routes/auth.ts`.
-
-## Onboarding Flow
-
-### 4-Step Checklist
-
-The onboarding checklist is served by `GET /api/member/onboarding` in `server/routes/members/onboarding.ts`:
-
-1. **Complete profile** — `first_name`, `last_name`, and `phone` must all be set. Tracked by `profile_completed_at`.
-2. **Sign club waiver** — Tracked by `waiver_signed_at` and `waiver_version`.
-3. **Book first session** — Tracked by `first_booking_at`.
-4. **Install the app** — Tracked by `app_installed_at`.
-
-When all four steps are complete, `onboarding_completed_at` is set. Members can dismiss the checklist (`onboarding_dismissed_at`).
-
-### Key Dates in Users Table
-
-| Column | Set When |
-|--------|----------|
-| `first_login_at` | First successful login (set in auth.ts, non-blocking) |
-| `profile_completed_at` | Profile has name + phone |
-| `waiver_signed_at` | Waiver signed |
-| `first_booking_at` | First booking made |
-| `app_installed_at` | PWA installed |
-| `onboarding_completed_at` | All 4 steps done |
-| `onboarding_dismissed_at` | Member dismissed checklist |
-| `welcome_email_sent_at` | Welcome email sent |
-
-### FirstLoginWelcomeModal
-
-On first login, the member dashboard shows `FirstLoginWelcomeModal` (`src/components/FirstLoginWelcomeModal.tsx`). This modal greets the member and introduces the app. It is gated on whether the user has logged in before.
-
-### Welcome Emails
-
-- **Standard welcome**: `sendWelcomeEmail` in `server/emails/welcomeEmail.ts` — sent on first login if `welcome_email_sent` is false and role is `member`. Highlights golf simulators, wellness, and events.
-- **Trial welcome**: `sendTrialWelcomeWithQrEmail` in `server/emails/trialWelcomeEmail.ts` — sent to trial members. Includes QR code pass (`MEMBER:{userId}`) for front desk check-in, 7-day trial info, and coupon code (default `ASTORIA7` for 50% off first month).
-
-### Onboarding Nudge Emails
-
-The scheduler in `server/schedulers/onboardingNudgeScheduler.ts` runs hourly but only acts at 10 AM Pacific:
-
-1. Query members where `membership_status IN ('active', 'trialing')`, `billing_provider = 'stripe'`, `first_login_at IS NULL`, `onboarding_completed_at IS NULL`, `onboarding_nudge_count < 3`, and created > 20 hours ago.
-2. Send nudge based on `onboarding_nudge_count`:
-   - **Nudge 1** at 24h: `sendOnboardingNudge24h`
-   - **Nudge 2** at 72h: `sendOnboardingNudge72h`
-   - **Nudge 3** at 7d (168h): `sendOnboardingNudge7d`
-3. Increment `onboarding_nudge_count` and set `onboarding_last_nudge_at`.
-
-Maximum 20 members processed per run. Minimum 20-hour gap between nudges to a single member.
-
-## Application Pipeline
-
-Membership applications flow through `form_submissions` with `form_type = 'membership'`. Managed in `server/routes/members/applicationPipeline.ts`.
-
-### Pipeline Stages (ordered)
-
-1. `new` — Just submitted
-2. `read` — Staff has viewed it
-3. `reviewing` — Under review
-4. `approved` — Approved for membership
-5. `invited` — Stripe checkout link sent via `send-membership-link` endpoint
-6. `converted` — Member completed payment and joined
-7. `declined` — Application rejected
-8. `archived` — No longer relevant
-
-Staff update status via `PUT /api/admin/applications/:id/status`. The invite action (`POST /api/admin/applications/:id/send-invite`) sends a Stripe membership checkout link for the selected tier.
-
-## Grace Period System
-
-When a Stripe invoice payment fails (`invoice.payment_failed` webhook):
-
-1. Set `grace_period_start = NOW()` and `membership_status = 'past_due'` (only if currently `active`)
-2. Guard: skip if subscription is already `canceled`/`incomplete_expired`, user is already `cancelled`/`suspended`, or `billing_provider != 'stripe'`
-3. Update `hubspot_deals.last_payment_status` to `'failed'` with failure reason
-4. Send immediate notifications: in-app notification to member, payment failed email, staff notification (escalating urgency on attempts ≥ 2)
-5. The grace period scheduler (`server/schedulers/gracePeriodScheduler.ts`) runs every hour but only acts at 10 AM Pacific
-6. Send up to 3 daily emails with a Stripe billing portal link for payment method update
-7. The reactivation link is generated via `stripe.billingPortal.sessions.create` with `flow_data.type = 'payment_method_update'` (falls back to `/billing` page)
-8. After 3 days and 3 emails: set `membership_status = 'terminated'`, save `tier` to `last_tier`, clear `tier` to NULL, clear grace period fields, sync to HubSpot, notify all staff with push notification
-
-For Mindbody members: grace period is started by `memberSync.ts` when it detects a status transition to a problematic status (past_due, declined, suspended, expired, terminated, cancelled, frozen). Only applies when `billing_provider = 'mindbody'` and no existing grace period.
-
-### Grace Period Database Fields
-
-| Column | Purpose |
-|--------|---------|
-| `grace_period_start` | When the grace period began (NULL = not in grace period) |
-| `grace_period_email_count` | Number of reminder emails sent (0-3) |
-
-When a member reactivates (new subscription or subscription sync), both fields are cleared: `grace_period_start = NULL`, `grace_period_email_count = 0`.
-
-## Cancellation Flow
-
-Cancellation is triggered by the `customer.subscription.deleted` Stripe webhook. The behavior differs based on the member's previous status:
-
-- **Trial members** (`membership_status = 'trialing'`): set to `paused` (account preserved, booking blocked). Stripe subscription ID cleared. Staff notified "Trial Expired."
-- **Regular members**: set to `cancelled`, tier saved to `last_tier`, tier cleared to NULL, subscription ID cleared. HubSpot deal moved to lost, deal line items removed. If member was primary on a billing group, all sub-members are deactivated and the group is deactivated.
-
-### Group Billing Member Removal
-
-When removing a member from a billing group (family or corporate) via `removeCorporateMember` or `removeGroupMember` in `server/core/stripe/groupBilling.ts`:
-
-1. The Stripe subscription item is deleted (or quantity decremented for corporate groups).
-2. The `group_members` row is removed.
-3. The user record is updated: `membership_status = 'cancelled'`, `last_tier = tier`, `tier = NULL`. This prevents the removed member from retaining active access without billing.
-4. If the Stripe deletion fails after the DB update, the compensating rollback restores `membership_status`, `tier`, and `last_tier` to their original values.
-
-### Group Billing Member Addition — Stripe Failure Rollback
-
-When adding a member to a billing group via `addGroupMember` or `addCorporateMember`:
-
-1. The user record is updated with `membership_status = 'active'`, `tier = <group tier>`, etc.
-2. A Stripe subscription item is created.
-3. If the Stripe create fails, the compensating catch block resets `membership_status = 'pending'` and `tier = NULL` on the user record. This prevents ghost active users who appear as active members but have no billing.
-
-### Group Creation Atomicity
-
-`createBillingGroup` and `createCorporateBillingGroupFromSubscription` in `server/core/stripe/groupBilling.ts` wrap the INSERT into `billing_groups` + UPDATE of `users.billing_group_id` in a single `db.transaction()`. Without this transaction wrapper, a connection drop between the two queries would create an orphaned billing group with no user linked to it.
-
-Guard: the webhook only processes if the user's `stripe_subscription_id` matches the deleted subscription. This prevents processing old/duplicate subscription deletions.
-
-See [references/transitions.md](references/transitions.md) for all status transitions.
-
-## MindBody → Stripe Migration
-
-Staff can migrate MindBody-billed members to Stripe billing one at a time. This is a controlled, staff-initiated process — there is no bulk migration or self-service option.
-
-### Migration Flow
-
-1. Staff opens a member's billing tab and initiates migration
-2. The member must already have a saved Stripe payment method (card on file)
-3. The app sets `billing_provider = 'stripe'` and `migration_status = 'pending'` on the user record
-4. A Stripe subscription is created with metadata: `{ tier_slug, tier_name, migration: 'true', source: 'even_house_app' }`
-5. When the `customer.subscription.created` webhook fires, it detects `metadata.migration === 'true'` and sets `migration_status = 'completed'`
-6. Staff and member are notified at each stage
-
-### migration_status State Machine
-
-The `migration_status` column on the `users` table tracks the migration lifecycle:
-
-```
-null → pending → completed
-                → cancelled
-                → failed
-```
-
-| Status | Meaning |
-|--------|---------|
-| `null` | No migration in progress |
-| `pending` | Migration initiated, waiting for Stripe subscription confirmation |
-| `completed` | Stripe subscription created successfully, migration done |
-| `cancelled` | Staff cancelled the migration before completion |
-| `failed` | Subscription creation or webhook processing failed |
-
-### Deactivation Cascade Exception
-
-Members with `migration_status = 'pending'` are **exempt from the MindBody deactivation cascade**. During the daily HubSpot sync, if a MindBody member's status changes from `active` to non-active but they have a pending migration, the cascade is skipped — the member stays active. This prevents the migration from being disrupted by a race condition between MindBody status updates and the Stripe subscription creation.
-
-### Migration Fields on Users Table
-
-| Column | Type | Purpose |
-|--------|------|---------|
-| `migration_status` | text | Current migration state: `null`, `pending`, `completed`, `cancelled`, `failed` |
-| `migration_billing_start_date` | timestamp | When the Stripe subscription billing should start |
-| `migration_requested_by` | text | Email of the staff member who initiated the migration |
-| `migration_tier_snapshot` | text | The tier slug at the time of migration (preserved for audit) |
-
-### Key Files
-
-| File | Purpose |
-|------|---------|
-| `server/core/stripe/billingMigration.ts` | Core migration logic: initiate, cancel, process pending migrations |
-| `server/routes/memberBilling.ts` | API routes for staff to trigger and manage migrations |
-
-## Tier Changes
-
-Tier changes can be immediate (upgrade, proration invoiced) or end-of-cycle (downgrade, no proration). Staff initiate changes via the admin panel. The system previews the financial impact before committing.
-
-See [references/tier-changes.md](references/tier-changes.md) for the full tier change flow including proration handling and HubSpot sync.
-
-## Member Sync from HubSpot
-
-`syncAllMembersFromHubSpot` in `server/core/memberSync.ts` performs a full reconciliation:
-
-1. Fetch all contacts from HubSpot with membership properties (tier, status, Mindbody ID, etc.)
-2. Load `sync_exclusions` table to skip permanently deleted members
-3. Process contacts in parallel batches of 25 with concurrency limit of 10
-4. For each contact: resolve email via linked emails, check for existing user in DB
-5. Upsert user with HubSpot data; **Stripe-protected members skip status/tier updates** (`STRIPE WINS`)
-6. Visitor-protected users skip status/tier/role updates
-7. Detect status changes and send notifications for problematic transitions (past_due, suspended, etc.)
-8. Detect HubSpot ID collisions (same HubSpot contact mapped to multiple DB users) and create `user_linked_emails` entries
-9. Sync membership notes from HubSpot (via Mindbody) with change-detection hashing to avoid duplicate notes
-10. 5-minute cooldown between syncs to prevent overload
-
-## Subscription Sync from Stripe
-
-`syncActiveSubscriptionsFromStripe` in `server/core/stripe/subscriptionSync.ts`:
-
-1. Fetch all Stripe subscriptions with status `active`, `trialing`, or `past_due` (global list first, per-customer fallback for test clocks)
-2. Batch-fetch product details to extract tier names from metadata or product name
-3. For each subscription: extract customer email, tier, name, and Stripe IDs
-4. For existing users: update if Stripe IDs, tier, or HubSpot ID changed; skip if updated within 5 minutes (webhook race guard)
-5. For new users: resolve via linked email first; if no match, check `sync_exclusions`; then create user with `data_source = 'stripe_sync'`
-6. Clear grace period fields for all synced members
-7. Sync each user to HubSpot (create contact + sync stage/status)
-
-## Subscription Creation Safeguards (v8.58.0)
-
-Multiple layers prevent duplicate membership creation:
-
-1. **Rate limiter** (`subscriptionCreationRateLimiter`): Limits subscription creation requests per IP to prevent rapid-fire submissions.
-2. **Per-email operation lock** (`emailOperationLock` in `server/core/stripe/subscriptions.ts`): In-memory Map-based lock that prevents concurrent subscription creation for the same email. Lock is acquired before processing and released in a `finally` block. If a lock is already held, the request is rejected with 409 Conflict.
-3. **Idempotency keys**: Stripe API calls use deterministic idempotency keys to prevent duplicate charges on network retries.
-4. **Existing subscription reuse**: `POST /api/stripe/refresh-payment-intent` allows reusing an existing incomplete subscription instead of creating a new one.
-
-### Reactivation Behavior (v8.58.0)
-
-When a member is reactivated via any Stripe flow (webhook, subscription sync, or manual), the `archived` flag is now cleared along with `archived_at`. This prevents members from being stuck in an archived state after reactivation. The activation notification is delayed until payment is actually confirmed.
-
-## Startup Backfills
-
-On server startup (`server/loaders/startup.ts`):
-
-- Backfill `first_login_at` from booking history for members who have self-requested bookings but no recorded first login
-- Backfill `last_tier` for former members (status in `cancelled`, `expired`, `paused`, `inactive`, `terminated`, `suspended`, `frozen`, `declined`, `churned`, `former_member`) who have a tier set but no `last_tier` value
-
-## Webhook Event Ordering
-
-Stripe webhooks use deduplication and priority-based ordering (`server/core/stripe/webhooks.ts`):
-
-- Events are deduplicated with 7-day window via `webhook_processed_events` table
-- Each event is claimed atomically via `INSERT ... ON CONFLICT DO NOTHING`
-- Resource-level ordering prevents stale events using priority scores:
-  - `subscription.created` (1) → `subscription.updated` (5) → `subscription.paused` (8) → `subscription.resumed` (9) → `subscription.deleted` (20)
-  - Special case: `subscription.created` after `subscription.deleted` is blocked to prevent ghost reactivation
-- All DB mutations run in transactions; non-critical side effects (HubSpot sync, notifications, emails) are deferred and executed after the transaction commits
-- Failed deferred actions are logged but do not roll back the core state change
-
-## Property Dictionary — Ground Truth Reference
-
-Do NOT guess or hallucinate property names or enum values. Use ONLY the exact values listed below. Source of truth: `server/core/hubspot/constants.ts`.
-
-### DB membership_status Values
-
-Valid values for `users.membership_status` in the database:
-
-| DB Value | Meaning | HubSpot Equivalent |
-|---|---|---|
-| `active` | Paying member with full access | `Active` |
-| `trialing` | Free trial member (7-day Stripe trial) | `trialing` |
-| `past_due` | Payment failed; grace period; still has access | `past_due` |
-| `suspended` | Admin-initiated pause | `Suspended` |
-| `frozen` | Stripe `customer.subscription.paused` automatic | `Froze` |
-| `paused` | Trial ended without conversion | (no HubSpot equivalent) |
-| `cancelled` | Subscription deleted in Stripe | `Terminated` |
-| `terminated` | Grace period expired after 3 days | `Terminated` |
-| `pending` | Stripe subscription incomplete | `Pending` |
-| `inactive` | Catch-all deactivation | `Suspended` |
-| `archived` | Soft-deleted by staff | (not synced) |
-| `non-member` | Tier cleared by admin | `Non-Member` |
-| `merged` | Duplicate merged into another user | (not synced) |
-| `expired` | Membership expired | `Expired` |
-| `former_member` | Former member | `Terminated` |
-| `deleted` | Deleted | `Terminated` |
-
-### DB billing_provider Values
-
-| DB Value | HubSpot Equivalent | Description |
-|---|---|---|
-| `stripe` | `stripe` | Stripe-managed billing |
-| `mindbody` | `mindbody` | Legacy Mindbody billing |
-| `manual` | `manual` | Staff-managed billing |
-| `comped` | `Comped` | Complimentary membership |
-| `none` | `None` | No billing provider |
-| `family_addon` | `stripe` | Family add-on (maps to Stripe in HubSpot) |
-
-### Status Categories
+| `trialing` | Free trial (7-day Stripe) |
+| `past_due` | Payment failed; grace period; still has access |
+| `suspended` | Admin-initiated pause |
+| `frozen` | Stripe `subscription.paused` automatic |
+| `paused` | Trial ended without conversion |
+| `cancelled` | Subscription deleted |
+| `terminated` | Grace period expired after 3 days |
+| `pending` | Stripe subscription incomplete |
+| `inactive` | Catch-all deactivation |
+| `archived` | Soft-deleted by staff |
+| `non-member` | Tier cleared by admin |
+| `merged` | Duplicate merged |
+
+## Billing Provider Values
+
+| Value | Description |
+|---|---|
+| `stripe` | Stripe-managed (default) |
+| `mindbody` | Legacy MindBody |
+| `manual` | Staff-managed |
+| `comped` | Complimentary |
+| `family_addon` | Family group add-on |
+
+## Status Categories
 
 - **ACTIVE_STATUSES:** `['active', 'trialing', 'past_due']`
 - **CHURNED_STATUSES:** `['terminated', 'cancelled', 'non-member']`
-- **INACTIVE_STATUSES:** `['pending', 'declined', 'suspended', 'expired', 'froze', 'frozen']`
 
-### DB Tier Slugs → HubSpot Labels
+## Onboarding Checklist
 
-| DB Slug | HubSpot Label |
-|---|---|
-| `core` | `Core Membership` |
-| `core-founding` | `Core Membership Founding Members` |
-| `premium` | `Premium Membership` |
-| `premium-founding` | `Premium Membership Founding Members` |
-| `social` | `Social Membership` |
-| `social-founding` | `Social Membership Founding Members` |
-| `vip` | `VIP Membership` |
-| `corporate` | `Corporate Membership` |
-| `group-lessons` | `Group Lessons Membership` |
+4 steps tracked by date columns: profile_completed_at, waiver_signed_at, first_booking_at, app_installed_at. All complete → `onboarding_completed_at` set.
+
+Nudge emails: 24h, 72h, 7d — max 3 per member, 20 members/run, 10 AM Pacific.
+
+## Application Pipeline Stages
+
+`new` → `read` → `reviewing` → `approved` → `invited` → `converted` (or `declined`/`archived`)
+
+## Property Dictionary
+
+DB tier slugs → HubSpot labels mapping lives in `server/core/hubspot/constants.ts`. See `hubspot-sync` skill for full property mapping.
