@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { formatTime12Hour, getRelativeDateLabel, formatDuration, formatRelativeTime, getTodayPacific } from '../../../../utils/dateUtils';
 import { getStatusBadge, formatStatusLabel } from '../../../../utils/statusColors';
 import TierBadge from '../../../../components/TierBadge';
@@ -101,6 +102,8 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
     queueMaxHeight,
     setActionInProgress,
 }) => {
+    const [queueListRef] = useAutoAnimate();
+    const [scheduledListRef] = useAutoAnimate();
     return (
         <div 
             className={`lg:border border-gray-200 dark:border-white/25 relative rounded-xl ${activeView === 'requests' ? 'block' : 'hidden lg:block'}`}
@@ -142,7 +145,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                             <p className="text-gray-600 dark:text-white/70">No items in queue</p>
                         </div>
                     ) : (
-                        <div className="space-y-3">
+                        <div ref={queueListRef} className="space-y-3" style={{ position: 'relative' }}>
                             {queueItems.map((item, index) => {
                                 const req = item;
                                 
@@ -155,7 +158,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                     return (
                                         <div 
                                             key={`cancel-${item.id}`}
-                                            className={`bg-red-50/80 dark:bg-red-500/10 p-4 rounded-xl border-2 border-red-300 dark:border-red-500/30 shadow-sm hover:shadow-md hover:bg-red-100/80 dark:hover:bg-red-500/20 hover:scale-[1.01] active:scale-[0.98] transition-colors duration-fast cursor-pointer ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
+                                            className="bg-red-50/80 dark:bg-red-500/10 p-4 rounded-xl border-2 border-red-300 dark:border-red-500/30 shadow-sm hover:shadow-md hover:bg-red-100/80 dark:hover:bg-red-500/20 hover:scale-[1.01] active:scale-[0.98] transition-colors duration-fast cursor-pointer"
                                             onClick={() => setBookingSheet({
                                                 isOpen: true,
                                                 trackmanBookingId: item.trackman_booking_id || null,
@@ -268,7 +271,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                 const actionState = actionInProgress[actionKey];
                                 const isActionPending = !!actionState;
                                 return (
-                                    <div key={`${req.source || 'request'}-${req.id}`} className={`bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/25 shadow-sm hover:shadow-md hover:bg-gray-100 dark:hover:bg-white/10 transition-colors duration-fast cursor-pointer active:scale-[0.98] ${isActionPending ? 'opacity-60 pointer-events-none' : ''} ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}>
+                                    <div key={`${req.source || 'request'}-${req.id}`} className={`bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/25 shadow-sm hover:shadow-md hover:bg-gray-100 dark:hover:bg-white/10 transition-colors duration-fast cursor-pointer active:scale-[0.98] ${isActionPending ? 'opacity-60 pointer-events-none' : ''}`}>
                                         {isActionPending && (
                                             <div className="flex items-center gap-2 mb-2 text-sm text-primary/70 dark:text-white/70">
                                                 <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -363,7 +366,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                             <p className="text-primary/70 dark:text-white/70">No scheduled bookings {scheduledFilter !== 'all' ? `for ${scheduledFilter === 'week' ? 'this week' : scheduledFilter}` : ''}</p>
                         </div>
                     ) : (
-                        <div className="space-y-4">
+                        <div ref={scheduledListRef} className="space-y-4" style={{ position: 'relative' }}>
                             {Array.from(groupBookingsByDate(scheduledBookings)).map(([date, bookings]) => (
                                 <div key={date}>
                                     <div className="flex items-center gap-2 mb-2">
