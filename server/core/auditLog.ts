@@ -4,6 +4,7 @@ import { Request } from 'express';
 import { desc, eq, and, gte, lte } from 'drizzle-orm';
 
 import { logger } from './logger';
+import { getErrorMessage } from '../utils/errorUtils';
 export type AuditAction = 
   // Member actions
   | 'view_member'
@@ -408,7 +409,7 @@ export async function logAdminAction(params: AuditLogParams): Promise<void> {
     
     await db.insert(adminAuditLog).values(entry);
   } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to log admin action:', { error: error });
+    logger.error('[AuditLog] Failed to log admin action:', { error: getErrorMessage(error) });
   }
 }
 
@@ -440,7 +441,7 @@ export async function logSystemAction(params: SystemActionParams): Promise<void>
     
     await db.insert(adminAuditLog).values(entry);
   } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to log system action:', { error: error });
+    logger.error('[AuditLog] Failed to log system action:', { error: getErrorMessage(error) });
   }
 }
 
@@ -475,7 +476,7 @@ export async function logMemberAction(params: MemberActionParams): Promise<void>
     
     await db.insert(adminAuditLog).values(entry);
   } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to log member action:', { error: error });
+    logger.error('[AuditLog] Failed to log member action:', { error: getErrorMessage(error) });
   }
 }
 
@@ -508,7 +509,7 @@ export async function logBillingAudit(params: BillingAuditParams): Promise<void>
       actorType: 'staff',
     });
   } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to log billing audit:', { error });
+    logger.error('[AuditLog] Failed to log billing audit:', { error: getErrorMessage(error) });
   }
 }
 
@@ -549,7 +550,7 @@ export async function logPaymentAudit(params: PaymentAuditParams): Promise<void>
       actorType: 'staff',
     });
   } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to log payment audit:', { error });
+    logger.error('[AuditLog] Failed to log payment audit:', { error: getErrorMessage(error) });
   }
 }
 
@@ -577,7 +578,7 @@ export async function logIntegrityAudit(params: IntegrityAuditParams): Promise<n
     }).returning({ id: adminAuditLog.id });
     return result?.id ?? 0;
   } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to log integrity audit:', { error });
+    logger.error('[AuditLog] Failed to log integrity audit:', { error: getErrorMessage(error) });
     return 0;
   }
 }
@@ -686,7 +687,7 @@ export async function getAuditLogs(params: {
     
     return { logs, total: logs.length };
   } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to fetch audit logs:', { error: error });
+    logger.error('[AuditLog] Failed to fetch audit logs:', { error: getErrorMessage(error) });
     return { logs: [], total: 0 };
   }
 }
@@ -703,7 +704,7 @@ export async function cleanupOldAuditLogs(daysToKeep: number = 365): Promise<num
     logger.info(`[AuditLog] Cleaned up ${deleted.length} old audit log entries`);
     return deleted.length;
   } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to cleanup old audit logs:', { error: error });
+    logger.error('[AuditLog] Failed to cleanup old audit logs:', { error: getErrorMessage(error) });
     return 0;
   }
 }

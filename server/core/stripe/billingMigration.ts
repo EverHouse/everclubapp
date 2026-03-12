@@ -238,7 +238,7 @@ export async function executePendingMigration(userId: string, email: string): Pr
 
       return { success: true };
     } catch (stripeError: unknown) {
-      logger.error(`${prefix} Stripe subscription creation failed for ${email}:`, { error: stripeError });
+      logger.error(`${prefix} Stripe subscription creation failed for ${email}:`, { error: getErrorMessage(stripeError) });
 
       await db.execute(sql`
         UPDATE users SET billing_provider = 'manual', migration_status = 'failed',
@@ -259,7 +259,7 @@ export async function executePendingMigration(userId: string, email: string): Pr
       return { success: false, error: errorMsg };
     }
   } catch (error: unknown) {
-    logger.error(`${prefix} Unexpected error during migration for ${email}:`, { error });
+    logger.error(`${prefix} Unexpected error during migration for ${email}:`, { error: getErrorMessage(error) });
     return { success: false, error: getErrorMessage(error) };
   }
 }
@@ -354,7 +354,7 @@ export async function processPendingMigrations(): Promise<{
 
     return result;
   } catch (error: unknown) {
-    logger.error(`${prefix} Error processing pending migrations:`, { error });
+    logger.error(`${prefix} Error processing pending migrations:`, { error: getErrorMessage(error) });
     return result;
   }
 }

@@ -5,6 +5,7 @@ import { getDailyUsageFromLedger, getGuestPassInfo, calculateOverageFee, calcula
 import { MemberService, isEmail, normalizeEmail, isUUID } from '../memberService';
 import { FeeBreakdown, FeeComputeParams, FeeLineItem } from '../../../shared/models/billing';
 import { logger } from '../logger';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { PRICING, isPlaceholderGuestName } from './pricingConfig';
 import { toIntArrayLiteral, toTextArrayLiteral, toBoolArrayLiteral } from '../../utils/sqlArrayLiteral';
 
@@ -272,7 +273,7 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
       participants
     };
   } catch (error: unknown) {
-    logger.error('[UnifiedFeeService] Error loading session data:', { error });
+    logger.error('[UnifiedFeeService] Error loading session data:', { error: getErrorMessage(error) });
     throw error;
   }
 }
@@ -983,7 +984,7 @@ export async function applyFeeBreakdownToParticipants(
       totalCents: breakdown.totals.totalCents
     });
   } catch (error: unknown) {
-    logger.error('[UnifiedFeeService] Error applying fee breakdown:', { error });
+    logger.error('[UnifiedFeeService] Error applying fee breakdown:', { error: getErrorMessage(error) });
     throw error;
   }
 }
@@ -1006,7 +1007,7 @@ export async function invalidateCachedFees(
       reason
     });
   } catch (error: unknown) {
-    logger.error('[UnifiedFeeService] Error invalidating cached fees:', { error });
+    logger.error('[UnifiedFeeService] Error invalidating cached fees:', { error: getErrorMessage(error) });
   }
 }
 
@@ -1062,13 +1063,13 @@ export async function recalculateSessionFees(
           } catch (cascadeErr: unknown) {
             logger.warn('[UnifiedFeeService] Failed to cascade-recalculate session', {
               cascadedSessionId: later.id,
-              error: cascadeErr
+              error: getErrorMessage(cascadeErr)
             });
           }
         }
       }
     } catch (cascadeLookupErr: unknown) {
-      logger.warn('[UnifiedFeeService] Failed to look up cascade sessions (non-blocking)', { error: cascadeLookupErr });
+      logger.warn('[UnifiedFeeService] Failed to look up cascade sessions (non-blocking)', { error: getErrorMessage(cascadeLookupErr) });
     }
   }
   

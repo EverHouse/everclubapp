@@ -8,6 +8,7 @@
  */
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { 
   getTierLimits, 
   getMemberTierByEmail, 
@@ -73,7 +74,7 @@ export async function validateTierWindowAndBalance(
       tier
     };
   } catch (error: unknown) {
-    logger.error('[validateTierWindowAndBalance] Error:', { error });
+    logger.error('[validateTierWindowAndBalance] Error:', { error: getErrorMessage(error) });
     throw error;
   }
 }
@@ -113,7 +114,7 @@ export async function getRemainingMinutes(
     
     return Math.max(0, dailyLimit - bookedMinutes);
   } catch (error: unknown) {
-    logger.error('[getRemainingMinutes] Error:', { error });
+    logger.error('[getRemainingMinutes] Error:', { error: getErrorMessage(error) });
     return 0;
   }
 }
@@ -134,7 +135,7 @@ export async function enforceSocialTierRules(
     // The fee calculation system (unifiedFeeService) handles charging guest fees automatically.
     return { allowed: true };
   } catch (error: unknown) {
-    logger.error('[enforceSocialTierRules] Error:', { error });
+    logger.error('[enforceSocialTierRules] Error:', { error: getErrorMessage(error) });
     return { allowed: true };
   }
 }
@@ -155,7 +156,7 @@ export async function getGuestPassesRemaining(memberEmail: string): Promise<numb
     const limits = await getTierLimits(tier);
     return limits.guest_passes_per_month;
   } catch (error: unknown) {
-    logger.error('[getGuestPassesRemaining] Error:', { error });
+    logger.error('[getGuestPassesRemaining] Error:', { error: getErrorMessage(error) });
     return 0;
   }
 }

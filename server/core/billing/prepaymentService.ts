@@ -5,6 +5,7 @@ import { PRICING } from './pricingConfig';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { logger } from '../logger';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 interface UnmatchedCheckRow {
   is_unmatched: boolean;
@@ -166,7 +167,7 @@ export async function createPrepaymentIntent(
     };
   } catch (error: unknown) {
     logger.error('[Prepayment] Failed to create draft invoice', {
-      error,
+      error: getErrorMessage(error),
       extra: { sessionId, bookingId, userEmail, totalFeeCents }
     });
     return null;
@@ -227,7 +228,7 @@ async function buildParticipantLineItems(
 
     return lineItems.length > 0 ? lineItems : buildFallbackLineItems(aggregateFees);
   } catch (error: unknown) {
-    logger.warn('[Prepayment] Failed to load participant line items, using aggregate fallback', { error });
+    logger.warn('[Prepayment] Failed to load participant line items, using aggregate fallback', { error: getErrorMessage(error) });
     return buildFallbackLineItems(aggregateFees);
   }
 }

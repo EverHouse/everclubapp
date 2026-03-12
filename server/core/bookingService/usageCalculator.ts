@@ -1,4 +1,5 @@
 import { logger } from '../logger';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { getTierLimits, getMemberTierByEmail } from '../tierService';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
@@ -218,12 +219,12 @@ export async function getDailyUsageFromLedger(
         });
       }
     } catch (checkError: unknown) {
-      logger.warn('[getDailyUsageFromLedger] Ledger consistency check failed:', { error: checkError });
+      logger.warn('[getDailyUsageFromLedger] Ledger consistency check failed:', { error: getErrorMessage(checkError) });
     }
 
     return parseInt((result.rows[0] as { total_minutes: string }).total_minutes as string) || 0;
   } catch (error: unknown) {
-    logger.error('[getDailyUsageFromLedger] Error:', { error });
+    logger.error('[getDailyUsageFromLedger] Error:', { error: getErrorMessage(error) });
     throw error;
   }
 }
@@ -252,7 +253,7 @@ export async function getGuestPassInfo(
     const remaining = Math.max(0, row.passes_total - row.passes_used);
     return { remaining, hasGuestPassBenefit: true };
   } catch (error: unknown) {
-    logger.error('[getGuestPassInfo] Error:', { error });
+    logger.error('[getGuestPassInfo] Error:', { error: getErrorMessage(error) });
     throw error;
   }
 }
@@ -614,7 +615,7 @@ export async function assignGuestTimeToHost(
       guestPassUsed
     };
   } catch (error: unknown) {
-    logger.error('[assignGuestTimeToHost] Error:', { error });
+    logger.error('[assignGuestTimeToHost] Error:', { error: getErrorMessage(error) });
     throw error;
   }
 }
@@ -801,7 +802,7 @@ export async function recalculateSessionFees(
       participantsUpdated
     };
   } catch (error: unknown) {
-    logger.error('[recalculateSessionFees] Error:', { error });
+    logger.error('[recalculateSessionFees] Error:', { error: getErrorMessage(error) });
     throw error;
   }
 }

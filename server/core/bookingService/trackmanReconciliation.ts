@@ -1,6 +1,7 @@
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { logger } from '../logger';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { getTierLimits, getMemberTierByEmail } from '../tierService';
 import { PRICING } from '../billing/pricingConfig';
 import { logPaymentAudit } from '../auditLog';
@@ -206,7 +207,7 @@ export async function findAttendanceDiscrepancies(
     
     return { discrepancies, stats, totalCount };
   } catch (error: unknown) {
-    logger.error('[findAttendanceDiscrepancies] Error:', { error });
+    logger.error('[findAttendanceDiscrepancies] Error:', { error: getErrorMessage(error) });
     throw error;
   }
 }
@@ -298,7 +299,7 @@ export async function markAsReconciled(
     
     return { success: true, booking: updateResult.rows[0] as unknown as BookingReconciliationRow };
   } catch (error: unknown) {
-    logger.error('[markAsReconciled] Error:', { error });
+    logger.error('[markAsReconciled] Error:', { error: getErrorMessage(error) });
     throw error;
   }
 }
@@ -318,7 +319,7 @@ export async function getReconciliationSummary(): Promise<{
       recentDiscrepancies: discrepancies
     };
   } catch (error: unknown) {
-    logger.error('[getReconciliationSummary] Error:', { error });
+    logger.error('[getReconciliationSummary] Error:', { error: getErrorMessage(error) });
     throw error;
   }
 }
@@ -412,7 +413,7 @@ export async function adjustLedgerForReconciliation(
     
     return { success: true, adjustmentAmount: feeAdjustment };
   } catch (error: unknown) {
-    logger.error('[adjustLedgerForReconciliation] Error:', { error });
+    logger.error('[adjustLedgerForReconciliation] Error:', { error: getErrorMessage(error) });
     throw error;
   }
 }

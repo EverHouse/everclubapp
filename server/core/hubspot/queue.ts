@@ -82,7 +82,7 @@ export async function enqueueHubSpotSync(
     return (result.rows[0] as unknown as QueueIdRow).id;
   } catch (error: unknown) {
     logger.error('[HubSpot Queue] Failed to enqueue job', { 
-      error: error,
+      error: getErrorMessage(error),
       extra: { operation, idempotencyKey }
     });
     return null;
@@ -167,7 +167,7 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
         );
         
         logger.error('[HubSpot Queue] Job dead (unrecoverable error - skipping retries)', { 
-          error: error,
+          error: getErrorMessage(error),
           extra: { jobId: job.id, operation: job.operation }
         });
         
@@ -181,7 +181,7 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
             'integration_error'
           );
         } catch (notifyErr: unknown) {
-          logger.error('[HubSpot Queue] Failed to notify staff of dead job', { error: notifyErr });
+          logger.error('[HubSpot Queue] Failed to notify staff of dead job', { error: getErrorMessage(notifyErr) });
         }
         
         stats.failed++;
@@ -227,7 +227,7 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
         );
         
         logger.error('[HubSpot Queue] Job dead (max retries exceeded)', { 
-          error: error,
+          error: getErrorMessage(error),
           extra: { jobId: job.id, operation: job.operation }
         });
         
@@ -241,7 +241,7 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
             'integration_error'
           );
         } catch (notifyErr: unknown) {
-          logger.error('[HubSpot Queue] Failed to notify staff of dead job', { error: notifyErr });
+          logger.error('[HubSpot Queue] Failed to notify staff of dead job', { error: getErrorMessage(notifyErr) });
         }
       }
       
@@ -316,7 +316,7 @@ export async function recoverStuckProcessingJobs(): Promise<number> {
     
     return result.rowCount || 0;
   } catch (error: unknown) {
-    logger.error('[HubSpot Queue] Error recovering stuck jobs', { error });
+    logger.error('[HubSpot Queue] Error recovering stuck jobs', { error: getErrorMessage(error) });
     return 0;
   }
 }

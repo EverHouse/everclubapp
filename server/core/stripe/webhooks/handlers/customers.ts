@@ -65,7 +65,7 @@ export async function handleCustomerUpdated(client: PoolClient, customer: Stripe
               { sendPush: true }
             );
           } catch (err: unknown) {
-            logger.error('[Stripe Webhook] Failed to send reassignment notification:', { error: err });
+            logger.error('[Stripe Webhook] Failed to send reassignment notification:', { error: getErrorMessage(err) });
           }
         });
       } else if (stripeEmailUser && (!stripeEmailUser.stripe_customer_id || stripeEmailUser.stripe_customer_id === stripeCustomerId)) {
@@ -80,7 +80,7 @@ export async function handleCustomerUpdated(client: PoolClient, customer: Stripe
               { sendPush: true }
             );
           } catch (err: unknown) {
-            logger.error('[Stripe Webhook] Failed to send reassignment alert:', { error: err });
+            logger.error('[Stripe Webhook] Failed to send reassignment alert:', { error: getErrorMessage(err) });
           }
         });
         updates.push(`auto_reassignment_blocked (stripe_email=${stripeEmail} matches unlinked ${stripeEmailUser.email})`);
@@ -95,7 +95,7 @@ export async function handleCustomerUpdated(client: PoolClient, customer: Stripe
               { sendPush: true }
             );
           } catch (err: unknown) {
-            logger.error('[Stripe Webhook] Failed to send multiple-match alert:', { error: err });
+            logger.error('[Stripe Webhook] Failed to send multiple-match alert:', { error: getErrorMessage(err) });
           }
         });
         updates.push(`multi_match_blocked (stripe_email=${stripeEmail})`);
@@ -115,7 +115,7 @@ export async function handleCustomerUpdated(client: PoolClient, customer: Stripe
               { sendPush: false }
             );
           } catch (err: unknown) {
-            logger.error('[Stripe Webhook] Failed to auto-correct Stripe email:', { error: err });
+            logger.error('[Stripe Webhook] Failed to auto-correct Stripe email:', { error: getErrorMessage(err) });
             try {
               await notifyAllStaff(
                 'Stripe Email Mismatch — Auto-Correct Failed',
@@ -169,7 +169,7 @@ export async function handleCustomerUpdated(client: PoolClient, customer: Stripe
       logger.info(`[Stripe Webhook] customer.updated for ${stripeCustomerId}: ${updates.join(', ')}`);
     }
   } catch (error: unknown) {
-    logger.error('[Stripe Webhook] Error handling customer.updated:', { error });
+    logger.error('[Stripe Webhook] Error handling customer.updated:', { error: getErrorMessage(error) });
   }
 
   return deferredActions;
@@ -214,7 +214,7 @@ export async function handleTrialWillEnd(client: PoolClient, subscription: Strip
           type: 'trial_ending',
         }, { sendPush: true });
       } catch (err: unknown) {
-        logger.error('[Stripe Webhook] Failed to send trial ending notification:', { error: err });
+        logger.error('[Stripe Webhook] Failed to send trial ending notification:', { error: getErrorMessage(err) });
       }
     });
 
@@ -227,11 +227,11 @@ export async function handleTrialWillEnd(client: PoolClient, subscription: Strip
           { sendPush: false }
         );
       } catch (err: unknown) {
-        logger.error('[Stripe Webhook] Failed to send staff trial ending notification:', { error: err });
+        logger.error('[Stripe Webhook] Failed to send staff trial ending notification:', { error: getErrorMessage(err) });
       }
     });
   } catch (error: unknown) {
-    logger.error('[Stripe Webhook] Error handling trial_will_end:', { error });
+    logger.error('[Stripe Webhook] Error handling trial_will_end:', { error: getErrorMessage(error) });
   }
 
   return deferredActions;
@@ -275,7 +275,7 @@ export async function handlePaymentMethodAttached(client: PoolClient, paymentMet
               }
             }
           } catch (retryErr: unknown) {
-            logger.error(`[Stripe Webhook] Failed to auto-retry payment ${row.stripe_payment_intent_id}:`, { error: retryErr });
+            logger.error(`[Stripe Webhook] Failed to auto-retry payment ${row.stripe_payment_intent_id}:`, { error: getErrorMessage(retryErr) });
           }
         });
       }
@@ -297,7 +297,7 @@ export async function handlePaymentMethodAttached(client: PoolClient, paymentMet
             type: 'billing',
           }, { sendPush: false });
         } catch (err: unknown) {
-          logger.error('[Stripe Webhook] Failed to send payment method notification:', { error: err });
+          logger.error('[Stripe Webhook] Failed to send payment method notification:', { error: getErrorMessage(err) });
         }
       });
     }
@@ -318,13 +318,13 @@ export async function handlePaymentMethodAttached(client: PoolClient, paymentMet
             );
             logger.info('[Stripe Webhook] Notified staff: MindBody member card saved via payment_method.attached', { extra: { email: memberForMigration.email } });
           } catch (err: unknown) {
-            logger.error('[Stripe Webhook] Failed to notify staff about MindBody member card save:', { error: err });
+            logger.error('[Stripe Webhook] Failed to notify staff about MindBody member card save:', { error: getErrorMessage(err) });
           }
         });
       }
     }
   } catch (error: unknown) {
-    logger.error('[Stripe Webhook] Error handling payment_method.attached:', { error });
+    logger.error('[Stripe Webhook] Error handling payment_method.attached:', { error: getErrorMessage(error) });
   }
 
   return deferredActions;
