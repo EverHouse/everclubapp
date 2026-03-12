@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
+import { useSafariThemeColor } from '../hooks/useSafariThemeColor';
 
 const BASE_MODAL_Z_INDEX = 10000;
 const Z_INDEX_INCREMENT = 10;
@@ -62,6 +63,7 @@ export function ModalShell({
   });
 
   useScrollLockManager(isOpen, dismissible ? handleClose : undefined);
+  useSafariThemeColor(isOpen);
 
   useEffect(() => {
     if (!isOpen) {

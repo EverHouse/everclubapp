@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react'
 import { createPortal } from 'react-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
+import { useSafariThemeColor } from '../hooks/useSafariThemeColor';
 
 const BASE_DRAWER_Z_INDEX = 10000;
 const STANDARD_DRAWER_Z_INDEX = 5000;
@@ -71,6 +72,7 @@ export function SlideUpDrawer({
   });
 
   useScrollLockManager(isOpen && isModal, isModal && dismissible ? onClose : undefined);
+  useSafariThemeColor(isOpen);
 
   useEffect(() => {
     if (!isOpen) {

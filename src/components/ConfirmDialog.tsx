@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
+import { useSafariThemeColor } from '../hooks/useSafariThemeColor';
 
 const BASE_DIALOG_Z_INDEX = 10100;
 const Z_INDEX_INCREMENT = 10;
@@ -70,6 +71,7 @@ function ConfirmDialogComponent({
   const [isClosing, setIsClosing] = useState(false);
 
   useScrollLockManager(isOpen, onCancel);
+  useSafariThemeColor(isOpen);
 
   useEffect(() => {
     if (!isOpen) {
