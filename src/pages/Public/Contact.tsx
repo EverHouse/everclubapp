@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import Input from '../../components/Input';
@@ -7,6 +7,170 @@ import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import { AnimatedPage } from '../../components/motion';
 import { getApiErrorMessage, getNetworkErrorMessage } from '../../utils/errorHandling';
 import SEO from '../../components/SEO';
+
+declare global {
+  interface Window {
+    mapkit: typeof mapkit;
+  }
+  namespace mapkit {
+    function init(options: { authorizationCallback: (done: (token: string) => void) => void }): void;
+    class Map {
+      constructor(container: string | HTMLElement, options?: Record<string, unknown>);
+      colorScheme: string;
+      destroy(): void;
+    }
+    class Coordinate {
+      constructor(latitude: number, longitude: number);
+    }
+    class CoordinateRegion {
+      constructor(center: mapkit.Coordinate, span: mapkit.CoordinateSpan);
+    }
+    class CoordinateSpan {
+      constructor(latitudeDelta: number, longitudeDelta: number);
+    }
+    class MarkerAnnotation {
+      constructor(coordinate: mapkit.Coordinate, options?: Record<string, unknown>);
+      title: string;
+      subtitle: string;
+      color: string;
+      glyphText: string;
+    }
+    namespace Map {
+      const ColorSchemes: { Light: string; Dark: string };
+    }
+  }
+}
+
+const CLUB_COORDS = { lat: 33.709, lng: -117.8272 };
+
+function useMapKitToken() {
+  const [token, setToken] = useState<string | null>(null);
+  const [tokenError, setTokenError] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/mapkit-token')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((data: { token: string }) => setToken(data.token))
+      .catch(() => setTokenError(true));
+  }, []);
+
+  return { token, tokenError };
+}
+
+function useIsDarkMode() {
+  const [isDark, setIsDark] = useState(() =>
+    document.documentElement.classList.contains('dark')
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  return isDark;
+}
+
+function AppleMapView() {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<mapkit.Map | null>(null);
+  const { token, tokenError } = useMapKitToken();
+  const isDark = useIsDarkMode();
+  const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState(false);
+
+  const initMap = useCallback((mapkitToken: string, dark: boolean) => {
+    if (!mapContainerRef.current) return;
+
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.destroy();
+      mapInstanceRef.current = null;
+    }
+
+    try {
+      window.mapkit.init({
+        authorizationCallback: (done) => done(mapkitToken),
+      });
+
+      const center = new window.mapkit.Coordinate(CLUB_COORDS.lat, CLUB_COORDS.lng);
+      const span = new window.mapkit.CoordinateSpan(0.005, 0.005);
+      const region = new window.mapkit.CoordinateRegion(center, span);
+
+      const map = new window.mapkit.Map(mapContainerRef.current, {
+        region,
+        showsCompass: false,
+        showsMapTypeControl: false,
+        colorScheme: dark ? window.mapkit.Map.ColorSchemes.Dark : window.mapkit.Map.ColorSchemes.Light,
+      } as Record<string, unknown>);
+
+      const marker = new window.mapkit.MarkerAnnotation(center, {
+        title: 'Ever Club',
+        subtitle: '15771 Red Hill Ave, Ste 500, Tustin, CA 92780',
+        color: '#2d5a27',
+        glyphText: '⛳',
+      });
+
+      (map as unknown as { addAnnotation: (a: mapkit.MarkerAnnotation) => void }).addAnnotation(marker);
+      mapInstanceRef.current = map;
+      setMapReady(true);
+    } catch {
+      setMapError(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!token) return;
+
+    const doInit = () => initMap(token, isDark);
+
+    if (window.mapkit) {
+      doInit();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.js';
+      script.crossOrigin = 'anonymous';
+      script.onload = doInit;
+      script.onerror = () => setMapError(true);
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.destroy();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, [token, initMap]);
+
+  useEffect(() => {
+    if (mapInstanceRef.current && window.mapkit) {
+      mapInstanceRef.current.colorScheme = isDark
+        ? window.mapkit.Map.ColorSchemes.Dark
+        : window.mapkit.Map.ColorSchemes.Light;
+    }
+  }, [isDark]);
+
+  if (mapError || tokenError) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-[#E8E8E0]/50 dark:bg-white/5">
+        <p className="text-primary/50 dark:text-white/50 text-sm">Map unavailable</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div ref={mapContainerRef} className="w-full h-full" />
+      {!mapReady && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#E8E8E0]/50 dark:bg-white/5">
+          <div className="w-6 h-6 border-2 border-primary/30 dark:border-white/30 border-t-primary dark:border-t-white rounded-full animate-spin" />
+        </div>
+      )}
+    </>
+  );
+}
 
 const FALLBACK = {
   'contact.phone': '(949) 545-5855',
@@ -263,15 +427,8 @@ const Contact: React.FC = () => {
 
       <section className="px-4 mb-12 max-w-2xl mx-auto w-full">
         <div className="w-full h-64 rounded-xl overflow-hidden relative border border-black/5 dark:border-white/10">
-            <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3318.7!2d-117.8272!3d33.709!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x80dcdfe2e5f3b3f5%3A0x0!2s15771%20Red%20Hill%20Ave%20%23500%2C%20Tustin%2C%20CA%2092780!5e0!3m2!1sen!2sus!4v1702850000000!5m2!1sen!2sus"
-              className="w-full h-full border-0"
-              title="Ever Club Location"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              allowFullScreen
-            ></iframe>
-            <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+            <AppleMapView />
+            <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
                  <a 
                    href={s['contact.google_maps_url']} 
                    target="_blank" 
