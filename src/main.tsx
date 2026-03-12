@@ -10,6 +10,16 @@ declare global {
   }
 }
 
+const isStandalonePWA = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  (navigator as unknown as { standalone?: boolean }).standalone === true;
+
+const pwaReload = () => {
+  const url = new URL(window.location.href);
+  url.searchParams.set('_r', Date.now().toString());
+  window.location.replace(url.toString());
+};
+
 window.clearPWACaches = async () => {
   if ('caches' in window) {
     const keys = await caches.keys();
@@ -25,6 +35,24 @@ window.clearPWACaches = async () => {
 };
 
 if ('serviceWorker' in navigator) {
+  let refreshing = false;
+  const hadController = !!navigator.serviceWorker.controller;
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    if (!hadController) {
+      console.log('[App] First service worker install, skipping reload');
+      return;
+    }
+    refreshing = true;
+    console.log('[App] New service worker activated, reloading');
+    if (isStandalonePWA()) {
+      pwaReload();
+    } else {
+      window.location.reload();
+    }
+  });
+
   window.addEventListener('load', async () => {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js', {
@@ -36,7 +64,7 @@ if ('serviceWorker' in navigator) {
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              console.log('[App] New service worker installed');
+              console.log('[App] New service worker installed, will auto-activate');
             }
           });
         }
@@ -55,6 +83,21 @@ if ('serviceWorker' in navigator) {
       }
     }
   });
+
+  if (isStandalonePWA()) {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg) reg.update().catch(() => {});
+      });
+    });
+  }
+}
+
+if (window.location.search.includes('_r=')) {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('_r');
+  window.history.replaceState(null, '', url.pathname + url.search + url.hash);
 }
 
 const removeSplash = () => {

@@ -14,6 +14,7 @@ const CACHEABLE_API_ENDPOINTS = ['events', 'wellness-classes', 'cafe-menu', 'hou
 
 self.addEventListener('install', function(event) {
   console.log('[SW] Installing new version:', BUILD_VERSION);
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
   );
@@ -39,7 +40,7 @@ self.addEventListener('activate', function(event) {
     }).then(() => {
       return clients.matchAll({ type: 'window' }).then(clientList => {
         clientList.forEach(client => {
-          client.postMessage({ type: 'SW_UPDATED', version: BUILD_VERSION });
+          client.postMessage({ type: 'SW_ACTIVATED', version: BUILD_VERSION });
         });
       });
     })

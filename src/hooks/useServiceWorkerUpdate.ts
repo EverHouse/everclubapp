@@ -7,9 +7,12 @@ interface ServiceWorkerUpdateState {
   dismissUpdate: () => void;
 }
 
-const UPDATE_CHECK_INTERVAL = 10 * 60 * 1000;
 const DISMISS_COOLDOWN_KEY = 'sw-update-dismissed-at';
 const DISMISS_COOLDOWN_MS = 30 * 60 * 1000;
+
+const isStandalonePWA = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  (navigator as unknown as { standalone?: boolean }).standalone === true;
 
 export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -34,8 +37,8 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
     };
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'SW_UPDATED') {
-        console.log('[App] Service worker updated to version:', event.data.version);
+      if (event.data?.type === 'SW_ACTIVATED') {
+        console.log('[App] Service worker activated, version:', event.data.version);
         setUpdateAvailable(false);
         setIsUpdating(false);
       }
@@ -91,8 +94,6 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
       }
     };
 
-    const intervalId = setInterval(checkForUpdates, UPDATE_CHECK_INTERVAL);
-
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         checkForUpdates();
@@ -103,7 +104,6 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
 
     return () => {
       navigator.serviceWorker.removeEventListener('message', handleMessage);
-      clearInterval(intervalId);
       if (visibilityHandlerRef.current) {
         document.removeEventListener('visibilitychange', visibilityHandlerRef.current);
       }
@@ -111,29 +111,23 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
   }, []);
 
   const applyUpdate = useCallback(() => {
-    if (!waitingWorker) return;
-
     setIsUpdating(true);
     sessionStorage.removeItem(DISMISS_COOLDOWN_KEY);
 
-    let refreshing = false;
-    const onControllerChange = () => {
-      if (refreshing) return;
-      refreshing = true;
-      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-      window.location.reload();
-    };
-    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
-
-    waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    if (waitingWorker) {
+      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    }
 
     setTimeout(() => {
-      if (!refreshing) {
-        navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-        console.log('[App] Controller change timeout, forcing reload');
+      console.log('[App] Update timeout reached, forcing reload');
+      if (isStandalonePWA()) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('_r', Date.now().toString());
+        window.location.replace(url.toString());
+      } else {
         window.location.reload();
       }
-    }, 5000);
+    }, 3000);
   }, [waitingWorker]);
 
   const dismissUpdate = useCallback(() => {
