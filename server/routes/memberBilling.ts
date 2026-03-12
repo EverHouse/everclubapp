@@ -266,6 +266,7 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
                OR (bp.participant_type = 'owner' AND LOWER(br.user_email) = LOWER(${email}))
                OR (bp.participant_type = 'owner' AND LOWER(br.user_email) IN (SELECT LOWER(ule.linked_email) FROM user_linked_emails ule WHERE LOWER(ule.primary_email) = LOWER(${email})))
                OR (bp.participant_type = 'owner' AND LOWER(br.user_email) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = LOWER(${email}))))
+          AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
           AND bp.payment_status = 'pending'
           AND COALESCE(bp.cached_fee_cents, 0) > 0
       `);
@@ -312,6 +313,7 @@ router.get('/api/member-billing/:email/outstanding', isStaffOrAdmin, async (req,
              OR (bp.participant_type = 'owner' AND LOWER(br.user_email) = LOWER(${email}))
              OR (bp.participant_type = 'owner' AND LOWER(br.user_email) IN (SELECT LOWER(ule.linked_email) FROM user_linked_emails ule WHERE LOWER(ule.primary_email) = LOWER(${email})))
              OR (bp.participant_type = 'owner' AND LOWER(br.user_email) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = LOWER(${email}))))
+        AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
         AND bp.payment_status IN ('pending')
         AND COALESCE(bp.cached_fee_cents, 0) > 0
       ORDER BY br.request_date DESC, br.start_time ASC
@@ -358,6 +360,7 @@ router.get('/api/member-billing/:email/outstanding', isStaffOrAdmin, async (req,
         AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
         AND br.request_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date - INTERVAL '30 days'
         AND br.session_id IS NOT NULL
+        AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
         AND NOT EXISTS (
           SELECT 1 FROM booking_fee_snapshots bfs 
           WHERE bfs.session_id = br.session_id AND bfs.status IN ('completed', 'paid')

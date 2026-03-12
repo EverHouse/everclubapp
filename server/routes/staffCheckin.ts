@@ -1089,7 +1089,6 @@ interface OverduePayment {
   endTime: string;
   resourceName: string;
   totalOutstanding: number;
-  unreviewedWaivers: number;
 }
 
 router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request, res: Response) => {
@@ -1113,20 +1112,14 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
               THEN COALESCE(bp.cached_fee_cents, 0) / 100.0
               ELSE 0 
             END
-          ), 0)::numeric as total_outstanding,
-          SUM(CASE 
-            WHEN bp.participant_type = 'guest' 
-              AND bp.payment_status = 'waived' 
-              AND bp.waiver_reviewed_at IS NULL
-              AND COALESCE(bp.used_guest_pass, FALSE) = FALSE
-            THEN 1 ELSE 0 
-          END) as unreviewed_waivers
+          ), 0)::numeric as total_outstanding
         FROM booking_requests br
         LEFT JOIN resources r ON br.resource_id = r.id
         LEFT JOIN booking_participants bp ON bp.session_id = br.session_id
         WHERE br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
           AND br.request_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date - INTERVAL '30 days'
           AND br.session_id IS NOT NULL
+          AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
           AND br.is_unmatched IS NOT TRUE
           AND br.user_email NOT LIKE '%unmatched%'
           AND br.user_email NOT LIKE '%@trackman.import%'
@@ -1141,13 +1134,6 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
                AND COALESCE(bp.cached_fee_cents, 0) > 0
           THEN 1 ELSE 0 END
         ) > 0
-        OR SUM(CASE 
-            WHEN bp.participant_type = 'guest' 
-              AND bp.payment_status = 'waived' 
-              AND bp.waiver_reviewed_at IS NULL
-              AND COALESCE(bp.used_guest_pass, FALSE) = FALSE
-            THEN 1 ELSE 0 
-          END) > 0
       )
       SELECT * FROM overdue_bookings
       ORDER BY booking_date DESC
@@ -1172,8 +1158,7 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
         startTime: row.start_time as string,
         endTime: row.end_time as string,
         resourceName: (row.resource_name || 'Unknown') as string,
-        totalOutstanding: dbOutstanding + unfilledGuestFees,
-        unreviewedWaivers: parseInt(String(row.unreviewed_waivers)) || 0
+        totalOutstanding: dbOutstanding + unfilledGuestFees
       };
     });
 
