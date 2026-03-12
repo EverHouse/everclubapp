@@ -6,6 +6,7 @@ import { usePageReady } from '../../contexts/PageReadyContext';
 import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
+import AppleSignInButton from '../../components/AppleSignInButton';
 
 const Spinner = () => (
   <WalkingGolferSpinner size="sm" variant="light" />
@@ -57,6 +58,7 @@ const Login: React.FC = () => {
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   
   const isDev = import.meta.env.DEV;
   
@@ -92,6 +94,36 @@ const Login: React.FC = () => {
       setError((err instanceof Error ? err.message : String(err)) || 'Google sign-in failed');
     } finally {
       setGoogleLoading(false);
+    }
+  };
+
+  const handleAppleLogin = async (data: { identityToken: string; user?: { name?: { firstName?: string; lastName?: string }; email?: string } }) => {
+    setAppleLoading(true);
+    setError('');
+    
+    try {
+      const res = await fetch('/api/auth/apple/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identityToken: data.identityToken, user: data.user }),
+        credentials: 'include'
+      });
+      
+      const responseData = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(responseData.error || 'Apple sign-in failed');
+      }
+      
+      loginWithMember(responseData.member);
+      
+      const isStaff = responseData.member.role === 'admin' || responseData.member.role === 'staff';
+      startNavigation();
+      navigate(isStaff ? '/admin' : '/dashboard');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Apple sign-in failed');
+    } finally {
+      setAppleLoading(false);
     }
   };
 
@@ -520,11 +552,22 @@ const Login: React.FC = () => {
                 <GoogleSignInButton
                   onSuccess={handleGoogleLogin}
                   onError={(err) => setError(err)}
-                  disabled={loading || googleLoading}
+                  disabled={loading || googleLoading || appleLoading}
                 />
                 {googleLoading && (
                   <div className="text-center text-sm text-primary/60 dark:text-white/60">
                     Signing in with Google...
+                  </div>
+                )}
+
+                <AppleSignInButton
+                  onSuccess={handleAppleLogin}
+                  onError={(err) => setError(err)}
+                  disabled={loading || googleLoading || appleLoading}
+                />
+                {appleLoading && (
+                  <div className="text-center text-sm text-primary/60 dark:text-white/60">
+                    Signing in with Apple...
                   </div>
                 )}
 
