@@ -4,7 +4,7 @@ import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { usePageReady } from '../../../contexts/PageReadyContext';
 import { useToast } from '../../../components/Toast';
 import ModalShell from '../../../components/ModalShell';
-import { useCafeMenu, useUploadCafeImage, useSeedCafeMenu, useUpdateCafeItem } from '../../../hooks/queries/useCafeQueries';
+import { useCafeMenu, useUploadCafeImage, useSeedCafeMenu, useUpdateCafeItem, useDeleteCafeItem } from '../../../hooks/queries/useCafeQueries';
 import type { CafeItem } from '../../../types/data';
 
 const CafeTab: React.FC = () => {
@@ -19,6 +19,7 @@ const CafeTab: React.FC = () => {
     const uploadImageMutation = useUploadCafeImage();
     const seedMenuMutation = useSeedCafeMenu();
     const updateItemMutation = useUpdateCafeItem();
+    const deleteItemMutation = useDeleteCafeItem();
     const pullMutation = useMutation({
         mutationFn: async () => {
             const response = await fetch('/api/admin/stripe/pull-from-stripe', {
@@ -46,6 +47,7 @@ const CafeTab: React.FC = () => {
     const [editId, setEditId] = useState<string | null>(null);
     const [newItem, setNewItem] = useState<Partial<CafeItem>>({ category: 'Coffee & Drinks' });
     const [uploadResult, setUploadResult] = useState<{ originalSize: number; optimizedSize: number } | null>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -99,6 +101,19 @@ const CafeTab: React.FC = () => {
         }
     };
 
+    const handleDelete = async () => {
+        if (!editId) return;
+        try {
+            await deleteItemMutation.mutateAsync(editId);
+            showToast('Item deleted', 'success');
+            setIsEditing(false);
+            setShowDeleteConfirm(false);
+        } catch (err: unknown) {
+            showToast(err instanceof Error ? err.message : 'Failed to delete item', 'error');
+            setShowDeleteConfirm(false);
+        }
+    };
+
     const isLoading = uploadImageMutation.isPending || seedMenuMutation.isPending || updateItemMutation.isPending;
 
     return (
@@ -134,7 +149,7 @@ const CafeTab: React.FC = () => {
                 ))}
             </div>
 
-            <ModalShell isOpen={isEditing} onClose={() => setIsEditing(false)} title={editId ? 'Item Details' : 'Add Item'} showCloseButton={false}>
+            <ModalShell isOpen={isEditing} onClose={() => { setIsEditing(false); setShowDeleteConfirm(false); }} title={editId ? 'Item Details' : 'Add Item'} showCloseButton={false}>
                 <div className="p-6 space-y-4">
                     {editId && (
                         <div className="flex items-center gap-2 p-2.5 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 text-xs">
@@ -203,9 +218,39 @@ const CafeTab: React.FC = () => {
                         )}
                     </div>
                     <textarea className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast resize-none" placeholder="Description" rows={3} value={newItem.desc || ''} onChange={e => setNewItem({...newItem, desc: e.target.value})} />
-                    <div className="flex gap-3 justify-end pt-2">
-                        <button onClick={() => setIsEditing(false)} className="px-5 py-2.5 text-gray-500 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-[4px] transition-colors">Cancel</button>
-                        <button onClick={handleSave} disabled={isLoading} className="px-6 py-2.5 bg-primary text-white rounded-[4px] font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50">Save</button>
+                    <div className="flex items-center pt-2">
+                        {editId && !showDeleteConfirm && (
+                            <button
+                                onClick={() => setShowDeleteConfirm(true)}
+                                disabled={deleteItemMutation.isPending}
+                                className="px-4 py-2.5 text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/20 rounded-[4px] transition-colors text-sm disabled:opacity-50"
+                            >
+                                Delete
+                            </button>
+                        )}
+                        {editId && showDeleteConfirm && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-red-600 dark:text-red-400">Delete this item?</span>
+                                <button
+                                    onClick={handleDelete}
+                                    disabled={deleteItemMutation.isPending}
+                                    className="px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-[4px] hover:bg-red-700 transition-colors disabled:opacity-50"
+                                >
+                                    {deleteItemMutation.isPending ? 'Deleting...' : 'Confirm'}
+                                </button>
+                                <button
+                                    onClick={() => setShowDeleteConfirm(false)}
+                                    disabled={deleteItemMutation.isPending}
+                                    className="px-3 py-1.5 text-gray-500 dark:text-white/60 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-[4px] transition-colors disabled:opacity-50"
+                                >
+                                    No
+                                </button>
+                            </div>
+                        )}
+                        <div className="flex gap-3 ml-auto">
+                            <button onClick={() => { setIsEditing(false); setShowDeleteConfirm(false); }} className="px-5 py-2.5 text-gray-500 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-[4px] transition-colors">Cancel</button>
+                            <button onClick={handleSave} disabled={isLoading} className="px-6 py-2.5 bg-primary text-white rounded-[4px] font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50">Save</button>
+                        </div>
                     </div>
                 </div>
             </ModalShell>

@@ -129,7 +129,20 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
       .from(cafeItems)
       .where(eq(cafeItems.id, Number(id)));
     if (existing.length > 0 && existing[0].stripeProductId) {
-      return res.status(400).json({ error: 'Cannot delete Stripe-managed items. Archive in Stripe Dashboard instead.' });
+      try {
+        const { getStripeClient } = await import('../core/stripe/client');
+        const stripe = await getStripeClient();
+        const product = await stripe.products.retrieve(existing[0].stripeProductId);
+        if (product && !product.deleted) {
+          return res.status(400).json({ error: 'This item is linked to an active Stripe product. Archive it in the Stripe Dashboard instead.' });
+        }
+      } catch (stripeErr: unknown) {
+        const isNotFound = stripeErr instanceof Error && 'statusCode' in stripeErr && (stripeErr as { statusCode: number }).statusCode === 404;
+        if (!isNotFound) {
+          if (!isProduction) logger.error('Stripe product check failed', { error: stripeErr instanceof Error ? stripeErr : new Error(String(stripeErr)) });
+          return res.status(400).json({ error: 'This item is linked to an active Stripe product. Archive it in the Stripe Dashboard instead.' });
+        }
+      }
     }
     
     await db.delete(cafeItems).where(eq(cafeItems.id, Number(id)));
