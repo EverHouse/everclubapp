@@ -11,6 +11,7 @@ import { DEFAULT_TIER } from '../../../shared/constants/tiers';
 import { ensureSessionForBooking } from '../bookingService/sessionManager';
 import { getCached, setCache } from '../queryCache';
 import { AppError } from '../errors';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { resolveUserByEmail } from '../stripe/customers';
 
 interface ResourceTypeRow {
@@ -348,7 +349,7 @@ export async function declineBooking(bookingId: number, reason?: string) {
       logger.warn('[Staff Decline] Failed to clean up trackman_bay_slots', { 
         bookingId, 
         resourceId: result.resourceId,
-        error: (err as Error).message 
+        error: getErrorMessage(err) 
       });
     }
   }

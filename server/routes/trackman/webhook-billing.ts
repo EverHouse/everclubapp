@@ -1,6 +1,7 @@
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { logger } from '../../core/logger';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { sendNotificationToUser, broadcastToStaff, broadcastAvailabilityUpdate } from '../../core/websocket';
 import { notifyAllStaff, notifyMember } from '../../core/notificationService';
 import { refundGuestPass } from '../guestPasses';
@@ -112,7 +113,7 @@ export async function createBookingForMember(
             broadcastAvailabilityUpdate({ resourceId: resourceId, resourceType: 'simulator', date: slotDate, action: 'booked' });
           } catch (broadcastErr: unknown) {
             logger.warn('[Trackman Webhook] Failed to broadcast bay change availability update', {
-              extra: { bookingId, error: (broadcastErr as Error).message }
+              extra: { bookingId, error: getErrorMessage(broadcastErr) }
             });
           }
         } else {
@@ -133,7 +134,7 @@ export async function createBookingForMember(
             });
             syncBookingInvoice(bookingId, sessionId).catch((syncErr: unknown) => {
               logger.warn('[Trackman Webhook] Non-blocking: Failed to sync invoice after duration change', {
-                extra: { bookingId, sessionId, error: (syncErr as Error).message }
+                extra: { bookingId, sessionId, error: getErrorMessage(syncErr) }
               });
             });
           } catch (recalcErr: unknown) {
@@ -183,7 +184,7 @@ export async function createBookingForMember(
           });
         } catch (broadcastErr: unknown) {
           logger.warn('[Trackman Webhook] Failed to broadcast bay change availability update', {
-            extra: { bookingId, error: (broadcastErr as Error).message }
+            extra: { bookingId, error: getErrorMessage(broadcastErr) }
           });
         }
         
@@ -332,7 +333,7 @@ export async function createBookingForMember(
               }
             } catch (rpErr: unknown) {
               logger.warn('[Trackman Webhook] Non-blocking: Failed to transfer request_participants to session during auto-link', {
-                extra: { bookingId: pendingBookingId, sessionId: newSessionId, error: (rpErr as Error).message }
+                extra: { bookingId: pendingBookingId, sessionId: newSessionId, error: getErrorMessage(rpErr) }
               });
             }
             
@@ -817,7 +818,7 @@ export async function tryMatchByBayDateTime(
           }
         } catch (rpErr: unknown) {
           logger.warn('[Trackman Webhook] Non-blocking: Failed to transfer request_participants during bay/date/time match', {
-            extra: { bookingId, sessionId: sessionResult.sessionId, error: (rpErr as Error).message }
+            extra: { bookingId, sessionId: sessionResult.sessionId, error: getErrorMessage(rpErr) }
           });
         }
 

@@ -744,7 +744,7 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
           await voidBookingInvoice(row.id);
         } catch (voidErr: unknown) {
           logger.warn('[Admin] Failed to void invoice during member purge', {
-            extra: { bookingId: row.id, invoiceId: row.stripe_invoice_id, error: (voidErr as Error).message }
+            extra: { bookingId: row.id, invoiceId: row.stripe_invoice_id, error: getErrorMessage(voidErr) }
           });
         }
       }

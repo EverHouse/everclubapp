@@ -1112,16 +1112,16 @@ async function initializeApp() {
           }
           break;
         } catch (err) {
-          const isTimeout = String((err as Error).message || '').includes('timeout');
+          const isTimeout = String(getErrorMessage(err)).includes('timeout');
           if (attempt < maxRetries && isTimeout) {
             logger.warn(`[Startup] Archived staff check attempt ${attempt}/${maxRetries} timed out, retrying in ${attempt * 5}s...`);
             await new Promise(r => setTimeout(r, attempt * 5000));
           } else {
-            logger.error('[Startup] Failed to check archived staff accounts:', { error: err as Error });
+            logger.error('[Startup] Failed to check archived staff accounts:', { error: getErrorMessage(err) });
           }
         }
       }
-    })().catch(err => logger.error('[Startup] Unhandled error in archived staff check:', { error: err as Error }));
+    })().catch(err => logger.error('[Startup] Unhandled error in archived staff check:', { error: getErrorMessage(err) }));
 
     (async () => {
       try {

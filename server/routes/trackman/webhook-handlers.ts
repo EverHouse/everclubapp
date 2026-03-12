@@ -193,7 +193,7 @@ export async function handleBookingModification(
       }
     } catch (conflictCheckErr: unknown) {
       logger.warn('[Trackman Webhook] Failed to check conflicts for modification — proceeding anyway', {
-        extra: { bookingId, error: (conflictCheckErr as Error).message }
+        extra: { bookingId, error: getErrorMessage(conflictCheckErr) }
       });
     }
   }
@@ -327,7 +327,7 @@ export async function handleBookingModification(
                 );
               } catch (rpErr: unknown) {
                 logger.warn('[Trackman Webhook] Non-blocking: Failed to transfer request_participants during detach', {
-                  extra: { bookingId, newSessionId, error: (rpErr as Error).message }
+                  extra: { bookingId, newSessionId, error: getErrorMessage(rpErr) }
                 });
               }
             }
@@ -369,7 +369,7 @@ export async function handleBookingModification(
         }
       } catch (backfillErr: unknown) {
         logger.warn('[Trackman Webhook] Non-blocking: Failed to backfill guest slots after modification', {
-          extra: { bookingId, sessionId: effectiveSessionId, error: (backfillErr as Error).message }
+          extra: { bookingId, sessionId: effectiveSessionId, error: getErrorMessage(backfillErr) }
         });
       }
     }
@@ -383,12 +383,12 @@ export async function handleBookingModification(
 
         syncBookingInvoice(bookingId, effectiveSessionId).catch((syncErr: unknown) => {
           logger.warn('[Trackman Webhook] Non-blocking: Failed to sync invoice after modification', {
-            extra: { bookingId, sessionId: effectiveSessionId, error: (syncErr as Error).message }
+            extra: { bookingId, sessionId: effectiveSessionId, error: getErrorMessage(syncErr) }
           });
         });
       } catch (recalcErr: unknown) {
         logger.warn('[Trackman Webhook] Failed to recalculate fees after modification', {
-          extra: { bookingId, sessionId: effectiveSessionId, error: (recalcErr as Error).message }
+          extra: { bookingId, sessionId: effectiveSessionId, error: getErrorMessage(recalcErr) }
         });
       }
     }
@@ -406,7 +406,7 @@ export async function handleBookingModification(
         );
       } catch (cacheErr: unknown) {
         logger.warn('[Trackman Webhook] Non-blocking: Failed to clean up old bay slot cache', {
-          extra: { bookingId, oldResourceId, error: (cacheErr as Error).message }
+          extra: { bookingId, oldResourceId, error: getErrorMessage(cacheErr) }
         });
       }
 
@@ -425,7 +425,7 @@ export async function handleBookingModification(
         });
       } catch (broadcastErr: unknown) {
         logger.warn('[Trackman Webhook] Failed to broadcast availability after bay change', {
-          extra: { bookingId, error: (broadcastErr as Error).message }
+          extra: { bookingId, error: getErrorMessage(broadcastErr) }
         });
       }
     } else if (timeChanged || dateChanged) {
@@ -446,7 +446,7 @@ export async function handleBookingModification(
         }
       } catch (broadcastErr: unknown) {
         logger.warn('[Trackman Webhook] Failed to broadcast availability after time/date change', {
-          extra: { bookingId, error: (broadcastErr as Error).message }
+          extra: { bookingId, error: getErrorMessage(broadcastErr) }
         });
       }
     }
@@ -508,7 +508,7 @@ export async function handleBookingModification(
         );
       } catch (memberNotifyErr: unknown) {
         logger.warn('[Trackman Webhook] Failed to notify member about modification', {
-          extra: { bookingId, error: (memberNotifyErr as Error).message }
+          extra: { bookingId, error: getErrorMessage(memberNotifyErr) }
         });
       }
     }
@@ -520,7 +520,7 @@ export async function handleBookingModification(
         bayName: newResourceId ? `Bay ${newResourceId}` : undefined
       }).catch(err => {
         logger.warn('[Trackman Webhook] Non-blocking: Failed to link/notify participants after modification', {
-          extra: { bookingId, sessionId: effectiveSessionId, error: (err as Error).message }
+          extra: { bookingId, sessionId: effectiveSessionId, error: getErrorMessage(err) }
         });
       });
     }
@@ -625,7 +625,7 @@ export async function tryAutoApproveBooking(
             );
           } catch (rpErr: unknown) {
             logger.warn('[Trackman Webhook] Non-blocking: Failed to transfer request_participants to session', {
-              extra: { bookingId, sessionId: createdSessionId, error: (rpErr as Error).message }
+              extra: { bookingId, sessionId: createdSessionId, error: getErrorMessage(rpErr) }
             });
           }
         } else {
@@ -636,7 +636,7 @@ export async function tryAutoApproveBooking(
         }
       } catch (sessionErr: unknown) {
         logger.error('[Trackman Webhook] ensureSessionForBooking threw for auto-approved booking — reverting to pending', {
-          extra: { bookingId, trackmanBookingId, error: (sessionErr as Error).message }
+          extra: { bookingId, trackmanBookingId, error: getErrorMessage(sessionErr) }
         });
         await db.execute(sql`UPDATE booking_requests SET status = 'pending', updated_at = NOW() WHERE id = ${bookingId}`);
       }
@@ -685,7 +685,7 @@ export async function tryAutoApproveBooking(
         }
       } catch (invoiceErr: unknown) {
         logger.warn('[Trackman Webhook] Non-blocking: Failed to create draft invoice for auto-approved booking', {
-          extra: { bookingId, error: (invoiceErr as Error).message }
+          extra: { bookingId, error: getErrorMessage(invoiceErr) }
         });
       }
     }
@@ -1472,7 +1472,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
         }
       } catch (backfillErr: unknown) {
         logger.warn('[Trackman Webhook] Non-blocking: Failed to backfill guest slots after auto-approve', {
-          extra: { bookingId: autoApproveResult.bookingId, error: (backfillErr as Error).message }
+          extra: { bookingId: autoApproveResult.bookingId, error: getErrorMessage(backfillErr) }
         });
       }
     }

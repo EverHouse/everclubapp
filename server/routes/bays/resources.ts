@@ -5,6 +5,7 @@ import { eq, and, or, asc, sql } from 'drizzle-orm';
 import { isProduction } from '../../core/db';
 import { getGoogleCalendarClient } from '../../core/integrations';
 import {logAndRespond, logger } from '../../core/logger';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { getPacificMidnightUTC } from '../../utils/dateUtils';
 
 const router = Router();
@@ -98,7 +99,7 @@ router.get('/api/bays/:bayId/availability', async (req, res) => {
         };
       });
     } catch (calError) {
-      if (!isProduction) logger.info('Calendar availability fetch skipped', { extra: { calError_as_Error_message: (calError as Error).message } });
+      if (!isProduction) logger.info('Calendar availability fetch skipped', { extra: { error: getErrorMessage(calError) } });
     }
     
     res.json({

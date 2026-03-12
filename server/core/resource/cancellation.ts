@@ -247,7 +247,7 @@ export async function handleCancellationCascade(
           extra: { bookingId, memberEmail: member.email, participantId: member.participantId }
         });
       } catch (notifyError: unknown) {
-        const errorMsg = `Failed to notify participant ${member.email}: ${(notifyError as Error).message}`;
+        const errorMsg = `Failed to notify participant ${member.email}: ${getErrorMessage(notifyError)}`;
         result.errors.push(errorMsg);
         logger.warn('[cancellation-cascade] ' + errorMsg, { error: notifyError as Error });
       }
@@ -280,7 +280,7 @@ export async function handleCancellationCascade(
           result.errors.push(`Failed to refund guest pass for ${guest.displayName}: ${refundResult.error}`);
         }
       } catch (refundError: unknown) {
-        const errorMsg = `Failed to refund guest pass for ${guest.displayName}: ${(refundError as Error).message}`;
+        const errorMsg = `Failed to refund guest pass for ${guest.displayName}: ${getErrorMessage(refundError)}`;
         result.errors.push(errorMsg);
         logger.warn('[cancellation-cascade] ' + errorMsg, { error: refundError as Error });
       }
@@ -604,7 +604,7 @@ export async function memberCancelBooking(bookingId: number, userEmail: string, 
       logger.warn('[Member Cancel] Failed to clean up trackman_bay_slots', { 
         bookingId, 
         resourceId: existing.resourceId,
-        error: (err as Error).message 
+        error: getErrorMessage(err) 
       });
     }
   }

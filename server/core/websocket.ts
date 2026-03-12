@@ -588,7 +588,7 @@ export function sendNotificationToUser(
       } catch (error: unknown) {
         logger.warn(`[WebSocket] Error sending to ${email}`, {
           userEmail: email,
-          error: (error as Error).message,
+          error: getErrorMessage(error),
           extra: { event: 'notification.delivery', status: 'send_error', notificationType: notification.type }
         });
       }

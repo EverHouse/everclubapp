@@ -230,7 +230,7 @@ async function settleBookingInvoiceAfterCheckin(bookingId: number, sessionId: nu
     if (!invoiceId) {
       syncBookingInvoice(bookingId, sessionId).catch((err: unknown) => {
         logger.warn('[StaffCheckin] Non-blocking: Failed to create invoice for booking with no existing invoice', {
-          extra: { bookingId, sessionId, error: (err as Error).message }
+          extra: { bookingId, sessionId, error: getErrorMessage(err) }
         });
       });
       return;
@@ -248,7 +248,7 @@ async function settleBookingInvoiceAfterCheckin(bookingId: number, sessionId: nu
     if (!allSettled) {
       syncBookingInvoice(bookingId, sessionId).catch((err: unknown) => {
         logger.warn('[StaffCheckin] Non-blocking: Failed to sync invoice after partial action', {
-          extra: { bookingId, sessionId, error: (err as Error).message }
+          extra: { bookingId, sessionId, error: getErrorMessage(err) }
         });
       });
       return;
@@ -275,31 +275,31 @@ async function settleBookingInvoiceAfterCheckin(bookingId: number, sessionId: nu
           });
           voidBookingInvoice(bookingId).catch((err: unknown) => {
             logger.warn('[StaffCheckin] Non-blocking: Failed to void invoice after OOB failure', {
-              extra: { bookingId, error: (err as Error).message }
+              extra: { bookingId, error: getErrorMessage(err) }
             });
           });
         }
       } catch (finalizeErr: unknown) {
         logger.warn('[StaffCheckin] Non-blocking: Failed to finalize invoice OOB, voiding draft', {
-          extra: { bookingId, invoiceId, error: (finalizeErr as Error).message }
+          extra: { bookingId, invoiceId, error: getErrorMessage(finalizeErr) }
         });
         voidBookingInvoice(bookingId).catch((err: unknown) => {
           logger.warn('[StaffCheckin] Non-blocking: Failed to void invoice after OOB exception', {
-            extra: { bookingId, error: (err as Error).message }
+            extra: { bookingId, error: getErrorMessage(err) }
           });
         });
       }
     } else {
       voidBookingInvoice(bookingId).catch((err: unknown) => {
         logger.warn('[StaffCheckin] Non-blocking: Failed to void invoice after all waived', {
-          extra: { bookingId, error: (err as Error).message }
+          extra: { bookingId, error: getErrorMessage(err) }
         });
       });
       broadcastBookingInvoiceUpdate({ bookingId, sessionId, action: 'invoice_voided', memberEmail: ownerEmail });
     }
   } catch (err: unknown) {
     logger.warn('[StaffCheckin] Non-blocking: settleBookingInvoiceAfterCheckin failed', {
-      extra: { bookingId, sessionId, error: (err as Error).message }
+      extra: { bookingId, sessionId, error: getErrorMessage(err) }
     });
   } finally {
     settlementInFlight.delete(bookingId);
@@ -723,7 +723,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
         });
         
         if (consumeResult.passesRemaining !== undefined) {
-          try { broadcastMemberStatsUpdated(booking.owner_email, { guestPasses: consumeResult.passesRemaining }); } catch (err: unknown) {logger.error('[Broadcast] Stats update error:', err); }
+          try { broadcastMemberStatsUpdated(booking.owner_email, { guestPasses: consumeResult.passesRemaining }); } catch (err: unknown) {logger.error('[Broadcast] Stats update error', { error: getErrorMessage(err) }); }
         }
         
         settleBookingInvoiceAfterCheckin(bookingId, sessionId, booking.owner_email).catch((err: unknown) => {
@@ -768,7 +768,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
 
       settleBookingInvoiceAfterCheckin(bookingId, sessionId, booking.owner_email).catch((err: unknown) => {
         logger.error('[StaffCheckin] Invoice settlement failed after check-in — requires manual review', {
-          extra: { bookingId, sessionId, error: (err as Error).message }
+          extra: { bookingId, sessionId, error: getErrorMessage(err) }
         });
       });
 
@@ -1020,7 +1020,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
             }
           });
         } catch (snapshotErr: unknown) {
-          if ((snapshotErr as Error).message !== 'SNAPSHOT_RACE') {
+          if (getErrorMessage(snapshotErr) !== 'SNAPSHOT_RACE') {
             logger.error('[StaffCheckin] Failed to create fee snapshot', { extra: { snapshotErr } });
           }
         }
@@ -1056,7 +1056,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
 
       settleBookingInvoiceAfterCheckin(bookingId, sessionId, booking.owner_email).catch((err: unknown) => {
         logger.error('[StaffCheckin] Invoice settlement failed after check-in — requires manual review', {
-          extra: { bookingId, sessionId, error: (err as Error).message }
+          extra: { bookingId, sessionId, error: getErrorMessage(err) }
         });
       });
 
@@ -1617,7 +1617,7 @@ router.post('/api/staff/qr-checkin', isStaffOrAdmin, async (req: Request, res: R
         }
       } catch (bookingLookupErr: unknown) {
         logger.warn('[QRCheckin] Non-blocking: Failed to look up booking for member', {
-          extra: { memberId, error: (bookingLookupErr as Error).message }
+          extra: { memberId, error: getErrorMessage(bookingLookupErr) }
         });
       }
     }

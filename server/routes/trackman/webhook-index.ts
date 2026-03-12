@@ -260,7 +260,7 @@ async function checkWebhookIdempotency(trackmanBookingId: string, status?: strin
     return isNewWebhook;
   } catch (error: unknown) {
     logger.error('[Trackman Webhook] Failed to check webhook idempotency', {
-      extra: { trackmanBookingId, error: (error as Error).message }
+      extra: { trackmanBookingId, error: getErrorMessage(error) }
     });
     return true;
   }
@@ -1169,7 +1169,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
           }
         } catch (rpErr: unknown) {
           logger.warn('[Trackman Auto-Match] Non-blocking: Failed to transfer request_participants', {
-            extra: { bookingId: match.id, sessionId: sessionResult.sessionId, error: (rpErr as Error).message }
+            extra: { bookingId: match.id, sessionId: sessionResult.sessionId, error: getErrorMessage(rpErr) }
           });
         }
 
@@ -1403,7 +1403,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
             }
           } catch (rpErr: unknown) {
             logger.warn('[Simulate Confirm] Non-blocking: Failed to transfer request_participants', {
-              extra: { bookingId, sessionId, error: (rpErr as Error).message }
+              extra: { bookingId, sessionId, error: getErrorMessage(rpErr) }
             });
           }
 

@@ -905,12 +905,12 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
             row._invoicePayResult = payResult;
           } catch (payErr: unknown) {
             logger.warn('[ConferenceRoom] Invoice finalize/pay did not complete instantly — member can pay via dashboard', {
-              extra: { bookingId: row.id, error: (payErr as Error).message }
+              extra: { bookingId: row.id, error: getErrorMessage(payErr) }
             });
           }
         } catch (invoiceErr: unknown) {
           logger.warn('[ConferenceRoom] Non-blocking: Failed to create invoice after booking', {
-            extra: { bookingId: row.id, error: (invoiceErr as Error).message }
+            extra: { bookingId: row.id, error: getErrorMessage(invoiceErr) }
           });
         }
       }

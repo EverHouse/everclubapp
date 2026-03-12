@@ -245,6 +245,11 @@ router.post('/api/stripe/staff/send-membership-link', isStaffOrAdmin, async (req
 
     const checkoutUrl = session.url;
 
+    if (!checkoutUrl) {
+      logger.error('[Stripe] Checkout session created but no URL returned', { extra: { sessionId: session.id, email } });
+      return res.status(500).json({ error: 'Failed to generate checkout URL' });
+    }
+
     try {
       const { getResendClient } = await import('../../utils/resend');
       const { client: resend, fromEmail } = await getResendClient();

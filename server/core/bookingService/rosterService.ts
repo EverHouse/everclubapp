@@ -197,7 +197,7 @@ export async function isStaffOrAdminCheck(email: string): Promise<boolean> {
     );
     return (result as { rows: { id: string }[] }).rows.length > 0;
   } catch (error: unknown) {
-    logger.error('[isStaffOrAdminCheck] DB error, defaulting to false', { extra: { error: (error as Error).message } });
+    logger.error('[isStaffOrAdminCheck] DB error, defaulting to false', { extra: { error: getErrorMessage(error) } });
     return false;
   }
 }

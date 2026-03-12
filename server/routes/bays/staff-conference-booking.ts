@@ -13,6 +13,7 @@ import { formatTime12Hour, formatDateDisplayWithDay, getTodayPacific, getPacific
 import { getCalendarIdByName, getCalendarBusyTimes } from '../../core/calendar';
 import { CALENDAR_CONFIG } from '../../core/calendar/config';
 import { broadcastAvailabilityUpdate } from '../../core/websocket';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { getSettingValue } from '../../core/settingsHelper';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
@@ -364,7 +365,7 @@ router.post('/api/staff/conference-room/booking', isStaffOrAdmin, async (req: Re
             });
           } catch (payErr: unknown) {
             logger.warn('[StaffConferenceBooking] Invoice finalize/pay failed (will be collected at check-in)', {
-              extra: { bookingId, error: (payErr as Error).message }
+              extra: { bookingId, error: getErrorMessage(payErr) }
             });
           }
           
@@ -374,7 +375,7 @@ router.post('/api/staff/conference-room/booking', isStaffOrAdmin, async (req: Re
         }
       } catch (sessionErr: unknown) {
         logger.warn('[StaffConferenceBooking] Non-blocking: Failed to create session/invoice', {
-          extra: { bookingId, error: (sessionErr as Error).message }
+          extra: { bookingId, error: getErrorMessage(sessionErr) }
         });
       }
 
