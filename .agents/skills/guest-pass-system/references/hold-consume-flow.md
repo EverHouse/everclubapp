@@ -208,7 +208,7 @@ Detailed transactional steps for guest pass hold creation, consumption at check-
 
 All transactional functions follow these patterns:
 
-1. **Transaction management:** Uses `db.transaction()` or `safeDbTransaction()` from Drizzle ORM (v8.75.0)
+1. **Transaction management:** Uses `db.transaction()` from Drizzle ORM (v8.75.0)
 2. **Transaction boundary:** Drizzle handles `BEGIN`/`COMMIT`/`ROLLBACK` automatically
 3. **External client support:** `createGuestPassHold` and `getAvailableGuestPasses` accept an optional external transaction handle to participate in an outer transaction, skipping own transaction management
 4. **Idempotency:** both `consumeGuestPassForParticipant` and `refundGuestPassForParticipant` check current state before acting, returning success if already in desired state

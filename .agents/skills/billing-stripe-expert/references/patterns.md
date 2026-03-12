@@ -73,7 +73,7 @@ All subscription changes flow through webhooks, not direct DB updates.
 - **Subscription sync**: `server/core/stripe/subscriptionSync.ts` — bulk subscription status sync
 - **Group billing**: `server/core/stripe/groupBilling.ts` — corporate subscriptions with multiple seats. Primary cancellation cascades to all sub-members via `handlePrimarySubscriptionCancelled()`
 - **Tier sync**: `server/core/stripe/tierChanges.ts` — tier change processing with HubSpot sync
-- **HubSpot sync**: `server/core/stripe/hubspotSync.ts` — syncs subscription status/tier to HubSpot contact
+- **HubSpot sync**: HubSpot tier sync is handled inline in `server/core/stripe/tierChanges.ts` via `syncMemberToHubSpot()` from `server/core/hubspot/stages.ts`
 
 ## 17. Dispute Handling
 Payment disputes trigger immediate membership suspension — different from grace period logic.

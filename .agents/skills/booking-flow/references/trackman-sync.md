@@ -210,4 +210,4 @@ Golf calendar sync has been removed (the `server/core/calendar/sync/golf.ts` fil
 
 - **Email resolution**: `resolveLinkedEmail()` checks `users.trackman_email`, `users.linked_emails` (JSONB), and `users.manually_linked_emails` (JSONB) to map Trackman emails to canonical member emails.
 - **Idempotency**: `trackman_booking_id` uniqueness constraint prevents duplicate booking creation. The `AND trackman_booking_id IS NULL` guard in update queries prevents race conditions between concurrent webhook/import runs.
-- **Session reuse**: `findOverlappingSession()` with `tsrange` overlap prevents duplicate sessions when Trackman times differ slightly from booked times.
+- **Session reuse**: `ensureSessionForBooking()` step 3 uses `tsrange` overlap matching to prevent duplicate sessions when Trackman times differ slightly from booked times.

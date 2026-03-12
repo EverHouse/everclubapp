@@ -20,7 +20,7 @@ All schedulers registered in `server/schedulers/index.ts` via `initSchedulers()`
 
 | Name | File | Interval | Time Gate | Purpose |
 |---|---|---|---|---|
-| Background Sync | backgroundSyncScheduler.ts | 5 min | None | Google Calendar, wellness, tours, closures, conference rooms |
+| Background Sync | backgroundSyncScheduler.ts | 5 min | None | Google Calendar events, wellness, closures, conference rooms |
 | Daily Reminder | dailyReminderScheduler.ts | 30 min | 6 PM Pacific | Tomorrow's reminders (push.ts) |
 | Morning Closure | morningClosureScheduler.ts | 30 min | 8 AM Pacific | Today's closure alerts (push.ts) |
 | Weekly Cleanup | weeklyCleanupScheduler.ts | 1 hr | Sun 3 AM Pacific | Old data cleanup |

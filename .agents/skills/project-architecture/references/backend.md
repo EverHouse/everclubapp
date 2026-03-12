@@ -193,7 +193,6 @@ Only if all 3 fail does it INSERT a new session. When called inside a transactio
 | `alertHistoryMonitor.ts` | Alert history tracking |
 | `emailTemplatePreview.ts` | Email template preview rendering |
 | `hubspotQueueMonitor.ts` | HubSpot queue monitoring |
-| `safeDbOperation.ts` | Safe database operations wrapper (`safeDbOperation()`, `safeDbTransaction()`) |
 | `schedulerTracker.ts` | Scheduler execution tracking |
 | `walkInCheckinService.ts` | Walk-in check-in processing |
 | `resourceService.ts` | Barrel re-export for `server/core/resource/` |
@@ -211,14 +210,11 @@ Only if all 3 fail does it INSERT a new session. When called inside a transactio
 | `supabase/client.ts` | Supabase admin client |
 | `utils/emailNormalization.ts` | Email normalization utilities |
 
-### Safe Database Operation Wrappers (v7.26.0)
+### Database Transaction Pattern (v8.75.0+)
 
-| Wrapper | Location | Purpose |
-|---------|----------|---------|
-| `safeDbOperation()` | `server/core/safeDbOperation.ts` | Wrap single DB operations with structured error logging. Use instead of empty `try/catch {}` blocks. |
-| `safeDbTransaction()` | `server/core/safeDbOperation.ts` | Wrap multi-statement DB operations in a Drizzle `db.transaction()` with automatic rollback on failure. Callback receives a Drizzle `tx` object. Errors trigger `alertOnScheduledTaskFailure` (rewritten v8.75.0). |
+Use `db.transaction(async (tx) => { ... })` from Drizzle ORM for multi-statement operations. Drizzle handles `BEGIN`/`COMMIT`/`ROLLBACK` automatically. For scheduler error alerting, use `alertOnScheduledTaskFailure()` from `server/core/dataAlerts.ts`.
 
-**BANNED:** Empty `catch {}` blocks anywhere in server code. Every error must be either thrown, logged via `safeDbOperation`, or handled with a meaningful fallback.
+**BANNED:** Empty `catch {}` blocks anywhere in server code. Every error must be either thrown, logged, or handled with a meaningful fallback.
 - Use `logger.debug` for expected/benign failures (JSON parse fallbacks, optional lookups).
 - Use `logger.warn` for operationally meaningful errors (DB rollback failures, sync errors).
 

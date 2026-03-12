@@ -124,12 +124,11 @@ Uses DB connection timeouts (10s) and statement timeouts (30s) for safety.
 **File:** `server/schedulers/backgroundSyncScheduler.ts`
 **Interval:** 5 min | **Time Gate:** None
 
-Syncs five Google Calendar sources with retry logic:
+Syncs four Google Calendar sources with retry logic:
 1. Events calendar → `syncGoogleCalendarEvents()`
 2. Wellness calendar → `syncWellnessCalendarEvents()`
-3. Tours calendar → `syncToursFromCalendar()`
-4. Closures calendar → `syncInternalCalendarToClosures()`
-5. Conference room calendar → `syncConferenceRoomCalendarToBookings()`
+3. Closures calendar → `syncInternalCalendarToClosures()`
+4. Conference room calendar → `syncConferenceRoomCalendarToBookings()`
 
 Each sync uses `syncWithRetry()`: attempt once, if failed retry after 5 seconds. Track consecutive failures per source; alert staff via `alertOnSyncFailure()` after 2 consecutive failures. First sync starts 5 minutes after boot.
 

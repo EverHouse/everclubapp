@@ -132,7 +132,6 @@
 | `server/core/memberService/tierSync.ts` | Tier ↔ Stripe price ID mapping |
 | `server/core/memberService/MemberService.ts` | Member queries (includes billing status fields) |
 | `server/core/userMerge.ts` | Merges user accounts (must preserve billing records) |
-| `server/core/hubspot/lineItems.ts` | Syncs Stripe pricing as HubSpot deal line items |
 | `server/core/hubspot/stages.ts` | `syncMemberToHubSpot()` — syncs billing status to HubSpot |
 | `server/core/mindbody/import.ts` | Legacy Mindbody billing import |
 | `server/core/visitors/matchingService.ts` | Matches day pass purchases to visitor records |
@@ -188,7 +187,7 @@
 | `staff-command-center/drawers/NewUserDrawer.tsx` | Payment/billing setup for new users |
 | `MemberProfileDrawer.tsx` | Member profile drawer (billing tab, subscription status) |
 | `MemberMenuOverlay.tsx` | Member menu overlay (billing navigation) |
-| `shared/MemberSearchInput.tsx` | Member search input (used in payment/billing contexts) |
+| `src/components/shared/MemberSearchInput.tsx` | Member search input (used in payment/billing contexts) |
 
 ## Frontend — Pages
 | File | Billing Relevance |
@@ -262,12 +261,11 @@ These files reference billing concepts incidentally. Documented here for zero-or
 | `server/routes/waivers.ts` | Waiver routes (subscription status checks) |
 | `server/routes/closures.ts` | Closure management (subscription references) |
 | `server/routes/push.ts` | Push notification routes (payment alert subscriptions) |
-| `server/routes/dataTools.ts` | Data tools (billing data repair utilities) |
+| `server/routes/dataTools/index.ts` | Data tools (billing data repair utilities) |
 | `server/routes/hubspot.ts` | HubSpot routes (billing status sync endpoints) |
 | `server/routes/staff/manualBooking.ts` | Manual booking (payment/fee references) |
 | `server/routes/bays/approval.ts` | Booking approval (triggers prepayment creation) |
 | `server/routes/bays/bookings.ts` | Booking CRUD (fee display, billing session creation) |
-| `server/routes/bays/reschedule.ts` | Reschedule (fee recalculation) |
 | `server/routes/bays/calendar.ts` | Calendar (payment status in booking display) |
 | `server/routes/bays/staff-conference-booking.ts` | Conference booking (uses invoice flow since v8.16.0) |
 | `server/routes/members/admin-actions.ts` | Member admin actions (billing status changes) |

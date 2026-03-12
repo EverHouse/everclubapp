@@ -227,7 +227,7 @@ The membership pipeline in HubSpot contains 8 stages defined in `server/core/hub
 
 ### Pipeline Validation
 
-`validateMembershipPipeline` in `server/core/hubspot/pipeline.ts`:
+`validateMembershipPipeline` (previously in `server/core/hubspot/pipeline.ts`, now removed):
 
 1. Checks if the Membership Pipeline exists in HubSpot (by ID or label match).
 2. Fetches all stages in the pipeline and caches them for 1 hour.

@@ -76,17 +76,9 @@ Additional one-time products created via `ensureDayPassCoworkingProduct()` and s
 - "Day Pass - Coworking" at $35.
 - Each follows the same ensure pattern: check DB → create Stripe product → create price → store IDs.
 
-## HubSpot → Stripe Product Sync
+## HubSpot → Stripe Product Sync (Legacy — Removed)
 
-Products originating from HubSpot can be synced to Stripe:
-
-1. `fetchHubSpotProducts()` — paginate all HubSpot CRM products with properties `name`, `price`, `hs_sku`, `description`, `hs_recurring_billing_period`.
-2. `syncHubSpotProductToStripe()` — for each product:
-   - If already synced (exists in `stripe_products` table by `hubspot_product_id`), update the Stripe product and check for price changes.
-   - If price changed, deactivate old Stripe price, create new one.
-   - If not synced, search Stripe for existing product by metadata or name to prevent duplicates, then create product + price.
-   - Store in `stripe_products` table: `hubspot_product_id`, `stripe_product_id`, `stripe_price_id`, `name`, `price_cents`, `billing_interval`.
-3. `syncAllHubSpotProductsToStripe()` — batch sync all HubSpot products.
+The HubSpot-to-Stripe product sync functions (`fetchHubSpotProducts()`, `syncHubSpotProductToStripe()`, `syncAllHubSpotProductsToStripe()`) have been removed from the codebase. Group add-on product sync is now handled by `syncGroupAddOnProductsToStripe()` in `server/core/stripe/groupBilling.ts`.
 
 ### Recurring vs One-Time
 
