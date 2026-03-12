@@ -199,13 +199,6 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
 
-    const scrollTop = window.scrollY || document.documentElement.scrollTop;
-    const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
-
-    const absTop = rect.top + scrollTop;
-    const absBottom = rect.bottom + scrollTop;
-    const absLeft = rect.left + scrollLeft;
-
     const vv = window.visualViewport;
     const viewportHeight = vv ? vv.height : window.innerHeight;
     const viewportOffsetTop = vv ? vv.offsetTop : 0;
@@ -220,9 +213,9 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
     const clampedHeight = Math.min(maxDropdownHeight, Math.max(placeAbove ? spaceAbove - 8 : spaceBelow - 8, 80));
 
     setDropdownStyle({
-      position: 'absolute',
-      top: placeAbove ? (absTop - clampedHeight - 4) : absBottom + 4,
-      left: absLeft,
+      position: 'fixed',
+      top: placeAbove ? (rect.top - clampedHeight - 4) : rect.bottom + 4,
+      left: rect.left,
       width: rect.width,
       maxHeight: clampedHeight,
       zIndex: 99999,
@@ -314,6 +307,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
       ref={dropdownRef}
       id={listboxId}
       role="listbox"
+      data-scroll-lock-allow=""
       style={dropdownStyle}
       className="bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-xl overflow-hidden overflow-y-auto"
     >
