@@ -50,6 +50,10 @@ export const membershipTiers = pgTable("membership_tiers", {
   minQuantity: integer("min_quantity").default(1),
   tierType: text("tier_type").default("individual"), // 'individual' or 'corporate'
   
+  walletPassBgColor: varchar("wallet_pass_bg_color"),
+  walletPassForegroundColor: varchar("wallet_pass_foreground_color"),
+  walletPassLabelColor: varchar("wallet_pass_label_color"),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

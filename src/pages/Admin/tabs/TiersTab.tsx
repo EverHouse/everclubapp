@@ -57,6 +57,9 @@ interface MembershipTier {
     stripe_product_id?: string | null;
     price_cents?: number | null;
     product_type?: 'subscription' | 'one_time' | null;
+    wallet_pass_bg_color?: string | null;
+    wallet_pass_foreground_color?: string | null;
+    wallet_pass_label_color?: string | null;
 }
 
 interface StripePrice {
@@ -205,6 +208,9 @@ const TiersTab: React.FC = () => {
         stripe_price_id: null,
         stripe_product_id: null,
         price_cents: null,
+        wallet_pass_bg_color: null,
+        wallet_pass_foreground_color: null,
+        wallet_pass_label_color: null,
     });
 
     const saveTierMutation = useMutation({
@@ -969,6 +975,78 @@ const TiersTab: React.FC = () => {
                             })()} 
                         </div>
                     </div>
+
+                    {(() => {
+                        const isMembershipTier = selectedTier?.product_type !== 'one_time';
+                        return isMembershipTier && (
+                    <div className="border-t-2 border-gray-200 dark:border-white/15 pt-6">
+                        <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 mb-1">APPLE WALLET PASS COLORS</h4>
+                        <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-4">Custom colors for the Apple Wallet membership pass. Leave blank to use defaults.</p>
+                        <div className="grid grid-cols-3 gap-3">
+                            <div>
+                                <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Background</label>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="color"
+                                        className="w-8 h-8 rounded border border-gray-200 dark:border-white/20 cursor-pointer bg-transparent"
+                                        value={selectedTier?.wallet_pass_bg_color || '#CCCCCC'}
+                                        onChange={e => selectedTier && setSelectedTier({...selectedTier, wallet_pass_bg_color: e.target.value})}
+                                    />
+                                    <input
+                                        type="text"
+                                        className="flex-1 border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2 rounded-xl text-primary dark:text-white text-sm font-mono placeholder:text-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                        value={selectedTier?.wallet_pass_bg_color || ''}
+                                        onChange={e => selectedTier && setSelectedTier({...selectedTier, wallet_pass_bg_color: e.target.value})}
+                                        placeholder="#E5E4E2"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Foreground</label>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="color"
+                                        className="w-8 h-8 rounded border border-gray-200 dark:border-white/20 cursor-pointer bg-transparent"
+                                        value={selectedTier?.wallet_pass_foreground_color || '#333333'}
+                                        onChange={e => selectedTier && setSelectedTier({...selectedTier, wallet_pass_foreground_color: e.target.value})}
+                                    />
+                                    <input
+                                        type="text"
+                                        className="flex-1 border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2 rounded-xl text-primary dark:text-white text-sm font-mono placeholder:text-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                        value={selectedTier?.wallet_pass_foreground_color || ''}
+                                        onChange={e => selectedTier && setSelectedTier({...selectedTier, wallet_pass_foreground_color: e.target.value})}
+                                        placeholder="#374151"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Label</label>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="color"
+                                        className="w-8 h-8 rounded border border-gray-200 dark:border-white/20 cursor-pointer bg-transparent"
+                                        value={selectedTier?.wallet_pass_label_color || '#666666'}
+                                        onChange={e => selectedTier && setSelectedTier({...selectedTier, wallet_pass_label_color: e.target.value})}
+                                    />
+                                    <input
+                                        type="text"
+                                        className="flex-1 border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2 rounded-xl text-primary dark:text-white text-sm font-mono placeholder:text-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                        value={selectedTier?.wallet_pass_label_color || ''}
+                                        onChange={e => selectedTier && setSelectedTier({...selectedTier, wallet_pass_label_color: e.target.value})}
+                                        placeholder="#6B7280"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        {(selectedTier?.wallet_pass_bg_color || selectedTier?.wallet_pass_foreground_color || selectedTier?.wallet_pass_label_color) && (
+                            <div className="mt-3 p-3 rounded-xl border border-gray-200 dark:border-white/20" style={{ backgroundColor: selectedTier?.wallet_pass_bg_color || '#CCCCCC' }}>
+                                <span className="text-[10px] uppercase font-bold" style={{ color: selectedTier?.wallet_pass_label_color || '#666666' }}>MEMBER</span>
+                                <p className="text-sm font-semibold" style={{ color: selectedTier?.wallet_pass_foreground_color || '#333333' }}>Preview Name</p>
+                            </div>
+                        )}
+                    </div>
+                        );
+                    })()}
 
                     {(() => {
                         const isMembershipTier = selectedTier?.product_type !== 'one_time';

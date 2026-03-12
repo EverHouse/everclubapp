@@ -500,6 +500,11 @@ export async function ensureDatabaseConstraints() {
     try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS migration_status TEXT`); } catch { logger.debug('[DB Init] migration_status column already exists or failed'); }
     logger.info('[DB Init] Billing migration columns verified');
 
+    try { await db.execute(sql`ALTER TABLE membership_tiers ADD COLUMN IF NOT EXISTS wallet_pass_bg_color VARCHAR`); } catch { logger.debug('[DB Init] wallet_pass_bg_color column already exists or failed'); }
+    try { await db.execute(sql`ALTER TABLE membership_tiers ADD COLUMN IF NOT EXISTS wallet_pass_foreground_color VARCHAR`); } catch { logger.debug('[DB Init] wallet_pass_foreground_color column already exists or failed'); }
+    try { await db.execute(sql`ALTER TABLE membership_tiers ADD COLUMN IF NOT EXISTS wallet_pass_label_color VARCHAR`); } catch { logger.debug('[DB Init] wallet_pass_label_color column already exists or failed'); }
+    logger.info('[DB Init] Wallet pass color columns verified');
+
     try {
       await db.execute(sql`
         DO $$

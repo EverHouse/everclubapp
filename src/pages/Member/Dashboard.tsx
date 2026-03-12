@@ -1384,8 +1384,30 @@ const Dashboard: React.FC = () => {
 
               {!isExpiredModal && walletPassAvailable && (
                 <div className="px-6 pb-6 flex justify-center" style={{ backgroundColor: cardBgColor }}>
-                  <a
-                    href="/api/member/wallet-pass"
+                  <button
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      try {
+                        const response = await fetch('/api/member/wallet-pass', { credentials: 'include' });
+                        if (!response.ok) {
+                          const err = await response.json().catch(() => null);
+                          showToast(err?.error || 'Failed to download wallet pass', 'error');
+                          return;
+                        }
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'EverClub-Pass.pkpass';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        showToast('Wallet pass downloaded — open it to add to Apple Wallet', 'success', 5000);
+                      } catch {
+                        showToast('Failed to download wallet pass', 'error');
+                      }
+                    }}
                     className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
                     style={{
                       backgroundColor: '#000000',
@@ -1401,7 +1423,7 @@ const Dashboard: React.FC = () => {
                       <span style={{ fontSize: '10px', fontWeight: 400, display: 'block', lineHeight: 1.2 }}>Add to</span>
                       <span style={{ fontSize: '16px', fontWeight: 600, display: 'block', lineHeight: 1.2 }}>Apple Wallet</span>
                     </span>
-                  </a>
+                  </button>
                 </div>
               )}
             </div>

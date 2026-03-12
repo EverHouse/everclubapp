@@ -13,6 +13,14 @@ import { getCached, setCache, invalidateCache as invalidateQueryCache } from '..
 const TIERS_CACHE_KEY = 'membership_tiers';
 const TIERS_CACHE_TTL = 120_000;
 
+const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
+function sanitizePassColor(value: unknown): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  const str = String(value).trim();
+  if (!HEX_COLOR_REGEX.test(str)) return null;
+  return str;
+}
+
 const router = Router();
 
 // PUBLIC ROUTE - membership tiers displayed on public website
@@ -25,8 +33,8 @@ router.get('/api/membership-tiers', async (req, res) => {
     if (cached) return res.json(cached);
 
     const result = active === 'true'
-      ? await db.execute(sql`SELECT id, name, slug, price_string, description, button_text, sort_order, is_active, is_popular, show_in_comparison, show_on_membership_page, highlighted_features, all_features, daily_sim_minutes, guest_passes_per_month, booking_window_days, daily_conf_room_minutes, can_book_simulators, can_book_conference, can_book_wellness, has_group_lessons, has_extended_sessions, has_private_lesson, has_simulator_guest_passes, has_discounted_merch, unlimited_access, guest_fee_cents, stripe_product_id, stripe_price_id, founding_price_id, price_cents, billing_interval, product_type, min_quantity, tier_type, created_at, updated_at FROM membership_tiers WHERE is_active = true ORDER BY sort_order ASC, id ASC`)
-      : await db.execute(sql`SELECT id, name, slug, price_string, description, button_text, sort_order, is_active, is_popular, show_in_comparison, show_on_membership_page, highlighted_features, all_features, daily_sim_minutes, guest_passes_per_month, booking_window_days, daily_conf_room_minutes, can_book_simulators, can_book_conference, can_book_wellness, has_group_lessons, has_extended_sessions, has_private_lesson, has_simulator_guest_passes, has_discounted_merch, unlimited_access, guest_fee_cents, stripe_product_id, stripe_price_id, founding_price_id, price_cents, billing_interval, product_type, min_quantity, tier_type, created_at, updated_at FROM membership_tiers ORDER BY sort_order ASC, id ASC`);
+      ? await db.execute(sql`SELECT id, name, slug, price_string, description, button_text, sort_order, is_active, is_popular, show_in_comparison, show_on_membership_page, highlighted_features, all_features, daily_sim_minutes, guest_passes_per_month, booking_window_days, daily_conf_room_minutes, can_book_simulators, can_book_conference, can_book_wellness, has_group_lessons, has_extended_sessions, has_private_lesson, has_simulator_guest_passes, has_discounted_merch, unlimited_access, guest_fee_cents, stripe_product_id, stripe_price_id, founding_price_id, price_cents, billing_interval, product_type, min_quantity, tier_type, wallet_pass_bg_color, wallet_pass_foreground_color, wallet_pass_label_color, created_at, updated_at FROM membership_tiers WHERE is_active = true ORDER BY sort_order ASC, id ASC`)
+      : await db.execute(sql`SELECT id, name, slug, price_string, description, button_text, sort_order, is_active, is_popular, show_in_comparison, show_on_membership_page, highlighted_features, all_features, daily_sim_minutes, guest_passes_per_month, booking_window_days, daily_conf_room_minutes, can_book_simulators, can_book_conference, can_book_wellness, has_group_lessons, has_extended_sessions, has_private_lesson, has_simulator_guest_passes, has_discounted_merch, unlimited_access, guest_fee_cents, stripe_product_id, stripe_price_id, founding_price_id, price_cents, billing_interval, product_type, min_quantity, tier_type, wallet_pass_bg_color, wallet_pass_foreground_color, wallet_pass_label_color, created_at, updated_at FROM membership_tiers ORDER BY sort_order ASC, id ASC`);
 
     setCache(cacheKey, result.rows, TIERS_CACHE_TTL);
     res.json(result.rows);
@@ -81,7 +89,7 @@ router.get('/api/membership-tiers/limits/:tierName', async (req, res) => {
 router.get('/api/membership-tiers/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await db.execute(sql`SELECT id, name, slug, price_string, description, button_text, sort_order, is_active, is_popular, show_in_comparison, show_on_membership_page, highlighted_features, all_features, daily_sim_minutes, guest_passes_per_month, booking_window_days, daily_conf_room_minutes, can_book_simulators, can_book_conference, can_book_wellness, has_group_lessons, has_extended_sessions, has_private_lesson, has_simulator_guest_passes, has_discounted_merch, unlimited_access, guest_fee_cents, stripe_product_id, stripe_price_id, founding_price_id, price_cents, billing_interval, product_type, min_quantity, tier_type, created_at, updated_at FROM membership_tiers WHERE id = ${id}`);
+    const result = await db.execute(sql`SELECT id, name, slug, price_string, description, button_text, sort_order, is_active, is_popular, show_in_comparison, show_on_membership_page, highlighted_features, all_features, daily_sim_minutes, guest_passes_per_month, booking_window_days, daily_conf_room_minutes, can_book_simulators, can_book_conference, can_book_wellness, has_group_lessons, has_extended_sessions, has_private_lesson, has_simulator_guest_passes, has_discounted_merch, unlimited_access, guest_fee_cents, stripe_product_id, stripe_price_id, founding_price_id, price_cents, billing_interval, product_type, min_quantity, tier_type, wallet_pass_bg_color, wallet_pass_foreground_color, wallet_pass_label_color, created_at, updated_at FROM membership_tiers WHERE id = ${id}`);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Tier not found' });
@@ -105,7 +113,8 @@ router.put('/api/membership-tiers/:id', isAdmin, async (req, res) => {
       can_book_wellness, has_group_lessons, has_extended_sessions,
       has_private_lesson, has_simulator_guest_passes, has_discounted_merch,
       unlimited_access,
-      stripe_price_id, stripe_product_id, price_cents
+      stripe_price_id, stripe_product_id, price_cents,
+      wallet_pass_bg_color, wallet_pass_foreground_color, wallet_pass_label_color
     } = req.body;
     
     const result = await db.execute(sql`
@@ -138,6 +147,9 @@ router.put('/api/membership-tiers/:id', isAdmin, async (req, res) => {
         stripe_product_id = ${stripe_product_id || null},
         price_cents = ${price_cents || null},
         show_on_membership_page = COALESCE(${show_on_membership_page}, show_on_membership_page),
+        wallet_pass_bg_color = CASE WHEN ${wallet_pass_bg_color !== undefined} THEN ${sanitizePassColor(wallet_pass_bg_color)} ELSE wallet_pass_bg_color END,
+        wallet_pass_foreground_color = CASE WHEN ${wallet_pass_foreground_color !== undefined} THEN ${sanitizePassColor(wallet_pass_foreground_color)} ELSE wallet_pass_foreground_color END,
+        wallet_pass_label_color = CASE WHEN ${wallet_pass_label_color !== undefined} THEN ${sanitizePassColor(wallet_pass_label_color)} ELSE wallet_pass_label_color END,
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
@@ -168,7 +180,8 @@ router.post('/api/membership-tiers', isAdmin, async (req, res) => {
       daily_conf_room_minutes, can_book_simulators, can_book_conference,
       can_book_wellness, has_group_lessons, has_extended_sessions,
       has_private_lesson, has_simulator_guest_passes, has_discounted_merch,
-      unlimited_access
+      unlimited_access,
+      wallet_pass_bg_color, wallet_pass_foreground_color, wallet_pass_label_color
     } = req.body;
     
     if (!name || !slug || !price_string) {
@@ -183,7 +196,8 @@ router.post('/api/membership-tiers', isAdmin, async (req, res) => {
         daily_conf_room_minutes, can_book_simulators, can_book_conference,
         can_book_wellness, has_group_lessons, has_extended_sessions,
         has_private_lesson, has_simulator_guest_passes, has_discounted_merch,
-        unlimited_access
+        unlimited_access,
+        wallet_pass_bg_color, wallet_pass_foreground_color, wallet_pass_label_color
       ) VALUES (${name}, ${slug}, ${price_string}, ${description || null}, ${button_text || 'Apply Now'}, ${sort_order || 0},
         ${is_active ?? true}, ${is_popular ?? false}, ${show_in_comparison ?? true}, ${show_on_membership_page ?? true},
         ${JSON.stringify(highlighted_features || [])},
@@ -192,7 +206,8 @@ router.post('/api/membership-tiers', isAdmin, async (req, res) => {
         ${daily_conf_room_minutes || 0}, ${can_book_simulators ?? false}, ${can_book_conference ?? false},
         ${can_book_wellness ?? true}, ${has_group_lessons ?? false}, ${has_extended_sessions ?? false},
         ${has_private_lesson ?? false}, ${has_simulator_guest_passes ?? false}, ${has_discounted_merch ?? false},
-        ${unlimited_access ?? false})
+        ${unlimited_access ?? false},
+        ${sanitizePassColor(wallet_pass_bg_color)}, ${sanitizePassColor(wallet_pass_foreground_color)}, ${sanitizePassColor(wallet_pass_label_color)})
       RETURNING *
     `);
     

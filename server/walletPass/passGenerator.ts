@@ -17,6 +17,12 @@ interface PassData {
   guestPassesTotal: number | null;
 }
 
+interface TierColors {
+  bg: string;
+  foreground: string;
+  label: string;
+}
+
 interface WalletConfig {
   passTypeId: string;
   teamId: string;
@@ -24,7 +30,7 @@ interface WalletConfig {
   keyPem: string;
 }
 
-const TIER_COLORS: Record<string, { bg: string; foreground: string; label: string }> = {
+const DEFAULT_TIER_COLORS: Record<string, TierColors> = {
   VIP: { bg: '#E5E4E2', foreground: '#374151', label: '#6B7280' },
   Premium: { bg: '#D4AF37', foreground: '#1a1a1a', label: '#4a4a4a' },
   Corporate: { bg: '#374151', foreground: '#FFFFFF', label: '#D1D5DB' },
@@ -74,18 +80,18 @@ function hexToRgb(hex: string): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-function buildPassJson(data: PassData, config: WalletConfig): Record<string, unknown> {
-  const colors = TIER_COLORS[data.tier] || TIER_COLORS.Social;
+function resolveTierColors(tier: string, dbColors?: TierColors | null): TierColors {
+  const defaults = DEFAULT_TIER_COLORS[tier] || DEFAULT_TIER_COLORS.Social;
+  if (!dbColors) return defaults;
+  return {
+    bg: dbColors.bg || defaults.bg,
+    foreground: dbColors.foreground || defaults.foreground,
+    label: dbColors.label || defaults.label,
+  };
+}
 
+function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors): Record<string, unknown> {
   const backFields: Array<{ key: string; label: string; value: string }> = [];
-
-  if (data.memberSince) {
-    backFields.push({
-      key: 'memberSince',
-      label: 'Member Since',
-      value: data.memberSince,
-    });
-  }
 
   if (data.dailySimulatorMinutes !== null && data.dailySimulatorMinutes > 0) {
     backFields.push({
@@ -117,6 +123,15 @@ function buildPassJson(data: PassData, config: WalletConfig): Record<string, unk
     value: data.tier,
   });
 
+  const auxiliaryFields: Array<{ key: string; label: string; value: string }> = [];
+  if (data.memberSince) {
+    auxiliaryFields.push({
+      key: 'memberSince',
+      label: 'MEMBER SINCE',
+      value: data.memberSince,
+    });
+  }
+
   return {
     formatVersion: 1,
     passTypeIdentifier: config.passTypeId,
@@ -143,6 +158,7 @@ function buildPassJson(data: PassData, config: WalletConfig): Record<string, unk
           value: data.tier,
         },
       ],
+      auxiliaryFields,
       backFields,
     },
     barcode: {
@@ -160,8 +176,7 @@ function buildPassJson(data: PassData, config: WalletConfig): Record<string, unk
   };
 }
 
-function selectLogoSource(tier: string): string {
-  const colors = TIER_COLORS[tier] || TIER_COLORS.Social;
+function selectLogoSource(colors: TierColors): string {
   const useDarkLogo = isLightBackground(colors.bg);
 
   const darkLogoPath = path.join(process.cwd(), 'public', 'images', 'everclub-logo-dark.png');
@@ -189,54 +204,18 @@ interface PassImages {
   'logo.png': Buffer;
   'logo@2x.png': Buffer;
   'logo@3x.png': Buffer;
-  'strip.png': Buffer;
-  'strip@2x.png': Buffer;
-  'strip@3x.png': Buffer;
 }
 
-async function generatePassImages(tier: string): Promise<PassImages> {
-  const logoSource = selectLogoSource(tier);
-  const colors = TIER_COLORS[tier] || TIER_COLORS.Social;
-  const bgHex = colors.bg;
-  const bgR = parseInt(bgHex.slice(1, 3), 16);
-  const bgG = parseInt(bgHex.slice(3, 5), 16);
-  const bgB = parseInt(bgHex.slice(5, 7), 16);
+async function generatePassImages(colors: TierColors): Promise<PassImages> {
+  const logoSource = selectLogoSource(colors);
 
   const [icon, icon2x, icon3x, logo, logo2x, logo3x] = await Promise.all([
     sharp(logoSource).resize(29, 29, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer(),
     sharp(logoSource).resize(58, 58, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer(),
     sharp(logoSource).resize(87, 87, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer(),
-    sharp(logoSource).resize(160, 50, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer(),
-    sharp(logoSource).resize(320, 100, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer(),
-    sharp(logoSource).resize(480, 150, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer(),
-  ]);
-
-  const createStrip = async (width: number, height: number): Promise<Buffer> => {
-    const logoResized = await sharp(logoSource)
-      .resize(Math.round(width * 0.4), Math.round(height * 0.5), { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .png()
-      .toBuffer();
-
-    return sharp({
-      create: {
-        width,
-        height,
-        channels: 4,
-        background: { r: bgR, g: bgG, b: bgB, alpha: 255 },
-      },
-    })
-      .composite([{
-        input: logoResized,
-        gravity: 'centre',
-      }])
-      .png()
-      .toBuffer();
-  };
-
-  const [strip, strip2x, strip3x] = await Promise.all([
-    createStrip(375, 123),
-    createStrip(750, 246),
-    createStrip(1125, 369),
+    sharp(logoSource).resize(220, 70, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer(),
+    sharp(logoSource).resize(440, 140, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer(),
+    sharp(logoSource).resize(660, 210, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer(),
   ]);
 
   return {
@@ -246,9 +225,6 @@ async function generatePassImages(tier: string): Promise<PassImages> {
     'logo.png': logo,
     'logo@2x.png': logo2x,
     'logo@3x.png': logo3x,
-    'strip.png': strip,
-    'strip@2x.png': strip2x,
-    'strip@3x.png': strip3x,
   };
 }
 
@@ -309,11 +285,12 @@ function signManifest(manifestJson: string, config: WalletConfig): Buffer {
   return Buffer.from(derBytes.getBytes(), 'binary');
 }
 
-export async function generatePkPass(data: PassData, config: WalletConfig): Promise<Buffer> {
-  const passJson = buildPassJson(data, config);
+export async function generatePkPass(data: PassData, config: WalletConfig, dbColors?: TierColors | null): Promise<Buffer> {
+  const colors = resolveTierColors(data.tier, dbColors);
+  const passJson = buildPassJson(data, config, colors);
   const passJsonStr = JSON.stringify(passJson, null, 2);
 
-  const images = await generatePassImages(data.tier);
+  const images = await generatePassImages(colors);
 
   const files: Record<string, Buffer | string> = {
     'pass.json': passJsonStr,
@@ -348,4 +325,5 @@ export async function generatePkPass(data: PassData, config: WalletConfig): Prom
   });
 }
 
-export type { PassData, WalletConfig };
+export { DEFAULT_TIER_COLORS };
+export type { PassData, WalletConfig, TierColors };

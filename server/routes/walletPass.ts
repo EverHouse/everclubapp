@@ -5,7 +5,7 @@ import { db } from '../db';
 import { users, membershipTiers, guestPasses } from '../../shared/schema';
 import { sql } from 'drizzle-orm';
 import { normalizeTierName } from '../../shared/constants/tiers';
-import { generatePkPass, type PassData, type WalletConfig } from '../walletPass/passGenerator';
+import { generatePkPass, type PassData, type WalletConfig, type TierColors } from '../walletPass/passGenerator';
 import { getSessionUser } from '../types/session';
 import { getSettingValue, getSettingBoolean } from '../core/settingsHelper';
 
@@ -121,6 +121,9 @@ router.get('/api/member/wallet-pass', isAuthenticated, async (req, res) => {
         dailySimMinutes: membershipTiers.dailySimMinutes,
         dailyConfRoomMinutes: membershipTiers.dailyConfRoomMinutes,
         guestPassesPerMonth: membershipTiers.guestPassesPerMonth,
+        walletPassBgColor: membershipTiers.walletPassBgColor,
+        walletPassForegroundColor: membershipTiers.walletPassForegroundColor,
+        walletPassLabelColor: membershipTiers.walletPassLabelColor,
       })
         .from(membershipTiers)
         .where(sql`LOWER(${membershipTiers.name}) = LOWER(${tier})`)
@@ -135,6 +138,15 @@ router.get('/api/member/wallet-pass', isAuthenticated, async (req, res) => {
     ]);
 
     const tierData = tierResult.length > 0 ? tierResult[0] : null;
+
+    let dbColors: TierColors | null = null;
+    if (tierData?.walletPassBgColor || tierData?.walletPassForegroundColor || tierData?.walletPassLabelColor) {
+      dbColors = {
+        bg: tierData.walletPassBgColor || '',
+        foreground: tierData.walletPassForegroundColor || '',
+        label: tierData.walletPassLabelColor || '',
+      };
+    }
     const guestPassData = guestPassResult.length > 0 ? guestPassResult[0] : null;
 
     const memberName = [user.firstName, user.lastName].filter(Boolean).join(' ') || sessionUser.name || 'Member';
@@ -156,7 +168,7 @@ router.get('/api/member/wallet-pass', isAuthenticated, async (req, res) => {
       guestPassesTotal: guestPassData?.passesTotal ?? null,
     };
 
-    const pkpassBuffer = await generatePkPass(passData, walletConfig);
+    const pkpassBuffer = await generatePkPass(passData, walletConfig, dbColors);
 
     res.set({
       'Content-Type': 'application/vnd.apple.pkpass',
