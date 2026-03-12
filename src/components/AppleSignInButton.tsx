@@ -94,11 +94,12 @@ const AppleSignInButton: React.FC<AppleSignInButtonProps> = ({
         onError?.('Apple sign-in was cancelled');
       }
     } catch (err: unknown) {
-      const error = err as { error?: string };
+      const error = err as { error?: string; message?: string };
       if (error?.error === 'popup_closed_by_user') {
         return;
       }
-      onError?.('Apple sign-in failed. Please try again.');
+      const detail = error?.error || error?.message || (typeof err === 'string' ? err : '');
+      onError?.(detail ? `Apple sign-in failed: ${detail}` : 'Apple sign-in failed. Please try again.');
     }
   }, [disabled, onSuccess, onError]);
 
