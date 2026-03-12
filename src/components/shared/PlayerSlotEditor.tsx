@@ -102,7 +102,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
         </section>
       )}
 
-      <section className={`rounded-xl border glass-card relative z-10 overflow-hidden transition-all duration-300 ${slots.length > 0 ? 'p-4' : 'p-0 border-transparent'} ${isDark ? 'border-white/25' : 'border-black/10'}`} style={slots.length === 0 ? { maxHeight: 0 } : { maxHeight: '2000px' }}>
+      <section className={`rounded-xl border glass-card relative z-10 transition-all duration-300 ${slots.length > 0 ? 'p-4 opacity-100' : 'p-0 !border-transparent opacity-0 overflow-hidden'} ${isDark ? 'border-white/25' : 'border-black/10'}`} style={slots.length === 0 ? { maxHeight: 0 } : { maxHeight: '2000px' }}>
         {slots.length > 0 && (
           <>
             <div className="flex items-center gap-2 mb-3">
