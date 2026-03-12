@@ -15,6 +15,7 @@ interface CafeMenuResponse {
   description?: string;
   desc?: string;
   icon?: string;
+  imageUrl?: string;
   image_url?: string;
   image?: string;
 }
@@ -37,7 +38,7 @@ const formatCafeItem = (item: CafeMenuResponse): CafeItem => ({
   price: parseFloat(item.price as string) || 0,
   desc: item.description || item.desc || '',
   icon: item.icon || '',
-  image: item.image_url || item.image || ''
+  image: item.imageUrl || item.image_url || item.image || ''
 });
 
 export function useCafeMenu() {
