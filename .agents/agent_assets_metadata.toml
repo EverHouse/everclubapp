@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "duEs58W51ozGZy4WDpLHj"
+uri = "file://.local/linked-email-refactor-plan.md"
+type = "text"
+title = "Linked Email Refactor Plan"
