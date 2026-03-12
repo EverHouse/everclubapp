@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../../db';
-import { bookingRequests, resources } from '../../../shared/schema';
+import { bookingRequests, resources, users } from '../../../shared/schema';
 import { eq, and, or, gte, lte, asc, SQL, sql } from 'drizzle-orm';
 import { getConferenceRoomBookingsFromCalendar } from '../../core/calendar/index';
 import { isStaffOrAdmin } from '../../core/middleware';
@@ -92,7 +92,10 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
     const dbResult = await db.select({
       id: bookingRequests.id,
       user_email: bookingRequests.userEmail,
-      user_name: bookingRequests.userName,
+      user_name: sql<string>`COALESCE(
+        NULLIF(TRIM(CONCAT_WS(' ', ${users.firstName}, ${users.lastName})), ''),
+        ${bookingRequests.userName}
+      )`.as('user_name'),
       resource_id: bookingRequests.resourceId,
       resource_preference: bookingRequests.resourcePreference,
       request_date: bookingRequests.requestDate,
@@ -119,6 +122,7 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
     })
     .from(bookingRequests)
     .leftJoin(resources, eq(bookingRequests.resourceId, resources.id))
+    .leftJoin(users, sql`LOWER(${bookingRequests.userEmail}) = LOWER(${users.email})`)
     .where(and(...conditions))
     .orderBy(asc(bookingRequests.requestDate), asc(bookingRequests.startTime));
     

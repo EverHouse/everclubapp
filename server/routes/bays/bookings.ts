@@ -139,7 +139,10 @@ router.get('/api/booking-requests', isAuthenticated, async (req, res) => {
     let query = db.select({
       id: bookingRequests.id,
       user_email: bookingRequests.userEmail,
-      user_name: bookingRequests.userName,
+      user_name: sql<string>`COALESCE(
+        NULLIF(TRIM(CONCAT_WS(' ', ${users.firstName}, ${users.lastName})), ''),
+        ${bookingRequests.userName}
+      )`.as('user_name'),
       resource_id: bookingRequests.resourceId,
       resource_preference: bookingRequests.resourcePreference,
       request_date: bookingRequests.requestDate,
@@ -461,6 +464,18 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       }
     }
     
+    let resolvedUserName = user_name;
+    if (!resolvedUserName || resolvedUserName.includes('@')) {
+      const [dbUser] = await db.select({ firstName: users.firstName, lastName: users.lastName })
+        .from(users)
+        .where(sql`LOWER(${users.email}) = ${requestEmail}`)
+        .limit(1);
+      if (dbUser) {
+        const fullName = [dbUser.firstName, dbUser.lastName].filter(Boolean).join(' ').trim();
+        if (fullName) resolvedUserName = fullName;
+      }
+    }
+    
     const isStaffRequest = await isStaffOrAdminCheck(sessionEmail);
     const isViewAsMode = isStaffRequest && sessionEmail !== requestEmail;
     
@@ -731,7 +746,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
         RETURNING *`,
         [
           requestEmail,
-          user_name,
+          resolvedUserName,
           resolvedUserId || null,
           resource_id || null,
           resource_preference || null,
@@ -1044,7 +1059,10 @@ router.get('/api/booking-requests/:id', isAuthenticated, async (req, res) => {
     const result = await db.select({
       id: bookingRequests.id,
       user_email: bookingRequests.userEmail,
-      user_name: bookingRequests.userName,
+      user_name: sql<string>`COALESCE(
+        NULLIF(TRIM(CONCAT_WS(' ', ${users.firstName}, ${users.lastName})), ''),
+        ${bookingRequests.userName}
+      )`.as('user_name'),
       resource_id: bookingRequests.resourceId,
       request_date: bookingRequests.requestDate,
       start_time: bookingRequests.startTime,
@@ -1061,6 +1079,7 @@ router.get('/api/booking-requests/:id', isAuthenticated, async (req, res) => {
     })
     .from(bookingRequests)
     .leftJoin(resources, eq(bookingRequests.resourceId, resources.id))
+    .leftJoin(users, sql`LOWER(${bookingRequests.userEmail}) = LOWER(${users.email})`)
     .where(eq(bookingRequests.id, bookingId))
     .limit(1);
     

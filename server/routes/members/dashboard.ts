@@ -213,7 +213,10 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
         return await db.select({
           id: bookingRequests.id,
           user_email: bookingRequests.userEmail,
-          user_name: bookingRequests.userName,
+          user_name: sql<string>`COALESCE(
+            NULLIF(TRIM(CONCAT_WS(' ', ${users.firstName}, ${users.lastName})), ''),
+            ${bookingRequests.userName}
+          )`.as('user_name'),
           resource_id: bookingRequests.resourceId,
           resource_preference: bookingRequests.resourcePreference,
           request_date: bookingRequests.requestDate,
@@ -230,10 +233,14 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
           resource_type: resources.type,
           declared_player_count: bookingRequests.declaredPlayerCount,
           is_linked_member: sql<boolean>`LOWER(${bookingRequests.userEmail}) != ${userEmail}`,
-          primary_booker_name: bookingRequests.userName,
+          primary_booker_name: sql<string>`COALESCE(
+            NULLIF(TRIM(CONCAT_WS(' ', ${users.firstName}, ${users.lastName})), ''),
+            ${bookingRequests.userName}
+          )`.as('primary_booker_name'),
         })
         .from(bookingRequests)
         .leftJoin(resources, eq(bookingRequests.resourceId, resources.id))
+        .leftJoin(users, sql`LOWER(${bookingRequests.userEmail}) = LOWER(${users.email})`)
         .where(and(...conditions))
         .orderBy(desc(bookingRequests.createdAt))
         .limit(200);

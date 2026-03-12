@@ -30,11 +30,14 @@ export function useCommandCenterData(userEmail?: string) {
 
   const memberNameByEmail = hubspotQuery.data ?? {};
 
-  const getDisplayName = useCallback((email: string | null | undefined, originalName: string | null): string => {
+  const getDisplayName = useCallback((email: string | null | undefined, originalName: string | null, firstName?: string | null, lastName?: string | null): string => {
     if (email && typeof email === 'string') {
       const hubspotName = memberNameByEmail[email.toLowerCase()];
       if (hubspotName) return hubspotName;
     }
+    const dbName = [firstName, lastName].filter(Boolean).join(' ').trim();
+    if (dbName) return dbName;
+    if (originalName && !originalName.includes('@')) return originalName;
     return originalName || 'Guest';
   }, [memberNameByEmail]);
 
@@ -53,10 +56,10 @@ export function useCommandCenterData(userEmail?: string) {
     }));
     allPending = [...allPending, ...pending];
 
-    const pendingBookings = (raw.pendingBookings || []).map((b: BookingRequest) => {
+    const pendingBookings = (raw.pendingBookings || []).map((b: any) => {
       return {
         ...b,
-        user_name: getDisplayName(b.user_email, b.user_name),
+        user_name: getDisplayName(b.user_email, b.user_name, b.first_name, b.last_name),
         source: 'booking' as const
       };
     });
