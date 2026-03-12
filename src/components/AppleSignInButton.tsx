@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 
 interface AppleSignInButtonProps {
   onSuccess: (data: { identityToken: string; user?: { name?: { firstName?: string; lastName?: string }; email?: string } }) => void;
