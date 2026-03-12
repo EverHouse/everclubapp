@@ -314,13 +314,24 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
       const { noticeType, cleanTitle } = extractNoticeTypeFromTitle(rawTitle);
       const title = cleanTitle;
       const rawDescription = event.description || '';
-      const calendarNotes = getBaseDescription(rawDescription) || null;
+      const extProps = event.extendedProperties?.private || {};
+      
+      const hasExtProps = !!(extProps['ehApp_affectedAreas'] || extProps['ehApp_notifyMembers']);
+      const calendarNotes = hasExtProps ? (rawDescription || null) : (getBaseDescription(rawDescription) || null);
       
       if (noticeType) {
         await ensureNoticeTypeExists(noticeType);
       }
       
-      const metadata = parseClosureMetadata(rawDescription);
+      const parsedMetadata = parseClosureMetadata(rawDescription);
+      const metadata = {
+        affectedAreas: extProps['ehApp_affectedAreas'] || parsedMetadata.affectedAreas,
+        notifyMembers: extProps['ehApp_notifyMembers'] !== undefined
+          ? extProps['ehApp_notifyMembers'] === 'true'
+          : parsedMetadata.notifyMembers,
+        notes: extProps['ehApp_notes'] || parsedMetadata.notes,
+        visibility: parsedMetadata.visibility,
+      };
       
       let startDate: string;
       let startTime: string | null = null;

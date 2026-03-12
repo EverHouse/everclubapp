@@ -1,5 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { postWithCredentials } from '../../../../hooks/queries/useFetch';
 import type { CalendarStatusResponse } from './dataIntegrityTypes';
+
+interface MigrationResults {
+  wellness: { total: number; cleaned: number; errors: number };
+  events: { total: number; cleaned: number; errors: number };
+  closures: { total: number; cleaned: number; errors: number };
+}
 
 interface CalendarStatusSectionProps {
   showCalendars: boolean;
@@ -14,6 +21,23 @@ const CalendarStatusSection: React.FC<CalendarStatusSectionProps> = ({
   isLoadingCalendars,
   calendarStatus,
 }) => {
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [migrationResult, setMigrationResult] = useState<{ success: boolean; results?: MigrationResults; error?: string } | null>(null);
+
+  const handleMigrateDescriptions = async () => {
+    if (!confirm('This will re-push all wellness, events, and closures to Google Calendar with clean descriptions. Continue?')) return;
+    setIsMigrating(true);
+    setMigrationResult(null);
+    try {
+      const data = await postWithCredentials<{ success: boolean; results?: MigrationResults; error?: string }>('/api/admin/calendar/migrate-clean-descriptions', {});
+      setMigrationResult(data);
+    } catch (err: unknown) {
+      setMigrationResult({ success: false, error: err instanceof Error ? err.message : 'Migration failed' });
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+
   return (
     <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
       <button
@@ -54,6 +78,43 @@ const CalendarStatusSection: React.FC<CalendarStatusSectionProps> = ({
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Last checked: {new Date(calendarStatus.timestamp).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}
               </p>
+
+              <div className="pt-3 border-t border-gray-200 dark:border-white/10">
+                <button
+                  onClick={handleMigrateDescriptions}
+                  disabled={isMigrating}
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-primary/10 dark:bg-white/10 text-primary dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 disabled:opacity-50 transition-colors"
+                >
+                  {isMigrating ? (
+                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                  ) : (
+                    <span aria-hidden="true" className="material-symbols-outlined text-sm">cleaning_services</span>
+                  )}
+                  {isMigrating ? 'Cleaning descriptions...' : 'Clean Calendar Descriptions'}
+                </button>
+                <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
+                  Re-pushes all events to Google Calendar with clean descriptions and metadata in hidden properties
+                </p>
+
+                {migrationResult && (
+                  <div className={`mt-2 p-3 rounded-lg text-sm ${
+                    migrationResult.success 
+                      ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' 
+                      : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+                  }`}>
+                    {migrationResult.success && migrationResult.results ? (
+                      <div className="space-y-1">
+                        <p className="font-medium">Migration complete</p>
+                        <p>Wellness: {migrationResult.results.wellness.cleaned}/{migrationResult.results.wellness.total} cleaned{migrationResult.results.wellness.errors > 0 ? `, ${migrationResult.results.wellness.errors} errors` : ''}</p>
+                        <p>Events: {migrationResult.results.events.cleaned}/{migrationResult.results.events.total} cleaned{migrationResult.results.events.errors > 0 ? `, ${migrationResult.results.events.errors} errors` : ''}</p>
+                        <p>Closures: {migrationResult.results.closures.cleaned}/{migrationResult.results.closures.total} cleaned{migrationResult.results.closures.errors > 0 ? `, ${migrationResult.results.closures.errors} errors` : ''}</p>
+                      </div>
+                    ) : (
+                      <p>{migrationResult.error || 'Migration failed'}</p>
+                    )}
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <p className="text-sm text-gray-500 dark:text-gray-400">Failed to load calendar status</p>

@@ -6,7 +6,7 @@ import { facilityClosures, pushSubscriptions, users, availabilityBlocks, announc
 import { eq, desc, or, isNull, inArray, and } from 'drizzle-orm';
 import webpush from 'web-push';
 import { isStaffOrAdmin, isAdmin } from '../core/middleware';
-import { getCalendarIdByName, deleteCalendarEvent, CALENDAR_CONFIG, syncInternalCalendarToClosures, updateDescriptionWithMetadata, formatClosureMetadata, getBaseDescription } from '../core/calendar/index';
+import { getCalendarIdByName, deleteCalendarEvent, CALENDAR_CONFIG, syncInternalCalendarToClosures, getBaseDescription } from '../core/calendar/index';
 import { getGoogleCalendarClient } from '../core/integrations';
 import { createPacificDate, parseLocalDate, addDaysToPacificDate, getPacificISOString, getTodayPacific } from '../utils/dateUtils';
 import { clearClosureCache } from '../core/bookingValidation';
@@ -255,7 +255,8 @@ async function createClosureCalendarEvents(
   startDate: string,
   endDate: string,
   startTime: string | null,
-  endTime: string | null
+  endTime: string | null,
+  extendedProps?: Record<string, string>
 ): Promise<string | null> {
   try {
     const calendar = await getGoogleCalendarClient();
@@ -268,7 +269,7 @@ async function createClosureCalendarEvents(
       const eventIds: string[] = [];
       
       for (const date of dates) {
-        const event = {
+        const event: Record<string, unknown> = {
           summary: title,
           description: `${description}${dates.length > 1 ? `\n\n(Day ${dates.indexOf(date) + 1} of ${dates.length})` : ''}`,
           start: {
@@ -280,6 +281,10 @@ async function createClosureCalendarEvents(
             timeZone: 'America/Los_Angeles',
           },
         };
+        
+        if (extendedProps && Object.keys(extendedProps).length > 0) {
+          event.extendedProperties = { private: extendedProps };
+        }
         
         const response = await calendar.events.insert({
           calendarId,
@@ -295,7 +300,7 @@ async function createClosureCalendarEvents(
     } else {
       const endDatePlusOne = addDaysToPacificDate(endDate, 1);
       
-      const event = {
+      const event: Record<string, unknown> = {
         summary: title,
         description,
         start: {
@@ -305,6 +310,10 @@ async function createClosureCalendarEvents(
           date: endDatePlusOne,
         },
       };
+      
+      if (extendedProps && Object.keys(extendedProps).length > 0) {
+        event.extendedProperties = { private: extendedProps };
+      }
       
       const response = await calendar.events.insert({
         calendarId,
@@ -339,7 +348,8 @@ async function patchClosureCalendarEvents(
   startDate: string,
   endDate: string,
   startTime: string | null,
-  endTime: string | null
+  endTime: string | null,
+  extendedProps?: Record<string, string>
 ): Promise<boolean> {
   const calendar = await getGoogleCalendarClient();
   const ids = eventIds.split(',').filter(id => id.trim());
@@ -356,6 +366,10 @@ async function patchClosureCalendarEvents(
         ? `${description}\n\n(Day ${i + 1} of ${ids.length})`
         : description,
     };
+    
+    if (extendedProps && Object.keys(extendedProps).length > 0) {
+      requestBody.extendedProperties = { private: extendedProps };
+    }
     
     if (hasSpecificTimes) {
       requestBody.start = {
@@ -733,8 +747,14 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
         const defaultType = affected_areas === 'none' ? 'NOTICE' : 'CLOSURE';
         const typePrefix = notice_type ? `[${notice_type.toUpperCase()}]` : `[${defaultType}]`;
         const eventTitle = `${typePrefix}: ${title || 'Facility Notice'}`;
-        const baseReason = reason || 'Scheduled notice';
-        const eventDescription = baseReason + formatClosureMetadata(affected_areas, !!notify_members, notes);
+        const eventDescription = reason || 'Scheduled notice';
+        
+        const closureExtProps: Record<string, string> = {
+          'ehApp_type': 'closure',
+        };
+        if (affected_areas) closureExtProps['ehApp_affectedAreas'] = affected_areas;
+        closureExtProps['ehApp_notifyMembers'] = shouldNotifyMembers ? 'true' : 'false';
+        if (notes) closureExtProps['ehApp_notes'] = notes;
         
         internalEventIds = await createClosureCalendarEvents(
           internalCalendarId,
@@ -743,7 +763,8 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
           start_date,
           end_date || start_date,
           start_time,
-          end_time
+          end_time,
+          closureExtProps
         );
         
         if (internalEventIds) {
@@ -1033,13 +1054,19 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
           const defaultType = newAffectedAreas === 'none' ? 'NOTICE' : 'CLOSURE';
           const typePrefix = effectiveNoticeType ? `[${effectiveNoticeType.toUpperCase()}]` : `[${defaultType}]`;
           const eventTitle = `${typePrefix}: ${title || existing.title}`;
-          const baseReason = reason !== undefined ? reason : existing.reason || 'Scheduled notice';
+          const eventDescription = reason !== undefined ? reason : existing.reason || 'Scheduled notice';
           const effectiveNotes = notes !== undefined ? notes : existing.notes;
-          const eventDescription = baseReason + formatClosureMetadata(newAffectedAreas, shouldNotifyMembers, effectiveNotes);
           const newStartDate = start_date || existing.startDate;
           const newEndDate = end_date || existing.endDate;
           const newStartTime = start_time !== undefined ? start_time : existing.startTime;
           const newEndTime = end_time !== undefined ? end_time : existing.endTime;
+          
+          const closureExtProps: Record<string, string> = {
+            'ehApp_type': 'closure',
+          };
+          if (newAffectedAreas) closureExtProps['ehApp_affectedAreas'] = newAffectedAreas;
+          closureExtProps['ehApp_notifyMembers'] = shouldNotifyMembers ? 'true' : 'false';
+          if (effectiveNotes) closureExtProps['ehApp_notes'] = effectiveNotes;
           
           let calendarUpdated = false;
           
@@ -1052,7 +1079,8 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
               newStartDate,
               newEndDate || newStartDate,
               newStartTime,
-              newEndTime
+              newEndTime,
+              closureExtProps
             );
             
             if (calendarUpdated) {
@@ -1072,7 +1100,8 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
               newStartDate,
               newEndDate || newStartDate,
               newStartTime,
-              newEndTime
+              newEndTime,
+              closureExtProps
             );
             
             await db
@@ -1335,6 +1364,13 @@ router.post('/api/closures/fix-orphaned', isAdmin, async (req, res) => {
     
     for (const closure of orphanedClosures) {
       try {
+        const closureExtProps: Record<string, string> = {
+          'ehApp_type': 'closure',
+        };
+        if (closure.affectedAreas) closureExtProps['ehApp_affectedAreas'] = closure.affectedAreas;
+        closureExtProps['ehApp_notifyMembers'] = closure.notifyMembers ? 'true' : 'false';
+        if (closure.notes) closureExtProps['ehApp_notes'] = closure.notes;
+        
         const eventIds = await createClosureCalendarEvents(
           internalCalendarId,
           closure.title,
@@ -1342,7 +1378,8 @@ router.post('/api/closures/fix-orphaned', isAdmin, async (req, res) => {
           closure.startDate,
           closure.endDate,
           closure.startTime,
-          closure.endTime
+          closure.endTime,
+          closureExtProps
         );
         
         if (eventIds) {

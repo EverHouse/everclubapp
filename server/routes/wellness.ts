@@ -216,9 +216,20 @@ router.post('/api/wellness-classes/backfill-calendar', isStaffOrAdmin, async (re
     for (const wc of classesWithoutCalendar) {
       try {
         const calendarTitle = `${wc.title} with ${wc.instructor}`;
-        const calendarDescription = [`Category: ${wc.category}`, wc.description, `Duration: ${wc.duration}`, `Spots: ${wc.spots}`].filter(Boolean).join('\n');
+        const calendarDescription = wc.description || '';
         const startTime24 = convertTo24Hour(wc.time);
         const endTime24 = calculateEndTime(startTime24, wc.duration);
+        
+        const extendedProps: Record<string, string> = {
+          'ehApp_type': 'wellness',
+          'ehApp_id': String(wc.id),
+        };
+        if (wc.category) extendedProps['ehApp_category'] = wc.category;
+        if (wc.duration) extendedProps['ehApp_duration'] = wc.duration;
+        if (wc.spots) extendedProps['ehApp_spots'] = wc.spots;
+        if (wc.status) extendedProps['ehApp_status'] = wc.status;
+        if (wc.imageUrl) extendedProps['ehApp_imageUrl'] = wc.imageUrl;
+        if (wc.externalUrl) extendedProps['ehApp_externalUrl'] = wc.externalUrl;
         
         const googleCalendarId = await createCalendarEventOnCalendar(
           calendarId,
@@ -226,7 +237,8 @@ router.post('/api/wellness-classes/backfill-calendar', isStaffOrAdmin, async (re
           calendarDescription,
           wc.date,
           startTime24,
-          endTime24
+          endTime24,
+          extendedProps
         );
         
         if (googleCalendarId) {
@@ -471,9 +483,19 @@ router.post('/api/wellness-classes', isStaffOrAdmin, async (req, res) => {
     }
     
     const calendarTitle = `${title} with ${instructor}`;
-    const calendarDescription = [`Category: ${category}`, description, `Duration: ${duration}`, `Spots: ${finalSpots}`].filter(Boolean).join('\n');
+    const calendarDescription = description || '';
     const startTime24 = convertTo24Hour(time);
     const endTime24 = calculateEndTime(startTime24, duration);
+    
+    const createExtProps: Record<string, string> = {
+      'ehApp_type': 'wellness',
+    };
+    if (category) createExtProps['ehApp_category'] = category;
+    if (duration) createExtProps['ehApp_duration'] = duration;
+    if (finalSpots) createExtProps['ehApp_spots'] = finalSpots;
+    if (status) createExtProps['ehApp_status'] = status;
+    if (image_url) createExtProps['ehApp_imageUrl'] = image_url;
+    if (external_url) createExtProps['ehApp_externalUrl'] = external_url;
     
     let googleCalendarId: string | null = null;
     try {
@@ -483,7 +505,8 @@ router.post('/api/wellness-classes', isStaffOrAdmin, async (req, res) => {
         calendarDescription,
         date,
         startTime24,
-        endTime24
+        endTime24,
+        createExtProps
       );
     } catch (calError: unknown) {
       logger.error('Failed to create Google Calendar event for wellness class', { extra: { error: calError } });
@@ -591,8 +614,18 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
         const calendarId = await getCalendarIdByName(CALENDAR_CONFIG.wellness.name);
         if (calendarId) {
           const updated = result.rows[0] as unknown as WellnessClassRow;
-          const calendarTitle = `${updated.category} - ${updated.title} with ${updated.instructor}`;
-          const calendarDescription = [updated.description, `Duration: ${updated.duration}`, `Spots: ${updated.spots}`].filter(Boolean).join('\n');
+          const calendarTitle = `${updated.title} with ${updated.instructor}`;
+          const calendarDescription = updated.description || '';
+          const updateExtProps: Record<string, string> = {
+            'ehApp_type': 'wellness',
+            'ehApp_id': String(updated.id),
+          };
+          if (updated.category) updateExtProps['ehApp_category'] = updated.category as string;
+          if (updated.duration) updateExtProps['ehApp_duration'] = updated.duration as string;
+          if (updated.spots) updateExtProps['ehApp_spots'] = updated.spots as string;
+          if (updated.status) updateExtProps['ehApp_status'] = updated.status as string;
+          if (updated.image_url) updateExtProps['ehApp_imageUrl'] = updated.image_url as string;
+          if (updated.external_url) updateExtProps['ehApp_externalUrl'] = updated.external_url as string;
           
           const convertTo24Hour = (timeStr: string): string => {
             const match12h = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
@@ -634,7 +667,8 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
             calendarDescription,
             updated.date as string,
             startTime24,
-            endTime24
+            endTime24,
+            updateExtProps
           );
         }
       } catch (calError: unknown) {

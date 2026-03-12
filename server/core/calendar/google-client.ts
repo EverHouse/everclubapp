@@ -53,7 +53,8 @@ export async function createCalendarEventOnCalendar(
   description: string,
   date: string,
   startTime: string,
-  endTime: string
+  endTime: string,
+  extendedProperties?: Record<string, string>
 ): Promise<string | null> {
   try {
     if (!date || !startTime) {
@@ -63,7 +64,7 @@ export async function createCalendarEventOnCalendar(
     
     const calendar = await getGoogleCalendarClient();
     
-    const event = {
+    const event: Record<string, unknown> = {
       summary,
       description,
       start: {
@@ -75,6 +76,10 @@ export async function createCalendarEventOnCalendar(
         timeZone: 'America/Los_Angeles',
       },
     };
+    
+    if (extendedProperties) {
+      event.extendedProperties = { private: extendedProperties };
+    }
     
     const response = await withCalendarRetry(
       () => calendar.events.insert({

@@ -7,7 +7,6 @@ import { isNull, gte, asc, and } from 'drizzle-orm';
 import { getTodayPacific, getPacificMidnightUTC } from '../../../utils/dateUtils';
 import { CALENDAR_CONFIG } from '../config';
 import { getCalendarIdByName, discoverCalendarIds } from '../cache';
-import { createCalendarEventOnCalendar } from '../google-client';
 import { alertOnSyncFailure } from '../../dataAlerts';
 
 import { toIntArrayLiteral } from '../../../utils/sqlArrayLiteral';
@@ -60,6 +59,8 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
       const appMetadata = {
         imageUrl: extProps['ehApp_imageUrl'] || null,
         externalUrl: extProps['ehApp_externalUrl'] || null,
+        category: extProps['ehApp_category'] || null,
+        duration: extProps['ehApp_duration'] || null,
         spots: extProps['ehApp_spots'] || null,
         status: extProps['ehApp_status'] || null,
       };
@@ -86,11 +87,11 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
       
       let title = rawTitle;
       let instructor = 'TBD';
-      let category = 'Wellness';
+      let category = appMetadata.category || 'Wellness';
       
       if (rawTitle.includes(' - ')) {
         const parts = rawTitle.split(' - ');
-        category = parts[0].trim();
+        if (!appMetadata.category) category = parts[0].trim();
         title = parts.slice(1).join(' - ').trim();
       }
       
@@ -106,13 +107,28 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
         const instructorMatch = description.match(/instructor[:\s]+([^\n,]+)/i);
         if (instructorMatch) instructor = instructorMatch[1].trim();
         
-        const categoryMatch = description.match(/category[:\s]+([^\n,]+)/i);
-        if (categoryMatch) category = categoryMatch[1].trim();
+        if (!appMetadata.category) {
+          const categoryMatch = description.match(/category[:\s]+([^\n,]+)/i);
+          if (categoryMatch) category = categoryMatch[1].trim();
+        }
       }
       
-      const duration = `${durationMinutes} min`;
-      const spots = appMetadata.spots || '10 spots';
-      const status = appMetadata.status || 'Open';
+      let duration = appMetadata.duration || `${durationMinutes} min`;
+      let spots = appMetadata.spots || '10 spots';
+      let status = appMetadata.status || 'Open';
+      
+      if (!appMetadata.duration && description) {
+        const durationMatch = description.match(/duration[:\s]+([^\n,]+)/i);
+        if (durationMatch) duration = durationMatch[1].trim();
+      }
+      if (!appMetadata.spots && description) {
+        const spotsMatch = description.match(/spots[:\s]+([^\n,]+)/i);
+        if (spotsMatch) spots = spotsMatch[1].trim();
+      }
+      if (!appMetadata.status && description) {
+        const statusMatch = description.match(/status[:\s]+([^\n,]+)/i);
+        if (statusMatch) status = statusMatch[1].trim();
+      }
       
       const isAppCreated = !!(extProps['ehApp_type'] || extProps['ehApp_id']);
       let needsReview = false;
@@ -129,7 +145,7 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
       }
       
       const existing = await db.execute(sql`SELECT id, locally_edited, app_last_modified_at, google_event_updated_at, 
-                image_url, external_url, spots, status, title, time, instructor, duration, category, date,
+                image_url, external_url, spots, status, title, time, instructor, duration, category, date, description,
                 reviewed_at, last_synced_at, review_dismissed, needs_review
          FROM wellness_classes WHERE google_calendar_id = ${googleEventId}`);
       
@@ -177,7 +193,7 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
           } else {
             try {
               const calendarTitle = `${dbRow.title} with ${dbRow.instructor}`;
-              const calendarDescription = [`Category: ${dbRow.category}`, (dbRow.description as string) || '', `Duration: ${dbRow.duration}`, `Spots: ${dbRow.spots}`].filter(Boolean).join('\n');
+              const calendarDescription = (dbRow.description as string) || '';
               
               const convertTo24Hour = (timeStr: string): string => {
                 const match12h = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
@@ -224,6 +240,8 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
               };
               if (dbRow.image_url) extendedProps['ehApp_imageUrl'] = dbRow.image_url as string;
               if (dbRow.external_url) extendedProps['ehApp_externalUrl'] = dbRow.external_url as string;
+              if (dbRow.category) extendedProps['ehApp_category'] = dbRow.category as string;
+              if (dbRow.duration) extendedProps['ehApp_duration'] = dbRow.duration as string;
               if (dbRow.spots) extendedProps['ehApp_spots'] = dbRow.spots as string;
               if (dbRow.status) extendedProps['ehApp_status'] = dbRow.status as string;
               
@@ -382,21 +400,55 @@ export async function backfillWellnessToCalendar(): Promise<{ created: number; t
       return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}:00`;
     };
     
+    const calendar = await getGoogleCalendarClient();
+    
     for (const wc of classesWithoutCalendarRows) {
       try {
         const calendarTitle = `${wc.title} with ${wc.instructor}`;
-        const calendarDescription = [`Category: ${wc.category}`, wc.description, `Duration: ${wc.duration}`, `Spots: ${wc.spots}`].filter(Boolean).join('\n');
+        const calendarDescription = wc.description || '';
         const startTime24 = convertTo24Hour(wc.time);
         const endTime24 = calculateEndTime(startTime24, wc.duration);
         
-        const googleCalendarId = await createCalendarEventOnCalendar(
+        const extendedProps: Record<string, string> = {
+          'ehApp_type': 'wellness',
+          'ehApp_id': String(wc.id),
+        };
+        if (wc.category) extendedProps['ehApp_category'] = wc.category;
+        if (wc.duration) extendedProps['ehApp_duration'] = wc.duration;
+        if (wc.spots) extendedProps['ehApp_spots'] = wc.spots;
+        if (wc.status) extendedProps['ehApp_status'] = wc.status;
+        if (wc.imageUrl) extendedProps['ehApp_imageUrl'] = wc.imageUrl;
+        if (wc.externalUrl) extendedProps['ehApp_externalUrl'] = wc.externalUrl;
+        
+        const formatDateToISO = (d: Date | string): string => {
+          if (typeof d === 'string') return d;
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+        const dateStr = formatDateToISO(wc.date);
+        
+        const response = await calendar.events.insert({
           calendarId,
-          calendarTitle,
-          calendarDescription,
-          wc.date,
-          startTime24,
-          endTime24
-        );
+          requestBody: {
+            summary: calendarTitle,
+            description: calendarDescription,
+            start: {
+              dateTime: `${dateStr}T${startTime24}`,
+              timeZone: 'America/Los_Angeles',
+            },
+            end: {
+              dateTime: `${dateStr}T${endTime24}`,
+              timeZone: 'America/Los_Angeles',
+            },
+            extendedProperties: {
+              private: extendedProps,
+            },
+          },
+        });
+        
+        const googleCalendarId = response.data.id || null;
         
         if (googleCalendarId) {
           await db.execute(sql`UPDATE wellness_classes SET google_calendar_id = ${googleCalendarId} WHERE id = ${wc.id}`);

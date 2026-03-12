@@ -1,8 +1,10 @@
 import { logger } from '../core/logger';
 import { Router } from 'express';
 import { isProduction } from '../core/db';
+import { db } from '../db';
+import { sql } from 'drizzle-orm';
 import { getGoogleCalendarClient } from '../core/integrations';
-import { CALENDAR_CONFIG, getResourceConfig, getCalendarAvailability, discoverCalendarIds, getCalendarStatus, syncConferenceRoomCalendarToBookings } from '../core/calendar/index';
+import { CALENDAR_CONFIG, getResourceConfig, getCalendarAvailability, discoverCalendarIds, getCalendarStatus, syncConferenceRoomCalendarToBookings, getCalendarIdByName } from '../core/calendar/index';
 import { isStaffOrAdmin, isAdmin } from '../core/middleware';
 import { getErrorMessage, safeErrorDetail } from '../utils/errorUtils';
 
@@ -231,6 +233,145 @@ router.post('/api/admin/bookings/sync-calendar', isStaffOrAdmin, async (req, res
   } catch (error: unknown) {
     logger.error('Calendar sync error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to sync calendar' });
+  }
+});
+
+router.post('/api/admin/calendar/migrate-clean-descriptions', isAdmin, async (req, res) => {
+  try {
+    const calendar = await getGoogleCalendarClient();
+    const results = {
+      wellness: { total: 0, cleaned: 0, errors: 0 },
+      events: { total: 0, cleaned: 0, errors: 0 },
+      closures: { total: 0, cleaned: 0, errors: 0 },
+    };
+
+    const wellnessCalendarId = await getCalendarIdByName(CALENDAR_CONFIG.wellness.name);
+    if (wellnessCalendarId) {
+      const wellnessRows = await db.execute(
+        sql`SELECT id, title, instructor, description, category, duration, spots, status, 
+                   image_url, external_url, google_calendar_id, date, time
+            FROM wellness_classes 
+            WHERE google_calendar_id IS NOT NULL AND is_active = true`
+      );
+      results.wellness.total = wellnessRows.rows.length;
+
+      for (const row of wellnessRows.rows as unknown as Array<Record<string, unknown>>) {
+        try {
+          const extendedProps: Record<string, string> = {
+            'ehApp_type': 'wellness',
+            'ehApp_id': String(row.id),
+          };
+          if (row.image_url) extendedProps['ehApp_imageUrl'] = row.image_url as string;
+          if (row.external_url) extendedProps['ehApp_externalUrl'] = row.external_url as string;
+          if (row.category) extendedProps['ehApp_category'] = row.category as string;
+          if (row.duration) extendedProps['ehApp_duration'] = row.duration as string;
+          if (row.spots) extendedProps['ehApp_spots'] = row.spots as string;
+          if (row.status) extendedProps['ehApp_status'] = row.status as string;
+
+          await calendar.events.patch({
+            calendarId: wellnessCalendarId,
+            eventId: row.google_calendar_id as string,
+            requestBody: {
+              summary: `${row.title} with ${row.instructor}`,
+              description: (row.description as string) || '',
+              extendedProperties: { private: extendedProps },
+            },
+          });
+          results.wellness.cleaned++;
+        } catch (err: unknown) {
+          results.wellness.errors++;
+          logger.warn(`[Migration] Failed to clean wellness #${row.id}`, { error: getErrorMessage(err) });
+        }
+      }
+    }
+
+    const eventsCalendarId = await getCalendarIdByName(CALENDAR_CONFIG.events.name);
+    if (eventsCalendarId) {
+      const eventRows = await db.execute(
+        sql`SELECT id, title, description, category, image_url, external_url, 
+                   max_attendees, visibility, requires_rsvp, location, google_calendar_id
+            FROM events 
+            WHERE google_calendar_id IS NOT NULL`
+      );
+      results.events.total = eventRows.rows.length;
+
+      for (const row of eventRows.rows as unknown as Array<Record<string, unknown>>) {
+        try {
+          const extendedProps: Record<string, string> = {
+            'ehApp_type': 'event',
+            'ehApp_id': String(row.id),
+          };
+          if (row.image_url) extendedProps['ehApp_imageUrl'] = row.image_url as string;
+          if (row.external_url) extendedProps['ehApp_externalUrl'] = row.external_url as string;
+          if (row.category) extendedProps['ehApp_category'] = row.category as string;
+          if (row.max_attendees) extendedProps['ehApp_maxAttendees'] = String(row.max_attendees);
+          if (row.visibility) extendedProps['ehApp_visibility'] = row.visibility as string;
+          if (row.requires_rsvp !== null && row.requires_rsvp !== undefined) extendedProps['ehApp_requiresRsvp'] = String(row.requires_rsvp);
+          if (row.location) extendedProps['ehApp_location'] = row.location as string;
+
+          await calendar.events.patch({
+            calendarId: eventsCalendarId,
+            eventId: row.google_calendar_id as string,
+            requestBody: {
+              summary: row.title as string,
+              description: (row.description as string) || '',
+              extendedProperties: { private: extendedProps },
+            },
+          });
+          results.events.cleaned++;
+        } catch (err: unknown) {
+          results.events.errors++;
+          logger.warn(`[Migration] Failed to clean event #${row.id}`, { error: getErrorMessage(err) });
+        }
+      }
+    }
+
+    const internalCalendarId = await getCalendarIdByName(CALENDAR_CONFIG.internal.name);
+    if (internalCalendarId) {
+      const closureRows = await db.execute(
+        sql`SELECT id, title, reason, notes, affected_areas, notify_members, internal_calendar_id
+            FROM facility_closures 
+            WHERE internal_calendar_id IS NOT NULL AND is_active = true`
+      );
+      results.closures.total = closureRows.rows.length;
+
+      for (const row of closureRows.rows as unknown as Array<Record<string, unknown>>) {
+        try {
+          const extendedProps: Record<string, string> = {
+            'ehApp_type': 'closure',
+          };
+          if (row.affected_areas) extendedProps['ehApp_affectedAreas'] = row.affected_areas as string;
+          extendedProps['ehApp_notifyMembers'] = row.notify_members ? 'true' : 'false';
+          if (row.notes) extendedProps['ehApp_notes'] = row.notes as string;
+
+          const eventIds = (row.internal_calendar_id as string).split(',').map(id => id.trim()).filter(Boolean);
+          for (const eventId of eventIds) {
+            try {
+              await calendar.events.patch({
+                calendarId: internalCalendarId,
+                eventId,
+                requestBody: {
+                  description: (row.reason as string) || '',
+                  extendedProperties: { private: extendedProps },
+                },
+              });
+            } catch (patchErr: unknown) {
+              logger.warn(`[Migration] Failed to patch closure event ${eventId} for closure #${row.id}`, { error: getErrorMessage(patchErr) });
+            }
+          }
+          results.closures.cleaned++;
+        } catch (err: unknown) {
+          results.closures.errors++;
+          logger.warn(`[Migration] Failed to clean closure #${row.id}`, { error: getErrorMessage(err) });
+        }
+      }
+    }
+
+    logger.info('[Migration] Calendar description cleanup complete', { extra: results });
+    res.json({ success: true, results });
+  } catch (error: unknown) {
+    logger.error('[Migration] Calendar cleanup failed', { error: error instanceof Error ? error : new Error(String(error)) });
+    res.status(500).json({ error: 'Failed to migrate calendar descriptions' });
   }
 });
 

@@ -378,7 +378,18 @@ router.post('/api/events', isStaffOrAdmin, async (req, res) => {
       return res.status(500).json({ error: 'Events calendar not configured. Please contact support.' });
     }
     
-    const eventDescription = [description, location ? `Location: ${location}` : ''].filter(Boolean).join('\n');
+    const eventDescription = description || '';
+    
+    const createExtProps: Record<string, string> = {
+      'ehApp_type': 'event',
+    };
+    if (category) createExtProps['ehApp_category'] = category;
+    if (image_url) createExtProps['ehApp_imageUrl'] = image_url;
+    if (external_url) createExtProps['ehApp_externalUrl'] = external_url;
+    if (max_attendees) createExtProps['ehApp_maxAttendees'] = String(max_attendees);
+    if (visibility) createExtProps['ehApp_visibility'] = visibility;
+    if (requires_rsvp !== undefined && requires_rsvp !== null) createExtProps['ehApp_requiresRsvp'] = String(requires_rsvp);
+    if (location) createExtProps['ehApp_location'] = location;
     
     let googleCalendarId: string | null = null;
     try {
@@ -388,7 +399,8 @@ router.post('/api/events', isStaffOrAdmin, async (req, res) => {
         eventDescription,
         trimmedEventDate,
         trimmedStartTime,
-        trimmedEndTime || trimmedStartTime
+        trimmedEndTime || trimmedStartTime,
+        createExtProps
       );
     } catch (calError: unknown) {
       logger.error('Failed to create Google Calendar event', { error: calError instanceof Error ? calError : new Error(getErrorMessage(calError)) });
@@ -554,14 +566,15 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
       try {
         const calendarId = await getCalendarIdByName(CALENDAR_CONFIG.events.name);
         if (calendarId) {
-          const calendarTitle = category ? `[${category}] ${trimmedTitle}` : trimmedTitle;
-          const eventDescription = [description, location ? `Location: ${location}` : ''].filter(Boolean).join('\n');
+          const calendarTitle = trimmedTitle;
+          const eventDescription = description || '';
           const extendedProps: Record<string, string> = {
             'ehApp_type': 'event',
             'ehApp_id': id as string,
           };
           if (image_url) extendedProps['ehApp_imageUrl'] = image_url;
           if (external_url) extendedProps['ehApp_externalUrl'] = external_url;
+          if (category) extendedProps['ehApp_category'] = category;
           if (max_attendees) extendedProps['ehApp_maxAttendees'] = String(max_attendees);
           if (visibility) extendedProps['ehApp_visibility'] = visibility;
           if (requires_rsvp !== undefined && requires_rsvp !== null) extendedProps['ehApp_requiresRsvp'] = String(requires_rsvp);

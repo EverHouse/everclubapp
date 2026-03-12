@@ -54,18 +54,21 @@ export async function syncGoogleCalendarEvents(options?: { suppressAlert?: boole
       const description = event.description || null;
       
       const bracketMatch = rawTitle.match(/^\[([^\]]+)\]\s*/);
-      const extractedCategory = bracketMatch ? bracketMatch[1] : null;
+      const extractedCategoryFromTitle = bracketMatch ? bracketMatch[1] : null;
       const title = bracketMatch ? rawTitle.replace(/^\[([^\]]+)\]\s*/, '') : rawTitle;
       
       const extProps = event.extendedProperties?.private || {};
       const appMetadata = {
         imageUrl: extProps['ehApp_imageUrl'] || null,
         externalUrl: extProps['ehApp_externalUrl'] || null,
+        category: extProps['ehApp_category'] || null,
         maxAttendees: extProps['ehApp_maxAttendees'] ? parseInt(extProps['ehApp_maxAttendees']) : null,
         visibility: extProps['ehApp_visibility'] || null,
         requiresRsvp: extProps['ehApp_requiresRsvp'] === 'true',
         location: extProps['ehApp_location'] || null,
       };
+      
+      const extractedCategory = appMetadata.category || extractedCategoryFromTitle;
       
       let eventDate: string;
       let startTime: string;
@@ -96,11 +99,7 @@ export async function syncGoogleCalendarEvents(options?: { suppressAlert?: boole
       const hasSufficientMetadata = !!(location || appMetadata.imageUrl || appMetadata.externalUrl || description);
       const needsReview = isAppCreated ? false : (!hasBracketPrefix || !hasSufficientMetadata);
       
-      const enrichedDescription = extractedCategory && description && !description.startsWith(`[${extractedCategory}]`)
-        ? `[${extractedCategory}] ${description}`
-        : extractedCategory && !description
-        ? `[${extractedCategory}]`
-        : description;
+      const enrichedDescription = description;
       
       const existing = await db.execute(sql`SELECT id, locally_edited, app_last_modified_at, google_event_updated_at,
                 title, description, event_date, start_time, end_time, location, category,
@@ -163,8 +162,9 @@ export async function syncGoogleCalendarEvents(options?: { suppressAlert?: boole
               if (dbRow.visibility) extendedProps['ehApp_visibility'] = dbRow.visibility as string;
               if (dbRow.requires_rsvp !== null) extendedProps['ehApp_requiresRsvp'] = String(dbRow.requires_rsvp);
               if (dbRow.location) extendedProps['ehApp_location'] = dbRow.location as string;
+              if (dbRow.category) extendedProps['ehApp_category'] = dbRow.category as string;
               
-              const calendarTitle = dbRow.category ? `[${dbRow.category}] ${dbRow.title}` : dbRow.title as string;
+              const calendarTitle = dbRow.title as string;
               
               const formattedDate = new Date(dbRow.event_date as string).toISOString().split('T')[0];
               
