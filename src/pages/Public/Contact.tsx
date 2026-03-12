@@ -439,7 +439,7 @@ const Contact: React.FC = () => {
                     Open in Google Maps
                  </a>
                  <a 
-                   href={`https://maps.apple.com/?address=${encodeURIComponent(`${s['contact.address_line1']}, ${s['contact.city_state_zip']}`)}&ll=${CLUB_COORDS.lat},${CLUB_COORDS.lng}&q=${encodeURIComponent('Ever Club')}`} 
+                   href="https://maps.apple.com/place?auid=17062891045498801688" 
                    target="_blank" 
                    rel="noreferrer" 
                    className="bg-zinc-700 text-white px-4 py-2 rounded-lg shadow-md dark:shadow-black/20 font-bold text-xs flex items-center gap-2 hover:shadow-lg transition-shadow"
