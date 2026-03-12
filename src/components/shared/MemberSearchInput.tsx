@@ -213,8 +213,8 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
 
     setDropdownStyle({
       position: 'fixed',
-      top: placeAbove ? undefined : rect.bottom + 4,
-      bottom: placeAbove ? (window.innerHeight - rect.top + 4) : undefined,
+      top: placeAbove ? (rect.top - clampedHeight - 4) : rect.bottom + 4,
+      bottom: undefined,
       left: rect.left,
       width: rect.width,
       maxHeight: clampedHeight,
