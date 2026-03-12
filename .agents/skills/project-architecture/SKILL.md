@@ -23,6 +23,7 @@ Load the right domain skill BEFORE making changes. If your task spans multiple d
 | Scheduled jobs, background tasks, job queue | `scheduler-jobs` | `data-integrity-monitoring` |
 | Stripe webhooks, subscription sync, payment events | `stripe-webhook-flow` | `member-lifecycle`, `fee-calculation` |
 | HubSpot contacts, deals, queue sync, form submissions | `hubspot-sync` | `member-lifecycle` |
+| Stripe API calls, payment processing, pricing config | `billing-stripe-expert` | `fee-calculation`, `stripe-webhook-flow` |
 | Integrity checks, monitoring, alerts, health checks | `data-integrity-monitoring` | `scheduler-jobs` |
 
 ### Decision Tree — Which Skill?
@@ -35,6 +36,7 @@ What are you changing?
 │   ├── Fee/overage/guest fee logic? → fee-calculation
 │   ├── Guest pass logic? → guest-pass-system
 │   └── Anything else booking-related → booking-flow
+├── Stripe API calls, payment intents, pricing config? → billing-stripe-expert
 ├── A Stripe webhook handler? → stripe-webhook-flow
 ├── A member status/tier/onboarding change? → member-lifecycle
 ├── A HubSpot sync or contact/deal operation? → hubspot-sync
