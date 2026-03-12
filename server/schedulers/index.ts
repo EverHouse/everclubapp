@@ -1,5 +1,4 @@
 import { startIntegrityScheduler } from './integrityScheduler';
-import { startWaiverReviewScheduler, stopWaiverReviewScheduler } from './waiverReviewScheduler';
 import { startStripeReconciliationScheduler, stopStripeReconciliationScheduler } from './stripeReconciliationScheduler';
 import { startFeeSnapshotReconciliationScheduler, stopFeeSnapshotReconciliationScheduler } from './feeSnapshotReconciliationScheduler';
 import { startGracePeriodScheduler, stopGracePeriodScheduler } from './gracePeriodScheduler';
@@ -137,7 +136,6 @@ export function initSchedulers(): void {
   staggerStart(slot * STAGGER_INTERVAL_MS, 'Stuck Cancellation', () => startStuckCancellationScheduler());
   slot++;
 
-  staggerStart(slot * STAGGER_INTERVAL_MS, 'Waiver Review', () => startWaiverReviewScheduler());
   slot++;
 
   // ── Wave 5: HubSpot & external syncs (+170s → +200s) ──
@@ -203,7 +201,7 @@ export function stopSchedulers(): void {
   stopCommunicationLogsScheduler();
   stopDailyReminderScheduler();
   stopMorningClosureScheduler();
-  stopWaiverReviewScheduler();
+
   stopUnresolvedTrackmanScheduler();
   stopHubSpotQueueScheduler();
   stopHubSpotFormSyncScheduler();
