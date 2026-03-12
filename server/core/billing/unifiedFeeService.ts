@@ -1,7 +1,7 @@
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { getMemberTierByEmail, getTierLimits } from '../tierService';
-import { getDailyUsageFromLedger, getGuestPassInfo, calculateOverageFee } from '../bookingService/usageCalculator';
+import { getDailyUsageFromLedger, getGuestPassInfo, calculateOverageFee, calculateIncrementalOverage } from '../bookingService/usageCalculator';
 import { MemberService, isEmail, normalizeEmail, isUUID } from '../memberService';
 import { FeeBreakdown, FeeComputeParams, FeeLineItem } from '../../../shared/models/billing';
 import { logger } from '../logger';
@@ -753,26 +753,21 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       });
       
       if (!unlimitedAccess && dailyAllowance < 999) {
-        const totalAfterSession = usedMinutesToday + minutesPerParticipant + remainderMinutes;
-        const overageResult = calculateOverageFee(totalAfterSession, dailyAllowance);
-        const priorOverage = calculateOverageFee(usedMinutesToday, dailyAllowance);
-        
-        const overageMinutes = Math.max(0, overageResult.overageMinutes - priorOverage.overageMinutes);
-        const overageFee = Math.max(0, overageResult.overageFee - priorOverage.overageFee);
+        const minutesAdded = minutesPerParticipant + remainderMinutes;
+        const incremental = calculateIncrementalOverage(usedMinutesToday, minutesAdded, dailyAllowance);
         
         logger.info('[FeeBreakdown] Overage calculation result', {
           extra: {
-            totalAfterSession,
-            overageResultMinutes: overageResult.overageMinutes,
-            overageResultFee: overageResult.overageFee,
-            priorOverageMinutes: priorOverage.overageMinutes,
-            priorOverageFee: priorOverage.overageFee,
-            finalOverageMinutes: overageMinutes,
-            finalOverageFee: overageFee
+            totalAfterSession: usedMinutesToday + minutesAdded,
+            incrementalOverageMinutes: incremental.overageMinutes,
+            incrementalOverageFeeCents: incremental.overageFeeCents,
+            usedMinutesToday,
+            minutesAdded,
+            dailyAllowance
           }
         });
         
-        lineItem.overageCents = Math.round(overageFee * 100);
+        lineItem.overageCents = incremental.overageFeeCents;
         totalOverageCents += lineItem.overageCents;
       }
       
@@ -838,14 +833,9 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       lineItem.usedMinutesToday = usedMinutesToday;
       
       if (!unlimitedAccess && dailyAllowance < 999) {
-        const totalAfterSession = usedMinutesToday + minutesPerParticipant;
-        const overageResult = calculateOverageFee(totalAfterSession, dailyAllowance);
-        const priorOverage = calculateOverageFee(usedMinutesToday, dailyAllowance);
+        const incremental = calculateIncrementalOverage(usedMinutesToday, minutesPerParticipant, dailyAllowance);
         
-        const overageMinutes = Math.max(0, overageResult.overageMinutes - priorOverage.overageMinutes);
-        const overageFee = Math.max(0, overageResult.overageFee - priorOverage.overageFee);
-        
-        lineItem.overageCents = Math.round(overageFee * 100);
+        lineItem.overageCents = incremental.overageFeeCents;
         totalOverageCents += lineItem.overageCents;
       }
       
@@ -879,14 +869,10 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       const unlimitedAccess = ownerTierLimits?.unlimited_access ?? false;
 
       if (!unlimitedAccess && dailyAllowance < 999) {
-        const totalAfterSession = usedMinutesToday + ownerLineItem.minutesAllocated;
-        const overageResult = calculateOverageFee(totalAfterSession, dailyAllowance);
-        const priorOverage = calculateOverageFee(usedMinutesToday, dailyAllowance);
-
-        const overageFee = Math.max(0, overageResult.overageFee - priorOverage.overageFee);
+        const incremental = calculateIncrementalOverage(usedMinutesToday, ownerLineItem.minutesAllocated, dailyAllowance);
 
         totalOverageCents -= ownerLineItem.overageCents;
-        ownerLineItem.overageCents = Math.round(overageFee * 100);
+        ownerLineItem.overageCents = incremental.overageFeeCents;
         ownerLineItem.totalCents = ownerLineItem.overageCents;
         totalOverageCents += ownerLineItem.overageCents;
 

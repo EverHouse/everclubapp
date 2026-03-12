@@ -118,11 +118,13 @@ export async function checkResourceEventOrder(
 
 export async function executeDeferredActions(actions: DeferredAction[], eventContext?: { eventId: string; eventType: string }): Promise<void> {
   let failedCount = 0;
+  const failedIndices: number[] = [];
   for (let i = 0; i < actions.length; i++) {
     try {
       await actions[i]();
     } catch (err: unknown) {
       failedCount++;
+      failedIndices.push(i);
       logger.error(`[Stripe Webhook] Deferred action ${i + 1}/${actions.length} failed (non-critical):`, { 
         error: err,
         extra: eventContext ? { eventId: eventContext.eventId, eventType: eventContext.eventType } : undefined
@@ -131,6 +133,21 @@ export async function executeDeferredActions(actions: DeferredAction[], eventCon
   }
   if (failedCount > 0) {
     logger.warn(`[Stripe Webhook] ${failedCount}/${actions.length} deferred actions failed for event ${eventContext?.eventId || 'unknown'} (${eventContext?.eventType || 'unknown'})`);
+    try {
+      await db.execute(sql`
+        INSERT INTO system_alerts (severity, category, message, details, created_at)
+        VALUES (
+          'critical',
+          'deferred_action_failure',
+          ${`${failedCount}/${actions.length} deferred actions failed after webhook commit for event ${eventContext?.eventId || 'unknown'} (${eventContext?.eventType || 'unknown'}). Side-effects (emails, HubSpot sync, notifications) may not have executed.`},
+          ${JSON.stringify({ eventId: eventContext?.eventId, eventType: eventContext?.eventType, failedCount, totalCount: actions.length, failedIndices })}::text,
+          NOW()
+        )
+        ON CONFLICT DO NOTHING
+      `);
+    } catch (alertErr: unknown) {
+      logger.error('[Stripe Webhook] Failed to record deferred action failure alert:', { error: alertErr });
+    }
   }
 }
 

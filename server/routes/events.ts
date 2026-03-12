@@ -40,7 +40,8 @@ async function createEventAvailabilityBlocks(
   blockSimulators: boolean, 
   blockConferenceRoom: boolean,
   createdBy?: string,
-  eventTitle?: string
+  eventTitle?: string,
+  tx?: Parameters<Parameters<typeof db.transaction>[0]>[0]
 ): Promise<void> {
   const resourceIds: number[] = [];
   
@@ -57,9 +58,10 @@ async function createEventAvailabilityBlocks(
   }
   
   const blockNotes = eventTitle ? `Blocked for: ${eventTitle}` : 'Blocked for event';
+  const executor = tx || db;
   
   for (const resourceId of resourceIds) {
-    await db.insert(availabilityBlocks).values({
+    await executor.insert(availabilityBlocks).values({
       resourceId,
       blockDate: eventDate,
       startTime,
@@ -132,7 +134,7 @@ router.post('/api/events/sync/google', isStaffOrAdmin, async (req, res) => {
   try {
     const result = await syncGoogleCalendarEvents();
     if (result.error) {
-      return res.status(404).json(result);
+      return res.status(502).json(result);
     }
     res.json({
       success: true,
@@ -413,37 +415,37 @@ router.post('/api/events', isStaffOrAdmin, async (req, res) => {
     
     const newBlockSimulators = block_simulators === true || block_simulators === 'true';
     const newBlockConferenceRoom = block_conference_room === true || block_conference_room === 'true';
+    const userEmail = getSessionUser(req)?.email || 'system';
     
-    const result = await db.insert(events).values({
-      title: trimmedTitle,
-      description,
-      eventDate: trimmedEventDate,
-      startTime: trimmedStartTime,
-      endTime: trimmedEndTime,
-      location,
-      category,
-      imageUrl: image_url,
-      maxAttendees: max_attendees,
-      source: 'manual',
-      visibility: visibility || 'public',
-      requiresRsvp: requires_rsvp || false,
-      googleCalendarId: googleCalendarId,
-      externalUrl: external_url || null,
-      blockBookings: block_bookings || false,
-      blockSimulators: newBlockSimulators,
-      blockConferenceRoom: newBlockConferenceRoom,
-    }).returning();
-    
-    const createdEvent = result[0];
-    
-    if (newBlockSimulators || newBlockConferenceRoom) {
-      try {
-        const userEmail = getSessionUser(req)?.email || 'system';
-        await createEventAvailabilityBlocks(createdEvent.id, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, createdEvent.title);
-      } catch (blockError: unknown) {
-        logger.error('Failed to create availability blocks for event', { error: blockError instanceof Error ? blockError : new Error(getErrorMessage(blockError)) });
+    const createdEvent = await db.transaction(async (tx) => {
+      const result = await tx.insert(events).values({
+        title: trimmedTitle,
+        description,
+        eventDate: trimmedEventDate,
+        startTime: trimmedStartTime,
+        endTime: trimmedEndTime,
+        location,
+        category,
+        imageUrl: image_url,
+        maxAttendees: max_attendees,
+        source: 'manual',
+        visibility: visibility || 'public',
+        requiresRsvp: requires_rsvp || false,
+        googleCalendarId: googleCalendarId,
+        externalUrl: external_url || null,
+        blockBookings: block_bookings || false,
+        blockSimulators: newBlockSimulators,
+        blockConferenceRoom: newBlockConferenceRoom,
+      }).returning();
+      
+      const event = result[0];
+      
+      if (newBlockSimulators || newBlockConferenceRoom) {
+        await createEventAvailabilityBlocks(event.id, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, event.title, tx);
       }
-    }
+      
+      return event;
+    });
     
     logFromRequest(req, 'create_event', 'event', String(createdEvent.id), createdEvent.title, {
       event_date: createdEvent.eventDate,
@@ -612,19 +614,12 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
     
     const updatedEvent = result[0];
     
-    try {
-      if (!hadAnyBlocking && hasAnyBlocking) {
-        // Blocks newly enabled
-        await createEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, updatedEvent.title);
-      } else if (hadAnyBlocking && !hasAnyBlocking) {
-        // Blocks disabled
-        await removeEventAvailabilityBlocks(eventId);
-      } else if (hasAnyBlocking) {
-        // Blocks changed or time/date changed
-        await updateEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, updatedEvent.title);
-      }
-    } catch (blockError: unknown) {
-      logger.error('Failed to update availability blocks for event', { error: blockError instanceof Error ? blockError : new Error(getErrorMessage(blockError)) });
+    if (!hadAnyBlocking && hasAnyBlocking) {
+      await createEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, updatedEvent.title);
+    } else if (hadAnyBlocking && !hasAnyBlocking) {
+      await removeEventAvailabilityBlocks(eventId);
+    } else if (hasAnyBlocking) {
+      await updateEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, updatedEvent.title);
     }
     logFromRequest(req, 'update_event', 'event', String(updatedEvent.id), updatedEvent.title, {
       event_date: updatedEvent.eventDate,

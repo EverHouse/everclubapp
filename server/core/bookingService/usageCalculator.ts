@@ -112,6 +112,32 @@ export function calculateOverageFee(
   };
 }
 
+export interface IncrementalOverageResult {
+  overageMinutes: number;
+  overageFeeCents: number;
+  overageFeeDollars: number;
+}
+
+export function calculateIncrementalOverage(
+  usedMinutesBefore: number,
+  minutesAdded: number,
+  dailyAllowance: number
+): IncrementalOverageResult {
+  if (dailyAllowance >= 999) {
+    return { overageMinutes: 0, overageFeeCents: 0, overageFeeDollars: 0 };
+  }
+  const priorOverageMinutes = Math.max(0, usedMinutesBefore - dailyAllowance);
+  const totalOverageMinutes = Math.max(0, (usedMinutesBefore + minutesAdded) - dailyAllowance);
+  const incrementalMinutes = Math.max(0, totalOverageMinutes - priorOverageMinutes);
+  const thirtyMinBlocks = Math.ceil(incrementalMinutes / PRICING.OVERAGE_BLOCK_MINUTES);
+  const overageFeeCents = thirtyMinBlocks * PRICING.OVERAGE_RATE_CENTS;
+  return {
+    overageMinutes: incrementalMinutes,
+    overageFeeCents,
+    overageFeeDollars: overageFeeCents / 100
+  };
+}
+
 export interface ParticipantBilling {
   participantId?: number;
   userId?: string;
@@ -315,15 +341,9 @@ export async function calculateSessionBilling(
       let overageFee = 0;
       
       if (!unlimitedAccess && dailyAllowance < 999) {
-        const totalMinutesAfterSession = usedMinutesToday + minutesAllocated;
-        const overageResult = calculateOverageFee(totalMinutesAfterSession, dailyAllowance);
-        
-        const priorOverage = calculateOverageFee(usedMinutesToday, dailyAllowance);
-        overageMinutes = overageResult.overageMinutes - priorOverage.overageMinutes;
-        overageFee = overageResult.overageFee - priorOverage.overageFee;
-        
-        if (overageMinutes < 0) overageMinutes = 0;
-        if (overageFee < 0) overageFee = 0;
+        const incremental = calculateIncrementalOverage(usedMinutesToday, minutesAllocated, dailyAllowance);
+        overageMinutes = incremental.overageMinutes;
+        overageFee = incremental.overageFeeDollars;
       }
       
       billing = {
@@ -407,12 +427,9 @@ export async function calculateFullSessionBilling(
   let hostOverageMinutes = 0;
   
   if (!hostUnlimitedAccess && hostDailyAllowance < 999) {
-    const hostTotalMinutesAfterSession = hostUsedMinutesToday + ownerAllocatedMinutes;
-    const hostOverageResult = calculateOverageFee(hostTotalMinutesAfterSession, hostDailyAllowance);
-    const hostPriorOverage = calculateOverageFee(hostUsedMinutesToday, hostDailyAllowance);
-    
-    hostOverageMinutes = Math.max(0, hostOverageResult.overageMinutes - hostPriorOverage.overageMinutes);
-    hostOverageFee = Math.max(0, hostOverageResult.overageFee - hostPriorOverage.overageFee);
+    const hostIncremental = calculateIncrementalOverage(hostUsedMinutesToday, ownerAllocatedMinutes, hostDailyAllowance);
+    hostOverageMinutes = hostIncremental.overageMinutes;
+    hostOverageFee = hostIncremental.overageFeeDollars;
   }
   
   const allocations = computeUsageAllocation(sessionDuration, participants, {
@@ -505,12 +522,9 @@ export async function calculateFullSessionBilling(
       let overageFee = 0;
       
       if (!unlimitedAccess && dailyAllowance < 999) {
-        const totalMinutesAfterSession = usedMinutesToday + minutesAllocated;
-        const overageResult = calculateOverageFee(totalMinutesAfterSession, dailyAllowance);
-        const priorOverage = calculateOverageFee(usedMinutesToday, dailyAllowance);
-        
-        overageMinutes = Math.max(0, overageResult.overageMinutes - priorOverage.overageMinutes);
-        overageFee = Math.max(0, overageResult.overageFee - priorOverage.overageFee);
+        const incremental = calculateIncrementalOverage(usedMinutesToday, minutesAllocated, dailyAllowance);
+        overageMinutes = incremental.overageMinutes;
+        overageFee = incremental.overageFeeDollars;
       }
       
       billing = {
@@ -587,9 +601,8 @@ export async function assignGuestTimeToHost(
     
     let overageFee = 0;
     if (!unlimitedAccess && dailyAllowance < 999) {
-      const overageResult = calculateOverageFee(totalMinutes, dailyAllowance);
-      const priorOverage = calculateOverageFee(existingHostMinutes, dailyAllowance);
-      overageFee = Math.max(0, overageResult.overageFee - priorOverage.overageFee);
+      const incremental = calculateIncrementalOverage(existingHostMinutes, sessionDuration, dailyAllowance);
+      overageFee = incremental.overageFeeDollars;
     }
     
     return {

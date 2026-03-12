@@ -283,10 +283,16 @@ export const MemberDataProvider: React.FC<{children: ReactNode}> = ({ children }
   }, [refreshMembers]);
 
   useEffect(() => {
-    const handleTierUpdate = (event: CustomEvent) => {
+    const handleTierUpdate = () => {
       const isStaff = actualUserRef.current?.role === 'staff' || actualUserRef.current?.role === 'admin';
       if (isStaff) {
-        refreshMembers();
+        const now = Date.now();
+        if (now - lastDirectoryRefreshRef.current < 5000) return;
+        if (directoryRefreshTimeoutRef.current) clearTimeout(directoryRefreshTimeoutRef.current);
+        directoryRefreshTimeoutRef.current = setTimeout(() => {
+          lastDirectoryRefreshRef.current = Date.now();
+          refreshMembers();
+        }, 500);
       }
     };
     window.addEventListener('tier-update', handleTierUpdate as EventListener);

@@ -513,16 +513,18 @@ const BookGolf: React.FC = () => {
   }, [queryClient, effectiveUser?.email, selectedDateObj?.date, activeTab]);
 
 
-  // Reset playerSlots when playerCount changes
   useEffect(() => {
     const slotsNeeded = Math.max(0, playerCount - 1);
     setPlayerSlots(prev => {
       if (prev.length === slotsNeeded) return prev;
-      const newSlots: PlayerSlot[] = [];
-      for (let i = 0; i < slotsNeeded; i++) {
-        newSlots.push(prev[i] || { id: crypto.randomUUID(), email: '', name: '', firstName: '', lastName: '', type: 'guest', searchQuery: '' });
+      if (prev.length < slotsNeeded) {
+        const additional: PlayerSlot[] = [];
+        for (let i = prev.length; i < slotsNeeded; i++) {
+          additional.push({ id: crypto.randomUUID(), email: '', name: '', firstName: '', lastName: '', type: 'guest', searchQuery: '' });
+        }
+        return [...prev, ...additional];
       }
-      return newSlots;
+      return prev.slice(0, slotsNeeded);
     });
   }, [playerCount]);
 

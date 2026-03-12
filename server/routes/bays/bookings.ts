@@ -1685,7 +1685,7 @@ async function calculateFeeEstimate(params: {
 }
 
 // Unified fee estimate endpoint - works for both members (with params) and staff (with booking ID)
-router.get('/api/fee-estimate', async (req, res) => {
+router.get('/api/fee-estimate', isAuthenticated, async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
