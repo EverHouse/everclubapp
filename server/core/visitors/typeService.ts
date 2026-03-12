@@ -94,7 +94,7 @@ export async function updateVisitorType({
 }
 
 export async function updateVisitorTypeByUserId(
-  userId: number,
+  userId: string | number,
   type: VisitorType,
   activitySource: ActivitySource,
   activityDate: Date = new Date()

@@ -785,7 +785,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
             : booking.durationMinutes || 60;
           
           const userResult = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${booking.userEmail})`);
-          const userId = (userResult.rows[0] as { id: number })?.id || null;
+          const userId = (userResult.rows[0] as { id: string })?.id || null;
           
           await db.execute(sql`
             INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)

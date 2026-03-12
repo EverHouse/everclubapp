@@ -21,7 +21,7 @@ export interface ParsedBookingNotes {
 }
 
 export interface PurchaseMatch {
-  userId: number;
+  userId: string | number;
   email: string;
   firstName: string | null;
   lastName: string | null;
@@ -349,7 +349,7 @@ async function getResourceIdByBay(bayNumber: string | null): Promise<number | nu
 
 async function createBookingSessionForAutoMatch(
   booking: UnmatchedBookingDetails,
-  userId: number,
+  userId: string | number,
   email: string,
   displayName: string
 ): Promise<number | null> {
@@ -430,7 +430,7 @@ export async function autoMatchSingleBooking(
     const parsed = parseBookingNotes(notes);
     
     // Helper to create session for future bookings
-    const maybeCreateSession = async (userId: number, email: string, displayName: string): Promise<number | null> => {
+    const maybeCreateSession = async (userId: string | number, email: string, displayName: string): Promise<number | null> => {
       if (!isFuture || !bookingDetails) return null;
       return createBookingSessionForAutoMatch(bookingDetails, userId, email, displayName);
     };
@@ -440,11 +440,11 @@ export async function autoMatchSingleBooking(
       const user = await findMatchingUser({ email: parsed.memberEmail });
       if (user) {
         const sessionId = await maybeCreateSession(
-          user.id as unknown as number, 
+          user.id as string, 
           user.email, 
           `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email
         );
-        await resolveBookingWithUser(bookingId, user.id as unknown as number, user.email, staffEmail, sessionId);
+        await resolveBookingWithUser(bookingId, user.id as string, user.email, staffEmail, sessionId);
         result.matched = true;
         result.matchType = 'purchase';
         result.visitorEmail = user.email;
@@ -467,7 +467,7 @@ export async function autoMatchSingleBooking(
           lastName: purchaseMatch.lastName || undefined,
           mindbodyClientId: purchaseMatch.mindbodyClientId || undefined
         });
-        userId = visitor.id as unknown as number;
+        userId = visitor.id as string;
       }
       
       // For future bookings, create session first so we can link purchase correctly
@@ -522,8 +522,8 @@ export async function autoMatchSingleBooking(
         if (user) {
           const visitorType: VisitorType = isClassPass ? 'classpass' : 'golfnow';
           const visitorLabel = isClassPass ? 'ClassPass Visitor' : 'GolfNow Visitor';
-          const sessionId = await maybeCreateSession(user.id as unknown as number, visitorEmail, userName || visitorLabel);
-          await resolveBookingWithUser(bookingId, user.id as unknown as number, visitorEmail, staffEmail, sessionId);
+          const sessionId = await maybeCreateSession(user.id as string, visitorEmail, userName || visitorLabel);
+          await resolveBookingWithUser(bookingId, user.id as string, visitorEmail, staffEmail, sessionId);
           result.matched = true;
           result.matchType = isClassPass ? 'classpass_visitor' : 'golfnow_fallback';
           result.visitorEmail = visitorEmail;
@@ -545,7 +545,7 @@ export async function autoMatchSingleBooking(
 
 async function resolveBookingWithUser(
   bookingId: number,
-  userId: number,
+  userId: string | number,
   email: string,
   staffEmail?: string,
   sessionId?: number | null

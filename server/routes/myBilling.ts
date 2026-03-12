@@ -592,7 +592,7 @@ router.post('/api/member-billing/:email/sync-metadata', requireStaffAuth, async 
     await stripe.customers.update(member.stripe_customer_id as string, {
       name: [member.first_name, member.last_name].filter(Boolean).join(' ') || undefined,
       metadata: {
-        userId: (member.id as number).toString(),
+        userId: String(member.id),
         tier: (member.tier as string) || '',
         lastSyncAt: new Date().toISOString(),
       },

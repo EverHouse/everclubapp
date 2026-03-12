@@ -190,7 +190,7 @@ export async function findOrCreateHubSpotContact(
 
 export interface CreateMemberLocallyResult {
   success: boolean;
-  userId?: number;
+  userId?: string;
   error?: string;
 }
 
@@ -245,7 +245,7 @@ export async function createMemberLocally(input: AddMemberInput): Promise<Create
       findOrCreateHubSpotContact(normalizedEmail, firstName, lastName, phone || undefined, tier)
         .catch((err: unknown) => logger.error(`[AddMember] HubSpot contact sync failed for converted visitor ${normalizedEmail}:`, { extra: { detail: getErrorMessage(err) } }));
 
-      return { success: true, userId: (updateResult.rows as Array<Record<string, unknown>>)[0].id as number };
+      return { success: true, userId: String((updateResult.rows as Array<Record<string, unknown>>)[0].id) };
     }
     
     const tags: string[] = [];
@@ -259,7 +259,7 @@ export async function createMemberLocally(input: AddMemberInput): Promise<Create
     findOrCreateHubSpotContact(normalizedEmail, firstName, lastName, phone || undefined, tier)
       .catch((err: unknown) => logger.error(`[AddMember] HubSpot contact sync failed for ${normalizedEmail}:`, { extra: { detail: getErrorMessage(err) } }));
     
-    return { success: true, userId: (result.rows as Array<Record<string, unknown>>)[0].id as number };
+    return { success: true, userId: String((result.rows as Array<Record<string, unknown>>)[0].id) };
   } catch (error: unknown) {
     logger.error('[AddMember] Failed to create user locally:', { error: error });
     return { success: false, error: getErrorMessage(error) || 'Failed to create member' };

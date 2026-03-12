@@ -684,7 +684,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                (user_id, product_type, quantity, amount_cents, stripe_payment_intent_id, booking_date, status, trackman_booking_id, created_at)
                VALUES (${member.id}, ${'day-pass-golf-sim'}, 1, ${amountCents}, ${paymentIntentId}, ${bookingDateStr}, ${paymentStatus}, ${booking.trackman_booking_id}, NOW())`);
             
-            updateVisitorTypeByUserId(member.id as number, 'day_pass', 'day_pass_purchase', new Date(bookingDateStr))
+            updateVisitorTypeByUserId(member.id as string, 'day_pass', 'day_pass_purchase', new Date(bookingDateStr))
               .catch(err => logger.error('[VisitorType] Failed to update day_pass type:', { extra: { err } }));
             }
             }
