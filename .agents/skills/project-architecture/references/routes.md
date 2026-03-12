@@ -107,7 +107,7 @@ All mutating routes (POST/PUT/PATCH/DELETE) must be protected. Two equivalent pa
 - `events.ts` — Event management, Eventbrite sync
 - `calendar.ts` — Calendar endpoints
 - `closures.ts` — Facility closures
-- `cafe.ts` — Cafe menu (view-only, prices from Stripe)
+- `cafe.ts` — Cafe menu CRUD (prices from Stripe, delete verifies Stripe product status)
 - `checkout.ts` — Membership checkout flow
 - `dayPasses.ts` — Day pass purchase and validation
 - `guestPasses.ts` — Guest pass management
