@@ -88,7 +88,7 @@ What type of alert?
 
 ## Cross-References
 
-- **All 27 schedulers** → `scheduler-jobs` skill
+- **All 28 schedulers** → `scheduler-jobs` skill
 - **Stripe reconciliation** → `stripe-webhook-flow` skill
 - **HubSpot queue monitoring** → `hubspot-sync` skill
 - **Booking auto-complete** → `booking-flow` skill
@@ -98,7 +98,7 @@ What type of alert?
 ## Detailed Reference
 
 - **[references/integrity-checks.md](references/integrity-checks.md)** — Complete list of all 27 integrity checks with detection logic, severity, and recommended actions. Webhook, job queue, and HubSpot queue monitors.
-- **[references/scheduler-map.md](references/scheduler-map.md)** — All 27 scheduled tasks with frequencies, execution windows, multi-instance safety.
+- **[references/scheduler-map.md](references/scheduler-map.md)** — All 28 scheduled tasks with frequencies, execution windows, multi-instance safety.
 
 ---
 

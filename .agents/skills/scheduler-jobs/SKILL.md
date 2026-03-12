@@ -1,6 +1,6 @@
 ---
 name: scheduler-jobs
-description: "Scheduled maintenance tasks — daily, hourly, and continuous background jobs. Covers all 27 schedulers, their timing, idempotency, the scheduler tracker, and the job queue processor. Use when adding new scheduled tasks, debugging scheduler issues, understanding maintenance windows, or checking scheduler health via the admin dashboard."
+description: "Scheduled maintenance tasks — daily, hourly, and continuous background jobs. Covers all 28 schedulers, their timing, idempotency, the scheduler tracker, and the job queue processor. Use when adding new scheduled tasks, debugging scheduler issues, understanding maintenance windows, or checking scheduler health via the admin dashboard."
 ---
 
 # Scheduler Jobs
@@ -16,7 +16,7 @@ All schedulers registered in `server/schedulers/index.ts` via `initSchedulers()`
 | Job queue processor | `server/core/jobQueue.ts` | Background job processing |
 | Individual schedulers | `server/schedulers/*.ts` | Each scheduler implementation |
 
-## Scheduler Registry (27 tasks)
+## Scheduler Registry (28 tasks)
 
 | Name | File | Interval | Time Gate | Purpose |
 |---|---|---|---|---|
@@ -59,7 +59,7 @@ All schedulers registered in `server/schedulers/index.ts` via `initSchedulers()`
 6. Use `tryClaimSlot` pattern (`INSERT ON CONFLICT`) for once-per-day/month idempotency.
 7. Wrap main logic in try/catch — never crash the interval.
 8. Add `[Startup]` console.log in start function.
-9. **`isRunning` overlap guard required (v8.78.0).** Module-scope `let isRunning = false`, check + set at top, reset in `finally`. All 25 schedulers have this.
+9. **`isRunning` overlap guard required (v8.78.0).** Module-scope `let isRunning = false`, check + set at top, reset in `finally`. All scheduler files have this.
 10. **Store all timer IDs** (`setTimeout`/`setInterval`) in a variable/collection. `stopSchedulers()` must clear all.
 11. **Export `stopXxxScheduler()` for setTimeout chains.** Both `memberSyncScheduler` and `backgroundSyncScheduler` follow this.
 12. **Booking expiry targets `pending` AND `pending_approval`.** 20-min grace past start_time. Trackman-linked → `cancellation_pending`. Non-Trackman → `expired`. Call `broadcastAvailabilityUpdate()` after each.
