@@ -19,6 +19,7 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
   const [isUpdating, setIsUpdating] = useState(false);
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
   const visibilityHandlerRef = useRef<(() => void) | null>(null);
+  const updateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
@@ -39,6 +40,10 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'SW_ACTIVATED') {
         console.log('[App] Service worker activated, version:', event.data.version);
+        if (updateTimeoutRef.current) {
+          clearTimeout(updateTimeoutRef.current);
+          updateTimeoutRef.current = null;
+        }
         setUpdateAvailable(false);
         setIsUpdating(false);
       }
@@ -118,8 +123,9 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
       waitingWorker.postMessage({ type: 'SKIP_WAITING' });
     }
 
-    setTimeout(() => {
+    updateTimeoutRef.current = setTimeout(() => {
       console.log('[App] Update timeout reached, forcing reload');
+      updateTimeoutRef.current = null;
       if (isStandalonePWA()) {
         const url = new URL(window.location.href);
         url.searchParams.set('_r', Date.now().toString());

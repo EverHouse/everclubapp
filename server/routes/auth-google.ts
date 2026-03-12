@@ -92,7 +92,8 @@ router.post('/api/auth/google/verify', authRateLimiterByIp, async (req, res) => 
     const user = dbUser[0];
 
     const dbMemberStatus = (user.membershipStatus || '').toLowerCase();
-    const role = (user.role || 'member') as 'admin' | 'staff' | 'member';
+    const rawRole = (user.role || 'member').toLowerCase();
+    const role: 'admin' | 'staff' | 'member' = rawRole === 'admin' || rawRole === 'staff' ? rawRole : 'member';
     const activeStatuses = ['active', 'trialing', 'past_due'];
 
     if (role === 'member' && !activeStatuses.includes(dbMemberStatus)) {
@@ -211,7 +212,8 @@ router.post('/api/auth/google/callback', async (req, res) => {
 
     const user = dbUser[0];
     const dbMemberStatus = (user.membershipStatus || '').toLowerCase();
-    const role = (user.role || 'member') as 'admin' | 'staff' | 'member';
+    const rawRole2 = (user.role || 'member').toLowerCase();
+    const role: 'admin' | 'staff' | 'member' = rawRole2 === 'admin' || rawRole2 === 'staff' ? rawRole2 : 'member';
     const activeStatuses = ['active', 'trialing', 'past_due'];
 
     if (role === 'member' && !activeStatuses.includes(dbMemberStatus)) {

@@ -79,9 +79,11 @@ router.get('/api/admin/bug-reports', isStaffOrAdmin, async (req, res) => {
 router.get('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const parsedId = parseInt(id as string, 10);
+    if (isNaN(parsedId)) return res.status(400).json({ error: 'Invalid bug report ID' });
     
     const [report] = await db.select().from(bugReports)
-      .where(eq(bugReports.id, parseInt(id as string)));
+      .where(eq(bugReports.id, parsedId));
     
     if (!report) {
       return res.status(404).json({ error: 'Bug report not found' });
@@ -97,6 +99,8 @@ router.get('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
 router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const parsedId = parseInt(id as string, 10);
+    if (isNaN(parsedId)) return res.status(400).json({ error: 'Invalid bug report ID' });
     const { status, staffNotes } = req.body;
     const user = getSessionUser(req);
     
@@ -119,14 +123,14 @@ router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
     // Notify the member when their bug report is resolved
     if (status === 'resolved') {
       // Need to fetch the original report to get the user email
-      const [original] = await db.select().from(bugReports).where(eq(bugReports.id, parseInt(id as string)));
+      const [original] = await db.select().from(bugReports).where(eq(bugReports.id, parsedId));
       if (original?.userEmail) {
         await notifyMember({
           userEmail: original.userEmail,
           title: 'Bug Report Resolved',
           message: 'Your bug report has been resolved. Thank you for helping us improve!',
           type: 'system',
-          relatedId: parseInt(id as string),
+          relatedId: parsedId,
           relatedType: 'bug_report',
           url: '/member/profile'
         });
@@ -135,7 +139,7 @@ router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
     
     const [updated] = await db.update(bugReports)
       .set(updateData)
-      .where(eq(bugReports.id, parseInt(id as string)))
+      .where(eq(bugReports.id, parsedId))
       .returning();
     
     if (!updated) {
@@ -153,9 +157,11 @@ router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
 router.delete('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const parsedId = parseInt(id as string, 10);
+    if (isNaN(parsedId)) return res.status(400).json({ error: 'Invalid bug report ID' });
     
     const [deleted] = await db.delete(bugReports)
-      .where(eq(bugReports.id, parseInt(id as string)))
+      .where(eq(bugReports.id, parsedId))
       .returning();
     
     if (!deleted) {
