@@ -12,7 +12,7 @@ declare global {
   interface Window {
     AppleID?: {
       auth: {
-        init: (config: Record<string, string>) => void;
+        init: (config: Record<string, string | boolean>) => void;
         signIn: () => Promise<{
           authorization: {
             id_token: string;
@@ -80,7 +80,7 @@ const AppleSignInButton: React.FC<AppleSignInButtonProps> = ({
         clientId: APPLE_CLIENT_ID,
         scope: 'name email',
         redirectURI: window.location.origin + '/login',
-        usePopup: 'true',
+        usePopup: true,
       });
 
       const response = await window.AppleID.auth.signIn();
