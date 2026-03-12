@@ -102,9 +102,8 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
         </section>
       )}
 
-      <section className={`rounded-xl border glass-card relative z-10 transition-all duration-300 ${slots.length > 0 ? 'p-4 opacity-100' : 'p-0 !border-transparent opacity-0 overflow-hidden'} ${isDark ? 'border-white/25' : 'border-black/10'}`} style={slots.length === 0 ? { maxHeight: 0 } : { maxHeight: '2000px' }}>
-        {slots.length > 0 && (
-          <>
+      {slots.length > 0 && (
+      <section className={`rounded-xl border glass-card relative z-10 p-4 ${isDark ? 'border-white/25' : 'border-black/10'}`}>
             <div className="flex items-center gap-2 mb-3">
               <span className={`text-[11px] font-bold uppercase tracking-[0.2em] ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>Additional Players</span>
               <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>(Optional)</span>
@@ -114,8 +113,6 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
               <span className="material-symbols-outlined text-sm mr-1 align-middle">info</span>
               Provide guest first name, last name, and email to use your guest passes. Unfilled slots are charged the full guest fee.
             </div>
-          </>
-        )}
 
           <div ref={slotListRef} className="space-y-4">
             {slots.map((slot, index) => {
@@ -249,13 +246,14 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
             })}
           </div>
 
-          {guestPassesRemaining !== undefined && slots.length > 0 && (
+          {guestPassesRemaining !== undefined && (
             <div className={`mt-3 pt-3 border-t flex items-center justify-between ${isDark ? 'border-white/10' : 'border-black/5'}`}>
               <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>Guest passes remaining</span>
               <span className={`text-xs font-semibold ${isDark ? 'text-white/70' : 'text-primary/70'}`}>{guestPassesRemaining}</span>
             </div>
           )}
         </section>
+      )}
     </div>
   );
 };
