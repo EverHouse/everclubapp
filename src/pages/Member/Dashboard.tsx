@@ -1386,7 +1386,6 @@ const Dashboard: React.FC = () => {
                 <div className="px-6 pb-6 flex justify-center" style={{ backgroundColor: cardBgColor }}>
                   <a
                     href="/api/member/wallet-pass"
-                    download
                     className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
                     style={{
                       backgroundColor: '#000000',

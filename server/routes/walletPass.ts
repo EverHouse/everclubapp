@@ -54,7 +54,8 @@ router.get('/api/member/wallet-pass/status', isAuthenticated, async (req, res) =
     }
 
     return res.json({ available: true });
-  } catch {
+  } catch (error) {
+    logger.error('[WalletPass] Status check failed', { error: error instanceof Error ? error : new Error(String(error)) });
     return res.json({ available: false });
   }
 });
@@ -159,7 +160,7 @@ router.get('/api/member/wallet-pass', isAuthenticated, async (req, res) => {
 
     res.set({
       'Content-Type': 'application/vnd.apple.pkpass',
-      'Content-Disposition': `attachment; filename="EverClub-${tier}-Pass.pkpass"`,
+      'Content-Disposition': `inline; filename="EverClub-${tier}-Pass.pkpass"`,
       'Content-Length': pkpassBuffer.length.toString(),
     });
 
