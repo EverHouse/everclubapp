@@ -52,6 +52,10 @@ export function useCommandCenterData(userEmail?: string) {
     ).map((r: BookingRequest) => ({
       ...r,
       user_name: getDisplayName(r.user_email, r.user_name),
+      request_participants: r.request_participants?.map((p: any) => ({
+        ...p,
+        name: p.name && !p.name.includes('@') ? p.name : (p.email ? (memberNameByEmail[p.email.toLowerCase()] || p.name || p.email) : p.name)
+      })),
       source: 'booking_request' as const
     }));
     allPending = [...allPending, ...pending];

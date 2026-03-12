@@ -1,6 +1,6 @@
 import { db } from '../../db';
-import { bookingRequests, bookingParticipants, guests as guestsTable, participantTypeEnum } from '../../../shared/schema';
-import { eq, sql } from 'drizzle-orm';
+import { bookingRequests, bookingParticipants, guests as guestsTable, participantTypeEnum, users } from '../../../shared/schema';
+import { eq, sql, inArray } from 'drizzle-orm';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { getTodayPacific } from '../../utils/dateUtils';
 import { getMemberTierByEmail } from '../tierService';
@@ -309,19 +309,38 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
 
     const billingParticipants: Participant[] = [];
     
+    const allBillingUserIds = [ownerUserId, ...memberData.map(md => md.userId)].filter(Boolean) as string[];
+    const billingNameMap = new Map<string, string>();
+    if (allBillingUserIds.length > 0) {
+      const nameResults = await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName })
+        .from(users)
+        .where(inArray(users.id, allBillingUserIds));
+      for (const row of nameResults) {
+        const fullName = [row.firstName, row.lastName].filter(Boolean).join(' ').trim();
+        if (fullName) billingNameMap.set(row.id, fullName);
+      }
+    }
+    
+    const ownerDisplayName = (input.ownerName && !input.ownerName.includes('@'))
+      ? input.ownerName
+      : (ownerUserId && billingNameMap.get(ownerUserId)) || input.ownerName || input.ownerEmail;
     billingParticipants.push({
       userId: ownerUserId || undefined,
       email: input.ownerEmail,
       participantType: 'owner',
-      displayName: input.ownerName || input.ownerEmail
+      displayName: ownerDisplayName
     });
     
     for (const md of memberData) {
+      const memberParticipant = participantInputs.find(p => p.userId === md.userId);
+      const resolvedName = billingNameMap.get(md.userId);
       billingParticipants.push({
         userId: md.userId,
         email: md.email,
         participantType: 'member',
-        displayName: md.email
+        displayName: (memberParticipant?.displayName && !memberParticipant.displayName.includes('@'))
+          ? memberParticipant.displayName
+          : resolvedName || md.email
       });
     }
     

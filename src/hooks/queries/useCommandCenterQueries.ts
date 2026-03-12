@@ -166,7 +166,7 @@ export function useCommandCenterHubSpotContacts() {
   return useQuery({
     queryKey: commandCenterKeys.hubspotContacts(),
     queryFn: async (): Promise<Record<string, string>> => {
-      const res = await fetch('/api/hubspot/contacts', {
+      const res = await fetch('/api/hubspot/contacts?status=all', {
         credentials: 'include',
       });
       if (!res.ok) return {};

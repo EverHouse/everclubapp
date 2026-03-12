@@ -624,16 +624,22 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           .filter((p: SanitizedParticipant) => p.email || p.userId);
       }
       
-      // FIX: Lookup userId for participants with email but no userId
-      // This prevents paid members from being charged guest fees when added by email
       for (const participant of sanitizedParticipants) {
         if (participant.email && !participant.userId) {
           try {
-            const [existingUser] = await db.select({ id: users.id }).from(users)
+            const [existingUser] = await db.select({ 
+              id: users.id,
+              firstName: users.firstName,
+              lastName: users.lastName 
+            }).from(users)
               .where(eq(sql`LOWER(${users.email})`, participant.email.toLowerCase()))
               .limit(1);
             if (existingUser) {
               participant.userId = existingUser.id;
+              if (!participant.name || participant.name.includes('@')) {
+                const fullName = [existingUser.firstName, existingUser.lastName].filter(Boolean).join(' ').trim();
+                if (fullName) participant.name = fullName;
+              }
             }
           } catch (err: unknown) {
             logger.error('[Booking] Failed to lookup user for email', { error: err instanceof Error ? err : new Error(getErrorMessage(err)), extra: { email: participant.email } });
@@ -823,7 +829,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
 
         const participants = [{
           participantType: 'owner' as const,
-          displayName: user_name || requestEmail,
+          displayName: resolvedUserName || requestEmail,
           userId: resolvedUserId || sessionUser?.id || undefined,
           guestId: undefined
         }];
