@@ -140,13 +140,13 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                             </p>
                         )}
                     </div>
-                    {queueItems.length === 0 ? (
-                        <div className="py-8 text-center border-2 border-dashed border-gray-200 dark:border-white/25 rounded-xl">
-                            <p className="text-gray-600 dark:text-white/70">No items in queue</p>
-                        </div>
-                    ) : (
-                        <div ref={queueListRef} className="space-y-3" style={{ position: 'relative' }}>
-                            {queueItems.map((item, index) => {
+                    <div ref={queueListRef} className="space-y-3" style={{ position: 'relative' }}>
+                        {queueItems.length === 0 ? (
+                            <div className="py-8 text-center border-2 border-dashed border-gray-200 dark:border-white/25 rounded-xl">
+                                <p className="text-gray-600 dark:text-white/70">No items in queue</p>
+                            </div>
+                        ) : (
+                            queueItems.map((item, index) => {
                                 const req = item;
                                 
                                 if (item.queueType === 'cancellation') {
@@ -335,9 +335,8 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                     </div>
                                 );
                             })}
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
 
                 <div className="animate-content-enter-delay-2">
                     <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
@@ -361,13 +360,13 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                         ))}
                     </div>
                     
-                    {scheduledBookings.length === 0 ? (
-                        <div className="py-8 text-center border-2 border-dashed border-primary/10 dark:border-white/25 rounded-xl">
-                            <p className="text-primary/70 dark:text-white/70">No scheduled bookings {scheduledFilter !== 'all' ? `for ${scheduledFilter === 'week' ? 'this week' : scheduledFilter}` : ''}</p>
-                        </div>
-                    ) : (
-                        <div ref={scheduledListRef} className="space-y-4" style={{ position: 'relative' }}>
-                            {Array.from(groupBookingsByDate(scheduledBookings)).map(([date, bookings]) => (
+                    <div ref={scheduledListRef} className="space-y-4" style={{ position: 'relative' }}>
+                        {scheduledBookings.length === 0 ? (
+                            <div className="py-8 text-center border-2 border-dashed border-primary/10 dark:border-white/25 rounded-xl">
+                                <p className="text-primary/70 dark:text-white/70">No scheduled bookings {scheduledFilter !== 'all' ? `for ${scheduledFilter === 'week' ? 'this week' : scheduledFilter}` : ''}</p>
+                            </div>
+                        ) : (
+                            Array.from(groupBookingsByDate(scheduledBookings)).map(([date, bookings]) => (
                                 <div key={date}>
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className="text-xs font-bold text-primary/70 dark:text-white/70 uppercase tracking-wide">
@@ -655,9 +654,8 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                     </div>
                                 </div>
                             ))}
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
             </div>
         </div>
     );
