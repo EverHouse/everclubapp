@@ -7,6 +7,7 @@ import { getGoogleCalendarClient } from '../core/integrations';
 import { CALENDAR_CONFIG, getResourceConfig, getCalendarAvailability, discoverCalendarIds, getCalendarStatus, syncConferenceRoomCalendarToBookings, getCalendarIdByName } from '../core/calendar/index';
 import { isStaffOrAdmin, isAdmin } from '../core/middleware';
 import { getErrorMessage, safeErrorDetail } from '../utils/errorUtils';
+import { broadcastToStaff } from '../core/websocket';
 
 const router = Router();
 
@@ -237,6 +238,11 @@ router.post('/api/admin/bookings/sync-calendar', isStaffOrAdmin, async (req, res
 });
 
 router.post('/api/admin/calendar/migrate-clean-descriptions', isAdmin, async (req, res) => {
+  const THROTTLE_MS = 150;
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  res.json({ success: true, message: 'Calendar description cleanup started in background. Check server logs for progress.' });
+
   try {
     const calendar = await getGoogleCalendarClient();
     const results = {
@@ -282,6 +288,7 @@ router.post('/api/admin/calendar/migrate-clean-descriptions', isAdmin, async (re
           results.wellness.errors++;
           logger.warn(`[Migration] Failed to clean wellness #${row.id}`, { error: getErrorMessage(err) });
         }
+        await sleep(THROTTLE_MS);
       }
     }
 
@@ -323,6 +330,7 @@ router.post('/api/admin/calendar/migrate-clean-descriptions', isAdmin, async (re
           results.events.errors++;
           logger.warn(`[Migration] Failed to clean event #${row.id}`, { error: getErrorMessage(err) });
         }
+        await sleep(THROTTLE_MS);
       }
     }
 
@@ -358,6 +366,7 @@ router.post('/api/admin/calendar/migrate-clean-descriptions', isAdmin, async (re
             } catch (patchErr: unknown) {
               logger.warn(`[Migration] Failed to patch closure event ${eventId} for closure #${row.id}`, { error: getErrorMessage(patchErr) });
             }
+            await sleep(THROTTLE_MS);
           }
           results.closures.cleaned++;
         } catch (err: unknown) {
@@ -368,10 +377,16 @@ router.post('/api/admin/calendar/migrate-clean-descriptions', isAdmin, async (re
     }
 
     logger.info('[Migration] Calendar description cleanup complete', { extra: results });
-    res.json({ success: true, results });
+    broadcastToStaff({
+      type: 'calendar_cleanup_complete',
+      data: { success: true, results }
+    });
   } catch (error: unknown) {
     logger.error('[Migration] Calendar cleanup failed', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to migrate calendar descriptions' });
+    broadcastToStaff({
+      type: 'calendar_cleanup_complete',
+      data: { success: false, error: getErrorMessage(error) }
+    });
   }
 });
 

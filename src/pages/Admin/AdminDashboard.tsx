@@ -68,6 +68,29 @@ const AdminDashboard: React.FC = () => {
     setCheckinConfirmation(prev => ({ ...prev, isOpen: false }));
   }, []);
 
+  const { showToast: dashboardShowToast } = useToast();
+
+  useEffect(() => {
+    const handleCalendarCleanup = (e: Event) => {
+      const data = (e as CustomEvent).detail?.data;
+      if (!data) return;
+      if (data.success && data.results) {
+        const r = data.results as { wellness: { cleaned: number; errors: number }; events: { cleaned: number; errors: number }; closures: { cleaned: number; errors: number } };
+        const totalErrors = r.wellness.errors + r.events.errors + r.closures.errors;
+        const totalCleaned = r.wellness.cleaned + r.events.cleaned + r.closures.cleaned;
+        if (totalErrors > 0) {
+          dashboardShowToast(`Calendar cleanup done: ${totalCleaned} cleaned, ${totalErrors} errors (rate limit). Try again for remaining.`, 'warning');
+        } else {
+          dashboardShowToast(`Calendar cleanup complete: ${totalCleaned} items cleaned`, 'success');
+        }
+      } else {
+        dashboardShowToast(data.error || 'Calendar cleanup failed', 'error');
+      }
+    };
+    window.addEventListener('calendar-cleanup-complete', handleCalendarCleanup as EventListener);
+    return () => window.removeEventListener('calendar-cleanup-complete', handleCalendarCleanup as EventListener);
+  }, [dashboardShowToast]);
+
   useEffect(() => {
     const handleWalkinCheckin = (event: CustomEvent) => {
       const detail = event.detail?.data;

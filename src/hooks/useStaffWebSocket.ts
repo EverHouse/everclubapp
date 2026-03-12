@@ -313,6 +313,10 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
             window.dispatchEvent(new CustomEvent('visitor-archive-progress', { detail: message }));
           }
 
+          if (message.type === 'calendar_cleanup_complete') {
+            window.dispatchEvent(new CustomEvent('calendar-cleanup-complete', { detail: message }));
+          }
+
           if (message.type === 'booking_roster_update') {
             if (import.meta.env.DEV) console.log('[StaffWebSocket] Received booking_roster_update:', message.bookingId);
             window.dispatchEvent(new CustomEvent('booking-roster-update', { detail: message }));

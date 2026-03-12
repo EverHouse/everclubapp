@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { postWithCredentials } from '../../../../hooks/queries/useFetch';
+import { useToast } from '../../../../components/Toast';
 import type { CalendarStatusResponse } from './dataIntegrityTypes';
 
 interface MigrationResults {
@@ -23,18 +24,45 @@ const CalendarStatusSection: React.FC<CalendarStatusSectionProps> = ({
 }) => {
   const [isMigrating, setIsMigrating] = useState(false);
   const [migrationResult, setMigrationResult] = useState<{ success: boolean; results?: MigrationResults; error?: string } | null>(null);
+  const { showToast } = useToast();
+
+  const handleCleanupComplete = useCallback((e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    const data = detail?.data;
+    if (!data) return;
+
+    setIsMigrating(false);
+
+    if (data.success && data.results) {
+      const r = data.results as MigrationResults;
+      const totalErrors = r.wellness.errors + r.events.errors + r.closures.errors;
+      const totalCleaned = r.wellness.cleaned + r.events.cleaned + r.closures.cleaned;
+      setMigrationResult({ success: true, results: r });
+      if (totalErrors > 0) {
+        showToast(`Calendar cleanup done: ${totalCleaned} cleaned, ${totalErrors} errors (rate limit). Try again for remaining items.`, 'warning');
+      } else {
+        showToast(`Calendar cleanup complete: ${totalCleaned} items cleaned successfully`, 'success');
+      }
+    } else {
+      setMigrationResult({ success: false, error: data.error || 'Cleanup failed' });
+      showToast(data.error || 'Calendar cleanup failed', 'error');
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    window.addEventListener('calendar-cleanup-complete', handleCleanupComplete);
+    return () => window.removeEventListener('calendar-cleanup-complete', handleCleanupComplete);
+  }, [handleCleanupComplete]);
 
   const handleMigrateDescriptions = async () => {
-    if (!confirm('This will re-push all wellness, events, and closures to Google Calendar with clean descriptions. Continue?')) return;
+    if (!confirm('This will re-push all wellness, events, and closures to Google Calendar with clean descriptions. This runs in the background and you can navigate away. Continue?')) return;
     setIsMigrating(true);
     setMigrationResult(null);
     try {
-      const data = await postWithCredentials<{ success: boolean; results?: MigrationResults; error?: string }>('/api/admin/calendar/migrate-clean-descriptions', {});
-      setMigrationResult(data);
+      await postWithCredentials<{ success: boolean; message?: string }>('/api/admin/calendar/migrate-clean-descriptions', {});
     } catch (err: unknown) {
-      setMigrationResult({ success: false, error: err instanceof Error ? err.message : 'Migration failed' });
-    } finally {
       setIsMigrating(false);
+      setMigrationResult({ success: false, error: err instanceof Error ? err.message : 'Failed to start cleanup' });
     }
   };
 
@@ -109,6 +137,8 @@ const CalendarStatusSection: React.FC<CalendarStatusSectionProps> = ({
                         <p>Events: {migrationResult.results.events.cleaned}/{migrationResult.results.events.total} cleaned{migrationResult.results.events.errors > 0 ? `, ${migrationResult.results.events.errors} errors` : ''}</p>
                         <p>Closures: {migrationResult.results.closures.cleaned}/{migrationResult.results.closures.total} cleaned{migrationResult.results.closures.errors > 0 ? `, ${migrationResult.results.closures.errors} errors` : ''}</p>
                       </div>
+                    ) : migrationResult.success ? (
+                      <p className="font-medium">Cleanup started in the background. Check server logs for progress.</p>
                     ) : (
                       <p>{migrationResult.error || 'Migration failed'}</p>
                     )}
