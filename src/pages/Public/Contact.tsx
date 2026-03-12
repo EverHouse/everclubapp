@@ -439,7 +439,7 @@ const Contact: React.FC = () => {
                     Open in Google Maps
                  </a>
                  <a 
-                   href={`https://maps.apple.com/?q=${s['contact.apple_maps_query']}`} 
+                   href={`https://maps.apple.com/?address=${encodeURIComponent(s['contact.address'] || '321 E Warner Ave, Tustin, CA 92780')}&ll=${s['contact.latitude'] || '33.709'},${s['contact.longitude'] || '-117.8272'}&q=${encodeURIComponent(s['contact.name'] || 'Ever Club')}`} 
                    target="_blank" 
                    rel="noreferrer" 
                    className="bg-zinc-700 text-white px-4 py-2 rounded-lg shadow-md dark:shadow-black/20 font-bold text-xs flex items-center gap-2 hover:shadow-lg transition-shadow"
