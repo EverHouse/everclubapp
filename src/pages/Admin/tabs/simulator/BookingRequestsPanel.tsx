@@ -334,9 +334,10 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                         </div>
                                     </div>
                                 );
-                            })}
+                            })
                         )}
                     </div>
+                </div>
 
                 <div className="animate-content-enter-delay-2">
                     <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
@@ -653,9 +654,10 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                         })}
                                     </div>
                                 </div>
-                            ))}
+                            ))
                         )}
                     </div>
+                </div>
             </div>
         </div>
     );
