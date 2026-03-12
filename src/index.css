@@ -1663,8 +1663,7 @@ html.dark .border-accessible {
 }
 
 .animate-pop-in {
-  opacity: 0;
-  animation: popIn 0.25s var(--m3-standard-decel) forwards;
+  animation: popIn 0.25s var(--m3-standard-decel) both;
 }
 
 @keyframes fabEnter {
@@ -1870,28 +1869,23 @@ html.dark .border-accessible {
 }
 
 .animate-hero-bg {
-  opacity: 0;
-  animation: heroBackgroundEnter 1.2s var(--m3-emphasized-decel) forwards;
+  animation: heroBackgroundEnter 1.2s var(--m3-emphasized-decel) both;
 }
 
 .animate-hero-overlay {
-  opacity: 0;
-  animation: heroOverlayEnter 0.8s var(--m3-emphasized-decel) 0.3s forwards;
+  animation: heroOverlayEnter 0.8s var(--m3-emphasized-decel) 0.3s both;
 }
 
 .animate-hero-headline {
-  opacity: 0;
-  animation: heroTextEnter 0.8s var(--m3-emphasized-decel) 0.4s forwards;
+  animation: heroTextEnter 0.8s var(--m3-emphasized-decel) 0.4s both;
 }
 
 .animate-hero-tagline {
-  opacity: 0;
-  animation: heroTextEnter 0.8s var(--m3-emphasized-decel) 0.55s forwards;
+  animation: heroTextEnter 0.8s var(--m3-emphasized-decel) 0.55s both;
 }
 
 .animate-hero-cta {
-  opacity: 0;
-  animation: heroTextEnter 0.8s var(--m3-emphasized-decel) 0.7s forwards;
+  animation: heroTextEnter 0.8s var(--m3-emphasized-decel) 0.7s both;
 }
 
 /* Page Enter Animation - Quick fade for smooth navigation */
@@ -2003,12 +1997,12 @@ html.dark .border-accessible {
   }
 }
 
-.animate-fab-item-1 { opacity: 0; animation: fabItemEnter 0.2s var(--spring-bounce) 0.02s forwards; }
-.animate-fab-item-2 { opacity: 0; animation: fabItemEnter 0.2s var(--spring-bounce) 0.06s forwards; }
-.animate-fab-item-3 { opacity: 0; animation: fabItemEnter 0.2s var(--spring-bounce) 0.1s forwards; }
-.animate-fab-item-4 { opacity: 0; animation: fabItemEnter 0.2s var(--spring-bounce) 0.14s forwards; }
-.animate-fab-item-5 { opacity: 0; animation: fabItemEnter 0.2s var(--spring-bounce) 0.18s forwards; }
-.animate-fab-item-6 { opacity: 0; animation: fabItemEnter 0.2s var(--spring-bounce) 0.22s forwards; }
+.animate-fab-item-1 { animation: fabItemEnter 0.2s var(--spring-bounce) 0.02s both; }
+.animate-fab-item-2 { animation: fabItemEnter 0.2s var(--spring-bounce) 0.06s both; }
+.animate-fab-item-3 { animation: fabItemEnter 0.2s var(--spring-bounce) 0.1s both; }
+.animate-fab-item-4 { animation: fabItemEnter 0.2s var(--spring-bounce) 0.14s both; }
+.animate-fab-item-5 { animation: fabItemEnter 0.2s var(--spring-bounce) 0.18s both; }
+.animate-fab-item-6 { animation: fabItemEnter 0.2s var(--spring-bounce) 0.22s both; }
 
 /* Skeleton crossfade - fades out skeleton while content fades in */
 @keyframes skeletonFadeOut {
@@ -2027,8 +2021,7 @@ html.dark .border-accessible {
 
 /* Content fade-in after skeleton (slight delay to overlap with skeleton exit) */
 .animate-content-in {
-  opacity: 0;
-  animation: fadeIn 0.3s var(--m3-standard-decel) 0.1s forwards;
+  animation: fadeIn 0.3s var(--m3-standard-decel) 0.1s both;
 }
 
 /* Button active/pressed state utility */
