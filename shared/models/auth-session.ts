@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, uniqueIndex, jsonb, pgTable, timestamp, varchar, serial, boolean, text, date, time, integer, numeric } from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, timestamp, varchar, serial, boolean, text, date, time, integer, numeric } from "drizzle-orm/pg-core";
 
 // Session storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
@@ -110,7 +110,6 @@ export const users = pgTable("users", {
   index("users_visitor_type_idx").on(table.visitorType),
   index("users_hubspot_id_idx").on(table.hubspotId),
   index("users_tier_id_idx").on(table.tierId),
-  uniqueIndex("users_hubspot_id_unique").on(table.hubspotId).where(sql`hubspot_id IS NOT NULL AND hubspot_id != ''`),
 ]);
 
 // Staff users table - emails that get staff or admin access
