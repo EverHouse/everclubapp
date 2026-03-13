@@ -19,6 +19,7 @@ import { ensureSessionForBooking } from '../../core/bookingService/sessionManage
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { syncBookingInvoice, finalizeAndPayInvoice } from '../../core/billing/bookingInvoiceService';
 import { resolveUserByEmail } from '../../core/stripe/customers';
+import { checkClosureConflict, checkAvailabilityBlockConflict } from '../../core/bookingValidation';
 
 const router = Router();
 
@@ -257,6 +258,16 @@ router.post('/api/staff/conference-room/booking', isStaffOrAdmin, async (req: Re
         ? `This time slot conflicts with an existing booking from ${formatTime12Hour(conflictStart)} to ${formatTime12Hour(conflictEnd)}. Please adjust your time or duration.`
         : 'This time slot conflicts with an existing booking';
       return res.status(409).json({ error: errorMsg });
+    }
+
+    const closureCheck = await checkClosureConflict(resourceId as number, date, startTimeWithSeconds, endTime);
+    if (closureCheck.hasConflict) {
+      return res.status(409).json({ error: `This time slot conflicts with a facility closure: ${closureCheck.closureTitle || 'Facility Closure'}` });
+    }
+
+    const blockCheck = await checkAvailabilityBlockConflict(resourceId as number, date, startTimeWithSeconds, endTime);
+    if (blockCheck.hasConflict) {
+      return res.status(409).json({ error: `This time slot is blocked: ${blockCheck.blockNotes || blockCheck.blockType || 'Event Block'}` });
     }
 
     const tierName = await getMemberTierByEmail(normalizedEmail);

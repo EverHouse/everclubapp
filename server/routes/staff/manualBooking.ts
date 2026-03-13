@@ -12,6 +12,7 @@ import { eq, sql } from 'drizzle-orm';
 import { getSessionUser } from '../../types/session';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { resolveUserByEmail } from '../../core/stripe/customers';
+import { checkClosureConflict, checkAvailabilityBlockConflict } from '../../core/bookingValidation';
 
 const router = Router();
 
@@ -224,6 +225,18 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
             ? `This time slot conflicts with an existing booking from ${formatTime12Hour(conflictStart)} to ${formatTime12Hour(conflictEnd)}. Please adjust your time or duration.`
             : 'This time slot is already booked';
           return res.status(409).json({ error: errorMsg });
+        }
+
+        const closureCheck = await checkClosureConflict(resource_id, request_date, start_time, end_time);
+        if (closureCheck.hasConflict) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: `This time slot conflicts with a facility closure: ${closureCheck.closureTitle || 'Facility Closure'}` });
+        }
+
+        const blockCheck = await checkAvailabilityBlockConflict(resource_id, request_date, start_time, end_time);
+        if (blockCheck.hasConflict) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: `This time slot is blocked: ${blockCheck.blockNotes || blockCheck.blockType || 'Event Block'}` });
         }
       }
       

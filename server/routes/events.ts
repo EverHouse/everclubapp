@@ -1527,4 +1527,105 @@ router.get('/api/events/:id/eventbrite-attendees', isStaffOrAdmin, async (req, r
   }
 });
 
+router.post('/api/admin/backfill-availability-blocks', isStaffOrAdmin, async (req, res) => {
+  try {
+    const sessionUser = getSessionUser(req);
+    const staffEmail = sessionUser?.email || 'system';
+    let eventBlocksCreated = 0;
+    let wellnessBlocksCreated = 0;
+
+    const eventsWithToggles = await db.execute(sql`
+      SELECT e.id, e.title, e.event_date, e.start_time, e.end_time, e.block_simulators, e.block_conference_room
+      FROM events e
+      WHERE (e.block_simulators = true OR e.block_conference_room = true)
+        AND e.archived_at IS NULL
+        AND e.event_date >= CURRENT_DATE
+        AND NOT EXISTS (
+          SELECT 1 FROM availability_blocks ab WHERE ab.event_id = e.id
+        )
+    `);
+
+    interface EventRow { id: number; title: string; event_date: string; start_time: string; end_time: string; block_simulators: boolean; block_conference_room: boolean; }
+    for (const row of eventsWithToggles.rows as unknown as EventRow[]) {
+      try {
+        const eventDate = typeof row.event_date === 'string' ? row.event_date.split('T')[0] : String(row.event_date).split('T')[0];
+        await createEventAvailabilityBlocks(row.id, eventDate, row.start_time, row.end_time || row.start_time, row.block_simulators, row.block_conference_room, staffEmail, row.title);
+        eventBlocksCreated++;
+      } catch (err: unknown) {
+        logger.error(`[Backfill] Failed to create blocks for event #${row.id}`, { error: err });
+      }
+    }
+
+    const wellnessWithToggles = await db.execute(sql`
+      SELECT wc.id, wc.title, wc.date, wc.time, wc.duration, wc.block_simulators, wc.block_conference_room
+      FROM wellness_classes wc
+      WHERE (wc.block_simulators = true OR wc.block_conference_room = true)
+        AND wc.is_active = true
+        AND wc.date >= CURRENT_DATE
+        AND NOT EXISTS (
+          SELECT 1 FROM availability_blocks ab WHERE ab.wellness_class_id = wc.id
+        )
+    `);
+
+    interface WellnessRow { id: number; title: string; date: string; time: string; duration: string; block_simulators: boolean; block_conference_room: boolean; }
+    for (const row of wellnessWithToggles.rows as unknown as WellnessRow[]) {
+      try {
+        const classDate = typeof row.date === 'string' ? row.date.split('T')[0] : String(row.date).split('T')[0];
+        const durationMatch = row.duration?.match(/(\d+)/);
+        const durMins = durationMatch ? parseInt(durationMatch[1]) : 60;
+        const timeParts = row.time.split(':').map(Number);
+        const totalMins = (timeParts[0] || 0) * 60 + (timeParts[1] || 0) + durMins;
+        const endTime = `${String(Math.floor(totalMins / 60) % 24).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}:00`;
+        const startTime24 = `${String(timeParts[0] || 0).padStart(2, '0')}:${String(timeParts[1] || 0).padStart(2, '0')}:00`;
+
+        const resourceIds: number[] = [];
+        if (row.block_simulators) {
+          const bayIds = await getAllActiveBayIds();
+          resourceIds.push(...bayIds);
+        }
+        if (row.block_conference_room) {
+          const conferenceRoomId = await getConferenceRoomId();
+          if (conferenceRoomId && !resourceIds.includes(conferenceRoomId)) {
+            resourceIds.push(conferenceRoomId);
+          }
+        }
+
+        for (const resourceId of resourceIds) {
+          await db.insert(availabilityBlocks).values({
+            resourceId,
+            blockDate: classDate,
+            startTime: startTime24,
+            endTime,
+            blockType: 'wellness',
+            notes: `Blocked for: ${row.title}`,
+            createdBy: staffEmail,
+            wellnessClassId: row.id,
+          }).onConflictDoNothing();
+        }
+        wellnessBlocksCreated++;
+      } catch (err: unknown) {
+        logger.error(`[Backfill] Failed to create blocks for wellness class #${row.id}`, { error: err });
+      }
+    }
+
+    logFromRequest(req, 'backfill_blocks' as AuditAction, 'system', 'availability_blocks', staffEmail, {
+      eventsFound: eventsWithToggles.rows.length,
+      eventBlocksCreated,
+      wellnessFound: wellnessWithToggles.rows.length,
+      wellnessBlocksCreated,
+    });
+
+    res.json({
+      success: true,
+      eventsFound: eventsWithToggles.rows.length,
+      eventBlocksCreated,
+      wellnessFound: wellnessWithToggles.rows.length,
+      wellnessBlocksCreated,
+    });
+  } catch (error: unknown) {
+    logger.error('[Backfill] Failed to backfill availability blocks', { error });
+    res.status(500).json({ error: 'Failed to backfill availability blocks' });
+  }
+});
+
 export default router;

@@ -1,16 +1,61 @@
 import { db } from '../../../db';
-import { sql } from 'drizzle-orm';
+import { sql, eq, isNull, gte, asc, and } from 'drizzle-orm';
 import { getErrorMessage } from '../../../utils/errorUtils';
 import { getGoogleCalendarClient } from '../../integrations';
 import { wellnessClasses } from '../../../../shared/models/auth';
-import { isNull, gte, asc, and } from 'drizzle-orm';
+import { availabilityBlocks } from '../../../../shared/models/scheduling';
 import { getTodayPacific, getPacificMidnightUTC } from '../../../utils/dateUtils';
 import { CALENDAR_CONFIG } from '../config';
 import { getCalendarIdByName, discoverCalendarIds } from '../cache';
 import { alertOnSyncFailure } from '../../dataAlerts';
+import { getAllActiveBayIds, getConferenceRoomId } from '../../affectedAreas';
 
 import { toIntArrayLiteral } from '../../../utils/sqlArrayLiteral';
 import { logger } from '../../logger';
+
+async function resyncWellnessAvailabilityBlocks(
+  wellnessClassId: number,
+  classDate: string,
+  startTime: string,
+  endTime: string,
+  blockSimulators: boolean,
+  blockConferenceRoom: boolean,
+  classTitle?: string
+): Promise<void> {
+  try {
+    await db.delete(availabilityBlocks).where(eq(availabilityBlocks.wellnessClassId, wellnessClassId));
+
+    if (!blockSimulators && !blockConferenceRoom) return;
+
+    const resourceIds: number[] = [];
+    if (blockSimulators) {
+      const bayIds = await getAllActiveBayIds();
+      resourceIds.push(...bayIds);
+    }
+    if (blockConferenceRoom) {
+      const conferenceRoomId = await getConferenceRoomId();
+      if (conferenceRoomId && !resourceIds.includes(conferenceRoomId)) {
+        resourceIds.push(conferenceRoomId);
+      }
+    }
+
+    const blockNotes = classTitle ? `Blocked for: ${classTitle}` : 'Blocked for wellness class';
+    for (const resourceId of resourceIds) {
+      await db.insert(availabilityBlocks).values({
+        resourceId,
+        blockDate: classDate,
+        startTime,
+        endTime: endTime || startTime,
+        blockType: 'wellness',
+        notes: blockNotes,
+        createdBy: 'calendar_sync',
+        wellnessClassId,
+      }).onConflictDoNothing();
+    }
+  } catch (err) {
+    logger.error(`[Wellness Sync] Failed to resync availability blocks for class #${wellnessClassId}`, { error: err });
+  }
+}
 export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boolean }): Promise<{ synced: number; created: number; updated: number; deleted: number; pushedToCalendar: number; error?: string }> {
   try {
     const calendar = await getGoogleCalendarClient();
@@ -146,7 +191,8 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
       
       const existing = await db.execute(sql`SELECT id, locally_edited, app_last_modified_at, google_event_updated_at, 
                 image_url, external_url, spots, status, title, time, instructor, duration, category, date, description,
-                reviewed_at, last_synced_at, review_dismissed, needs_review
+                reviewed_at, last_synced_at, review_dismissed, needs_review,
+                block_simulators, block_conference_room
          FROM wellness_classes WHERE google_calendar_id = ${googleEventId}`);
       
       interface WellnessDbRow {
@@ -169,6 +215,8 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
         last_synced_at: string | null;
         review_dismissed: boolean;
         needs_review: boolean;
+        block_simulators: boolean;
+        block_conference_room: boolean;
       }
 
       if (existing.rows.length > 0) {
@@ -189,6 +237,14 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
                 locally_edited = false, app_last_modified_at = NULL, needs_review = ${needsReview ?? null},
                 recurring_event_id = COALESCE(${recurringEventId ?? null}, recurring_event_id)
                WHERE google_calendar_id = ${googleEventId}`);
+            if (dbRow.block_simulators || dbRow.block_conference_room) {
+              const durationMatch = duration.match(/(\d+)/);
+              const durMins = durationMatch ? parseInt(durationMatch[1]) : durationMinutes;
+              const [sh, sm] = startTime.split(':').map(Number);
+              const totalMins = sh * 60 + sm + durMins;
+              const wellnessEndTime = `${String(Math.floor(totalMins / 60) % 24).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}:00`;
+              await resyncWellnessAvailabilityBlocks(dbRow.id, eventDate, startTime + ':00', wellnessEndTime, dbRow.block_simulators, dbRow.block_conference_room, title);
+            }
             updated++;
           } else {
             try {
@@ -306,6 +362,14 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
               conflict_detected = CASE WHEN ${isConflict} THEN true ELSE conflict_detected END,
               recurring_event_id = COALESCE(${recurringEventId}, recurring_event_id)
              WHERE google_calendar_id = ${googleEventId}`);
+          if (dbRow.block_simulators || dbRow.block_conference_room) {
+            const durationMatch = duration.match(/(\d+)/);
+            const durMins = durationMatch ? parseInt(durationMatch[1]) : durationMinutes;
+            const [sh, sm] = startTime.split(':').map(Number);
+            const totalMins = sh * 60 + sm + durMins;
+            const wellnessEndTime = `${String(Math.floor(totalMins / 60) % 24).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}:00`;
+            await resyncWellnessAvailabilityBlocks(dbRow.id, eventDate, startTime + ':00', wellnessEndTime, dbRow.block_simulators, dbRow.block_conference_room, title);
+          }
           updated++;
         }
       } else {
