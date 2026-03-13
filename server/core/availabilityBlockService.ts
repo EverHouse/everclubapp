@@ -29,7 +29,7 @@ export async function findCoveringBlock(
   `);
   
   if (result.rows.length > 0) {
-    return result.rows[0] as ExistingBlock;
+    return result.rows[0] as unknown as ExistingBlock;
   }
   return null;
 }
