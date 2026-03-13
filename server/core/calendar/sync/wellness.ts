@@ -51,18 +51,15 @@ async function resyncWellnessAvailabilityBlocks(
           notes: blockNotes,
           createdBy: 'calendar_sync',
           wellnessClassId,
-        });
+        }).onConflictDoNothing();
       } catch (insertErr: any) {
-        const pgCode = insertErr?.code || insertErr?.cause?.code;
-        if (pgCode === '23505') {
-          logger.debug(`[Wellness Sync] Skipped duplicate block for class #${wellnessClassId} resource ${resourceId}`);
-        } else {
-          throw insertErr;
-        }
+        const pgMessage = insertErr?.cause?.message || insertErr?.message || String(insertErr);
+        logger.warn(`[Wellness Sync] Insert failed for class #${wellnessClassId} resource ${resourceId}: ${pgMessage}`);
       }
     }
-  } catch (err) {
-    logger.error(`[Wellness Sync] Failed to resync availability blocks for class #${wellnessClassId}`, { error: err });
+  } catch (err: any) {
+    const pgMessage = err?.cause?.message || err?.message || String(err);
+    logger.error(`[Wellness Sync] Failed to resync availability blocks for class #${wellnessClassId}: ${pgMessage}`);
   }
 }
 export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boolean }): Promise<{ synced: number; created: number; updated: number; deleted: number; pushedToCalendar: number; error?: string }> {

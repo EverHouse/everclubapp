@@ -51,18 +51,15 @@ async function resyncEventAvailabilityBlocks(
           notes: blockNotes,
           createdBy: 'calendar_sync',
           eventId,
-        });
+        }).onConflictDoNothing();
       } catch (insertErr: any) {
-        const pgCode = insertErr?.code || insertErr?.cause?.code;
-        if (pgCode === '23505') {
-          logger.debug(`[Events Sync] Skipped duplicate block for event #${eventId} resource ${resourceId}`);
-        } else {
-          throw insertErr;
-        }
+        const pgMessage = insertErr?.cause?.message || insertErr?.message || String(insertErr);
+        logger.warn(`[Events Sync] Insert failed for event #${eventId} resource ${resourceId}: ${pgMessage}`);
       }
     }
-  } catch (err) {
-    logger.error(`[Events Sync] Failed to resync availability blocks for event #${eventId}`, { error: err });
+  } catch (err: any) {
+    const pgMessage = err?.cause?.message || err?.message || String(err);
+    logger.error(`[Events Sync] Failed to resync availability blocks for event #${eventId}: ${pgMessage}`);
   }
 }
 export async function syncGoogleCalendarEvents(options?: { suppressAlert?: boolean }): Promise<{ synced: number; created: number; updated: number; deleted: number; pushedToCalendar: number; error?: string }> {

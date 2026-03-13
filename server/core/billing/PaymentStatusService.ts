@@ -150,6 +150,21 @@ export class PaymentStatusService {
           return { success: true, participantsUpdated: 0, snapshotsUpdated: 0 } as PaymentStatusResult;
         }
         
+        if (snapshot.session_id != null) {
+          const existingCompleted = await tx.execute(
+            sql`SELECT id FROM booking_fee_snapshots 
+             WHERE session_id = ${snapshot.session_id} AND status = 'completed' AND id != ${snapshot.id}
+             LIMIT 1`
+          );
+          if (existingCompleted.rows.length > 0) {
+            await tx.execute(
+              sql`UPDATE booking_fee_snapshots SET status = 'superseded', used_at = NOW() WHERE id = ${snapshot.id}`
+            );
+            logger.info(`[PaymentStatusService] Snapshot ${snapshot.id} superseded — session ${snapshot.session_id} already has completed snapshot ${(existingCompleted.rows[0] as any).id}`);
+            return { success: true, participantsUpdated: 0, snapshotsUpdated: 0 } as PaymentStatusResult;
+          }
+        }
+        
         await tx.execute(
           sql`UPDATE booking_fee_snapshots SET status = 'completed', used_at = NOW() WHERE id = ${snapshot.id}`
         );
