@@ -177,7 +177,7 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
     passJson.authenticationToken = data.authenticationToken;
   }
 
-  passJson.generic = {
+  passJson.storeCard = {
     headerFields,
     secondaryFields,
     auxiliaryFields,
