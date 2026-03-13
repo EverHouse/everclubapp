@@ -413,11 +413,13 @@ export class BookingStateService {
     if (existing.status !== 'cancellation_pending') {
       if (existing.status === 'cancelled') {
         return {
-          success: true,
+          success: false,
           status: 'cancelled',
           bookingId,
           bookingData: this.extractBookingData(existing),
           alreadyCancelled: true,
+          error: 'Booking is already cancelled',
+          statusCode: 400,
         };
       }
       return {
