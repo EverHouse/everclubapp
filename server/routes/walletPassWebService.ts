@@ -76,6 +76,30 @@ router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', async (req,
     const { deviceLibraryId, passTypeId } = req.params;
     const passesUpdatedSince = req.query.passesUpdatedSince as string | undefined;
 
+    const deviceRegistrations = await db.select({
+      serialNumber: walletPassDeviceRegistrations.serialNumber,
+    })
+      .from(walletPassDeviceRegistrations)
+      .where(and(
+        eq(walletPassDeviceRegistrations.deviceLibraryId, deviceLibraryId),
+        eq(walletPassDeviceRegistrations.passTypeId, passTypeId),
+      ))
+      .limit(1);
+
+    if (deviceRegistrations.length === 0) {
+      return res.status(204).send('');
+    }
+
+    const authToken = extractAuthToken(req.headers.authorization);
+    if (!authToken) {
+      return res.status(401).send('Unauthorized');
+    }
+
+    const isValid = await validateAuthToken(deviceRegistrations[0].serialNumber, authToken);
+    if (!isValid) {
+      return res.status(401).send('Unauthorized');
+    }
+
     let query;
     if (passesUpdatedSince) {
       const sinceDate = new Date(passesUpdatedSince);

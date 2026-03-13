@@ -391,6 +391,7 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
     let deleted = 0;
     if (idsToDeactivate.length > 0) {
       const idsToDeactivateLiteral = toIntArrayLiteral(idsToDeactivate);
+      await db.execute(sql`DELETE FROM availability_blocks WHERE wellness_class_id = ANY(${idsToDeactivateLiteral}::int[])`);
       await db.execute(sql`UPDATE wellness_classes SET is_active = false WHERE id = ANY(${idsToDeactivateLiteral}::int[])`);
       deleted = idsToDeactivate.length;
     }

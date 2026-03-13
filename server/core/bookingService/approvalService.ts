@@ -323,10 +323,12 @@ export async function approveBooking(params: ApproveBookingParams) {
       eq(bookingRequests.resourceId, assignedBayId),
       eq(bookingRequests.requestDate, req_data.requestDate),
       or(
+        eq(bookingRequests.status, 'pending'),
+        eq(bookingRequests.status, 'pending_approval'),
         eq(bookingRequests.status, 'approved'),
         eq(bookingRequests.status, 'confirmed'),
         eq(bookingRequests.status, 'attended'),
-        eq(bookingRequests.status, 'pending')
+        eq(bookingRequests.status, 'cancellation_pending')
       ),
       ne(bookingRequests.id, bookingId),
       or(

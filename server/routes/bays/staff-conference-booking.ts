@@ -45,7 +45,7 @@ router.get('/api/staff/conference-room/available-slots', isStaffOrAdmin, async (
     const resourceId = resourceResult.rows[0].id;
 
     const bookingsResult = await db.execute(sql`SELECT start_time, end_time FROM booking_requests 
-       WHERE resource_id = ${resourceId} AND request_date = ${date} AND status IN ('pending', 'approved', 'attended')`);
+       WHERE resource_id = ${resourceId} AND request_date = ${date} AND status IN ('pending', 'approved', 'confirmed', 'pending_approval', 'attended', 'cancellation_pending')`);
 
     const blocksResult = await db.execute(sql`SELECT start_time, end_time FROM availability_blocks 
        WHERE resource_id = ${resourceId} AND block_date = ${date}`);
@@ -247,7 +247,7 @@ router.post('/api/staff/conference-room/booking', isStaffOrAdmin, async (req: Re
 
     const overlapCheck = await db.execute(sql`SELECT id, start_time, end_time FROM booking_requests 
        WHERE resource_id = ${resourceId} AND request_date = ${date} 
-       AND status IN ('pending', 'approved', 'attended')
+       AND status IN ('pending', 'approved', 'confirmed', 'pending_approval', 'attended', 'cancellation_pending')
        AND (start_time < ${endTime} AND end_time > ${startTimeWithSeconds})`);
 
     if (overlapCheck.rows.length > 0) {

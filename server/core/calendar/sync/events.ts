@@ -333,6 +333,7 @@ export async function syncGoogleCalendarEvents(options?: { suppressAlert?: boole
     let deleted = 0;
     if (idsToDelete.length > 0) {
       const idsToDeleteLiteral = toIntArrayLiteral(idsToDelete);
+      await db.execute(sql`DELETE FROM availability_blocks WHERE event_id = ANY(${idsToDeleteLiteral}::int[])`);
       await db.execute(sql`DELETE FROM events WHERE id = ANY(${idsToDeleteLiteral}::int[])`);
       deleted = idsToDelete.length;
     }
