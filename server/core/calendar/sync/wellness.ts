@@ -51,7 +51,15 @@ async function resyncWellnessAvailabilityBlocks(
           notes: blockNotes,
           createdBy: 'calendar_sync',
           wellnessClassId,
-        }).onConflictDoNothing();
+        }).onConflictDoUpdate({
+          target: [availabilityBlocks.resourceId, availabilityBlocks.blockDate, availabilityBlocks.startTime, availabilityBlocks.endTime, availabilityBlocks.wellnessClassId],
+          targetWhere: sql`${availabilityBlocks.wellnessClassId} IS NOT NULL`,
+          set: {
+            blockType: 'wellness',
+            notes: blockNotes,
+            createdBy: 'calendar_sync',
+          },
+        });
       } catch (insertErr: any) {
         const pgMessage = insertErr?.cause?.message || insertErr?.message || String(insertErr);
         logger.warn(`[Wellness Sync] Insert failed for class #${wellnessClassId} resource ${resourceId}: ${pgMessage}`);

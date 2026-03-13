@@ -51,7 +51,15 @@ async function resyncEventAvailabilityBlocks(
           notes: blockNotes,
           createdBy: 'calendar_sync',
           eventId,
-        }).onConflictDoNothing();
+        }).onConflictDoUpdate({
+          target: [availabilityBlocks.resourceId, availabilityBlocks.blockDate, availabilityBlocks.startTime, availabilityBlocks.endTime, availabilityBlocks.eventId],
+          targetWhere: sql`${availabilityBlocks.eventId} IS NOT NULL`,
+          set: {
+            blockType: 'event',
+            notes: blockNotes,
+            createdBy: 'calendar_sync',
+          },
+        });
       } catch (insertErr: any) {
         const pgMessage = insertErr?.cause?.message || insertErr?.message || String(insertErr);
         logger.warn(`[Events Sync] Insert failed for event #${eventId} resource ${resourceId}: ${pgMessage}`);

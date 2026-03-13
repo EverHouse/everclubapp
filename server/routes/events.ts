@@ -75,7 +75,15 @@ async function createEventAvailabilityBlocks(
       notes: blockNotes,
       createdBy: createdBy || 'system',
       eventId,
-    }).onConflictDoNothing();
+    }).onConflictDoUpdate({
+      target: [availabilityBlocks.resourceId, availabilityBlocks.blockDate, availabilityBlocks.startTime, availabilityBlocks.endTime, availabilityBlocks.eventId],
+      targetWhere: sql`${availabilityBlocks.eventId} IS NOT NULL`,
+      set: {
+        blockType: 'event',
+        notes: blockNotes,
+        createdBy: createdBy || 'system',
+      },
+    });
   }
   
   logger.info(`[Events] Created ${resourceIds.length} availability blocks for event #${eventId} on ${eventDate}`);
@@ -125,7 +133,15 @@ async function updateEventAvailabilityBlocks(
           notes: blockNotes,
           createdBy: createdBy || 'system',
           eventId,
-        }).onConflictDoNothing();
+        }).onConflictDoUpdate({
+          target: [availabilityBlocks.resourceId, availabilityBlocks.blockDate, availabilityBlocks.startTime, availabilityBlocks.endTime, availabilityBlocks.eventId],
+          targetWhere: sql`${availabilityBlocks.eventId} IS NOT NULL`,
+          set: {
+            blockType: 'event',
+            notes: blockNotes,
+            createdBy: createdBy || 'system',
+          },
+        });
       }
     }
   });
@@ -1613,7 +1629,15 @@ router.post('/api/admin/backfill-availability-blocks', isStaffOrAdmin, async (re
             notes: `Blocked for: ${row.title}`,
             createdBy: staffEmail,
             wellnessClassId: row.id,
-          }).onConflictDoNothing();
+          }).onConflictDoUpdate({
+            target: [availabilityBlocks.resourceId, availabilityBlocks.blockDate, availabilityBlocks.startTime, availabilityBlocks.endTime, availabilityBlocks.wellnessClassId],
+            targetWhere: sql`${availabilityBlocks.wellnessClassId} IS NOT NULL`,
+            set: {
+              blockType: 'wellness',
+              notes: `Blocked for: ${row.title}`,
+              createdBy: staffEmail,
+            },
+          });
         }
         wellnessBlocksCreated++;
       } catch (err: unknown) {

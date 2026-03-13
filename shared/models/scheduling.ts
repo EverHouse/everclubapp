@@ -35,7 +35,13 @@ export const availabilityBlocks = pgTable("availability_blocks", {
 }, (table) => [
   uniqueIndex("availability_blocks_resource_unique_idx").on(
     table.resourceId, table.blockDate, table.startTime, table.endTime, table.closureId
-  )
+  ),
+  uniqueIndex("availability_blocks_event_unique_idx").on(
+    table.resourceId, table.blockDate, table.startTime, table.endTime, table.eventId
+  ).where(sql`event_id IS NOT NULL`),
+  uniqueIndex("availability_blocks_wellness_unique_idx").on(
+    table.resourceId, table.blockDate, table.startTime, table.endTime, table.wellnessClassId
+  ).where(sql`wellness_class_id IS NOT NULL`),
 ]);
 
 // Booking requests table - pending booking requests
