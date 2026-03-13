@@ -197,7 +197,8 @@ describe('GuestPassHoldService', () => {
     it('returns error when not enough passes available', async () => {
       mockClient.query
         .mockResolvedValueOnce(undefined)
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce({ rows: [{ id: 1 }] })
         .mockResolvedValueOnce({ rows: [{ guest_passes_per_month: 2 }] })
         .mockResolvedValueOnce({ rows: [{ passes_used: 2, passes_total: 2 }] })
         .mockResolvedValueOnce({ rows: [{ total_held: '0' }] })
@@ -259,8 +260,8 @@ describe('GuestPassHoldService', () => {
       mockClient.query
         .mockResolvedValueOnce(undefined)
         .mockResolvedValueOnce({ rows: [{ id: 1, passes_held: 3 }] })
-        .mockResolvedValueOnce(undefined)
-        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({ rowCount: 1 })
         .mockResolvedValueOnce(undefined);
 
       const result = await convertHoldToUsage(123, 'test@example.com');
@@ -271,7 +272,8 @@ describe('GuestPassHoldService', () => {
     it('returns failure on DB error and rolls back', async () => {
       mockClient.query
         .mockResolvedValueOnce(undefined)
-        .mockRejectedValueOnce(new Error('DB error'));
+        .mockRejectedValueOnce(new Error('DB error'))
+        .mockResolvedValueOnce(undefined);
 
       const result = await convertHoldToUsage(123, 'test@example.com');
       expect(result.success).toBe(false);
