@@ -577,69 +577,76 @@ export async function tryAutoApproveBooking(
     
     const updatedNotes = (pendingBooking.staff_notes || '') + ' [Auto-approved via Trackman webhook]';
     
-    const updateResult = await db.execute(sql`UPDATE booking_requests 
-       SET status = 'approved', 
-           trackman_booking_id = ${trackmanBookingId}, 
-           staff_notes = ${updatedNotes},
-           reviewed_by = 'trackman_webhook',
-           reviewed_at = NOW(),
-           updated_at = NOW()
-       WHERE id = ${bookingId} AND trackman_booking_id IS NULL
-       RETURNING id`);
-    
-    const updateRows = updateResult.rows as unknown as IdRow[];
-    if (updateRows.length === 0) {
-      logger.warn('[Trackman Webhook] Pending booking was already linked by another process', {
-        extra: { bookingId, trackmanBookingId, email: customerEmail, date: slotDate, time: startTime }
+    let createdSessionId: number | undefined;
+
+    try {
+      await db.transaction(async (tx) => {
+        const updateResult = await tx.execute(sql`UPDATE booking_requests 
+           SET status = 'approved', 
+               trackman_booking_id = ${trackmanBookingId}, 
+               staff_notes = ${updatedNotes},
+               reviewed_by = 'trackman_webhook',
+               reviewed_at = NOW(),
+               updated_at = NOW()
+           WHERE id = ${bookingId} AND trackman_booking_id IS NULL
+           RETURNING id`);
+        
+        const updateRows = updateResult.rows as unknown as IdRow[];
+        if (updateRows.length === 0) {
+          throw new Error('ALREADY_LINKED');
+        }
+
+        if (!pendingBooking.session_id && resourceId) {
+          const sessionResult = await ensureSessionForBooking({
+            bookingId,
+            resourceId,
+            sessionDate: slotDate,
+            startTime: String(pendingBooking.start_time),
+            endTime: String(pendingBooking.end_time),
+            ownerEmail: String(pendingBooking.user_email),
+            ownerName: pendingBooking.user_name ? String(pendingBooking.user_name) : undefined,
+            ownerUserId: pendingBooking.user_id ? String(pendingBooking.user_id) : undefined,
+            trackmanBookingId,
+            source: 'trackman_webhook',
+            createdBy: 'trackman_webhook'
+          });
+
+          if (!sessionResult.sessionId) {
+            throw new Error(`SESSION_FAILED: ${sessionResult.error}`);
+          }
+          
+          createdSessionId = sessionResult.sessionId;
+          await tx.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${createdSessionId} AND (payment_status = 'pending' OR payment_status IS NULL)`);
+        }
+      });
+
+      if (createdSessionId) {
+        try {
+          const rpResult = await db.execute(sql`SELECT request_participants FROM booking_requests WHERE id = ${bookingId}`);
+          const rpData = (rpResult.rows[0] as { request_participants: unknown })?.request_participants;
+          await transferRequestParticipantsToSession(
+            createdSessionId, rpData, String(pendingBooking.user_email), `webhook auto-approve booking #${bookingId}`
+          );
+        } catch (rpErr: unknown) {
+          logger.warn('[Trackman Webhook] Non-blocking: Failed to transfer request_participants to session', {
+            extra: { bookingId, sessionId: createdSessionId, error: getErrorMessage(rpErr) }
+          });
+        }
+      }
+
+    } catch (txError: unknown) {
+      const txMsg = txError instanceof Error ? txError.message : String(txError);
+      if (txMsg === 'ALREADY_LINKED') {
+        logger.warn('[Trackman Webhook] Pending booking was already linked by another process', {
+          extra: { bookingId, trackmanBookingId, email: customerEmail }
+        });
+        return { matched: false };
+      }
+      
+      logger.error('[Trackman Webhook] Auto-approve transaction failed — booking remains in pending state', {
+        extra: { bookingId, trackmanBookingId, error: txMsg }
       });
       return { matched: false };
-    }
-    
-    let createdSessionId: number | undefined;
-    
-    if (!pendingBooking.session_id && resourceId) {
-      try {
-        const sessionResult = await ensureSessionForBooking({
-          bookingId,
-          resourceId,
-          sessionDate: slotDate,
-          startTime: String(pendingBooking.start_time),
-          endTime: String(pendingBooking.end_time),
-          ownerEmail: String(pendingBooking.user_email),
-          ownerName: pendingBooking.user_name ? String(pendingBooking.user_name) : undefined,
-          ownerUserId: pendingBooking.user_id ? String(pendingBooking.user_id) : undefined,
-          trackmanBookingId,
-          source: 'trackman_webhook',
-          createdBy: 'trackman_webhook'
-        });
-
-        if (sessionResult.sessionId) {
-          createdSessionId = sessionResult.sessionId;
-          await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${createdSessionId} AND (payment_status = 'pending' OR payment_status IS NULL)`);
-          
-          try {
-            const rpResult = await db.execute(sql`SELECT request_participants FROM booking_requests WHERE id = ${bookingId}`);
-            const rpData = (rpResult.rows[0] as { request_participants: unknown })?.request_participants;
-            await transferRequestParticipantsToSession(
-              createdSessionId, rpData, String(pendingBooking.user_email), `webhook auto-approve booking #${bookingId}`
-            );
-          } catch (rpErr: unknown) {
-            logger.warn('[Trackman Webhook] Non-blocking: Failed to transfer request_participants to session', {
-              extra: { bookingId, sessionId: createdSessionId, error: getErrorMessage(rpErr) }
-            });
-          }
-        } else {
-          logger.error('[Trackman Webhook] Session creation failed for auto-approved booking — reverting to pending', {
-            extra: { bookingId, trackmanBookingId, error: sessionResult.error }
-          });
-          await db.execute(sql`UPDATE booking_requests SET status = 'pending', updated_at = NOW() WHERE id = ${bookingId}`);
-        }
-      } catch (sessionErr: unknown) {
-        logger.error('[Trackman Webhook] ensureSessionForBooking threw for auto-approved booking — reverting to pending', {
-          extra: { bookingId, trackmanBookingId, error: getErrorMessage(sessionErr) }
-        });
-        await db.execute(sql`UPDATE booking_requests SET status = 'pending', updated_at = NOW() WHERE id = ${bookingId}`);
-      }
     }
     
     logger.info('[Trackman Webhook] Auto-approved pending booking', {
@@ -850,7 +857,7 @@ export async function createUnmatchedBookingRequest(
           user_email, user_name, status, trackman_booking_id, trackman_external_id,
           trackman_player_count, is_unmatched, staff_notes,
           origin, last_sync_source, last_trackman_sync_at, created_at, updated_at)
-         VALUES (${slotDate}, ${startTime}, ${endTime}, ${durationMinutes}, ${resourceId}, ${customerEmail || ''}, ${customerName || 'Unknown (Trackman)'}, ${bookingStatus}, ${trackmanBookingId}, ${externalBookingId || null}, ${playerCount}, true, ${conflictNote || null},
+         VALUES (${slotDate}, ${startTime}, ${endTime}, ${durationMinutes}, ${resourceId ?? null}, ${customerEmail || ''}, ${customerName || 'Unknown (Trackman)'}, ${bookingStatus}, ${trackmanBookingId}, ${externalBookingId || null}, ${playerCount}, true, ${conflictNote || null},
                  'trackman_webhook', 'trackman_webhook', NOW(), NOW(), NOW())
          ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO UPDATE SET
            last_trackman_sync_at = NOW(),
@@ -871,7 +878,7 @@ export async function createUnmatchedBookingRequest(
               user_email, user_name, status, trackman_booking_id, trackman_external_id,
               trackman_player_count, is_unmatched, staff_notes,
               origin, last_sync_source, last_trackman_sync_at, created_at, updated_at)
-             VALUES (${slotDate}, ${startTime}, ${endTime}, ${durationMinutes}, ${resourceId}, ${customerEmail || ''}, ${customerName || 'Unknown (Trackman)'}, ${bookingStatus}, ${trackmanBookingId}, ${externalBookingId || null}, ${playerCount}, true, ${conflictNote || null},
+             VALUES (${slotDate}, ${startTime}, ${endTime}, ${durationMinutes}, ${resourceId ?? null}, ${customerEmail || ''}, ${customerName || 'Unknown (Trackman)'}, ${bookingStatus}, ${trackmanBookingId}, ${externalBookingId || null}, ${playerCount}, true, ${conflictNote || null},
                      'trackman_webhook', 'trackman_webhook', NOW(), NOW(), NOW())
              ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO UPDATE SET
                last_trackman_sync_at = NOW(),

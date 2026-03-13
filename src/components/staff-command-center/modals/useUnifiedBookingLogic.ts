@@ -120,6 +120,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   const isPollingFetchingRef = useRef(false);
   const wsRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
   const rosterFetchIdRef = useRef(0);
+  const checkCardFetchIdRef = useRef(0);
 
   const isManageMode = mode === 'manage';
 
@@ -437,17 +438,22 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   }, [isOpen, isManageMode, fetchRosterData]);
 
   const checkSavedCard = useCallback(async (email: string) => {
+    const fetchId = ++checkCardFetchIdRef.current;
     try {
       setCheckingCard(true);
       const res = await fetch(`/api/stripe/staff/check-saved-card/${encodeURIComponent(email)}`, { credentials: 'include' });
+      if (fetchId !== checkCardFetchIdRef.current) return;
       if (res.ok) {
         const data = await res.json();
         setSavedCardInfo(data);
       }
     } catch (err: unknown) {
+      if (fetchId !== checkCardFetchIdRef.current) return;
       console.error('Failed to check saved card:', err);
     } finally {
-      setCheckingCard(false);
+      if (fetchId === checkCardFetchIdRef.current) {
+        setCheckingCard(false);
+      }
     }
   }, []);
 
