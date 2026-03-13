@@ -307,9 +307,15 @@ const Profile: React.FC = () => {
   });
 
   const handleStartEdit = () => {
-    const nameParts = (user.name || '').split(' ');
-    setEditFirstName(nameParts[0] || '');
-    setEditLastName(nameParts.slice(1).join(' ') || '');
+    if (user.firstName) {
+      setEditFirstName(user.firstName);
+      setEditLastName(user.lastName || '');
+    } else {
+      const displayName = (user.name || '').includes('@') ? '' : (user.name || '');
+      const nameParts = displayName.split(' ');
+      setEditFirstName(nameParts[0] || '');
+      setEditLastName(nameParts.slice(1).join(' ') || '');
+    }
     setEditPhone(user.phone || '');
     setEditingProfile(true);
   };
@@ -613,7 +619,7 @@ const Profile: React.FC = () => {
               </div>
             ) : (
               <>
-                <Row icon="person" label="Name" value={user.name} isDark={isDark} />
+                <Row icon="person" label="Name" value={(user.name || '').includes('@') ? 'Not set' : (user.name || 'Not set')} isDark={isDark} />
                 <Row icon="mail" label="Email" value={user.email} isDark={isDark} />
                 <Row icon="call" label="Phone" value={formatPhoneNumber(staffDetails?.phone || user.phone)} isDark={isDark} />
                 {!isStaffOrAdminProfile && (

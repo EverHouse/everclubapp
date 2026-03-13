@@ -145,6 +145,9 @@ router.post('/api/auth/apple/verify', authRateLimiterByIp, async (req, res) => {
 
     req.session.user = member as unknown as typeof req.session.user;
 
+    const appleFirstName = appleUser?.name?.firstName;
+    const appleLastName = appleUser?.name?.lastName;
+
     if (!user.appleId || user.appleId !== appleData.sub) {
       const existingAppleLink = await db.select({ id: users.id, email: users.email })
         .from(users)
@@ -154,8 +157,6 @@ router.post('/api/auth/apple/verify', authRateLimiterByIp, async (req, res) => {
       if (existingAppleLink.length > 0 && existingAppleLink[0].id !== user.id) {
         logger.warn('[Apple Auth] Apple account already linked to another user, not auto-linking', { extra: { appleSub: appleData.sub, existingEmail: existingAppleLink[0].email, targetEmail: user.email } });
       } else {
-        const appleFirstName = appleUser?.name?.firstName;
-        const appleLastName = appleUser?.name?.lastName;
         const updateData: Record<string, unknown> = {
             appleId: appleData.sub,
             appleEmail: appleData.email || undefined,
@@ -168,6 +169,11 @@ router.post('/api/auth/apple/verify', authRateLimiterByIp, async (req, res) => {
           .set(updateData)
           .where(eq(users.id, user.id));
       }
+    } else if (!user.firstName && appleFirstName) {
+      const nameBackfill: Record<string, unknown> = { updatedAt: new Date() };
+      nameBackfill.firstName = appleFirstName;
+      if (!user.lastName && appleLastName) nameBackfill.lastName = appleLastName;
+      await db.update(users).set(nameBackfill).where(eq(users.id, user.id));
     }
 
     req.session.save((err) => {
