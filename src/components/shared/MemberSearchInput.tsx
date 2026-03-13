@@ -246,7 +246,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
   }, [isOpen, syncDropdownPosition]);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       const target = e.target as Node;
       const insideContainer = containerRef.current?.contains(target);
       const insideDropdown = dropdownRef.current?.contains(target);
@@ -255,7 +255,11 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -310,19 +314,20 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
       role="listbox"
       data-scroll-lock-allow=""
       style={dropdownStyle}
-      className="bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-xl overflow-hidden overflow-y-auto"
+      className="bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-xl overflow-hidden overflow-y-auto overscroll-contain"
+      onTouchMove={(e) => e.stopPropagation()}
     >
       {filteredMembers.length > 0 ? (
         filteredMembers.map((member, index) => {
           const isVisitor = member.membershipStatus === 'visitor' || member.membershipStatus === 'non-member';
           return (
             <button
-              key={member.email}
+              key={member.id || member.email}
               id={getOptionId(index)}
               type="button"
               role="option"
               aria-selected={index === highlightedIndex}
-              onClick={() => handleSelect(member)}
+              onPointerDown={(e) => { e.preventDefault(); handleSelect(member); }}
               onMouseEnter={() => setHighlightedIndex(index)}
               className={`tactile-row w-full px-4 py-3 flex items-center gap-3 border-b border-primary/5 dark:border-white/5 last:border-0 transition-colors ${
                 index === highlightedIndex 

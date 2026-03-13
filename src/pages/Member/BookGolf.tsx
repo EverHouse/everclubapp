@@ -88,6 +88,7 @@ const BookGolf: React.FC = () => {
   
   const [conferencePaymentRequired, setConferencePaymentRequired] = useState(false);
   const [conferenceOverageFee, setConferenceOverageFee] = useState(0);
+  const [showUnfilledSlotsWarning, setShowUnfilledSlotsWarning] = useState(false);
   
   const timeSlotsRef = useRef<HTMLDivElement>(null);
   const baySelectionRef = useRef<HTMLDivElement>(null);
@@ -865,6 +866,16 @@ const BookGolf: React.FC = () => {
       return;
     }
     
+    // Check for unfilled participant slots in simulator bookings
+    if (activeTab === 'simulator' && playerCount > 1) {
+      const filledSlots = playerSlots.filter(slot => slot.selectedId || (slot.email && slot.email.includes('@'))).length;
+      const expectedSlots = playerCount - 1;
+      if (filledSlots < expectedSlots) {
+        setShowUnfilledSlotsWarning(true);
+        return;
+      }
+    }
+    
     // Otherwise proceed directly
     await submitBooking();
   };
@@ -1002,6 +1013,7 @@ const BookGolf: React.FC = () => {
               privacyMode={true}
               maxPlayers={4}
               showPlayerCountSelector={true}
+              ownerMemberId={effectiveUser?.id}
             />
           )}
 
@@ -1590,6 +1602,45 @@ const BookGolf: React.FC = () => {
           onSubmit={handleGuardianConsentSubmit}
           onCancel={() => setShowGuardianConsent(false)}
         />
+      </ModalShell>
+
+      <ModalShell
+        isOpen={showUnfilledSlotsWarning}
+        onClose={() => setShowUnfilledSlotsWarning(false)}
+        showCloseButton={false}
+        size="sm"
+      >
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isDark ? 'bg-amber-500/20' : 'bg-amber-100'}`}>
+              <span className="material-symbols-outlined text-2xl text-amber-500">warning</span>
+            </div>
+            <div>
+              <p className={`font-bold ${isDark ? 'text-white' : 'text-primary'}`}>Unfilled Player Slots</p>
+            </div>
+          </div>
+          <p className={`text-sm mb-6 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
+            You selected {playerCount} players but {(() => {
+              const filled = playerSlots.filter(s => s.selectedId || (s.email && s.email.includes('@'))).length;
+              const unfilled = (playerCount - 1) - filled;
+              return `${unfilled} slot${unfilled !== 1 ? 's are' : ' is'} unfilled. Unfilled slots will be charged the guest fee.`;
+            })()}
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowUnfilledSlotsWarning(false)}
+              className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-colors ${isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-black/5 text-primary hover:bg-black/10'}`}
+            >
+              Go Back
+            </button>
+            <button
+              onClick={() => { setShowUnfilledSlotsWarning(false); submitBooking(); }}
+              className="flex-1 py-3 px-4 rounded-xl font-bold text-sm bg-accent text-brand-green hover:bg-accent/90 transition-colors"
+            >
+              Continue Anyway
+            </button>
+          </div>
+        </div>
       </ModalShell>
 
     </SwipeablePage>

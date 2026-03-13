@@ -1,10 +1,11 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { MemberSearchInput, SelectedMember } from './MemberSearchInput';
 
 export interface PlayerSlot {
   id: string;
   email: string;
+  emailRedacted?: string;
   name: string;
   firstName: string;
   lastName: string;
@@ -24,6 +25,7 @@ export interface PlayerSlotEditorProps {
   privacyMode?: boolean;
   maxPlayers?: number;
   showPlayerCountSelector?: boolean;
+  ownerMemberId?: string;
 }
 
 const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
@@ -36,6 +38,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
   privacyMode = true,
   maxPlayers = 4,
   showPlayerCountSelector = true,
+  ownerMemberId,
 }) => {
   const [wrapperRef] = useAutoAnimate();
   const [slotListRef] = useAutoAnimate();
@@ -68,10 +71,21 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
       selectedName: member.name,
       searchQuery: member.name,
       email: member.email,
+      emailRedacted: member.emailRedacted,
       name: member.name,
     };
     onSlotsChange(newSlots);
   }, [slots, onSlotsChange]);
+
+  const excludeIdsForSlot = useMemo(() => {
+    const selectedIds = slots
+      .filter(s => s.selectedId)
+      .map(s => s.selectedId!);
+    if (ownerMemberId) {
+      selectedIds.push(ownerMemberId);
+    }
+    return selectedIds;
+  }, [slots, ownerMemberId]);
 
   return (
     <div ref={wrapperRef} className="space-y-6">
@@ -167,7 +181,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                             {slot.selectedName}
                           </div>
                           <div className={`text-xs truncate ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
-                            {slot.email}
+                            {slot.email || slot.emailRedacted || ''}
                           </div>
                         </div>
                         <button
@@ -188,6 +202,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                         privacyMode={privacyMode}
                         showTier={false}
                         forceApiSearch
+                        excludeIds={excludeIdsForSlot}
                       />
                     ) : (
                       <div className="space-y-2">
