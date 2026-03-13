@@ -127,22 +127,6 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
     value: data.tier,
   });
 
-  const secondaryFields: Array<{ key: string; label: string; value: string }> = [];
-  if (data.lastName) {
-    secondaryFields.push({
-      key: 'lastName',
-      label: 'LAST NAME',
-      value: data.lastName,
-    });
-  }
-  if (data.memberSince) {
-    secondaryFields.push({
-      key: 'memberSince',
-      label: 'MEMBER SINCE',
-      value: data.memberSince,
-    });
-  }
-
   const headerFields: Array<{ key: string; label: string; value: string; textAlignment?: string }> = [
     {
       key: 'tier',
@@ -151,6 +135,22 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
       textAlignment: 'PKTextAlignmentRight',
     },
   ];
+
+  const memberName = [data.firstName, data.lastName].filter(Boolean).join(' ');
+  const secondaryFields: Array<{ key: string; label: string; value: string }> = [
+    {
+      key: 'memberName',
+      label: 'MEMBER',
+      value: memberName || 'Member',
+    },
+  ];
+  if (data.memberSince) {
+    secondaryFields.push({
+      key: 'memberSince',
+      label: 'MEMBER SINCE',
+      value: data.memberSince,
+    });
+  }
 
   const auxiliaryFields: Array<{ key: string; label: string; value: string }> = [];
   if (data.memberEmail) {
@@ -180,13 +180,6 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
 
   passJson.generic = {
     headerFields,
-    primaryFields: [
-      {
-        key: 'firstName',
-        label: 'FIRST NAME',
-        value: data.firstName,
-      },
-    ],
     secondaryFields,
     auxiliaryFields,
     backFields,
@@ -237,29 +230,50 @@ interface PassImages {
   'logo.png': Buffer;
   'logo@2x.png': Buffer;
   'logo@3x.png': Buffer;
+  'strip.png': Buffer;
+  'strip@2x.png': Buffer;
+  'strip@3x.png': Buffer;
 }
 
 async function generatePassImages(colors: TierColors): Promise<PassImages> {
   const logoSource = selectLogoSource(colors);
+  const stripSource = path.join(process.cwd(), 'public', 'images', 'hero-lounge-optimized.webp');
   const transparentBg = { r: 0, g: 0, b: 0, alpha: 0 };
 
-  const [icon, icon2x, icon3x, logo, logo2x, logo3x] = await Promise.all([
+  const hasStrip = fs.existsSync(stripSource);
+
+  const promises: Promise<Buffer>[] = [
     sharp(logoSource).resize(29, 29, { fit: 'contain', background: transparentBg }).png().toBuffer(),
     sharp(logoSource).resize(58, 58, { fit: 'contain', background: transparentBg }).png().toBuffer(),
     sharp(logoSource).resize(87, 87, { fit: 'contain', background: transparentBg }).png().toBuffer(),
     sharp(logoSource).resize(220, 70, { fit: 'contain', background: transparentBg }).png().toBuffer(),
     sharp(logoSource).resize(440, 140, { fit: 'contain', background: transparentBg }).png().toBuffer(),
     sharp(logoSource).resize(660, 210, { fit: 'contain', background: transparentBg }).png().toBuffer(),
-  ]);
+  ];
 
-  return {
-    'icon.png': icon,
-    'icon@2x.png': icon2x,
-    'icon@3x.png': icon3x,
-    'logo.png': logo,
-    'logo@2x.png': logo2x,
-    'logo@3x.png': logo3x,
+  if (hasStrip) {
+    promises.push(
+      sharp(stripSource).resize(375, 123, { fit: 'cover', position: 'centre' }).png().toBuffer(),
+      sharp(stripSource).resize(750, 246, { fit: 'cover', position: 'centre' }).png().toBuffer(),
+      sharp(stripSource).resize(1125, 369, { fit: 'cover', position: 'centre' }).png().toBuffer(),
+    );
+  }
+
+  const results = await Promise.all(promises);
+
+  const images: PassImages = {
+    'icon.png': results[0],
+    'icon@2x.png': results[1],
+    'icon@3x.png': results[2],
+    'logo.png': results[3],
+    'logo@2x.png': results[4],
+    'logo@3x.png': results[5],
+    'strip.png': hasStrip ? results[6] : results[0],
+    'strip@2x.png': hasStrip ? results[7] : results[1],
+    'strip@3x.png': hasStrip ? results[8] : results[2],
   };
+
+  return images;
 }
 
 function computeSha1(data: Buffer | string): string {
