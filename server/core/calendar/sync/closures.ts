@@ -311,8 +311,6 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
         return `${d}_${slot.start_time}_${slot.end_time}`;
       })
     );
-    const TRACKMAN_TITLE_PATTERNS = [/trackman/i, /^unknown\b/i, /^booking:\s/i];
-    
     for (const event of events) {
       if (!event.id) continue;
       
@@ -384,9 +382,7 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
         continue;
       }
       
-      const hasTrackmanTitle = TRACKMAN_TITLE_PATTERNS.some(p => p.test(title));
-      const hasNoAppExtProps = !extProps['ehApp_type'];
-      if (startTime && endTime && hasTrackmanTitle && hasNoAppExtProps && trackmanSlotSet.has(`${startDate}_${startTime}_${endTime}`)) {
+      if (startTime && endTime && !extProps['ehApp_type'] && trackmanSlotSet.has(`${startDate}_${startTime}_${endTime}`)) {
         skippedTrackman++;
         logger.info(`[Calendar Sync] Skipping Trackman booking on Internal Calendar: ${title} on ${startDate} at ${startTime}-${endTime}`);
         continue;
