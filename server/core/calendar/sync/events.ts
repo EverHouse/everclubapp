@@ -41,16 +41,24 @@ async function resyncEventAvailabilityBlocks(
 
     const blockNotes = eventTitle ? `Blocked for: ${eventTitle}` : 'Blocked for event';
     for (const resourceId of resourceIds) {
-      await db.insert(availabilityBlocks).values({
-        resourceId,
-        blockDate: eventDate,
-        startTime,
-        endTime: endTime || startTime,
-        blockType: 'event',
-        notes: blockNotes,
-        createdBy: 'calendar_sync',
-        eventId,
-      }).onConflictDoNothing();
+      try {
+        await db.insert(availabilityBlocks).values({
+          resourceId,
+          blockDate: eventDate,
+          startTime,
+          endTime: endTime || startTime,
+          blockType: 'event',
+          notes: blockNotes,
+          createdBy: 'calendar_sync',
+          eventId,
+        });
+      } catch (insertErr: any) {
+        if (insertErr?.code === '23505') {
+          logger.debug(`[Events Sync] Skipped duplicate block for event #${eventId} resource ${resourceId}`);
+        } else {
+          throw insertErr;
+        }
+      }
     }
   } catch (err) {
     logger.error(`[Events Sync] Failed to resync availability blocks for event #${eventId}`, { error: err });

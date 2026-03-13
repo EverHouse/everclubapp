@@ -41,16 +41,24 @@ async function resyncWellnessAvailabilityBlocks(
 
     const blockNotes = classTitle ? `Blocked for: ${classTitle}` : 'Blocked for wellness class';
     for (const resourceId of resourceIds) {
-      await db.insert(availabilityBlocks).values({
-        resourceId,
-        blockDate: classDate,
-        startTime,
-        endTime: endTime || startTime,
-        blockType: 'wellness',
-        notes: blockNotes,
-        createdBy: 'calendar_sync',
-        wellnessClassId,
-      }).onConflictDoNothing();
+      try {
+        await db.insert(availabilityBlocks).values({
+          resourceId,
+          blockDate: classDate,
+          startTime,
+          endTime: endTime || startTime,
+          blockType: 'wellness',
+          notes: blockNotes,
+          createdBy: 'calendar_sync',
+          wellnessClassId,
+        });
+      } catch (insertErr: any) {
+        if (insertErr?.code === '23505') {
+          logger.debug(`[Wellness Sync] Skipped duplicate block for class #${wellnessClassId} resource ${resourceId}`);
+        } else {
+          throw insertErr;
+        }
+      }
     }
   } catch (err) {
     logger.error(`[Wellness Sync] Failed to resync availability blocks for class #${wellnessClassId}`, { error: err });

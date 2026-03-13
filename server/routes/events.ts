@@ -66,16 +66,24 @@ async function createEventAvailabilityBlocks(
   const executor = tx || db;
   
   for (const resourceId of resourceIds) {
-    await executor.insert(availabilityBlocks).values({
-      resourceId,
-      blockDate: eventDate,
-      startTime,
-      endTime: endTime || startTime,
-      blockType: 'event',
-      notes: blockNotes,
-      createdBy: createdBy || 'system',
-      eventId,
-    }).onConflictDoNothing();
+    try {
+      await executor.insert(availabilityBlocks).values({
+        resourceId,
+        blockDate: eventDate,
+        startTime,
+        endTime: endTime || startTime,
+        blockType: 'event',
+        notes: blockNotes,
+        createdBy: createdBy || 'system',
+        eventId,
+      });
+    } catch (insertErr: any) {
+      if (insertErr?.code === '23505') {
+        logger.debug(`[Events] Skipped duplicate block for event #${eventId} resource ${resourceId}`);
+      } else {
+        throw insertErr;
+      }
+    }
   }
   
   logger.info(`[Events] Created ${resourceIds.length} availability blocks for event #${eventId} on ${eventDate}`);
@@ -120,16 +128,24 @@ async function updateEventAvailabilityBlocks(
       const blockNotes = eventTitle ? `Blocked for: ${eventTitle}` : 'Blocked for event';
       
       for (const resourceId of resourceIds) {
-        await tx.insert(availabilityBlocks).values({
-          resourceId,
-          blockDate: eventDate,
-          startTime,
-          endTime: endTime || startTime,
-          blockType: 'event',
-          notes: blockNotes,
-          createdBy: createdBy || 'system',
-          eventId,
-        }).onConflictDoNothing();
+        try {
+          await tx.insert(availabilityBlocks).values({
+            resourceId,
+            blockDate: eventDate,
+            startTime,
+            endTime: endTime || startTime,
+            blockType: 'event',
+            notes: blockNotes,
+            createdBy: createdBy || 'system',
+            eventId,
+          });
+        } catch (insertErr: any) {
+          if (insertErr?.code === '23505') {
+            logger.debug(`[Events] Skipped duplicate block for event #${eventId} resource ${resourceId}`);
+          } else {
+            throw insertErr;
+          }
+        }
       }
     }
   });
@@ -1591,16 +1607,24 @@ router.post('/api/admin/backfill-availability-blocks', isStaffOrAdmin, async (re
         }
 
         for (const resourceId of resourceIds) {
-          await db.insert(availabilityBlocks).values({
-            resourceId,
-            blockDate: classDate,
-            startTime: startTime24,
-            endTime,
-            blockType: 'wellness',
-            notes: `Blocked for: ${row.title}`,
-            createdBy: staffEmail,
-            wellnessClassId: row.id,
-          }).onConflictDoNothing();
+          try {
+            await db.insert(availabilityBlocks).values({
+              resourceId,
+              blockDate: classDate,
+              startTime: startTime24,
+              endTime,
+              blockType: 'wellness',
+              notes: `Blocked for: ${row.title}`,
+              createdBy: staffEmail,
+              wellnessClassId: row.id,
+            });
+          } catch (insertErr: any) {
+            if (insertErr?.code === '23505') {
+              logger.debug(`[Backfill] Skipped duplicate block for wellness class #${row.id} resource ${resourceId}`);
+            } else {
+              throw insertErr;
+            }
+          }
         }
         wellnessBlocksCreated++;
       } catch (err: unknown) {
