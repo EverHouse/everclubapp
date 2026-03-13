@@ -336,7 +336,9 @@ export const trackmanWebhookEventTypeEnum = pgEnum("trackman_webhook_event_type"
   "booking.cancelled",
   "booking.deleted",
   "booking.confirmed",
-  "booking.modified"
+  "booking.modified",
+  "booking.block",
+  "booking.block_cancelled"
 ]);
 
 export const trackmanBaySlotStatusEnum = pgEnum("trackman_bay_slot_status", [
