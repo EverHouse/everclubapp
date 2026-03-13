@@ -777,7 +777,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             className={`flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-full relative ${isNavigating ? 'opacity-70' : ''}`}
             aria-label="View profile"
           >
-            <Avatar name={user.name} email={user.email} size="md" />
+            <Avatar name={(user.name || '').includes('@') ? undefined : user.name} email={user.email} size="md" />
             {isNavigating && (
               <span className="absolute inset-0 flex items-center justify-center">
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

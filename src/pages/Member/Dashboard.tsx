@@ -313,7 +313,7 @@ const Dashboard: React.FC = () => {
         setIsCardOpen(false);
         setNfcCheckinData({
           type: 'success',
-          memberName: user?.name?.split(' ')[0] || user?.name || 'Member',
+          memberName: user?.firstName || (user?.name && !user.name.includes('@') ? user.name.split(' ')[0] : null) || 'Member',
           tier: user?.tier || null,
         });
       }
@@ -1260,7 +1260,7 @@ const Dashboard: React.FC = () => {
       fields={GUEST_CHECKIN_FIELDS}
       submitButtonText="Check In Guest"
       additionalFields={{
-        member_name: user?.name || '',
+        member_name: (user?.name || '').includes('@') ? '' : (user?.name || ''),
         member_email: user?.email || ''
       }}
       onSuccess={async () => {
@@ -1292,7 +1292,7 @@ const Dashboard: React.FC = () => {
 
               {/* Member Info */}
               <div className="pt-6 px-6 pb-4 text-center" style={{ backgroundColor: cardBgColor }}>
-                <h2 className="text-2xl font-bold mb-3" style={{ color: cardTextColor }}>{user.name}</h2>
+                <h2 className="text-2xl font-bold mb-3" style={{ color: cardTextColor }}>{(user.name || '').includes('@') ? 'Member' : user.name}</h2>
                 
                 <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
                   <TierBadge tier={user.tier || 'Social'} size="md" />

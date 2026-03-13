@@ -485,7 +485,7 @@ const History: React.FC = () => {
           bookingId={payingInvoice.bookingId}
           sessionId={0}
           ownerEmail={user.email || ''}
-          ownerName={user.name || user.email?.split('@')[0] || 'Member'}
+          ownerName={(user.name || '').includes('@') ? (user.email?.split('@')[0] || 'Member') : (user.name || 'Member')}
           onSuccess={() => {
             setPayingInvoice(null);
             queryClient.invalidateQueries({ queryKey: ['my-purchases', user?.email] });
@@ -503,7 +503,7 @@ const History: React.FC = () => {
             lines: [{ description: payingInvoice.itemName || '', amount: payingInvoice.amountCents || 0, quantity: 1 }],
           }}
           userEmail={user.email || ''}
-          userName={user.name || user.email?.split('@')[0] || 'Member'}
+          userName={(user.name || '').includes('@') ? (user.email?.split('@')[0] || 'Member') : (user.name || 'Member')}
           onSuccess={async () => {
             setPayingInvoice(null);
             queryClient.invalidateQueries({ queryKey: ['my-purchases', user?.email] });

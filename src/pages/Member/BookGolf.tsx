@@ -1586,7 +1586,7 @@ const BookGolf: React.FC = () => {
         title="Guardian Consent Required"
       >
         <GuardianConsentForm
-          memberName={effectiveUser?.name || 'this member'}
+          memberName={(effectiveUser?.name || '').includes('@') ? 'this member' : (effectiveUser?.name || 'this member')}
           onSubmit={handleGuardianConsentSubmit}
           onCancel={() => setShowGuardianConsent(false)}
         />

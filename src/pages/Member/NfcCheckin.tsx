@@ -35,7 +35,7 @@ const NfcCheckin: React.FC = () => {
           sessionStorage.setItem('nfc_checkin_result', JSON.stringify({ type: 'success', memberName: data.memberName, tier: data.tier }));
           navigate('/dashboard', { replace: true });
         } else if (data.alreadyCheckedIn) {
-          sessionStorage.setItem('nfc_checkin_result', JSON.stringify({ type: 'already_checked_in', memberName: data.memberName || user.name?.split(' ')[0] || '' }));
+          sessionStorage.setItem('nfc_checkin_result', JSON.stringify({ type: 'already_checked_in', memberName: data.memberName || user.firstName || (user.name && !user.name.includes('@') ? user.name.split(' ')[0] : '') || '' }));
           navigate('/dashboard', { replace: true });
         } else {
           setErrorMessage(data.error || 'Check-in failed');
