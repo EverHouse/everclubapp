@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../../db';
-import { sql } from 'drizzle-orm';
+import { sql, eq, and } from 'drizzle-orm';
 import { logger } from '../../core/logger';
 import { sendNotificationToUser, broadcastToStaff, broadcastAvailabilityUpdate } from '../../core/websocket';
 import { notifyMember } from '../../core/notificationService';
@@ -29,6 +29,7 @@ import {
   createUnmatchedBookingRequest,
 } from './webhook-handlers';
 import type { ExistingBookingData } from './webhook-handlers';
+import { availabilityBlocks } from '../../../shared/models/scheduling';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { transferRequestParticipantsToSession } from '../../core/trackmanImport';
@@ -513,19 +514,87 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
         );
       }
       
-      // Step 5: Handle cancellations — cancelBookingByTrackmanId handles notifications, refunds, and availability broadcasts
+      // Detect Trackman "Blocked" bay option early — used in cancellation and creation steps
+      const v2Booking = payload.booking as unknown as TrackmanV2Booking;
+      const bayOptionName = v2Booking?.bayOption?.name?.toLowerCase();
+      const isBlockedBayOption = bayOptionName === 'blocked';
+      
+      // Step 5: Handle cancellations — for blocked bay options, remove the availability block; for bookings, cancel via trackman ID
       if (isCancelledStatus) {
-        const cancelResult = await cancelBookingByTrackmanId(v2Result.normalized.trackmanBookingId!);
-        if (cancelResult.cancelled) {
-          matchedBookingId = matchedBookingId || cancelResult.bookingId;
-          logger.info('[Trackman Webhook] V2: Cancelled booking via Trackman webhook', {
-            extra: { bookingId: matchedBookingId, trackmanBookingId: v2Result.normalized.trackmanBookingId }
+        if (isBlockedBayOption && resourceId && v2Result.normalized.parsedDate && v2Result.normalized.parsedStartTime) {
+          const endTime = v2Result.normalized.parsedEndTime || v2Result.normalized.parsedStartTime;
+          await db.delete(availabilityBlocks).where(
+            and(
+              eq(availabilityBlocks.resourceId, resourceId),
+              eq(availabilityBlocks.blockDate, v2Result.normalized.parsedDate),
+              eq(availabilityBlocks.startTime, v2Result.normalized.parsedStartTime),
+              eq(availabilityBlocks.endTime, endTime),
+              eq(availabilityBlocks.createdBy, 'trackman_webhook'),
+            )
+          );
+          eventType = 'booking.block_cancelled';
+          logger.info('[Trackman Webhook] V2: Removed availability block from Trackman block cancellation', {
+            extra: {
+              trackmanBookingId: v2Result.normalized.trackmanBookingId,
+              resourceId,
+              blockDate: v2Result.normalized.parsedDate,
+              startTime: v2Result.normalized.parsedStartTime,
+              endTime,
+            }
           });
+        } else {
+          const cancelResult = await cancelBookingByTrackmanId(v2Result.normalized.trackmanBookingId!);
+          if (cancelResult.cancelled) {
+            matchedBookingId = matchedBookingId || cancelResult.bookingId;
+            logger.info('[Trackman Webhook] V2: Cancelled booking via Trackman webhook', {
+              extra: { bookingId: matchedBookingId, trackmanBookingId: v2Result.normalized.trackmanBookingId }
+            });
+          }
         }
       }
       
-      // Step 6: Fall through to V1 processing for unmatched, non-cancelled bookings (creates booking requests, auto-approves, etc.)
-      if (!matchedBookingId && !isCancelledStatus && v2Result.normalized.parsedDate && v2Result.normalized.parsedStartTime) {
+      // Step 6: For Trackman "Blocked" bay options, create an availability block instead of a booking
+      if (!matchedBookingId && !isCancelledStatus && isBlockedBayOption) {
+        if (resourceId && v2Result.normalized.parsedDate && v2Result.normalized.parsedStartTime) {
+          const blockDate = v2Result.normalized.parsedDate;
+          const startTime = v2Result.normalized.parsedStartTime;
+          const endTime = v2Result.normalized.parsedEndTime || startTime;
+          
+          await db.insert(availabilityBlocks).values({
+            resourceId,
+            blockDate,
+            startTime,
+            endTime,
+            blockType: 'blocked',
+            notes: `Trackman Block - Bay ${resourceId}`,
+            createdBy: 'trackman_webhook',
+          }).onConflictDoNothing();
+          
+          eventType = 'booking.block';
+          
+          logger.info('[Trackman Webhook] V2: Created availability block from Trackman blocked bay option', {
+            extra: {
+              trackmanBookingId: v2Result.normalized.trackmanBookingId,
+              resourceId,
+              blockDate,
+              startTime,
+              endTime,
+            }
+          });
+        } else {
+          eventType = 'booking.block';
+          processingError = `Blocked bay option could not be mapped to a resource (bay ref: ${v2Result.bayRef || 'unknown'})`;
+          logger.warn('[Trackman Webhook] V2: Blocked bay option received but resource could not be resolved', {
+            extra: {
+              trackmanBookingId: v2Result.normalized.trackmanBookingId,
+              bayRef: v2Result.bayRef,
+              parsedDate: v2Result.normalized.parsedDate,
+            }
+          });
+        }
+      }
+      // Step 7: Fall through to V1 processing for unmatched, non-cancelled bookings (creates booking requests, auto-approves, etc.)
+      else if (!matchedBookingId && !isCancelledStatus && v2Result.normalized.parsedDate && v2Result.normalized.parsedStartTime) {
         logger.info('[Trackman Webhook] V2: No direct match, falling through to standard processing', {
           extra: { 
             trackmanBookingId: v2Result.normalized.trackmanBookingId,
@@ -686,10 +755,11 @@ router.get('/api/admin/trackman-webhooks/stats', isStaffOrAdmin, async (req: Req
         COUNT(*) FILTER (WHERE (twe.event_type::text ILIKE '%modified%' OR twe.event_type::text ILIKE '%update%') AND twe.event_type::text NOT ILIKE '%user%' AND twe.event_type::text NOT ILIKE '%purchase%') as modified,
         COUNT(*) FILTER (WHERE twe.event_type::text ILIKE '%user%') as user_updates,
         COUNT(*) FILTER (WHERE twe.event_type::text ILIKE '%purchase%') as purchase_events,
+        COUNT(*) FILTER (WHERE twe.event_type::text ILIKE '%block%') as blocks,
         COUNT(*) FILTER (WHERE twe.matched_booking_id IS NOT NULL AND br.was_auto_linked = true AND br.is_unmatched = false) as auto_confirmed,
         COUNT(*) FILTER (WHERE twe.matched_booking_id IS NOT NULL AND (br.was_auto_linked = false OR br.was_auto_linked IS NULL) AND br.is_unmatched = false) as manually_linked,
         COUNT(*) FILTER (WHERE twe.matched_booking_id IS NOT NULL AND br.is_unmatched = true) as needs_linking,
-        COUNT(*) FILTER (WHERE twe.matched_booking_id IS NULL AND processing_error IS NULL AND NOT (twe.event_type::text ILIKE '%cancelled%' OR twe.event_type::text ILIKE '%cancel%' OR twe.event_type::text ILIKE '%deleted%') AND twe.event_type::text NOT ILIKE '%user%' AND twe.event_type::text NOT ILIKE '%purchase%') as needs_linking_unmatched,
+        COUNT(*) FILTER (WHERE twe.matched_booking_id IS NULL AND processing_error IS NULL AND NOT (twe.event_type::text ILIKE '%cancelled%' OR twe.event_type::text ILIKE '%cancel%' OR twe.event_type::text ILIKE '%deleted%') AND twe.event_type::text NOT ILIKE '%user%' AND twe.event_type::text NOT ILIKE '%purchase%' AND twe.event_type::text NOT ILIKE '%block%') as needs_linking_unmatched,
         MAX(twe.created_at) as last_event_at
       FROM trackman_webhook_events twe
       LEFT JOIN booking_requests br ON twe.matched_booking_id = br.id

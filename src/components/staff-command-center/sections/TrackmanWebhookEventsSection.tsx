@@ -309,6 +309,8 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
   };
 
   const getEventBadgeColor = (type: string) => {
+    if (type.includes('block_cancelled')) return 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400';
+    if (type.includes('block')) return 'bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-400';
     if (type.includes('user_update') || type.includes('user.')) return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-400';
     if (type.includes('purchase')) return 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400';
     if (type.includes('modified')) return 'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-400';
