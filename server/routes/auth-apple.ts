@@ -154,13 +154,18 @@ router.post('/api/auth/apple/verify', authRateLimiterByIp, async (req, res) => {
       if (existingAppleLink.length > 0 && existingAppleLink[0].id !== user.id) {
         logger.warn('[Apple Auth] Apple account already linked to another user, not auto-linking', { extra: { appleSub: appleData.sub, existingEmail: existingAppleLink[0].email, targetEmail: user.email } });
       } else {
-        await db.update(users)
-          .set({
+        const appleFirstName = appleUser?.name?.firstName;
+        const appleLastName = appleUser?.name?.lastName;
+        const updateData: Record<string, unknown> = {
             appleId: appleData.sub,
             appleEmail: appleData.email || undefined,
             appleLinkedAt: new Date(),
             updatedAt: new Date(),
-          })
+        };
+        if (!user.firstName && appleFirstName) updateData.firstName = appleFirstName;
+        if (!user.lastName && appleLastName) updateData.lastName = appleLastName;
+        await db.update(users)
+          .set(updateData)
           .where(eq(users.id, user.id));
       }
     }

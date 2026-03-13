@@ -103,8 +103,8 @@ router.post('/api/auth/google/verify', authRateLimiterByIp, async (req, res) => 
     const sessionTtl = 30 * 24 * 60 * 60 * 1000;
     const member = {
       id: user.id,
-      firstName: user.firstName || '',
-      lastName: user.lastName || '',
+      firstName: user.firstName || googleUser.firstName || '',
+      lastName: user.lastName || googleUser.lastName || '',
       email: user.email || googleUser.email,
       phone: user.phone || '',
       tier: normalizeTierName(user.tier),
@@ -127,13 +127,16 @@ router.post('/api/auth/google/verify', authRateLimiterByIp, async (req, res) => 
       if (existingGoogleLink.length > 0 && existingGoogleLink[0].id !== user.id) {
         logger.warn('[Google Auth] Google account already linked to another user, not auto-linking', { extra: { googleSub: googleUser.sub, existingEmail: existingGoogleLink[0].email, targetEmail: user.email } });
       } else {
-        await db.update(users)
-          .set({
+        const updateData: Record<string, unknown> = {
             googleId: googleUser.sub,
             googleEmail: googleUser.email,
             googleLinkedAt: new Date(),
             updatedAt: new Date(),
-          })
+        };
+        if (!user.firstName && googleUser.firstName) updateData.firstName = googleUser.firstName;
+        if (!user.lastName && googleUser.lastName) updateData.lastName = googleUser.lastName;
+        await db.update(users)
+          .set(updateData)
           .where(eq(users.id, user.id));
       }
     }
@@ -223,8 +226,8 @@ router.post('/api/auth/google/callback', async (req, res) => {
     const sessionTtl = 30 * 24 * 60 * 60 * 1000;
     const member = {
       id: user.id,
-      firstName: user.firstName || '',
-      lastName: user.lastName || '',
+      firstName: user.firstName || googleUser.firstName || '',
+      lastName: user.lastName || googleUser.lastName || '',
       email: user.email || googleUser.email,
       phone: user.phone || '',
       tier: normalizeTierName(user.tier),
@@ -247,13 +250,16 @@ router.post('/api/auth/google/callback', async (req, res) => {
       if (existingGoogleLink.length > 0 && existingGoogleLink[0].id !== user.id) {
         logger.warn('[Google Auth Callback] Google account already linked to another user, not auto-linking', { extra: { googleSub: googleUser.sub, existingEmail: existingGoogleLink[0].email, targetEmail: user.email } });
       } else {
-        await db.update(users)
-          .set({
+        const updateData: Record<string, unknown> = {
             googleId: googleUser.sub,
             googleEmail: googleUser.email,
             googleLinkedAt: new Date(),
             updatedAt: new Date(),
-          })
+        };
+        if (!user.firstName && googleUser.firstName) updateData.firstName = googleUser.firstName;
+        if (!user.lastName && googleUser.lastName) updateData.lastName = googleUser.lastName;
+        await db.update(users)
+          .set(updateData)
           .where(eq(users.id, user.id));
       }
     }
