@@ -194,15 +194,24 @@ export async function convertToInstructorBlock(
   existingBooking: { id: number } | null,
   staffEmail: string
 ) {
-  const [block] = await db.insert(availabilityBlocks).values({
-    resourceId: bookingData.resourceId,
-    blockDate: bookingData.requestDate,
-    startTime: bookingData.startTime,
-    endTime: bookingData.endTime || bookingData.startTime,
-    blockType: 'blocked',
-    notes: `Lesson - ${ownerName}`,
-    createdBy: staffEmail
-  }).returning();
+  let block;
+  try {
+    [block] = await db.insert(availabilityBlocks).values({
+      resourceId: bookingData.resourceId,
+      blockDate: bookingData.requestDate,
+      startTime: bookingData.startTime,
+      endTime: bookingData.endTime || bookingData.startTime,
+      blockType: 'blocked',
+      notes: `Lesson - ${ownerName}`,
+      createdBy: staffEmail
+    }).returning();
+  } catch (insertErr: any) {
+    if (insertErr?.code === '23505') {
+      logger.debug(`[Trackman] Skipped duplicate instructor block for ${ownerName} on ${bookingData.requestDate}`);
+      return;
+    }
+    throw insertErr;
+  }
   
   if (existingBooking) {
     await db.delete(bookingRequests).where(eq(bookingRequests.id, existingBooking.id));
@@ -701,7 +710,15 @@ export async function markBookingAsEvent(params: {
         createdBy: params.staffEmail
       }));
       
-      await tx.insert(availabilityBlocks).values(blockValues);
+      try {
+        await tx.insert(availabilityBlocks).values(blockValues);
+      } catch (insertErr: any) {
+        if (insertErr?.code === '23505') {
+          logger.debug(`[Trackman] Skipped duplicate closure blocks for event: ${eventTitle}`);
+        } else {
+          throw insertErr;
+        }
+      }
     }
     
     const unmatchedInBookingRequests = bookingIds.filter(id => {
