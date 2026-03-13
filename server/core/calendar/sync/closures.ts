@@ -293,6 +293,25 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
     const cancelledEventIds = new Set<string>();
     let created = 0;
     let updated = 0;
+    let skippedTrackman = 0;
+    
+    const todayStr = pacificMidnight.toISOString().split('T')[0];
+    const trackmanBookingsResult = await db.execute(sql`
+      SELECT request_date, start_time, end_time
+      FROM booking_requests 
+      WHERE origin = 'trackman_webhook' 
+        AND request_date >= ${todayStr}
+        AND status NOT IN ('cancelled', 'declined', 'deleted')`);
+    interface TrackmanSlotRow { request_date: string; start_time: string; end_time: string }
+    const trackmanSlotSet = new Set(
+      (trackmanBookingsResult.rows as unknown as TrackmanSlotRow[]).map(slot => {
+        const d = typeof slot.request_date === 'string' && slot.request_date.includes('T')
+          ? slot.request_date.split('T')[0]
+          : String(slot.request_date);
+        return `${d}_${slot.start_time}_${slot.end_time}`;
+      })
+    );
+    const TRACKMAN_TITLE_PATTERNS = [/trackman/i, /^unknown\b/i, /^booking:\s/i];
     
     for (const event of events) {
       if (!event.id) continue;
@@ -308,7 +327,6 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
         continue;
       }
       
-      fetchedEventIds.add(event.id);
       const internalCalendarId = event.id;
       const rawTitle = event.summary;
       const { noticeType, cleanTitle } = extractNoticeTypeFromTitle(rawTitle);
@@ -365,6 +383,16 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
       } else {
         continue;
       }
+      
+      const hasTrackmanTitle = TRACKMAN_TITLE_PATTERNS.some(p => p.test(title));
+      const hasNoAppExtProps = !extProps['ehApp_type'];
+      if (startTime && endTime && hasTrackmanTitle && hasNoAppExtProps && trackmanSlotSet.has(`${startDate}_${startTime}_${endTime}`)) {
+        skippedTrackman++;
+        logger.info(`[Calendar Sync] Skipping Trackman booking on Internal Calendar: ${title} on ${startDate} at ${startTime}-${endTime}`);
+        continue;
+      }
+      
+      fetchedEventIds.add(event.id);
       
       let existing = await db.execute(
         sql`SELECT id, start_date, end_date, start_time, end_time, affected_areas, needs_review FROM facility_closures
