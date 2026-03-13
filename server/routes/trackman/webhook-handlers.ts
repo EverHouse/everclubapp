@@ -230,7 +230,7 @@ export async function handleBookingModification(
             UPDATE booking_requests 
             SET status = 'cancelled', updated_at = NOW(),
                 staff_notes = COALESCE(staff_notes, '') || ${`\n[Auto-cancelled: superseded by Trackman modification of booking ${incoming.trackmanBookingId}]`}
-            WHERE id = ANY(${conflictIds})`);
+            WHERE id = ANY(${sql.raw(`ARRAY[${conflictIds.join(',')}]::int[]`)})`);
           logger.info('[Trackman Webhook] Cancelled conflicting bookings at destination slot for modification', {
             extra: { bookingId, trackmanBookingId: incoming.trackmanBookingId, cancelledBookingIds: conflictIds }
           });
@@ -859,7 +859,42 @@ export async function createUnmatchedBookingRequest(
     } catch (insertError: unknown) {
       const errMsg = insertError instanceof Error ? insertError.message : String(insertError);
       const cause = (insertError as { cause?: { code?: string } })?.cause;
-      if (cause?.code === '23P01' || errMsg.includes('booking_requests_no_overlap') || errMsg.includes('23P01')) {
+      const isDeadlock = cause?.code === '40P01' || errMsg.includes('deadlock detected');
+      if (isDeadlock) {
+        logger.warn('[Trackman Webhook] Deadlock detected on insert — retrying after brief delay', {
+          extra: { trackmanBookingId, date: slotDate, time: startTime }
+        });
+        await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
+        try {
+          result = await db.execute(sql`INSERT INTO booking_requests 
+             (request_date, start_time, end_time, duration_minutes, resource_id,
+              user_email, user_name, status, trackman_booking_id, trackman_external_id,
+              trackman_player_count, is_unmatched, staff_notes,
+              origin, last_sync_source, last_trackman_sync_at, created_at, updated_at)
+             VALUES (${slotDate}, ${startTime}, ${endTime}, ${durationMinutes}, ${resourceId}, ${customerEmail || ''}, ${customerName || 'Unknown (Trackman)'}, ${bookingStatus}, ${trackmanBookingId}, ${externalBookingId || null}, ${playerCount}, true, ${conflictNote || null},
+                     'trackman_webhook', 'trackman_webhook', NOW(), NOW(), NOW())
+             ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO UPDATE SET
+               last_trackman_sync_at = NOW(),
+               updated_at = NOW()
+             RETURNING id, (xmax = 0) AS was_inserted`);
+        } catch (retryError: unknown) {
+          const retryMsg = retryError instanceof Error ? retryError.message : String(retryError);
+          const retryCause = (retryError as { cause?: { code?: string } })?.cause;
+          const isOverlapAfterDeadlock = retryCause?.code === '23P01' || retryMsg.includes('booking_requests_no_overlap') || retryMsg.includes('23P01');
+          if (!isOverlapAfterDeadlock) {
+            logger.error('[Trackman Webhook] Insert failed even after deadlock retry', {
+              error: retryError instanceof Error ? retryError : new Error(String(retryError)),
+              extra: { trackmanBookingId, date: slotDate, time: startTime }
+            });
+            return { created: false };
+          }
+          logger.info('[Trackman Webhook] Deadlock retry hit overlap constraint — falling through to conflict resolution', {
+            extra: { trackmanBookingId, date: slotDate, time: startTime }
+          });
+        }
+      }
+      const isOverlap = cause?.code === '23P01' || errMsg.includes('booking_requests_no_overlap') || errMsg.includes('23P01');
+      if (!result && (isOverlap || isDeadlock)) {
         logger.info('[Trackman Webhook] Overlap constraint hit — cancelling conflicting bookings (Trackman is authoritative)', {
           extra: { trackmanBookingId, date: slotDate, time: startTime, endTime, resourceId }
         });
@@ -885,7 +920,7 @@ export async function createUnmatchedBookingRequest(
                 UPDATE booking_requests 
                 SET status = 'cancelled', updated_at = NOW(),
                     staff_notes = COALESCE(staff_notes, '') || ${`\n[Auto-cancelled: superseded by Trackman booking ${trackmanBookingId}]`}
-                WHERE id = ANY(${conflictIds})`);
+                WHERE id = ANY(${sql.raw(`ARRAY[${conflictIds.join(',')}]::int[]`)})`);
 
               logger.info('[Trackman Webhook] Cancelled conflicting bookings to make room for Trackman booking', {
                 extra: { 
@@ -915,7 +950,7 @@ export async function createUnmatchedBookingRequest(
           });
           return { created: false };
         }
-      } else {
+      } else if (!result) {
         throw insertError;
       }
     }

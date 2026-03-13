@@ -53,7 +53,8 @@ async function resyncWellnessAvailabilityBlocks(
           wellnessClassId,
         });
       } catch (insertErr: any) {
-        if (insertErr?.code === '23505') {
+        const pgCode = insertErr?.code || insertErr?.cause?.code;
+        if (pgCode === '23505') {
           logger.debug(`[Wellness Sync] Skipped duplicate block for class #${wellnessClassId} resource ${resourceId}`);
         } else {
           throw insertErr;

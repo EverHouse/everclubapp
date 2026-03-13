@@ -53,7 +53,8 @@ async function resyncEventAvailabilityBlocks(
           eventId,
         });
       } catch (insertErr: any) {
-        if (insertErr?.code === '23505') {
+        const pgCode = insertErr?.code || insertErr?.cause?.code;
+        if (pgCode === '23505') {
           logger.debug(`[Events Sync] Skipped duplicate block for event #${eventId} resource ${resourceId}`);
         } else {
           throw insertErr;

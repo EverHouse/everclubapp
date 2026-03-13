@@ -206,7 +206,8 @@ export async function convertToInstructorBlock(
       createdBy: staffEmail
     }).returning();
   } catch (insertErr: any) {
-    if (insertErr?.code === '23505') {
+    const pgCode = insertErr?.code || insertErr?.cause?.code;
+    if (pgCode === '23505') {
       logger.debug(`[Trackman] Skipped duplicate instructor block for ${ownerName} on ${bookingData.requestDate}`);
       return;
     }
@@ -713,7 +714,8 @@ export async function markBookingAsEvent(params: {
       try {
         await tx.insert(availabilityBlocks).values(blockValues);
       } catch (insertErr: any) {
-        if (insertErr?.code === '23505') {
+        const pgCode = insertErr?.code || insertErr?.cause?.code;
+        if (pgCode === '23505') {
           logger.debug(`[Trackman] Skipped duplicate closure blocks for event: ${eventTitle}`);
         } else {
           throw insertErr;

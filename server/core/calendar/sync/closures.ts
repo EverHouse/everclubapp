@@ -239,7 +239,8 @@ async function createAvailabilityBlocks(
          VALUES ${sql.join(valueParts, sql`, `)}`
       );
     } catch (insertErr: any) {
-      if (insertErr?.code === '23505') {
+      const pgCode = insertErr?.code || insertErr?.cause?.code;
+      if (pgCode === '23505') {
         logger.debug(`[Closures Sync] Skipped duplicate blocks for closure #${closureId}`);
       } else {
         throw insertErr;

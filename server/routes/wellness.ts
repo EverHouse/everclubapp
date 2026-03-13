@@ -113,7 +113,8 @@ async function createWellnessAvailabilityBlocks(
       await db.execute(sql`INSERT INTO availability_blocks (resource_id, block_date, start_time, end_time, block_type, notes, created_by, wellness_class_id)
          VALUES (${resourceId}, ${classDate}, ${startTime}, ${endTime || startTime}, ${'wellness'}, ${blockNotes ?? null}, ${createdBy || 'system'}, ${wellnessClassId ?? null})`);
     } catch (insertErr: any) {
-      if (insertErr?.code === '23505') {
+      const pgCode = insertErr?.code || insertErr?.cause?.code;
+      if (pgCode === '23505') {
         logger.debug(`[Wellness] Skipped duplicate block for class #${wellnessClassId} resource ${resourceId}`);
       } else {
         throw insertErr;

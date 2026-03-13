@@ -78,7 +78,8 @@ async function createEventAvailabilityBlocks(
         eventId,
       });
     } catch (insertErr: any) {
-      if (insertErr?.code === '23505') {
+      const pgCode = insertErr?.code || insertErr?.cause?.code;
+      if (pgCode === '23505') {
         logger.debug(`[Events] Skipped duplicate block for event #${eventId} resource ${resourceId}`);
       } else {
         throw insertErr;
@@ -140,7 +141,8 @@ async function updateEventAvailabilityBlocks(
             eventId,
           });
         } catch (insertErr: any) {
-          if (insertErr?.code === '23505') {
+          const pgCode = insertErr?.code || insertErr?.cause?.code;
+          if (pgCode === '23505') {
             logger.debug(`[Events] Skipped duplicate block for event #${eventId} resource ${resourceId}`);
           } else {
             throw insertErr;
@@ -1619,7 +1621,8 @@ router.post('/api/admin/backfill-availability-blocks', isStaffOrAdmin, async (re
               wellnessClassId: row.id,
             });
           } catch (insertErr: any) {
-            if (insertErr?.code === '23505') {
+            const pgCode = insertErr?.code || insertErr?.cause?.code;
+            if (pgCode === '23505') {
               logger.debug(`[Backfill] Skipped duplicate block for wellness class #${row.id} resource ${resourceId}`);
             } else {
               throw insertErr;
