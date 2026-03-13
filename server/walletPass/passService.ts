@@ -85,8 +85,6 @@ export async function generatePassForMember(memberId: string): Promise<Buffer | 
     const tierData = tierResult.length > 0 ? tierResult[0] : null;
     const guestPassData = guestPassResult.length > 0 ? guestPassResult[0] : null;
 
-    const memberName = [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Member';
-
     let memberSince = '';
     if (user.joinDate) {
       const date = new Date(user.joinDate);
@@ -99,7 +97,8 @@ export async function generatePassForMember(memberId: string): Promise<Buffer | 
 
     const passData: PassData = {
       memberId: user.id,
-      memberName,
+      firstName: user.firstName || 'Member',
+      lastName: user.lastName || '',
       memberEmail: user.email,
       tier,
       memberSince,

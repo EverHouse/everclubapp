@@ -151,8 +151,6 @@ router.get('/api/member/wallet-pass', isAuthenticated, async (req, res) => {
     }
     const guestPassData = guestPassResult.length > 0 ? guestPassResult[0] : null;
 
-    const memberName = [user.firstName, user.lastName].filter(Boolean).join(' ') || sessionUser.name || 'Member';
-
     let memberSince = '';
     if (user.joinDate) {
       const date = new Date(user.joinDate);
@@ -165,7 +163,8 @@ router.get('/api/member/wallet-pass', isAuthenticated, async (req, res) => {
 
     const passData: PassData = {
       memberId: user.id,
-      memberName,
+      firstName: user.firstName || sessionUser.name || 'Member',
+      lastName: user.lastName || '',
       memberEmail: user.email,
       tier,
       memberSince,

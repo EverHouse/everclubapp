@@ -8,7 +8,8 @@ import { logger } from '../core/logger';
 
 interface PassData {
   memberId: string;
-  memberName: string;
+  firstName: string;
+  lastName: string;
   memberEmail: string;
   tier: string;
   memberSince: string;
@@ -127,6 +128,13 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
   });
 
   const secondaryFields: Array<{ key: string; label: string; value: string }> = [];
+  if (data.lastName) {
+    secondaryFields.push({
+      key: 'lastName',
+      label: 'LAST NAME',
+      value: data.lastName,
+    });
+  }
   if (data.memberSince) {
     secondaryFields.push({
       key: 'memberSince',
@@ -159,7 +167,7 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
     serialNumber: `EVERCLUB-${data.memberId}`,
     teamIdentifier: config.teamId,
     organizationName: 'Ever Club',
-    description: `Ever Club ${data.tier} Membership`,
+    description: `Ever Club ${data.tier} Membership - ${data.firstName} ${data.lastName}`,
     foregroundColor: hexToRgb(colors.foreground),
     backgroundColor: hexToRgb(colors.bg),
     labelColor: hexToRgb(colors.label),
@@ -174,9 +182,9 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
     headerFields,
     primaryFields: [
       {
-        key: 'memberName',
-        label: 'MEMBER NAME',
-        value: data.memberName,
+        key: 'firstName',
+        label: 'FIRST NAME',
+        value: data.firstName,
       },
     ],
     secondaryFields,
