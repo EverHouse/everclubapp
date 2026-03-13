@@ -77,7 +77,7 @@ async function resetGuestPasses(): Promise<void> {
       logger.info(`[Guest Pass Reset] Reset ${row.member_email}: 0/${row.passes_total} passes used`);
       schedulerTracker.recordRun('Guest Pass Reset', true);
 
-      sendPassUpdateForMemberByEmail(row.member_email).catch(err => {
+      sendPassUpdateForMemberByEmail(row.member_email as string).catch(err => {
         logger.warn('[Guest Pass Reset] Wallet pass push failed', { extra: { email: row.member_email, error: String(err) } });
       });
     }
