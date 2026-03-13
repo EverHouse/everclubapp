@@ -135,7 +135,16 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
     });
   }
 
-  const auxiliaryFields: Array<{ key: string; label: string; value: string; textAlignment?: string }> = [];
+  const headerFields: Array<{ key: string; label: string; value: string; textAlignment?: string }> = [
+    {
+      key: 'tier',
+      label: 'TIER',
+      value: data.tier,
+      textAlignment: 'PKTextAlignmentRight',
+    },
+  ];
+
+  const auxiliaryFields: Array<{ key: string; label: string; value: string }> = [];
   if (data.memberEmail) {
     auxiliaryFields.push({
       key: 'email',
@@ -143,12 +152,6 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
       value: data.memberEmail,
     });
   }
-  auxiliaryFields.push({
-    key: 'tier',
-    label: 'TIER',
-    value: data.tier,
-    textAlignment: 'PKTextAlignmentRight',
-  });
 
   const passJson: Record<string, unknown> = {
     formatVersion: 1,
@@ -168,6 +171,7 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
   }
 
   passJson.generic = {
+    headerFields,
     primaryFields: [
       {
         key: 'memberName',
