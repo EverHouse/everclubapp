@@ -8,6 +8,7 @@ import { refundGuestPass } from '../../routes/guestPasses';
 import { broadcastAvailabilityUpdate } from '../websocket';
 import { queueJob } from '../jobQueue';
 import { createCalendarEventOnCalendar, getCalendarIdByName, deleteCalendarEvent, CALENDAR_CONFIG } from '../calendar/index';
+import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { bookingEvents } from '../bookingEvents';
 import { logMemberAction } from '../auditLog';
@@ -95,7 +96,7 @@ export async function handleCancellationCascade(
 
       const userEmailMap = new Map<string, string>();
       if (memberUserIds.length > 0) {
-        const emailsResult = await tx.execute(sql`SELECT id::text, email FROM users WHERE id::text = ANY(${memberUserIds}) OR LOWER(email) = ANY(SELECT LOWER(unnest(${memberUserIds}::text[])))`);
+        const emailsResult = await tx.execute(sql`SELECT id::text, email FROM users WHERE id::text = ANY(${toTextArrayLiteral(memberUserIds)}::text[]) OR LOWER(email) = ANY(SELECT LOWER(unnest(${toTextArrayLiteral(memberUserIds)}::text[])))`);
         for (const row of emailsResult.rows as unknown as { id: string; email: string }[]) {
           userEmailMap.set(row.id, row.email);
           userEmailMap.set(row.email.toLowerCase(), row.email);

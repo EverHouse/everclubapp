@@ -40,6 +40,22 @@ describe('getErrorCode', () => {
   it('returns undefined for null', () => {
     expect(getErrorCode(null)).toBeUndefined();
   });
+
+  it('extracts code from Drizzle-wrapped error cause', () => {
+    const drizzleError = new Error('DrizzleError');
+    (drizzleError as any).cause = { code: '23505' };
+    expect(getErrorCode(drizzleError)).toBe('23505');
+  });
+
+  it('prefers direct code over cause code', () => {
+    expect(getErrorCode({ code: 'DIRECT', cause: { code: '23505' } })).toBe('DIRECT');
+  });
+
+  it('extracts deadlock code from wrapped error', () => {
+    const err = new Error('wrapped');
+    (err as any).cause = { code: '40P01' };
+    expect(getErrorCode(err)).toBe('40P01');
+  });
 });
 
 describe('getErrorStatusCode', () => {

@@ -1664,7 +1664,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
                   await tx.execute(sql`
                     UPDATE booking_requests SET status = 'cancelled', updated_at = NOW(),
                       staff_notes = COALESCE(staff_notes, '') || ${`\n[Auto-cancelled: superseded by Trackman reprocess ${event.trackman_booking_id}]`}
-                    WHERE id = ANY(${conflictIds})`);
+                    WHERE id = ANY(${sql.raw(`ARRAY[${conflictIds.join(',')}]::int[]`)})`);
                   logger.info('[Trackman Reprocess] Cancelled overlapping bookings', { extra: { trackmanBookingId: event.trackman_booking_id, cancelledIds: conflictIds } });
                 }
                 return await tx.execute(sql`INSERT INTO booking_requests 

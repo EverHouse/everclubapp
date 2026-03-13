@@ -350,7 +350,10 @@ export async function reconcileDailyRefunds() {
             const userIds = (participantResult.rows as Array<{ user_id: string | null }>).map(r => r.user_id).filter(Boolean);
             let emailInfo = '';
             if (userIds.length > 0) {
-              const emailResult = await db.execute(sql`SELECT email FROM users WHERE id = ANY(${userIds})`);
+              const userIdInts = userIds.map(Number).filter(n => !isNaN(n));
+              const emailResult = userIdInts.length > 0
+                ? await db.execute(sql`SELECT email FROM users WHERE id = ANY(${sql.raw(`ARRAY[${userIdInts.join(',')}]::int[]`)})`)
+                : { rows: [] };
               emailInfo = ': ' + (emailResult.rows as Array<{ email: string }>).map(r => r.email).join(', ');
             }
             logger.warn(`[Reconcile] Healed ${participantResult.rowCount} participant(s) marked refunded for PI ${paymentIntentId}${emailInfo}`);

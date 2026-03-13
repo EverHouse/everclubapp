@@ -13,7 +13,9 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function getErrorCode(error: unknown): string | undefined {
-  return hasProperty(error, 'code') ? String(error.code) : undefined;
+  if (hasProperty(error, 'code') && error.code) return String(error.code);
+  if (hasProperty(error, 'cause') && isNonNullObject(error.cause) && 'code' in error.cause && error.cause.code) return String(error.cause.code);
+  return undefined;
 }
 
 export function getErrorStatusCode(error: unknown): number | undefined {
