@@ -241,6 +241,7 @@ async function initializeApp() {
 
   app.get('/api/ready', async (req, res) => {
     const startupHealth = getStartupHealth();
+    const backgroundTasksComplete = !!startupHealth.completedAt;
 
     if (isShuttingDown) {
       return res.status(503).json({ ready: false, reason: 'shutting_down' });
@@ -254,6 +255,7 @@ async function initializeApp() {
       await db.execute(sql`SELECT 1`);
       res.status(200).json({
         ready: true,
+        backgroundTasksComplete,
         startupHealth,
         uptime: process.uptime()
       });

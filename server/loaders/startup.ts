@@ -104,8 +104,6 @@ export async function runStartupTasks(): Promise<void> {
         logger.error('[Startup] Seeding tier features failed', { error: err instanceof Error ? err : new Error(String(err)) });
         startupHealth.warnings.push(`Tier features: ${getErrorMessage(err)}`);
       }
-    })(),
-    (async () => {
       try {
         await validateTierHierarchy();
       } catch (err: unknown) {
