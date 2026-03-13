@@ -93,6 +93,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
   useEffect(() => {
     const handleBookingAutoConfirmed = (event: CustomEvent) => {
       const detail = event.detail;
+      const bookingId = detail?.data?.bookingId;
       const memberName = detail?.data?.memberName || 'Member';
       const date = detail?.data?.date || '';
       const time = detail?.data?.time || '';
@@ -102,6 +103,22 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
       const message = `Booking confirmed: ${memberName} for ${date}${timeFormatted ? ` at ${timeFormatted}` : ''}${bay ? ` (${bay})` : ''}`;
       
       showToast(message, 'success', 5000);
+
+      if (bookingId) {
+        updatePendingRequests(prev => prev.filter(r => String(r.id) !== String(bookingId)));
+
+        const apiId = typeof bookingId === 'string' ? parseInt(String(bookingId).replace('cal_', '')) : bookingId;
+        const newActivity: RecentActivity = {
+          id: `auto-confirm-${apiId}-${Date.now()}`,
+          type: 'booking_approved',
+          timestamp: new Date().toISOString(),
+          primary_text: memberName,
+          secondary_text: `Auto-confirmed${bay ? ` – ${bay}` : ''}`,
+          icon: 'check_circle',
+        };
+        updateRecentActivity(prev => [newActivity, ...prev]);
+      }
+
       refresh();
     };
 
@@ -109,7 +126,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
     return () => {
       window.removeEventListener('booking-auto-confirmed', handleBookingAutoConfirmed as EventListener);
     };
-  }, [showToast, refresh]);
+  }, [showToast, refresh, updatePendingRequests, updateRecentActivity]);
 
   const handleScanSuccess = async (decodedText: string) => {
     setQrScannerOpen(false);
