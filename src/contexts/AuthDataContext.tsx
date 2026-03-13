@@ -140,6 +140,7 @@ export const AuthDataProvider: React.FC<{children: ReactNode}> = ({ children }) 
             const sessionProfile: MemberProfile = {
               id: sessionData.member.id,
               name: [sessionData.member.firstName, sessionData.member.lastName].filter(Boolean).join(' ') || sessionData.member.email || 'Member',
+              firstName: sessionData.member.firstName || null,
               tier: sessionData.member.tier || 'Social',
               tags: sessionData.member.tags || [],
               status: 'Active' as const,
@@ -245,6 +246,7 @@ export const AuthDataProvider: React.FC<{children: ReactNode}> = ({ children }) 
     const memberProfile: MemberProfile = {
       id: member.id,
       name: member.name || member.email || 'Member',
+      firstName: member.firstName || null,
       tier: member.tier || 'Core',
       tags: member.tags || [],
       status: 'Active',

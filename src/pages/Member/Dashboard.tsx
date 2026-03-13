@@ -848,7 +848,7 @@ const Dashboard: React.FC = () => {
         <div className="mb-6 animate-content-enter">
           <div className="flex items-center gap-3">
             <h1 className={`text-3xl sm:text-4xl md:text-5xl leading-none translate-y-[1px] ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)', fontOpticalSizing: 'auto', letterSpacing: '-0.03em' }}>
-              {getGreeting()}, {user?.name.split(' ')[0]}
+              {getGreeting()}, {user?.firstName || (user?.name && !user.name.includes('@') ? user.name.split(' ')[0] : 'there')}
             </h1>
           </div>
           <p className={`text-sm lg:text-base font-medium mt-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
@@ -1435,7 +1435,7 @@ const Dashboard: React.FC = () => {
     <FirstLoginWelcomeModal
       isOpen={showFirstLoginModal}
       onClose={() => setShowFirstLoginModal(false)}
-      firstName={user?.name?.split(' ')[0]}
+      firstName={user?.firstName || (user?.name && !user.name.includes('@') ? user.name.split(' ')[0] : undefined)}
     />
 
     <NfcCheckinWelcomeModal
