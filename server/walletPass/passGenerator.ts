@@ -127,14 +127,15 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
     value: data.tier,
   });
 
-  const headerFields: Array<{ key: string; label: string; value: string; textAlignment?: string }> = [
-    {
-      key: 'tier',
-      label: 'TIER',
-      value: data.tier,
+  const headerFields: Array<{ key: string; label: string; value: string; textAlignment?: string }> = [];
+  if (data.memberSince) {
+    headerFields.push({
+      key: 'memberSince',
+      label: 'MEMBER SINCE',
+      value: data.memberSince,
       textAlignment: 'PKTextAlignmentRight',
-    },
-  ];
+    });
+  }
 
   const memberName = [data.firstName, data.lastName].filter(Boolean).join(' ');
   const secondaryFields: Array<{ key: string; label: string; value: string }> = [
@@ -143,14 +144,12 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
       label: 'MEMBER',
       value: memberName || 'Member',
     },
+    {
+      key: 'tier',
+      label: 'TIER',
+      value: data.tier,
+    },
   ];
-  if (data.memberSince) {
-    secondaryFields.push({
-      key: 'memberSince',
-      label: 'MEMBER SINCE',
-      value: data.memberSince,
-    });
-  }
 
   const auxiliaryFields: Array<{ key: string; label: string; value: string }> = [];
   if (data.memberEmail) {
