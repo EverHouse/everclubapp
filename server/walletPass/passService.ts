@@ -2,7 +2,7 @@ import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { users, membershipTiers, guestPasses } from '../../shared/schema';
 import { normalizeTierName } from '../../shared/constants/tiers';
-import { generatePkPass, type PassData, type WalletConfig } from './passGenerator';
+import { generatePkPass, type PassData, type WalletConfig, type TierColors } from './passGenerator';
 import { getOrCreateAuthToken } from './apnPushService';
 import { getSettingValue, getSettingBoolean } from '../core/settingsHelper';
 import { logger } from '../core/logger';
@@ -66,6 +66,9 @@ export async function generatePassForMember(memberId: string): Promise<Buffer | 
         dailySimMinutes: membershipTiers.dailySimMinutes,
         dailyConfRoomMinutes: membershipTiers.dailyConfRoomMinutes,
         guestPassesPerMonth: membershipTiers.guestPassesPerMonth,
+        walletPassBgColor: membershipTiers.walletPassBgColor,
+        walletPassForegroundColor: membershipTiers.walletPassForegroundColor,
+        walletPassLabelColor: membershipTiers.walletPassLabelColor,
       })
         .from(membershipTiers)
         .where(sql`LOWER(${membershipTiers.name}) = LOWER(${tier})`)
@@ -97,6 +100,7 @@ export async function generatePassForMember(memberId: string): Promise<Buffer | 
     const passData: PassData = {
       memberId: user.id,
       memberName,
+      memberEmail: user.email,
       tier,
       memberSince,
       dailySimulatorMinutes: tierData?.dailySimMinutes ?? null,
@@ -107,7 +111,16 @@ export async function generatePassForMember(memberId: string): Promise<Buffer | 
       webServiceURL: webServiceURL || undefined,
     };
 
-    return await generatePkPass(passData, walletConfig);
+    let dbColors: TierColors | null = null;
+    if (tierData?.walletPassBgColor || tierData?.walletPassForegroundColor || tierData?.walletPassLabelColor) {
+      dbColors = {
+        bg: tierData.walletPassBgColor || '',
+        foreground: tierData.walletPassForegroundColor || '',
+        label: tierData.walletPassLabelColor || '',
+      };
+    }
+
+    return await generatePkPass(passData, walletConfig, dbColors);
   } catch (err) {
     logger.error('[WalletPass] Failed to generate pass for member', {
       error: err instanceof Error ? err : new Error(String(err)),

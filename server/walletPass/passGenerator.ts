@@ -34,11 +34,11 @@ interface WalletConfig {
 }
 
 const DEFAULT_TIER_COLORS: Record<string, TierColors> = {
-  VIP: { bg: '#555555', foreground: '#FFFFFF', label: '#7CB342' },
-  Premium: { bg: '#555555', foreground: '#FFFFFF', label: '#7CB342' },
-  Corporate: { bg: '#555555', foreground: '#FFFFFF', label: '#7CB342' },
-  Core: { bg: '#555555', foreground: '#FFFFFF', label: '#7CB342' },
-  Social: { bg: '#555555', foreground: '#FFFFFF', label: '#7CB342' },
+  VIP: { bg: '#E5E4E2', foreground: '#374151', label: '#6B7280' },
+  Premium: { bg: '#D4AF37', foreground: '#1a1a1a', label: '#4a4a4a' },
+  Corporate: { bg: '#374151', foreground: '#FFFFFF', label: '#D1D5DB' },
+  Core: { bg: '#293515', foreground: '#FFFFFF', label: '#D1D5DB' },
+  Social: { bg: '#CCB8E4', foreground: '#293515', label: '#4a4a4a' },
 };
 
 function isLightBackground(hex: string): boolean {
@@ -126,14 +126,29 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
     value: data.tier,
   });
 
-  const auxiliaryFields: Array<{ key: string; label: string; value: string }> = [];
+  const secondaryFields: Array<{ key: string; label: string; value: string }> = [];
   if (data.memberSince) {
-    auxiliaryFields.push({
+    secondaryFields.push({
       key: 'memberSince',
       label: 'MEMBER SINCE',
       value: data.memberSince,
     });
   }
+
+  const auxiliaryFields: Array<{ key: string; label: string; value: string; textAlignment?: string }> = [];
+  if (data.memberEmail) {
+    auxiliaryFields.push({
+      key: 'email',
+      label: 'EMAIL',
+      value: data.memberEmail,
+    });
+  }
+  auxiliaryFields.push({
+    key: 'tier',
+    label: 'TIER',
+    value: data.tier,
+    textAlignment: 'PKTextAlignmentRight',
+  });
 
   const passJson: Record<string, unknown> = {
     formatVersion: 1,
@@ -157,17 +172,11 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
     primaryFields: [
       {
         key: 'memberName',
-        label: 'MEMBER',
+        label: 'MEMBER NAME',
         value: data.memberName,
       },
     ],
-    secondaryFields: [
-      {
-        key: 'tier',
-        label: 'TIER',
-        value: data.tier,
-      },
-    ],
+    secondaryFields,
     auxiliaryFields,
     backFields,
   };

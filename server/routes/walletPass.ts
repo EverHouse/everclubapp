@@ -166,6 +166,7 @@ router.get('/api/member/wallet-pass', isAuthenticated, async (req, res) => {
     const passData: PassData = {
       memberId: user.id,
       memberName,
+      memberEmail: user.email,
       tier,
       memberSince,
       dailySimulatorMinutes: tierData?.dailySimMinutes ?? null,
