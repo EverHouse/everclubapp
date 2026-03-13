@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getTodayPacific, addDaysToPacificDate, getNowTimePacific } from '../../../utils/dateUtils';
+import { bookingsKeys, simulatorKeys } from '../../../hooks/queries/useBookingsQueries';
 import {
   commandCenterKeys,
   useCommandCenterTodaysBookings,
@@ -431,7 +432,11 @@ export function useCommandCenterData(userEmail?: string) {
   ]);
 
   const refresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: commandCenterKeys.all });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: commandCenterKeys.all }),
+      queryClient.invalidateQueries({ queryKey: bookingsKeys.all }),
+      queryClient.invalidateQueries({ queryKey: simulatorKeys.all }),
+    ]);
   }, [queryClient]);
 
   const today = getTodayPacific();

@@ -65,7 +65,9 @@ export function useWebSocketQuerySync() {
     };
 
     const handleBookingActionCompleted = () => {
-      if (import.meta.env.DEV) console.log('[WebSocketQuerySync] Invalidating command center for booking-action-completed');
+      if (import.meta.env.DEV) console.log('[WebSocketQuerySync] Invalidating command center, bookings, and simulator for booking-action-completed');
+      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
+      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
       invalidateCommandCenterBookings();
     };
 

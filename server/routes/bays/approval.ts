@@ -215,7 +215,8 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
     return res.json({
       success: result.success,
       status: result.status,
-      message: 'Cancellation completed successfully',
+      message: result.alreadyCancelled ? 'Booking was already cancelled' : 'Cancellation completed successfully',
+      alreadyCancelled: result.alreadyCancelled || false,
       cleanup_errors: result.sideEffectErrors
     });
   } catch (err: unknown) {

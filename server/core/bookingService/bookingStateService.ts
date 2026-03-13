@@ -30,6 +30,7 @@ interface CancelResult {
     trackmanBookingId: string | null;
   };
   sideEffectErrors?: string[];
+  alreadyCancelled?: boolean;
   error?: string;
   statusCode?: number;
 }
@@ -410,6 +411,15 @@ export class BookingStateService {
     }
 
     if (existing.status !== 'cancellation_pending') {
+      if (existing.status === 'cancelled') {
+        return {
+          success: true,
+          status: 'cancelled',
+          bookingId,
+          bookingData: this.extractBookingData(existing),
+          alreadyCancelled: true,
+        };
+      }
       return {
         success: false,
         status: 'cancelled',

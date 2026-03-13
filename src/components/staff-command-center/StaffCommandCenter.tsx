@@ -468,7 +468,12 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         credentials: 'include'
       });
       if (res.ok) {
-        showToast('Cancellation completed', 'success');
+        const result = await res.json().catch(() => ({}));
+        if (result.alreadyCancelled) {
+          showToast('Booking was already cancelled', 'info');
+        } else {
+          showToast('Cancellation completed', 'success');
+        }
         window.dispatchEvent(new CustomEvent('booking-action-completed'));
         refresh();
       } else {
