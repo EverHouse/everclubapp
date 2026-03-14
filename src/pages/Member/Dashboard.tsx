@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
 import { useData } from '../../contexts/DataContext';
@@ -178,6 +178,7 @@ interface DashboardRawBooking {
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { user, actualUser, viewAsUser, isViewingAs, addBooking: _addBooking, deleteBooking } = useData();
   const { effectiveTheme } = useTheme();
@@ -204,6 +205,14 @@ const Dashboard: React.FC = () => {
   const [bannerExiting, setBannerExiting] = useState(false);
   const bannerExitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (bannerExitTimer.current) clearTimeout(bannerExitTimer.current); }, []);
+  const [showPasskeyNudge, setShowPasskeyNudge] = useState(false);
+  useEffect(() => {
+    const state = location.state as { suggestPasskey?: boolean } | null;
+    if (state?.suggestPasskey) {
+      setShowPasskeyNudge(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
   // Optimistic UI state
   const [optimisticCancelledIds, setOptimisticCancelledIds] = useState<Set<number>>(new Set());
   const [scheduleRef] = useAutoAnimate();
@@ -814,7 +823,33 @@ const Dashboard: React.FC = () => {
       <div className="px-6 lg:px-8 xl:px-12 pt-4 md:pt-2 pb-32 font-sans relative flex-1">
         <ClosureAlert />
         <AnnouncementAlert />
-        
+
+        {showPasskeyNudge && (
+          <div className={`mb-4 py-3 px-4 rounded-xl flex items-start justify-between gap-3 animate-pop-in ${isDark ? 'bg-emerald-500/15 border border-emerald-500/30' : 'bg-emerald-50 border border-emerald-200'}`}>
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <span className={`material-symbols-outlined text-xl flex-shrink-0 mt-0.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>fingerprint</span>
+              <div className="min-w-0 flex-1">
+                <h4 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>Skip the code next time</h4>
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-white/70' : 'text-gray-600'}`}>Set up Face ID or Touch ID for instant sign-in.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => { localStorage.setItem('eh_passkey_nudge_dismissed', '1'); startNavigation(); navigate('/profile', { state: { scrollToPasskeys: true } }); }}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${isDark ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
+              >
+                Set up
+              </button>
+              <button
+                onClick={() => { setShowPasskeyNudge(false); localStorage.setItem('eh_passkey_nudge_dismissed', '1'); }}
+                className={`p-1 rounded-lg transition-colors ${isDark ? 'text-white/50 hover:text-white/80 hover:bg-white/10' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         <SmoothReveal isLoaded={!!bannerAnnouncement && !bannerDismissed && !isBannerInitiallyDismissed} delay={50}>
         {bannerAnnouncement && !bannerDismissed && !isBannerInitiallyDismissed && (
           <div className={`mb-4 py-3 px-4 rounded-xl flex items-start justify-between gap-3 transition-all duration-normal ease-spring-smooth ${bannerExiting ? 'opacity-0 scale-95 max-h-0 mb-0 py-0 overflow-hidden' : 'animate-pop-in max-h-[200px]'} ${isDark ? 'bg-lavender/20 border border-lavender/30' : 'bg-lavender/30 border border-lavender/40'}`}>

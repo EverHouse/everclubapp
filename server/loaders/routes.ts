@@ -52,6 +52,7 @@ import conferencePrepaymentRouter from '../routes/conference/prepayment';
 import pricingRouter from '../routes/pricing';
 import authGoogleRouter from '../routes/auth-google';
 import authAppleRouter from '../routes/auth-apple';
+import authPasskeyRouter from '../routes/auth-passkey';
 import idScannerRouter from '../routes/idScanner';
 import emailTemplatesRouter from '../routes/emailTemplates';
 import monitoringRouter from '../routes/monitoring';
@@ -71,6 +72,7 @@ export function registerRoutes(app: Express): void {
   app.use(authRouter);
   app.use(authGoogleRouter);
   app.use(authAppleRouter);
+  app.use(authPasskeyRouter);
   app.use('/api/auth', testAuthRouter);
   app.use(hubspotRouter);
   app.use(accountRouter);

@@ -164,7 +164,7 @@ function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
   ]);
 }
 
-async function createSupabaseToken(user: { id: string, email: string, role: string, firstName?: string, lastName?: string }): Promise<string | null> {
+export async function createSupabaseToken(user: { id: string, email: string, role: string, firstName?: string, lastName?: string }): Promise<string | null> {
   try {
     const available = await isSupabaseAvailable();
     if (!available) {

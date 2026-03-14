@@ -7,6 +7,7 @@ import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
 import AppleSignInButton from '../../components/AppleSignInButton';
+import { startAuthentication } from '@simplewebauthn/browser';
 
 const Spinner = () => (
   <WalkingGolferSpinner size="sm" variant="light" />
@@ -59,6 +60,8 @@ const Login: React.FC = () => {
   
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
   
   const isDev = import.meta.env.DEV;
   
@@ -66,6 +69,110 @@ const Login: React.FC = () => {
     (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
     window.matchMedia('(display-mode: standalone)').matches
   );
+
+  const conditionalActiveRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.PublicKeyCredential) {
+      setPasskeyAvailable(true);
+
+      const tryConditionalUI = async () => {
+        try {
+          const available = typeof PublicKeyCredential.isConditionalMediationAvailable === 'function'
+            && await PublicKeyCredential.isConditionalMediationAvailable();
+          if (!available) return;
+
+          const optionsRes = await fetch('/api/auth/passkey/authenticate/options', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+          });
+          if (!optionsRes.ok) return;
+
+          const options = await optionsRes.json();
+          conditionalActiveRef.current = true;
+
+          const authResponse = await startAuthentication({
+            optionsJSON: options,
+            useBrowserAutofill: true,
+          });
+
+          conditionalActiveRef.current = false;
+          setPasskeyLoading(true);
+          const verifyRes = await fetch('/api/auth/passkey/authenticate/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(authResponse),
+            credentials: 'include',
+          });
+          const data = await verifyRes.json();
+          if (!verifyRes.ok) throw new Error(data.error || 'Passkey authentication failed');
+
+          loginWithMember(data.member);
+          const isStaff = data.member.role === 'admin' || data.member.role === 'staff';
+          startNavigation();
+          navigate(isStaff ? '/admin' : '/dashboard');
+        } catch (err: unknown) {
+          conditionalActiveRef.current = false;
+          const e = err as { name?: string };
+          if (e?.name === 'AbortError' || e?.name === 'NotAllowedError') return;
+        } finally {
+          setPasskeyLoading(false);
+        }
+      };
+      tryConditionalUI();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handlePasskeyLogin = useCallback(async () => {
+    if (conditionalActiveRef.current) {
+      return;
+    }
+    setPasskeyLoading(true);
+    setError('');
+
+    try {
+      const optionsRes = await fetch('/api/auth/passkey/authenticate/options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      if (!optionsRes.ok) {
+        throw new Error('Failed to start passkey authentication');
+      }
+
+      const options = await optionsRes.json();
+      const authResponse = await startAuthentication({ optionsJSON: options });
+
+      const verifyRes = await fetch('/api/auth/passkey/authenticate/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authResponse),
+        credentials: 'include',
+      });
+
+      const data = await verifyRes.json();
+
+      if (!verifyRes.ok) {
+        throw new Error(data.error || 'Passkey authentication failed');
+      }
+
+      loginWithMember(data.member);
+      const isStaff = data.member.role === 'admin' || data.member.role === 'staff';
+      startNavigation();
+      navigate(isStaff ? '/admin' : '/dashboard');
+    } catch (err: unknown) {
+      const error = err as { name?: string; message?: string };
+      if (error?.name === 'NotAllowedError') {
+        return;
+      }
+      setError((err instanceof Error ? err.message : String(err)) || 'Passkey authentication failed');
+    } finally {
+      setPasskeyLoading(false);
+    }
+  }, [loginWithMember, startNavigation, navigate]);
 
   const handleGoogleLogin = useCallback(async (credential: string) => {
     setGoogleLoading(true);
@@ -358,9 +465,13 @@ const Login: React.FC = () => {
       const isStaff = data.member.role === 'admin' || data.member.role === 'staff';
       const destination = isStaff ? '/admin' : '/dashboard';
       
+      const shouldNudgePasskey = passkeyAvailable && !isStaff && !localStorage.getItem('eh_passkey_nudge_dismissed');
+
       startNavigation();
       if (data.shouldSetupPassword && isStaff) {
         navigate(destination, { state: { showPasswordSetup: true } });
+      } else if (shouldNudgePasskey) {
+        navigate(destination, { state: { suggestPasskey: true } });
       } else {
         navigate(destination);
       }
@@ -491,7 +602,7 @@ const Login: React.FC = () => {
                     <input
                       id="login-email"
                       type="email"
-                      autoComplete="email"
+                      autoComplete="username webauthn"
                       placeholder="Membership Email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -569,6 +680,19 @@ const Login: React.FC = () => {
                   <div className="text-center text-sm text-primary/60 dark:text-white/60">
                     Signing in with Apple...
                   </div>
+                )}
+
+                {passkeyAvailable && (
+                  <button
+                    type="button"
+                    onClick={handlePasskeyLogin}
+                    disabled={loading || googleLoading || appleLoading || passkeyLoading}
+                    className="tactile-btn flex w-full items-center justify-center gap-3 rounded-full border border-black/10 dark:border-white/20 bg-white dark:bg-black px-4 py-3 text-sm font-medium text-black dark:text-white hover:bg-gray-50 dark:hover:bg-white/10 transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
+                    style={{ minHeight: 44 }}
+                  >
+                    <span className="material-symbols-outlined text-lg">fingerprint</span>
+                    {passkeyLoading ? 'Authenticating...' : 'Sign in with Face ID / Touch ID'}
+                  </button>
                 )}
 
                 {showPasswordField && hasPassword && (

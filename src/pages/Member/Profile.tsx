@@ -92,6 +92,8 @@ const Profile: React.FC = () => {
   const [googleUnlinking, setGoogleUnlinking] = useState(false);
   const [appleLinking, setAppleLinking] = useState(false);
   const [appleUnlinking, setAppleUnlinking] = useState(false);
+  const [passkeyRegistering, setPasskeyRegistering] = useState(false);
+  const [passkeyRemoving, setPasskeyRemoving] = useState<number | null>(null);
 
   const isStaffOrAdminProfile = user?.role === 'admin' || user?.role === 'staff';
   const isAdminViewingAs = actualUser?.role === 'admin' && isViewingAs;
@@ -107,6 +109,14 @@ const Profile: React.FC = () => {
     queryFn: () => fetchWithCredentials<{ linked: boolean; appleEmail?: string }>('/api/auth/apple/status'),
     enabled: !!user,
   });
+
+  const { data: passkeyData, refetch: refetchPasskeys } = useQuery({
+    queryKey: ['passkeys'],
+    queryFn: () => fetchWithCredentials<{ passkeys: Array<{ id: number; credentialId: string; deviceName: string | null; createdAt: string; lastUsedAt: string | null }> }>('/api/auth/passkey/list'),
+    enabled: !!user,
+  });
+
+  const passkeySupported = typeof window !== 'undefined' && !!window.PublicKeyCredential;
 
   const { data: accountBalance } = useQuery({
     queryKey: ['accountBalance', user?.email],
@@ -175,7 +185,7 @@ const Profile: React.FC = () => {
   }, [user?.email, queryClient]);
 
   useEffect(() => {
-    const state = location.state as { showPasswordSetup?: boolean; showWaiver?: boolean } | null;
+    const state = location.state as { showPasswordSetup?: boolean; showWaiver?: boolean; scrollToPasskeys?: boolean } | null;
     if (state?.showPasswordSetup && isStaffOrAdminProfile) {
       setShowPasswordSetupBanner(true);
       window.history.replaceState({}, document.title);
@@ -183,6 +193,12 @@ const Profile: React.FC = () => {
     if (state?.showWaiver) {
       setShowWaiverModal(true);
       window.history.replaceState({}, document.title);
+    }
+    if (state?.scrollToPasskeys) {
+      window.history.replaceState({}, document.title);
+      setTimeout(() => {
+        document.getElementById('passkeys-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 500);
     }
   }, [location.state, isStaffOrAdminProfile]);
 
@@ -437,6 +453,72 @@ const Profile: React.FC = () => {
       setAppleUnlinking(false);
     }
   }, [showToast, refetchAppleStatus]);
+
+  const handlePasskeyRegister = useCallback(async () => {
+    setPasskeyRegistering(true);
+    try {
+      const { startRegistration } = await import('@simplewebauthn/browser');
+
+      const optionsRes = await fetch('/api/auth/passkey/register/options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      if (!optionsRes.ok) {
+        throw new Error('Failed to start passkey registration');
+      }
+
+      const options = await optionsRes.json();
+      const regResponse = await startRegistration({ optionsJSON: options });
+
+      const verifyRes = await fetch('/api/auth/passkey/register/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(regResponse),
+        credentials: 'include',
+      });
+
+      const data = await verifyRes.json();
+
+      if (!verifyRes.ok) {
+        throw new Error(data.error || 'Passkey registration failed');
+      }
+
+      await refetchPasskeys();
+      showToast('Passkey registered! You can now sign in with Face ID / Touch ID.', 'success');
+    } catch (err: unknown) {
+      const error = err as { name?: string; message?: string };
+      if (error?.name === 'NotAllowedError') {
+        return;
+      }
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to register passkey', 'error');
+    } finally {
+      setPasskeyRegistering(false);
+    }
+  }, [showToast, refetchPasskeys]);
+
+  const handlePasskeyRemove = useCallback(async (passkeyId: number) => {
+    setPasskeyRemoving(passkeyId);
+    try {
+      const res = await fetch(`/api/auth/passkey/${passkeyId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to remove passkey');
+      }
+
+      await refetchPasskeys();
+      showToast('Passkey removed', 'success');
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to remove passkey', 'error');
+    } finally {
+      setPasskeyRemoving(null);
+    }
+  }, [showToast, refetchPasskeys]);
 
   const handlePushToggle = async (newValue: boolean) => {
     if (!user?.email || pushLoading) return;
@@ -946,6 +1028,79 @@ const Profile: React.FC = () => {
            </div>
          </Section>
 
+         {passkeySupported && (
+           <Section title="Passkeys" isDark={isDark} staggerIndex={6} id="passkeys-section">
+             {passkeyData?.passkeys && passkeyData.passkeys.length > 0 ? (
+               <>
+                 {passkeyData.passkeys.map((pk) => (
+                   <div key={pk.id} className="py-3 px-6 w-full transition-colors">
+                     <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-4">
+                         <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>fingerprint</span>
+                         <div>
+                           <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>
+                             {pk.deviceName || 'Passkey'}
+                           </span>
+                           <p className={`text-xs mt-0.5 ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+                             Added {new Date(pk.createdAt).toLocaleDateString()}
+                             {pk.lastUsedAt && ` · Last used ${new Date(pk.lastUsedAt).toLocaleDateString()}`}
+                           </p>
+                         </div>
+                       </div>
+                       <button
+                         onClick={() => handlePasskeyRemove(pk.id)}
+                         disabled={passkeyRemoving === pk.id}
+                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-fast ${
+                           isDark 
+                             ? 'bg-white/10 text-white/70 hover:bg-red-500/20 hover:text-red-400' 
+                             : 'bg-black/5 text-primary/70 hover:bg-red-50 hover:text-red-600'
+                         } disabled:opacity-50`}
+                       >
+                         {passkeyRemoving === pk.id ? 'Removing...' : 'Remove'}
+                       </button>
+                     </div>
+                   </div>
+                 ))}
+                 <div className="py-3 px-6">
+                   <button
+                     onClick={handlePasskeyRegister}
+                     disabled={passkeyRegistering}
+                     className={`flex items-center gap-2 text-sm font-medium transition-all duration-fast ${
+                       isDark ? 'text-accent hover:text-accent/80' : 'text-primary hover:text-primary/80'
+                     } disabled:opacity-50`}
+                   >
+                     <span className="material-symbols-outlined text-lg">add</span>
+                     {passkeyRegistering ? 'Registering...' : 'Add another passkey'}
+                   </button>
+                 </div>
+               </>
+             ) : (
+               <div className="py-4 px-6">
+                 <div className="flex items-start gap-4">
+                   <span className={`material-symbols-outlined text-2xl mt-0.5 ${isDark ? 'opacity-70' : 'text-primary/70'}`}>fingerprint</span>
+                   <div className="flex-1">
+                     <p className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>
+                       Sign in with Face ID / Touch ID
+                     </p>
+                     <p className={`text-xs mt-1 ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+                       Skip verification codes — sign in instantly with your device's biometrics.
+                     </p>
+                     <button
+                       onClick={handlePasskeyRegister}
+                       disabled={passkeyRegistering}
+                       className={`mt-3 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-fast ${
+                         isDark ? 'bg-accent text-primary' : 'bg-primary text-white'
+                       } disabled:opacity-50`}
+                     >
+                       {passkeyRegistering ? 'Setting up...' : 'Set Up Passkey'}
+                     </button>
+                   </div>
+                 </div>
+               </div>
+             )}
+           </Section>
+         )}
+
          {/* Password Setup Banner for Staff/Admin */}
          {showPasswordSetupBanner && isStaffOrAdminProfile && (
            <div className={`rounded-xl p-4 mb-4 ${isDark ? 'bg-accent/20 border border-accent/30' : 'bg-amber-50 border border-amber-200'}`}>
@@ -1250,8 +1405,8 @@ const Profile: React.FC = () => {
   );
 };
 
-const Section: React.FC<{title: string; children: React.ReactNode; isDark?: boolean; staggerIndex?: number}> = ({ title, children, isDark = true, staggerIndex }) => (
-  <div className="animate-slide-up-stagger" style={staggerIndex !== undefined ? { '--stagger-index': staggerIndex } as React.CSSProperties : undefined}>
+const Section: React.FC<{title: string; children: React.ReactNode; isDark?: boolean; staggerIndex?: number; id?: string}> = ({ title, children, isDark = true, staggerIndex, id }) => (
+  <div id={id} className="animate-slide-up-stagger" style={staggerIndex !== undefined ? { '--stagger-index': staggerIndex } as React.CSSProperties : undefined}>
      <h3 className={`text-2xl leading-tight ml-2 mb-3 ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-headline)' }}>{title}</h3>
      <div className={`rounded-xl overflow-hidden glass-card px-0 divide-y ${isDark ? 'divide-white/20 border-white/25' : 'divide-black/5 border-black/10'}`}>
         {children}

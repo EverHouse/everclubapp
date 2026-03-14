@@ -197,6 +197,13 @@
       "when": 1773964800000,
       "tag": "0054_add_final_lower_email_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1774051200000,
+      "tag": "0055_add_passkeys_table",
+      "breakpoints": true
     }
   ]
 }
