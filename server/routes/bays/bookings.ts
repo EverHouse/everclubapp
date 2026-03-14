@@ -1733,7 +1733,7 @@ async function calculateFeeEstimate(params: {
   } catch (error: unknown) {
     // Do NOT use fallback - this could show incorrect prices
     logger.error('[FeeEstimate] Unified service error', { error: error instanceof Error ? error : new Error(String(error)) });
-    throw new Error('Unable to calculate fee estimate. Please try again.');
+    throw new Error('Unable to calculate fee estimate. Please try again.', { cause: error });
   }
 }
 
