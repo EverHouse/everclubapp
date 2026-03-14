@@ -17,17 +17,42 @@ export function stripSslMode(url: string | undefined): string | undefined {
 }
 
 const poolerUrl = stripSslMode(process.env.DATABASE_POOLER_URL);
-const directUrl = stripSslMode(process.env.DATABASE_URL);
+const rawDirectUrl = stripSslMode(process.env.DATABASE_URL);
+const supabaseDirectUrl = stripSslMode(process.env.SUPABASE_DIRECT_URL);
 const poolerEnabled = process.env.ENABLE_PGBOUNCER === 'true';
-export const usingPooler = poolerEnabled && !!poolerUrl;
+
+function isLocalDatabase(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    const u = new URL(url);
+    return ['localhost', '127.0.0.1', 'helium'].includes(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+const localDbDetected = isLocalDatabase(rawDirectUrl);
+
+if (localDbDetected && !poolerUrl) {
+  const msg = '[Database] FATAL: Local DATABASE_URL detected but no DATABASE_POOLER_URL configured. Set DATABASE_POOLER_URL to connect to the shared Supabase database.';
+  logger.error(msg);
+  throw new Error(msg);
+}
+
+const directUrl = (localDbDetected && supabaseDirectUrl) ? supabaseDirectUrl : rawDirectUrl;
+export const usingPooler = (poolerEnabled || localDbDetected) && !!poolerUrl;
 
 const effectiveConnectionString = usingPooler ? poolerUrl : directUrl;
 if (!effectiveConnectionString) {
   logger.error('[Database] FATAL: No database connection string configured. Set DATABASE_URL or DATABASE_POOLER_URL + ENABLE_PGBOUNCER=true');
 }
 
+if (localDbDetected && poolerUrl) {
+  logger.info('[Database] Local DATABASE_URL detected — using shared Supabase database via pooler');
+}
+
 const sslConfig = { rejectUnauthorized: false };
-const needsSsl = isProduction || usingPooler;
+const needsSsl = !isLocalDatabase(effectiveConnectionString);
 
 const basePool = new Pool({
   connectionString: usingPooler ? poolerUrl : directUrl,
@@ -39,13 +64,15 @@ const basePool = new Pool({
 
 export const pool = basePool;
 
+const directConnectionUrl = (localDbDetected && poolerUrl) ? poolerUrl : directUrl;
+
 export const directPool = usingPooler
   ? new Pool({
-      connectionString: directUrl,
+      connectionString: directConnectionUrl,
       connectionTimeoutMillis: 10000,
       idleTimeoutMillis: 30000,
       max: 5,
-      ssl: isProduction ? sslConfig : undefined,
+      ssl: !isLocalDatabase(directConnectionUrl) ? sslConfig : undefined,
     })
   : pool;
 
