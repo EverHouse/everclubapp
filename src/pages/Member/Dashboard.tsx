@@ -866,8 +866,8 @@ const Dashboard: React.FC = () => {
         )}
         </SmoothReveal>
         
-        <SmoothReveal isLoaded={!!user?.status && user.status.toLowerCase() !== 'active'} delay={100}>
-        {user?.status && user.status.toLowerCase() !== 'active' && (
+        <SmoothReveal isLoaded={!!user?.status && !['active', 'trialing', 'past_due'].includes(user.status.toLowerCase())} delay={100}>
+        {user?.status && !['active', 'trialing', 'past_due'].includes(user.status.toLowerCase()) && (
           <div className="mb-4 p-4 rounded-xl bg-red-500/90 border border-red-600 animate-pop-in">
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-2xl text-white">warning</span>

@@ -138,6 +138,11 @@ router.post('/api/auth/apple/verify', requireAppleConfig, authRateLimiterByIp, a
       return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
     }
 
+    const statusMap: { [key: string]: string } = {
+      'active': 'Active', 'trialing': 'Trialing', 'past_due': 'Past Due',
+      'suspended': 'Suspended', 'terminated': 'Terminated', 'expired': 'Expired',
+      'cancelled': 'Cancelled', 'frozen': 'Frozen', 'paused': 'Paused', 'pending': 'Pending'
+    };
     const sessionTtl = 30 * 24 * 60 * 60 * 1000;
     const member = {
       id: user.id,
@@ -148,7 +153,7 @@ router.post('/api/auth/apple/verify', requireAppleConfig, authRateLimiterByIp, a
       tier: normalizeTierName(user.tier),
       tags: user.tags || [],
       mindbodyClientId: user.mindbodyClientId || '',
-      status: 'Active',
+      status: statusMap[dbMemberStatus] || (dbMemberStatus ? dbMemberStatus.charAt(0).toUpperCase() + dbMemberStatus.slice(1) : 'Active'),
       role,
       expires_at: Date.now() + sessionTtl,
       dateOfBirth: user.dateOfBirth || null,
