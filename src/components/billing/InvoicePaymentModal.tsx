@@ -57,6 +57,7 @@ interface PayInvoiceResponse {
   amount: number;
   description: string;
   currency: string;
+  customerSessionClientSecret?: string;
 }
 
 function InvoiceCheckoutForm({ 
@@ -205,6 +206,7 @@ export function InvoicePaymentModal({
   const options: StripeElementsOptions | null = paymentData?.clientSecret ? {
     clientSecret: paymentData.clientSecret,
     appearance: getStripeAppearance(isDark),
+    ...(paymentData.customerSessionClientSecret ? { customerSessionClientSecret: paymentData.customerSessionClientSecret } : {}),
   } : null;
 
   const handleFormSubmit = () => {

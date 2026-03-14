@@ -985,6 +985,9 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
     if (stripeInvoice.status === 'draft') {
       await stripe.invoices.update(invoiceId as string, {
         collection_method: 'charge_automatically',
+        payment_settings: {
+          payment_method_types: ['card', 'link'],
+        },
       });
       const piResult = await finalizeInvoiceWithPi(stripe, invoiceId as string);
       invoicePiId = piResult.piId;
@@ -994,6 +997,9 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
       if (stripeInvoice.collection_method === 'send_invoice') {
         await stripe.invoices.update(invoiceId as string, {
           collection_method: 'charge_automatically',
+          payment_settings: {
+            payment_method_types: ['card', 'link'],
+          },
         });
         logger.info('[Stripe] Switched open invoice from send_invoice to charge_automatically', { extra: { invoiceId } });
       }
@@ -1012,13 +1018,36 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
       extra: { invoiceId, paymentIntentId: invoicePiId, amount: amountDue }
     });
 
+    let customerSessionSecret: string | undefined;
+    try {
+      const customerSession = await stripe.customerSessions.create({
+        customer: stripeCustomerId,
+        components: {
+          payment_element: {
+            enabled: true,
+            features: {
+              payment_method_redisplay: 'enabled',
+              payment_method_save: 'enabled',
+              payment_method_remove: 'enabled',
+            },
+          },
+        },
+      });
+      customerSessionSecret = customerSession.client_secret;
+    } catch (csErr: unknown) {
+      logger.warn('[Stripe] Failed to create customer session for saved cards (invoice payment)', {
+        extra: { invoiceId, error: getErrorMessage(csErr) }
+      });
+    }
+
     res.json({
       clientSecret: invoicePiSecret,
       paymentIntentId: invoicePiId,
       invoiceId: invoiceId,
       amount: amountDue / 100,
       description: description,
-      currency: invoice.currency || 'usd'
+      currency: invoice.currency || 'usd',
+      customerSessionClientSecret: customerSessionSecret,
     });
   } catch (error: unknown) {
     logger.error('[Stripe] Error creating invoice payment intent', { error: error instanceof Error ? error : new Error(String(error)) });
