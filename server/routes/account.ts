@@ -13,7 +13,7 @@ router.post('/api/account/delete-request', isAuthenticated, async (req: Request,
   const userEmail = req.session?.user?.email;
 
   try {
-    const userResult = await db.execute(sql`SELECT id, email, first_name, last_name FROM users WHERE LOWER(email) = LOWER(${userEmail})`
+    const userResult = await db.execute(sql`SELECT id, email, first_name, last_name FROM users WHERE LOWER(email) = LOWER(${userEmail ?? null})`
     );
     
     if (userResult.rows.length === 0) {

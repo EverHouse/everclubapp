@@ -946,7 +946,10 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       ? row.requestDate 
       : request_date;
     const formattedDate = formatDateDisplayWithDay(dateStr);
-    const formattedTime12h = formatTime12Hour(row.startTime?.substring(0, 5) || start_time.substring(0, 5));
+    const timeStr = row.startTime instanceof Date 
+      ? row.startTime.toISOString().substring(11, 16) 
+      : String(row.startTime ?? start_time).substring(0, 5);
+    const formattedTime12h = formatTime12Hour(timeStr);
     
     const durationMins = row.durationMinutes || duration_minutes;
     let durationDisplay = '';
@@ -1200,7 +1203,13 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
     }
 
     if (!isAdminViewingAs && existing.requestDate && existing.startTime) {
-      const bookingStart = createPacificDate(existing.requestDate, existing.startTime.substring(0, 5));
+      const dateStr = existing.requestDate instanceof Date 
+        ? existing.requestDate.toISOString().split('T')[0] 
+        : String(existing.requestDate);
+      const timeStr = existing.startTime instanceof Date 
+        ? existing.startTime.toISOString().substring(11, 16) 
+        : String(existing.startTime).substring(0, 5);
+      const bookingStart = createPacificDate(dateStr, timeStr);
       if (bookingStart.getTime() <= new Date().getTime()) {
         return res.status(400).json({ error: 'This booking has already started and cannot be cancelled' });
       }
@@ -1236,8 +1245,12 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
       });
       
       const memberName = existing.userName || existing.userEmail;
-      const bookingDate = existing.requestDate;
-      const bookingTime = existing.startTime?.substring(0, 5) || '';
+      const bookingDate = existing.requestDate instanceof Date 
+        ? existing.requestDate.toISOString().split('T')[0] 
+        : String(existing.requestDate);
+      const bookingTime = existing.startTime instanceof Date 
+        ? existing.startTime.toISOString().substring(11, 16) 
+        : String(existing.startTime).substring(0, 5);
       let bayName = 'Simulator';
       if (existing.resourceId) {
         const [resource] = await db.select({ name: resources.name }).from(resources).where(eq(resources.id, existing.resourceId));
@@ -1290,7 +1303,13 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
     }
     
     // Calculate time until booking starts using Pacific timezone
-    const bookingStart = createPacificDate(existing.requestDate, existing.startTime?.substring(0, 5) || '00:00');
+    const refundDateStr = existing.requestDate instanceof Date 
+      ? existing.requestDate.toISOString().split('T')[0] 
+      : String(existing.requestDate);
+    const refundTimeStr = existing.startTime instanceof Date 
+      ? existing.startTime.toISOString().substring(11, 16) 
+      : String(existing.startTime).substring(0, 5);
+    const bookingStart = createPacificDate(refundDateStr, refundTimeStr || '00:00');
     const nowPacific = new Date();
     const hoursUntilStart = (bookingStart.getTime() - nowPacific.getTime()) / (1000 * 60 * 60);
     const shouldSkipRefund = hoursUntilStart < 1;
@@ -1430,8 +1449,12 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
     
     if (wasApproved) {
       const memberName = existing.userName || existing.userEmail;
-      const bookingDate = existing.requestDate;
-      const bookingTime = existing.startTime?.substring(0, 5) || '';
+      const bookingDate = existing.requestDate instanceof Date 
+        ? existing.requestDate.toISOString().split('T')[0] 
+        : String(existing.requestDate);
+      const bookingTime = existing.startTime instanceof Date 
+        ? existing.startTime.toISOString().substring(11, 16) 
+        : String(existing.startTime).substring(0, 5);
       const staffMessage = `${memberName} has cancelled their booking for ${bookingDate} at ${bookingTime}.`;
       
       notifyAllStaff(
@@ -1503,8 +1526,12 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
       }
     }
     
-    const bookingDate = existing.requestDate;
-    const bookingTime = existing.startTime?.substring(0, 5) || '';
+    const bookingDate = existing.requestDate instanceof Date 
+      ? existing.requestDate.toISOString().split('T')[0] 
+      : String(existing.requestDate);
+    const bookingTime = existing.startTime instanceof Date 
+      ? existing.startTime.toISOString().substring(11, 16) 
+      : String(existing.startTime).substring(0, 5);
     
     await logMemberAction({
       memberEmail: existing.userEmail || '',

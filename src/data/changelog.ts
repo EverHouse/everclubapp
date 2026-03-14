@@ -22,6 +22,8 @@ export const changelog: ChangelogEntry[] = [
       "Fix: Refunding a complimentary day pass no longer errors out — the system now correctly skips the payment processor step for free passes",
       "Fix: Day pass search results are now capped to prevent performance issues with broad search terms",
       "Fix: Staff assignment dropdown no longer flickers when toggled rapidly — resolved a race condition in the loading behavior",
+      "Fix: Account deletion request no longer crashes if the session expires mid-request — now returns a proper error instead",
+      "Fix: Booking cancellation no longer fails with an invalid date error when Postgres returns date objects — all date/time fields are now safely type-guarded",
     ]
   },
   {
