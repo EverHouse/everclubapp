@@ -8,6 +8,22 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.0",
+    date: "2026-03-14",
+    title: "Directory Sync Fix & Membership Status Accuracy Overhaul",
+    isMajor: true,
+    changes: [
+      "Fix: Directory sync 'HubSpot: partial (push failed)' error resolved — push now runs directly in batches of 5 instead of through a single HTTP call that was timing out with 255+ members",
+      "Fix: Your membership status (Active, Trialing, Past Due, etc.) now displays accurately everywhere — previously all members showed as 'Active' regardless of their real status",
+      "Fix: Members on a free trial or with a past-due payment can now book simulators, enroll in wellness classes, and RSVP to events — previously they were incorrectly blocked",
+      "Fix: Staff booking calendar no longer highlights trial and past-due members as 'inactive'",
+      "Fix: Google and Apple sign-in now correctly carry your real membership status through to the app instead of always showing Active",
+      "Fix: Directory sync now includes trial and past-due members in the HubSpot push — they were previously excluded",
+      "Improvement: Admin directory sync results now show partial push error counts (e.g. '250 synced, 3 push errors') instead of silently hiding failures",
+      "Improvement: Inactive member tier badges now show 'No Active Membership' with status label for suspended, terminated, expired, cancelled, frozen, and paused members",
+    ]
+  },
+  {
     version: "8.86.7",
     date: "2026-03-14",
     title: "Fix Welcome Header Showing Email Instead of Name",

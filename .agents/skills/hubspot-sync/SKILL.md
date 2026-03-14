@@ -160,3 +160,7 @@ Deal creation is currently disabled. Pipeline infrastructure and stage sync rema
 ## Contact Cache
 
 In-memory cache at `/api/hubspot/contacts`, full refresh every 30 min. Webhook-driven invalidation resets timestamp to 0. Contacts enriched with: lifetime visits, computed join date, former-member classification.
+
+## Directory Sync Push
+
+The admin directory sync (`server/routes/directorySync.ts`) pushes active-access members to HubSpot using `pushMembersDirectly()` — a direct function call (not HTTP) that processes members in batches of `PUSH_BATCH_SIZE = 5` concurrent calls. Filters: `membership_status IN ('active', 'trialing', 'past_due')`. Placeholder emails are skipped. After push, `invalidateHubSpotContactsCache()` clears the contacts cache. Push errors are tracked per-member and surfaced in the admin UI as `pushErrors` count. The standalone `/api/hubspot/push-members-to-hubspot` endpoint uses the same filter.

@@ -9,7 +9,9 @@ description: Member status transitions, onboarding flow, cancellation, reactivat
 
 | Task | Primary File(s) | When to touch |
 |---|---|---|
-| Login + auto-fix | `server/routes/auth.ts` | Login flow, Stripe status correction |
+| Login + auto-fix | `server/routes/auth.ts` | Login flow, Stripe status correction, session status refresh |
+| Google/Apple login | `server/routes/auth-google.ts`, `server/routes/auth-apple.ts` | OAuth login with status mapping |
+| Directory sync push | `server/routes/directorySync.ts` | Batch push active members to HubSpot |
 | Member service | `server/core/memberService/MemberService.ts` | Member lookup, cache |
 | Member cache | `server/core/memberService/memberCache.ts` | Cache config, invalidation |
 | Email change | `server/core/memberService/emailChangeService.ts` | `cascadeEmailChange()` |
@@ -133,8 +135,20 @@ invoice.payment_failed webhook fires
 
 ## Status Categories
 
-- **ACTIVE_STATUSES:** `['active', 'trialing', 'past_due']`
+- **ACTIVE_STATUSES:** `['active', 'trialing', 'past_due']` — These grant full member access (booking, events, wellness, etc.)
+- **INACTIVE_STATUSES (UI):** `['terminated', 'suspended', 'expired', 'cancelled', 'frozen', 'paused', 'inactive']` — TierBadge shows "No Active Membership"
 - **CHURNED_STATUSES:** `['terminated', 'cancelled', 'non-member']`
+
+## Status Display Mapping
+
+All auth paths (OTP, Google, Apple, session refresh) normalize DB `membership_status` to display status using a `statusMap`. The frontend `AuthDataContext` passes real status through — never hardcodes `'Active'`. Frontend active-access gates must use `ACTIVE_STATUSES` (not `!== 'active'`) to avoid blocking trial/past_due members.
+
+Key files with status mapping:
+- `server/routes/auth.ts` — OTP login + session refresh
+- `server/routes/auth-google.ts` — Google verify + callback
+- `server/routes/auth-apple.ts` — Apple verify
+- `src/contexts/AuthDataContext.tsx` — Frontend status passthrough
+- `src/components/TierBadge.tsx` — INACTIVE_STATUSES display
 
 ## Onboarding Checklist
 
