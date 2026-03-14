@@ -157,7 +157,7 @@ router.post('/api/data-tools/cleanup-mindbody-ids', isAdmin, async (req: Request
     }
     
     const { client: hubspot } = await getHubSpotClientWithFallback();
-    const toClean: Array<{ email: string; mindbodyClientId: string; hubspotId: string | null }> = [];
+    const toClean: Array<{ email: string; mindbodyClientId: string | null; hubspotId: string | null }> = [];
     const validated: Array<{ email: string; mindbodyClientId: string }> = [];
     const errors: string[] = [];
     
@@ -171,7 +171,7 @@ router.post('/api/data-tools/cleanup-mindbody-ids', isAdmin, async (req: Request
           
           if (user.hubspot_id) {
             const contact = await retryableHubSpotRequest(() =>
-              hubspot.crm.contacts.basicApi.getById(user.hubspot_id, ['mindbody_client_id'])
+              hubspot.crm.contacts.basicApi.getById(user.hubspot_id!, ['mindbody_client_id'])
             );
             hubspotMindbodyId = contact.properties?.mindbody_client_id || null;
           } else {
@@ -198,7 +198,7 @@ router.post('/api/data-tools/cleanup-mindbody-ids', isAdmin, async (req: Request
             toClean.push({
               email: user.email,
               mindbodyClientId: user.mindbody_client_id,
-              hubspotId: user.hubspot_id
+              hubspotId: user.hubspot_id!
             });
           } else if (hubspotMindbodyId === user.mindbody_client_id) {
             validated.push({
@@ -346,7 +346,7 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
           let hubspotVisitCount: number | null = null;
           try {
             const contact = await retryableHubSpotRequest(() =>
-              hubspot.crm.contacts.basicApi.getById(member.hubspot_id, ['total_visit_count'])
+              hubspot.crm.contacts.basicApi.getById(member.hubspot_id!, ['total_visit_count'])
             );
             const rawCount = contact.properties?.total_visit_count;
             hubspotVisitCount = rawCount ? parseInt(rawCount) : null;
@@ -360,7 +360,7 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
           const record: VisitCountRecord = {
             email: member.email,
             name: memberName,
-            hubspotId: member.hubspot_id,
+            hubspotId: member.hubspot_id!,
             appVisitCount,
             hubspotVisitCount,
             needsUpdate: hubspotVisitCount !== appVisitCount
@@ -372,7 +372,7 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
             if (!dryRun) {
               try {
                 await retryableHubSpotRequest(() =>
-                  hubspot.crm.contacts.basicApi.update(member.hubspot_id, {
+                  hubspot.crm.contacts.basicApi.update(member.hubspot_id!, {
                     properties: {
                       total_visit_count: appVisitCount.toString()
                     }

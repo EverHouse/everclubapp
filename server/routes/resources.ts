@@ -281,7 +281,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, validateBod
         trackman_booking_id, ownerName, ownerEmail, bookingData, existingBooking, staffEmail
       );
       
-      logFromRequest(req, 'create_block', 'availability_block', block.id.toString(), ownerName, {
+      logFromRequest(req, 'create_block', 'availability_block', block!.id.toString(), ownerName, {
         trackman_booking_id,
         instructor_email: ownerEmail,
         instructor_name: ownerName,
@@ -294,7 +294,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, validateBod
       return res.json({
         success: true,
         convertedToAvailabilityBlock: true,
-        blockId: block.id,
+        blockId: block!.id,
         instructorName: ownerName,
         message: `Converted to lesson block for instructor ${ownerName}`
       });

@@ -1,4 +1,4 @@
-import { Pool, PoolClient, QueryResult } from 'pg';
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { getErrorCode, getErrorDetail } from '../utils/errorUtils';
 import { isRetryableError as _isRetryableError } from './retry';
 
@@ -106,7 +106,7 @@ export function isConstraintError(error: unknown): { type: 'unique' | 'foreign_k
   return { type: null };
 }
 
-export async function queryWithRetry<T = Record<string, unknown>>(
+export async function queryWithRetry<T extends QueryResultRow = Record<string, unknown>>(
   queryText: string,
   params?: unknown[],
   maxRetries: number = 3

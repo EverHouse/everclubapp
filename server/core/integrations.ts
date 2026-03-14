@@ -89,7 +89,7 @@ async function fetchHubSpotToken(): Promise<string> {
     throw new Error(`HubSpot connector API error (HTTP ${response.status})`);
   }
   
-  const data: ConnectorApiResponse = await response.json();
+  const data: ConnectorApiResponse = await response.json() as ConnectorApiResponse;
   
   if (!data.items || data.items.length === 0) {
     logger.error('[HubSpot] Connector API response:', { extra: { detail: JSON.stringify({ 
@@ -185,7 +185,7 @@ async function fetchGoogleCalendarToken(): Promise<string> {
     throw new Error(`Google Calendar connector API error (HTTP ${connectorResponse.status})`);
   }
 
-  googleCalendarConnectionSettings = await connectorResponse.json().then((data: ConnectorApiResponse) => data.items?.[0] ?? null);
+  googleCalendarConnectionSettings = await (connectorResponse.json() as Promise<ConnectorApiResponse>).then((data) => data.items?.[0] ?? null);
 
   const gcSettings2 = googleCalendarConnectionSettings?.settings;
   const gcOauth2 = gcSettings2?.oauth?.credentials;

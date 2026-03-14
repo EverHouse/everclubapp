@@ -62,22 +62,22 @@ async function getOrCreateTestUser(data: TestLoginRequest): Promise<{
         .where(sql`LOWER(${users.email}) = LOWER(${normalizedEmail})`);
       
       return {
-        email: existingUser[0].email,
+        email: existingUser[0].email!,
         role: data.role,
         tier: tierName,
         tierId: tierId,
-        firstName: existingUser[0].firstName,
-        lastName: existingUser[0].lastName
+        firstName: existingUser[0].firstName ?? null,
+        lastName: existingUser[0].lastName ?? null
       };
     }
     
     return {
-      email: existingUser[0].email,
+      email: existingUser[0].email!,
       role: data.role,
-      tier: existingUser[0].tier,
-      tierId: existingUser[0].tierId,
-      firstName: existingUser[0].firstName,
-      lastName: existingUser[0].lastName
+      tier: existingUser[0].tier ?? null,
+      tierId: existingUser[0].tierId ?? null,
+      firstName: existingUser[0].firstName ?? null,
+      lastName: existingUser[0].lastName ?? null
     };
   }
 
@@ -142,10 +142,10 @@ router.post('/test-login', async (req: Request, res: Response) => {
       req.session.user = {
         email: user.email,
         role: user.role,
-        tier: user.tier,
-        tierId: user.tierId,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        tier: user.tier ?? undefined,
+        tierId: user.tierId ?? undefined,
+        firstName: user.firstName ?? undefined,
+        lastName: user.lastName ?? undefined,
         isTestUser: true
       };
 

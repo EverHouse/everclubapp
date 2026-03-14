@@ -36,7 +36,7 @@ const webhookQuerySchema = z.object({
 
 router.get('/api/admin/monitoring/webhooks', isStaffOrAdmin, validateQuery(webhookQuerySchema), async (req, res) => {
   try {
-    const { type, status, limit: limitStr, offset: offsetStr } = (req as Request & { validatedQuery: z.infer<typeof webhookQuerySchema> }).validatedQuery;
+    const { type, status, limit: limitStr, offset: offsetStr } = (req as unknown as Request & { validatedQuery: z.infer<typeof webhookQuerySchema> }).validatedQuery;
     const limit = parseInt(limitStr || '') || 50;
     const offset = parseInt(offsetStr || '') || 0;
 
@@ -82,7 +82,7 @@ const alertsQuerySchema = z.object({
 
 router.get('/api/admin/monitoring/alerts', isStaffOrAdmin, validateQuery(alertsQuerySchema), async (req, res) => {
   try {
-    const { startDate, endDate, limit: limitStr } = (req as Request & { validatedQuery: z.infer<typeof alertsQuerySchema> }).validatedQuery;
+    const { startDate, endDate, limit: limitStr } = (req as unknown as Request & { validatedQuery: z.infer<typeof alertsQuerySchema> }).validatedQuery;
     const limit = parseInt(limitStr || '') || 100;
 
     const alerts = await getAlertHistory({ startDate, endDate, limit });
@@ -105,7 +105,7 @@ const auditLogsQuerySchema = z.object({
 
 router.get('/api/admin/monitoring/audit-logs', isStaffOrAdmin, validateQuery(auditLogsQuerySchema), async (req, res) => {
   try {
-    const vq = (req as Request & { validatedQuery: z.infer<typeof auditLogsQuerySchema> }).validatedQuery;
+    const vq = (req as unknown as Request & { validatedQuery: z.infer<typeof auditLogsQuerySchema> }).validatedQuery;
     const staffEmail = vq.staffEmail;
     const action = vq.action;
     const resourceType = vq.resourceType;

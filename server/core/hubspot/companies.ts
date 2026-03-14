@@ -2,7 +2,7 @@ import { getHubSpotClient } from '../integrations';
 import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../../utils/errorUtils';
 import { isProduction } from '../db';
 import { retryableHubSpotRequest } from './request';
-import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
+import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/companies';
 import { AssociationSpecAssociationCategoryEnum } from '@hubspot/api-client/lib/codegen/crm/associations/v4';
 
 import { logger } from '../logger';
@@ -38,12 +38,12 @@ export async function syncCompanyToHubSpot(
     let companyId: string | undefined;
     let created = false;
 
-    const searchFilters = [];
+    const searchFilters: Array<{ filters: Array<{ propertyName: string; operator: FilterOperatorEnum; value: string }> }> = [];
     if (companyName) {
       searchFilters.push({
         filters: [{
           propertyName: 'name',
-          operator: 'EQ' as const,
+          operator: FilterOperatorEnum.Eq,
           value: companyName
         }]
       });
@@ -52,7 +52,7 @@ export async function syncCompanyToHubSpot(
       searchFilters.push({
         filters: [{
           propertyName: 'domain',
-          operator: 'EQ' as const,
+          operator: FilterOperatorEnum.Eq,
           value: domain
         }]
       });

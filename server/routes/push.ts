@@ -150,8 +150,8 @@ export async function sendPushNotificationToAllMembers(payload: { title: string;
       .innerJoin(users, eq(pushSubscriptions.userEmail, users.email))
       .where(or(eq(users.role, 'member'), isNull(users.role)));
     
-    const notificationValues = allMembers.map(member => ({
-      userEmail: member.email,
+    const notificationValues = allMembers.filter(m => m.email).map(member => ({
+      userEmail: member.email!,
       title: payload.title,
       message: payload.body,
       type: 'announcement' as const,
@@ -209,7 +209,7 @@ router.post('/api/push/subscribe', isAuthenticated, async (req, res) => {
     await db
       .insert(pushSubscriptions)
       .values({
-        userEmail,
+        userEmail: userEmail!,
         endpoint,
         p256dh: keys.p256dh,
         auth: keys.auth,
@@ -217,7 +217,7 @@ router.post('/api/push/subscribe', isAuthenticated, async (req, res) => {
       .onConflictDoUpdate({
         target: pushSubscriptions.endpoint,
         set: {
-          userEmail,
+          userEmail: userEmail!,
           p256dh: keys.p256dh,
           auth: keys.auth,
         },
@@ -239,7 +239,7 @@ router.post('/api/push/unsubscribe', isAuthenticated, async (req, res) => {
       return res.status(400).json({ error: 'endpoint is required' });
     }
     
-    await db.delete(pushSubscriptions).where(and(eq(pushSubscriptions.endpoint, endpoint), eq(pushSubscriptions.userEmail, userEmail)));
+    await db.delete(pushSubscriptions).where(and(eq(pushSubscriptions.endpoint, endpoint), eq(pushSubscriptions.userEmail, userEmail!)));
     
     res.json({ success: true });
   } catch (error: unknown) {
@@ -252,7 +252,7 @@ router.post('/api/push/test', isAuthenticated, async (req, res) => {
   try {
     const userEmail = req.session?.user?.email;
     
-    await sendPushNotification(userEmail, {
+    await sendPushNotification(userEmail!, {
       title: 'Test Notification',
       body: 'This is a test push notification from Ever Club!',
       url: '/profile'
@@ -534,8 +534,8 @@ export async function sendMorningClosureNotifications() {
         : `${title}${timeInfo}`;
       
       // Create in-app notifications for all members
-      const notificationValues = allMembers.map(member => ({
-        userEmail: member.email,
+      const notificationValues = allMembers.filter(m => m.email).map(member => ({
+        userEmail: member.email!,
         title: `Today: ${title}`,
         message: message,
         type: 'closure_today' as const,

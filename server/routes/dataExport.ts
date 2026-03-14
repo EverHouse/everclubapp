@@ -29,10 +29,10 @@ router.get('/api/account/my-data', isAuthenticated, async (req: Request, res: Re
   const userEmail = req.session?.user?.email;
 
   try {
-    const exportData = await gatherMemberData(userEmail);
+    const exportData = await gatherMemberData(userEmail!);
     
     await db.insert(dataExportRequests).values({
-      userEmail,
+      userEmail: userEmail!,
       status: 'completed',
       completedAt: new Date(),
     });
@@ -53,7 +53,7 @@ router.get('/api/account/my-data/preview', isAuthenticated, async (req: Request,
   const userEmail = req.session?.user?.email;
 
   try {
-    const exportData = await gatherMemberData(userEmail);
+    const exportData = await gatherMemberData(userEmail!);
     
     const preview = {
       profile: exportData.profile ? 'Included' : 'Not found',
@@ -86,7 +86,7 @@ router.get('/api/account/export-history', isAuthenticated, async (req: Request, 
   try {
     const history = await db.select()
       .from(dataExportRequests)
-      .where(eq(dataExportRequests.userEmail, userEmail))
+      .where(eq(dataExportRequests.userEmail, userEmail!))
       .orderBy(desc(dataExportRequests.requestedAt))
       .limit(10);
     

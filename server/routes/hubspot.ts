@@ -147,11 +147,11 @@ function computeHubSpotJoinDate(
     // Batch import period: these members existed before HubSpot integration
     // Their real join date was manually entered in HubSpot's membership_start_date field
     // DB join_date for these is typically the Nov 2025 import date, so ignore it
-    return contact.membershipStartDate || contact.createdAt;
+    return contact.membershipStartDate || contact.createdAt || null;
   } else {
     // Post-batch import: these are real Mindbody syncs with accurate create dates
     // DB join_date (if set) represents the actual join date, otherwise use HubSpot createdate
-    return dbUser?.join_date || contact.createdAt || contact.membershipStartDate;
+    return dbUser?.join_date || contact.createdAt || contact.membershipStartDate || null;
   }
 }
 
@@ -367,8 +367,8 @@ function transformHubSpotContact(contact: HubSpotApiObject): HubSpotContact {
     rawTier: rawTierValue && rawTierValue.trim() ? rawTierValue.trim() : null,
     tags: [],
     membershipStartDate,
-    createdAt: props.createdate,
-    lastModified: props.lastmodifieddate,
+    createdAt: props.createdate ?? undefined,
+    lastModified: props.lastmodifieddate ?? undefined,
     dateOfBirth: props.date_of_birth || null,
     isActiveMember,
     isFormerMember,
@@ -879,7 +879,7 @@ router.post('/api/hubspot/forms/:formType', async (req, res) => {
       }
     }
     
-    const result: Record<string, unknown> = await response.json();
+    const result = await response.json() as Record<string, unknown>;
     
     const getFieldValue = (name: string): string | undefined => {
       const field = fields.find((f: { name: string; value: string }) => f.name === name);

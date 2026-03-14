@@ -80,13 +80,13 @@ async function gracefulShutdown(signal: string) {
       try {
         const { stopSchedulers } = await import('./schedulers');
         stopSchedulers();
-      } catch (err) { logger.warn('[Shutdown] Failed to stop schedulers:', err); }
+      } catch (err) { logger.warn('[Shutdown] Failed to stop schedulers:', { error: err }); }
     }
     if (websocketInitialized) {
       try {
         const { closeWebSocketServer } = await import('./core/websocket');
         closeWebSocketServer();
-      } catch (err) { logger.warn('[Shutdown] Failed to close WebSocket server:', err); }
+      } catch (err) { logger.warn('[Shutdown] Failed to close WebSocket server:', { error: err }); }
     }
 
     if (httpServer) {
@@ -108,7 +108,7 @@ async function gracefulShutdown(signal: string) {
     try {
       const { pool } = await import('./core/db');
       await pool.end();
-    } catch (err) { logger.warn('[Shutdown] Failed to close database pool:', err); }
+    } catch (err) { logger.warn('[Shutdown] Failed to close database pool:', { error: err }); }
 
     clearTimeout(shutdownTimeout);
     logger.info('[Shutdown] Complete');
@@ -205,6 +205,7 @@ httpServer.on('error', (err: unknown) => {
 async function initializeApp() {
   const { default: express } = await import('express');
   const { default: cors } = await import('cors');
+  // @ts-expect-error no declaration file for compression
   const { default: compression } = await import('compression');
   const { default: expressStaticGzip } = await import('express-static-gzip');
   const { default: rateLimit } = await import('express-rate-limit');

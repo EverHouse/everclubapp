@@ -172,7 +172,7 @@ router.post('/api/events/sync', isStaffOrAdmin, async (req, res) => {
     let eventbriteResult = { synced: 0, created: 0, updated: 0, error: 'No Eventbrite token configured' };
     const eventbriteToken = process.env.EVENTBRITE_PRIVATE_TOKEN;
     if (eventbriteToken) {
-      eventbriteResult = { synced: 0, created: 0, updated: 0, error: undefined as string | undefined };
+      eventbriteResult = { synced: 0, created: 0, updated: 0, error: undefined as unknown as string };
     }
     
     logFromRequest(req, 'sync_events', 'event', undefined, 'Event Sync', {
@@ -834,7 +834,7 @@ router.post('/api/eventbrite/sync', isStaffOrAdmin, async (req, res) => {
       const eventbriteId = ebEvent.id;
       const title = ebEvent.name?.text || 'Untitled Event';
       const description = ebEvent.description?.text || '';
-      const eventDate = ebEvent.start?.local?.split('T')[0] || null;
+      const eventDate = ebEvent.start?.local?.split('T')[0] || '';
       const startTime = ebEvent.start?.local?.split('T')[1]?.substring(0, 8) || '18:00:00';
       const endTime = ebEvent.end?.local?.split('T')[1]?.substring(0, 8) || '21:00:00';
       const location = ebEvent.venue?.name || ebEvent.online_event ? 'Online Event' : 'TBD';

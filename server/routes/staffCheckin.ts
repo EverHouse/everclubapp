@@ -781,7 +781,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
 
       broadcastBookingInvoiceUpdate({ 
         bookingId, 
-        sessionId, 
+        sessionId: sessionId ?? undefined, 
         action: action === 'confirm' ? 'payment_confirmed' : 'fees_waived', 
         memberEmail: booking.owner_email 
       });
@@ -977,7 +977,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
               sql`SELECT id FROM booking_fee_snapshots WHERE session_id = ${sessionId} AND status IN ('completed', 'paid') LIMIT 1`
             );
             if (existingSnapshot.rows.length === 0) {
-              const breakdown = await computeFeeBreakdown({ sessionId, source: 'checkin' as const });
+              const breakdown = await computeFeeBreakdown({ sessionId: sessionId!, source: 'checkin' as const });
               const participantFees: Array<{id: number | null; amountCents: number; type: string; description: string}> = [];
               for (const p of breakdown.participants) {
                 if (!p.participantId) continue;

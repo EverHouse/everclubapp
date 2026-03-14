@@ -2,6 +2,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { getErrorMessage } from '../utils/errorUtils';
 import { Server, IncomingMessage } from 'http';
 import { parse as parseCookie } from 'cookie';
+// @ts-expect-error no declaration file for cookie-signature
 import { unsign } from 'cookie-signature';
 import { logger } from './logger';
 import { pool as sharedPool } from './db';
@@ -570,7 +571,6 @@ export function sendNotificationToUser(
   }
 
   const payload = JSON.stringify({
-    type: 'notification',
     ...notification
   });
 
@@ -628,7 +628,6 @@ export function broadcastToAllMembers(notification: {
   data?: Record<string, unknown>;
 }) {
   const payload = JSON.stringify({
-    type: 'notification',
     ...notification
   });
 
@@ -665,7 +664,6 @@ export function broadcastToStaff(notification: {
   [key: string]: unknown;
 }) {
   const payload = JSON.stringify({
-    type: 'notification',
     ...notification
   });
 

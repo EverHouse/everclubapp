@@ -448,7 +448,7 @@ router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request,
             member.id.toString(),
             member.email,
             memberName,
-            member.tier
+            member.tier ?? undefined
           );
           
           stripeCreated.push({ email: member.email, customerId: result.customerId });
@@ -594,7 +594,7 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
           let hubspotPaymentStatus: string | null = null;
           try {
             const contact = await retryableHubSpotRequest(() =>
-              hubspot.crm.contacts.basicApi.getById(member.hubspot_id, ['last_payment_status'])
+              hubspot.crm.contacts.basicApi.getById(member.hubspot_id!, ['last_payment_status'])
             );
             hubspotPaymentStatus = contact.properties?.last_payment_status || null;
           } catch (hubspotErr: unknown) {
@@ -607,8 +607,8 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
           const record: PaymentStatusRecord = {
             email: member.email,
             name: memberName,
-            stripeCustomerId: member.stripe_customer_id,
-            hubspotId: member.hubspot_id,
+            stripeCustomerId: member.stripe_customer_id!,
+            hubspotId: member.hubspot_id!,
             stripePaymentStatus,
             stripeLastInvoiceDate: lastInvoiceDate,
             stripeLastInvoiceAmount: lastInvoiceAmount,
@@ -622,7 +622,7 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
             if (!dryRun) {
               try {
                 await retryableHubSpotRequest(() =>
-                  hubspot.crm.contacts.basicApi.update(member.hubspot_id, {
+                  hubspot.crm.contacts.basicApi.update(member.hubspot_id!, {
                     properties: {
                       last_payment_status: stripePaymentStatus,
                       last_payment_date: lastInvoiceDate || '',
@@ -739,8 +739,8 @@ async function runCleanupInBackground(jobId: string, dryRun: boolean, staffEmail
         if (!(cust as Stripe.Customer & { deleted?: boolean }).deleted) {
           allCustomers.push({
             id: cust.id,
-            email: cust.email,
-            name: cust.name,
+            email: cust.email ?? null,
+            name: cust.name ?? null,
             created: cust.created
           });
         }

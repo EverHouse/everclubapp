@@ -78,7 +78,7 @@ router.post('/api/data-tools/resync-member', isAdmin, async (req: Request, res: 
     let contactResponse;
     try {
       contactResponse = await retryableHubSpotRequest(() =>
-        hubspot.crm.contacts.basicApi.getById(hubspotContactId, [
+        hubspot.crm.contacts.basicApi.getById(hubspotContactId!, [
           'email',
           'firstname',
           'lastname',

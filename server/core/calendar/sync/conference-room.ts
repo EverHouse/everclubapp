@@ -377,7 +377,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
         orderBy: 'startTime',
         pageToken: pageToken,
         showDeleted: true,
-      });
+      }) as { data: { items?: Array<{ id?: string | null; status?: string | null; summary?: string | null; description?: string | null; start?: { dateTime?: string | null; date?: string | null }; end?: { dateTime?: string | null; date?: string | null }; attendees?: Array<{ email?: string; responseStatus?: string | null }> }>; nextPageToken?: string | null } };
 
       const calendarEvents = response.data.items || [];
       pageToken = response.data.nextPageToken || undefined;
@@ -461,7 +461,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
         const memberMatch = await findMemberByCalendarEvent({
           summary,
           description,
-          attendees: event.attendees?.map(a => ({ email: a.email }))
+          attendees: event.attendees?.map((a) => ({ email: a.email ?? undefined }))
         });
         
         const memberEmail = memberMatch.userEmail;
