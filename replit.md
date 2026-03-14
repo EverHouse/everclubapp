@@ -1,6 +1,6 @@
 # Ever Club Members App
 
-**Current Version**: 8.87.8 (March 14, 2026)
+**Current Version**: 8.87.9 (March 14, 2026)
 
 ## Overview
 The Ever Club Members App is a private members club application designed for golf and wellness centers. Its primary purpose is to serve as a central digital hub for managing golf simulator bookings, wellness service appointments, and club events. The project aims to enhance member satisfaction and operational efficiency through comprehensive membership management, facility booking, and community-building tools, ultimately creating a seamless digital experience for club members and staff.
@@ -147,6 +147,8 @@ The following large files have been split into sub-modules with barrel re-export
 - **Files**: `server/routes/analytics.ts`, `src/pages/Admin/tabs/AnalyticsTab.tsx`
 
 ### Recent Changes
+- **One-Tap 'Pay with Card on File' (v8.87.9)**: Members with a saved card now see a prominent "Pay $X.XX with Visa •••• 1234" button above the standard payment form. One tap charges the card instantly via the invoice API (off-session). Falls back to the standard form if 3D Secure verification is required. New endpoints: `GET /api/member/payment-methods`, `POST /api/member/bookings/:id/pay-saved-card`. Full billing audit trail.
+- **Apple Pay, Google Pay & Saved Cards (v8.87.8)**: Stripe Customer Sessions now created for all member payment flows. `payment_settings.payment_method_types: ['card', 'link']` added to all invoice creation/update calls. Frontend passes `customerSessionClientSecret` into Stripe Elements.
 - **HubSpot Field Mapping Fix (v8.87.6)**: Fixed silently dropped form fields — Private Hire (event_date, event_time, additional_details, event_services), Guest Check-in (guest_firstname, guest_lastname, guest_email, guest_phone, member_name, member_email), and Contact (topic) now all pass through the `VALID_HUBSPOT_CONTACT_FIELDS` allowlist to HubSpot.
 - **Admin-Configurable HubSpot Form IDs (v8.87.5)**: Added new "HubSpot Form IDs" section in Admin Settings for all 6 form types (membership, private-hire, event-inquiry, tour-request, guest-checkin, contact). `resolveFormId()` now uses 4-tier fallback: env var → admin setting (DB, 30s cached via `getSettingValue`) → auto-discovered → hardcoded. 6 new `hubspot.form_id.*` keys in `DEFAULT_SETTINGS`. `resolveFormId` and `logFormIdResolutionStatus` are now async. Tests updated with 3 new admin-setting-specific test cases.
 - **HubSpot Form Submission Fix (v8.87.4)**: Fixed public-facing form submissions (membership application, guest check-in, contact) that failed with "Submission Failed" when env vars weren't set. Added `resolveFormId()` 3-tier fallback (env var → auto-discovered ID → known hardcoded ID). `inferFormTypeFromName` now delegates to `inferFormTypeStrict` for consistent classification. Discovery map clears stale entries each sync and logs collisions. Non-JSON HubSpot error responses no longer crash the submission handler. Startup diagnostic logs which form types have resolved IDs.

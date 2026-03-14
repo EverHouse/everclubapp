@@ -31,7 +31,8 @@ import { sendNotificationToUser, broadcastBillingUpdate, broadcastBookingInvoice
 import { alertOnExternalServiceError } from '../../core/errorAlerts';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
-import { getBookingInvoiceId, createDraftInvoiceForBooking, buildInvoiceDescription } from '../../core/billing/bookingInvoiceService';
+import { getBookingInvoiceId, createDraftInvoiceForBooking, buildInvoiceDescription, finalizeAndPayInvoice } from '../../core/billing/bookingInvoiceService';
+import { listCustomerPaymentMethods } from '../../core/stripe/customers';
 import { PRICING } from '../../core/billing/pricingConfig';
 
 function describeFee(
@@ -917,6 +918,237 @@ router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, async (
     await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'confirm member payment');
     res.status(500).json({ 
       error: 'Payment confirmation failed. Please try again.',
+      retryable: true
+    });
+  }
+});
+
+router.get('/api/member/payment-methods', isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const sessionUser = getSessionUser(req);
+    const sessionEmail = sessionUser?.email;
+    if (!sessionEmail) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const userResult = await db.execute(sql`SELECT stripe_customer_id FROM users WHERE LOWER(email) = LOWER(${sessionEmail}) AND archived_at IS NULL`);
+    const stripeCustomerId = (userResult.rows[0] as { stripe_customer_id: string | null } | undefined)?.stripe_customer_id;
+
+    if (!stripeCustomerId) {
+      return res.json({ paymentMethods: [] });
+    }
+
+    const methods = await listCustomerPaymentMethods(stripeCustomerId);
+    return res.json({ paymentMethods: methods });
+  } catch (error: unknown) {
+    logger.error('[MemberPayments] Error fetching payment methods', { error: error instanceof Error ? error : new Error(String(error)) });
+    return res.json({ paymentMethods: [] });
+  }
+});
+
+router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentRateLimiter, async (req: Request, res: Response) => {
+  try {
+    const sessionUser = getSessionUser(req);
+    const sessionEmail = sessionUser?.email;
+    if (!sessionEmail) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const bookingId = parseInt(req.params.id as string);
+    if (isNaN(bookingId)) {
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
+
+    const { paymentMethodId } = req.body;
+    if (!paymentMethodId || typeof paymentMethodId !== 'string') {
+      return res.status(400).json({ error: 'Missing paymentMethodId' });
+    }
+
+    const bookingResult = await db.execute(sql`
+      SELECT br.id, br.session_id, br.user_email, br.user_name, br.status,
+             bs.trackman_booking_id, bs.date, bs.start_time, bs.end_time
+      FROM booking_requests br
+      JOIN booking_sessions bs ON br.session_id = bs.id
+      WHERE br.id = ${bookingId}
+    `);
+
+    if (bookingResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const booking = bookingResult.rows[0] as {
+      id: number; session_id: number; user_email: string; user_name: string; status: string;
+      trackman_booking_id: string | null; date: string; start_time: string; end_time: string;
+    };
+
+    if (booking.user_email.toLowerCase() !== sessionEmail.toLowerCase()) {
+      return res.status(403).json({ error: 'You can only pay for your own bookings' });
+    }
+
+    const userResult = await db.execute(sql`SELECT id, stripe_customer_id FROM users WHERE LOWER(email) = LOWER(${sessionEmail}) AND archived_at IS NULL`);
+    const user = userResult.rows[0] as { id: string; stripe_customer_id: string | null } | undefined;
+
+    if (!user?.stripe_customer_id) {
+      return res.status(400).json({ error: 'No payment methods on file. Please use the standard payment form.' });
+    }
+
+    const savedMethods = await listCustomerPaymentMethods(user.stripe_customer_id);
+    const selectedMethod = savedMethods.find(m => m.id === paymentMethodId);
+    if (!selectedMethod) {
+      return res.status(400).json({ error: 'Selected card is no longer available. Please use the standard payment form.' });
+    }
+
+    const existingPaymentResult = await db.execute(sql`
+      SELECT stripe_payment_intent_id FROM stripe_payment_intents 
+      WHERE booking_id = ${bookingId} AND status = 'succeeded'
+      AND purpose IN ('prepayment', 'booking_fee')
+      LIMIT 1
+    `);
+    if (existingPaymentResult.rows.length > 0) {
+      return res.status(409).json({ error: 'Payment has already been collected for this booking.' });
+    }
+
+    const feeBreakdown = await computeFeeBreakdown({ bookingId, source: 'stripe' });
+    if (feeBreakdown.totals.totalCents < 50) {
+      return res.status(400).json({ error: 'No fees due for this booking, or total is below the minimum charge.' });
+    }
+
+    const participantResult = await db.execute(sql`
+      SELECT id, cached_fee_cents, payment_status, participant_type, display_name
+      FROM booking_participants
+      WHERE session_id = ${booking.session_id} AND payment_status = 'pending' AND (cached_fee_cents > 0 OR cached_fee_cents IS NOT NULL)
+    `);
+
+    const pendingParticipants = (participantResult.rows as Array<{
+      id: number; cached_fee_cents: number; payment_status: string;
+      participant_type: string; display_name: string | null;
+    }>).filter(r => (r.cached_fee_cents || 0) > 0);
+
+    if (pendingParticipants.length === 0) {
+      return res.status(400).json({ error: 'No pending fees found for this booking.' });
+    }
+
+    const feeLineItems: BookingFeeLineItem[] = pendingParticipants.map(r => {
+      const isGuest = r.participant_type === 'guest';
+      return {
+        participantId: r.id,
+        displayName: r.display_name || (isGuest ? 'Guest' : 'Member'),
+        participantType: r.participant_type as 'owner' | 'member' | 'guest',
+        overageCents: isGuest ? 0 : r.cached_fee_cents,
+        guestCents: isGuest ? r.cached_fee_cents : 0,
+        totalCents: r.cached_fee_cents,
+      };
+    });
+
+    const existingInvoiceId = await getBookingInvoiceId(bookingId);
+
+    let invoiceResult;
+
+    if (existingInvoiceId) {
+      try {
+        invoiceResult = await finalizeAndPayInvoice({
+          bookingId,
+          paymentMethodId: selectedMethod.id,
+          offSession: true,
+        });
+      } catch (draftErr: unknown) {
+        logger.warn('[MemberPayments] Failed to use existing draft invoice for saved card, creating new', {
+          extra: { bookingId, existingInvoiceId, error: getErrorMessage(draftErr) }
+        });
+        invoiceResult = null;
+      }
+    }
+
+    if (!invoiceResult) {
+      await createDraftInvoiceForBooking({
+        customerId: user.stripe_customer_id,
+        bookingId,
+        sessionId: booking.session_id,
+        trackmanBookingId: booking.trackman_booking_id || null,
+        feeLineItems,
+        metadata: {
+          type: 'member_saved_card_prepayment',
+          memberEmail: sessionEmail,
+          memberId: user.id,
+          participantIds: JSON.stringify(pendingParticipants.map(p => p.id)),
+        },
+        purpose: 'prepayment',
+      });
+      invoiceResult = await finalizeAndPayInvoice({
+        bookingId,
+        paymentMethodId: selectedMethod.id,
+        offSession: true,
+      });
+    }
+
+    if (invoiceResult.status === 'succeeded') {
+      const chargeDescription = await buildInvoiceDescription(bookingId, booking.trackman_booking_id || null);
+      const participantIds = pendingParticipants.map(p => p.id);
+      const totalCents = pendingParticipants.reduce((sum, p) => sum + (p.cached_fee_cents || 0), 0);
+
+      await db.transaction(async (tx) => {
+        if (participantIds.length > 0) {
+          await tx.execute(sql`UPDATE booking_participants 
+             SET payment_status = 'paid', 
+                 stripe_payment_intent_id = ${invoiceResult!.paymentIntentId},
+                 paid_at = NOW()
+             WHERE id IN (${sql.join(participantIds.map(id => sql`${id}`), sql`, `)})`);
+        }
+
+        await tx.execute(sql`INSERT INTO stripe_payment_intents 
+            (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, status, purpose, description, booking_id, session_id)
+           VALUES (${user!.id}, ${invoiceResult!.paymentIntentId}, ${user!.stripe_customer_id}, ${totalCents}, 'succeeded', 'prepayment', ${chargeDescription}, ${bookingId}, ${booking.session_id})
+           ON CONFLICT (stripe_payment_intent_id) DO UPDATE SET status = 'succeeded', updated_at = NOW()`);
+      });
+
+      try {
+        await db.execute(sql`INSERT INTO billing_audit 
+          (member_email, member_id, action, amount_cents, description, booking_id, session_id, payment_intent_id, invoice_id, created_at)
+          VALUES (${sessionEmail}, ${user.id}, 'member_saved_card_prepayment', ${totalCents}, ${chargeDescription}, ${bookingId}, ${booking.session_id}, ${invoiceResult.paymentIntentId}, ${invoiceResult.invoiceId}, NOW())`);
+      } catch (auditErr: unknown) {
+        logger.warn('[MemberPayments] Failed to write billing audit (non-blocking)', { extra: { error: getErrorMessage(auditErr) } });
+      }
+
+      broadcastBillingUpdate({
+        memberEmail: sessionEmail,
+        action: 'payment_completed',
+        bookingId,
+        status: 'paid'
+      });
+
+      broadcastBookingInvoiceUpdate({
+        bookingId,
+        action: 'payment_confirmed',
+      });
+
+      logger.info('[MemberPayments] Member paid with saved card', {
+        extra: { bookingId, memberEmail: sessionEmail, totalCents, cardLast4: selectedMethod.last4, invoiceId: invoiceResult.invoiceId }
+      });
+
+      return res.json({
+        success: true,
+        cardBrand: selectedMethod.brand,
+        cardLast4: selectedMethod.last4,
+        amountCents: totalCents,
+      });
+    }
+
+    if (invoiceResult.status === 'requires_action') {
+      return res.status(402).json({
+        error: 'Your card requires additional verification. Please use the standard payment form.',
+        requiresAction: true,
+      });
+    }
+
+    return res.status(400).json({
+      error: 'Payment could not be completed with this card. Please try the standard payment form.',
+      status: invoiceResult.status,
+    });
+  } catch (error: unknown) {
+    logger.error('[MemberPayments] Error processing saved card payment', { error: error instanceof Error ? error : new Error(String(error)) });
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'member saved card payment');
+    return res.status(500).json({
+      error: 'Payment failed. Please try using the standard payment form.',
       retryable: true
     });
   }

@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.9",
+    date: "2026-03-14",
+    title: "One-Tap 'Pay with Card on File' for Booking Prepayments",
+    changes: [
+      "New: Members with a saved card can now pay booking fees with a single tap — no need to fill out the payment form",
+      "A prominent 'Pay with card on file' button appears above the standard payment form showing the card brand and last 4 digits",
+      "If the saved card requires extra verification (3D Secure), the system gracefully falls back to the standard payment form",
+      "Full audit trail for saved card member payments, just like staff-initiated charges",
+    ]
+  },
+  {
     version: "8.87.8",
     date: "2026-03-14",
     title: "Apple Pay, Google Pay & Saved Cards for Booking Prepayments",
