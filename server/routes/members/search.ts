@@ -8,6 +8,8 @@ import { logger } from '../../core/logger';
 import { getSessionUser } from '../../types/session';
 import { redactEmail } from './helpers';
 import { getCached, setCache } from '../../core/queryCache';
+import { validateQuery } from '../../middleware/validate';
+import { z } from 'zod';
 
 const DIRECTORY_CACHE_KEY = 'members_directory';
 const DIRECTORY_CACHE_TTL = 30_000;
@@ -155,7 +157,14 @@ router.get('/api/members/search', isAuthenticated, async (req, res) => {
   }
 });
 
-router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
+const directoryQuerySchema = z.object({
+  status: z.string().optional(),
+  search: z.string().optional(),
+  page: z.string().regex(/^\d+$/).optional(),
+  limit: z.string().regex(/^\d+$/).optional(),
+}).passthrough();
+
+router.get('/api/members/directory', isStaffOrAdmin, validateQuery(directoryQuerySchema), async (req, res) => {
   try {
     const statusFilter = (req.query.status as string)?.toLowerCase() || 'active';
     const searchQuery = (req.query.search as string)?.toLowerCase().trim() || '';

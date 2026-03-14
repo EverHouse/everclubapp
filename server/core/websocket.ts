@@ -240,6 +240,13 @@ export function initWebSocketServer(server: Server) {
       return;
     }
     
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
+    if (isProduction && !process.env.SESSION_SECRET) {
+      logger.error('[WebSocket] SESSION_SECRET not configured in production - rejecting connection immediately');
+      ws.close(4008, 'Server misconfigured');
+      return;
+    }
+
     ws.on('error', (error) => {
       logger.error('[WebSocket] Client connection error:', { error: error.message });
     });

@@ -7,10 +7,20 @@ import {
   adjustLedgerForReconciliation, 
   getReconciliationSummary 
 } from '../../core/bookingService/trackmanReconciliation';
+import { validateQuery } from '../../middleware/validate';
+import { z } from 'zod';
 
 const router = Router();
 
-router.get('/api/admin/trackman/reconciliation', isStaffOrAdmin, async (req, res) => {
+const reconciliationQuerySchema = z.object({
+  start_date: z.string().optional(),
+  end_date: z.string().optional(),
+  status: z.enum(['pending', 'reviewed', 'adjusted', 'all']).optional(),
+  limit: z.string().regex(/^\d+$/).optional(),
+  offset: z.string().regex(/^\d+$/).optional(),
+}).passthrough();
+
+router.get('/api/admin/trackman/reconciliation', isStaffOrAdmin, validateQuery(reconciliationQuerySchema), async (req, res) => {
   try {
     const startDate = req.query.start_date as string | undefined;
     const endDate = req.query.end_date as string | undefined;
