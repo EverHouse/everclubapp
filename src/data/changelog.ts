@@ -8,6 +8,43 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.85.0",
+    date: "2026-03-13",
+    title: "Trackman Reliability & Availability Block Improvements",
+    changes: [
+      "Fix: Trackman auto-confirmed bookings now properly clear from the staff queue — previously the booking card would stay visible until a manual refresh",
+      "Fix: Duplicate availability blocks no longer created when Trackman webhooks fire for time slots already covered by events, wellness classes, or closures — the system now detects existing coverage and skips the duplicate",
+      "Fix: Trackman blocked-bay options on the internal calendar no longer create unwanted facility closure notices — calendar sync now filters out time slots that match active Trackman bookings",
+      "Fix: Completing an already-cancelled booking no longer silently succeeds — staff now receives a clear error message instead of a false confirmation",
+      "Improvement: Availability block creation is now more resilient — handles database constraint errors gracefully instead of crashing when duplicate blocks are detected",
+    ]
+  },
+  {
+    version: "8.84.1",
+    date: "2026-03-13",
+    title: "Booking Fixes, Name Display & Apple Wallet Location",
+    changes: [
+      "Feature: Your Apple Wallet membership card now shows a notification when you arrive at the club — uses location-based lock screen triggers with club-configured coordinates",
+      "Fix: Adding multiple players to a booking now works reliably — resolved an issue where adding participants could fail silently",
+      "Fix: Admin booking list no longer shows stale data after cancellations — race condition between booking status updates and the displayed list has been resolved",
+      "Fix: Your name now displays correctly across the app after signing in with Google or Apple — previously some screens showed your email instead of your name",
+      "Fix: Welcome messages and greetings now consistently use your first name throughout the app",
+      "Fix: Billing and cancellation scheduling no longer conflicts with ongoing booking operations — improved transaction safety prevents timing-related errors",
+      "Fix: Admin user management now validates member IDs before processing — prevents errors when working with invalid or deleted member records",
+      "Improvement: Booking system reliability improved with better error handling for edge cases in approval, check-in, and cancellation flows",
+    ]
+  },
+  {
+    version: "8.84.0",
+    date: "2026-03-12",
+    title: "Linked Email Booking Fix",
+    changes: [
+      "Fix: Bookings made under a secondary or linked email now appear correctly on your dashboard — previously these bookings were invisible to the member who made them",
+      "Fix: All booking-related screens (dashboard, billing, check-in) now include bookings across all your linked email addresses",
+      "Fix: Existing bookings that were orphaned due to linked email issues are automatically repaired on server startup",
+    ]
+  },
+  {
     version: "8.83.0",
     date: "2026-03-12",
     title: "Apple Wallet Pass Push Updates",

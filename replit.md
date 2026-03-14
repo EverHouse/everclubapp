@@ -1,6 +1,6 @@
 # Ever Club Members App
 
-**Current Version**: 8.84.0 (March 12, 2026)
+**Current Version**: 8.85.0 (March 13, 2026)
 
 ## Overview
 The Ever Club Members App is a private members club application designed for golf and wellness centers. Its primary purpose is to serve as a central digital hub for managing golf simulator bookings, wellness service appointments, and club events. The project aims to enhance member satisfaction and operational efficiency through comprehensive membership management, facility booking, and community-building tools, ultimately creating a seamless digital experience for club members and staff.
@@ -8,6 +8,11 @@ The Ever Club Members App is a private members club application designed for gol
 ## User Preferences
 - **Communication Style**: The founder is non-technical. Always explain changes in plain English, focusing on the business/member impact. Avoid unnecessary technical jargon.
 - **Development Approach**: Prefer iterative development. Ask before making major architectural changes. Write functional, clean code (utilize your clean-code skill).
+- **Documentation Maintenance (MANDATORY)**: After every task that changes code behavior, features, or fixes bugs:
+  1. **Changelog** (`src/data/changelog.ts`): Add a new entry (or append to an existing same-day entry) with a member-facing description. Update `src/data/changelog-version.ts` to match.
+  2. **replit.md**: Update the "Recent Changes" section and version number at the top. If the change affects architecture, update the relevant architecture section.
+  3. **Custom skills**: If a change establishes a new pattern, convention, or domain rule, update the relevant custom skill in `.agents/skills/` (or create one if none exists).
+  - Never skip these steps. They are as important as the code change itself.
 
 ## System Architecture
 
@@ -142,6 +147,8 @@ The following large files have been split into sub-modules with barrel re-export
 - **Files**: `server/routes/analytics.ts`, `src/pages/Admin/tabs/AnalyticsTab.tsx`
 
 ### Recent Changes
+- **Trackman Reliability & Availability Blocks (v8.85.0)**: Trackman auto-confirmed bookings now clear from the staff queue immediately (was only clearing on refresh). Duplicate availability blocks prevented via `createStandaloneBlock()` in `server/core/availabilityBlockService.ts` which checks for existing coverage before inserting. Calendar sync (`closures.ts`) now filters out Trackman booking time slots from closure import using a `trackmanSlotSet` lookup. Completing already-cancelled bookings now returns a clear error instead of silently succeeding. **Availability block invariant**: all availability block creation should use `createStandaloneBlock()` (or `onConflictDoNothing`) to prevent duplicate constraint violations.
+- **Booking Fixes, Name Display & Apple Wallet Location (v8.84.1)**: Apple Wallet pass now supports lock screen location triggers with admin-configurable coordinates. Multi-player booking addition fixed (Task #28). Admin booking stale data and cancellation race condition fixed (Task #29). User name display fixed across social logins — profile, welcome messages, and greetings now consistently use first names resolved from Google/Apple OAuth data. Billing and cancellation scheduling improved with transaction safety. Admin user management validates IDs before processing.
 - **Linked Email Booking Fix (v8.84.0)**: Comprehensive fix for bookings created under linked/secondary emails not appearing on member dashboards and being stored without `user_id`. All booking creation paths now resolve linked emails to the primary account via `resolveUserByEmail`. All member-facing queries (dashboard, billing, tier limits, check-in) now include bookings across linked emails via `user_linked_emails` table joins. Auto-repair on startup fixes existing orphaned bookings. **Linked email booking invariant**: every query that fetches bookings for a member must include `OR LOWER(user_email) IN (SELECT LOWER(linked_email) FROM user_linked_emails WHERE LOWER(primary_email) = ...)` clauses, or use `user_id`-based joins.
 - **Three More Bug Fixes (v8.82.1)**: (1) Guest pass deduction on HubSpot guest-checkin form now happens *after* successful HubSpot API call — prevents permanent pass loss on network errors. Availability is still checked upfront. (2) `createSession()` advisory lock fix — when no transaction is provided, wraps everything in `db.transaction()` so `pg_advisory_xact_lock` stays held for the full operation (was acquiring and instantly releasing on global pool). (3) Staff directory blank-screen race condition — concurrent requests now wait on the same shared refresh promise instead of returning empty `[]` when cache is empty and a refresh is already in-flight.
 - **Three Critical Bug Fixes (v8.82.1)**: (1) Transaction leak in `ensureSessionForBooking` — BEGIN/COMMIT now wraps all writes (session insert + participant cleanup + participant insert + booking request update), not just the session INSERT. Prevents orphaned sessions on crash. (2) HubSpot webhook cache stampede — cache invalidation moved below the `PROFILE_PROPERTIES` filter so irrelevant property changes (analytics, internal workflows) no longer flush the CRM cache. Directory no longer hangs after HubSpot sends bulk webhooks. (3) Guest pass insufficient-allocation now gracefully degrades across all 4 code paths (hold conversion existing record, hold conversion first-time user, hold fallback direct deduction, staff/trackman direct deduction) — uses as many passes as available and lets the fee calculator charge the rest as paid guests, instead of throwing a 500 error that prevents check-in entirely.
