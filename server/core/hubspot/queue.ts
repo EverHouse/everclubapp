@@ -135,18 +135,24 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
       await executeHubSpotOperation(job.operation, job.payload);
       
       // Mark as completed
-      await queryWithRetry(
+      const completeResult = await queryWithRetry(
         `UPDATE hubspot_sync_queue 
          SET status = 'completed', completed_at = NOW(), updated_at = NOW() 
-         WHERE id = $1`,
+         WHERE id = $1 AND status = 'processing'`,
         [job.id],
         3
       );
       
-      stats.succeeded++;
-      logger.info('[HubSpot Queue] Job completed', { 
-        extra: { jobId: job.id, operation: job.operation }
-      });
+      if (completeResult.rowCount === 0) {
+        logger.warn('[HubSpot Queue] Job was superseded mid-flight, discarding result', {
+          extra: { jobId: job.id, operation: job.operation }
+        });
+      } else {
+        stats.succeeded++;
+        logger.info('[HubSpot Queue] Job completed', { 
+          extra: { jobId: job.id, operation: job.operation }
+        });
+      }
       
     } catch (error: unknown) {
       const errorMsg = getErrorMessage(error);
@@ -156,15 +162,22 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
         errorMsg.includes('401');
       
       if (isUnrecoverable) {
-        await queryWithRetry(
+        const deadResult = await queryWithRetry(
           `UPDATE hubspot_sync_queue 
            SET status = 'dead', 
                last_error = $1,
                updated_at = NOW() 
-           WHERE id = $2`,
+           WHERE id = $2 AND status = 'processing'`,
           [`Unrecoverable error - ${errorMsg}`, job.id],
           3
         );
+        
+        if (deadResult.rowCount === 0) {
+          logger.warn('[HubSpot Queue] Job was superseded mid-flight (unrecoverable error ignored)', {
+            extra: { jobId: job.id, operation: job.operation }
+          });
+          continue;
+        }
         
         logger.error('[HubSpot Queue] Job dead (unrecoverable error - skipping retries)', { 
           error: getErrorMessage(error),
@@ -192,60 +205,69 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
       const shouldRetry = Number(newRetryCount) < Number(job.max_retries);
       
       if (shouldRetry) {
-        // Schedule retry with exponential backoff
         const nextRetry = getNextRetryTime(newRetryCount);
-        await queryWithRetry(
+        const retryResult = await queryWithRetry(
           `UPDATE hubspot_sync_queue 
            SET status = 'failed', 
                retry_count = $1, 
                last_error = $2, 
                next_retry_at = $3,
                updated_at = NOW() 
-           WHERE id = $4`,
+           WHERE id = $4 AND status = 'processing'`,
           [newRetryCount, getErrorMessage(error), nextRetry, job.id],
           3
         );
         
-        logger.warn('[HubSpot Queue] Job failed, will retry', { 
-          extra: { 
-            jobId: job.id, 
-            operation: job.operation,
-            retryCount: newRetryCount,
-            nextRetry: nextRetry.toISOString()
-          }
-        });
+        if (retryResult.rowCount === 0) {
+          logger.warn('[HubSpot Queue] Job was superseded mid-flight (retry skipped)', {
+            extra: { jobId: job.id, operation: job.operation }
+          });
+        } else {
+          logger.warn('[HubSpot Queue] Job failed, will retry', { 
+            extra: { 
+              jobId: job.id, 
+              operation: job.operation,
+              retryCount: newRetryCount,
+              nextRetry: nextRetry.toISOString()
+            }
+          });
+          stats.failed++;
+        }
       } else {
-        // Mark as dead (exceeded retries)
-        await queryWithRetry(
+        const deadResult = await queryWithRetry(
           `UPDATE hubspot_sync_queue 
            SET status = 'dead', 
                last_error = $1,
                updated_at = NOW() 
-           WHERE id = $2`,
+           WHERE id = $2 AND status = 'processing'`,
           [getErrorMessage(error), job.id],
           3
         );
         
-        logger.error('[HubSpot Queue] Job dead (max retries exceeded)', { 
-          error: getErrorMessage(error),
-          extra: { jobId: job.id, operation: job.operation }
-        });
-        
-        // Alert staff so failed syncs don't go unnoticed
-        try {
-          const { notifyAllStaff } = await import('../staffNotifications');
-          await notifyAllStaff(
-            'HubSpot Sync Failed Permanently',
-            `Job ${job.id} (${job.operation}) failed after ${job.max_retries} retries. ` +
-            `Last error: ${getErrorMessage(error)}. Manual intervention may be required.`,
-            'integration_error'
-          );
-        } catch (notifyErr: unknown) {
-          logger.error('[HubSpot Queue] Failed to notify staff of dead job', { error: getErrorMessage(notifyErr) });
+        if (deadResult.rowCount === 0) {
+          logger.warn('[HubSpot Queue] Job was superseded mid-flight (max retries ignored)', {
+            extra: { jobId: job.id, operation: job.operation }
+          });
+        } else {
+          logger.error('[HubSpot Queue] Job dead (max retries exceeded)', { 
+            error: getErrorMessage(error),
+            extra: { jobId: job.id, operation: job.operation }
+          });
+          
+          try {
+            const { notifyAllStaff } = await import('../staffNotifications');
+            await notifyAllStaff(
+              'HubSpot Sync Failed Permanently',
+              `Job ${job.id} (${job.operation}) failed after ${job.max_retries} retries. ` +
+              `Last error: ${getErrorMessage(error)}. Manual intervention may be required.`,
+              'integration_error'
+            );
+          } catch (notifyErr: unknown) {
+            logger.error('[HubSpot Queue] Failed to notify staff of dead job', { error: getErrorMessage(notifyErr) });
+          }
+          stats.failed++;
         }
       }
-      
-      stats.failed++;
     }
   }
   
