@@ -1105,7 +1105,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
       return res.status(400).json({ error: 'Event has no Trackman booking ID to link' });
     }
     
-    const bookingData = payload?.data || payload?.booking || {};
+    const bookingData = (payload?.data || payload?.booking || {}) as Record<string, unknown>;
     const bookingStart = bookingData?.start;
     
     if (!bookingStart) {
@@ -1122,7 +1122,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
     });
     
     let resourceId: number | null = null;
-    const bayRef = bookingData?.bay?.ref;
+    const bayRef = (bookingData?.bay as Record<string, unknown>)?.ref;
     if (bayRef) {
       const refNum = parseInt(String(bayRef).trim(), 10);
       if (refNum >= 1 && refNum <= 4) {
@@ -1282,7 +1282,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
           });
         }
 
-        const playerCount = bookingData?.playerCount || bookingData?.player_count || bookingData?.numberOfPlayers || 1;
+        const playerCount = Number((bookingData as Record<string, unknown>)?.playerCount || (bookingData as Record<string, unknown>)?.player_count || (bookingData as Record<string, unknown>)?.numberOfPlayers || 1);
         if (playerCount > 1) {
           const startTimeStr = (match.start_time as string) || pacificStartTime;
           const endTimeStr = (match.end_time as string) || pacificStartTime;
@@ -1653,10 +1653,10 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
           ? JSON.parse(event.payload) 
           : event.payload;
         
-        const bookingData = payload?.booking || payload?.data || {};
+        const bookingData = (payload?.booking || payload?.data || {}) as Record<string, unknown>;
         const startStr = bookingData?.start;
         const endStr = bookingData?.end;
-        const bayRef = bookingData?.bay?.ref;
+        const bayRef = (bookingData?.bay as Record<string, unknown>)?.ref;
         const customerEmail = undefined;
         const customerName = 'Unknown (Trackman)';
         const rawPlayerOptions = bookingData?.playerOptions;
@@ -1678,8 +1678,10 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
           continue;
         }
         
-        const startDate = new Date(startStr.includes('T') ? startStr : startStr.replace(' ', 'T') + 'Z');
-        const endDate = new Date(endStr.includes('T') ? endStr : endStr.replace(' ', 'T') + 'Z');
+        const startStrVal = String(startStr);
+        const endStrVal = String(endStr);
+        const startDate = new Date(startStrVal.includes('T') ? startStrVal : startStrVal.replace(' ', 'T') + 'Z');
+        const endDate = new Date(endStrVal.includes('T') ? endStrVal : endStrVal.replace(' ', 'T') + 'Z');
         
         const requestDate = startDate.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
         const startTime = startDate.toLocaleTimeString('en-US', { 
@@ -1691,7 +1693,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
         
         let resourceId: number | null = null;
         if (bayRef) {
-          const bayNum = parseInt(bayRef);
+          const bayNum = parseInt(String(bayRef));
           if (bayNum >= 1 && bayNum <= 4) {
             resourceId = bayNum;
           }
@@ -1797,7 +1799,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
             }
           }
           
-          if (newBooking.rows.length > 0) {
+          if (newBooking.rows.length > 0 && resourceId != null) {
             const bookingId = (newBooking.rows[0] as unknown as NewBookingRow).id;
             
             await db.execute(sql`UPDATE trackman_webhook_events SET matched_booking_id = ${bookingId} WHERE id = ${event.id}`);

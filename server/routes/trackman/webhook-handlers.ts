@@ -1406,7 +1406,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
     // Broadcast availability update for real-time calendar refresh
     if (unmatchedResult.bookingId) {
       broadcastAvailabilityUpdate({
-        resourceId,
+        resourceId: resourceId ?? undefined,
         date: startParsed.date,
         action: 'booked',
       });
@@ -1451,7 +1451,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
     
     // Broadcast availability update for real-time calendar refresh
     broadcastAvailabilityUpdate({
-      resourceId: autoApproveResult.resourceId || resourceId,
+      resourceId: autoApproveResult.resourceId || (resourceId ?? undefined),
       date: startParsed.date,
       action: 'booked',
     });
@@ -1711,7 +1711,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
     
     // Broadcast availability update for real-time calendar refresh
     broadcastAvailabilityUpdate({
-      resourceId,
+      resourceId: resourceId ?? undefined,
       date: startParsed.date,
       action: 'booked',
     });

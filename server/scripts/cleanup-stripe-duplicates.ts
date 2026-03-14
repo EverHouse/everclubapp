@@ -83,7 +83,7 @@ async function findAndCategorizeCustomers(): Promise<CleanupResult> {
       }
       
       const email = customer.email?.toLowerCase() || '';
-      const name = customer.name;
+      const name = customer.name ?? null;
       const userId = customer.metadata?.userId;
       
       // Skip if not a placeholder email

@@ -107,7 +107,7 @@ export async function logWebhookEvent(
             ? JSON.parse(recentDupe.rows[0].payload) 
             : recentDupe.rows[0].payload;
         } catch { existingPayload = {}; }
-        const existingBookingData = existingPayload?.data || existingPayload?.booking || {};
+        const existingBookingData = (existingPayload?.data || existingPayload?.booking || {}) as Record<string, unknown>;
         const existingStart = existingBookingData?.start || existingBookingData?.start_time || existingPayload?.start_time || '';
         const existingEnd = existingBookingData?.end || existingBookingData?.end_time || existingPayload?.end_time || '';
         const existingStatus = existingBookingData?.status || existingPayload?.status || '';

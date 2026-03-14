@@ -51,7 +51,10 @@ async function getCredentials() {
     throw new Error(`Resend connector API error (HTTP ${connectorResponse.status}): ${errorText.substring(0, 200)}`);
   }
 
-  connectionSettings = await connectorResponse.json().then((data: Record<string, unknown>) => (data.items as Record<string, unknown>[] | undefined)?.[0] ?? null);
+  connectionSettings = await connectorResponse.json().then((data: unknown) => {
+    const parsed = data as Record<string, unknown>;
+    return (parsed.items as Record<string, unknown>[] | undefined)?.[0] ?? null;
+  });
 
   const settings = connectionSettings?.settings as ResendConnectionSettings | undefined;
   if (!settings?.api_key) {
