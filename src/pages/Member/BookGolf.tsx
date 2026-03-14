@@ -940,7 +940,7 @@ const BookGolf: React.FC = () => {
         <p className={`text-base leading-relaxed max-w-md ${isDark ? 'text-white/60' : 'text-primary/60'}`} style={{ fontFamily: 'var(--font-body)' }}>{activeTab === 'simulator' ? 'Choose your party size, select a date, and reserve your preferred bay from the availability grid below. Requests are reviewed and confirmed by Concierge.' : 'Select your date, duration, and preferred conference space below. Conference rooms are confirmed instantly upon booking.'}</p>
       </section>
 
-      {effectiveUser?.status && !['active', 'trialing'].includes(effectiveUser.status.toLowerCase()) ? (
+      {effectiveUser?.status && !['active', 'trialing', 'past_due'].includes(effectiveUser.status.toLowerCase()) ? (
         <section className={`rounded-xl p-6 border text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
           <span className="material-symbols-outlined text-4xl text-accent-dark dark:text-accent mb-4">lock</span>
           <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>Membership Not Active</h3>

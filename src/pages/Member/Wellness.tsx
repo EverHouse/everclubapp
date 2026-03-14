@@ -529,7 +529,7 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
                             isRsvping={isRsvping}
                             isCancelDisabled={recentlyEnrolled.has(cls.id)}
                             isDark={isDark}
-                            isMembershipInactive={!!(userStatus && userStatus.toLowerCase() !== 'active')}
+                            isMembershipInactive={!!(userStatus && !['active', 'trialing', 'past_due'].includes(userStatus.toLowerCase()))}
                             isFull={isFull}
                             externalUrl={cls.external_url}
                         />

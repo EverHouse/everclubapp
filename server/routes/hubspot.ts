@@ -2255,7 +2255,7 @@ router.post('/api/hubspot/push-members-to-hubspot', isStaffOrAdmin, async (_req:
     const membersResult = await db.execute(sql`
       SELECT email, membership_status, billing_provider, tier, hubspot_id, first_name, last_name
       FROM users
-      WHERE membership_status = 'active' AND email IS NOT NULL
+      WHERE membership_status IN ('active', 'trialing', 'past_due') AND email IS NOT NULL
       ORDER BY email
     `);
     const members = membersResult.rows as unknown as BillingProviderMemberRow[];

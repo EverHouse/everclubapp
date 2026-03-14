@@ -84,7 +84,7 @@ router.post('/api/day-passes/checkout', checkoutRateLimiter, async (req: Request
       ? [resolved.firstName, resolved.lastName].filter(Boolean).join(' ') || firstName || email.split('@')[0]
       : firstName || email.split('@')[0];
 
-    if (resolved && ['active', 'trialing'].includes(resolved.membershipStatus || '')) {
+    if (resolved && ['active', 'trialing', 'past_due'].includes(resolved.membershipStatus || '')) {
       logger.info('[DayPasses] Warning: active member purchasing day pass with email', { extra: { resolvedPrimaryEmail: resolved.primaryEmail, email } });
     }
 

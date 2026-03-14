@@ -476,7 +476,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                         ? memberNameMap[bookingEmail] 
                                         : booking?.user_name || 'Booked';
                                     const isTrackmanMatched = !!booking?.trackman_booking_id || (booking?.notes && booking.notes.includes('[Trackman Import ID:'));
-                                    const hasKnownInactiveStatus = bookingMemberStatus && bookingMemberStatus.toLowerCase() !== 'active' && bookingMemberStatus.toLowerCase() !== 'unknown';
+                                    const hasKnownInactiveStatus = bookingMemberStatus && !['active', 'trialing', 'past_due', 'unknown'].includes(bookingMemberStatus.toLowerCase());
                                     const isInactiveMember = booking && bookingEmail && isTrackmanMatched && hasKnownInactiveStatus;
                                     const isUnmatched = !!booking?.is_unmatched || (booking && (() => {
                                         const e = (booking.user_email || '').toLowerCase();
