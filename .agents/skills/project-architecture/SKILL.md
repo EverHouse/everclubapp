@@ -205,6 +205,12 @@ Database query results may return `Date` objects for date columns. Any function 
 - **Duplicate Socket Guard**: Before `existing.push(connection)`, always check `!existing.some(c => c.ws === ws)`. Flaky mobile networks may retransmit auth messages, which without this guard pushes the same WebSocket into the array multiple times, causing duplicate broadcasts.
 - **Mobile Staff Registration Fallback**: The `staff_register` handler first tries `getVerifiedUserFromRequest(req)` (cookie-based). If that returns null (mobile clients without cookies), it falls back to a direct DB lookup of the user's role via `userEmail`. Without this, mobile managers never receive staff-only real-time alerts.
 
+### 18a. FOR UPDATE Lock Ordering (v8.87.12)
+All multi-row `SELECT ... FOR UPDATE` queries MUST include `ORDER BY id ASC` (or the relevant primary key). Without consistent ordering, concurrent transactions locking overlapping row sets in different orders cause PostgreSQL deadlocks. This applies to ALL files — currently enforced in `payments.ts` (3 queries) and `manualBooking.ts` (2 queries). See `stripe-webhook-flow`, `member-lifecycle`, and `booking-import-standards` skills.
+
+### 18b. Error Message Extraction (v8.87.12)
+All `catch` blocks in server code MUST use `getErrorMessage(err)` from `server/utils/errorUtils.ts` when logging errors. NEVER log raw `err` objects or use `(err as Error).message` (unsafe cast crashes on non-Error objects). Import: `import { getErrorMessage } from '../utils/errorUtils';` (adjust path as needed).
+
 ### 19. Group Billing Rollback Completeness (v8.26.7)
 - **Add Member Failure**: When Stripe fails during `addGroupMember`/`addCorporateMember`, the catch block MUST reset both `membership_status = 'pending'` AND `tier = NULL` on the user record. Without this, ghost users appear as active members with no billing.
 - **Remove Member**: When removing from a billing group, MUST set `membership_status = 'cancelled'`, `last_tier = tier`, `tier = NULL`. Without this, removed members retain active access indefinitely.

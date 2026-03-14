@@ -11,7 +11,7 @@ Layered defense against data corruption, sync drift, and operational failures ac
 
 | Task | Primary File(s) | When to touch |
 |---|---|---|
-| Integrity checks (27) | `server/core/dataIntegrity.ts` | Check logic, issue tracking, ignore rules, audit log |
+| Integrity checks (27) | `server/core/dataIntegrity.ts` (barrel re-export), `server/core/integrity/` (actual modules: `core.ts`, `memberChecks.ts`, `stripeChecks.ts`, `bookingChecks.ts`, `hubspotChecks.ts`, `cleanup.ts`, `resolution.ts`) | Check logic, issue tracking, ignore rules, audit log |
 | Data alerts (in-app) | `server/core/dataAlerts.ts` | Staff notifications for failures |
 | Error alerts (email) | `server/core/errorAlerts.ts` | Email alerts with plain-language translation |
 | Monitoring core | `server/core/monitoring.ts` | `system_alerts` table + in-memory buffer |
@@ -93,7 +93,7 @@ What type of alert?
 - **HubSpot queue monitoring** → `hubspot-sync` skill
 - **Booking auto-complete** → `booking-flow` skill
 - **Fee guard for auto-complete** → `fee-calculation` skill
-- **Terminal status clears is_unmatched** → `booking-import-standards` Rule 21
+- **Terminal status clears is_unmatched** → `booking-import-standards` Rule 22
 
 ## Detailed Reference
 
