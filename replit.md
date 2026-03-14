@@ -8,10 +8,14 @@ The Ever Club Members App is a private members club application designed for gol
 ## User Preferences
 - **Communication Style**: The founder is non-technical. Always explain changes in plain English, focusing on the business/member impact. Avoid unnecessary technical jargon.
 - **Development Approach**: Prefer iterative development. Ask before making major architectural changes. Write functional, clean code (utilize your clean-code skill).
+- **Custom Skills — Read First, Update After (MANDATORY)**:
+  1. **Before starting any change**: Read the relevant custom skills in `.agents/skills/` to understand existing context, patterns, and rules. Do not re-investigate things the skills already document.
+  2. **After every code change**: Update any affected custom skills so they stay in sync with reality. This includes new rules, changed behavior, file restructures, or fixed bugs. If no skill covers the area, create one.
+  3. These are the project's institutional memory. Outdated skills cause wasted effort. Keeping them current is non-negotiable.
 - **Documentation Maintenance (MANDATORY)**: After every task that changes code behavior, features, or fixes bugs:
   1. **Changelog** (`src/data/changelog.ts`): Add a new entry (or append to an existing same-day entry) with a member-facing description. Update `src/data/changelog-version.ts` to match.
   2. **replit.md**: Update the "Recent Changes" section and version number at the top. If the change affects architecture, update the relevant architecture section.
-  3. **Custom skills**: If a change establishes a new pattern, convention, or domain rule, update the relevant custom skill in `.agents/skills/` (or create one if none exists).
+  3. **Custom skills**: Update the relevant custom skill in `.agents/skills/` to reflect the change (see rule above).
   - Never skip these steps. They are as important as the code change itself.
 
 ## System Architecture
