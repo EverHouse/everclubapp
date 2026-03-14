@@ -341,7 +341,7 @@ const ChangelogTab: React.FC = () => {
         if (activeTab === 'activity' && isAdmin) {
             fetchActivityLog(true);
         }
-    }, [activeTab, filterCategory, staffFilter, sourceFilter, isAdmin]);
+    }, [activeTab, filterCategory, staffFilter, sourceFilter, isAdmin, fetchActivityLog]);
 
     useEffect(() => {
         if (limit > 50 && activeTab === 'activity') {

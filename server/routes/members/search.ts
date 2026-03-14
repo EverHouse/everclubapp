@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import { sql, and } from 'drizzle-orm';
 import { db } from '../../db';
 import { users, staffUsers } from '../../../shared/schema';
@@ -25,14 +25,15 @@ const memberSearchSchema = z.object({
 
 router.get('/api/members/search', isAuthenticated, validateQuery(memberSearchSchema), async (req, res) => {
   try {
-    const { query, limit = '10', excludeId, includeFormer = 'false', includeVisitors = 'false' } = req.query;
+    const vq = (req as Request & { validatedQuery: z.infer<typeof memberSearchSchema> }).validatedQuery;
+    const { query, limit = '10', excludeId, includeFormer = 'false', includeVisitors = 'false' } = vq;
     
-    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+    if (!query || query.trim().length === 0) {
       return res.json([]);
     }
     
     const searchTerm = `%${query.trim().toLowerCase()}%`;
-    const maxResults = Math.min(parseInt(limit as string) || 10, 50);
+    const maxResults = Math.min(parseInt(limit) || 10, 50);
     const shouldIncludeFormer = includeFormer === 'true';
     const shouldIncludeVisitors = includeVisitors === 'true';
     
@@ -173,11 +174,12 @@ const directoryQuerySchema = z.object({
 
 router.get('/api/members/directory', isStaffOrAdmin, validateQuery(directoryQuerySchema), async (req, res) => {
   try {
-    const statusFilter = (req.query.status as string)?.toLowerCase() || 'active';
-    const searchQuery = (req.query.search as string)?.toLowerCase().trim() || '';
+    const vq = (req as Request & { validatedQuery: z.infer<typeof directoryQuerySchema> }).validatedQuery;
+    const statusFilter = vq.status?.toLowerCase() || 'active';
+    const searchQuery = vq.search?.toLowerCase().trim() || '';
     
-    const pageParam = parseInt(req.query.page as string, 10);
-    const limitParam = parseInt(req.query.limit as string, 10);
+    const pageParam = parseInt(vq.page || '', 10);
+    const limitParam = parseInt(vq.limit || '', 10);
     const isPaginated = !isNaN(pageParam) || !isNaN(limitParam);
     const page = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
     const limit = isNaN(limitParam) ? 500 : Math.min(Math.max(limitParam, 1), 500);
@@ -464,18 +466,18 @@ const guestSearchSchema = z.object({
 
 router.get('/api/guests/search', isAuthenticated, validateQuery(guestSearchSchema), async (req, res) => {
   try {
-    const { query, limit = '10', includeFullEmail } = req.query;
+    const vq = (req as Request & { validatedQuery: z.infer<typeof guestSearchSchema> }).validatedQuery;
     
-    if (!query || typeof query !== 'string' || query.trim().length < 2) {
+    if (!vq.query || vq.query.trim().length < 2) {
       return res.json([]);
     }
     
-    const searchTerm = `%${query.trim().toLowerCase()}%`;
-    const maxResults = Math.min(parseInt(limit as string) || 10, 30);
+    const searchTerm = `%${vq.query.trim().toLowerCase()}%`;
+    const maxResults = Math.min(parseInt(vq.limit || '10') || 10, 30);
     
     const sessionUser = getSessionUser(req);
     const isStaff = sessionUser?.role === 'admin' || sessionUser?.role === 'staff';
-    const showFullEmail = isStaff && includeFullEmail === 'true';
+    const showFullEmail = isStaff && vq.includeFullEmail === 'true';
     
     const results = await db.select({
       id: users.id,

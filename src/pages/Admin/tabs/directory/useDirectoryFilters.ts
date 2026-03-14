@@ -80,7 +80,7 @@ export function useDirectoryFilters({ members, formerMembers, memberTab }: UseDi
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [sortOpen]);
 
-    const currentMembers = memberTab === 'active' ? (members || []) : (formerMembers || []);
+    const currentMembers = useMemo(() => memberTab === 'active' ? (members || []) : (formerMembers || []), [memberTab, members, formerMembers]);
     
     const regularMembers = useMemo(() => {
         if (!Array.isArray(currentMembers)) return [];

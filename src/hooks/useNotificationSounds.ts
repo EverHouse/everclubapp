@@ -44,8 +44,9 @@ export function useNotificationSounds(isStaff: boolean = false, userKey?: string
   }, [userKey]);
 
   useEffect(() => {
+    const seenIds = seenIdsRef.current;
     return () => {
-      seenIdsRef.current.clear();
+      seenIds.clear();
       initialLoadDoneRef.current = false;
     };
   }, []);

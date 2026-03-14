@@ -231,7 +231,7 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
     if (cachedData && !cachedData.hasCached && !runIntegrityMutation.isPending) {
       runIntegrityMutation.mutate();
     }
-  }, [cachedData]);
+  }, [cachedData, runIntegrityMutation]);
 
   useEffect(() => {
     const handleDataIntegrityUpdate = (event: CustomEvent) => {
@@ -757,7 +757,7 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
     return () => {
       window.removeEventListener('stripe-cleanup-progress', handleProgress as EventListener);
     };
-  }, [showToast]);
+  }, [showToast, state]);
 
   useEffect(() => {
     if (!state.isRunningStripeCleanup) return;
@@ -800,7 +800,7 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [state.isRunningStripeCleanup]);
+  }, [state.isRunningStripeCleanup, state]);
 
   useEffect(() => {
     const handleProgress = (event: CustomEvent) => {
@@ -834,7 +834,7 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
     return () => {
       window.removeEventListener('visitor-archive-progress', handleProgress as EventListener);
     };
-  }, [showToast]);
+  }, [showToast, state]);
 
   useEffect(() => {
     if (!state.isRunningVisitorArchive) return;
@@ -876,7 +876,7 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [state.isRunningVisitorArchive]);
+  }, [state.isRunningVisitorArchive, state]);
 
   const syncSubscriptionStatusMutation = useMutation({
     mutationFn: (dryRun: boolean) => 
@@ -1263,7 +1263,7 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
     } finally {
       state.setLoadingMemberEmail(null);
     }
-  }, [showToast]);
+  }, [showToast, state]);
 
   const runIntegrityChecks = () => {
     runIntegrityMutation.mutate();

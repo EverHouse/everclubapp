@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { logger } from '../../core/logger';
 import { 
@@ -22,11 +22,12 @@ const reconciliationQuerySchema = z.object({
 
 router.get('/api/admin/trackman/reconciliation', isStaffOrAdmin, validateQuery(reconciliationQuerySchema), async (req, res) => {
   try {
-    const startDate = req.query.start_date as string | undefined;
-    const endDate = req.query.end_date as string | undefined;
-    const status = req.query.status as 'pending' | 'reviewed' | 'adjusted' | 'all' | undefined;
-    const limit = parseInt(req.query.limit as string) || 100;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const vq = (req as Request & { validatedQuery: z.infer<typeof reconciliationQuerySchema> }).validatedQuery;
+    const startDate = vq.start_date;
+    const endDate = vq.end_date;
+    const status = vq.status;
+    const limit = parseInt(vq.limit || '') || 100;
+    const offset = parseInt(vq.offset || '') || 0;
     
     const result = await findAttendanceDiscrepancies({
       startDate,

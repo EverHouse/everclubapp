@@ -17,19 +17,21 @@ const auditLogQuerySchema = z.object({
 
 router.get('/api/data-tools/audit-log', isAdmin, validateQuery(auditLogQuerySchema), async (req: Request, res: Response) => {
   try {
-    const { limit = '20', actionType } = req.query;
+    const vq = (req as Request & { validatedQuery: z.infer<typeof auditLogQuerySchema> }).validatedQuery;
+    const limitNum = parseInt(vq.limit || '20');
+    const actionType = vq.actionType;
     
     const logs = actionType
       ? await db.select()
           .from(adminAuditLog)
-          .where(and(eq(adminAuditLog.resourceType, 'billing'), eq(adminAuditLog.action, actionType as string)))
+          .where(and(eq(adminAuditLog.resourceType, 'billing'), eq(adminAuditLog.action, actionType)))
           .orderBy(desc(adminAuditLog.createdAt))
-          .limit(parseInt(limit as string))
+          .limit(limitNum)
       : await db.select()
           .from(adminAuditLog)
           .where(eq(adminAuditLog.resourceType, 'billing'))
           .orderBy(desc(adminAuditLog.createdAt))
-          .limit(parseInt(limit as string));
+          .limit(limitNum);
     
     res.json(logs.filter(log => 
       ['member_resynced_from_hubspot', 'guest_fee_manually_linked', 'attendance_manually_updated', 'mindbody_reimport_requested'].includes(log.action)
@@ -49,10 +51,11 @@ const staffActivityQuerySchema = z.object({
 
 router.get('/api/data-tools/staff-activity', isAdmin, validateQuery(staffActivityQuerySchema), async (req: Request, res: Response) => {
   try {
-    const limitParam = parseInt(req.query.limit as string) || 50;
-    const staffEmail = (req.query.staff_email as string)?.trim()?.toLowerCase();
-    const actionsParam = req.query.actions as string;
-    const actorType = req.query.actor_type as string;
+    const vq = (req as Request & { validatedQuery: z.infer<typeof staffActivityQuerySchema> }).validatedQuery;
+    const limitParam = parseInt(vq.limit || '') || 50;
+    const staffEmail = vq.staff_email?.trim()?.toLowerCase();
+    const actionsParam = vq.actions;
+    const actorType = vq.actor_type;
     
     const conditions = [];
     

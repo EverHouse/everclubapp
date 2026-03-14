@@ -144,7 +144,7 @@ function AppleMapView({ coords }: { coords: { lat: number; lng: number } }) {
         mapInstanceRef.current = null;
       }
     };
-  }, [token, initMap]);
+  }, [token, initMap, isDark]);
 
   useEffect(() => {
     if (mapInstanceRef.current && window.mapkit) {

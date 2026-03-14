@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Stripe, StripeElementsOptions } from '@stripe/stripe-js';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import type { Stripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { SimpleCheckoutForm } from '../../../stripe/StripePaymentForm';
 import { formatPhoneInput } from '../../../../utils/formatting';
@@ -47,13 +47,7 @@ export function VisitorFlow({
 
   const selectedProduct = products.find(p => p.id === form.productId);
 
-  useEffect(() => {
-    if (step === 'payment' && selectedProduct && !paymentInitiatedRef.current) {
-      initializePayment();
-    }
-  }, [step, selectedProduct]);
-
-  const initializePayment = async () => {
+  const initializePayment = useCallback(async () => {
     if (paymentInitiatedRef.current || !selectedProduct) return;
     paymentInitiatedRef.current = true;
     setStripeLoading(true);
@@ -97,7 +91,13 @@ export function VisitorFlow({
     } finally {
       setStripeLoading(false);
     }
-  };
+  }, [selectedProduct, form.productId, form.email, form.firstName, form.lastName, form.phone, form.streetAddress, form.city, form.state, form.zipCode]);
+
+  useEffect(() => {
+    if (step === 'payment' && selectedProduct && !paymentInitiatedRef.current) {
+      initializePayment();
+    }
+  }, [step, selectedProduct, initializePayment]);
 
   const handlePaymentSuccess = async (paymentIntentIdResult?: string) => {
     if (!paymentIntentId && !paymentIntentIdResult) return;

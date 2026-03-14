@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../../Toast';
 import { StripePaymentForm } from '../../stripe/StripePaymentForm';
 import { TerminalPayment } from '../TerminalPayment';
@@ -96,17 +96,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   const [_checkingCard, setCheckingCard] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'terminal'>('terminal');
 
-  useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log('[CheckinBillingModal] Props changed:', { isOpen, bookingId });
-    if (isOpen && bookingId) {
-      // eslint-disable-next-line no-console
-      console.log('[CheckinBillingModal] Opening and fetching context');
-      fetchContext();
-    }
-  }, [isOpen, bookingId]);
-
-  const fetchContext = async () => {
+  const fetchContext = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -124,7 +114,17 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [bookingId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log('[CheckinBillingModal] Props changed:', { isOpen, bookingId });
+    if (isOpen && bookingId) {
+      // eslint-disable-next-line no-console
+      console.log('[CheckinBillingModal] Opening and fetching context');
+      fetchContext();
+    }
+  }, [isOpen, bookingId, fetchContext]);
 
   const checkSavedCard = async (email: string) => {
     try {

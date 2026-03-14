@@ -1,5 +1,5 @@
 import React from 'react';
-import { Stripe, StripeElementsOptions } from '@stripe/stripe-js';
+import type { Stripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { SimpleCheckoutForm } from '../../../stripe/StripePaymentForm';
 import { TerminalPayment } from '../../TerminalPayment';

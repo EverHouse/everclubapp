@@ -83,6 +83,16 @@ export function StaffManualBookingModal({
     };
   }, [isOpen, confHostMember, confDate, confDuration]);
 
+  const handleClose = useCallback(() => {
+    setConfDate(getTodayPacific());
+    setConfDuration(60);
+    setConfStartTime('08:30');
+    setConfHostMember(null);
+    setConfFeeEstimate(null);
+    setError(null);
+    onClose();
+  }, [onClose]);
+
   const handleConferenceSubmit = useCallback(async () => {
     if (!confHostMember || !confStartTime || !confDate) {
       setError('Please fill in all required fields');
@@ -120,19 +130,9 @@ export function StaffManualBookingModal({
     } finally {
       setConfSubmitting(false);
     }
-  }, [confHostMember, confStartTime, confDate, confDuration, showToast]);
+  }, [confHostMember, confStartTime, confDate, confDuration, showToast, handleClose]);
 
   const canCreateConferenceBooking = confHostMember && confStartTime && confDate;
-
-  const handleClose = useCallback(() => {
-    setConfDate(getTodayPacific());
-    setConfDuration(60);
-    setConfStartTime('08:30');
-    setConfHostMember(null);
-    setConfFeeEstimate(null);
-    setError(null);
-    onClose();
-  }, [onClose]);
 
   const stickyFooterContent = (
     <div className="p-4 space-y-3">

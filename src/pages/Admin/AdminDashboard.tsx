@@ -537,11 +537,7 @@ const StaffTrainingGuide: React.FC = () => {
     const { confirm, ConfirmDialogComponent } = useConfirmDialog();
     const { showToast } = useToast();
 
-    useEffect(() => {
-        fetchSections();
-    }, []);
-
-    const fetchSections = async () => {
+    const fetchSections = useCallback(async () => {
         try {
             const response = await fetch('/api/training-sections', { credentials: 'include' });
             if (response.ok) {
@@ -557,7 +553,11 @@ const StaffTrainingGuide: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [showToast]);
+
+    useEffect(() => {
+        fetchSections();
+    }, [fetchSections]);
 
     const handleSave = async (sectionData: Partial<TrainingSectionDB>) => {
         const isEdit = !!sectionData.id;

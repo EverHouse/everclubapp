@@ -211,7 +211,7 @@ export function useDirectoryData({
             const timer = setTimeout(() => setSyncMessage(null), 5000);
             return () => clearTimeout(timer);
         }
-    }, [syncStatusData?.status, syncStatusData?.jobId, formatSyncResult, refreshMembers, memberTab, fetchFormerMembers, setFormerLoading]);
+    }, [syncStatusData?.status, syncStatusData?.jobId, formatSyncResult, refreshMembers, memberTab, fetchFormerMembers, setFormerLoading, syncStatusData?.error, syncStatusData?.result]);
 
     useEffect(() => {
         const handleDirectorySyncUpdate = (event: CustomEvent) => {

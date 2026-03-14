@@ -80,7 +80,8 @@ const historyQuerySchema = z.object({ days: z.string().regex(/^\d+$/).optional()
 
 router.get('/api/data-integrity/history', isAdmin, validateQuery(historyQuerySchema), async (req, res) => {
   try {
-    const days = parseInt(req.query.days as string) || 30;
+    const vq = (req as Request & { validatedQuery: z.infer<typeof historyQuerySchema> }).validatedQuery;
+    const days = parseInt(vq.days || '') || 30;
     const historyData = await getIntegrityHistory(days);
     res.json(historyData);
   } catch (error: unknown) {
@@ -114,7 +115,8 @@ const auditLogQuerySchema = z.object({ limit: z.string().regex(/^\d+$/).optional
 
 router.get('/api/data-integrity/audit-log', isAdmin, validateQuery(auditLogQuerySchema), async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 10;
+    const vq = (req as Request & { validatedQuery: z.infer<typeof auditLogQuerySchema> }).validatedQuery;
+    const limit = parseInt(vq.limit || '') || 10;
     const auditEntries = await getAuditLog(limit);
     res.json(auditEntries);
   } catch (error: unknown) {

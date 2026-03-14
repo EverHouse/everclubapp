@@ -1,5 +1,5 @@
 import { logger } from '../core/logger';
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import { isStaffOrAdmin } from '../core/middleware';
 import { validateQuery } from '../middleware/validate';
 import { z } from 'zod';
@@ -422,7 +422,8 @@ const corporatePricingQuerySchema = z.object({ memberCount: z.string().regex(/^\
 
 router.get('/api/group-billing/corporate-pricing', isStaffOrAdmin, validateQuery(corporatePricingQuerySchema), async (req, res) => {
   try {
-    const memberCount = parseInt(req.query.memberCount as string, 10) || 1;
+    const vq = (req as Request & { validatedQuery: z.infer<typeof corporatePricingQuerySchema> }).validatedQuery;
+    const memberCount = parseInt(vq.memberCount || '', 10) || 1;
     const pricePerSeat = getCorporateVolumePrice(memberCount);
     res.json({
       memberCount,

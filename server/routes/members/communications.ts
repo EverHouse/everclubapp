@@ -110,7 +110,8 @@ router.patch('/api/members/me/preferences', isAuthenticated, validateQuery(optio
       return res.status(400).json({ error: 'No preferences provided' });
     }
     
-    const requestedEmail = (req.query.user_email as string | undefined)?.trim()?.toLowerCase();
+    const vq = (req as unknown as { validatedQuery: z.infer<typeof optionalEmailQuerySchema> }).validatedQuery;
+    const requestedEmail = vq.user_email?.trim()?.toLowerCase();
     let targetEmail = sessionUser.email;
     
     if (requestedEmail && requestedEmail !== sessionUser.email.toLowerCase()) {
@@ -164,7 +165,8 @@ router.get('/api/members/me/preferences', isAuthenticated, validateQuery(optiona
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const requestedEmail = (req.query.user_email as string | undefined)?.trim()?.toLowerCase();
+    const vq = (req as unknown as { validatedQuery: z.infer<typeof optionalEmailQuerySchema> }).validatedQuery;
+    const requestedEmail = vq.user_email?.trim()?.toLowerCase();
     let targetEmail = sessionUser.email;
     
     if (requestedEmail && requestedEmail !== sessionUser.email.toLowerCase()) {
@@ -203,7 +205,8 @@ router.get('/api/my-visits', isAuthenticated, validateQuery(optionalEmailQuerySc
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const requestedEmail = (req.query.user_email as string | undefined)?.trim()?.toLowerCase();
+    const vq = (req as unknown as { validatedQuery: z.infer<typeof optionalEmailQuerySchema> }).validatedQuery;
+    const requestedEmail = vq.user_email?.trim()?.toLowerCase();
     let targetEmail = sessionUser.email.toLowerCase();
     
     if (requestedEmail && requestedEmail !== sessionUser.email.toLowerCase()) {

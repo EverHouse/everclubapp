@@ -109,6 +109,75 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
     }
   }, []);
 
+  const handleCloseScanner = () => { stopScanner(); setIsScanning(false); };
+
+  const handleSearch = useCallback(async () => {
+    if (!searchEmail.trim()) return;
+    setIsSearching(true);
+    setErrorState(null);
+    setSuccessMessage(null);
+    try {
+      const res = await fetch(`/api/staff/passes/search?email=${encodeURIComponent(searchEmail.trim())}`, { credentials: 'include' });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to search passes');
+      }
+      const data = await res.json();
+      setPasses(data.passes || []);
+      setHasSearched(true);
+    } catch (err: unknown) {
+      setErrorState({ message: (err instanceof Error ? err.message : String(err)) || 'Failed to search passes', errorCode: 'SEARCH_ERROR' });
+    } finally {
+      setIsSearching(false);
+    }
+  }, [searchEmail]);
+
+  const handleRedeem = useCallback(async (passId: string, force: boolean = false) => {
+    setRedeemingId(passId);
+    setErrorState(null);
+    setSuccessMessage(null);
+    setRedemptionSuccess(null);
+    setLastAttemptedPassId(passId);
+    if (force) setForceRedeeming(true);
+    const previousUnredeemed = [...unredeemedPasses];
+    setUnredeemedPasses(prev => {
+      const updated = prev.map(pass => pass.id === passId ? { ...pass, remainingUses: pass.remainingUses - 1 } : pass);
+      return updated.filter(pass => pass.remainingUses > 0);
+    });
+    try {
+      const res = await fetch(`/api/staff/passes/${passId}/redeem`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', body: JSON.stringify({ force })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setUnredeemedPasses(previousUnredeemed);
+        setErrorState({ message: data.error || 'Failed to redeem pass', errorCode: data.errorCode || 'UNKNOWN_ERROR', passDetails: data.passDetails });
+        setConfirmingRedeemAnyway(null);
+        return;
+      }
+      const data = await res.json();
+      haptic.success();
+      if (data.passHolder) {
+        const successInfo: RedemptionSuccess = { passHolder: data.passHolder, remainingUses: data.remainingUses, redeemedAt: data.redeemedAt };
+        setRedemptionSuccess(successInfo);
+        if (onRedemptionSuccess) {
+          onRedemptionSuccess({ passHolder: data.passHolder, remainingUses: data.remainingUses, productType: data.passHolder.productType, redeemedAt: data.redeemedAt });
+        }
+      } else {
+        setSuccessMessage(`Pass redeemed! ${data.remainingUses} uses remaining.`);
+      }
+      setConfirmingRedeemAnyway(null);
+      if (hasSearched && searchEmail) { handleSearch(); }
+    } catch (err: unknown) {
+      setUnredeemedPasses(previousUnredeemed);
+      setErrorState({ message: (err instanceof Error ? err.message : String(err)) || 'Failed to redeem pass', errorCode: 'NETWORK_ERROR' });
+    } finally {
+      setRedeemingId(null);
+      setForceRedeeming(false);
+    }
+  }, [unredeemedPasses, onRedemptionSuccess, hasSearched, searchEmail, handleSearch]);
+
   const handleScanResult = useCallback((decodedText: string) => {
     let passId = decodedText.trim();
     if (passId.startsWith('PASS:')) {
@@ -121,7 +190,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
       setShowEmailSearch(false);
       handleRedeem(passId);
     }
-  }, []);
+  }, [handleRedeem]);
 
   useEffect(() => {
     if (!isScanning) {
@@ -166,75 +235,6 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
   }, [isScanning, scannerElementId, stopScanner, handleScanResult]);
 
   useEffect(() => { return () => { stopScanner(); }; }, [stopScanner]);
-
-  const handleCloseScanner = () => { stopScanner(); setIsScanning(false); };
-
-  const handleSearch = async () => {
-    if (!searchEmail.trim()) return;
-    setIsSearching(true);
-    setErrorState(null);
-    setSuccessMessage(null);
-    try {
-      const res = await fetch(`/api/staff/passes/search?email=${encodeURIComponent(searchEmail.trim())}`, { credentials: 'include' });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to search passes');
-      }
-      const data = await res.json();
-      setPasses(data.passes || []);
-      setHasSearched(true);
-    } catch (err: unknown) {
-      setErrorState({ message: (err instanceof Error ? err.message : String(err)) || 'Failed to search passes', errorCode: 'SEARCH_ERROR' });
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handleRedeem = async (passId: string, force: boolean = false) => {
-    setRedeemingId(passId);
-    setErrorState(null);
-    setSuccessMessage(null);
-    setRedemptionSuccess(null);
-    setLastAttemptedPassId(passId);
-    if (force) setForceRedeeming(true);
-    const previousUnredeemed = [...unredeemedPasses];
-    setUnredeemedPasses(prev => {
-      const updated = prev.map(pass => pass.id === passId ? { ...pass, remainingUses: pass.remainingUses - 1 } : pass);
-      return updated.filter(pass => pass.remainingUses > 0);
-    });
-    try {
-      const res = await fetch(`/api/staff/passes/${passId}/redeem`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', body: JSON.stringify({ force })
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setUnredeemedPasses(previousUnredeemed);
-        setErrorState({ message: data.error || 'Failed to redeem pass', errorCode: data.errorCode || 'UNKNOWN_ERROR', passDetails: data.passDetails });
-        setConfirmingRedeemAnyway(null);
-        return;
-      }
-      const data = await res.json();
-      haptic.success();
-      if (data.passHolder) {
-        const successInfo: RedemptionSuccess = { passHolder: data.passHolder, remainingUses: data.remainingUses, redeemedAt: data.redeemedAt };
-        setRedemptionSuccess(successInfo);
-        if (onRedemptionSuccess) {
-          onRedemptionSuccess({ passHolder: data.passHolder, remainingUses: data.remainingUses, productType: data.passHolder.productType, redeemedAt: data.redeemedAt });
-        }
-      } else {
-        setSuccessMessage(`Pass redeemed! ${data.remainingUses} uses remaining.`);
-      }
-      setConfirmingRedeemAnyway(null);
-      if (hasSearched && searchEmail) { handleSearch(); }
-    } catch (err: unknown) {
-      setUnredeemedPasses(previousUnredeemed);
-      setErrorState({ message: (err instanceof Error ? err.message : String(err)) || 'Failed to redeem pass', errorCode: 'NETWORK_ERROR' });
-    } finally {
-      setRedeemingId(null);
-      setForceRedeeming(false);
-    }
-  };
 
   const handleRefund = async (passId: string) => {
     setRefundingId(passId);

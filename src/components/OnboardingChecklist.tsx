@@ -89,7 +89,7 @@ const OnboardingChecklist: React.FC = () => {
     };
     fetchStatus();
     return () => { cancelled = true; };
-  }, []);
+  }, [isInStandaloneMode]);
 
   const handleDismiss = async () => {
     try {

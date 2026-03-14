@@ -81,7 +81,8 @@ router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQue
   try {
     const deviceLibraryId = req.params.deviceLibraryId as string;
     const passTypeId = req.params.passTypeId as string;
-    const passesUpdatedSince = req.query.passesUpdatedSince as string | undefined;
+    const vq = (req as unknown as { validatedQuery: z.infer<typeof passesQuerySchema> }).validatedQuery;
+    const passesUpdatedSince = vq.passesUpdatedSince;
 
     const deviceRegistrations = await db.select({
       serialNumber: walletPassDeviceRegistrations.serialNumber,

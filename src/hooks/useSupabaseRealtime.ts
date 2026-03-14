@@ -133,16 +133,17 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
       subscribeToTable(supabase, table);
     }
 
+    const channels = channelsRef.current;
     return () => {
       mountedRef.current = false;
-      channelsRef.current.forEach((channel) => {
+      channels.forEach((channel) => {
         try {
           supabase.removeChannel(channel);
         } catch (_cleanupErr) {
           // intentionally empty
         }
       });
-      channelsRef.current.clear();
+      channels.clear();
     };
   }, [userEmail, tables, subscribeToTable]);
 

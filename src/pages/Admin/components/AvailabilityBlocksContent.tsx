@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { formatDateDisplayWithDay, getTodayPacific } from '../../../utils/dateUtils';
 import EmptyState from '../../../components/EmptyState';
 import { useToast } from '../../../components/Toast';
@@ -77,22 +77,6 @@ const AvailabilityBlocksContent: React.FC = () => {
     const [visibleDayCount, setVisibleDayCount] = useState(10);
     const pastAbortRef = useRef<AbortController | null>(null);
 
-    useEffect(() => {
-        const controller = new AbortController();
-        fetchResources(controller.signal);
-        fetchUpcomingBlocks(controller.signal);
-        return () => {
-            controller.abort();
-            pastAbortRef.current?.abort();
-        };
-    }, []);
-
-    useEffect(() => {
-        const handleOpenCreate = () => openCreate();
-        window.addEventListener('openBlockCreate', handleOpenCreate);
-        return () => window.removeEventListener('openBlockCreate', handleOpenCreate);
-    }, []);
-
     const fetchResources = async (signal?: AbortSignal) => {
         try {
             const res = await fetch('/api/resources', { credentials: 'include', signal });
@@ -106,7 +90,7 @@ const AvailabilityBlocksContent: React.FC = () => {
         }
     };
 
-    const fetchUpcomingBlocks = async (signal?: AbortSignal) => {
+    const fetchUpcomingBlocks = useCallback(async (signal?: AbortSignal) => {
         try {
             setIsLoading(true);
             setError(null);
@@ -139,7 +123,7 @@ const AvailabilityBlocksContent: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [filterStartDate, filterEndDate, filterResource]);
 
     const fetchPastBlocks = async () => {
         if (pastLoaded) return;
@@ -192,7 +176,7 @@ const AvailabilityBlocksContent: React.FC = () => {
         setTimeout(() => fetchUpcomingBlocks(), 0);
     };
 
-    const openCreate = () => {
+    const openCreate = useCallback(() => {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         setFormData({
@@ -206,7 +190,23 @@ const AvailabilityBlocksContent: React.FC = () => {
         setEditId(null);
         setFormError(null);
         setIsEditing(true);
-    };
+    }, [resources]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        fetchResources(controller.signal);
+        fetchUpcomingBlocks(controller.signal);
+        return () => {
+            controller.abort();
+            pastAbortRef.current?.abort();
+        };
+    }, [fetchUpcomingBlocks]);
+
+    useEffect(() => {
+        const handleOpenCreate = () => openCreate();
+        window.addEventListener('openBlockCreate', handleOpenCreate);
+        return () => window.removeEventListener('openBlockCreate', handleOpenCreate);
+    }, [openCreate]);
 
     const openEdit = (block: AvailabilityBlock) => {
         setFormData({

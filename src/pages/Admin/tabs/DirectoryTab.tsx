@@ -129,7 +129,7 @@ const DirectoryTab: React.FC = () => {
         const profile = data.teamMemberToMemberProfile(member);
         setSelectedMember(profile as unknown as MemberProfile);
         setIsViewingDetails(true);
-    }, [data.teamMemberToMemberProfile]);
+    }, [data]);
 
     return (
         <AnimatedPage className="bg-white dark:bg-surface-dark rounded-xl p-4 border border-gray-200 dark:border-white/20 flex flex-col h-full">

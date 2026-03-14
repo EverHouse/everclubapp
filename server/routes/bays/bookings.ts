@@ -94,7 +94,7 @@ const bookingRequestsQuerySchema = z.object({
 
 router.get('/api/booking-requests', isAuthenticated, validateQuery(bookingRequestsQuerySchema), async (req, res) => {
   try {
-    const { user_email, status, include_all, limit: limitParam, offset: offsetParam, page: pageParam } = req.query;
+    const { user_email, status, include_all, limit: limitParam, offset: offsetParam, page: pageParam } = (req as unknown as { validatedQuery: z.infer<typeof bookingRequestsQuerySchema> }).validatedQuery;
     const sessionUser = getSessionUser(req);
     
     if (!sessionUser) {
@@ -1766,10 +1766,11 @@ router.get('/api/fee-estimate', isAuthenticated, validateQuery(feeEstimateQueryS
     const sessionEmail = sessionUser.email?.toLowerCase() || '';
     const isStaff = await isStaffOrAdminCheck(sessionEmail);
     
-    // If bookingId is provided, look up the booking (staff only)
+    const vq = (req as unknown as { validatedQuery: z.infer<typeof feeEstimateQuerySchema> }).validatedQuery;
+    
     let bookingId: number | null = null;
-    if (req.query.bookingId) {
-      bookingId = parseInt(req.query.bookingId as string, 10);
+    if (vq.bookingId) {
+      bookingId = parseInt(vq.bookingId, 10);
       if (isNaN(bookingId)) {
         return res.status(400).json({ error: 'Invalid bookingId parameter' });
       }
@@ -1837,17 +1838,16 @@ router.get('/api/fee-estimate', isAuthenticated, validateQuery(feeEstimateQueryS
       return res.json(estimate);
     }
     
-    // Otherwise, use query params (for member preview)
-    const durationMinutes = parseInt(req.query.durationMinutes as string) || 60;
-    const guestCount = parseInt(req.query.guestCount as string) || 0;
-    const playerCount = parseInt(req.query.playerCount as string) || 1;
-    const requestDate = normalizeToISODate(req.query.date as string);
-    const resourceType = (req.query.resourceType as string) || 'simulator';
-    const guestsWithInfo = parseInt(req.query.guestsWithInfo as string) || 0;
-    const memberEmailsParam = req.query.memberEmails as string | undefined;
+    const durationMinutes = parseInt(vq.durationMinutes || '') || 60;
+    const guestCount = parseInt(vq.guestCount || '') || 0;
+    const playerCount = parseInt(vq.playerCount || '') || 1;
+    const requestDate = normalizeToISODate(vq.date as string);
+    const resourceType = vq.resourceType || 'simulator';
+    const guestsWithInfo = parseInt(vq.guestsWithInfo || '') || 0;
+    const memberEmailsParam = vq.memberEmails;
     const memberEmails = memberEmailsParam ? memberEmailsParam.split(',').map(e => e.trim().toLowerCase()).filter(Boolean) : [];
     
-    const memberUserIdsParam = req.query.memberUserIds as string | undefined;
+    const memberUserIdsParam = vq.memberUserIds;
     const memberUserIds = memberUserIdsParam ? memberUserIdsParam.split(',').map(id => id.trim()).filter(Boolean) : [];
     
     const memberEmailToUserId = new Map<string, string>();
@@ -1873,8 +1873,8 @@ router.get('/api/fee-estimate', isAuthenticated, validateQuery(feeEstimateQueryS
     }
     
     // Members can only check their own fees
-    const ownerEmail = isStaff && req.query.email 
-      ? (req.query.email as string).trim().toLowerCase() 
+    const ownerEmail = isStaff && vq.email 
+      ? vq.email.trim().toLowerCase() 
       : sessionEmail;
     
     const estimate = await calculateFeeEstimate({

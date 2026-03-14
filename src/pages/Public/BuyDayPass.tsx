@@ -33,45 +33,44 @@ const BuyDayPass: React.FC = () => {
   const [processingSlug, setProcessingSlug] = useState<string | null>(null);
 
   useEffect(() => {
+    const fetchDayPassTiers = async () => {
+      try {
+        const response = await fetch('/api/membership-tiers?active=true');
+        if (!response.ok) throw new Error('Failed to fetch day passes');
+        
+        const allTiers = await response.json();
+        const dayPasses = allTiers
+          .filter((tier: { product_type?: string; slug?: string; name: string; stripe_price_id?: string; monthly_price?: number; description?: string; id?: number; price_string?: string; price_cents?: number }) => tier.product_type === 'one_time')
+          .filter((tier: { product_type?: string; slug?: string; name: string; stripe_price_id?: string; monthly_price?: number; description?: string; id?: number; price_string?: string; price_cents?: number }) => {
+            const slug = tier.slug?.toLowerCase() || '';
+            const name = tier.name?.toLowerCase() || '';
+            if (slug.includes('overage') || name.includes('overage')) return false;
+            if (slug.includes('guest-pass') || slug.includes('guest_pass') || name.includes('guest fee')) return false;
+            return slug.startsWith('day-pass');
+          })
+          .map((tier: { product_type?: string; slug?: string; name: string; stripe_price_id?: string; monthly_price?: number; description?: string; id?: number; price_string?: string; price_cents?: number }) => ({
+            id: tier.id as number,
+            name: tier.name,
+            slug: tier.slug,
+            priceString: tier.price_string as string,
+            priceCents: tier.price_cents as number,
+            description: tier.description,
+            stripePriceId: tier.stripe_price_id,
+          }));
+        
+        const filtered = filterType 
+          ? dayPasses.filter((t: DayPassTier) => t.slug === filterType || t.slug.includes(filterType)) 
+          : dayPasses;
+        setTiers(filtered.length > 0 ? filtered : dayPasses);
+        setPageReady(true);
+      } catch (_err: unknown) {
+        setError('Unable to load day passes. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchDayPassTiers();
-  }, []);
-
-  const fetchDayPassTiers = async () => {
-    try {
-      const response = await fetch('/api/membership-tiers?active=true');
-      if (!response.ok) throw new Error('Failed to fetch day passes');
-      
-      const allTiers = await response.json();
-      const dayPasses = allTiers
-        .filter((tier: { product_type?: string; slug?: string; name: string; stripe_price_id?: string; monthly_price?: number; description?: string; id?: number; price_string?: string; price_cents?: number }) => tier.product_type === 'one_time')
-        .filter((tier: { product_type?: string; slug?: string; name: string; stripe_price_id?: string; monthly_price?: number; description?: string; id?: number; price_string?: string; price_cents?: number }) => {
-          const slug = tier.slug?.toLowerCase() || '';
-          const name = tier.name?.toLowerCase() || '';
-          if (slug.includes('overage') || name.includes('overage')) return false;
-          if (slug.includes('guest-pass') || slug.includes('guest_pass') || name.includes('guest fee')) return false;
-          return slug.startsWith('day-pass');
-        })
-        .map((tier: { product_type?: string; slug?: string; name: string; stripe_price_id?: string; monthly_price?: number; description?: string; id?: number; price_string?: string; price_cents?: number }) => ({
-          id: tier.id as number,
-          name: tier.name,
-          slug: tier.slug,
-          priceString: tier.price_string as string,
-          priceCents: tier.price_cents as number,
-          description: tier.description,
-          stripePriceId: tier.stripe_price_id,
-        }));
-      
-      const filtered = filterType 
-        ? dayPasses.filter((t: DayPassTier) => t.slug === filterType || t.slug.includes(filterType)) 
-        : dayPasses;
-      setTiers(filtered.length > 0 ? filtered : dayPasses);
-      setPageReady(true);
-    } catch (_err: unknown) {
-      setError('Unable to load day passes. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [filterType, setPageReady]);
 
   const handlePurchase = async (tier: DayPassTier) => {
     if (!email) {

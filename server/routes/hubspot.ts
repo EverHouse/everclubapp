@@ -570,14 +570,14 @@ const hubspotContactsQuerySchema = z.object({
 
 router.get('/api/hubspot/contacts', isStaffOrAdmin, validateQuery(hubspotContactsQuerySchema), async (req, res) => {
   try {
-  const forceRefresh = req.query.refresh === 'true';
-  const statusFilter = (req.query.status as string)?.toLowerCase() || 'active';
-  const searchQuery = (req.query.search as string)?.toLowerCase().trim() || '';
+  const vq = (req as Request & { validatedQuery: z.infer<typeof hubspotContactsQuerySchema> }).validatedQuery;
+  const forceRefresh = vq.refresh === 'true';
+  const statusFilter = vq.status?.toLowerCase() || 'active';
+  const searchQuery = vq.search?.toLowerCase().trim() || '';
   const now = Date.now();
   
-  // Pagination parameters - when not provided, returns all (backwards compatible)
-  const pageParam = parseInt(req.query.page as string, 10);
-  const limitParam = parseInt(req.query.limit as string, 10);
+  const pageParam = parseInt(vq.page || '', 10);
+  const limitParam = parseInt(vq.limit || '', 10);
   const isPaginated = !isNaN(pageParam) || !isNaN(limitParam);
   const page = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
   const limit = isNaN(limitParam) ? 50 : Math.min(Math.max(limitParam, 1), 100); // Default 50, max 100

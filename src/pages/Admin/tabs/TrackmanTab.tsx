@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import EmptyState from '../../../components/EmptyState';
 import { usePageReady } from '../../../contexts/PageReadyContext';
@@ -144,7 +144,7 @@ const TrackmanTab: React.FC = () => {
   const dataContext = useData();
   const toastContext = useToast();
   
-  const setPageReady = pageReadyContext?.setPageReady || (() => {});
+  const setPageReady = useMemo(() => pageReadyContext?.setPageReady || (() => {}), [pageReadyContext?.setPageReady]);
   const _actualUser = dataContext?.actualUser;
   const showToast = toastContext?.showToast || (() => {});
   

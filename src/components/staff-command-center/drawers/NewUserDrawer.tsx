@@ -65,15 +65,7 @@ export function NewUserDrawer({
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const cooldownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    if (isOpen) {
-      setDrawerOpen(true);
-      fetchInitialData();
-    } else {
-      setDrawerOpen(false);
-      resetForm();
-    }
-  }, [isOpen, setDrawerOpen]);
+  
 
   useEffect(() => {
     return () => {
@@ -131,7 +123,7 @@ export function NewUserDrawer({
     setSubMemberScannedIds({});
     setScanningSubMemberIndex(null);
     setEmailCheckResult(null);
-  }, [defaultMode]);
+  }, []);
   
   const handleCleanupPendingUser = async () => {
     if (!pendingUserToCleanup) return;
@@ -216,6 +208,16 @@ export function NewUserDrawer({
       console.error('Failed to fetch initial data:', err);
     }
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      setDrawerOpen(true);
+      fetchInitialData();
+    } else {
+      setDrawerOpen(false);
+      resetForm();
+    }
+  }, [isOpen, setDrawerOpen, resetForm]);
 
   const handleClose = useCallback(() => {
     setDrawerOpen(false);

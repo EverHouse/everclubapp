@@ -1,5 +1,5 @@
 import { logger } from '../../core/logger';
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { pool, safeRelease } from '../../core/db';
 import { db } from '../../db';
@@ -36,10 +36,11 @@ const unmatchedQuerySchema = z.object({
 
 router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, validateQuery(unmatchedQuerySchema), async (req, res) => {
   try {
-    const { limit = '50', offset = '0', search = '', resolved = 'false', category = '' } = req.query;
-    const limitNum = Math.min(parseInt(limit as string) || 50, 100);
-    const offsetNum = parseInt(offset as string) || 0;
-    const categoryFilter = (category as string).toLowerCase();
+    const vq = (req as Request & { validatedQuery: z.infer<typeof unmatchedQuerySchema> }).validatedQuery;
+    const { limit = '50', offset = '0', search = '', resolved = 'false', category = '' } = vq;
+    const limitNum = Math.min(parseInt(limit) || 50, 100);
+    const offsetNum = parseInt(offset) || 0;
+    const categoryFilter = category.toLowerCase();
     
     const sqlConditions: ReturnType<typeof sql>[] = [
       sql`br.is_unmatched = true`,
@@ -1102,9 +1103,10 @@ const paginatedSearchSchema = z.object({
 
 router.get('/api/admin/trackman/matched', isStaffOrAdmin, validateQuery(paginatedSearchSchema), async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 100;
-    const offset = parseInt(req.query.offset as string) || 0;
-    const search = (req.query.search as string || '').trim().toLowerCase();
+    const vq = (req as Request & { validatedQuery: z.infer<typeof paginatedSearchSchema> }).validatedQuery;
+    const limit = parseInt(vq.limit || '') || 100;
+    const offset = parseInt(vq.offset || '') || 0;
+    const search = (vq.search || '').trim().toLowerCase();
     
     const matchedConditions: ReturnType<typeof sql>[] = [
       sql`(br.trackman_booking_id IS NOT NULL OR br.notes LIKE '%[Trackman Import ID:%')`,
@@ -1451,8 +1453,9 @@ const paginatedSchema = z.object({
 
 router.get('/api/admin/trackman/potential-matches', isStaffOrAdmin, validateQuery(paginatedSchema), async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const vq = (req as Request & { validatedQuery: z.infer<typeof paginatedSchema> }).validatedQuery;
+    const limit = parseInt(vq.limit || '') || 50;
+    const offset = parseInt(vq.offset || '') || 0;
     
     const unmatchedResult = await db.execute(sql`SELECT 
         tub.id, tub.trackman_booking_id, tub.user_name, tub.original_email, 
@@ -1520,8 +1523,9 @@ router.get('/api/admin/trackman/potential-matches', isStaffOrAdmin, validateQuer
 
 router.get('/api/admin/trackman/requires-review', isStaffOrAdmin, validateQuery(paginatedSchema), async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const vq = (req as Request & { validatedQuery: z.infer<typeof paginatedSchema> }).validatedQuery;
+    const limit = parseInt(vq.limit || '') || 50;
+    const offset = parseInt(vq.offset || '') || 0;
     
     const result = await db.execute(sql`SELECT 
         tub.id,

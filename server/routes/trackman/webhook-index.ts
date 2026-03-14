@@ -725,8 +725,9 @@ const webhookPaginationSchema = z.object({
 
 router.get('/api/admin/trackman-webhooks', isStaffOrAdmin, validateQuery(webhookPaginationSchema), async (req: Request, res: Response) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
-    const offset = parseInt(req.query.offset as string) || 0;
+    const vq = (req as Request & { validatedQuery: z.infer<typeof webhookPaginationSchema> }).validatedQuery;
+    const limit = Math.min(parseInt(vq.limit || '') || 50, 100);
+    const offset = parseInt(vq.offset || '') || 0;
     
     const result = await db.execute(sql`SELECT 
         twe.id,

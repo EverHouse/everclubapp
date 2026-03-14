@@ -36,10 +36,9 @@ const webhookQuerySchema = z.object({
 
 router.get('/api/admin/monitoring/webhooks', isStaffOrAdmin, validateQuery(webhookQuerySchema), async (req, res) => {
   try {
-    const type = req.query.type as string | undefined;
-    const status = req.query.status as 'processed' | 'failed' | 'pending' | undefined;
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const { type, status, limit: limitStr, offset: offsetStr } = (req as Request & { validatedQuery: z.infer<typeof webhookQuerySchema> }).validatedQuery;
+    const limit = parseInt(limitStr || '') || 50;
+    const offset = parseInt(offsetStr || '') || 0;
 
     const data = await getWebhookEvents({ type, status, limit, offset });
     res.json(data);
@@ -83,9 +82,8 @@ const alertsQuerySchema = z.object({
 
 router.get('/api/admin/monitoring/alerts', isStaffOrAdmin, validateQuery(alertsQuerySchema), async (req, res) => {
   try {
-    const startDate = req.query.startDate as string | undefined;
-    const endDate = req.query.endDate as string | undefined;
-    const limit = parseInt(req.query.limit as string) || 100;
+    const { startDate, endDate, limit: limitStr } = (req as Request & { validatedQuery: z.infer<typeof alertsQuerySchema> }).validatedQuery;
+    const limit = parseInt(limitStr || '') || 100;
 
     const alerts = await getAlertHistory({ startDate, endDate, limit });
     res.json({ alerts });
@@ -107,14 +105,15 @@ const auditLogsQuerySchema = z.object({
 
 router.get('/api/admin/monitoring/audit-logs', isStaffOrAdmin, validateQuery(auditLogsQuerySchema), async (req, res) => {
   try {
-    const staffEmail = req.query.staffEmail as string | undefined;
-    const action = req.query.action as string | undefined;
-    const resourceType = req.query.resourceType as string | undefined;
-    const resourceId = req.query.resourceId as string | undefined;
-    const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
-    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
-    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 50, 1), 100);
-    const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
+    const vq = (req as Request & { validatedQuery: z.infer<typeof auditLogsQuerySchema> }).validatedQuery;
+    const staffEmail = vq.staffEmail;
+    const action = vq.action;
+    const resourceType = vq.resourceType;
+    const resourceId = vq.resourceId;
+    const startDate = vq.startDate ? new Date(vq.startDate) : undefined;
+    const endDate = vq.endDate ? new Date(vq.endDate) : undefined;
+    const limit = Math.min(Math.max(parseInt(vq.limit || '') || 50, 1), 100);
+    const offset = Math.max(parseInt(vq.offset || '') || 0, 0);
 
     const data = await getAuditLogs({ staffEmail, action, resourceType, resourceId, startDate, endDate, limit, offset });
     res.json(data);

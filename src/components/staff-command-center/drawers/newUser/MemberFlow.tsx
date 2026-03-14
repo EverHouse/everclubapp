@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Stripe } from '@stripe/stripe-js';
 import {
   MemberFlowProps,
@@ -74,13 +74,7 @@ export function MemberFlow({
 
   const selectedTier = tiers.find(t => t.id === form.tierId);
 
-  useEffect(() => {
-    if (step === 'payment' && paymentPath === 'card_or_terminal' && selectedTier && !paymentInitiatedRef.current) {
-      initializePayment();
-    }
-  }, [step, paymentPath, selectedTier]);
-
-  const initializePayment = async () => {
+  const initializePayment = useCallback(async () => {
     if (paymentInitiatedRef.current || !selectedTier) return;
     paymentInitiatedRef.current = true;
     setStripeLoading(true);
@@ -217,7 +211,13 @@ export function MemberFlow({
     } finally {
       setStripeLoading(false);
     }
-  };
+  }, [selectedTier, subscriptionId, createdUserId, form.joinExistingGroup, form.existingGroupId, form.email, form.firstName, form.lastName, form.phone, form.dob, form.discountCode, form.streetAddress, form.city, form.state, form.zipCode, discounts, scannedIdImage, onSuccess, showToast, setPendingUserToCleanup]);
+
+  useEffect(() => {
+    if (step === 'payment' && paymentPath === 'card_or_terminal' && selectedTier && !paymentInitiatedRef.current) {
+      initializePayment();
+    }
+  }, [step, paymentPath, selectedTier, initializePayment]);
 
   const handlePaymentSuccess = async (paymentIntentIdResult?: string) => {
     if (!paymentIntentIdResult) return;

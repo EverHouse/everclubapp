@@ -166,7 +166,7 @@ export const MemberDataProvider: React.FC<{children: ReactNode}> = ({ children }
     } catch (err: unknown) {
       console.error('Failed to fetch former members:', err);
     }
-  }, []);
+  }, [FORMER_MEMBERS_CACHE_MS]);
 
   const refreshMembers = useCallback(async (): Promise<{ success: boolean; count: number }> => {
     const currentUser = actualUserRef.current;

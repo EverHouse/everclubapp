@@ -227,7 +227,7 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
       visits: 'visit', // This won't match anything now, handled above
     };
     return allActivities.filter(a => a.type === filterMap[activeFilter]);
-  }, [allActivities, activeFilter]);
+  }, [allActivities, activeFilter, visitHistory]);
 
   const handleCancelBooking = async (bookingId: number) => {
     if (!onCancelBooking) return;

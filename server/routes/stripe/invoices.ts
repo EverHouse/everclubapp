@@ -26,15 +26,16 @@ const invoicePreviewQuerySchema = z.object({
 
 router.get('/api/stripe/invoices/preview', isStaffOrAdmin, validateQuery(invoicePreviewQuerySchema), async (req: Request, res: Response) => {
   try {
-    const { customerId, priceId } = req.query;
+    const vq = (req as Request & { validatedQuery: z.infer<typeof invoicePreviewQuerySchema> }).validatedQuery;
+    const { customerId, priceId } = vq;
     
     if (!customerId || !priceId) {
       return res.status(400).json({ error: 'Missing required query params: customerId, priceId' });
     }
     
     const result = await previewInvoice({
-      customerId: customerId as string,
-      priceId: priceId as string,
+      customerId,
+      priceId,
     });
     
     if (!result.success) {
@@ -232,7 +233,8 @@ router.get('/api/my-invoices', validateQuery(invoiceEmailQuerySchema), async (re
       return res.status(401).json({ error: 'Not authenticated' });
     }
     
-    const requestedEmail = (req.query.user_email as string | undefined)?.trim()?.toLowerCase();
+    const vq = (req as Request & { validatedQuery: z.infer<typeof invoiceEmailQuerySchema> }).validatedQuery;
+    const requestedEmail = vq.user_email?.trim()?.toLowerCase();
     let targetEmail = sessionEmail;
     
     if (requestedEmail && requestedEmail !== sessionEmail.toLowerCase()) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import EmptyState from '../../components/EmptyState';
@@ -59,7 +59,7 @@ const BugReportsAdmin: React.FC = () => {
         }
     }, [isLoading, setPageReady]);
 
-    const fetchReports = async () => {
+    const fetchReports = useCallback(async () => {
         try {
             const params = new URLSearchParams();
             if (activeStatus !== 'all') params.append('status', activeStatus);
@@ -74,12 +74,12 @@ const BugReportsAdmin: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [activeStatus]);
 
     useEffect(() => {
         setIsLoading(true);
         fetchReports();
-    }, [activeStatus]);
+    }, [activeStatus, fetchReports]);
 
     const openDetail = (report: BugReport) => {
         setSelectedReport(report);

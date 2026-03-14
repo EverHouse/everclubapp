@@ -58,7 +58,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
         closingTimer.current = null;
       }
     };
-  }, [isOpen]);
+  }, [isOpen, rendered]);
 
   useEffect(() => {
     prefetchAdjacentStaffRoutes(location.pathname);

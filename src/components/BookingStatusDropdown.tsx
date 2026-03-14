@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, type MouseEvent, type KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, type MouseEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 
 type StatusValue = 'attended' | 'no_show' | 'approved';
@@ -35,9 +35,9 @@ export function BookingStatusDropdown({
   const [activeIndex, setActiveIndex] = useState(-1);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const options = showRevert && (currentStatus === 'attended' || currentStatus === 'no_show')
+  const options = useMemo(() => showRevert && (currentStatus === 'attended' || currentStatus === 'no_show')
     ? [...BASE_OPTIONS, REVERT_OPTION]
-    : BASE_OPTIONS;
+    : BASE_OPTIONS, [showRevert, currentStatus]);
 
   const isSm = size === 'sm';
   const minWidth = isSm ? 'min-w-[140px]' : 'min-w-[180px]';
@@ -214,7 +214,7 @@ export function BookingStatusDropdown({
   const buttonRef = useRef<HTMLDivElement>(null);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
 
-  const computeMenuStyle = () => {
+  const computeMenuStyle = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
@@ -235,7 +235,7 @@ export function BookingStatusDropdown({
         zIndex: 10050,
       });
     }
-  };
+  }, [menuDirection]);
 
   useEffect(() => {
     if (isOpen) {
@@ -256,7 +256,7 @@ export function BookingStatusDropdown({
         window.removeEventListener('scroll', handleScroll);
       };
     }
-  }, [isOpen, menuDirection]);
+  }, [isOpen, menuDirection, computeMenuStyle]);
 
   const getOptionIcon = (value: StatusValue) => {
     if (value === 'attended') return 'check_circle';

@@ -65,9 +65,9 @@ export function useMemberBilling(
     showToast(message, 'success');
   };
 
-  const showError = (message: string | null) => {
+  const showError = useCallback((message: string | null) => {
     if (message) showToast(message, 'error', 5000);
-  };
+  }, [showToast]);
 
   const fetchBillingInfo = useCallback(async () => {
     setIsLoading(true);
@@ -86,7 +86,7 @@ export function useMemberBilling(
     } finally {
       setIsLoading(false);
     }
-  }, [memberEmail]);
+  }, [memberEmail, showError]);
 
   const fetchOutstandingBalance = useCallback(async () => {
     try {

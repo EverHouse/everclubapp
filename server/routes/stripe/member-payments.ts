@@ -1263,7 +1263,8 @@ router.get('/api/member/balance', isAuthenticated, validateQuery(balanceQuerySch
     }
 
     let memberEmail = sessionUser.email.toLowerCase();
-    const queryEmail = req.query.email as string | undefined;
+    const vq = (req as Request & { validatedQuery: z.infer<typeof balanceQuerySchema> }).validatedQuery;
+    const queryEmail = vq.email;
     // Allow staff and admins to view another member's balance (for View As mode)
     const canViewOthers = sessionUser.isStaff || sessionUser.role === 'admin';
     if (queryEmail && canViewOthers) {

@@ -34,7 +34,7 @@ export const UpdateNotification: React.FC = () => {
         exitTimer.current = null;
       }
     };
-  }, [updateAvailable]);
+  }, [updateAvailable, rendered]);
 
   const handleDismiss = useCallback(() => {
     setIsExiting(true);

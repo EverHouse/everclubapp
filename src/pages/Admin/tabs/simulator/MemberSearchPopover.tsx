@@ -100,7 +100,7 @@ const ManualBookingModal: React.FC<{
                 clearTimeout(lookupTimeoutRef.current);
             }
         };
-    }, [memberEmail]);
+    }, [memberEmail, memberTier]);
 
     useEffect(() => {
         if (!memberEmail || memberLookupStatus !== 'found' || !bookingDate || !resourceId) {

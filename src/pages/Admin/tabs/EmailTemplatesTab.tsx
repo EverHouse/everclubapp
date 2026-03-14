@@ -117,25 +117,6 @@ const EmailTemplatesTab: React.FC = () => {
     toggleMutation.mutate({ key, value: String(!currentValue) });
   };
 
-  useEffect(() => {
-    fetchTemplates();
-  }, []);
-
-  const fetchTemplates = async () => {
-    try {
-      setLoading(true);
-      const data = await fetchWithCredentials<{ templates?: Array<{ id: string; name: string; subject?: string; body?: string }> }>('/api/admin/email-templates');
-      setTemplates(data.templates as EmailTemplate[]);
-      if (data.templates && data.templates.length > 0) {
-        selectTemplate(data.templates[0] as EmailTemplate);
-      }
-    } catch (_err: unknown) {
-      setError('Failed to load email templates');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const selectTemplate = useCallback(async (template: EmailTemplate) => {
     setSelectedTemplate(template);
     setPreviewLoading(true);
@@ -149,6 +130,25 @@ const EmailTemplatesTab: React.FC = () => {
       setPreviewLoading(false);
     }
   }, []);
+
+  const fetchTemplates = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await fetchWithCredentials<{ templates?: Array<{ id: string; name: string; subject?: string; body?: string }> }>('/api/admin/email-templates');
+      setTemplates(data.templates as EmailTemplate[]);
+      if (data.templates && data.templates.length > 0) {
+        selectTemplate(data.templates[0] as EmailTemplate);
+      }
+    } catch (_err: unknown) {
+      setError('Failed to load email templates');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectTemplate]);
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
 
   useEffect(() => {
     if (previewHtml && iframeRef.current) {

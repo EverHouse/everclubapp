@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import EmptyState from '../../../../components/EmptyState';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatDateDisplayWithDay } from '../../../../utils/dateUtils';
@@ -134,12 +134,6 @@ export const WellnessAdminContent: React.FC = () => {
     });
 
     useEffect(() => {
-        const handleOpenCreate = () => openCreate();
-        window.addEventListener('openWellnessCreate', handleOpenCreate);
-        return () => window.removeEventListener('openWellnessCreate', handleOpenCreate);
-    }, []);
-
-    useEffect(() => {
         const handleRefresh = () => {
             queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
         };
@@ -210,7 +204,7 @@ export const WellnessAdminContent: React.FC = () => {
         setError(null);
     };
 
-    const openCreate = () => {
+    const openCreate = useCallback(() => {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         setFormData({
@@ -224,7 +218,13 @@ export const WellnessAdminContent: React.FC = () => {
         setTouchedFields(new Set());
         setIsEditing(true);
         setError(null);
-    };
+    }, [activeCategory]);
+
+    useEffect(() => {
+        const handleOpenCreate = () => openCreate();
+        window.addEventListener('openWellnessCreate', handleOpenCreate);
+        return () => window.removeEventListener('openWellnessCreate', handleOpenCreate);
+    }, [openCreate]);
 
     let filteredClasses: WellnessClass[] = [];
     let upcomingClasses: WellnessClass[] = [];

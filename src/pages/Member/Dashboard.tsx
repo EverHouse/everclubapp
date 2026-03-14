@@ -238,11 +238,11 @@ const Dashboard: React.FC = () => {
   });
 
   // Extract individual data with fallbacks
-  const dbBookings = dashboardData?.bookings ?? [];
-  const dbRSVPs = dashboardData?.rsvps ?? [];
-  const dbWellnessEnrollments = dashboardData?.wellnessEnrollments ?? [];
-  const dbBookingRequests = dashboardData?.bookingRequests ?? [];
-  const dbConferenceRoomBookings = dashboardData?.conferenceRoomBookings ?? [];
+  const dbBookings = useMemo(() => dashboardData?.bookings ?? [], [dashboardData?.bookings]);
+  const dbRSVPs = useMemo(() => dashboardData?.rsvps ?? [], [dashboardData?.rsvps]);
+  const dbWellnessEnrollments = useMemo(() => dashboardData?.wellnessEnrollments ?? [], [dashboardData?.wellnessEnrollments]);
+  const dbBookingRequests = useMemo(() => dashboardData?.bookingRequests ?? [], [dashboardData?.bookingRequests]);
+  const dbConferenceRoomBookings = useMemo(() => dashboardData?.conferenceRoomBookings ?? [], [dashboardData?.conferenceRoomBookings]);
   const allWellnessClasses = dashboardData?.wellnessClasses ?? [];
   const allEvents = dashboardData?.events ?? [];
   const guestPasses = isStaffOrAdminProfile ? null : dashboardData?.guestPasses;
@@ -359,7 +359,7 @@ const Dashboard: React.FC = () => {
     };
     window.addEventListener('member-notification', handleCheckinNotification);
     return () => window.removeEventListener('member-notification', handleCheckinNotification);
-  }, [user?.name, user?.tier]);
+  }, [user?.name, user?.tier, user?.firstName]);
 
   const userEmail = user?.email;
   const allItems = useMemo(() => [

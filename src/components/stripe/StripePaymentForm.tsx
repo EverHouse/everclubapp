@@ -335,7 +335,8 @@ export function StripePaymentForm({
         }).catch((err: unknown) => { console.warn('[StripePaymentForm] Failed to cancel payment on unmount:', err); });
       }
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amount, bookingId, description, memberName, purpose, sessionId, userEmail, userId]);
 
   if (loading) {
     return (

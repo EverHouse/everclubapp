@@ -5,7 +5,7 @@ import { useIsMobile } from '../../../hooks/useBreakpoint';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { useConfirmDialog } from '../../ConfirmDialog';
 import { formatTime12Hour } from '../../../utils/dateUtils';
-import RecentTransactionsSection, { Transaction } from './TransactionList';
+import RecentTransactionsSection from './TransactionList';
 import OverduePaymentsPanel from './OverduePaymentsPanel';
 import { UnifiedBookingSheet } from '../../staff-command-center/modals/UnifiedBookingSheet';
 import {

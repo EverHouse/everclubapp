@@ -1,5 +1,5 @@
 import { logger } from '../../core/logger';
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import { eq, sql, desc } from 'drizzle-orm';
 import crypto from 'crypto';
 import { db } from '../../db';
@@ -44,11 +44,12 @@ const visitorsQuerySchema = z.object({
 
 router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), async (req, res) => {
   try {
-    const { sortBy = 'lastPurchase', order = 'desc', limit = '100', offset = '0', typeFilter = 'all', sourceFilter = 'all', search = '', archived: _archived = 'false' } = req.query;
-    const pageLimit = Math.min(parseInt(limit as string) || 100, 500);
-    const pageOffset = Math.max(parseInt(offset as string) || 0, 0);
+    const vq = (req as Request & { validatedQuery: z.infer<typeof visitorsQuerySchema> }).validatedQuery;
+    const { sortBy = 'lastPurchase', order = 'desc', limit = '100', offset = '0', typeFilter = 'all', sourceFilter = 'all', search = '' } = vq;
+    const pageLimit = Math.min(parseInt(limit) || 100, 500);
+    const pageOffset = Math.max(parseInt(offset) || 0, 0);
     const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
-    const searchTerm = (search as string || '').trim().toLowerCase();
+    const searchTerm = (search || '').trim().toLowerCase();
     
     const sortColumnMap: Record<string, string> = {
       name: "first_name || ' ' || last_name",
@@ -66,7 +67,7 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
     // sql.raw() is required here because these are column expressions and SQL keywords, not parameterizable values
     const orderByClause = sql.raw(`${safeSortColumn} ${safeSortOrder}${nullsLast}`);
     
-    const showArchived = (req.query.archived as string) === 'true';
+    const showArchived = vq.archived === 'true';
     const archiveClause = showArchived 
       ? sql`AND u.archived_at IS NOT NULL` 
       : sql`AND u.archived_at IS NULL`;
@@ -1083,7 +1084,8 @@ const checkEmailSchema = z.object({
 
 router.get('/api/visitors/check-email', isStaffOrAdmin, validateQuery(checkEmailSchema), async (req, res) => {
   try {
-    const email = (req.query.email as string || '').trim().toLowerCase();
+    const vq = (req as Request & { validatedQuery: z.infer<typeof checkEmailSchema> }).validatedQuery;
+    const email = (vq.email || '').trim().toLowerCase();
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }

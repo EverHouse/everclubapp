@@ -37,7 +37,7 @@ const ClosureAlert: React.FC = () => {
   const [isExiting, setIsExiting] = useState(false);
   const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const getStorageKey = () => `eh_dismissed_notices_${user?.email || 'guest'}`;
+  const getStorageKey = useCallback(() => `eh_dismissed_notices_${user?.email || 'guest'}`, [user?.email]);
 
   useEffect(() => {
     const stored = localStorage.getItem(getStorageKey());
@@ -49,7 +49,7 @@ const ClosureAlert: React.FC = () => {
         setDismissedIds(new Set());
       }
     }
-  }, [user?.email]);
+  }, [user?.email, getStorageKey]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -115,7 +115,7 @@ const ClosureAlert: React.FC = () => {
       setIsExiting(false);
       exitTimer.current = null;
     }, EXIT_DURATION);
-  }, [activeClosures, dismissedIds]);
+  }, [activeClosures, dismissedIds, getStorageKey]);
 
   const handleViewDetails = () => {
     navigate('/updates?tab=notices');

@@ -42,7 +42,7 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
     script.onload = () => setLoaded(true);
     script.onerror = () => onError?.('Failed to load Google Sign-In');
     document.head.appendChild(script);
-  }, [clientId]);
+  }, [clientId, onError]);
 
   useEffect(() => {
     if (!loaded || !clientId || !buttonRef.current) return;
@@ -71,7 +71,7 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
       width: width || buttonRef.current.offsetWidth,
       logo_alignment: 'left',
     });
-  }, [loaded, clientId, text, width]);
+  }, [loaded, clientId, text, width, onError, onSuccess]);
 
   if (!clientId) return null;
 

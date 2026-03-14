@@ -75,6 +75,7 @@ function ConfirmDialogComponent({
 
   useEffect(() => {
     if (!isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset animation state on close
       setIsClosing(false);
       return;
     }
@@ -106,46 +107,6 @@ function ConfirmDialogComponent({
     };
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isLoading) return;
-      
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        // eslint-disable-next-line react-hooks/immutability
-        handleCancel();
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        // eslint-disable-next-line react-hooks/immutability
-        handleConfirm();
-      } else if (e.key === 'Tab') {
-        const focusableSelectors = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
-        const focusableElements = dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelectors);
-        if (!focusableElements || focusableElements.length === 0) return;
-
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
-
-        if (e.shiftKey) {
-          if (document.activeElement === firstElement) {
-            e.preventDefault();
-            lastElement.focus();
-          }
-        } else {
-          if (document.activeElement === lastElement) {
-            e.preventDefault();
-            firstElement.focus();
-          }
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isLoading]);
-
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -171,6 +132,44 @@ function ConfirmDialogComponent({
       onCancel();
     }, 200);
   }, [isLoading, onCancel]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isLoading) return;
+      
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleCancel();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        handleConfirm();
+      } else if (e.key === 'Tab') {
+        const focusableSelectors = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+        const focusableElements = dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelectors);
+        if (!focusableElements || focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isLoading, handleCancel, handleConfirm]);
 
   if (!isOpen) return null;
 
@@ -321,17 +320,15 @@ export function useConfirmDialog() {
     setState(prev => ({ ...prev, isLoading }));
   }, []);
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleConfirm = useCallback(() => {
     state.resolve?.(true);
     setState(prev => ({ ...prev, isOpen: false, resolve: null }));
-  }, [state.resolve]);
+  }, [state]);
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleCancel = useCallback(() => {
     state.resolve?.(false);
     setState(prev => ({ ...prev, isOpen: false, resolve: null }));
-  }, [state.resolve]);
+  }, [state]);
 
   const ConfirmDialogPortal = useCallback(() => (
     <ConfirmDialogComponent

@@ -64,7 +64,7 @@ const AuthCallback: React.FC = () => {
     };
 
     handleCallback();
-  }, [navigate]);
+  }, [navigate, startNavigation]);
 
   if (error) {
     return (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import ModalShell from '../../components/ModalShell';
@@ -95,7 +95,7 @@ const InquiriesAdmin: React.FC = () => {
         }
     }, [isLoading, setPageReady]);
 
-    const fetchInquiries = async () => {
+    const fetchInquiries = useCallback(async () => {
         try {
             const params = new URLSearchParams();
             if (activeStatus !== 'all') params.append('status', activeStatus);
@@ -111,12 +111,12 @@ const InquiriesAdmin: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [activeStatus, activeFormType]);
 
     useEffect(() => {
         setIsLoading(true);
         fetchInquiries();
-    }, [activeStatus, activeFormType]);
+    }, [activeStatus, activeFormType, fetchInquiries]);
 
     const openDetail = async (inquiry: Inquiry) => {
         setSelectedInquiry(inquiry);

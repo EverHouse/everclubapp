@@ -45,7 +45,8 @@ router.get('/api/my/billing', requireAuth, validateQuery(optionalEmailSchema), a
   try {
     const sessionUser = req.session.user;
     const isStaff = await isDbVerifiedStaff(sessionUser.email);
-    const targetEmail = (req.query.email && isStaff) ? String(req.query.email).trim().toLowerCase() : sessionUser.email;
+    const vq = (req as Request & { validatedQuery: z.infer<typeof optionalEmailSchema> }).validatedQuery;
+    const targetEmail = (vq.email && isStaff) ? vq.email.trim().toLowerCase() : sessionUser.email;
     const email = targetEmail;
     
     const result = await db.execute(sql`SELECT id, email, first_name, last_name, billing_provider, stripe_customer_id, hubspot_id, mindbody_client_id, tier, billing_migration_requested_at,
@@ -156,7 +157,8 @@ router.get('/api/my/billing/invoices', requireAuth, validateQuery(optionalEmailS
   try {
     const sessionUser = req.session.user;
     const isStaff = await isDbVerifiedStaff(sessionUser.email);
-    const email = (req.query.email && isStaff) ? String(req.query.email).trim().toLowerCase() : sessionUser.email;
+    const vq = (req as Request & { validatedQuery: z.infer<typeof optionalEmailSchema> }).validatedQuery;
+    const email = (vq.email && isStaff) ? vq.email.trim().toLowerCase() : sessionUser.email;
     
     const result = await db.execute(sql`SELECT stripe_customer_id, billing_provider FROM users WHERE LOWER(email) = ${email.toLowerCase()}`);
     
@@ -505,7 +507,8 @@ router.get('/api/my-billing/account-balance', requireAuth, validateQuery(billing
     const sessionEmail = req.session.user.email;
     const isStaffUser = await isDbVerifiedStaff(sessionEmail);
     
-    const requestedEmail = (req.query.user_email as string | undefined)?.trim()?.toLowerCase();
+    const vq = (req as Request & { validatedQuery: z.infer<typeof billingEmailQuerySchema> }).validatedQuery;
+    const requestedEmail = vq.user_email?.trim()?.toLowerCase();
     let targetEmail = sessionEmail;
     
     if (requestedEmail && requestedEmail !== sessionEmail.toLowerCase()) {

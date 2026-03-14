@@ -79,7 +79,7 @@ export default function OfflineBanner({ staffWsConnected }: OfflineBannerProps) 
         exitTimer.current = null;
       }
     };
-  }, [target]);
+  }, [target, rendered]);
 
   if (!rendered) return null;
 

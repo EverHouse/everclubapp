@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../Toast';
 import { useData } from '../../contexts/DataContext';
 
@@ -62,7 +62,7 @@ export default function BillingSection({ isDark }: Props) {
   const [openingPortal, setOpeningPortal] = useState(false);
   const [migratingPayment, setMigratingPayment] = useState(false);
 
-  const fetchBillingData = () => {
+  const fetchBillingData = useCallback(() => {
     const emailParam = viewAsUser?.email ? `?email=${encodeURIComponent(viewAsUser.email)}` : '';
     Promise.all([
       fetch(`/api/my/billing${emailParam}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
@@ -72,11 +72,11 @@ export default function BillingSection({ isDark }: Props) {
       setInvoices(invoiceData?.invoices || []);
     }).catch((err: unknown) => { console.warn('[BillingSection] Failed to fetch billing data:', err); })
     .finally(() => setLoading(false));
-  };
+  }, [viewAsUser?.email]);
 
   useEffect(() => {
     fetchBillingData();
-  }, [viewAsUser?.email]);
+  }, [viewAsUser?.email, fetchBillingData]);
 
   useEffect(() => {
     const handleBillingUpdate = () => {
@@ -87,7 +87,7 @@ export default function BillingSection({ isDark }: Props) {
     return () => {
       window.removeEventListener('billing-update', handleBillingUpdate);
     };
-  }, [viewAsUser?.email]);
+  }, [viewAsUser?.email, fetchBillingData]);
 
   const handleUpdatePaymentMethod = async () => {
     setUpdatingPayment(true);

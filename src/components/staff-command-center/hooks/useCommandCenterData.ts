@@ -29,7 +29,7 @@ export function useCommandCenterData(userEmail?: string) {
   const hubspotQuery = useCommandCenterHubSpotContacts();
   const announcementsQuery = useCommandCenterAnnouncements();
 
-  const memberNameByEmail = hubspotQuery.data ?? {};
+  const memberNameByEmail = useMemo(() => hubspotQuery.data ?? {}, [hubspotQuery.data]);
 
   const getDisplayName = useCallback((email: string | null | undefined, originalName: string | null, firstName?: string | null, lastName?: string | null): string => {
     if (email && typeof email === 'string') {
@@ -42,7 +42,6 @@ export function useCommandCenterData(userEmail?: string) {
     return originalName || 'Guest';
   }, [memberNameByEmail]);
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const pendingRequests = useMemo((): BookingRequest[] => {
     const raw = pendingRequestsQuery.data;
     if (!raw) return [];
@@ -70,7 +69,7 @@ export function useCommandCenterData(userEmail?: string) {
     allPending = [...allPending, ...pendingBookings];
 
     return allPending;
-  }, [pendingRequestsQuery.data, getDisplayName]);
+  }, [pendingRequestsQuery.data, getDisplayName, memberNameByEmail]);
 
   const todaysBookings = useMemo((): BookingRequest[] => {
     const raw = todaysBookingsQuery.data;
