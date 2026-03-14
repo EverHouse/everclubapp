@@ -1,6 +1,6 @@
 # Ever Club Members App
 
-**Current Version**: 8.86.5 (March 14, 2026)
+**Current Version**: 8.86.6 (March 14, 2026)
 
 ## Overview
 The Ever Club Members App is a private members club application designed for golf and wellness centers. Its primary purpose is to serve as a central digital hub for managing golf simulator bookings, wellness service appointments, and club events. The project aims to enhance member satisfaction and operational efficiency through comprehensive membership management, facility booking, and community-building tools, ultimately creating a seamless digital experience for club members and staff.
@@ -23,7 +23,7 @@ The Ever Club Members App is a private members club application designed for gol
 - **Timezone**: All date/time operations explicitly use Pacific Time (`America/Los_Angeles`).
 - **Audit Logging**: All staff actions are logged.
 - **API/Frontend Consistency**: API response field names align with frontend TypeScript interfaces.
-- **Database & Data Integrity**: PostgreSQL, Supabase Realtime, and Drizzle ORM with CASCADE constraints. DB-level enforcement includes unique indexes on `stripe_customer_id` and `hubspot_id` (partial, non-null), CHECK constraint preventing `billing_provider='mindbody'` with an active `stripe_subscription_id`, guest pass arithmetic checks, booking time validity checks, and an exclusion constraint preventing overlapping bookings.
+- **Database & Data Integrity**: PostgreSQL, Supabase Realtime, and Drizzle ORM with CASCADE constraints. DB-level enforcement includes unique indexes on `stripe_customer_id`, `hubspot_id`, `google_id`, and `apple_id` (partial, non-null), CHECK constraint preventing `billing_provider='mindbody'` with an active `stripe_subscription_id`, guest pass arithmetic checks, booking time validity checks, and an exclusion constraint preventing overlapping bookings.
 - **Real-time Updates**: WebSocket broadcasting for booking and invoice changes via Supabase Realtime. React Query with WebSocket-driven cache invalidation is used for the Staff Command Center.
 - **Member Dashboard**: Features a chronological card layout for bookings, events, and wellness sessions with "Add to Calendar" functionality.
 
@@ -147,6 +147,8 @@ The following large files have been split into sub-modules with barrel re-export
 - **Files**: `server/routes/analytics.ts`, `src/pages/Admin/tabs/AnalyticsTab.tsx`
 
 ### Recent Changes
+- **Auth Linking Hardening (v8.86.6)**: Config guards on all Google/Apple auth routes (503 if env var missing), partial unique indexes on google_id/apple_id, 12 integration tests for auth linking logic.
+- **Google & Apple Account Linking Fix (v8.86.5)**: Fixed silent 0-row db.update failures in 7 auth paths, GoogleSignInButton SDK stability via refs, memoized callbacks, awaited refetches.
 - **Security Audit & Code Quality Hardening (v8.86.0)**: Comprehensive audit covering query validation, Stripe idempotency, WebSocket auth, booking advisory locks, LOWER email indexes, TypeScript strict mode, ESLint zero warnings, and 31 new concurrency tests.
 - **ESLint Cleanup (v8.85.1)**: 383 errors → 0, 974 warnings → 0.
 - **Security & Data Integrity Audit (v8.85.0)**: WebSocket auth bypass fix, booking approval race condition fix, guest upsert, validateTrackmanId transaction, validateQuery middleware.

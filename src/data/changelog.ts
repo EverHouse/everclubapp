@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.86.6",
+    date: "2026-03-14",
+    title: "Auth Linking Hardening — Config Guards, Unique Constraints & Tests",
+    changes: [
+      "Security: All Google and Apple auth routes (verify, callback, link, unlink, and status) now fail-closed with 503 if their client ID environment variable is missing — prevents silent token-verification bypass from misconfiguration",
+      "Database: Added partial unique indexes on google_id and apple_id (WHERE NOT NULL) to prevent race-condition duplicate linking at the database level",
+      "Fix: Link endpoints now catch unique constraint violations from concurrent requests and return a clear 409 conflict instead of a generic 500 error",
+      "Tests: Added 15 integration tests covering config guards, update row-count validation, conflict detection, unique constraint handling, and schema column verification",
+    ]
+  },
+  {
     version: "8.86.5",
     date: "2026-03-14",
     title: "Google & Apple Account Linking Reliability Fix",

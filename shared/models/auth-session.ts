@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, jsonb, pgTable, timestamp, varchar, serial, boolean, text, date, integer } from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, timestamp, varchar, serial, boolean, text, date, integer, uniqueIndex } from "drizzle-orm/pg-core";
 
 // Session storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
@@ -115,6 +115,8 @@ export const users = pgTable("users", {
   index("users_tier_id_idx").on(table.tierId),
   index("idx_users_email_lower").on(sql`LOWER(${table.email})`),
   index("idx_users_lower_trackman_email").on(sql`LOWER(${table.trackmanEmail})`),
+  uniqueIndex("users_google_id_unique").on(table.googleId).where(sql`${table.googleId} IS NOT NULL`),
+  uniqueIndex("users_apple_id_unique").on(table.appleId).where(sql`${table.appleId} IS NOT NULL`),
 ]);
 
 // Staff users table - emails that get staff or admin access

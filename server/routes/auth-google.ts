@@ -13,7 +13,19 @@ import { authRateLimiterByIp } from '../middleware/rateLimiting';
 const router = Router();
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+
+if (!GOOGLE_CLIENT_ID) {
+  logger.warn('GOOGLE_CLIENT_ID is not set — Google auth routes will return 503');
+}
+
 const oauthClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+function requireGoogleConfig(_req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) {
+  if (!GOOGLE_CLIENT_ID) {
+    return res.status(503).json({ error: 'Google authentication is not configured' });
+  }
+  next();
+}
 
 async function verifyGoogleToken(credential: string) {
   const ticket = await oauthClient.verifyIdToken({
@@ -33,7 +45,7 @@ async function verifyGoogleToken(credential: string) {
   };
 }
 
-router.post('/api/auth/google/verify', authRateLimiterByIp, async (req, res) => {
+router.post('/api/auth/google/verify', requireGoogleConfig, authRateLimiterByIp, async (req, res) => {
   try {
     const { credential } = req.body;
     if (!credential) {
@@ -166,7 +178,7 @@ router.post('/api/auth/google/verify', authRateLimiterByIp, async (req, res) => 
   }
 });
 
-router.post('/api/auth/google/callback', async (req, res) => {
+router.post('/api/auth/google/callback', requireGoogleConfig, async (req, res) => {
   try {
     const credential = req.body?.credential;
     if (!credential) {
@@ -296,7 +308,7 @@ router.post('/api/auth/google/callback', async (req, res) => {
   }
 });
 
-router.post('/api/auth/google/link', async (req, res) => {
+router.post('/api/auth/google/link', requireGoogleConfig, async (req, res) => {
   try {
     const sessionUser = req.session?.user;
     if (!sessionUser?.id || !sessionUser?.email) {
@@ -346,12 +358,16 @@ router.post('/api/auth/google/link', async (req, res) => {
 
     res.json({ success: true, googleEmail: googleUser.email });
   } catch (error: unknown) {
+    const dbError = error as { code?: string };
+    if (dbError.code === '23505') {
+      return res.status(409).json({ error: 'This Google account is already linked to another member.' });
+    }
     logger.error('[Google Auth] Link error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to link Google account' });
   }
 });
 
-router.post('/api/auth/google/unlink', async (req, res) => {
+router.post('/api/auth/google/unlink', requireGoogleConfig, async (req, res) => {
   try {
     const sessionUser = req.session?.user;
     if (!sessionUser?.id || !sessionUser?.email) {
@@ -390,7 +406,7 @@ router.post('/api/auth/google/unlink', async (req, res) => {
   }
 });
 
-router.get('/api/auth/google/status', async (req, res) => {
+router.get('/api/auth/google/status', requireGoogleConfig, async (req, res) => {
   try {
     const sessionUser = req.session?.user;
     if (!sessionUser?.id) {

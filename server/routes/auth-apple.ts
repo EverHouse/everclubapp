@@ -14,6 +14,17 @@ const router = Router();
 
 const APPLE_CLIENT_ID = process.env.APPLE_SERVICE_ID;
 
+if (!APPLE_CLIENT_ID) {
+  logger.warn('APPLE_SERVICE_ID is not set — Apple auth routes will return 503');
+}
+
+function requireAppleConfig(_req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) {
+  if (!APPLE_CLIENT_ID) {
+    return res.status(503).json({ error: 'Apple authentication is not configured' });
+  }
+  next();
+}
+
 type JWKSFunction = ReturnType<typeof jose.createRemoteJWKSet>;
 let applePublicKeys: JWKSFunction | null = null;
 let appleKeysLastFetched = 0;
@@ -71,7 +82,7 @@ const userSelectFields = {
   appleId: users.appleId,
 };
 
-router.post('/api/auth/apple/verify', authRateLimiterByIp, async (req, res) => {
+router.post('/api/auth/apple/verify', requireAppleConfig, authRateLimiterByIp, async (req, res) => {
   try {
     const { identityToken, user: appleUser } = req.body;
     if (!identityToken) {
@@ -197,7 +208,7 @@ router.post('/api/auth/apple/verify', authRateLimiterByIp, async (req, res) => {
   }
 });
 
-router.post('/api/auth/apple/link', async (req, res) => {
+router.post('/api/auth/apple/link', requireAppleConfig, async (req, res) => {
   try {
     const sessionUser = req.session?.user;
     if (!sessionUser?.id || !sessionUser?.email) {
@@ -247,12 +258,16 @@ router.post('/api/auth/apple/link', async (req, res) => {
 
     res.json({ success: true, appleEmail: appleData.email });
   } catch (error: unknown) {
+    const dbError = error as { code?: string };
+    if (dbError.code === '23505') {
+      return res.status(409).json({ error: 'This Apple account is already linked to another member.' });
+    }
     logger.error('[Apple Auth] Link error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to link Apple account' });
   }
 });
 
-router.post('/api/auth/apple/unlink', async (req, res) => {
+router.post('/api/auth/apple/unlink', requireAppleConfig, async (req, res) => {
   try {
     const sessionUser = req.session?.user;
     if (!sessionUser?.id || !sessionUser?.email) {
@@ -291,7 +306,7 @@ router.post('/api/auth/apple/unlink', async (req, res) => {
   }
 });
 
-router.get('/api/auth/apple/status', async (req, res) => {
+router.get('/api/auth/apple/status', requireAppleConfig, async (req, res) => {
   try {
     const sessionUser = req.session?.user;
     if (!sessionUser?.id) {
