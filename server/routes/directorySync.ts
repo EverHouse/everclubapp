@@ -6,6 +6,7 @@ import { broadcastDirectorySyncUpdate } from '../core/websocket';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getErrorMessage } from '../utils/errorUtils';
+import { isPlaceholderEmail } from '../core/stripe/customers';
 
 const router = Router();
 
@@ -27,6 +28,89 @@ async function internalPost(path: string, sessionCookie: string): Promise<{ ok: 
   });
   const data = await res.json() as Record<string, unknown>;
   return { ok: res.ok, data };
+}
+
+const PUSH_BATCH_SIZE = 5;
+
+async function pushMembersDirectly(jobId: string): Promise<{ synced: number; errors: number; errorDetails: string[] }> {
+  const membersResult = await db.execute(sql`
+    SELECT email, membership_status, billing_provider, tier, hubspot_id, first_name, last_name
+    FROM users
+    WHERE membership_status = 'active' AND email IS NOT NULL
+    ORDER BY email
+  `);
+  const members = membersResult.rows as unknown as Array<{
+    email: string;
+    membership_status: string | null;
+    billing_provider: string | null;
+    tier: string | null;
+    hubspot_id: string | null;
+    first_name: string | null;
+    last_name: string | null;
+  }>;
+
+  let synced = 0;
+  let errors = 0;
+  const errorDetails: string[] = [];
+  const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
+
+  for (let i = 0; i < members.length; i += PUSH_BATCH_SIZE) {
+    const batch = members.slice(i, i + PUSH_BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(async (member) => {
+        if (isPlaceholderEmail(member.email)) return { skipped: true, success: false, email: member.email };
+        const res = await syncMemberToHubSpot({
+          email: member.email,
+          status: member.membership_status || undefined,
+          tier: member.tier || undefined,
+          billingProvider: member.billing_provider || undefined,
+        });
+        return { ...res, email: member.email };
+      })
+    );
+
+    for (let j = 0; j < results.length; j++) {
+      const settlement = results[j];
+      const email = batch[j]?.email || 'unknown';
+
+      if (settlement.status === 'rejected') {
+        errors++;
+        const errMsg = getErrorMessage(settlement.reason);
+        errorDetails.push(`${email}: ${errMsg}`);
+        logger.warn('[HubSpot Push] Failed to push member (rejected)', { extra: { email, error: errMsg } });
+        continue;
+      }
+
+      const value = settlement.value;
+      if (value && 'skipped' in value) continue;
+
+      if (value && value.success) {
+        synced++;
+      } else {
+        errors++;
+        const errMsg = value?.error || 'Unknown error';
+        errorDetails.push(`${email}: ${errMsg}`);
+        logger.warn('[HubSpot Push] Failed to push member', { extra: { email, error: errMsg } });
+      }
+    }
+
+    if (i + PUSH_BATCH_SIZE < members.length) {
+      await updateJobProgress(jobId, {
+        step: 'hubspot_push',
+        pushProgress: `${Math.min(i + PUSH_BATCH_SIZE, members.length)}/${members.length}`,
+      });
+    }
+  }
+
+  try {
+    const { invalidateHubSpotContactsCache } = await import('./hubspot');
+    invalidateHubSpotContactsCache();
+  } catch (_e) {
+    logger.debug('[DirectorySync] Could not invalidate HubSpot contacts cache');
+  }
+
+  logger.info(`[DirectorySync] Push complete: ${synced} synced, ${errors} errors out of ${members.length} members`);
+  return { synced, errors, errorDetails };
 }
 
 async function runDirectorySync(jobId: string, sessionCookie: string) {
@@ -55,12 +139,13 @@ async function runDirectorySync(jobId: string, sessionCookie: string) {
   broadcastDirectorySyncUpdate({ status: 'running', jobId, progress: { step: 'hubspot_push', pullCount } });
 
   try {
-    const result = await internalPost('/api/hubspot/push-members-to-hubspot', sessionCookie);
-    if (result.ok) {
-      pushCount = (result.data.synced as number) || 0;
-    } else {
+    const pushResult = await pushMembersDirectly(jobId);
+    pushCount = pushResult.synced;
+    if (pushResult.errors > 0 && pushResult.synced === 0) {
       errors.push('push');
-      logger.error('[DirectorySync] HubSpot push failed', { extra: { response: result.data } });
+      logger.error('[DirectorySync] HubSpot push failed — all members errored', { extra: { errorCount: pushResult.errors, sample: pushResult.errorDetails.slice(0, 5) } });
+    } else if (pushResult.errors > 0) {
+      logger.warn(`[DirectorySync] HubSpot push partial: ${pushResult.synced} synced, ${pushResult.errors} errors`, { extra: { sample: pushResult.errorDetails.slice(0, 5) } });
     }
   } catch (err: unknown) {
     errors.push('push');

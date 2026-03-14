@@ -2287,5 +2287,9 @@ router.post('/api/hubspot/push-members-to-hubspot', isStaffOrAdmin, async (_req:
   }
 });
 
+export function invalidateHubSpotContactsCache() {
+  allContactsCache = { data: null, timestamp: 0, lastModifiedCheck: 0 };
+}
+
 export { fetchAllHubSpotContacts };
 export default router;
