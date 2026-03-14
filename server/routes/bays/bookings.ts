@@ -36,6 +36,7 @@ import { validateBody, validateQuery } from '../../middleware/validate';
 import { createBookingRequestSchema } from '../../../shared/validators/booking';
 import { z } from 'zod';
 import { checkClosureConflict, checkAvailabilityBlockConflict } from '../../core/bookingValidation';
+import { acquireBookingLocks, checkResourceOverlap, BookingConflictError } from '../../core/bookingService/bookingCreationGuard';
 
 interface SanitizedParticipant {
   email: string;
@@ -539,47 +540,23 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           resourceType = (resourceResult.rows[0] as Record<string, unknown>)?.type as string || 'simulator';
         }
         
-        if (resource_id) {
-          await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${String(resource_id)} || '::' || ${request_date}))`);
-        }
+        await acquireBookingLocks(tx, {
+          resourceId: resource_id,
+          requestDate: request_date,
+          startTime: start_time,
+          endTime: end_time,
+          requestEmail,
+          isStaffRequest,
+          isViewAsMode,
+          resourceType,
+        });
 
-        if (!isStaffRequest || isViewAsMode) {
-          await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${requestEmail}))`);
-          if (resourceType !== 'conference_room') {
-            const pendingCheck = await tx.execute(sql`
-              SELECT COUNT(*)::int AS cnt FROM booking_requests
-              WHERE LOWER(user_email) = LOWER(${requestEmail}) AND status = 'pending'
-            `);
-            if ((pendingCheck.rows[0] as Record<string, unknown>).cnt as number > 0) {
-              throw new BookingValidationError(409, {
-                error: 'You already have a pending request. Please wait for it to be approved or denied before requesting another slot.'
-              });
-            }
-          }
-        }
-        
-        if (resource_id) {
-          const overlapCheck = await tx.execute(sql`
-            SELECT id, start_time, end_time FROM booking_requests 
-            WHERE resource_id = ${resource_id} 
-            AND request_date = ${request_date} 
-            AND status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'attended', 'cancellation_pending')
-            AND start_time < ${end_time} AND end_time > ${start_time}
-            FOR UPDATE
-          `);
-          
-          if (overlapCheck.rows.length > 0) {
-            const conflict = overlapCheck.rows[0] as Record<string, unknown>;
-            const conflictStart = (conflict.start_time as string)?.substring(0, 5);
-            const conflictEnd = (conflict.end_time as string)?.substring(0, 5);
-            
-            const errorMsg = conflictStart && conflictEnd
-              ? `This time slot conflicts with an existing booking from ${formatTime12Hour(conflictStart)} to ${formatTime12Hour(conflictEnd)}. Please adjust your time or duration.`
-              : 'This time slot is already booked';
-            
-            throw new BookingValidationError(409, { error: errorMsg });
-          }
-        }
+        await checkResourceOverlap(tx, {
+          resourceId: resource_id,
+          requestDate: request_date,
+          startTime: start_time,
+          endTime: end_time,
+        });
         
         if (resource_id) {
           const closureCheck = await checkClosureConflict(resource_id, request_date, start_time, end_time);
@@ -835,6 +812,9 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       row = txResult;
     } catch (error: unknown) {
       if (error instanceof BookingValidationError) {
+        return res.status(error.statusCode).json(error.errorBody);
+      }
+      if (error instanceof BookingConflictError) {
         return res.status(error.statusCode).json(error.errorBody);
       }
       throw error;
