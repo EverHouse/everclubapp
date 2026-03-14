@@ -1,6 +1,6 @@
 # Ever Club Members App
 
-**Current Version**: 8.86.6 (March 14, 2026)
+**Current Version**: 8.86.7 (March 14, 2026)
 
 ## Overview
 The Ever Club Members App is a private members club application designed for golf and wellness centers. Its primary purpose is to serve as a central digital hub for managing golf simulator bookings, wellness service appointments, and club events. The project aims to enhance member satisfaction and operational efficiency through comprehensive membership management, facility booking, and community-building tools, ultimately creating a seamless digital experience for club members and staff.
@@ -147,6 +147,7 @@ The following large files have been split into sub-modules with barrel re-export
 - **Files**: `server/routes/analytics.ts`, `src/pages/Admin/tabs/AnalyticsTab.tsx`
 
 ### Recent Changes
+- **Welcome Header Name Fix (v8.86.7)**: Dashboard welcome greeting now uses first name instead of email address.
 - **Auth Linking Hardening (v8.86.6)**: Config guards on all Google/Apple auth routes (503 if env var missing), partial unique indexes on google_id/apple_id, 12 integration tests for auth linking logic.
 - **Google & Apple Account Linking Fix (v8.86.5)**: Fixed silent 0-row db.update failures in 7 auth paths, GoogleSignInButton SDK stability via refs, memoized callbacks, awaited refetches.
 - **Security Audit & Code Quality Hardening (v8.86.0)**: Comprehensive audit covering query validation, Stripe idempotency, WebSocket auth, booking advisory locks, LOWER email indexes, TypeScript strict mode, ESLint zero warnings, and 31 new concurrency tests.

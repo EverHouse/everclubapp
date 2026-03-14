@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.86.7",
+    date: "2026-03-14",
+    title: "Fix Welcome Header Showing Email Instead of Name",
+    changes: [
+      "Fix: Dashboard welcome greeting now shows your first name instead of your email address — the login flow was not building the display name from first/last name fields",
+    ]
+  },
+  {
     version: "8.86.6",
     date: "2026-03-14",
     title: "Auth Linking Hardening — Config Guards, Unique Constraints & Tests",

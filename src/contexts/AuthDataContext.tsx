@@ -247,9 +247,10 @@ export const AuthDataProvider: React.FC<{children: ReactNode}> = ({ children }) 
   }, []);
 
   const loginWithMember = useCallback((member: MemberProfile) => {
+    const fullName = [member.firstName, member.lastName].filter(Boolean).join(' ');
     const memberProfile: MemberProfile = {
       id: member.id,
-      name: member.name || member.email || 'Member',
+      name: member.name || fullName || member.email || 'Member',
       firstName: member.firstName || null,
       tier: member.tier || 'Core',
       tags: member.tags || [],
