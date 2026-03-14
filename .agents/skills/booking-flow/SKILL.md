@@ -96,6 +96,7 @@ Is this inside a db.transaction()?
 - **Trackman CSV import rules** → `booking-import-standards` skill
 - **Stripe invoice/webhook handling** → `stripe-webhook-flow` skill
 - **Booking action architecture** → `project-architecture` skill (Unified Booking Sheet section)
+- **Apple Wallet membership passes** → `project-architecture` skill (Apple Wallet section)
 
 ## Detailed Reference
 
@@ -103,6 +104,25 @@ Is this inside a db.transaction()?
 - **[references/trackman-sync.md](references/trackman-sync.md)** — Trackman webhook auto-approve, duration/bay updates, placeholder merging, `[PENDING_TRACKMAN_SYNC]` marker.
 
 ---
+
+## Apple Wallet Booking Passes (v8.87.13)
+
+Approved bookings can generate Apple Wallet event tickets. The pass shows bay name, date/time, player count, and includes geofencing for the club address.
+
+| Hook | File | When |
+|---|---|---|
+| Generate pass | `server/walletPass/bookingPassService.ts` → `generateBookingPass()` | Member taps "Add to Apple Wallet" on approved/confirmed/checked_in/attended booking |
+| Void pass | `bookingPassService.ts` → `voidBookingPass()` | Booking cancelled (member cancel, staff cancel, Trackman webhook) |
+| Refresh pass | `bookingPassService.ts` → `refreshBookingPass()` | Trackman import updates bay/time for a booking with an existing pass |
+| Web service | `server/routes/walletPassWebService.ts` | Apple device polls for updates (`/v1/passes/...`) — delegates to `generateBookingPassForWebService()` |
+| Email link | `server/emails/bookingEmails.ts` | Confirmation email includes optional "Add to Apple Wallet" link when `walletPassEnabled` |
+| Frontend button | `src/pages/Member/BookGolf.tsx` | "Add to Apple Wallet" button on booking cards |
+| DB table | `booking_wallet_passes` in `shared/models/scheduling.ts` | Serial number, auth token, member ID, voided timestamp |
+| Route | `GET /api/member/booking-wallet-pass/:bookingId` | Member-authenticated download, ownership check, status guard |
+
+**Void lifecycle:** Voided passes are still served to Apple Wallet (so the device receives the void update), but `voided: true` flag is set in the pass data. `bumpSerialChangeTimestamp()` + APN push notify the device.
+
+**Allowed statuses for pass generation:** `approved`, `confirmed`, `attended`, `checked_in`. Cancelled bookings with a previously-created pass also generate (for void delivery).
 
 ## Lifecycle Overview
 

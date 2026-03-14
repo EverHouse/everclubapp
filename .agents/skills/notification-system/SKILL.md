@@ -48,6 +48,31 @@ Who receives it?
 4. If scheduled → add to appropriate scheduler
 ```
 
+## Push Notification Enrichment (v8.87.14)
+
+All push notifications are enriched with semantic tags, deep links, and consistent icon/badge assets. This enables iOS notification grouping, sound on replacement (`renotify: true`), and proper deep linking on tap.
+
+**PushPayload interface** (`notificationService.ts`):
+```
+{ title, body, icon, badge, url?, tag? }
+```
+
+**`buildPushTag(type, relatedId?)`** — Generates semantic tags for iOS grouping:
+- `booking-{id}`, `wellness-{id}`, `event-{id}`, `announcement-{id}`, `payment-{id}`, `closure-{id}`, `tour-{id}`, `alert` (general)
+
+**`buildDeepLink(type, url?)`** — Automatic URL derivation by notification type:
+- Booking → `/dashboard/bookings`, Wellness → `/wellness`, Events → `/events`, Payments → `/dashboard/billing`, Guest passes → `/dashboard/guest-passes`, Tours → `/admin?tab=tours`
+
+**Constants:** `PUSH_ICON = '/icon-192.png'`, `PUSH_BADGE = '/badge-72.png'`
+
+**Service worker** (`public/sw.js`):
+- Uses `/icon-192.png` for notification icon, `/badge-72.png` for badge (72x72 monochrome)
+- Tag-based grouping with `renotify: true` for iOS vibrate/sound on replacement
+- `requireInteraction: false` for auto-dismiss
+- Click handler: prefers existing client at target URL → navigates any existing client → `openWindow()` fallback
+
+**All push call sites updated** with `tag` and `url` parameters: booking events, approval/decline/cancel flows, wellness enrollment, event RSVP, guest passes, Trackman notifications, closures, roster linking, daily reminders.
+
 ## Hard Rules
 
 1. **Always use `notifyMember()` from `notificationService.ts`.** NEVER insert directly into the `notifications` table.
@@ -65,6 +90,7 @@ Who receives it?
 13. **Synthetic email guard (v8.81.0).** `isSyntheticEmail()` blocks notifications to `@trackman.local`, `@visitors.evenhouse.club`, `private-event@`, `classpass-*`.
 14. **Deduplication (v8.5.0).** Same `title` + `user_email` + `related_id` within 60 seconds → skip.
 15. **Staff deletion safety (v8.81.0).** All fan-out paths use INNER JOIN with `users` table. Deleted/archived staff with orphaned `staff_users` rows are excluded.
+16. **Push payloads must include icon + badge (v8.87.14).** All `deliverViaPush` and `deliverPushToStaff` calls enrich payloads with `PUSH_ICON` and `PUSH_BADGE` defaults. Always include `tag` (via `buildPushTag`) and `url` (via `buildDeepLink`) for proper iOS grouping and deep linking.
 
 ## Anti-Patterns (NEVER)
 

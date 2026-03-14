@@ -99,6 +99,7 @@ All mutating routes (POST/PUT/PATCH/DELETE) must be protected. Two equivalent pa
 ## Standalone Route Files
 
 - `auth.ts` — Login, logout, session management
+- `auth-passkey.ts` — Passkey (WebAuthn Face ID / Touch ID) registration + authentication (6 endpoints, member-only, staff blocked)
 - `auth-google.ts` — Google Sign-In (login, link/unlink, status)
 - `auth-apple.ts` — Apple Sign-In (login via JWKS token verification, link/unlink, status)
 - `account.ts` — Account settings, deletion
@@ -145,7 +146,8 @@ All mutating routes (POST/PUT/PATCH/DELETE) must be protected. Two equivalent pa
 - `idScanner.ts` — ID/license scanning (OpenAI Vision)
 - `resendWebhooks.ts` — Resend email webhooks
 - `mindbody.ts` — MindBody import endpoints
-- `walletPass.ts` — Apple Wallet pass generation and download (uses `server/walletPass/passGenerator.ts`)
+- `walletPass.ts` — Apple Wallet membership + booking pass generation and download (uses `server/walletPass/passGenerator.ts` and `server/walletPass/bookingPassService.ts`)
+- `walletPassWebService.ts` — Apple Wallet web service protocol (`/v1/passes/...`) — device registration, serial updates, pass re-delivery
 - `testAuth.ts` — Dev-only test auth
 - `emailTemplates.ts` — Email template preview endpoints
 - `monitoring.ts` — System monitoring endpoints

@@ -85,7 +85,10 @@ Only if all 3 fail does it INSERT a new session. When called inside a transactio
 
 | File | Purpose |
 |------|---------|
-| `passGenerator.ts` | PKPass generation — creates signed `.pkpass` bundles with member QR code, tier branding, and PKCS#7 signing using `node-forge`. Requires `APPLE_WALLET_CERT_PEM` and `APPLE_WALLET_KEY_PEM` secrets plus DB settings (`apple_wallet.pass_type_id`, `apple_wallet.team_id`). WWDR intermediate cert is bundled. |
+| `passGenerator.ts` | PKPass generation — creates signed `.pkpass` bundles with member QR code, tier branding, and PKCS#7 signing using `node-forge`. Requires `APPLE_WALLET_CERT_PEM` and `APPLE_WALLET_KEY_PEM` secrets plus DB settings (`apple_wallet.pass_type_id`, `apple_wallet.team_id`). WWDR intermediate cert is bundled. Also generates booking event ticket passes (`generateBookingPkPass`). |
+| `bookingPassService.ts` | Booking-specific wallet pass lifecycle — `generateBookingPass()`, `voidBookingPass()`, `refreshBookingPass()`, `generateBookingPassForWebService()`. Manages `booking_wallet_passes` table. Hooks into cancellation (void), Trackman import (refresh), and web service protocol (re-deliver). |
+| `passService.ts` | Shared wallet config helpers — `getWalletConfig()`, `getWebServiceURL()` |
+| `apnPushService.ts` | APN push to notify Apple Wallet devices of pass updates |
 
 ---
 

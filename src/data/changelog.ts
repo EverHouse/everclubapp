@@ -8,6 +8,44 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.15",
+    date: "2026-03-14",
+    title: "Sign In with Face ID & Touch ID",
+    isMajor: true,
+    changes: [
+      "New: Sign in with Face ID or Touch ID — set up a passkey for instant, passwordless login",
+      "After your first login, a one-time banner invites you to enable biometric sign-in",
+      "Manage your passkeys from the Profile page — register new devices or remove old ones",
+      "Works on iPhone, iPad, and Mac with supported browsers",
+      "Your passkey is securely stored on your device and synced via iCloud Keychain",
+    ]
+  },
+  {
+    version: "8.87.14",
+    date: "2026-03-14",
+    title: "Smarter Push Notifications on iOS",
+    changes: [
+      "Push notifications now show the Ever Club icon and badge on iOS",
+      "Notifications for the same booking or event intelligently replace each other instead of piling up",
+      "Tapping a notification now takes you directly to the relevant page (bookings, events, billing, etc.)",
+      "Notification sounds now play correctly on iOS when an existing notification is updated",
+    ]
+  },
+  {
+    version: "8.87.13",
+    date: "2026-03-14",
+    title: "Add Bookings to Apple Wallet",
+    isMajor: true,
+    changes: [
+      "New: Add your golf simulator booking to Apple Wallet — see bay, date, time, and player count at a glance",
+      "An 'Add to Apple Wallet' button appears on approved, confirmed, and checked-in bookings",
+      "Booking confirmation emails now include an Apple Wallet download link",
+      "If your booking time or bay changes, the pass updates automatically on your phone",
+      "Cancelled bookings are voided in Apple Wallet so you always see the correct status",
+      "The pass includes a map pin for the club location for easy navigation",
+    ]
+  },
+  {
     version: "8.87.12",
     date: "2026-03-14",
     title: "Bug Fixes & Data Integrity",

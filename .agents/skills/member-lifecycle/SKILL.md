@@ -10,6 +10,7 @@ description: Member status transitions, onboarding flow, cancellation, reactivat
 | Task | Primary File(s) | When to touch |
 |---|---|---|
 | Login + auto-fix | `server/routes/auth.ts` | Login flow, Stripe status correction, session status refresh |
+| Passkey (Face ID / Touch ID) | `server/routes/auth-passkey.ts` | WebAuthn registration + authentication, `passkeys` table |
 | Google/Apple login | `server/routes/auth-google.ts`, `server/routes/auth-apple.ts` | OAuth login with status mapping |
 | Directory sync push | `server/routes/directorySync.ts` | Batch push active members to HubSpot |
 | Member service | `server/core/memberService/MemberService.ts` | Member lookup, cache |
@@ -144,14 +145,48 @@ invoice.payment_failed webhook fires
 
 ## Status Display Mapping
 
-All auth paths (OTP, Google, Apple, session refresh) normalize DB `membership_status` to display status using a `statusMap`. The frontend `AuthDataContext` passes real status through — never hardcodes `'Active'`. Frontend active-access gates must use `ACTIVE_STATUSES` (not `!== 'active'`) to avoid blocking trial/past_due members.
+All auth paths (OTP, Google, Apple, Passkey, session refresh) normalize DB `membership_status` to display status using a `statusMap`. The frontend `AuthDataContext` passes real status through — never hardcodes `'Active'`. Frontend active-access gates must use `ACTIVE_STATUSES` (not `!== 'active'`) to avoid blocking trial/past_due members.
 
 Key files with status mapping:
 - `server/routes/auth.ts` — OTP login + session refresh
+- `server/routes/auth-passkey.ts` — Passkey (WebAuthn) login
 - `server/routes/auth-google.ts` — Google verify + callback
 - `server/routes/auth-apple.ts` — Apple verify
 - `src/contexts/AuthDataContext.tsx` — Frontend status passthrough
 - `src/components/TierBadge.tsx` — INACTIVE_STATUSES display
+
+## Passkey Authentication (v8.87.15)
+
+WebAuthn passkeys (Face ID / Touch ID) as an additive login method alongside OTP, Google, and Apple sign-in.
+
+**DB:** `passkeys` table (migration 0055) — `credential_id` (unique), `public_key`, `counter`, `transports` (JSONB), `user_id`, `device_name`, `created_at`, `last_used_at`. Index on `user_id`.
+
+**Session:** `webauthnChallenge` field added to `express-session` types (`server/types/session.ts`).
+
+**Backend endpoints** (`server/routes/auth-passkey.ts`):
+- `POST /api/auth/passkey/register/options` — Generate registration challenge (requires login)
+- `POST /api/auth/passkey/register/verify` — Verify + store credential (audit logged)
+- `POST /api/auth/passkey/authenticate/options` — Generate auth challenge (rate-limited)
+- `POST /api/auth/passkey/authenticate/verify` — Verify + create session + return `supabaseToken`
+- `GET /api/auth/passkey/list` — List user's passkeys (requires login)
+- `DELETE /api/auth/passkey/:passkeyId` — Remove passkey (ownership scoped, audit logged)
+
+**Security rules:**
+- Staff/admin blocked from registration (403) — session IDs are incompatible with member user lookups
+- Challenge invalidated on all verify paths (both success and failure)
+- Rate limiting on authenticate endpoints via `authRateLimiterByIp`
+- Device name sanitized (trimmed, max 100 chars)
+- RP ID: `everclub.app` in production, `REPLIT_DEV_DOMAIN` in dev, `localhost` fallback
+- `authenticatorAttachment: 'platform'` — platform authenticators only (no USB keys)
+- Archived users excluded (`WHERE archived_at IS NULL`)
+- Non-active members rejected (uses `ACTIVE_STATUSES`)
+
+**Frontend:**
+- Login page: Conditional UI via `useBrowserAutofill` on mount; "Sign in with Face ID" button. Boolean ref guard prevents overlapping conditional + manual WebAuthn calls.
+- Dashboard: One-time nudge banner after OTP login prompting Face ID / Touch ID setup (persisted dismiss in `localStorage`).
+- Profile: Passkeys section with register/list/remove + scroll-to anchor from dashboard nudge.
+
+**Packages:** `@simplewebauthn/server@11`, `@simplewebauthn/browser@11`. Types from `@simplewebauthn/types`.
 
 ## Auth Linking Hardening (v8.86.6/v8.87.1)
 
