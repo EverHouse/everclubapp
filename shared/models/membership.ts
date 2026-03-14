@@ -68,6 +68,7 @@ export const guestPasses = pgTable("guest_passes", {
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("guest_passes_member_email_idx").on(table.memberEmail),
+  index("idx_guest_passes_lower_email").on(sql`LOWER(${table.memberEmail})`),
   check("guest_passes_usage_check", sql`passes_used <= passes_total`),
   check("guest_passes_non_negative_check", sql`passes_used >= 0`),
 ]);

@@ -58,6 +58,8 @@ export const eventRsvps = pgTable("event_rsvps", {
 (table) => [
   index("idx_event_rsvps_event_id").on(table.eventId),
   index("idx_event_rsvps_matched_user_id").on(table.matchedUserId),
+  index("idx_event_rsvps_lower_email").on(sql`LOWER(${table.userEmail})`),
+  index("idx_event_rsvps_user_email_lower").on(sql`LOWER(${table.userEmail})`),
 ]);
 
 // Wellness classes table - for scheduling wellness/fitness classes
@@ -109,6 +111,7 @@ export const wellnessEnrollments = pgTable("wellness_enrollments", {
 },
 (table) => [
   index("idx_wellness_enrollments_class_id").on(table.classId),
+  index("idx_wellness_enrollments_user_email_lower").on(sql`LOWER(${table.userEmail})`),
 ]);
 
 // Announcements table - club announcements

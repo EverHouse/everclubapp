@@ -113,6 +113,8 @@ export const users = pgTable("users", {
   index("users_visitor_type_idx").on(table.visitorType),
   index("users_hubspot_id_idx").on(table.hubspotId),
   index("users_tier_id_idx").on(table.tierId),
+  index("idx_users_email_lower").on(sql`LOWER(${table.email})`),
+  index("idx_users_lower_trackman_email").on(sql`LOWER(${table.trackmanEmail})`),
 ]);
 
 // Staff users table - emails that get staff or admin access

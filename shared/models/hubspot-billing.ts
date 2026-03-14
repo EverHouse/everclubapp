@@ -144,6 +144,7 @@ export const legacyPurchases = pgTable("legacy_purchases", {
   index("legacy_purchases_sale_date_idx").on(table.saleDate),
   index("legacy_purchases_item_category_idx").on(table.itemCategory),
   index("legacy_purchases_member_email_idx").on(table.memberEmail),
+  index("idx_legacy_purchases_lower_email").on(sql`LOWER(${table.memberEmail})`),
 ]);
 
 // Import jobs tracking table - audit trail for imports

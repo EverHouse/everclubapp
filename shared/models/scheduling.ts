@@ -120,6 +120,7 @@ export const bookingRequests = pgTable("booking_requests", {
   index("booking_requests_unmatched_idx").on(table.isUnmatched),
   index("booking_requests_status_idx").on(table.status),
   index("booking_requests_status_date_idx").on(table.status, table.requestDate),
+  index("idx_booking_requests_lower_email").on(sql`LOWER(${table.userEmail})`),
 ]);
 
 // Facility closures table - scheduled closures
