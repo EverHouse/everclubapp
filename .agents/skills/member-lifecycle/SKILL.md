@@ -158,6 +158,8 @@ Key files with status mapping:
 - **Config guards (fail-closed):** All Google and Apple auth routes (verify, callback, link, unlink, status) return 503 if their client ID env var is missing — prevents silent token-verification bypass.
 - **Partial unique indexes:** `google_id` and `apple_id` columns have `UNIQUE WHERE NOT NULL` indexes to prevent race-condition duplicate linking at the database level.
 - **Conflict handling:** Link endpoints catch unique constraint violations from concurrent requests and return 409 instead of 500.
+- **`resolveDbUserId()` fallback (v8.87.1):** Link/unlink endpoints in `auth-google.ts` and `auth-apple.ts` resolve the DB user ID via a 2-step fallback: first by session `user.id`, then by normalized email. Returns 404 if no match. This fixed the "User account not found" error when session IDs didn't match DB IDs.
+- **`upsertUserWithTier()` returns DB ID (v8.87.1):** Login upsert in `auth.ts` now returns the inserted/updated user's DB `id` and stores it in `req.session.user.id`. This ensures the session always carries the correct DB identity for downstream linking operations.
 
 ## Onboarding Checklist
 

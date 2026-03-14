@@ -69,7 +69,7 @@ After calling recalculateSessionFees()?
 7. **Owner absorbs non-member time.** Guest + empty slot minutes add to owner's allocated minutes, then owner's overage recalculates.
 8. **Cascade recalculation.** After a session's fees change, all later same-day bookings for the same member auto-recalculate (up to 10, `skipCascade: true` prevents loops).
 9. **Prices from Stripe.** Dollar amounts loaded at startup from Stripe products. NEVER hardcode fee amounts.
-10. **One invoice per booking.** Draft at approval → sync on roster changes → finalize at payment → void on cancel.
+10. **One invoice per booking.** Draft at approval → sync on roster changes → finalize at payment → void on cancel. Invoices are created with `payment_settings.payment_method_types: ['card', 'link']` to enable wallet payments (Apple Pay, Google Pay, Stripe Link).
 11. **Already-paid guard (v8.68.0).** Fee recalculation skips participants with `cached_fee_cents > 0` and a completed payment intent.
 12. **Account credit audit trail.** When `createPrepaymentIntent` returns `paidInFull: true`, call `logPaymentAudit()` with `paymentMethod: 'account_credit'`.
 13. **Outstanding balance queries MUST include 3 filters:** 90-day lookback, exclude cancelled bookings, exclude paid snapshots.

@@ -115,7 +115,7 @@ interface ClientConnection {
 | `directory_update` | Member directory sync events (staff only) |
 | `member_stats_updated` | Guest pass/visit count changes |
 | `closure_update` | Facility closure changes |
-| `billing_update` | Payment/subscription events |
+| `billing_update` | Payment/subscription events. Actions: `payment_confirmed` (member self-pay), `payment_succeeded`/`payment_failed`/`payment_refunded` (webhook), `invoice_created`/`invoice_finalized`/`invoice_voided`, `subscription_created`/`subscription_cancelled`. Use `broadcastBillingUpdate({ memberEmail, action, bookingId?, status? })` |
 | `tier_update` | Membership tier changes |
 | `member_data_updated` | Bulk member data sync (staff only) |
 | `day_pass_update` | Day pass purchase/redemption (staff only) |
