@@ -155,7 +155,7 @@ export function useDirectoryData({
     });
 
     const formatSyncResult = useCallback((result: DirectorySyncResult) => {
-        const { pullCount, pushCount, stripeUpdated, errors } = result;
+        const { pullCount, pushCount, pushErrors = 0, stripeUpdated, errors } = result;
         const hubspotErrors = errors.filter(e => e === 'pull' || e === 'push');
         const stripeError = errors.includes('stripe');
 
@@ -163,7 +163,13 @@ export function useDirectoryData({
 
         if (hubspotErrors.length === 0) {
             const hsTotal = pullCount + pushCount;
-            if (hsTotal > 0) parts.push(`HubSpot: ${hsTotal} synced`);
+            if (hsTotal > 0) {
+                let hsMsg = `HubSpot: ${hsTotal} synced`;
+                if (pushErrors > 0) hsMsg += ` (${pushErrors} push errors)`;
+                parts.push(hsMsg);
+            } else if (pushErrors > 0) {
+                parts.push(`HubSpot: ${pushErrors} push errors`);
+            }
         } else if (hubspotErrors.length === 2) {
             parts.push('HubSpot: failed');
         } else {
@@ -178,7 +184,7 @@ export function useDirectoryData({
         }
 
         const allFailed = hubspotErrors.length === 2 && stripeError;
-        const hasAnyError = errors.length > 0;
+        const hasAnyError = errors.length > 0 || pushErrors > 0;
 
         if (allFailed) {
             return { type: 'error' as const, text: 'Failed to sync' };

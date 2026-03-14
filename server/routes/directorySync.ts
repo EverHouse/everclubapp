@@ -138,9 +138,11 @@ async function runDirectorySync(jobId: string, sessionCookie: string) {
   await updateJobProgress(jobId, { step: 'hubspot_push', pullCount });
   broadcastDirectorySyncUpdate({ status: 'running', jobId, progress: { step: 'hubspot_push', pullCount } });
 
+  let pushErrors = 0;
   try {
     const pushResult = await pushMembersDirectly(jobId);
     pushCount = pushResult.synced;
+    pushErrors = pushResult.errors;
     if (pushResult.errors > 0 && pushResult.synced === 0) {
       errors.push('push');
       logger.error('[DirectorySync] HubSpot push failed — all members errored', { extra: { errorCount: pushResult.errors, sample: pushResult.errorDetails.slice(0, 5) } });
@@ -170,7 +172,7 @@ async function runDirectorySync(jobId: string, sessionCookie: string) {
     logger.error('[DirectorySync] Stripe sync failed', { error: err instanceof Error ? err : new Error(String(err)) });
   }
 
-  const syncResult = { pullCount, pushCount, stripeUpdated, errors };
+  const syncResult = { pullCount, pushCount, pushErrors, stripeUpdated, errors };
   const lastSyncTime = new Date().toISOString();
 
   if (errors.length === 3) {

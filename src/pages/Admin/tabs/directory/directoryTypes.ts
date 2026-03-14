@@ -96,6 +96,7 @@ export interface SyncStatusResponse {
 export interface DirectorySyncResult {
     pullCount: number;
     pushCount: number;
+    pushErrors?: number;
     stripeUpdated: number;
     errors: string[];
 }

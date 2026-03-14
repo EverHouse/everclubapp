@@ -9,7 +9,7 @@ interface TierBadgeProps {
   membershipStatus?: string | null;
 }
 
-const INACTIVE_STATUSES = ['terminated', 'suspended', 'expired', 'cancelled', 'frozen'];
+const INACTIVE_STATUSES = ['terminated', 'suspended', 'expired', 'cancelled', 'frozen', 'paused', 'inactive'];
 
 const TierBadge: React.FC<TierBadgeProps> = ({ tier, size = 'sm', showNoTier = false, lastTier, membershipStatus }) => {
   const sizeClasses = size === 'sm' 

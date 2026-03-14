@@ -1171,9 +1171,10 @@ router.get('/api/auth/session', async (req, res) => {
   }
   
   const freshRole = await getUserRole(sessionUser.email);
+  let sessionDirty = false;
   if (freshRole !== sessionUser.role) {
     sessionUser.role = freshRole;
-    req.session.save(() => {});
+    sessionDirty = true;
   }
 
   let lifetimeVisits = 0;
@@ -1204,12 +1205,18 @@ router.get('/api/auth/session', async (req, res) => {
         freshStatus = statusMap[dbStatusStr] || (dbStatusStr ? dbStatusStr.charAt(0).toUpperCase() + dbStatusStr.slice(1) : 'Active');
         if (freshStatus !== sessionUser.status) {
           sessionUser.status = freshStatus;
-          req.session.save(() => {});
+          sessionDirty = true;
         }
       }
     }
   } catch {
     logger.debug('[Auth] Failed to fetch user data for session enrichment');
+  }
+
+  if (sessionDirty) {
+    req.session.save((err) => {
+      if (err) logger.warn('[Auth] Failed to persist session update', { error: err });
+    });
   }
 
   res.json({
