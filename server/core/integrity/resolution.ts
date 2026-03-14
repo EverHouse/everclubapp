@@ -219,7 +219,7 @@ export async function bulkPushToHubSpot(dryRun: boolean = true): Promise<{
             const singleRead = await retryableHubSpotRequest(() =>
               hubspot.crm.contacts.basicApi.getById(String(member.hubspot_id), ['firstname', 'lastname', 'email', 'membership_tier'])
             );
-            hsContactMap[member.hubspot_id as string] = singleRead.properties || {};
+            hsContactMap[member.hubspot_id!] = (singleRead.properties || {}) as Record<string, string>;
           } catch (singleErr: unknown) {
             if (getErrorStatusCode(singleErr) === 404) {
               continue;

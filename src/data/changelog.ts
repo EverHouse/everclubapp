@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.2",
+    date: "2026-03-14",
+    title: "Server Code Quality & Stability",
+    changes: [
+      "Improved server-side code reliability — fixed 286 type-safety issues across all backend files (billing, bookings, Trackman, member sync, and more)",
+      "Better error handling throughout the server for more reliable fee calculations, booking approvals, and data integrity checks",
+      "Server type-checking now enforced automatically to catch issues before they reach production",
+    ]
+  },
+  {
     version: "8.87.1",
     date: "2026-03-14",
     title: "Google & Apple Account Linking Fix",

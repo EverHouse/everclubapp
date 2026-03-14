@@ -70,7 +70,7 @@ async function getAccessToken() {
     throw new Error(`Google Sheet connector API error (HTTP ${connectorResponse.status}): ${errorText.substring(0, 200)}`);
   }
 
-  connectionSettings = await connectorResponse.json().then((data: { items?: ConnectionSettings[] }) => data.items?.[0]);
+  connectionSettings = await connectorResponse.json().then((data: unknown) => ((data as { items?: ConnectionSettings[] }).items)?.[0]);
 
   const accessToken = connectionSettings?.settings?.access_token || connectionSettings?.settings?.oauth?.credentials?.access_token;
 

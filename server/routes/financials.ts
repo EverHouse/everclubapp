@@ -925,8 +925,8 @@ router.get('/api/financials/invoices', isStaffOrAdmin, async (req: Request, res:
         currency: invoice.currency,
         status: effectiveStatus,
         created: invoice.created,
-        hostedInvoiceUrl: invoice.hosted_invoice_url,
-        invoicePdf: invoice.invoice_pdf,
+        hostedInvoiceUrl: invoice.hosted_invoice_url ?? null,
+        invoicePdf: invoice.invoice_pdf ?? null,
       };
     });
 

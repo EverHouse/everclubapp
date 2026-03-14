@@ -93,7 +93,7 @@ router.post('/api/admin/applications/:id/send-invite', isStaffOrAdmin, async (re
 
     await db.execute(sql`UPDATE form_submissions SET status = 'invited', updated_at = NOW() WHERE id = ${id}`);
 
-    const data = await internalRes.json();
+    const data = (await internalRes.json()) as { checkoutUrl?: string };
     res.json({ success: true, checkoutUrl: data.checkoutUrl });
   } catch (error: unknown) {
     logger.error('[Applications] Failed to send invite', { error: error instanceof Error ? error : new Error(String(error)) });

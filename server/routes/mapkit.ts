@@ -50,7 +50,7 @@ router.get('/api/mapkit-token', mapkitTokenLimiter, async (_req, res) => {
     cachedToken = { jwt: token, expiresAt };
     res.json({ token });
   } catch (error: unknown) {
-    logger.error('Failed to generate MapKit token', error);
+    logger.error('Failed to generate MapKit token', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to generate MapKit token' });
   }
 });

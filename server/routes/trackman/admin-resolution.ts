@@ -667,7 +667,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                   purpose: 'day_pass_purchase',
                   source: 'trackman_resolve',
                   product_slug: 'day-pass-golf-sim',
-                  booking_id: booking.id.toString(),
+                  booking_id: String((booking as { id: unknown }).id),
                   booking_date: bookingDateStr,
                   visitor_email: member.email as string,
                   created_via: 'trackman_resolve'

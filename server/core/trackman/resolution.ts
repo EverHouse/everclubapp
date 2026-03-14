@@ -602,7 +602,7 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
   log(`[Lesson Cleanup] Found ${unmatched.length} unmatched lesson entries to resolve.`);
 
   for (const item of unmatched) {
-    const resourceId = parseInt(item.bayNumber) || null;
+    const resourceId = parseInt(item.bayNumber as string) || null;
     
     if (!resourceId || resourceId <= 0) {
       log(`[Lesson Cleanup] Skipping Unmatched Item #${item.id} - invalid bay number: ${item.bayNumber}`);

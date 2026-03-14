@@ -2350,7 +2350,7 @@ export async function devConfirmBooking(params: DevConfirmParams) {
     return { sessionId, totalFeeCents, dateStr, timeStr };
   });
 
-  resolvedTotalFeeCents = totalFeeCents;
+  resolvedTotalFeeCents = totalFeeCents ?? 0;
   if (sessionId) {
     try {
       const feeResult = await recalculateSessionFees(sessionId as number, 'approval');

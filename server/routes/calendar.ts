@@ -137,7 +137,7 @@ router.get('/api/calendar/availability', async (req, res) => {
     const busySlots = response.data.calendars?.primary?.busy || [];
     
     res.json({
-      busy: busySlots.map((slot: Record<string, unknown>) => ({
+      busy: busySlots.map((slot: { start?: string | null; end?: string | null }) => ({
         start: slot.start,
         end: slot.end,
       })),

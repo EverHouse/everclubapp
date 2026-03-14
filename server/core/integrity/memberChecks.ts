@@ -320,7 +320,7 @@ export async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
           category: 'sync_mismatch',
           severity: 'warning',
           table: 'users',
-          recordId: member.id,
+          recordId: member.id!,
           description: `Member "${memberName}" has tier mismatch: ${mismatchDesc}. App: "${member.tier || 'none'}", Stripe: "${cached.name || 'unknown'}", HubSpot: "${hubspotTier || 'not set'}"`,
           suggestion: 'Align tier across all systems using the Tier Change Wizard or manual sync',
           context: {
@@ -329,8 +329,8 @@ export async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
             memberTier: member.tier || undefined,
             syncType: 'stripe',
             stripeCustomerId: customerId,
-            hubspotContactId: member.hubspot_id || undefined,
-            userId: String(member.id),
+            hubspotContactId: member.hubspot_id ?? undefined,
+            userId: String(member.id ?? ''),
             syncComparison: tierMismatches
           }
         });

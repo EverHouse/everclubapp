@@ -652,7 +652,7 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
     const attendedBookingsCount = visitHistory.length + walkInItems.length;
     const now = new Date();
     const attendedEventsCount = eventRsvpHistory.filter((e) => {
-      const eventDate = new Date(e.eventDate);
+      const eventDate = new Date(e.eventDate ?? '');
       return eventDate < now;
     }).length;
     const attendedWellnessCount = wellnessHistory.filter((w) => w.status === 'attended').length;

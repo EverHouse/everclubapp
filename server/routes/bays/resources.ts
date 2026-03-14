@@ -86,9 +86,9 @@ router.get('/api/bays/:bayId/availability', async (req, res) => {
       });
       
       const busySlots = response.data.calendars?.primary?.busy || [];
-      calendarBlocks = busySlots.map((slot: { start: string; end: string }) => {
-        const start = new Date(slot.start);
-        const end = new Date(slot.end);
+      calendarBlocks = busySlots.map((slot: { start?: string | null; end?: string | null }) => {
+        const start = new Date(slot.start ?? '');
+        const end = new Date(slot.end ?? '');
         const startPT = start.toLocaleString('en-US', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: false });
         const endPT = end.toLocaleString('en-US', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: false });
         return {

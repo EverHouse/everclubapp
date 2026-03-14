@@ -126,7 +126,7 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
     .where(and(...conditions))
     .orderBy(asc(bookingRequests.requestDate), asc(bookingRequests.startTime));
     
-    let calendarBookings: Array<{ id: string; user_email: null; user_name: string; resource_id: number | null; resource_preference: null; request_date: string; start_time: string; duration_minutes: null; end_time: string; notes: string; status: string; staff_notes: null; suggested_time: null; reviewed_by: null; reviewed_at: null; created_at: null; updated_at: null; calendar_event_id: string; resource_name: string; resource_type: string; source: string }> = [];
+    let calendarBookings: Array<Record<string, unknown>> = [];
     try {
       const calendarEvents = await getConferenceRoomBookingsFromCalendar();
       
@@ -147,7 +147,7 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
         .map(event => ({
           id: `cal_${event.id}`,
           user_email: null,
-          user_name: event.memberName,
+          user_name: event.memberName ?? '',
           resource_id: confRoomId,
           resource_preference: null,
           request_date: event.date,
@@ -257,11 +257,11 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
       };
     });
     
-    const allBookings = [...enrichedDbResult, ...calendarBookings]
+    const allBookings = ([...enrichedDbResult, ...calendarBookings] as Array<Record<string, unknown>>)
       .sort((a, b) => {
-        const dateCompare = (a.request_date || '').localeCompare(b.request_date || '');
+        const dateCompare = (String(a.request_date || '')).localeCompare(String(b.request_date || ''));
         if (dateCompare !== 0) return dateCompare;
-        return (a.start_time || '').localeCompare(b.start_time || '');
+        return (String(a.start_time || '')).localeCompare(String(b.start_time || ''));
       });
     
     res.json(allBookings);

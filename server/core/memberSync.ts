@@ -1430,7 +1430,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
     const emailByHubSpotId = new Map<string, string>();
     for (const m of membersResult) {
       if (m.hubspotId) {
-        emailByHubSpotId.set(m.hubspotId, m.email);
+        emailByHubSpotId.set(m.hubspotId, m.email!);
       }
     }
     
