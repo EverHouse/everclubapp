@@ -184,7 +184,9 @@ export const formSubmissions = pgTable("form_submissions", {
   hubspotSubmissionId: varchar("hubspot_submission_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_form_submissions_lower_email").on(sql`LOWER(${table.email})`),
+]);
 
 // Bug reports table - user-submitted bug reports
 export const bugReports = pgTable("bug_reports", {

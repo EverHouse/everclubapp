@@ -84,6 +84,7 @@ export const memberNotes = pgTable("member_notes", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
   index("member_notes_member_email_idx").on(table.memberEmail),
+  index("idx_member_notes_lower_member_email").on(sql`LOWER(${table.memberEmail})`),
 ]);
 
 // Communication logs table - prepared for HubSpot 2-way sync
@@ -104,6 +105,7 @@ export const communicationLogs = pgTable("communication_logs", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
   index("communication_logs_member_email_idx").on(table.memberEmail),
+  index("idx_communication_logs_lower_member_email").on(sql`LOWER(${table.memberEmail})`),
 ]);
 
 // Guest check-ins table - tracking guest visits by member
@@ -118,7 +120,10 @@ export const guestCheckIns = pgTable("guest_check_ins", {
   notes: text("notes"),
   checkedInBy: varchar("checked_in_by"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_guest_check_ins_lower_member_email").on(sql`LOWER(${table.memberEmail})`),
+  index("idx_guest_check_ins_lower_guest_email").on(sql`LOWER(${table.guestEmail})`),
+]);
 
 // Linked emails table - alternate email addresses for members (for Trackman matching)
 export const userLinkedEmails = pgTable("user_linked_emails", {
@@ -131,6 +136,8 @@ export const userLinkedEmails = pgTable("user_linked_emails", {
 }, (table) => ({
   primaryEmailIdx: index("user_linked_emails_primary_idx").on(table.primaryEmail),
   linkedEmailIdx: uniqueIndex("user_linked_emails_linked_idx").on(table.linkedEmail),
+  lowerLinkedEmailIdx: index("idx_user_linked_emails_lower_linked_email").on(sql`LOWER(${table.linkedEmail})`),
+  lowerPrimaryEmailIdx: index("idx_user_linked_emails_lower_primary_email").on(sql`LOWER(${table.primaryEmail})`),
 }));
 
 export type MembershipTier = typeof membershipTiers.$inferSelect;

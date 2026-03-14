@@ -14,6 +14,7 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("notifications_user_email_is_read_idx").on(table.userEmail, table.isRead),
+  index("idx_notifications_lower_user_email").on(sql`LOWER(${table.userEmail})`),
 ]);
 
 // Push subscriptions table - web push notification subscriptions
@@ -24,7 +25,9 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   p256dh: text("p256dh").notNull(),
   auth: text("auth").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_push_subscriptions_lower_user_email").on(sql`LOWER(${table.userEmail})`),
+]);
 
 // Notice types table - preset and custom notice categories for display to members
 export const noticeTypes = pgTable("notice_types", {
@@ -44,6 +47,7 @@ export const userDismissedNotices = pgTable("user_dismissed_notices", {
   dismissedAt: timestamp("dismissed_at").defaultNow(),
 }, (table) => [
   uniqueIndex("unique_user_notice").on(table.userEmail, table.noticeType, table.noticeId),
+  index("idx_user_dismissed_notices_lower_user_email").on(sql`LOWER(${table.userEmail})`),
 ]);
 
 export type UserDismissedNotice = typeof userDismissedNotices.$inferSelect;

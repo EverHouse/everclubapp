@@ -44,6 +44,7 @@ export const hubspotDeals = pgTable("hubspot_deals", {
 }, (table) => [
   index("hubspot_deals_member_email_idx").on(table.memberEmail),
   index("hubspot_deals_hubspot_deal_id_idx").on(table.hubspotDealId),
+  index("idx_hubspot_deals_lower_member_email").on(sql`LOWER(${table.memberEmail})`),
 ]);
 
 export const hubspotLineItems = pgTable("hubspot_line_items", {
@@ -242,6 +243,7 @@ export const billingGroups = pgTable("billing_groups", {
   createdByName: varchar("created_by_name"),
 }, (table) => [
   index("billing_groups_primary_email_idx").on(table.primaryEmail),
+  index("idx_billing_groups_lower_primary_email").on(sql`LOWER(${table.primaryEmail})`),
 ]);
 
 // Group members - links individual members to a billing group
@@ -274,6 +276,7 @@ export const groupMembers = pgTable("group_members", {
 }, (table) => [
   index("group_members_billing_group_id_idx").on(table.billingGroupId),
   index("group_members_member_email_idx").on(table.memberEmail),
+  index("idx_group_members_lower_member_email").on(sql`LOWER(${table.memberEmail})`),
 ]);
 
 // Family add-on products - configurable pricing for family add-ons by tier

@@ -130,7 +130,9 @@ export const staffUsers = pgTable("staff_users", {
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   createdBy: varchar("created_by"),
-});
+}, (table) => [
+  index("idx_staff_users_lower_email").on(sql`LOWER(${table.email})`),
+]);
 
 // Magic links table - for passwordless authentication
 export const magicLinks = pgTable("magic_links", {
