@@ -33,8 +33,9 @@ import { resolveUserByEmail } from '../../core/stripe/customers';
 import { cancelPendingPaymentIntentsForBooking } from '../../core/billing/paymentIntentCleanup';
 import { normalizeToISODate } from '../../utils/dateNormalize';
 import { bookingRateLimiter } from '../../middleware/rateLimiting';
-import { validateBody } from '../../middleware/validate';
+import { validateBody, validateQuery } from '../../middleware/validate';
 import { createBookingRequestSchema } from '../../../shared/validators/booking';
+import { z } from 'zod';
 import { checkClosureConflict, checkAvailabilityBlockConflict } from '../../core/bookingValidation';
 
 interface SanitizedParticipant {
@@ -1748,8 +1749,19 @@ async function calculateFeeEstimate(params: {
   }
 }
 
-// Unified fee estimate endpoint - works for both members (with params) and staff (with booking ID)
-router.get('/api/fee-estimate', isAuthenticated, async (req, res) => {
+const feeEstimateQuerySchema = z.object({
+  bookingId: z.string().regex(/^\d+$/, 'bookingId must be a number').optional(),
+  durationMinutes: z.string().regex(/^\d+$/).optional(),
+  guestCount: z.string().regex(/^\d+$/).optional(),
+  playerCount: z.string().regex(/^\d+$/).optional(),
+  date: z.string().optional(),
+  resourceType: z.string().optional(),
+  guestsWithInfo: z.string().regex(/^\d+$/).optional(),
+  memberEmails: z.string().optional(),
+  memberUserIds: z.string().optional(),
+}).passthrough();
+
+router.get('/api/fee-estimate', isAuthenticated, validateQuery(feeEstimateQuerySchema), async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');

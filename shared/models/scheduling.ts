@@ -246,13 +246,12 @@ export const bookingSessions = pgTable("booking_sessions", {
 export const guests = pgTable("guests", {
   id: serial("id").primaryKey(),
   name: varchar("name").notNull(),
-  email: varchar("email"),
+  email: varchar("email").unique("guests_email_unique"),
   phone: varchar("phone"),
   createdByMemberId: varchar("created_by_member_id"),
   lastVisitDate: date("last_visit_date"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
-  index("guests_email_idx").on(table.email),
   index("guests_created_by_idx").on(table.createdByMemberId),
 ]);
 
