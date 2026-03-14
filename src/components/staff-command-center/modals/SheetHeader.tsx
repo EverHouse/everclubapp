@@ -77,7 +77,7 @@ export function SheetHeader({
   if (isManageMode) {
     return (
       <>
-        {ownerMembershipStatus && !isOwnerStaff && ownerMembershipStatus.toLowerCase() !== 'active' && ownerMembershipStatus.toLowerCase() !== 'trial' && ownerMembershipStatus.toLowerCase() !== 'past_due' && ownerMembershipStatus.toLowerCase() !== 'unknown' && (
+        {ownerMembershipStatus && !isOwnerStaff && ownerMembershipStatus.toLowerCase() !== 'active' && ownerMembershipStatus.toLowerCase() !== 'trialing' && ownerMembershipStatus.toLowerCase() !== 'past_due' && ownerMembershipStatus.toLowerCase() !== 'unknown' && (
           <div className="p-3 rounded-xl border border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-900/15 flex items-center gap-2">
             <span className="material-symbols-outlined text-red-500 dark:text-red-400 text-lg">warning</span>
             <div>

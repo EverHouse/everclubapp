@@ -54,7 +54,7 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
   const soundPlayedRef = useRef(false);
 
   const statusLower = membershipStatus?.toLowerCase() || '';
-  const isActive = statusLower === 'active' || statusLower === 'trialing';
+  const isActive = statusLower === 'active' || statusLower === 'trialing' || statusLower === 'past_due';
 
   useEffect(() => {
     if (isOpen) {
@@ -83,7 +83,7 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
 
   if (!isOpen) return null;
   const _isExpired = statusLower === 'expired';
-  const _isInactive = ['cancelled', 'suspended', 'inactive', 'unpaid', 'terminated', 'past_due', 'paused'].includes(statusLower);
+  const _isInactive = ['cancelled', 'suspended', 'inactive', 'unpaid', 'terminated', 'paused'].includes(statusLower);
   const showWarning = !isActive && statusLower !== '';
 
   const modal = (

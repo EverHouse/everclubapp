@@ -505,7 +505,7 @@ export async function addGroupMember(params: {
       
       // Guard against dual subscriptions - if user has their own active subscription (any provider), prevent adding to group
       const hasActiveSubscription = user.stripe_subscription_id && 
-        (user.membership_status === 'active' || user.membership_status === 'past_due');
+        (user.membership_status === 'active' || user.membership_status === 'trialing' || user.membership_status === 'past_due');
       if (hasActiveSubscription) {
         return {
           success: false,
@@ -768,7 +768,7 @@ export async function addCorporateMember(params: {
           }
       
           const hasActiveSubscription = user.stripe_subscription_id && 
-            (user.membership_status === 'active' || user.membership_status === 'past_due');
+            (user.membership_status === 'active' || user.membership_status === 'trialing' || user.membership_status === 'past_due');
           if (hasActiveSubscription) {
             throw Object.assign(new Error('User already has their own active subscription. Cancel it before adding them to a corporate plan.'), { __earlyReturn: true, result: { success: false, error: 'User already has their own active subscription. Cancel it before adding them to a corporate plan.' } });
           }
