@@ -94,7 +94,8 @@ function getNextRetryTime(retryCount: number): Date {
   const baseDelay = 60 * 1000; // 1 minute
   const maxDelay = 60 * 60 * 1000; // 1 hour
   const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay);
-  return new Date(Date.now() + delay);
+  const jitter = Math.floor(Math.random() * 5000);
+  return new Date(Date.now() + delay + jitter);
 }
 
 export async function processHubSpotQueue(batchSize: number = 10): Promise<{

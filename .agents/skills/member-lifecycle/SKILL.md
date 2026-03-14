@@ -81,6 +81,8 @@ invoice.payment_failed webhook fires
 11. **Migration-pending members skip deactivation cascade.** `migration_status = 'pending'` blocks MindBody deactivation during HubSpot sync.
 12. **Email change uses `cascadeEmailChange()`.** Updates all tables atomically. NEVER update email in a single table.
 13. **Reactivation clears archived flag.** `archived = false`, `archived_at = NULL` when member reactivated.
+14. **Dispute-won reactivation is guarded.** When a dispute is closed in the merchant's favor, `handleChargeDisputeClosed` checks: (a) no other open disputes exist for that member, and (b) the Stripe subscription is not in a non-viable state (`past_due`, `unpaid`, `canceled`). Only then does it reactivate. Subscription API failures are fail-closed (block reactivation, notify staff for manual review).
+15. **`FOR UPDATE` queries MUST use `ORDER BY id ASC`.** Prevents PostgreSQL deadlocks on concurrent multi-row locking. Required in `payments.ts` and `manualBooking.ts`.
 
 ## Anti-Patterns (NEVER)
 
@@ -90,6 +92,7 @@ invoice.payment_failed webhook fires
 4. NEVER overwrite sub-member `billing_provider` during group status cascade.
 5. NEVER create a billing group without wrapping INSERT + user UPDATE in a transaction.
 6. NEVER skip the per-email operation lock during subscription creation.
+7. NEVER use `FOR UPDATE` on multi-row queries without `ORDER BY id ASC`.
 
 ## Cross-References
 

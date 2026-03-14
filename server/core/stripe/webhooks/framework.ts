@@ -3,6 +3,7 @@ import { db } from '../../../db';
 import { sql, lt } from 'drizzle-orm';
 import { webhookProcessedEvents } from '../../../../shared/models/system';
 import { logger } from '../../logger';
+import { getErrorMessage } from '../../../utils/errorUtils';
 import type { PoolClient } from 'pg';
 import type { DeferredAction, StripeEventObject, CacheTransactionParams } from './types';
 
@@ -126,7 +127,7 @@ export async function executeDeferredActions(actions: DeferredAction[], eventCon
       failedCount++;
       failedIndices.push(i);
       logger.error(`[Stripe Webhook] Deferred action ${i + 1}/${actions.length} failed (non-critical):`, { 
-        error: err,
+        error: getErrorMessage(err),
         extra: eventContext ? { eventId: eventContext.eventId, eventType: eventContext.eventType } : undefined
       });
     }
@@ -146,7 +147,7 @@ export async function executeDeferredActions(actions: DeferredAction[], eventCon
         ON CONFLICT DO NOTHING
       `);
     } catch (alertErr: unknown) {
-      logger.error('[Stripe Webhook] Failed to record deferred action failure alert:', { error: alertErr });
+      logger.error('[Stripe Webhook] Failed to record deferred action failure alert:', { error: getErrorMessage(alertErr) });
     }
   }
 }
@@ -169,7 +170,7 @@ export async function upsertTransactionCache(params: CacheTransactionParams): Pr
          updated_at = NOW()`
     );
   } catch (err: unknown) {
-    logger.error('[Stripe Cache] Error upserting transaction cache:', { error: err });
+    logger.error('[Stripe Cache] Error upserting transaction cache:', { error: getErrorMessage(err) });
   }
 }
 
@@ -182,6 +183,6 @@ export async function cleanupOldProcessedEvents(): Promise<void> {
       logger.info(`[Stripe Webhook] Cleaned up ${result.length} old processed events (>${EVENT_DEDUP_WINDOW_DAYS} days)`);
     }
   } catch (err: unknown) {
-    logger.error('[Stripe Webhook] Error cleaning up old events:', { error: err });
+    logger.error('[Stripe Webhook] Error cleaning up old events:', { error: getErrorMessage(err) });
   }
 }

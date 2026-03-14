@@ -62,7 +62,7 @@ export async function handleCreditNoteCreated(client: PoolClient, creditNote: St
              VALUES (${member.email.toLowerCase()}, ${'Credit Applied'}, ${`A credit of ${amountStr} has been applied to your account${reason ? ` (${reason.replace(/_/g, ' ')})` : ''}.`}, ${'billing'}, ${'payment'}, NOW())`
           );
         } catch (err: unknown) {
-          logger.error('[Stripe Webhook] Failed to create credit note notification:', { error: err });
+          logger.error('[Stripe Webhook] Failed to create credit note notification:', { error: getErrorMessage(err) });
         }
       });
       
@@ -1308,7 +1308,7 @@ export async function handlePaymentIntentFailed(client: PoolClient, paymentInten
 
       logger.info(`[Stripe Webhook] Staff notified about payment failure for ${email}`);
     } catch (error: unknown) {
-      logger.error('[Stripe Webhook] Error sending payment failed notifications:', { error: error });
+      logger.error('[Stripe Webhook] Error sending payment failed notifications:', { error: getErrorMessage(error) });
     }
   });
 

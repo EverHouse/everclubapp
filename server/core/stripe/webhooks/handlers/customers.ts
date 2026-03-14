@@ -123,8 +123,8 @@ export async function handleCustomerUpdated(client: PoolClient, customer: Stripe
                 'billing_alert',
                 { sendPush: true }
               );
-            } catch {
-              logger.error('[Stripe Webhook] Failed to send email mismatch fallback notification');
+            } catch (notifyErr: unknown) {
+              logger.error('[Stripe Webhook] Failed to send email mismatch fallback notification', { error: getErrorMessage(notifyErr) });
             }
           }
         });

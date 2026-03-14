@@ -11,11 +11,15 @@ For billing rules, see the `fee-calculation` skill. For member status transition
 
 | Task | Primary File(s) | When to touch |
 |---|---|---|
-| Webhook pipeline & dispatch | `server/core/stripe/webhooks.ts` | Adding event types, changing dedup/ordering |
-| Payment handlers (succeeded/failed/refunded) | `server/core/stripe/webhooks.ts` | Payment event handling |
-| Subscription handlers (CRUD/pause/resume) | `server/core/stripe/webhooks.ts` | Subscription lifecycle |
-| Invoice handlers | `server/core/stripe/webhooks.ts` | Invoice payment success/failure |
-| Checkout session handler | `server/core/stripe/webhooks.ts` | Checkout flows (add_funds, day_pass, activation) |
+| Webhook pipeline & dispatch | `server/core/stripe/webhooks.ts` (re-export shim), `server/core/stripe/webhooks/index.ts` (real dispatch) | Adding event types, changing dedup/ordering |
+| Dedup, ordering, deferred actions | `server/core/stripe/webhooks/framework.ts` | Event claiming, resource ordering, deferred execution |
+| Shared types | `server/core/stripe/webhooks/types.ts` | DeferredAction, StripeEventObject, CacheTransactionParams |
+| Payment handlers (succeeded/failed/refunded) | `server/core/stripe/webhooks/handlers/payments.ts` | Payment event handling |
+| Subscription handlers (CRUD/pause/resume) | `server/core/stripe/webhooks/handlers/subscriptions.ts` | Subscription lifecycle |
+| Invoice handlers | `server/core/stripe/webhooks/handlers/invoices.ts` | Invoice payment success/failure |
+| Checkout session handler | `server/core/stripe/webhooks/handlers/checkout.ts` | Checkout flows (add_funds, day_pass, activation) |
+| Customer handlers (reassignment) | `server/core/stripe/webhooks/handlers/customers.ts` | Customer metadata/ownership changes |
+| Catalog handlers | `server/core/stripe/webhooks/handlers/catalog.ts` | Product/price sync |
 | Group billing cascade | `server/core/stripe/groupBilling.ts` | Family/corporate status propagation |
 | Subscription sync | `server/core/stripe/subscriptionSync.ts` | Full subscription reconciliation |
 | Reconciliation | `server/core/stripe/reconciliation.ts` | Daily payment reconciliation |
@@ -72,6 +76,9 @@ Does it write to the database?
 9. **Cascade must NOT overwrite sub-member billing_provider.** Group status cascades only change `membership_status` and `updated_at` — never force `billing_provider = 'stripe'` on sub-members.
 10. **Event dedup via `webhook_processed_events`.** `tryClaimEvent` uses `INSERT ON CONFLICT DO NOTHING`. If `rowCount === 0`, event already processed → skip.
 11. **Async payment handlers must maintain payload parity.** Any change to the synchronous checkout handler must be mirrored in `handleCheckoutSessionAsyncPaymentSucceeded`.
+12. **`FOR UPDATE` queries MUST use `ORDER BY id ASC`.** Multi-row `FOR UPDATE` without consistent ordering causes PostgreSQL deadlocks when concurrent transactions lock rows in different orders. This applies everywhere in `payments.ts` and `manualBooking.ts`.
+13. **All catch blocks MUST use `getErrorMessage(err)`.** Import from `utils/errorUtils`. Never log raw `err` or cast to `Error`. This applies to handler bodies AND deferred action wrappers in `framework.ts`.
+14. **Dispute-won reactivation is guarded.** `handleChargeDisputeClosed` checks for OTHER open disputes on the same member AND verifies the Stripe subscription status. Reactivation is blocked if subscription is `past_due`, `unpaid`, or `canceled`. Subscription lookup failures are fail-closed (block reactivation, alert staff). The `membershipAction` variable tracks whether reactivation actually happened so audit logs and notifications reflect the real outcome.
 
 ## Anti-Patterns (NEVER)
 
@@ -81,6 +88,8 @@ Does it write to the database?
 4. NEVER skip the `billing_provider` guard — non-Stripe members must not have their status changed by Stripe events.
 5. NEVER use `express.json()` on the webhook route — it destroys the raw buffer needed for signature verification.
 6. NEVER process a `subscription.created` event that arrives after `subscription.deleted` for the same subscription.
+7. NEVER use `FOR UPDATE` on multi-row queries without `ORDER BY id ASC` — guaranteed deadlocks under concurrency.
+8. NEVER log raw error objects — always use `getErrorMessage(err)` from `utils/errorUtils`.
 
 ## Cross-References
 

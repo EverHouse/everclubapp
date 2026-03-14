@@ -80,12 +80,13 @@ Has trackman_booking_id?
 16. **Empty slots generate guest fee line items.** Dollar amounts from Stripe prices, never hardcoded.
 17. **Outstanding balance queries MUST filter:** (a) 90-day lookback, (b) exclude cancelled/declined bookings, (c) exclude completed/paid snapshots.
 18. **One Stripe invoice per booking.** Draft at approval → sync on roster changes → finalize at payment → void on cancel.
-19. **Roster lock after paid invoice.** `enforceRosterLock()` blocks edits. Staff override with reason. Fail-open if Stripe check fails.
-20. **Auto-complete runs every 1 hr.** Marks approved/confirmed as `attended` 30 min after end time (same-day) or next day (overnight). Fee guard blocks if unpaid fees exist.
-21. **Terminal status MUST clear `is_unmatched`.** Three defense layers: DB trigger, application code, scheduler safety net.
-22. **Drizzle SQL null safety.** All optional values in `sql` template literals MUST use `?? null`. Prevents empty placeholder syntax errors.
-23. **Session lookup must NOT filter by booking status.** Cancelled bookings may share sessions. Filtering causes unique constraint violations.
-24. **Stuck cancellation safety net.** Scheduler runs every 2 hr, alerts staff about bookings in `cancellation_pending` for 4+ hours.
+19. **`FOR UPDATE` queries MUST use `ORDER BY id ASC`.** Multi-row `FOR UPDATE` without consistent ordering causes PostgreSQL deadlocks. Applied in `manualBooking.ts` and `payments.ts`.
+20. **Roster lock after paid invoice.** `enforceRosterLock()` blocks edits. Staff override with reason. Fail-open if Stripe check fails.
+21. **Auto-complete runs every 1 hr.** Marks approved/confirmed as `attended` 30 min after end time (same-day) or next day (overnight). Fee guard blocks if unpaid fees exist.
+22. **Terminal status MUST clear `is_unmatched`.** Three defense layers: DB trigger, application code, scheduler safety net.
+23. **Drizzle SQL null safety.** All optional values in `sql` template literals MUST use `?? null`. Prevents empty placeholder syntax errors.
+24. **Session lookup must NOT filter by booking status.** Cancelled bookings may share sessions. Filtering causes unique constraint violations.
+25. **Stuck cancellation safety net.** Scheduler runs every 2 hr, alerts staff about bookings in `cancellation_pending` for 4+ hours.
 
 ## Anti-Patterns (NEVER)
 

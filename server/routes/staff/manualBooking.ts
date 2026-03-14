@@ -203,6 +203,7 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
           WHERE LOWER(user_email) = LOWER(${resolvedEmail}) 
           AND request_date = ${request_date} 
           AND status IN ('pending', 'approved', 'confirmed')
+          ORDER BY id ASC
           FOR UPDATE
         `);
         
@@ -216,6 +217,7 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
               (start_time < ${end_time} AND end_time > ${start_time}) OR
               (end_time < start_time AND (start_time < ${end_time} OR end_time > ${start_time}))
             )
+            ORDER BY id ASC
             FOR UPDATE
           `);
           

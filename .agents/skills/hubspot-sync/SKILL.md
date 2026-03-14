@@ -81,6 +81,10 @@ MindBody-billed active member's HubSpot status changes to non-active
 12. **Placeholder emails rejected.** `isPlaceholderEmail` check prevents syncing test/internal emails.
 13. **Tier denormalization required.** Use `DB_TIER_TO_HUBSPOT` map in `constants.ts` when pushing tiers.
 14. **Never write membership_status to HubSpot for MindBody-billed members.** Prevents MindBody ↔ HubSpot loop.
+15. **Supersede includes 'processing' status.** `queueTierSync` supersedes jobs with `status IN ('pending', 'failed', 'processing')`. This prevents stale tier syncs from completing after a newer tier change has been queued.
+16. **Worker terminal updates have status guards.** All `UPDATE` queries that mark jobs as completed/failed/dead include `AND status = 'processing'` with `rowCount` checks. If `rowCount === 0`, the job was superseded mid-flight — no false staff alerts.
+17. **Retry backoff has random jitter.** Exponential backoff adds 0–5s random jitter (`Math.floor(Math.random() * 5000)` ms) to prevent thundering herd when multiple failed jobs retry simultaneously.
+18. **Supersede-then-enqueue is NOT atomic.** `queueTierSync` supersedes old jobs via Drizzle `db.execute()` then enqueues via `queryWithRetry()` (raw pg pool). These use different DB connections, so a crash between them could leave jobs superseded with no replacement. Risk is extremely low and self-healing (next tier change creates a new job).
 
 ## Anti-Patterns (NEVER)
 
