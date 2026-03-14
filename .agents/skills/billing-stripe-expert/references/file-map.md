@@ -34,7 +34,10 @@
 | File | Single Responsibility |
 |------|----------------------|
 | `client.ts` | `getStripeClient()` singleton (Pattern 14) |
-| `webhooks.ts` | `processStripeWebhook()`, `tryClaimEvent()`, all event handlers (Commandments 4 & 5) |
+| `webhooks.ts` | Re-export shim for `webhooks/index.ts` — `processStripeWebhook()` (Commandments 4 & 5) |
+| `webhooks/index.ts` | Main dispatch: `processStripeWebhook()`, event routing |
+| `webhooks/framework.ts` | `tryClaimEvent()`, `executeDeferredActions()`, `checkResourceEventOrder()` |
+| `webhooks/handlers/*.ts` | Individual event handlers (`payments.ts`, `subscriptions.ts`, `invoices.ts`, `checkout.ts`, `customers.ts`, `catalog.ts`) |
 | `payments.ts` | `createPaymentIntent()`, `confirmPaymentSuccess()`, `cancelPaymentIntent()` |
 | `customers.ts` | `getOrCreateStripeCustomer()`, `syncCustomerMetadataToStripe()` (Pattern 15) |
 | `customerSync.ts` | Bulk customer metadata sync to Stripe |
@@ -140,7 +143,7 @@
 | `server/core/retryUtils.ts` | Exponential backoff for Stripe API retries |
 | `server/core/websocket.ts` | Real-time payment status broadcasts |
 | `server/core/notificationService.ts` | Payment-related in-app notifications |
-| `server/core/dataIntegrity.ts` | Data integrity checks (includes billing consistency) |
+| `server/core/dataIntegrity.ts` | Barrel re-export for `server/core/integrity/` (includes billing consistency checks in `stripeChecks.ts`) |
 
 ## Frontend — Billing Components (`src/components/`)
 | File | Single Responsibility |

@@ -43,7 +43,7 @@ Stripe POST → raw Buffer → signature verify → parse event
 ### Adding a new webhook event type
 
 ```
-1. Add handler function in webhooks.ts
+1. Add handler function in the appropriate `webhooks/handlers/*.ts` file
 2. Add if/else if branch in dispatch chain
 3. Handler MUST return DeferredAction[]
 4. All DB writes inside the transaction

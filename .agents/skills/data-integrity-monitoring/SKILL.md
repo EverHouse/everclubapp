@@ -56,7 +56,7 @@ What type of alert?
 ### Adding a new integrity check
 
 ```
-1. Add check function in dataIntegrity.ts
+1. Add check function in the appropriate module under `server/core/integrity/` (e.g., `memberChecks.ts`, `stripeChecks.ts`, `bookingChecks.ts`)
 2. Register in runAllIntegrityChecks()
 3. Assign severity in severityMap
 4. Verify check detects STALE/INVALID state, not just counts records

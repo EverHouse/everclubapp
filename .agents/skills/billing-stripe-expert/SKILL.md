@@ -13,7 +13,7 @@ description: Expert rules for Stripe payments, billing, fee calculations, subscr
 | Startup price loader | `server/loaders/startup.ts` | Fetches Stripe prices at boot |
 | Fee computation | `server/core/billing/unifiedFeeService.ts` | `computeFeeBreakdown()` |
 | Session management | `server/core/bookingService/sessionManager.ts` | `ensureSessionForBooking()` |
-| Webhook handler | `server/core/stripe/webhooks.ts` | `processStripeWebhook()` |
+| Webhook handler | `server/core/stripe/webhooks.ts` (re-export shim), `server/core/stripe/webhooks/index.ts` (dispatch), `server/core/stripe/webhooks/handlers/` (handler files) | `processStripeWebhook()` |
 | Webhook route | `server/index.ts` (line ~365) | Raw buffer POST endpoint |
 | Payment intents | `server/core/stripe/payments.ts` | Create, track, cancel intents |
 | Payment status | `server/core/billing/PaymentStatusService.ts` | Atomic status transitions |

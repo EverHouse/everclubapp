@@ -56,7 +56,7 @@ Staff confirms the change. The system calls `commitTierChange` in `server/core/s
 
 ## Webhook-Driven Tier Sync
 
-When Stripe fires `customer.subscription.updated`, the webhook handler in `server/core/stripe/webhooks.ts`:
+When Stripe fires `customer.subscription.updated`, the webhook handler in `server/core/stripe/webhooks/handlers/subscriptions.ts`:
 
 1. Extract the current price ID from the subscription
 2. Look up the tier in `membership_tiers` by `stripe_price_id` or `founding_price_id`
