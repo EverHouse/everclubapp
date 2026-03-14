@@ -525,34 +525,39 @@ export async function createOrFindGuest(
   createdByMemberId?: string
 ): Promise<number> {
   try {
+    const today = getTodayPacific();
+
     if (email) {
-      const existing = await db
-        .select()
-        .from(guests)
-        .where(eq(guests.email, email.toLowerCase()))
-        .limit(1);
-      
-      if (existing[0]) {
-        await db
-          .update(guests)
-          .set({ lastVisitDate: getTodayPacific() })
-          .where(eq(guests.id, existing[0].id));
-        
-        return existing[0].id;
-      }
+      const normalizedEmail = email.toLowerCase();
+      const [upserted] = await db
+        .insert(guests)
+        .values({
+          name,
+          email: normalizedEmail,
+          phone,
+          createdByMemberId,
+          lastVisitDate: today
+        })
+        .onConflictDoUpdate({
+          target: guests.email,
+          set: { lastVisitDate: today }
+        })
+        .returning();
+
+      return upserted.id;
     }
-    
+
     const [newGuest] = await db
       .insert(guests)
       .values({
         name,
-        email: email?.toLowerCase(),
+        email: undefined,
         phone,
         createdByMemberId,
-        lastVisitDate: getTodayPacific()
+        lastVisitDate: today
       })
       .returning();
-    
+
     return newGuest.id;
   } catch (error: unknown) {
     logger.error('[createOrFindGuest] Error:', { error: getErrorMessage(error) });

@@ -14,6 +14,18 @@ export function validateBody<T>(schema: ZodSchema<T>) {
   };
 }
 
+export function validateQuery<T>(schema: ZodSchema<T>) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const result = schema.safeParse(req.query);
+    if (!result.success) {
+      const formatted = formatZodError(result.error);
+      return res.status(400).json({ error: formatted });
+    }
+    (req as Request & { validatedQuery: T }).validatedQuery = result.data;
+    next();
+  };
+}
+
 function formatZodError(error: ZodError): string {
   const issues = error.issues;
   if (issues.length === 0) return 'Invalid input';

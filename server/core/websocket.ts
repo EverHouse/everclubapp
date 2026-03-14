@@ -125,7 +125,12 @@ async function getVerifiedUserFromRequest(req: IncomingMessage): Promise<{
 } | null> {
   const sessionSecret = process.env.SESSION_SECRET;
   if (!sessionSecret) {
-    logger.warn('[WebSocket] SESSION_SECRET not configured - session verification disabled');
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
+    if (isProduction) {
+      logger.error('[WebSocket] SESSION_SECRET not configured in production - rejecting connection');
+      return null;
+    }
+    logger.warn('[WebSocket] SESSION_SECRET not configured - session verification disabled (dev only)');
     return null;
   }
   
@@ -307,24 +312,7 @@ export function initWebSocketServer(server: Server) {
               return;
             }
             
-            let verifiedFromMessage: Awaited<ReturnType<typeof getVerifiedUserFromRequest>> = null;
-            
-            if (message.sessionId && typeof message.sessionId === 'string') {
-              const sessionData = await verifySessionFromDatabase(message.sessionId);
-              if (sessionData?.user?.email) {
-                const user = sessionData.user;
-                verifiedFromMessage = {
-                  email: user.email.toLowerCase(),
-                  role: user.role,
-                  isStaff: user.role === 'staff' || user.role === 'admin',
-                  sessionId: message.sessionId
-                };
-              }
-            }
-            
-            if (!verifiedFromMessage) {
-              verifiedFromMessage = await getVerifiedUserFromRequest(req);
-            }
+            const verifiedFromMessage = await getVerifiedUserFromRequest(req);
             
             if (verifiedFromMessage) {
               userEmail = verifiedFromMessage.email;

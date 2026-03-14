@@ -156,23 +156,38 @@ export async function validateTrackmanId(trackmanBookingId: string, bookingId: n
       if (sameEmail) {
         const duplicateId = duplicate.id as number;
 
-        await db.update(bookingRequests)
-          .set({
-            trackmanBookingId: null,
-            status: 'declined',
-            isUnmatched: false,
-            staffNotes: sql`COALESCE(staff_notes, '') || ' [Auto-declined: Trackman ID re-linked to booking #' || ${bookingId}::text || ' for the same member]'`,
-            reviewedBy: 'system_relink',
-            reviewedAt: sql`NOW()`,
-            updatedAt: sql`NOW()`
-          })
-          .where(eq(bookingRequests.id, duplicateId));
+        const orphanedSession = await db.transaction(async (tx) => {
+          await tx.update(bookingRequests)
+            .set({
+              trackmanBookingId: null,
+              status: 'declined',
+              isUnmatched: false,
+              staffNotes: sql`COALESCE(staff_notes, '') || ' [Auto-declined: Trackman ID re-linked to booking #' || ${bookingId}::text || ' for the same member]'`,
+              reviewedBy: 'system_relink',
+              reviewedAt: sql`NOW()`,
+              updatedAt: sql`NOW()`
+            })
+            .where(eq(bookingRequests.id, duplicateId));
 
-        const [orphanedSession] = await db.execute(sql`
-          SELECT id FROM booking_sessions WHERE id = (
-            SELECT session_id FROM booking_requests WHERE id = ${duplicateId}
-          )
-        `).then(r => r.rows as Array<{ id: number }>);
+          const [session] = await tx.execute(sql`
+            SELECT id FROM booking_sessions WHERE id = (
+              SELECT session_id FROM booking_requests WHERE id = ${duplicateId}
+            )
+          `).then(r => r.rows as Array<{ id: number }>);
+
+          if (session?.id) {
+            await tx.execute(sql`UPDATE booking_requests SET session_id = NULL WHERE session_id = ${session.id}`);
+            await tx.execute(sql`DELETE FROM booking_participants WHERE session_id = ${session.id}`);
+            await tx.execute(sql`DELETE FROM booking_sessions WHERE id = ${session.id}`);
+            logger.info('[ValidateTrackmanId] Cleaned up orphaned session', {
+              extra: { sessionId: session.id, declinedBookingId: duplicateId }
+            });
+          }
+
+          await tx.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${duplicateId} AND status IN ('pending', 'requires_action')`);
+
+          return session;
+        });
 
         try {
           await cancelPendingPaymentIntentsForBooking(duplicateId);
@@ -237,19 +252,9 @@ export async function validateTrackmanId(trackmanBookingId: string, bookingId: n
               });
             }
           }
-          await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${duplicateId} AND status IN ('pending', 'requires_action')`);
         } catch (invoiceErr: unknown) {
           logger.warn('[ValidateTrackmanId] Stripe cleanup failed for orphaned booking (non-blocking)', {
             extra: { declinedBookingId: duplicateId, error: invoiceErr instanceof Error ? invoiceErr.message : String(invoiceErr) }
-          });
-        }
-
-        if (orphanedSession?.id) {
-          await db.execute(sql`UPDATE booking_requests SET session_id = NULL WHERE session_id = ${orphanedSession.id}`);
-          await db.execute(sql`DELETE FROM booking_participants WHERE session_id = ${orphanedSession.id}`);
-          await db.execute(sql`DELETE FROM booking_sessions WHERE id = ${orphanedSession.id}`);
-          logger.info('[ValidateTrackmanId] Cleaned up orphaned session', {
-            extra: { sessionId: orphanedSession.id, declinedBookingId: duplicateId }
           });
         }
 
@@ -287,6 +292,8 @@ export async function approveBooking(params: ApproveBookingParams) {
   const { bookingId, staff_notes, suggested_time, reviewed_by, resource_id, trackman_booking_id, trackman_external_id, pending_trackman_sync } = params;
 
   const { updated, bayName, approvalMessage, isConferenceRoom, calendarData, createdSessionId, createdParticipantIds, ownerUserId } = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('approve_booking_' || ${String(bookingId)}))`);
+
     const [req_data] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
 
     if (!req_data) {

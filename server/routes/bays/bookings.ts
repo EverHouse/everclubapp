@@ -946,9 +946,12 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       ? row.requestDate 
       : request_date;
     const formattedDate = formatDateDisplayWithDay(dateStr);
-    const timeStr = row.startTime instanceof Date 
-      ? row.startTime.toISOString().substring(11, 16) 
-      : String(row.startTime ?? start_time).substring(0, 5);
+    let timeStr: string;
+    if (row.startTime != null && typeof row.startTime === 'object' && 'toISOString' in (row.startTime as object)) {
+      timeStr = (row.startTime as unknown as Date).toISOString().substring(11, 16);
+    } else {
+      timeStr = String(row.startTime ?? start_time).substring(0, 5);
+    }
     const formattedTime12h = formatTime12Hour(timeStr);
     
     const durationMins = row.durationMinutes || duration_minutes;
@@ -1203,11 +1206,11 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
     }
 
     if (!isAdminViewingAs && existing.requestDate && existing.startTime) {
-      const dateStr = existing.requestDate instanceof Date 
-        ? existing.requestDate.toISOString().split('T')[0] 
+      const dateStr = existing.requestDate && typeof existing.requestDate === 'object' && 'toISOString' in (existing.requestDate as object)
+        ? (existing.requestDate as unknown as Date).toISOString().split('T')[0] 
         : String(existing.requestDate);
-      const timeStr = existing.startTime instanceof Date 
-        ? existing.startTime.toISOString().substring(11, 16) 
+      const timeStr = existing.startTime && typeof existing.startTime === 'object' && 'toISOString' in (existing.startTime as object)
+        ? (existing.startTime as unknown as Date).toISOString().substring(11, 16) 
         : String(existing.startTime).substring(0, 5);
       const bookingStart = createPacificDate(dateStr, timeStr);
       if (bookingStart.getTime() <= new Date().getTime()) {
@@ -1245,11 +1248,11 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
       });
       
       const memberName = existing.userName || existing.userEmail;
-      const bookingDate = existing.requestDate instanceof Date 
-        ? existing.requestDate.toISOString().split('T')[0] 
+      const bookingDate = existing.requestDate && typeof existing.requestDate === 'object' && 'toISOString' in (existing.requestDate as object)
+        ? (existing.requestDate as unknown as Date).toISOString().split('T')[0] 
         : String(existing.requestDate);
-      const bookingTime = existing.startTime instanceof Date 
-        ? existing.startTime.toISOString().substring(11, 16) 
+      const bookingTime = existing.startTime && typeof existing.startTime === 'object' && 'toISOString' in (existing.startTime as object)
+        ? (existing.startTime as unknown as Date).toISOString().substring(11, 16) 
         : String(existing.startTime).substring(0, 5);
       let bayName = 'Simulator';
       if (existing.resourceId) {
@@ -1303,11 +1306,11 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
     }
     
     // Calculate time until booking starts using Pacific timezone
-    const refundDateStr = existing.requestDate instanceof Date 
-      ? existing.requestDate.toISOString().split('T')[0] 
+    const refundDateStr = existing.requestDate && typeof existing.requestDate === 'object' && 'toISOString' in (existing.requestDate as object)
+      ? (existing.requestDate as unknown as Date).toISOString().split('T')[0] 
       : String(existing.requestDate);
-    const refundTimeStr = existing.startTime instanceof Date 
-      ? existing.startTime.toISOString().substring(11, 16) 
+    const refundTimeStr = existing.startTime && typeof existing.startTime === 'object' && 'toISOString' in (existing.startTime as object)
+      ? (existing.startTime as unknown as Date).toISOString().substring(11, 16) 
       : String(existing.startTime).substring(0, 5);
     const bookingStart = createPacificDate(refundDateStr, refundTimeStr || '00:00');
     const nowPacific = new Date();
@@ -1449,11 +1452,11 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
     
     if (wasApproved) {
       const memberName = existing.userName || existing.userEmail;
-      const bookingDate = existing.requestDate instanceof Date 
-        ? existing.requestDate.toISOString().split('T')[0] 
+      const bookingDate = existing.requestDate && typeof existing.requestDate === 'object' && 'toISOString' in (existing.requestDate as object)
+        ? (existing.requestDate as unknown as Date).toISOString().split('T')[0] 
         : String(existing.requestDate);
-      const bookingTime = existing.startTime instanceof Date 
-        ? existing.startTime.toISOString().substring(11, 16) 
+      const bookingTime = existing.startTime && typeof existing.startTime === 'object' && 'toISOString' in (existing.startTime as object)
+        ? (existing.startTime as unknown as Date).toISOString().substring(11, 16) 
         : String(existing.startTime).substring(0, 5);
       const staffMessage = `${memberName} has cancelled their booking for ${bookingDate} at ${bookingTime}.`;
       
@@ -1526,11 +1529,11 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
       }
     }
     
-    const bookingDate = existing.requestDate instanceof Date 
-      ? existing.requestDate.toISOString().split('T')[0] 
+    const bookingDate = existing.requestDate && typeof existing.requestDate === 'object' && 'toISOString' in (existing.requestDate as object)
+      ? (existing.requestDate as unknown as Date).toISOString().split('T')[0] 
       : String(existing.requestDate);
-    const bookingTime = existing.startTime instanceof Date 
-      ? existing.startTime.toISOString().substring(11, 16) 
+    const bookingTime = existing.startTime && typeof existing.startTime === 'object' && 'toISOString' in (existing.startTime as object)
+      ? (existing.startTime as unknown as Date).toISOString().substring(11, 16) 
       : String(existing.startTime).substring(0, 5);
     
     await logMemberAction({
