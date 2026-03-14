@@ -549,7 +549,14 @@ router.post('/api/auth/verify-member', async (req, res) => {
       const statusMap: { [key: string]: string } = {
         'active': 'Active',
         'trialing': 'Trialing',
-        'past_due': 'Past Due'
+        'past_due': 'Past Due',
+        'suspended': 'Suspended',
+        'terminated': 'Terminated',
+        'expired': 'Expired',
+        'cancelled': 'Cancelled',
+        'frozen': 'Frozen',
+        'paused': 'Paused',
+        'pending': 'Pending'
       };
       let memberFirstName = dbUser[0].firstName || '';
       let memberLastName = dbUser[0].lastName || '';
@@ -587,7 +594,7 @@ router.post('/api/auth/verify-member', async (req, res) => {
         tier: normalizeTierName(dbUser[0].tier),
         tags: dbUser[0].tags || [],
         mindbodyClientId: dbUser[0].mindbodyClientId || '',
-        status: statusMap[dbMemberStatus] || 'Active',
+        status: statusMap[dbMemberStatus] || (dbMemberStatus ? dbMemberStatus.charAt(0).toUpperCase() + dbMemberStatus.slice(1) : 'Active'),
         role: 'member' as const
       };
       
@@ -675,7 +682,14 @@ router.post('/api/auth/verify-member', async (req, res) => {
     const statusMap: { [key: string]: string } = {
       'active': 'Active',
       'trialing': 'Trialing',
-      'past_due': 'Past Due'
+      'past_due': 'Past Due',
+      'suspended': 'Suspended',
+      'terminated': 'Terminated',
+      'expired': 'Expired',
+      'cancelled': 'Cancelled',
+      'frozen': 'Frozen',
+      'paused': 'Paused',
+      'pending': 'Pending'
     };
     const memberStatusStr = isStaffOrAdmin ? 'active' : ((dbUser[0]?.membershipStatus || contact?.properties.membership_status || '').toLowerCase());
     
@@ -689,7 +703,7 @@ router.post('/api/auth/verify-member', async (req, res) => {
       tier: isStaffOrAdmin ? 'VIP' : normalizeTierName(dbUser[0]?.tier || contact?.properties.membership_tier),
       tags: dbUser[0]?.tags || [],
       mindbodyClientId: dbUser[0]?.mindbodyClientId || contact?.properties.mindbody_client_id || '',
-      status: statusMap[memberStatusStr] || 'Active',
+      status: statusMap[memberStatusStr] || (memberStatusStr ? memberStatusStr.charAt(0).toUpperCase() + memberStatusStr.slice(1) : 'Active'),
       role
     };
     
@@ -981,7 +995,14 @@ router.post('/api/auth/verify-otp', async (req, res) => {
         const statusMap: { [key: string]: string } = {
           'active': 'Active',
           'trialing': 'Trialing',
-          'past_due': 'Past Due'
+          'past_due': 'Past Due',
+          'suspended': 'Suspended',
+          'terminated': 'Terminated',
+          'expired': 'Expired',
+          'cancelled': 'Cancelled',
+          'frozen': 'Frozen',
+          'paused': 'Paused',
+          'pending': 'Pending'
         };
         member = {
           id: dbUser[0].id,
@@ -992,7 +1013,7 @@ router.post('/api/auth/verify-otp', async (req, res) => {
           tier: normalizeTierName(dbUser[0].tier),
           tags: (dbUser[0].tags || []) as string[],
           mindbodyClientId: dbUser[0].mindbodyClientId || '',
-          status: statusMap[dbMemberStatus] || 'Active',
+          status: statusMap[dbMemberStatus] || (dbMemberStatus ? dbMemberStatus.charAt(0).toUpperCase() + dbMemberStatus.slice(1) : 'Active'),
           role,
           expires_at: Date.now() + sessionTtl,
           dateOfBirth: dbUser[0].dateOfBirth || null
@@ -1039,7 +1060,14 @@ router.post('/api/auth/verify-otp', async (req, res) => {
         const statusMap: { [key: string]: string } = {
           'active': 'Active',
           'trialing': 'Trialing',
-          'past_due': 'Past Due'
+          'past_due': 'Past Due',
+          'suspended': 'Suspended',
+          'terminated': 'Terminated',
+          'expired': 'Expired',
+          'cancelled': 'Cancelled',
+          'frozen': 'Frozen',
+          'paused': 'Paused',
+          'pending': 'Pending'
         };
         const memberStatusStr = (hasDbUser ? dbUser[0].membershipStatus : contact?.properties.membership_status || '' as string | null)?.toLowerCase() || '';
         
@@ -1052,7 +1080,7 @@ router.post('/api/auth/verify-otp', async (req, res) => {
           tier: normalizeTierName(hasDbUser ? dbUser[0].tier : contact?.properties.membership_tier),
           tags: tags as string[],
           mindbodyClientId: (hasDbUser ? dbUser[0].mindbodyClientId : contact?.properties.mindbody_client_id) || '',
-          status: statusMap[memberStatusStr] || 'Active',
+          status: statusMap[memberStatusStr] || (memberStatusStr ? memberStatusStr.charAt(0).toUpperCase() + memberStatusStr.slice(1) : 'Active'),
           role,
           expires_at: Date.now() + sessionTtl,
           dateOfBirth: (hasDbUser ? dbUser[0].dateOfBirth : contact?.properties.date_of_birth) || null,
@@ -1149,16 +1177,39 @@ router.get('/api/auth/session', async (req, res) => {
   }
 
   let lifetimeVisits = 0;
+  let freshStatus = sessionUser.status || 'Active';
   try {
-    const visitResult = await db.execute(
-      sql`SELECT lifetime_visits FROM users WHERE LOWER(email) = LOWER(${sessionUser.email}) LIMIT 1`
+    const userResult = await db.execute(
+      sql`SELECT lifetime_visits, membership_status FROM users WHERE LOWER(email) = LOWER(${sessionUser.email}) LIMIT 1`
     );
-    const rows = visitResult.rows as Record<string, unknown>[];
-    if (rows.length > 0 && rows[0].lifetime_visits != null) {
-      lifetimeVisits = Number(rows[0].lifetime_visits);
+    const rows = userResult.rows as Record<string, unknown>[];
+    if (rows.length > 0) {
+      if (rows[0].lifetime_visits != null) {
+        lifetimeVisits = Number(rows[0].lifetime_visits);
+      }
+      if (rows[0].membership_status != null) {
+        const dbStatusStr = String(rows[0].membership_status).toLowerCase();
+        const statusMap: { [key: string]: string } = {
+          'active': 'Active',
+          'trialing': 'Trialing',
+          'past_due': 'Past Due',
+          'suspended': 'Suspended',
+          'terminated': 'Terminated',
+          'expired': 'Expired',
+          'cancelled': 'Cancelled',
+          'frozen': 'Frozen',
+          'paused': 'Paused',
+          'pending': 'Pending'
+        };
+        freshStatus = statusMap[dbStatusStr] || (dbStatusStr ? dbStatusStr.charAt(0).toUpperCase() + dbStatusStr.slice(1) : 'Active');
+        if (freshStatus !== sessionUser.status) {
+          sessionUser.status = freshStatus;
+          req.session.save(() => {});
+        }
+      }
     }
   } catch {
-    logger.debug('[Auth] Failed to fetch lifetime visits for session enrichment');
+    logger.debug('[Auth] Failed to fetch user data for session enrichment');
   }
 
   res.json({
@@ -1172,7 +1223,7 @@ router.get('/api/auth/session', async (req, res) => {
       tier: sessionUser.tier || 'Social',
       tags: sessionUser.tags || [],
       mindbodyClientId: sessionUser.mindbodyClientId || '',
-      status: sessionUser.status || 'Active',
+      status: freshStatus,
       role: freshRole,
       dateOfBirth: sessionUser.dateOfBirth || null,
       lifetimeVisits
