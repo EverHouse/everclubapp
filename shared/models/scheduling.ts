@@ -166,7 +166,10 @@ export const trackmanUnmatchedBookings = pgTable("trackman_unmatched_bookings", 
   resolvedBy: varchar("resolved_by"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at"),
-});
+}, (table) => [
+  index("idx_trackman_unmatched_lower_original_email").on(sql`LOWER(${table.originalEmail})`),
+  index("idx_trackman_unmatched_lower_resolved_email").on(sql`LOWER(${table.resolvedEmail})`),
+]);
 
 // Trackman import runs - track import history
 export const trackmanImportRuns = pgTable("trackman_import_runs", {
@@ -384,6 +387,7 @@ export const trackmanBaySlots = pgTable("trackman_bay_slots", {
   index("trackman_bay_slots_resource_date_idx").on(table.resourceId, table.slotDate),
   index("trackman_bay_slots_trackman_booking_idx").on(table.trackmanBookingId),
   uniqueIndex("trackman_bay_slots_unique_idx").on(table.resourceId, table.slotDate, table.startTime, table.trackmanBookingId),
+  index("idx_trackman_bay_slots_lower_customer_email").on(sql`LOWER(${table.customerEmail})`),
 ]);
 
 export type TrackmanWebhookEvent = typeof trackmanWebhookEvents.$inferSelect;
