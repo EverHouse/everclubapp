@@ -744,23 +744,27 @@ router.get('/api/hubspot/contacts/:id', isStaffOrAdmin, async (req, res) => {
 
 
 const HUBSPOT_PORTAL_ID_DEFAULT = '244200670';
-const HUBSPOT_FORMS: Record<string, string> = {
-  'tour-request': process.env.HUBSPOT_FORM_TOUR_REQUEST || '',
-  'membership': process.env.HUBSPOT_FORM_MEMBERSHIP || '',
-  'private-hire': process.env.HUBSPOT_FORM_PRIVATE_HIRE || 'b69f9fe4-9b3b-4d1e-a689-ba3127e5f8f2',
-  'event-inquiry': process.env.HUBSPOT_FORM_EVENT_INQUIRY || 'b69f9fe4-9b3b-4d1e-a689-ba3127e5f8f2',
-  'guest-checkin': process.env.HUBSPOT_FORM_GUEST_CHECKIN || '',
-  'contact': process.env.HUBSPOT_FORM_CONTACT || ''
-};
+const VALID_FORM_TYPES = new Set([
+  'tour-request', 'membership', 'private-hire',
+  'event-inquiry', 'guest-checkin', 'contact'
+]);
 
 router.post('/api/hubspot/forms/:formType', async (req, res) => {
   try {
     const { formType } = req.params;
-    const formId = HUBSPOT_FORMS[formType];
     const portalId = process.env.HUBSPOT_PORTAL_ID || HUBSPOT_PORTAL_ID_DEFAULT;
-    
+
+    if (!VALID_FORM_TYPES.has(formType)) {
+      logger.warn(`[HubSpot Forms] Rejected unknown form type: "${formType}"`);
+      return res.status(400).json({ error: 'Invalid form type' });
+    }
+
+    const { resolveFormId } = await import('../core/hubspot/formSync');
+    const formId = resolveFormId(formType);
+
     if (!formId) {
-      return res.status(400).json({ error: 'Invalid form type or missing configuration' });
+      logger.error(`[HubSpot Forms] No form ID resolved for form type "${formType}". Set HUBSPOT_FORM_${formType.toUpperCase().replace(/-/g, '_')} env var or ensure form sync has discovered this form.`);
+      return res.status(400).json({ error: 'Form configuration missing. Please contact support.' });
     }
     
     const { fields, context } = req.body;
@@ -862,7 +866,7 @@ router.post('/api/hubspot/forms/:formType', async (req, res) => {
     
     if (!response.ok) {
       const errorData = await response.json();
-      if (!isProduction) logger.error('HubSpot form error', { extra: { errorData } });
+      logger.error(`[HubSpot Forms] Submission failed for form type "${formType}" (formId: ${formId}, portalId: ${portalId}, status: ${response.status})`, { extra: { errorData } });
       return res.status(response.status).json({ error: 'Form submission failed' });
     }
 

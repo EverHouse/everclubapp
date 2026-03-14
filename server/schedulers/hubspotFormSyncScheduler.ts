@@ -1,5 +1,5 @@
 import { schedulerTracker } from '../core/schedulerTracker';
-import { syncHubSpotFormSubmissions } from '../core/hubspot/formSync';
+import { syncHubSpotFormSubmissions, logFormIdResolutionStatus } from '../core/hubspot/formSync';
 import { getErrorMessage } from '../utils/errorUtils';
 import { logger } from '../core/logger';
 
@@ -33,6 +33,7 @@ export function startHubSpotFormSyncScheduler(): void {
   }
 
   logger.info('[Startup] HubSpot form sync scheduler enabled (runs every 30 minutes)');
+  logFormIdResolutionStatus();
 
   setTimeout(() => {
     runSync().catch(err => {

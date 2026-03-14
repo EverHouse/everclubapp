@@ -46,6 +46,74 @@ const FORM_TYPE_LABELS: Record<string, string> = {
   'contact': 'Contact Form',
 };
 
+const HUBSPOT_KNOWN_FORM_IDS: Record<string, string> = {
+  'membership': '6973a2ea-f8a5-4925-9898-2fcc373512f0',
+  'private-hire': '7b2eca31-2f78-40bc-9a67-e25ecd140047',
+  'event-inquiry': 'b69f9fe4-9b3b-4d1e-a689-ba3127e5f8f2',
+};
+
+const discoveredFormIds: Map<string, string> = new Map();
+
+export function resolveFormId(formType: string): string | null {
+  const envVarMap: Record<string, string | undefined> = {
+    'tour-request': process.env.HUBSPOT_FORM_TOUR_REQUEST,
+    'membership': process.env.HUBSPOT_FORM_MEMBERSHIP,
+    'private-hire': process.env.HUBSPOT_FORM_PRIVATE_HIRE,
+    'event-inquiry': process.env.HUBSPOT_FORM_EVENT_INQUIRY,
+    'guest-checkin': process.env.HUBSPOT_FORM_GUEST_CHECKIN,
+    'contact': process.env.HUBSPOT_FORM_CONTACT,
+  };
+
+  const envValue = envVarMap[formType];
+  if (envValue) return envValue;
+
+  const discovered = discoveredFormIds.get(formType);
+  if (discovered) return discovered;
+
+  return HUBSPOT_KNOWN_FORM_IDS[formType] || null;
+}
+
+export function logFormIdResolutionStatus(): void {
+  const allTypes = ['tour-request', 'membership', 'private-hire', 'event-inquiry', 'guest-checkin', 'contact'];
+  const resolved: string[] = [];
+  const missing: string[] = [];
+  for (const ft of allTypes) {
+    const id = resolveFormId(ft);
+    if (id) {
+      resolved.push(`${ft}=${id.substring(0, 8)}…`);
+    } else {
+      missing.push(ft);
+    }
+  }
+  if (missing.length > 0) {
+    logger.warn(`[HubSpot Forms] Form types with no resolved ID at startup: ${missing.join(', ')}. These will fail until discovery runs or env vars are set.`);
+  }
+  logger.info(`[HubSpot Forms] Resolved form IDs: ${resolved.join(', ')}`);
+}
+
+function inferFormTypeStrict(formName: string): string | null {
+  const name = formName.toLowerCase();
+  if (name.includes('check-in') || name.includes('checkin') || name.includes('waiver')) return 'guest-checkin';
+  if (name.includes('membership') || name.includes('application')) return 'membership';
+  if (name.includes('private') && (name.includes('event') || name.includes('hire'))) return 'private-hire';
+  if (name.includes('tour')) return 'tour-request';
+  if (name.includes('contact')) return 'contact';
+  if (name.includes('event') || name.includes('inquiry')) return 'event-inquiry';
+  return null;
+}
+
+function updateDiscoveredFormIds(forms: Array<{ id: string; name: string }>): void {
+  for (const form of forms) {
+    const formType = inferFormTypeStrict(form.name);
+    if (formType) {
+      discoveredFormIds.set(formType, form.id);
+    } else {
+      logger.info(`[HubSpot FormSync] Skipping unrecognized form "${form.name}" (${form.id}) — no matching form type`);
+    }
+  }
+  logger.info(`[HubSpot FormSync] Updated discovered form ID registry: ${JSON.stringify(Object.fromEntries(discoveredFormIds))}`);
+}
+
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const DB_TOKEN_KEY = 'hubspot_private_app_token';
 let authFailureBackoffUntil = 0;
@@ -320,6 +388,8 @@ export async function syncHubSpotFormSubmissions(options?: { force?: boolean }):
       forms = [{ id: hardcodedId, name: 'Events Inquiry Form' }];
       logger.info('[HubSpot FormSync] No forms discovered, falling back to hardcoded Events Inquiry form');
     }
+
+    updateDiscoveredFormIds(forms);
 
     if (!firstSyncCompleted) {
       logger.info(
