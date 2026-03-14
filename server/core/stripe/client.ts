@@ -82,15 +82,18 @@ export async function getStripeSync() {
     const { StripeSync } = await import('stripe-replit-sync');
     const secretKey = await getStripeSecretKey();
 
-    const { stripSslMode } = await import('../db');
-    const connectionString = stripSslMode(process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL) || '';
-    if (!connectionString) {
-      throw new Error('[StripeSync] No DATABASE_URL or DATABASE_POOLER_URL configured');
+    const { stripSslMode, usingPooler } = await import('../db');
+    const effectiveUrl = usingPooler
+      ? stripSslMode(process.env.DATABASE_POOLER_URL) || ''
+      : stripSslMode(process.env.DATABASE_URL) || '';
+    if (!effectiveUrl) {
+      throw new Error('[StripeSync] No database connection string available');
     }
-    const needsSsl = process.env.NODE_ENV === 'production' || !!process.env.DATABASE_POOLER_URL;
+    const isLocal = /localhost|127\.0\.0\.1|helium/.test(effectiveUrl);
+    const needsSsl = !isLocal;
     stripeSync = new StripeSync({
       poolConfig: {
-        connectionString,
+        connectionString: effectiveUrl,
         max: 2,
         ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
       },

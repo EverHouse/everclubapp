@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.3",
+    date: "2026-03-14",
+    title: "Login & Database Connection Fix",
+    changes: [
+      "Fix: Dev login no longer fails with a server error",
+      "Fix: Staff members now correctly see the Staff Command Center instead of the Member Portal after logging in",
+      "Fix: All API endpoints (announcements, closures, café menu, settings, membership tiers) now load reliably instead of returning errors",
+      "Improved database connection safety — development environment no longer accidentally connects to the production database",
+    ]
+  },
+  {
     version: "8.87.2",
     date: "2026-03-14",
     title: "Server Code Quality & Stability",

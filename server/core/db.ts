@@ -32,23 +32,28 @@ function isLocalDatabase(url: string | undefined): boolean {
 }
 
 const localDbDetected = isLocalDatabase(rawDirectUrl);
+const forcePoolerRedirect = localDbDetected && process.env.FORCE_POOLER_REDIRECT === 'true';
 
-if (localDbDetected && !poolerUrl) {
-  const msg = '[Database] FATAL: Local DATABASE_URL detected but no DATABASE_POOLER_URL configured. Set DATABASE_POOLER_URL to connect to the shared Supabase database.';
+if (forcePoolerRedirect && !poolerUrl) {
+  const msg = '[Database] FATAL: FORCE_POOLER_REDIRECT=true but no DATABASE_POOLER_URL configured.';
   logger.error(msg);
   throw new Error(msg);
 }
 
-const directUrl = (localDbDetected && supabaseDirectUrl) ? supabaseDirectUrl : rawDirectUrl;
-export const usingPooler = (poolerEnabled || localDbDetected) && !!poolerUrl;
+if (localDbDetected && !forcePoolerRedirect) {
+  logger.info('[Database] Using local database (set FORCE_POOLER_REDIRECT=true to use Supabase pooler instead)');
+}
+
+const directUrl = (forcePoolerRedirect && supabaseDirectUrl) ? supabaseDirectUrl : rawDirectUrl;
+export const usingPooler = (poolerEnabled || forcePoolerRedirect) && !!poolerUrl;
 
 const effectiveConnectionString = usingPooler ? poolerUrl : directUrl;
 if (!effectiveConnectionString) {
   logger.error('[Database] FATAL: No database connection string configured. Set DATABASE_URL or DATABASE_POOLER_URL + ENABLE_PGBOUNCER=true');
 }
 
-if (localDbDetected && poolerUrl) {
-  logger.info('[Database] Local DATABASE_URL detected — using shared Supabase database via pooler');
+if (forcePoolerRedirect && poolerUrl) {
+  logger.info('[Database] FORCE_POOLER_REDIRECT active — using shared Supabase database via pooler');
 }
 
 const sslConfig = { rejectUnauthorized: false };
@@ -64,7 +69,7 @@ const basePool = new Pool({
 
 export const pool = basePool;
 
-const directConnectionUrl = (localDbDetected && poolerUrl) ? poolerUrl : directUrl;
+const directConnectionUrl = (forcePoolerRedirect && poolerUrl) ? poolerUrl : directUrl;
 
 export const directPool = usingPooler
   ? new Pool({
