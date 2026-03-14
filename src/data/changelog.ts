@@ -10,10 +10,11 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.86.1",
     date: "2026-03-14",
-    title: "WebSocket Reconnect Loop Fix",
+    title: "WebSocket Reconnect Loop Fix & Error Logging",
     changes: [
       "Fix: WebSocket connections now use exponential backoff and a maximum retry limit — prevents endless reconnection attempts when a session expires, reducing unnecessary server load",
       "Improvement: Both member and staff WebSocket connections stop retrying after reaching the limit, keeping the app responsive without hammering the server",
+      "Fix: Session store error logging now uses the safe error extraction utility — previously some database errors were logged with empty details, making them harder to diagnose",
     ]
   },
   {
