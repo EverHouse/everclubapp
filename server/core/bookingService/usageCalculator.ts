@@ -775,7 +775,7 @@ export async function recalculateSessionFees(
         const minutesCharged = validBillings.map(b => b.minutesCharged);
         const overageFees = validBillings.map(b => b.overageFee);
         const guestFees = validBillings.map(b => b.guestFee);
-        const tiersAtBooking = validBillings.map(b => b.tierAtBooking);
+        const tiersAtBooking = validBillings.map(b => b.tierAtBooking ?? 'unknown');
 
         await tx.execute(sql`
           INSERT INTO usage_ledger (session_id, member_id, minutes_charged, overage_fee, guest_fee, tier_at_booking, payment_method, source)

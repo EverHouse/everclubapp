@@ -45,6 +45,9 @@ export function generateTimeSlots(
   businessHours: { start: number; end: number; startMinute?: number },
   slotDurationMinutes: number
 ): TimeSlot[] {
+  if (!Number.isFinite(slotDurationMinutes) || slotDurationMinutes <= 0) {
+    return [];
+  }
   const slots: TimeSlot[] = [];
   const startTotal = businessHours.start * 60 + (businessHours.startMinute || 0);
   const endTotal = businessHours.end * 60;

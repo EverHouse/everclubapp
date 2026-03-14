@@ -18,6 +18,7 @@ export const changelog: ChangelogEntry[] = [
       "Fix: Stripe invoice URLs now handled safely to prevent potential undefined value errors in payment flows",
       "Fix: Availability slot duration now validates against zero or invalid values to prevent potential system hangs",
       "Fix: Corrected module import path for background job store",
+      "Fix: Guest fee recalculation now stores tier information correctly instead of writing invalid text for guests without a tier",
     ]
   },
   {
