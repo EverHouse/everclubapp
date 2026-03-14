@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useData } from '../../contexts/DataContext';
@@ -379,7 +379,7 @@ const Profile: React.FC = () => {
     updateSmsPreferencesMutation.mutate(body);
   };
 
-  const handleGoogleLink = async (credential: string) => {
+  const handleGoogleLink = useCallback(async (credential: string) => {
     setGoogleLinking(true);
     try {
       const res = await postWithCredentials<{ error?: string }>('/api/auth/google/link', { credential });
@@ -391,7 +391,7 @@ const Profile: React.FC = () => {
     } finally {
       setGoogleLinking(false);
     }
-  };
+  }, [showToast, refetchGoogleStatus]);
 
   const handleGoogleUnlink = async () => {
     setGoogleUnlinking(true);

@@ -165,9 +165,13 @@ router.post('/api/auth/apple/verify', authRateLimiterByIp, async (req, res) => {
         };
         if (!user.firstName && appleFirstName) updateData.firstName = appleFirstName;
         if (!user.lastName && appleLastName) updateData.lastName = appleLastName;
-        await db.update(users)
+        const autoLinked = await db.update(users)
           .set(updateData)
-          .where(eq(users.id, user.id));
+          .where(eq(users.id, user.id))
+          .returning({ id: users.id });
+        if (autoLinked.length === 0) {
+          logger.error('[Apple Auth] Auto-link update affected 0 rows', { extra: { userId: user.id, userEmail: user.email, appleSub: appleData.sub } });
+        }
       }
     } else if (!user.firstName && appleFirstName) {
       const nameBackfill: Record<string, unknown> = { updatedAt: new Date() };

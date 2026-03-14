@@ -14,6 +14,8 @@ export const changelog: ChangelogEntry[] = [
     changes: [
       "Fix: Google and Apple account linking on the profile page now properly verifies the database update succeeded before showing a success message — previously a silent failure could show 'linked successfully' even when the link didn't actually save",
       "Fix: Google and Apple account unlinking now verifies the database update succeeded before confirming",
+      "Fix: Google and Apple auto-link during sign-in (verify and callback flows) now logs an error when the database update silently affects 0 rows — previously these failures were completely invisible",
+      "Fix: Stabilized Google sign-in button on the profile page by memoizing the link callback to prevent unnecessary SDK re-initialization on re-renders",
     ]
   },
   {

@@ -135,9 +135,13 @@ router.post('/api/auth/google/verify', authRateLimiterByIp, async (req, res) => 
         };
         if (!user.firstName && googleUser.firstName) updateData.firstName = googleUser.firstName;
         if (!user.lastName && googleUser.lastName) updateData.lastName = googleUser.lastName;
-        await db.update(users)
+        const autoLinked = await db.update(users)
           .set(updateData)
-          .where(eq(users.id, user.id));
+          .where(eq(users.id, user.id))
+          .returning({ id: users.id });
+        if (autoLinked.length === 0) {
+          logger.error('[Google Auth] Auto-link update affected 0 rows', { extra: { userId: user.id, userEmail: user.email, googleSub: googleUser.sub } });
+        }
       }
     } else if (!user.firstName && googleUser.firstName) {
       const nameBackfill: Record<string, unknown> = { updatedAt: new Date() };
@@ -263,9 +267,13 @@ router.post('/api/auth/google/callback', async (req, res) => {
         };
         if (!user.firstName && googleUser.firstName) updateData.firstName = googleUser.firstName;
         if (!user.lastName && googleUser.lastName) updateData.lastName = googleUser.lastName;
-        await db.update(users)
+        const autoLinked = await db.update(users)
           .set(updateData)
-          .where(eq(users.id, user.id));
+          .where(eq(users.id, user.id))
+          .returning({ id: users.id });
+        if (autoLinked.length === 0) {
+          logger.error('[Google Auth Callback] Auto-link update affected 0 rows', { extra: { userId: user.id, userEmail: user.email, googleSub: googleUser.sub } });
+        }
       }
     } else if (!user.firstName && googleUser.firstName) {
       const nameBackfill: Record<string, unknown> = { updatedAt: new Date() };
