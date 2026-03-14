@@ -119,8 +119,8 @@ export async function validateBookingStatus(
       return { valid: false, currentStatus: undefined };
     }
     
-    const isValid = allowedStatuses.includes(booking.status);
-    return { valid: isValid, currentStatus: booking.status, booking };
+    const isValid = allowedStatuses.includes(booking.status ?? '');
+    return { valid: isValid, currentStatus: booking.status ?? undefined, booking };
   } catch (error: unknown) {
     logger.error('[BookingEvents] Failed to validate booking status:', { error: error });
     return { valid: false };

@@ -388,11 +388,11 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
       const resolvedName = billingNameMap.get(md.userId);
       billingParticipants.push({
         userId: md.userId,
-        email: md.email,
+        email: md.email || '',
         participantType: 'member',
         displayName: (memberParticipant?.displayName && !memberParticipant.displayName.includes('@'))
           ? memberParticipant.displayName
-          : resolvedName || md.email
+          : resolvedName || md.email || ''
       });
     }
     
@@ -414,7 +414,7 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
 
     for (const md of memberData) {
       const memberBilling = billingResult.billingBreakdown.find(
-        b => b.userId === md.userId || b.email?.toLowerCase() === md.email.toLowerCase()
+        b => b.userId === md.userId || (md.email && b.email?.toLowerCase() === md.email.toLowerCase())
       );
       
       await recordUsage(

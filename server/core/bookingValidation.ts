@@ -142,7 +142,7 @@ export async function checkClosureConflict(
 
     return { hasConflict: false };
   } catch (error: unknown) {
-    logger.error('[checkClosureConflict] Error checking closure conflict:', error);
+    logger.error('[checkClosureConflict] Error checking closure conflict:', { error: error instanceof Error ? error : new Error(String(error)) });
     throw error;
   }
 }
@@ -187,7 +187,7 @@ export async function checkBookingConflict(
 
     return { hasConflict: false };
   } catch (error: unknown) {
-    logger.error('[checkBookingConflict] Error checking booking conflict:', error);
+    logger.error('[checkBookingConflict] Error checking booking conflict:', { error: error instanceof Error ? error : new Error(String(error)) });
     throw error;
   }
 }
@@ -222,7 +222,7 @@ export async function checkAvailabilityBlockConflict(
 
     return { hasConflict: false };
   } catch (error: unknown) {
-    logger.error('[checkAvailabilityBlockConflict] Error checking availability block conflict:', error);
+    logger.error('[checkAvailabilityBlockConflict] Error checking availability block conflict:', { error: error instanceof Error ? error : new Error(String(error)) });
     throw error;
   }
 }

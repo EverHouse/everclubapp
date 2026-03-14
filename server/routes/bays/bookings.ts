@@ -540,7 +540,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           resourceType = (resourceResult.rows[0] as Record<string, unknown>)?.type as string || 'simulator';
         }
         
-        await acquireBookingLocks(tx, {
+        await acquireBookingLocks(tx as unknown as Parameters<typeof acquireBookingLocks>[0], {
           resourceId: resource_id,
           requestDate: request_date,
           startTime: start_time,
@@ -551,7 +551,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           resourceType,
         });
 
-        await checkResourceOverlap(tx, {
+        await checkResourceOverlap(tx as unknown as Parameters<typeof checkResourceOverlap>[0], {
           resourceId: resource_id,
           requestDate: request_date,
           startTime: start_time,
@@ -1733,7 +1733,7 @@ async function calculateFeeEstimate(params: {
   } catch (error: unknown) {
     // Do NOT use fallback - this could show incorrect prices
     logger.error('[FeeEstimate] Unified service error', { error: error instanceof Error ? error : new Error(String(error)) });
-    throw new Error('Unable to calculate fee estimate. Please try again.', { cause: error });
+    throw new Error('Unable to calculate fee estimate. Please try again.');
   }
 }
 

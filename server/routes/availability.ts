@@ -197,44 +197,44 @@ router.post('/api/availability/batch', async (req, res) => {
     
     // Build resource type map
     const resourceTypeMap = new Map<number, string>();
-    resourcesResult.rows.forEach((row: { id: number; type: string }) => {
-      resourceTypeMap.set(row.id, row.type);
+    (resourcesResult.rows as Array<Record<string, unknown>>).forEach((row) => {
+      resourceTypeMap.set(row.id as number, row.type as string);
     });
     
     // Group booked slots by resource_id
     const bookedByResource = new Map<number, { start_time: string; end_time: string }[]>();
     resource_ids.forEach(id => bookedByResource.set(id, []));
-    bookedResult.rows.forEach((row: { resource_id: number; start_time: string; end_time: string }) => {
-      bookedByResource.get(row.resource_id)?.push({ start_time: row.start_time, end_time: row.end_time });
+    (bookedResult.rows as Array<Record<string, unknown>>).forEach((row) => {
+      bookedByResource.get(row.resource_id as number)?.push({ start_time: row.start_time as string, end_time: row.end_time as string });
     });
     
     // Group blocked slots by resource_id
     const blockedByResource = new Map<number, { start_time: string; end_time: string }[]>();
     resource_ids.forEach(id => blockedByResource.set(id, []));
-    blockedResult.rows.forEach((row: { resource_id: number; start_time: string; end_time: string }) => {
-      blockedByResource.get(row.resource_id)?.push({ start_time: row.start_time, end_time: row.end_time });
+    (blockedResult.rows as Array<Record<string, unknown>>).forEach((row) => {
+      blockedByResource.get(row.resource_id as number)?.push({ start_time: row.start_time as string, end_time: row.end_time as string });
     });
     
     // Group unmatched Trackman by resource (bay_number is stored as string)
     const unmatchedByResource = new Map<number, { start_time: string; end_time: string }[]>();
     resource_ids.forEach(id => unmatchedByResource.set(id, []));
-    unmatchedResult.rows.forEach((row: { bay_number: string; start_time: string; end_time: string }) => {
-      const resourceId = parseInt(row.bay_number);
-      unmatchedByResource.get(resourceId)?.push({ start_time: row.start_time, end_time: row.end_time });
+    (unmatchedResult.rows as Array<Record<string, unknown>>).forEach((row) => {
+      const resourceId = parseInt(row.bay_number as string);
+      unmatchedByResource.get(resourceId)?.push({ start_time: row.start_time as string, end_time: row.end_time as string });
     });
     
     // Group Trackman webhook cache slots by resource
     const webhookCacheByResource = new Map<number, { start_time: string; end_time: string }[]>();
     resource_ids.forEach(id => webhookCacheByResource.set(id, []));
-    webhookCacheResult.rows.forEach((row: { resource_id: number; start_time: string; end_time: string }) => {
-      webhookCacheByResource.get(row.resource_id)?.push({ start_time: row.start_time, end_time: row.end_time });
+    (webhookCacheResult.rows as Array<Record<string, unknown>>).forEach((row) => {
+      webhookCacheByResource.get(row.resource_id as number)?.push({ start_time: row.start_time as string, end_time: row.end_time as string });
     });
     
     // Group pending booking requests by resource (soft lock — blocks other members from requesting same slot)
     const pendingByResource = new Map<number, { start_time: string; end_time: string }[]>();
     resource_ids.forEach(id => pendingByResource.set(id, []));
-    pendingResult.rows.forEach((row: { resource_id: number; start_time: string; end_time: string }) => {
-      pendingByResource.get(row.resource_id)?.push({ start_time: row.start_time, end_time: row.end_time });
+    (pendingResult.rows as Array<Record<string, unknown>>).forEach((row) => {
+      pendingByResource.get(row.resource_id as number)?.push({ start_time: row.start_time as string, end_time: row.end_time as string });
     });
     
     // Find conference room resources that need calendar lookups
@@ -422,21 +422,21 @@ router.get('/api/availability', async (req, res) => {
       const endTime = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}:00`;
       
       const hasBookingConflict = bookedSlots.rows.some((booking: Record<string, unknown>) => {
-        const bookStart = booking.start_time;
-        const bookEnd = booking.end_time;
+        const bookStart = booking.start_time as string;
+        const bookEnd = booking.end_time as string;
         return (startTime < bookEnd && endTime > bookStart);
       });
       
       const hasBlockConflict = blockedSlots.rows.some((block: Record<string, unknown>) => {
-        const blockStart = block.start_time;
-        const blockEnd = block.end_time;
+        const blockStart = block.start_time as string;
+        const blockEnd = block.end_time as string;
         return (startTime < blockEnd && endTime > blockStart);
       });
       
       // Check unmatched Trackman bookings (unresolved historical imports)
       const hasUnmatchedConflict = unmatchedTrackmanSlots.rows.some((unmatched: Record<string, unknown>) => {
-        const unmatchedStart = unmatched.start_time;
-        const unmatchedEnd = unmatched.end_time;
+        const unmatchedStart = unmatched.start_time as string;
+        const unmatchedEnd = unmatched.end_time as string;
         return (startTime < unmatchedEnd && endTime > unmatchedStart);
       });
       
@@ -447,7 +447,7 @@ router.get('/api/availability', async (req, res) => {
       
       // Check pending bookings from other members (soft lock)
       const hasPendingConflict = pendingSlots.rows.some((pending: Record<string, unknown>) => {
-        return (startTime < pending.end_time && endTime > pending.start_time);
+        return (startTime < (pending.end_time as string) && endTime > (pending.start_time as string));
       });
       
       const isUnavailable = hasBookingConflict || hasBlockConflict || hasUnmatchedConflict || hasCalendarConflict || hasPendingConflict;

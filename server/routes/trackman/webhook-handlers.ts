@@ -696,7 +696,8 @@ export async function tryAutoApproveBooking(
       }
     }
     
-    return { matched: true, bookingId, resourceId, sessionId: createdSessionId };
+    const resolvedSessionId = createdSessionId as unknown as number | undefined;
+    return { matched: true, bookingId, resourceId: resourceId ?? undefined, sessionId: resolvedSessionId };
   } catch (e: unknown) {
     logger.error('[Trackman Webhook] Failed to auto-approve booking', { error: e as Error });
     return { matched: false };

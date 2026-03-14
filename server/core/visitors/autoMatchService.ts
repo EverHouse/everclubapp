@@ -241,29 +241,29 @@ export async function matchBookingToPurchase(
     `);
     
     // Pick the best match - prefer day_pass (modern) if same time, otherwise pick closest
-    let row = null;
+    let row: Record<string, unknown> | null = null;
     if (legacyResult.rows.length > 0 && dayPassResult.rows.length > 0) {
       // Both found - pick the one closer to booking time
-      row = (dayPassResult.rows[0].time_diff <= legacyResult.rows[0].time_diff) 
-        ? dayPassResult.rows[0] 
-        : legacyResult.rows[0];
+      row = ((dayPassResult.rows[0] as Record<string, unknown>).time_diff as number) <= ((legacyResult.rows[0] as Record<string, unknown>).time_diff as number)
+        ? dayPassResult.rows[0] as Record<string, unknown>
+        : legacyResult.rows[0] as Record<string, unknown>;
     } else {
-      row = dayPassResult.rows[0] || legacyResult.rows[0];
+      row = (dayPassResult.rows[0] as Record<string, unknown>) || (legacyResult.rows[0] as Record<string, unknown>) || null;
     }
     
     if (!row) {
       return null;
     }
     return {
-      userId: row.user_id,
-      email: row.email || row.member_email,
-      firstName: row.first_name,
-      lastName: row.last_name,
-      mindbodyClientId: row.mindbody_client_id,
-      purchaseId: row.purchase_id,
-      itemName: row.item_name,
-      itemCategory: row.item_category,
-      saleDate: row.sale_date,
+      userId: row.user_id as string | number,
+      email: (row.email || row.member_email) as string,
+      firstName: row.first_name as string | null,
+      lastName: row.last_name as string | null,
+      mindbodyClientId: row.mindbody_client_id as string | null,
+      purchaseId: row.purchase_id as number,
+      itemName: row.item_name as string,
+      itemCategory: row.item_category as string,
+      saleDate: row.sale_date as Date,
       source: row.source as 'legacy' | 'day_pass'
     };
   } catch (error: unknown) {
@@ -439,15 +439,16 @@ export async function autoMatchSingleBooking(
     if (parsed.memberEmail) {
       const user = await findMatchingUser({ email: parsed.memberEmail });
       if (user) {
+        const userEmail = user.email ?? '';
         const sessionId = await maybeCreateSession(
           user.id as string, 
-          user.email, 
-          `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email
+          userEmail, 
+          `${user.firstName || ''} ${user.lastName || ''}`.trim() || userEmail
         );
-        await resolveBookingWithUser(bookingId, user.id as string, user.email, staffEmail, sessionId);
+        await resolveBookingWithUser(bookingId, user.id as string, userEmail, staffEmail, sessionId);
         result.matched = true;
         result.matchType = 'purchase';
-        result.visitorEmail = user.email;
+        result.visitorEmail = userEmail;
         if (sessionId) result.sessionId = sessionId;
         return result;
       }
@@ -463,9 +464,9 @@ export async function autoMatchSingleBooking(
       if (!userId) {
         const visitor = await upsertVisitor({
           email: purchaseMatch.email,
-          firstName: purchaseMatch.firstName || undefined,
-          lastName: purchaseMatch.lastName || undefined,
-          mindbodyClientId: purchaseMatch.mindbodyClientId || undefined
+          firstName: purchaseMatch.firstName ?? undefined,
+          lastName: purchaseMatch.lastName ?? undefined,
+          mindbodyClientId: purchaseMatch.mindbodyClientId ?? undefined
         });
         userId = visitor.id as string;
       }
@@ -479,10 +480,10 @@ export async function autoMatchSingleBooking(
       // Pass trackman booking ID for audit trail (especially for day pass)
       const trackmanBookingId = bookingDetails?.trackmanBookingId;
       if (sessionId) {
-        await linkPurchaseToSession(purchaseMatch.purchaseId, sessionId, purchaseMatch.source, trackmanBookingId);
+        await linkPurchaseToSession(purchaseMatch.purchaseId, sessionId, purchaseMatch.source, trackmanBookingId ?? undefined);
       } else {
         // Historical booking: just mark purchase as used (via unmatched booking reference)
-        await markPurchaseAsUsed(purchaseMatch.purchaseId, bookingId, purchaseMatch.source, trackmanBookingId);
+        await markPurchaseAsUsed(purchaseMatch.purchaseId, bookingId, purchaseMatch.source, trackmanBookingId ?? undefined);
       }
       
       const visitorType = parsed.bookingType?.visitorType || 'guest';

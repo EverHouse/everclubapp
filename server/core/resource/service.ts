@@ -149,7 +149,7 @@ export async function fetchBookings(params: {
       eq(bookingRequests.status, 'pending_approval'),
       eq(bookingRequests.status, 'pending'),
       eq(bookingRequests.status, 'attended')
-    ));
+    )!);
   }
   
   if (params.userEmail) {
@@ -159,7 +159,7 @@ export async function fetchBookings(params: {
       sql`LOWER(${bookingRequests.userEmail}) IN (SELECT LOWER(ule.linked_email) FROM user_linked_emails ule WHERE LOWER(ule.primary_email) = ${userEmail})`,
       sql`LOWER(${bookingRequests.userEmail}) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = ${userEmail})`,
       sql`${bookingRequests.id} IN (SELECT br2.id FROM booking_requests br2 INNER JOIN booking_participants bp ON bp.session_id = br2.session_id INNER JOIN users u ON u.id = bp.user_id WHERE LOWER(u.email) = ${userEmail})`
-    ));
+    )!);
   }
   if (params.date) {
     conditions.push(sql`${bookingRequests.requestDate} = ${params.date}`);
@@ -419,7 +419,7 @@ export async function createBookingRequest(params: {
   
   const limitCheck = await checkDailyBookingLimit(resolvedEmail, params.bookingDate, durationMinutes, userTier, resourceType);
   if (!limitCheck.allowed) {
-    throw new AppError(403, limitCheck.reason, {
+    throw new AppError(403, limitCheck.reason ?? 'Booking limit exceeded', {
       remainingMinutes: limitCheck.remainingMinutes
     });
   }

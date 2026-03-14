@@ -1112,7 +1112,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
       return res.status(400).json({ error: 'Cannot determine booking date/time from event' });
     }
     
-    const startDate = new Date(bookingStart);
+    const startDate = new Date(bookingStart as string | number);
     const pacificDate = startDate.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
     const pacificStartTime = startDate.toLocaleTimeString('en-US', { 
       timeZone: 'America/Los_Angeles', 
