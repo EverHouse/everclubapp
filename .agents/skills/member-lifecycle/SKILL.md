@@ -153,6 +153,12 @@ Key files with status mapping:
 - `src/contexts/AuthDataContext.tsx` — Frontend status passthrough
 - `src/components/TierBadge.tsx` — INACTIVE_STATUSES display
 
+## Auth Linking Hardening (v8.86.6/v8.87.1)
+
+- **Config guards (fail-closed):** All Google and Apple auth routes (verify, callback, link, unlink, status) return 503 if their client ID env var is missing — prevents silent token-verification bypass.
+- **Partial unique indexes:** `google_id` and `apple_id` columns have `UNIQUE WHERE NOT NULL` indexes to prevent race-condition duplicate linking at the database level.
+- **Conflict handling:** Link endpoints catch unique constraint violations from concurrent requests and return 409 instead of 500.
+
 ## Onboarding Checklist
 
 4 steps tracked by date columns: profile_completed_at, waiver_signed_at, first_booking_at, app_installed_at. All complete → `onboarding_completed_at` set.

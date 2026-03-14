@@ -86,6 +86,7 @@ Is this inside a db.transaction()?
 5. NEVER assume social tier members are blocked from guests — they are allowed but pay full fees.
 6. NEVER create new roster editors or player management modals — use the Unified Booking Sheet.
 7. NEVER use raw `fetch()` to booking endpoints in UI components — use `useBookingActions()` hook.
+8. NEVER call `finalizeAndPayInvoice()` without first checking `getBookingInvoiceId()` — conference room bookings within daily allowance have zero fees and no invoice. All three conference room paths (member, staff, approval) must guard with this check (v8.87.7).
 
 ## Cross-References
 

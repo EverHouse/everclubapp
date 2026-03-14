@@ -103,7 +103,7 @@ Staff scans QR code (MEMBER:<uuid>)
 | Method | How |
 |---|---|
 | Confirm (cash/external) | Mark `paid` without charge |
-| Charge saved card | `/api/stripe/staff/check-saved-card/:email` → `chargeCardOnFile` |
+| Charge saved card (staff) | `/api/stripe/staff/charge-saved-card` in `booking-fees.ts` → charges member's default payment method |
 | Stripe terminal (WisePOS E) | Physical terminal hardware |
 | Online Stripe payment | `StripePaymentForm` for card entry |
 | Waive with reason | Mark `waived`, require text reason, send email |

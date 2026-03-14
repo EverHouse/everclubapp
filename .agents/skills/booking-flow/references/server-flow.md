@@ -40,7 +40,12 @@ POST /api/booking-requests
   │
   ├── If conference_room + resourceId:
   │   ├── ensureSessionForBooking({ bookingId, resourceId, sessionDate, ... })
-  │   └── Create draft invoice via bookingInvoiceService (same flow as simulators since v8.16.0)
+  │   ├── syncBookingInvoice(bookingId, sessionId)
+  │   ├── invoiceId = getBookingInvoiceId(bookingId)
+  │   ├── If invoiceId exists (fees due):
+  │   │   └── finalizeAndPayInvoice({ bookingId }) — auto-charge or collect later
+  │   └── If no invoiceId (zero fees, within daily allowance):
+  │       └── Log "No fees due — skipping invoice finalization" (v8.87.7)
   │
   ├── res.status(201).json(booking) — response sent BEFORE post-commit ops
   │

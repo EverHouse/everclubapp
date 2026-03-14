@@ -67,12 +67,15 @@
 | File | Single Responsibility |
 |------|----------------------|
 | `payments.ts` | Webhook receiver, day pass checkout, payment management endpoints |
-| `member-payments.ts` | Member-facing payment history and actions |
+| `member-payments.ts` | Member-facing payment history, prepayment intents, saved card payments (`/api/member/bookings/:id/pay-saved-card`, `/api/member/invoices/:invoiceId/pay-saved-card`), and Stripe Customer Sessions for Payment Element |
+| `booking-fees.ts` | Staff-initiated booking fee charges and saved card charges (`/api/stripe/staff/charge-saved-card`) |
+| `quick-charge.ts` | Staff quick-charge endpoint for ad-hoc member charges |
+| `payment-admin.ts` | Admin payment management endpoints |
+| `financial-reports.ts` | Financial reporting endpoints |
 | `subscriptions.ts` | Subscription management endpoints |
 | `invoices.ts` | Invoice retrieval endpoints |
 | `terminal.ts` | Stripe Terminal (card reader) endpoints (Pattern 19) |
 | `admin.ts` | Admin Stripe management actions |
-| `overage.ts` | Overage fee display/management endpoints |
 | `config.ts` | Stripe publishable key / configuration endpoint |
 | `coupons.ts` | Coupon CRUD endpoints (Pattern 22) |
 | `helpers.ts` | Shared utilities for Stripe routes (`getStaffInfo()`, imports `PRICING`) |

@@ -74,6 +74,9 @@ Log all payment failures to `errorAlerts.ts`. Built-in: 4h cooldown, 3/day cap, 
 12. **NEVER create a PaymentIntent without checking for existing open intent.**
 13. **NEVER query outstanding fees without 3 filters:** 90-day lookback, exclude cancelled bookings, exclude paid snapshots. (v8.86.0 fix)
 
+14. **Member-facing saved card payments use Stripe Customer Sessions (v8.87.9).** `member-payments.ts` creates a `customerSession` with `payment_method_redisplay`, `payment_method_save`, and `payment_method_remove` features enabled. Two saved card endpoints exist: `POST /api/member/bookings/:id/pay-saved-card` (booking prepayment — creates a draft invoice with line items, finalizes, and charges the selected payment method) and `POST /api/member/invoices/:invoiceId/pay-saved-card` (invoice payment — pays an existing open invoice using the selected payment method). On 3D Secure / `requires_action` results, the frontend falls back to the standard Payment Element flow.
+15. **Conference room bookings skip invoice finalization when no fees are due (v8.87.7).** After `syncBookingInvoice()`, if `getBookingInvoiceId()` returns null (meaning total is $0 and no invoice was created), all three paths skip finalization: member booking (`bookings.ts`) and staff booking (`staff-conference-booking.ts`) log "No fees due — skipping invoice finalization"; booking approval (`approvalService.ts`) logs "No invoice found for conference room booking — skipping finalization".
+
 ## Outstanding Balance Queries
 
 Two endpoints compute outstanding fees:

@@ -37,7 +37,11 @@ All mutating routes (POST/PUT/PATCH/DELETE) must be protected. Two equivalent pa
 ## Stripe Routes (`server/routes/stripe/`)
 
 - `payments.ts` — Payment processing endpoints
-- `member-payments.ts` — Member-facing payment endpoints
+- `member-payments.ts` — Member-facing payment history, prepayment intents, saved card payments, and Stripe Customer Sessions
+- `booking-fees.ts` — Staff-initiated booking fee charges and saved card charges
+- `quick-charge.ts` — Staff quick-charge endpoint for ad-hoc member charges
+- `payment-admin.ts` — Admin payment management endpoints
+- `financial-reports.ts` — Financial reporting endpoints
 - `subscriptions.ts` — Subscription management
 - `invoices.ts` — Invoice endpoints
 - `admin.ts` — Stripe admin tools

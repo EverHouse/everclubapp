@@ -73,6 +73,7 @@ After calling recalculateSessionFees()?
 11. **Already-paid guard (v8.68.0).** Fee recalculation skips participants with `cached_fee_cents > 0` and a completed payment intent.
 12. **Account credit audit trail.** When `createPrepaymentIntent` returns `paidInFull: true`, call `logPaymentAudit()` with `paymentMethod: 'account_credit'`.
 13. **Outstanding balance queries MUST include 3 filters:** 90-day lookback, exclude cancelled bookings, exclude paid snapshots.
+14. **Conference room zero-fee bookings skip invoice finalization (v8.87.7).** When `totalCents === 0` (within daily allowance), `syncBookingInvoice()` creates no invoice. All downstream code must check `getBookingInvoiceId()` before calling `finalizeAndPayInvoice()` — if null, skip finalization. This applies to member bookings (`bookings.ts`), staff bookings (`staff-conference-booking.ts`), and booking approvals (`approvalService.ts`).
 
 ## Anti-Patterns (NEVER)
 
