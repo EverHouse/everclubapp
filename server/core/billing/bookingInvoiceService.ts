@@ -1265,9 +1265,44 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
           });
         }
       } else if (invoice.status === 'void' || invoice.status === 'uncollectible') {
-        logger.info('[BookingInvoice] syncBookingInvoice skipped: invoice is void/uncollectible', {
-          extra: { bookingId, invoiceId: stripeInvoiceId }
+        logger.info('[BookingInvoice] syncBookingInvoice: invoice is void/uncollectible, clearing reference and recreating draft', {
+          extra: { bookingId, invoiceId: stripeInvoiceId, status: invoice.status }
         });
+        await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = ${bookingId}`);
+        if (booking.status === 'approved' || booking.status === 'confirmed' || booking.status === 'attended') {
+          const voidRecoveryParts = await db.execute(sql`SELECT id, display_name, participant_type, cached_fee_cents
+             FROM booking_participants WHERE session_id = ${sessionId} AND cached_fee_cents > 0`);
+          const voidRecoveryItems: BookingFeeLineItem[] = (voidRecoveryParts.rows as unknown as ParticipantFeeRow[]).map((row) => {
+            const isGuest = row.participant_type === 'guest';
+            return {
+              participantId: row.id,
+              displayName: row.display_name || 'Unknown',
+              participantType: row.participant_type as 'owner' | 'member' | 'guest',
+              overageCents: isGuest ? 0 : row.cached_fee_cents,
+              guestCents: isGuest ? row.cached_fee_cents : 0,
+              totalCents: row.cached_fee_cents,
+            };
+          });
+          const voidRecoveryTotal = voidRecoveryItems.reduce((sum, li) => sum + li.totalCents, 0);
+          if (voidRecoveryTotal > 0) {
+            const custResult = await db.execute(sql`SELECT stripe_customer_id FROM users WHERE LOWER(email) = LOWER(${booking.user_email}) LIMIT 1`);
+            const custId = (custResult.rows as unknown as StripeCustomerIdRow[])[0]?.stripe_customer_id;
+            if (custId) {
+              await createDraftInvoiceForBooking({
+                customerId: custId,
+                bookingId,
+                sessionId,
+                trackmanBookingId: booking.trackman_booking_id || null,
+                feeLineItems: voidRecoveryItems,
+                purpose: 'booking_fee',
+              });
+              logger.info('[BookingInvoice] syncBookingInvoice recreated draft invoice after void/uncollectible recovery', {
+                extra: { bookingId, sessionId, totalCents: voidRecoveryTotal }
+              });
+            }
+          }
+        }
+        return;
       }
       return;
     }
