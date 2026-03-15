@@ -6,6 +6,7 @@ import { getErrorMessage } from '../../utils/errorUtils';
 import { notifyAllStaff } from '../notificationService';
 import { broadcastBookingInvoiceUpdate } from '../websocket';
 import { bookingRequests, membershipTiers } from '../../../shared/schema';
+import { notifications } from '../../../shared/models/notifications';
 import { eq, sql } from 'drizzle-orm';
 import type Stripe from 'stripe';
 import type { BookingFeeLineItem } from '../stripe/invoices';
@@ -1153,12 +1154,22 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
         logger.warn('[BookingInvoice] syncBookingInvoice skipped: invoice already paid. Roster changed after payment — staff review needed.', {
           extra: { bookingId, invoiceId: stripeInvoiceId }
         });
-        notifyAllStaff(
-          'Roster Changed After Payment',
-          `Booking #${bookingId} roster was modified after invoice ${stripeInvoiceId} was already paid. Staff review needed.`,
-          'warning',
-          { relatedId: bookingId, relatedType: 'booking' }
-        ).catch((err: unknown) => { logger.warn('[BookingInvoice] Failed to notify staff about roster change after payment', { extra: { bookingId, error: getErrorMessage(err) } }); });
+        const existingNotification = await db.select({ id: notifications.id })
+          .from(notifications)
+          .where(sql`${notifications.title} = 'Roster Changed After Payment' AND ${notifications.relatedId} = ${bookingId} AND ${notifications.relatedType} = 'booking' AND ${notifications.message} LIKE ${'%' + stripeInvoiceId + '%'}`)
+          .limit(1);
+        if (existingNotification.length === 0) {
+          await notifyAllStaff(
+            'Roster Changed After Payment',
+            `Booking #${bookingId} roster was modified after invoice ${stripeInvoiceId} was already paid. Staff review needed.`,
+            'warning',
+            { relatedId: bookingId, relatedType: 'booking' }
+          );
+        } else {
+          logger.info('[BookingInvoice] Skipping duplicate "Roster Changed After Payment" notification for booking+invoice', {
+            extra: { bookingId, invoiceId: stripeInvoiceId, existingNotificationId: existingNotification[0].id }
+          });
+        }
       } else if (invoice.status === 'void' || invoice.status === 'uncollectible') {
         logger.info('[BookingInvoice] syncBookingInvoice skipped: invoice is void/uncollectible', {
           extra: { bookingId, invoiceId: stripeInvoiceId }

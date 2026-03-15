@@ -890,7 +890,9 @@ async function enforceRosterLock(bookingId: number, options?: { forceOverride?: 
 
   const lockStatus = await isBookingInvoicePaid(bookingId);
   if (lockStatus.locked) {
-    throw new Error(`ROSTER_LOCKED: ${lockStatus.reason}. Booking ID: ${bookingId}`);
+    const err = new Error(`ROSTER_LOCKED: This booking's invoice has already been paid. To make roster changes, please contact a manager to void or refund the existing invoice first.`) as Error & { statusCode: number };
+    err.statusCode = 423;
+    throw err;
   }
 }
 
