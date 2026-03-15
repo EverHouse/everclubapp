@@ -156,18 +156,17 @@ async function cancelAbandonedPaymentIntents(): Promise<{ cancelled: number; err
 
     for (const spi of abandonedIntents.rows) {
       try {
-        try {
-          await cancelPaymentIntent(spi.stripe_payment_intent_id);
+        const cancelResult = await cancelPaymentIntent(spi.stripe_payment_intent_id);
+        if (cancelResult.success) {
           logger.info(`[Abandoned PI Cleanup] Cancelled payment intent ${spi.stripe_payment_intent_id} in Stripe`);
-        } catch (stripeErr: unknown) {
-          const errorCode = getErrorCode(stripeErr);
-          
-          if (errorCode === 'resource_missing') {
+        } else {
+          const errMsg = cancelResult.error || '';
+          if (errMsg.includes('No such PaymentIntent') || errMsg.includes('resource_missing')) {
             logger.info(`[Abandoned PI Cleanup] Payment intent ${spi.stripe_payment_intent_id} not found in Stripe, marking as cancelled`);
-          } else if (errorCode === 'payment_intent_unexpected_state') {
+          } else {
             try {
               const pi = await stripe.paymentIntents.retrieve(spi.stripe_payment_intent_id);
-              logger.info(`[Abandoned PI Cleanup] Payment intent ${spi.stripe_payment_intent_id} already in state: ${pi.status}, syncing status`);
+              logger.info(`[Abandoned PI Cleanup] Payment intent ${spi.stripe_payment_intent_id} in state: ${pi.status}, syncing status`);
               
               await client.query('BEGIN');
               try {
@@ -200,11 +199,6 @@ async function cancelAbandonedPaymentIntents(): Promise<{ cancelled: number; err
               errors++;
               continue;
             }
-          } else {
-            logger.error(`[Abandoned PI Cleanup] Stripe error cancelling ${spi.stripe_payment_intent_id}:`, { extra: { errorMessage: getErrorMessage(stripeErr) } });
-            schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, getErrorMessage(stripeErr));
-            errors++;
-            continue;
           }
         }
 
@@ -356,11 +350,10 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
                 `UPDATE booking_fee_snapshots SET status = 'cancelled' WHERE stripe_payment_intent_id = $1 AND status = 'pending'`,
                 [spi.stripe_payment_intent_id]
               );
-              try {
-                await cancelPaymentIntent(spi.stripe_payment_intent_id);
-              } catch (cancelErr: unknown) {
+              const staleCancelResult = await cancelPaymentIntent(spi.stripe_payment_intent_id);
+              if (!staleCancelResult.success) {
                 logger.warn(`[Payment Intent Reconciliation] Could not cancel stale PI in Stripe (non-blocking)`, {
-                  extra: { piId: spi.stripe_payment_intent_id, errorMessage: getErrorMessage(cancelErr) }
+                  extra: { piId: spi.stripe_payment_intent_id, errorMessage: staleCancelResult.error }
                 });
               }
               logger.info(`[Payment Intent Reconciliation] Reconciled stale ${pi.status} payment intent ${spi.stripe_payment_intent_id}`);

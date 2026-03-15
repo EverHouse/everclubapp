@@ -2508,10 +2508,16 @@ export async function completeCancellation(params: CompleteCancellationParams) {
             } 
           });
         } else if (['requires_payment_method', 'requires_confirmation', 'requires_action', 'requires_capture', 'processing'].includes(pi.status)) {
-          await cancelPaymentIntent(snapshot.stripe_payment_intent_id);
-          logger.info('[Complete Cancellation] Cancelled pending fee snapshot payment', {
-            extra: { paymentIntentId: snapshot.stripe_payment_intent_id, bookingId }
-          });
+          const snapCancelResult = await cancelPaymentIntent(snapshot.stripe_payment_intent_id);
+          if (snapCancelResult.success) {
+            logger.info('[Complete Cancellation] Cancelled pending fee snapshot payment', {
+              extra: { paymentIntentId: snapshot.stripe_payment_intent_id, bookingId }
+            });
+          } else {
+            logger.warn('[Complete Cancellation] Could not cancel fee snapshot payment (non-blocking)', {
+              extra: { paymentIntentId: snapshot.stripe_payment_intent_id, bookingId, error: snapCancelResult.error }
+            });
+          }
         }
       } catch (snapErr: unknown) {
         errors.push(`Failed to handle fee snapshot ${snapshot.stripe_payment_intent_id?.substring(0, 8)}: ${getErrorMessage(snapErr)}`);

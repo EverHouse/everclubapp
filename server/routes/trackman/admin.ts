@@ -669,10 +669,9 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
           WHERE booking_id = ${booking.id} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')`);
         
         for (const intent of pendingIntents.rows as DbRow[]) {
-          try {
-            await cancelPaymentIntent(intent.stripe_payment_intent_id as string);
-          } catch (err: unknown) {
-            log(`[Lesson Cleanup] Could not cancel payment intent ${intent.stripe_payment_intent_id}: ${getErrorMessage(err)}`);
+          const piCancelResult = await cancelPaymentIntent(intent.stripe_payment_intent_id as string);
+          if (!piCancelResult.success) {
+            log(`[Lesson Cleanup] Could not cancel payment intent ${intent.stripe_payment_intent_id}: ${piCancelResult.error}`);
           }
         }
 

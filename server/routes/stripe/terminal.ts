@@ -542,8 +542,12 @@ router.post('/api/stripe/terminal/cancel-payment', isStaffOrAdmin, async (req: R
         if (pi.status === 'succeeded') {
           paymentAlreadySucceeded = true;
         } else if (pi.status !== 'canceled') {
-          await cancelPaymentIntent(paymentIntentId);
-          logger.info('[Terminal] Canceled PaymentIntent', { extra: { paymentIntentId } });
+          const cancelResult = await cancelPaymentIntent(paymentIntentId);
+          if (cancelResult.success) {
+            logger.info('[Terminal] Canceled PaymentIntent', { extra: { paymentIntentId } });
+          } else {
+            logger.warn('[Terminal] Could not cancel PaymentIntent (non-blocking)', { extra: { paymentIntentId, error: cancelResult.error } });
+          }
         }
 
         const draftInvId = pi.metadata?.draftInvoiceId || pi.metadata?.invoice_id;
@@ -669,11 +673,11 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
             pi.metadata?.paymentType === 'subscription_terminal';
         if ((isStaleInline || isStaleTerminal) &&
             (pi.status === 'requires_payment_method' || pi.status === 'requires_confirmation' || pi.status === 'requires_action')) {
-          try {
-            await cancelPaymentIntent(pi.id);
+          const staleCancelResult = await cancelPaymentIntent(pi.id);
+          if (staleCancelResult.success) {
             logger.info('[Terminal] Cancelled stale PI for subscription', { extra: { piId: pi.id, subscriptionId } });
-          } catch (cancelErr: unknown) {
-            logger.error('[Terminal] Failed to cancel stale PI', { extra: { id: pi.id, error: getErrorMessage(cancelErr) } });
+          } else {
+            logger.error('[Terminal] Failed to cancel stale PI', { extra: { id: pi.id, error: staleCancelResult.error } });
           }
         }
       }
@@ -1209,11 +1213,11 @@ router.post('/api/stripe/terminal/process-existing-payment', isStaffOrAdmin, asy
         return res.status(400).json({ error: 'Payment Intent has no customer — cannot create terminal payment' });
       }
 
-      try {
-        await cancelPaymentIntent(paymentIntentId);
+      const origCancelResult = await cancelPaymentIntent(paymentIntentId);
+      if (origCancelResult.success) {
         logger.info('[Terminal] Cancelled original PI to create terminal-compatible PI', { extra: { originalPiId: paymentIntentId } });
-      } catch (cancelErr: unknown) {
-        logger.warn('[Terminal] Could not cancel original PI (may already be cancelled)', { extra: { error: getErrorMessage(cancelErr) } });
+      } else {
+        logger.warn('[Terminal] Could not cancel original PI (may already be cancelled)', { extra: { error: origCancelResult.error } });
       }
 
       const newPi = await stripe.paymentIntents.create({

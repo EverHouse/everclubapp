@@ -1503,14 +1503,13 @@ router.post('/api/data-integrity/fix/cancel-orphaned-pi', isAdmin, validateBody(
   try {
     const { paymentIntentId } = req.body;
 
-    try {
-      await cancelPaymentIntent(paymentIntentId);
-    } catch (stripeError: unknown) {
-      const msg = getErrorMessage(stripeError);
-      if (msg.includes('already been canceled') || msg.includes('already_canceled') || msg.includes('cannot be canceled')) {
+    const cancelResult = await cancelPaymentIntent(paymentIntentId);
+    if (!cancelResult.success) {
+      const errMsg = cancelResult.error || '';
+      if (errMsg.includes('already been canceled') || errMsg.includes('already_canceled') || errMsg.includes('already canceled')) {
         logFromRequest(req, 'cancel_orphaned_pi', 'payment_intent', paymentIntentId, `Payment intent ${paymentIntentId} was already cancelled`, { paymentIntentId, alreadyCancelled: true });
       } else {
-        throw stripeError;
+        throw new Error(errMsg || 'Failed to cancel payment intent');
       }
     }
 

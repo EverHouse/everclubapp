@@ -561,11 +561,11 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
       `);
       
       for (const intent of pendingIntents.rows) {
-        try {
-          await cancelPaymentIntent((intent as unknown as PaymentIntentRow).stripe_payment_intent_id);
+        const piCancelResult = await cancelPaymentIntent((intent as unknown as PaymentIntentRow).stripe_payment_intent_id);
+        if (piCancelResult.success) {
           log(`[Lesson Cleanup] Cancelled payment intent ${(intent as unknown as PaymentIntentRow).stripe_payment_intent_id}`);
-        } catch (err: unknown) {
-          log(`[Lesson Cleanup] Could not cancel payment intent ${(intent as unknown as PaymentIntentRow).stripe_payment_intent_id}: ${getErrorMessage(err)}`);
+        } else {
+          log(`[Lesson Cleanup] Could not cancel payment intent ${(intent as unknown as PaymentIntentRow).stripe_payment_intent_id}: ${piCancelResult.error}`);
         }
       }
 
