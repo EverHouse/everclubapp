@@ -23,6 +23,97 @@ function parseTimeToMinutes(timeStr: string): number {
   return hours * 60 + minutes;
 }
 
+function parseHubSpotMeetingLink(meetingUrl: string): { slug: string; hublet: string } | null {
+  try {
+    const url = new URL(meetingUrl.trim());
+    const path = url.pathname.replace(/^\/+|\/+$/g, '');
+    if (!path) return null;
+    const hostname = url.hostname;
+    let hublet = 'na2';
+    const match = hostname.match(/meetings-(\w+)\./);
+    if (match) hublet = match[1];
+    else if (hostname.includes('meetings.hubspot.com')) hublet = '';
+    return { slug: path, hublet };
+  } catch {
+    return null;
+  }
+}
+
+async function bookHubSpotMeeting(options: {
+  slug: string;
+  hublet: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  date: string;
+  startTime: string;
+  durationMinutes: number;
+  timezone: string;
+}): Promise<{ success: boolean; meetingId?: string; error?: string }> {
+  const { slug, hublet, firstName, lastName, email, phone, date, startTime, durationMinutes, timezone } = options;
+  const apiBase = hublet ? `https://api-${hublet}.hubspot.com` : 'https://api.hubspot.com';
+
+  const [hours, minutes] = startTime.split(':').map(Number);
+  const pacificDateStr = `${date}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+  const startTimeMs = pacificToUtcMs(pacificDateStr);
+  const durationMs = durationMinutes * 60 * 1000;
+
+  const body: Record<string, unknown> = {
+    slug,
+    firstName,
+    lastName,
+    email,
+    startTime: startTimeMs,
+    duration: durationMs,
+    guestEmails: [],
+    timezone,
+    locale: 'en-us',
+    likelyAvailableUserIds: [],
+  };
+
+  if (phone) {
+    body.phone = phone;
+  }
+
+  try {
+    const response = await fetch(
+      `${apiBase}/scheduler/v3/meetings/meeting-links/book?timezone=${encodeURIComponent(timezone)}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'EverClub/1.0',
+        },
+        body: JSON.stringify(body),
+      }
+    );
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => 'Unknown error');
+      logger.warn('[Tours] HubSpot meeting booking failed', { extra: { status: response.status, body: errText.substring(0, 500) } });
+      return { success: false, error: `HubSpot returned ${response.status}` };
+    }
+
+    const data = await response.json() as Record<string, unknown>;
+    logger.info('[Tours] HubSpot meeting booked successfully', { extra: { email, date, startTime } });
+    return { success: true, meetingId: String(data.meetingId || data.id || '') };
+  } catch (err) {
+    logger.error('[Tours] HubSpot meeting booking error', { extra: { error: getErrorMessage(err) } });
+    return { success: false, error: getErrorMessage(err) };
+  }
+}
+
+function pacificToUtcMs(naiveDateStr: string): number {
+  const localStr = new Date(naiveDateStr).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' });
+  const localDate = new Date(localStr);
+  const utcStr = new Date(naiveDateStr).toLocaleString('en-US', { timeZone: 'UTC' });
+  const utcDate = new Date(utcStr);
+  const offsetMs = utcDate.getTime() - localDate.getTime();
+  return new Date(naiveDateStr).getTime() + offsetMs;
+}
+
 const router = Router();
 
 router.get('/api/tours', isStaffOrAdmin, async (req, res) => {
@@ -999,6 +1090,39 @@ router.post('/api/tours/schedule', checkoutRateLimiter, async (req, res) => {
           .where(eq(tours.id, newTour.id));
       }
     }
+
+    (async () => {
+      try {
+        const schedulerUrl = await getSettingValue('hubspot.tour_scheduler_url', '');
+        if (schedulerUrl) {
+          const meetingLink = parseHubSpotMeetingLink(schedulerUrl);
+          if (meetingLink) {
+            const result = await bookHubSpotMeeting({
+              slug: meetingLink.slug,
+              hublet: meetingLink.hublet,
+              firstName,
+              lastName,
+              email,
+              phone: phone || undefined,
+              date,
+              startTime,
+              durationMinutes: slotDuration,
+              timezone: 'America/Los_Angeles',
+            });
+            if (result.success && result.meetingId) {
+              await db.update(tours)
+                .set({ hubspotMeetingId: result.meetingId })
+                .where(eq(tours.id, newTour.id));
+              logger.info('[Tours] Linked HubSpot meeting to tour', { extra: { tourId: newTour.id, meetingId: result.meetingId } });
+            } else {
+              logger.warn('[Tours] HubSpot meeting booking did not succeed', { extra: { tourId: newTour.id, error: result.error } });
+            }
+          }
+        }
+      } catch (err) {
+        logger.error('[Tours] Failed to book HubSpot meeting (non-blocking)', { extra: { error: getErrorMessage(err) } });
+      }
+    })();
 
     const tourDateObj = new Date(date);
     const formattedDate = tourDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' });
