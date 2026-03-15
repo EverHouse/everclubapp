@@ -10,10 +10,13 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.87.38",
     date: "2026-03-15",
-    title: "Dashboard Query Key Migration Fix",
+    title: "Dashboard Cache Consistency Fix",
     changes: [
       "Fixed: Booking form, profile page, and prefetch now use the new split dashboard query keys — previously stale query keys meant data updates from these pages wouldn't refresh the dashboard",
       "Fixed: Optimistic booking request updates on the Book Golf page now correctly target the split booking-requests query instead of the old monolithic dashboard data",
+      "Fixed: Cancelling a booking from the Book Golf page now immediately refreshes the dashboard — previously the dashboard could show stale data for up to 5 minutes",
+      "Fixed: RSVPing or cancelling an RSVP from the Events page now immediately refreshes the dashboard RSVP section",
+      "Fixed: Enrolling or cancelling a wellness class now immediately refreshes the dashboard wellness section",
       "Improved: Dashboard prefetch now loads bookings, booking requests, and member stats independently for faster initial page load",
     ]
   },

@@ -104,6 +104,7 @@ const MemberEvents: React.FC = () => {
       setLoadingRsvp(null);
       clearOptimisticAction(variables.eventId);
       queryClient.invalidateQueries({ queryKey: ['user-rsvps', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['member', 'dashboard'] });
     }
   });
 
@@ -133,6 +134,7 @@ const MemberEvents: React.FC = () => {
       setLoadingRsvp(null);
       clearOptimisticAction(variables.eventId);
       queryClient.invalidateQueries({ queryKey: ['user-rsvps', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['member', 'dashboard'] });
     }
   });
 

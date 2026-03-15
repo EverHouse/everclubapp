@@ -360,6 +360,7 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
     if (ok) {
       showToast(`Cancelled enrollment for ${classData.title}`, 'success');
       queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
+      queryClient.invalidateQueries({ queryKey: ['member', 'dashboard'] });
     } else {
       queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
       queryClient.invalidateQueries({ queryKey: ['wellness-enrollments', userEmail] });
@@ -422,6 +423,7 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
       recentlyEnrolledTimers.current.set(classData.id, timer);
       queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
       queryClient.invalidateQueries({ queryKey: ['wellness-enrollments', userEmail] });
+      queryClient.invalidateQueries({ queryKey: ['member', 'dashboard'] });
     } else {
       setRecentlyEnrolled(prev => {
         const next = new Set(prev);

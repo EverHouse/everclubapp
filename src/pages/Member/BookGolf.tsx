@@ -432,6 +432,7 @@ const BookGolf: React.FC = () => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: bookGolfKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['member', 'dashboard'] });
     },
   });
 
