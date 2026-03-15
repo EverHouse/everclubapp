@@ -532,6 +532,16 @@ async function handleExistingInvoicePayment(params: {
       extra: { bookingId, invoiceId: existingInvoiceId, paymentIntentId: invoicePiId }
     });
 
+    try {
+      await stripe.paymentIntents.update(invoicePiId, {
+        setup_future_usage: 'off_session',
+      });
+    } catch (sfuErr: unknown) {
+      logger.warn('[Stripe] Could not set setup_future_usage on existing invoice PI', {
+        extra: { bookingId, piId: invoicePiId, error: getErrorMessage(sfuErr) }
+      });
+    }
+
     await db.execute(sql`
       INSERT INTO booking_fee_snapshots (booking_id, session_id, participant_fees, total_cents, status, stripe_payment_intent_id)
        VALUES (${bookingId}, ${sessionId}, ${JSON.stringify(serverFees)}, ${serverTotal}, 'pending', ${invoicePiId})
@@ -927,6 +937,16 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       }
     }
     logger.info('[Stripe] Finalized new invoice as charge_automatically for interactive member payment', { extra: { bookingId, invoiceId: draftResult.invoiceId, paymentIntentId: invoicePiId } });
+
+    try {
+      await stripe.paymentIntents.update(invoicePiId, {
+        setup_future_usage: 'off_session',
+      });
+    } catch (sfuErr: unknown) {
+      logger.warn('[Stripe] Could not set setup_future_usage on invoice PI', {
+        extra: { bookingId, piId: invoicePiId, error: getErrorMessage(sfuErr) }
+      });
+    }
 
     await db.execute(sql`
       UPDATE booking_fee_snapshots SET stripe_payment_intent_id = ${invoicePiId}, status = 'pending' WHERE id = ${snapshotId}
@@ -1613,6 +1633,16 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
     logger.info('[Stripe] Returning invoice PI for interactive member payment', {
       extra: { invoiceId, paymentIntentId: invoicePiId, amount: amountDue }
     });
+
+    try {
+      await stripe.paymentIntents.update(invoicePiId, {
+        setup_future_usage: 'off_session',
+      });
+    } catch (sfuErr: unknown) {
+      logger.warn('[Stripe] Could not set setup_future_usage on invoice PI', {
+        extra: { invoiceId, piId: invoicePiId, error: getErrorMessage(sfuErr) }
+      });
+    }
 
     let customerSessionSecret: string | undefined;
     try {
