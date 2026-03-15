@@ -229,7 +229,7 @@ router.post('/api/payments/retry', isStaffOrAdmin, validateBody(retryPaymentSche
 
     const stripe = await getStripeClient();
 
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, { expand: ['invoice'] });
     
     if (paymentIntent.status === 'succeeded') {
       await updatePaymentStatus(paymentIntentId, 'succeeded');
@@ -246,11 +246,50 @@ router.post('/api/payments/retry', isStaffOrAdmin, validateBody(retryPaymentSche
       });
     }
 
-    const confirmedIntent = await stripe.paymentIntents.confirm(paymentIntentId);
+    const piInvoice = (paymentIntent as unknown as Record<string, unknown>).invoice;
+    let invoiceId: string | null = null;
+    if (piInvoice) {
+      invoiceId = typeof piInvoice === 'string' ? piInvoice : (piInvoice as { id: string }).id;
+    }
+    if (!invoiceId && payment.bookingId) {
+      const { getBookingInvoiceId } = await import('../../core/billing/bookingInvoiceService');
+      invoiceId = await getBookingInvoiceId(payment.bookingId);
+    }
+
+    let retrySucceeded = false;
+    let retryStatus = '';
+    let retryFailureReason = '';
+
+    if (invoiceId) {
+      logger.info('[Payments] Retrying invoice-generated PI via invoices.pay()', { extra: { paymentIntentId, invoiceId } });
+      const invoice = await stripe.invoices.retrieve(invoiceId);
+      if (invoice.status === 'paid') {
+        await updatePaymentStatus(paymentIntentId, 'succeeded');
+        return res.json({ success: true, message: 'Invoice already paid', status: 'succeeded' });
+      }
+      if (invoice.status !== 'open') {
+        return res.status(400).json({ error: `Invoice is ${invoice.status}, cannot retry payment` });
+      }
+      const paidInvoice = await stripe.invoices.pay(invoiceId);
+      retrySucceeded = paidInvoice.status === 'paid';
+      if (retrySucceeded) {
+        retryStatus = 'succeeded';
+        retryFailureReason = '';
+      } else {
+        retryStatus = 'requires_payment_method';
+        retryFailureReason = `Invoice retry failed (invoice status: ${paidInvoice.status})`;
+      }
+    } else {
+      const confirmedIntent = await stripe.paymentIntents.confirm(paymentIntentId);
+      retrySucceeded = confirmedIntent.status === 'succeeded';
+      retryStatus = confirmedIntent.status;
+      retryFailureReason = confirmedIntent.last_payment_error?.message || `Status: ${confirmedIntent.status}`;
+    }
+
     const newRetryCount = currentRetryCount + 1;
     const nowReachesLimit = newRetryCount >= MAX_RETRY_ATTEMPTS;
 
-    if (confirmedIntent.status === 'succeeded') {
+    if (retrySucceeded) {
       await db.execute(sql`UPDATE stripe_payment_intents 
          SET status = 'succeeded', 
              updated_at = NOW(),
@@ -265,14 +304,15 @@ router.post('/api/payments/retry', isStaffOrAdmin, validateBody(retryPaymentSche
         actionDetails: {
           paymentIntentId,
           retryAttempt: newRetryCount,
-          amount: payment.amount_cents
+          amount: payment.amount_cents,
+          viaInvoice: !!invoiceId
         },
         newValue: `Retry #${newRetryCount} succeeded: $${(payment.amount_cents / 100).toFixed(2)}`,
         performedBy: staffEmail,
         performedByName: staffName
       });
 
-      logger.info('[Payments] Retry # succeeded for', { extra: { newRetryCount, paymentIntentId } });
+      logger.info('[Payments] Retry # succeeded for', { extra: { newRetryCount, paymentIntentId, viaInvoice: !!invoiceId } });
 
       res.json({
         success: true,
@@ -281,14 +321,12 @@ router.post('/api/payments/retry', isStaffOrAdmin, validateBody(retryPaymentSche
         message: 'Payment retry successful'
       });
     } else {
-      const failureReason = confirmedIntent.last_payment_error?.message || `Status: ${confirmedIntent.status}`;
-      
       await db.execute(sql`UPDATE stripe_payment_intents 
-         SET status = ${confirmedIntent.status}, 
+         SET status = ${retryStatus}, 
              updated_at = NOW(),
              retry_count = ${newRetryCount},
              last_retry_at = NOW(),
-             failure_reason = ${failureReason},
+             failure_reason = ${retryFailureReason},
              requires_card_update = ${nowReachesLimit}
          WHERE stripe_payment_intent_id = ${paymentIntentId}`);
 
@@ -298,24 +336,25 @@ router.post('/api/payments/retry', isStaffOrAdmin, validateBody(retryPaymentSche
         actionDetails: {
           paymentIntentId,
           retryAttempt: newRetryCount,
-          newStatus: confirmedIntent.status,
-          reachedLimit: nowReachesLimit
+          newStatus: retryStatus,
+          reachedLimit: nowReachesLimit,
+          viaInvoice: !!invoiceId
         },
-        newValue: `Retry #${newRetryCount} failed: ${confirmedIntent.status}${nowReachesLimit ? ' (limit reached)' : ''}`,
+        newValue: `Retry #${newRetryCount} failed: ${retryStatus}${nowReachesLimit ? ' (limit reached)' : ''}`,
         performedBy: staffEmail,
         performedByName: staffName
       });
 
-      logger.info('[Payments] Retry # failed for', { extra: { newRetryCount, paymentIntentId, confirmedIntentStatus: confirmedIntent.status } });
+      logger.info('[Payments] Retry # failed for', { extra: { newRetryCount, paymentIntentId, retryStatus } });
 
       res.json({
         success: false,
-        status: confirmedIntent.status,
+        status: retryStatus,
         retryCount: newRetryCount,
         requiresCardUpdate: nowReachesLimit,
         message: nowReachesLimit 
           ? 'Maximum retry attempts reached. Member must update their payment method.'
-          : `Payment requires further action: ${confirmedIntent.status}`
+          : `Payment requires further action: ${retryStatus}`
       });
     }
   } catch (error: unknown) {

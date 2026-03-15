@@ -1,6 +1,6 @@
 # Ever Club Members App
 
-**Current Version**: 8.87.23 (March 15, 2026)
+**Current Version**: 8.87.24 (March 15, 2026)
 
 ## Overview
 The Ever Club Members App is a private members club application designed for golf and wellness centers. Its primary purpose is to serve as a central digital hub for managing golf simulator bookings, wellness service appointments, and club events. The project aims to enhance member satisfaction and operational efficiency through comprehensive membership management, facility booking, and community-building tools, ultimately creating a seamless digital experience for club members and staff.
@@ -151,6 +151,7 @@ The following large files have been split into sub-modules with barrel re-export
 - **Files**: `server/routes/analytics.ts`, `src/pages/Admin/tabs/AnalyticsTab.tsx`
 
 ### Recent Changes
+- **Stripe Payment API Fixes — Saved Card & Invoice Handling (v8.87.24)**: Fixed member `pay-saved-card` failing due to wrong DB column name (`date` → `session_date`). Fixed `cancelPaymentIntent` not detecting invoice-generated PIs — now uses `expand: ['invoice']` plus booking-based DB fallback. Staff `charge-saved-card` and member `pay-saved-card` stale PI cleanup now uses `cancelPaymentIntent` helper instead of bare `paymentIntents.cancel()`. Payment retry endpoint now uses `invoices.pay()` for invoice-generated PIs instead of `paymentIntents.confirm()`.
 - **Charge Card on File Fix & Payment Safety Audit (v8.87.23)**: Fixed "Charge Card on File" failures by switching from `paymentIntents.confirm(off_session)` to `invoices.pay(payment_method)` for all saved-card flows. Unified payment status via `checkBookingPaymentStatus()` shared by member and staff views. Staff Link Member now runs `findConflictingBookings()` before any DB writes. All 4 admin roster mutation endpoints now call `invalidateCachedFees()` before `recalculateSessionFees()`. Stale dynamic import in unlink-member replaced with static import.
 - **Credit Balance Protection & UX Fix (v8.87.22)**: Fixed critical bug where repeated Pay Now taps drained the member's Stripe credit balance by creating duplicate auto-paid invoices. The error handler in `handleExistingInvoicePayment` now detects paid invoices and returns `paidInFull` instead of clearing `stripe_invoice_id` and falling through to new invoice creation. `GuestPaymentChoiceModal` now hides payment choice buttons when roster is locked (sets `locked` state on `ROSTER_LOCKED` error).
 - **Fee Display & Auto-Pay Fix (v8.87.21)**: `finalizeInvoiceWithPi` returns `FinalizeResult` union (`paidInFull: true` | `paidInFull: false + piId + clientSecret`). All 3 call sites in `member-payments.ts` handle auto-pay case. `InvoicePaymentModal` shows "Paid from account balance" success state on `paidInFull: true` response.

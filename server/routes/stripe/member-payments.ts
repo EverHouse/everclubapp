@@ -1181,7 +1181,7 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
 
     const bookingResult = await db.execute(sql`
       SELECT br.id, br.session_id, br.user_email, br.user_name, br.status,
-             bs.trackman_booking_id, bs.date, bs.start_time, bs.end_time
+             bs.trackman_booking_id, bs.session_date, bs.start_time, bs.end_time
       FROM booking_requests br
       JOIN booking_sessions bs ON br.session_id = bs.id
       WHERE br.id = ${bookingId}
@@ -1193,7 +1193,7 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
 
     const booking = bookingResult.rows[0] as {
       id: number; session_id: number; user_email: string; user_name: string; status: string;
-      trackman_booking_id: string | null; date: string; start_time: string; end_time: string;
+      trackman_booking_id: string | null; session_date: string; start_time: string; end_time: string;
     };
 
     if (booking.user_email.toLowerCase() !== sessionEmail.toLowerCase()) {
@@ -1269,9 +1269,14 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
           return res.status(409).json({ error: 'A payment is already being processed for this booking.' });
         }
         if (livePi.status !== 'canceled') {
-          await stripeClient.paymentIntents.cancel(row.stripe_payment_intent_id);
+          const { cancelPaymentIntent } = await import('../../core/stripe');
+          const cancelResult = await cancelPaymentIntent(row.stripe_payment_intent_id);
+          if (!cancelResult.success) {
+            throw new Error(cancelResult.error || 'Failed to cancel stale PI');
+          }
+        } else {
+          await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
         }
-        await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
       } catch (_cancelErr) {
         logger.error('[MemberPayments] Could not verify/cancel stale PI — blocking charge to prevent duplicate', {
           extra: { bookingId, piId: row.stripe_payment_intent_id }

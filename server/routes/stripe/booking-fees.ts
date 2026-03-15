@@ -725,9 +725,14 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
             return res.status(409).json({ error: 'A payment is already being processed for this booking. Please wait or check payment history.' });
           }
           if (livePi.status !== 'canceled') {
-            await stripeClient.paymentIntents.cancel(row.stripe_payment_intent_id);
+            const { cancelPaymentIntent } = await import('../../core/stripe');
+            const cancelResult = await cancelPaymentIntent(row.stripe_payment_intent_id);
+            if (!cancelResult.success) {
+              throw new Error(cancelResult.error || 'Failed to cancel stale PI');
+            }
+          } else {
+            await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
           }
-          await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
           logger.info('[Stripe] Staff charge cancelled stale pending PI', {
             extra: { bookingId: resolvedBookingId, piId: row.stripe_payment_intent_id, oldStatus: row.status }
           });

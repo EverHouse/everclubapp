@@ -8,6 +8,21 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.24",
+    date: "2026-03-15",
+    title: "Stripe Payment API Fixes — Saved Card & Invoice Handling",
+    changes: [
+      "Fixed: Member 'Pay with Saved Card' now works — database query was referencing a wrong column name, causing all saved-card payments to fail",
+      "Fixed: Cancelling invoice-generated payments no longer fails — system now properly voids the invoice instead of trying to cancel the payment intent directly",
+      "Fixed: Staff 'Charge Card on File' now correctly cleans up stale payment intents from previous attempts — previously blocked by invoice-generated payments that couldn't be cancelled",
+      "Fixed: Staff payment retry now uses the correct Stripe API for invoice-generated payments — retries via invoices.pay() instead of paymentIntents.confirm()",
+      "Fixed: Member saved-card payment stale PI cleanup now uses the same invoice-aware cancellation as staff side",
+      "Fixed: Staff payment retry failure response no longer crashes — was referencing a variable from the wrong code branch",
+      "Fixed: Invoice payment retry failures now store a valid payment status instead of an invoice status that could confuse downstream logic",
+      "Safety: Invoice cancellation fallback now verifies the invoice actually belongs to the payment being cancelled — prevents accidentally voiding an unrelated invoice",
+    ]
+  },
+  {
     version: "8.87.23",
     date: "2026-03-15",
     title: "Charge Card on File Fix & Payment Safety Audit",

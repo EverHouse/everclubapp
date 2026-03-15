@@ -90,6 +90,8 @@ Does it write to the database?
 6. NEVER process a `subscription.created` event that arrives after `subscription.deleted` for the same subscription.
 7. NEVER use `FOR UPDATE` on multi-row queries without `ORDER BY id ASC` — guaranteed deadlocks under concurrency.
 8. NEVER log raw error objects — always use `getErrorMessage(err)` from `utils/errorUtils`.
+9. NEVER call `stripe.paymentIntents.cancel()` directly — always use `cancelPaymentIntent()` from `server/core/stripe/payments.ts`. It detects invoice-generated PIs (via `expand: ['invoice']` + booking DB fallback) and voids/deletes the invoice instead, since Stripe rejects direct cancel on invoice-created PIs.
+10. NEVER call `stripe.paymentIntents.confirm()` on invoice-generated PIs — always use `stripe.invoices.pay(invoiceId)` instead. Detect invoice PIs via `expand: ['invoice']` on retrieve, with DB fallback via `getBookingInvoiceId(bookingId)`.
 
 ## Cross-References
 

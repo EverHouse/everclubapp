@@ -438,7 +438,7 @@ export async function cancelPaymentIntent(
   try {
     const stripe = await getStripeClient();
 
-    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId, { expand: ['invoice'] });
 
     if (pi.status === 'canceled') {
       logger.info(`[Stripe] Payment ${paymentIntentId} already canceled, updating local record`);
@@ -449,8 +449,29 @@ export async function cancelPaymentIntent(
     }
 
     const piInvoice = (pi as unknown as Record<string, unknown>).invoice;
+    let invoiceId: string | null = null;
     if (piInvoice) {
-      const invoiceId = typeof piInvoice === 'string' ? piInvoice : (piInvoice as { id: string }).id;
+      invoiceId = typeof piInvoice === 'string' ? piInvoice : (piInvoice as { id: string }).id;
+    }
+    if (!invoiceId) {
+      const localBooking = await db.execute(sql`SELECT booking_id FROM stripe_payment_intents WHERE stripe_payment_intent_id = ${paymentIntentId} AND booking_id IS NOT NULL LIMIT 1`);
+      if (localBooking.rows.length > 0) {
+        const bookingId = (localBooking.rows[0] as { booking_id: number }).booking_id;
+        const { getBookingInvoiceId } = await import('../billing/bookingInvoiceService');
+        const foundInvoiceId = await getBookingInvoiceId(bookingId);
+        if (foundInvoiceId) {
+          const verifyInvoice = await stripe.invoices.retrieve(foundInvoiceId);
+          const invoicePi = typeof verifyInvoice.payment_intent === 'string' ? verifyInvoice.payment_intent : (verifyInvoice.payment_intent as { id: string } | null)?.id;
+          if (invoicePi === paymentIntentId) {
+            invoiceId = foundInvoiceId;
+            logger.info(`[Stripe] Detected invoice-generated PI via booking invoice lookup`, { extra: { paymentIntentId, invoiceId, bookingId } });
+          } else {
+            logger.info(`[Stripe] Booking invoice PI mismatch — not using for cancel`, { extra: { paymentIntentId, foundInvoiceId, invoicePi, bookingId } });
+          }
+        }
+      }
+    }
+    if (invoiceId) {
       const invoice = await stripe.invoices.retrieve(invoiceId);
       if (invoice.status === 'open' || invoice.status === 'uncollectible') {
         await stripe.invoices.voidInvoice(invoiceId);
