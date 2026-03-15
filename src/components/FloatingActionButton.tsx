@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useBottomNav } from '../contexts/BottomNavContext';
+import { useScrollDirection } from '../hooks/useScrollDirection';
 
 export type FABColor = 'brand' | 'amber' | 'green' | 'purple' | 'red';
 
@@ -22,8 +23,6 @@ const colorClasses: Record<FABColor, string> = {
   red: 'fab-main-btn bg-red-600/50 dark:bg-red-500/50 text-white backdrop-blur-xl border border-white/15 dark:border-red-400/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]',
 };
 
-const SCROLL_THRESHOLD = 10;
-
 const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   onClick,
   color = 'brand',
@@ -34,35 +33,11 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   text,
 }) => {
   const { isAtBottom, drawerOpen } = useBottomNav();
-  const [collapsed, setCollapsed] = useState(false);
+  const { direction, isAtTop } = useScrollDirection(extended);
   const [isExiting, setIsExiting] = useState(false);
   const [shouldRender, setShouldRender] = useState(!drawerOpen);
-  const lastScrollY = useRef(0);
-  const rafId = useRef<number>(0);
 
-  const handleScroll = useCallback(() => {
-    if (rafId.current) cancelAnimationFrame(rafId.current);
-    rafId.current = requestAnimationFrame(() => {
-      const currentY = window.scrollY;
-      if (currentY <= 0) {
-        setCollapsed(false);
-      } else if (currentY - lastScrollY.current > SCROLL_THRESHOLD) {
-        setCollapsed(true);
-      } else if (lastScrollY.current - currentY > SCROLL_THRESHOLD) {
-        setCollapsed(false);
-      }
-      lastScrollY.current = currentY;
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!extended) return;
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      if (rafId.current) cancelAnimationFrame(rafId.current);
-    };
-  }, [extended, handleScroll]);
+  const collapsed = extended && direction === 'down' && !isAtTop;
 
   useEffect(() => {
     document.body.classList.add('has-fab');

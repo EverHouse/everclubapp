@@ -878,9 +878,9 @@ input, select, textarea {
   opacity: 0;
   pointer-events: none;
   transform: translateY(16px) scale(0.9);
-  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-              transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-              bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.35s var(--m3-standard),
+              transform 0.35s var(--m3-standard),
+              bottom 0.35s var(--m3-standard);
 }
 
 .back-to-top.visible {

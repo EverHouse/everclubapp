@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useBottomNav } from '../contexts/BottomNavContext';
+import { useScrollDirection } from '../hooks/useScrollDirection';
 
 interface BackToTopProps {
   threshold?: number;
   className?: string;
 }
 
-const SCROLL_DOWN_TOLERANCE = 50;
 const FAB_HEIGHT = 56;
 const BTT_SIZE = 48;
 const FAB_GAP = 12;
@@ -17,13 +17,12 @@ const BackToTop: React.FC<BackToTopProps> = ({
   threshold = 300,
   className = '' 
 }) => {
-  const [isVisible, setIsVisible] = useState(false);
   const { isAtBottom } = useBottomNav();
-  const lastScrollY = useRef(0);
-  const showRef = useRef(false);
+  const { direction, isAtTop } = useScrollDirection();
   const [hasFab, setHasFab] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [hasBottomNav, setHasBottomNav] = useState(false);
+  const [pastThreshold, setPastThreshold] = useState(false);
 
   useEffect(() => {
     const checkFab = () => setHasFab(document.body.classList.contains('has-fab'));
@@ -53,38 +52,19 @@ const BackToTop: React.FC<BackToTopProps> = ({
   }, []);
 
   useEffect(() => {
-    const getScrollTop = () => {
-      const scrollingElement = document.scrollingElement || document.documentElement;
-      return Math.max(window.scrollY, scrollingElement.scrollTop);
+    const checkThreshold = () => {
+      setPastThreshold(window.scrollY > threshold);
     };
 
-    const handleScroll = () => {
-      const current = getScrollTop();
-      const belowThreshold = current > threshold;
-
-      if (!belowThreshold) {
-        showRef.current = false;
-        setIsVisible(false);
-      } else if (current < lastScrollY.current) {
-        showRef.current = true;
-        setIsVisible(true);
-      } else if (showRef.current && current - lastScrollY.current > SCROLL_DOWN_TOLERANCE) {
-        showRef.current = false;
-        setIsVisible(false);
-      }
-
-      lastScrollY.current = current;
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    document.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
+    window.addEventListener('scroll', checkThreshold, { passive: true });
+    checkThreshold();
 
     return () => {
-      window.removeEventListener('scroll', handleScroll);
-      document.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('scroll', checkThreshold);
     };
   }, [threshold]);
+
+  const isVisible = pastThreshold && !isAtTop && direction === 'up';
 
   const handleClick = useCallback(() => {
     const scrollingElement = document.scrollingElement || document.documentElement;
