@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useBottomNav } from '../contexts/BottomNavContext';
@@ -142,6 +142,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
     return () => { cancelled = true; };
   }, [isOpen, member?.email]);
 
+  const activeMemberEmailRef = useRef<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [history, setHistory] = useState<MemberHistory | null>(null);
   const [notes, setNotes] = useState<MemberNote[]>([]);
@@ -226,6 +227,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
 
   const fetchMemberData = useCallback(async () => {
     if (!member?.email) return;
+    const emailAtFetchStart = member.email;
     setIsLoading(true);
     try {
       const [detailsRes, historyRes, notesRes, commsRes, guestsRes, purchasesRes, balanceRes] = await Promise.all([
@@ -237,6 +239,8 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         fetch(`/api/stripe/payments/${encodeURIComponent(member.email)}`, { credentials: 'include' }),
         fetch(`/api/my-billing/account-balance?user_email=${encodeURIComponent(member.email)}`, { credentials: 'include' }),
       ]);
+
+      if (activeMemberEmailRef.current !== emailAtFetchStart) return;
 
       if (detailsRes.ok) {
         const detailsData = await detailsRes.json();
@@ -271,7 +275,9 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
     } catch (err: unknown) {
       console.error('Failed to fetch member data:', err);
     } finally {
-      setIsLoading(false);
+      if (activeMemberEmailRef.current === emailAtFetchStart) {
+        setIsLoading(false);
+      }
     }
   }, [member?.email]);
 
@@ -293,9 +299,12 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
 
   useEffect(() => {
     if (isOpen && member) {
+      activeMemberEmailRef.current = member.email;
       setActiveTab('overview');
       setLinkedEmails(member.manuallyLinkedEmails || []);
       fetchMemberData();
+    } else {
+      activeMemberEmailRef.current = null;
     }
   }, [isOpen, member, fetchMemberData]);
 

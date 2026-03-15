@@ -322,12 +322,15 @@ router.put('/api/members/:email/contact-info', isStaffOrAdmin, async (req, res) 
       return res.status(400).json({ error: 'Invalid contact info format' });
     }
 
-    const { firstName, lastName, phone } = bodyParseResult.data;
+    const rawData = bodyParseResult.data;
+    const firstName = rawData.firstName?.trim() || undefined;
+    const lastName = rawData.lastName?.trim() || undefined;
+    const phone = rawData.phone?.trim() || undefined;
 
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
-    if (firstName !== undefined) updateData.firstName = firstName || null;
-    if (lastName !== undefined) updateData.lastName = lastName || null;
-    if (phone !== undefined) updateData.phone = phone || null;
+    if (rawData.firstName !== undefined) updateData.firstName = firstName || null;
+    if (rawData.lastName !== undefined) updateData.lastName = lastName || null;
+    if (rawData.phone !== undefined) updateData.phone = phone || null;
 
     if (Object.keys(updateData).length === 1) {
       return res.status(400).json({ error: 'No valid updates provided' });
