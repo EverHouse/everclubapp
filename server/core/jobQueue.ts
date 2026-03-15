@@ -74,7 +74,7 @@ export async function queueJob(
   const scheduledForIso = scheduledFor.toISOString();
   
   const result = await db.execute(sql`INSERT INTO job_queue (job_type, payload, priority, max_retries, scheduled_for, webhook_event_id)
-     VALUES (${jobType}, ${JSON.stringify(payload)}, ${priority}, ${maxRetries}, ${scheduledForIso}::timestamptz, ${webhookEventId})
+     VALUES (${jobType}, ${JSON.stringify(payload)}, ${priority}, ${maxRetries}, ${scheduledForIso}::timestamptz, ${webhookEventId ?? null})
      RETURNING id`);
   
   return (result.rows[0] as unknown as JobIdRow).id;
@@ -106,7 +106,7 @@ export async function queueJobs(
   const valuesSql = jobs.map(job => {
     const { priority = 0, maxRetries = 3, scheduledFor = new Date(), webhookEventId } = job.options || {};
     const scheduledForIso = scheduledFor.toISOString();
-    return sql`(${job.jobType}, ${JSON.stringify(job.payload)}, ${priority}, ${maxRetries}, ${scheduledForIso}::timestamptz, ${webhookEventId})`;
+    return sql`(${job.jobType}, ${JSON.stringify(job.payload)}, ${priority}, ${maxRetries}, ${scheduledForIso}::timestamptz, ${webhookEventId ?? null})`;
   });
   
   const result = await db.execute(sql`INSERT INTO job_queue (job_type, payload, priority, max_retries, scheduled_for, webhook_event_id)

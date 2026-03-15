@@ -983,7 +983,7 @@ export async function voidBookingInvoice(bookingId: number): Promise<{
 
   for (const invoiceId of invoiceIds) {
     try {
-      const invoice = await stripe.invoices.retrieve(invoiceId);
+      const invoice = await stripe.invoices.retrieve(invoiceId, { expand: ['payment_intent'] });
 
       if (invoice.status === 'draft') {
         await stripe.invoices.del(invoiceId);
@@ -1000,9 +1000,22 @@ export async function voidBookingInvoice(bookingId: number): Promise<{
           extra: { bookingId, invoiceId, status: invoice.status }
         });
       } else if (invoice.status === 'paid') {
-        const invoicePI = typeof invoice.payment_intent === 'string'
+        let invoicePI = typeof invoice.payment_intent === 'string'
           ? invoice.payment_intent
           : invoice.payment_intent?.id;
+
+        if (!invoicePI && invoice.amount_paid > 0) {
+          const piLookup = await db.execute(sql`
+            SELECT stripe_payment_intent_id FROM stripe_payment_intents 
+            WHERE booking_id = ${bookingId} AND status = 'succeeded' 
+            ORDER BY updated_at DESC LIMIT 1`);
+          if (piLookup.rows.length > 0) {
+            invoicePI = (piLookup.rows[0] as { stripe_payment_intent_id: string }).stripe_payment_intent_id;
+            logger.info('[BookingInvoice] Resolved PI from local DB for paid invoice refund', {
+              extra: { bookingId, invoiceId, paymentIntentId: invoicePI }
+            });
+          }
+        }
 
         if (invoicePI && invoice.amount_paid > 0) {
           const alreadyQueued = await db.execute(sql`
