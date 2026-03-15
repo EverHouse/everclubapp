@@ -51,7 +51,7 @@ async function insertBookingIfNotExists(
         await db.update(bookingRequests)
           .set({ trackmanBookingId: booking.trackmanBookingId })
           .where(eq(bookingRequests.id, existing.id));
-        process.stderr.write(`[Trackman Import] Linked Trackman ID ${booking.trackmanBookingId} to existing booking #${existing.id} (status: ${existing.status})\n`);
+        logger.info('[TrackmanImport] Linked Trackman ID to existing booking', { extra: { trackmanBookingId: booking.trackmanBookingId, bookingId: existing.id, status: existing.status } });
         return { inserted: false, linked: true, reason: `Linked Trackman ID to existing booking with status: ${existing.status}` };
       } else if (existing.trackmanBookingId === booking.trackmanBookingId) {
         return { inserted: false, reason: `Already linked (idempotent match)` };
@@ -81,7 +81,7 @@ async function insertBookingIfNotExists(
         await db.update(bookingRequests)
           .set({ trackmanBookingId: booking.trackmanBookingId })
           .where(eq(bookingRequests.id, existing.id));
-        process.stderr.write(`[Trackman Import] Linked Trackman ID ${booking.trackmanBookingId} to existing app booking #${existing.id}\n`);
+        logger.info('[TrackmanImport] Linked Trackman ID to existing app booking', { extra: { trackmanBookingId: booking.trackmanBookingId, bookingId: existing.id } });
         return { inserted: false, linked: true, reason: 'Linked Trackman ID to existing app booking' };
       } else if (existing.trackmanBookingId === booking.trackmanBookingId) {
         return { inserted: false, reason: 'Already linked (idempotent match)' };
@@ -97,12 +97,12 @@ async function insertBookingIfNotExists(
   if (isUpcoming) {
     finalStatus = 'approved';
     if (originalStatus !== 'approved') {
-      process.stderr.write(`[Trackman Import] Status recalculated: ${originalStatus} -> approved (future booking on ${booking.bookingDate})\n`);
+      logger.info('[TrackmanImport] Status recalculated for future booking', { extra: { from: originalStatus, to: 'approved', bookingDate: booking.bookingDate } });
     }
   } else {
     if (originalStatus === 'approved') {
       finalStatus = 'attended';
-      process.stderr.write(`[Trackman Import] Status recalculated: approved -> attended (past booking on ${booking.bookingDate})\n`);
+      logger.info('[TrackmanImport] Status recalculated for past booking', { extra: { from: 'approved', to: 'attended', bookingDate: booking.bookingDate } });
     } else {
       finalStatus = originalStatus;
     }
@@ -136,7 +136,7 @@ async function insertBookingIfNotExists(
     }).returning({ id: bookingRequests.id });
   } catch (insertErr: unknown) {
     if (getErrorMessage(insertErr)?.includes('duplicate key') || getErrorCode(insertErr) === '23505') {
-      process.stderr.write(`[Trackman Import] Booking ${booking.trackmanBookingId} already exists (race condition) - skipping\n`);
+      logger.warn('[TrackmanImport] Booking already exists (race condition), skipping', { extra: { trackmanBookingId: booking.trackmanBookingId } });
       return { inserted: false, reason: 'Already imported (race condition)' };
     }
     throw insertErr;
@@ -155,7 +155,7 @@ async function insertBookingIfNotExists(
         ownerNameNormalized.includes(guestNameNormalized) ||
         guestNameNormalized.includes(ownerNameNormalized.split(' ')[0])
       )) {
-        process.stderr.write(`[Trackman Import] Skipping guest entry for "${guests[i].name}" - matches owner name "${booking.userName || memberEmail}"\n`);
+        logger.info('[TrackmanImport] Skipping guest entry matching owner name', { extra: { guestName: guests[i].name, ownerName: booking.userName || memberEmail } });
         continue;
       }
       
@@ -163,12 +163,12 @@ async function insertBookingIfNotExists(
       if (hasGuestInfo) {
         const guestPassResult = await useGuestPass(memberEmail, guests[i].name || undefined, isUpcoming);
         if (!guestPassResult.success) {
-          process.stderr.write(`[Trackman Import] Guest pass deduction failed for ${memberEmail} (guest: ${guests[i].name}): ${guestPassResult.error}\n`);
+          logger.warn('[TrackmanImport] Guest pass deduction failed', { extra: { memberEmail, guestName: guests[i].name, error: guestPassResult.error } });
         } else {
-          process.stderr.write(`[Trackman Import] Deducted guest pass for ${memberEmail} (guest: ${guests[i].name}), ${guestPassResult.remaining} remaining\n`);
+          logger.info('[TrackmanImport] Deducted guest pass', { extra: { memberEmail, guestName: guests[i].name, remaining: guestPassResult.remaining } });
         }
       } else {
-        process.stderr.write(`[Trackman Import] Guest has no identifying info - skipping guest pass, fee will be charged for ${memberEmail}\n`);
+        logger.info('[TrackmanImport] Guest has no identifying info, skipping guest pass', { extra: { memberEmail } });
       }
     }
   }
@@ -256,12 +256,12 @@ export async function resolveUnmatchedBooking(
           trackmanEmailMapping: new Map(),
           isPast
         });
-        process.stderr.write(`[Trackman Resolve] Created Session & Ledger for Booking #${insertResult.bookingId}\n`);
+        logger.info('[TrackmanResolve] Created session and ledger for booking', { extra: { bookingId: insertResult.bookingId } });
       } catch (sessionErr: unknown) {
-        process.stderr.write(`[Trackman Resolve] Warning: Session creation failed for Booking #${insertResult.bookingId}: ${sessionErr}\n`);
+        logger.warn('[TrackmanResolve] Session creation failed for booking', { extra: { bookingId: insertResult.bookingId, error: getErrorMessage(sessionErr) } });
       }
     } else {
-      process.stderr.write(`[Trackman Resolve] Booking #${insertResult.bookingId} already has session, skipping creation\n`);
+      logger.info('[TrackmanResolve] Booking already has session, skipping creation', { extra: { bookingId: insertResult.bookingId } });
     }
   }
 
@@ -274,7 +274,7 @@ export async function resolveUnmatchedBooking(
   }
   
   if (insertResult.linked) {
-    process.stderr.write(`[Trackman Resolve] Linked existing booking for ${memberEmail}: ${insertResult.reason}\n`);
+    logger.info('[TrackmanResolve] Linked existing booking', { extra: { memberEmail, reason: insertResult.reason } });
   }
 
   if (originalEmail && isPlaceholderEmail(originalEmail)) {
@@ -289,7 +289,7 @@ export async function resolveUnmatchedBooking(
         END
       WHERE email = ${memberEmail}
     `);
-    process.stderr.write(`[Trackman Resolve] Saved email mapping: ${originalEmail} -> ${memberEmail}\n`);
+    logger.info('[TrackmanResolve] Saved email mapping', { extra: { originalEmail, memberEmail } });
   }
 
   await db.update(trackmanUnmatchedBookings)
@@ -361,12 +361,12 @@ export async function resolveUnmatchedBooking(
               trackmanEmailMapping: new Map(),
               isPast: otherIsPast
             });
-            process.stderr.write(`[Trackman Resolve] Created Session & Ledger for auto-resolved Booking #${otherResult.bookingId}\n`);
+            logger.info('[TrackmanResolve] Created session and ledger for auto-resolved booking', { extra: { bookingId: otherResult.bookingId } });
           } catch (sessionErr: unknown) {
-            process.stderr.write(`[Trackman Resolve] Warning: Session creation failed for auto-resolved Booking #${otherResult.bookingId}: ${sessionErr}\n`);
+            logger.warn('[TrackmanResolve] Session creation failed for auto-resolved booking', { extra: { bookingId: otherResult.bookingId, error: getErrorMessage(sessionErr) } });
           }
         } else {
-          process.stderr.write(`[Trackman Resolve] Auto-resolved Booking #${otherResult.bookingId} already has session, skipping\n`);
+          logger.info('[TrackmanResolve] Auto-resolved booking already has session, skipping', { extra: { bookingId: otherResult.bookingId } });
         }
       }
 
@@ -411,7 +411,7 @@ export async function resolveUnmatchedBooking(
     }
 
     if (autoResolved > 0) {
-      process.stderr.write(`[Trackman Resolve] Auto-resolved ${autoResolved} additional bookings with same email: ${originalEmail}\n`);
+      logger.info('[TrackmanResolve] Auto-resolved additional bookings', { extra: { autoResolved, originalEmail } });
     }
   }
 

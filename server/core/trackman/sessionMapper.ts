@@ -162,7 +162,7 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
         }
         
         if (!memberUserId && member.email) {
-          process.stderr.write(`[Trackman Import] Participant "${member.name}" (${member.email}) has no user match - adding as guest-type participant\n`);
+          logger.info('[TrackmanImport] Participant has no user match, adding as guest-type', { extra: { name: member.name, email: member.email } });
         }
         
         if (!memberUserId) {
@@ -190,7 +190,7 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
             displayName: guestName,
             slotDuration: perParticipantMinutes
           });
-          process.stderr.write(`[Trackman Import] Unmatched member "${guestName}" (${member.email}) treated as guest\n`);
+          logger.info('[TrackmanImport] Unmatched member treated as guest', { extra: { name: guestName, email: member.email } });
           continue;
         }
         
@@ -227,7 +227,7 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
         ownerDisplayName.includes(guestDisplayName) ||
         guestDisplayName.includes(ownerDisplayName.split(' ')[0])
       )) {
-        process.stderr.write(`[Trackman Import] Skipping guest "${guest.name}" - matches owner name "${input.ownerName || input.ownerEmail}"\n`);
+        logger.info('[TrackmanImport] Skipping guest matching owner name', { extra: { guestName: guest.name, ownerName: input.ownerName || input.ownerEmail } });
         continue;
       }
       
@@ -235,7 +235,7 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
         const memberByEmail = await getUserIdByEmail(guest.email);
         if (memberByEmail) {
           if (memberByEmail === ownerUserId) {
-            process.stderr.write(`[Trackman Import] Skipping guest "${guest.name}" - email resolves to owner\n`);
+            logger.info('[TrackmanImport] Skipping guest, email resolves to owner', { extra: { guestName: guest.name } });
             continue;
           }
           
@@ -258,13 +258,13 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
             slotDuration: perParticipantMinutes
           });
           memberData.push({ userId: memberByEmail, tier: memberTier, email: guest.email });
-          process.stderr.write(`[Trackman Import] Guest "${guest.name}" has member email - adding as member\n`);
+          logger.info('[TrackmanImport] Guest has member email, adding as member', { extra: { guestName: guest.name, email: guest.email } });
           continue;
         }
       }
       
       if (!guest.email) {
-        process.stderr.write(`[Trackman Import] WARNING: Guest "${guest.name}" has no email - slot will show as unfilled until email is added\n`);
+        logger.warn('[TrackmanImport] Guest has no email, slot unfilled until email added', { extra: { guestName: guest.name } });
       }
       
       let guestId: number | undefined;
@@ -280,7 +280,7 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
             await db.update(guestsTable)
               .set({ email: guest.email.toLowerCase() })
               .where(eq(guestsTable.id, existingGuest[0].id));
-            process.stderr.write(`[Trackman Import] Updated guest "${guest.name}" with email: ${guest.email}\n`);
+            logger.info('[TrackmanImport] Updated guest with email', { extra: { guestName: guest.name, email: guest.email } });
           }
         } else {
           const [newGuest] = await db.insert(guestsTable).values({
@@ -465,12 +465,12 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
     }
     
     if (billingResult.totalFees > 0) {
-      process.stderr.write(`[Trackman Import] Session #${session.id} billing: overage=$${billingResult.totalOverageFees}, guest=$${billingResult.totalGuestFees}\n`);
+      logger.info('[TrackmanImport] Session billing computed', { extra: { sessionId: session.id, overageFees: billingResult.totalOverageFees, guestFees: billingResult.totalGuestFees } });
     }
 
-    process.stderr.write(`[Trackman Import] Created session #${session.id} with ${participants.length} participants for Trackman ID ${input.trackmanBookingId}\n`);
+    logger.info('[TrackmanImport] Created session with participants', { extra: { sessionId: session.id, participantCount: participants.length, trackmanBookingId: input.trackmanBookingId } });
     } catch (innerError: unknown) {
-      process.stderr.write(`[Trackman Import] Full session creation failed for booking ${input.bookingId}, falling back to owner-only session: ${getErrorMessage(innerError)}\n`);
+      logger.error('[TrackmanImport] Full session creation failed, falling back to owner-only', { extra: { bookingId: input.bookingId }, error: getErrorMessage(innerError) });
 
       try {
         const fallbackOwnerUserId = await getUserIdByEmail(input.ownerEmail);
@@ -509,9 +509,9 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
           .set({ staffNotes: updatedNotes })
           .where(eq(bookingRequests.id, input.bookingId));
 
-        process.stderr.write(`[Trackman Import] Fallback owner-only session ${fallbackSession.id} created for booking ${input.bookingId}\n`);
+        logger.info('[TrackmanImport] Fallback owner-only session created', { extra: { sessionId: fallbackSession.id, bookingId: input.bookingId } });
       } catch (fallbackError: unknown) {
-        process.stderr.write(`[Trackman Import] CRITICAL: Even fallback session creation failed for booking ${input.bookingId}: ${getErrorMessage(fallbackError)}\n`);
+        logger.error('[TrackmanImport] CRITICAL: Fallback session creation also failed', { extra: { bookingId: input.bookingId }, error: getErrorMessage(fallbackError) });
         try {
           const [bookingForCriticalNote] = await db.select({ staffNotes: bookingRequests.staffNotes })
             .from(bookingRequests)
@@ -526,6 +526,6 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
       }
     }
   } catch (outerError: unknown) {
-    process.stderr.write(`[Trackman Import] Unexpected error in session creation for booking ${input.bookingId}: ${getErrorMessage(outerError)}\n`);
+    logger.error('[TrackmanImport] Unexpected error in session creation', { extra: { bookingId: input.bookingId }, error: getErrorMessage(outerError) });
   }
 }

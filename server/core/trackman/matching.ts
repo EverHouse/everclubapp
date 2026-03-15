@@ -66,16 +66,16 @@ export async function getAllHubSpotMembers(): Promise<HubSpotMember[]> {
       after = response.paging?.next?.after;
       
       if (totalProcessed % 500 === 0) {
-        process.stderr.write(`[Trackman Import] Processed ${totalProcessed} contacts, found ${validMembers.length} valid members...\n`);
+        logger.info('[TrackmanImport] HubSpot contact batch progress', { extra: { totalProcessed, validMembers: validMembers.length } });
       }
     } while (after);
     
     const activeCount = validMembers.filter(m => m.status === 'active').length;
     const formerCount = validMembers.length - activeCount;
-    process.stderr.write(`[Trackman Import] Loaded ${validMembers.length} members from HubSpot (${activeCount} active, ${formerCount} former) from ${totalProcessed} total contacts\n`);
+    logger.info('[TrackmanImport] Loaded members from HubSpot', { extra: { total: validMembers.length, activeCount, formerCount, totalProcessed } });
     return validMembers;
   } catch (err: unknown) {
-    process.stderr.write(`[Trackman Import] Error fetching HubSpot contacts: ${getErrorMessage(err)}\n`);
+    logger.error('[TrackmanImport] Error fetching HubSpot contacts', { error: getErrorMessage(err) });
     return [];
   }
 }
@@ -142,9 +142,9 @@ export async function loadEmailMapping(): Promise<Map<string, string>> {
         }
       }
       
-      process.stderr.write(`[Trackman Import] Loaded ${mapping.size} email mappings from CSV\n`);
+      logger.info('[TrackmanImport] Loaded email mappings from CSV', { extra: { count: mapping.size } });
     } catch (err: unknown) {
-      process.stderr.write('[Trackman Import] Error loading CSV mapping: ' + getErrorMessage(err) + '\n');
+      logger.error('[TrackmanImport] Error loading CSV mapping', { error: getErrorMessage(err) });
     }
   }
   
@@ -169,10 +169,10 @@ export async function loadEmailMapping(): Promise<Map<string, string>> {
     }
     
     if (dbMappingsCount > 0) {
-      process.stderr.write(`[Trackman Import] Loaded ${dbMappingsCount} email mappings from users.manuallyLinkedEmails\n`);
+      logger.info('[TrackmanImport] Loaded email mappings from users.manuallyLinkedEmails', { extra: { count: dbMappingsCount } });
     }
   } catch (err: unknown) {
-    process.stderr.write('[Trackman Import] Error loading DB mappings: ' + getErrorMessage(err) + '\n');
+    logger.error('[TrackmanImport] Error loading DB mappings', { error: getErrorMessage(err) });
   }
   
   try {
@@ -193,13 +193,13 @@ export async function loadEmailMapping(): Promise<Map<string, string>> {
     }
     
     if (linkedCount > 0) {
-      process.stderr.write(`[Trackman Import] Loaded ${linkedCount} email mappings from user_linked_emails table\n`);
+      logger.info('[TrackmanImport] Loaded email mappings from user_linked_emails', { extra: { count: linkedCount } });
     }
   } catch (err: unknown) {
-    process.stderr.write('[Trackman Import] Error loading user_linked_emails: ' + getErrorMessage(err) + '\n');
+    logger.error('[TrackmanImport] Error loading user_linked_emails', { error: getErrorMessage(err) });
   }
   
-  process.stderr.write(`[Trackman Import] Total email mappings: ${mapping.size}\n`);
+  logger.info('[TrackmanImport] Total email mappings loaded', { extra: { count: mapping.size } });
   return mapping;
 }
 
@@ -238,7 +238,7 @@ export async function isConvertedToPrivateEventBlock(
     
     return matchingBlocks.length > 0;
   } catch (err: unknown) {
-    process.stderr.write(`[Trackman Import] Error checking for private event block: ${getErrorMessage(err)}\n`);
+    logger.error('[TrackmanImport] Error checking for private event block', { error: getErrorMessage(err) });
     return false;
   }
 }

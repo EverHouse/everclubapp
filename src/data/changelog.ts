@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.30",
+    date: "2026-03-15",
+    title: "Trackman Logging Consistency — Structured Logger Migration",
+    changes: [
+      "Improved: 42 raw process.stderr.write calls across Trackman matching, resolution, and session mapper files migrated to structured logger — all Trackman import operations now appear in the searchable, structured log system for easier monitoring and alerting",
+    ]
+  },
+  {
     version: "8.87.29",
     date: "2026-03-15",
     title: "Payment Intent Cancellation Safety — Migrate to cancelPaymentIntent Helper",
