@@ -1028,7 +1028,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   const handleManageModeMemberMatchResolve = async (action: 'member' | 'guest') => {
     if (!memberMatchWarning) return;
     if (action === 'member') {
-      const member = rosterData?.members.find(m => m.slotNumber === memberMatchWarning.slotNumber);
+      const member = rosterData?.members?.find(m => m.slotNumber === memberMatchWarning.slotNumber);
       if (member) {
         await handleManageModeLinkMember(member.id, memberMatchWarning.memberMatch.email);
       } else {

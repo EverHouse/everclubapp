@@ -244,14 +244,15 @@ async function cleanupAbandonedPendingUsers(): Promise<void> {
     for (const user of pendingResult.rows) {
       try {
         await db.transaction(async (tx) => {
-          await tx.execute(sql`DELETE FROM notifications WHERE user_id = ${user.id}`);
-          await tx.execute(sql`DELETE FROM booking_participants WHERE user_id = ${user.id}::text`);
-          await tx.execute(sql`DELETE FROM booking_sessions WHERE user_id = ${user.id}`);
+          await tx.execute(sql`DELETE FROM notifications WHERE LOWER(user_email) = LOWER(${user.email})`);
+          await tx.execute(sql`DELETE FROM push_subscriptions WHERE LOWER(user_email) = LOWER(${user.email})`);
+          await tx.execute(sql`DELETE FROM user_dismissed_notices WHERE LOWER(user_email) = LOWER(${user.email})`);
+          await tx.execute(sql`DELETE FROM magic_links WHERE LOWER(email) = LOWER(${user.email})`);
+          await tx.execute(sql`DELETE FROM booking_participants WHERE user_id = ${user.id}`);
           await tx.execute(sql`DELETE FROM booking_requests WHERE user_id = ${user.id}`);
           await tx.execute(sql`DELETE FROM event_rsvps WHERE LOWER(user_email) = LOWER(${user.email})`);
           await tx.execute(sql`DELETE FROM wellness_enrollments WHERE LOWER(user_email) = LOWER(${user.email})`);
-          await tx.execute(sql`DELETE FROM pending_fees WHERE user_id = ${user.id}`);
-          await tx.execute(sql`DELETE FROM user_notes WHERE user_id = ${user.id}`);
+          await tx.execute(sql`DELETE FROM member_notes WHERE LOWER(member_email) = LOWER(${user.email})`);
           await tx.execute(sql`DELETE FROM guest_passes WHERE LOWER(member_email) = LOWER(${user.email})`);
           
           const deleteResult = await tx.execute(

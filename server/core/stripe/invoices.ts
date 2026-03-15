@@ -373,7 +373,7 @@ function mapInvoice(invoice: Stripe.Invoice): InvoiceResult {
     paidAt: invoice.status_transitions?.paid_at 
       ? new Date(invoice.status_transitions.paid_at * 1000) 
       : null,
-    lines: invoice.lines?.data.map(line => ({
+    lines: invoice.lines?.data?.map(line => ({
       description: line.description,
       amount: line.amount,
       quantity: line.quantity,

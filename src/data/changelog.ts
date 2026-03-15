@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.37",
+    date: "2026-03-15",
+    title: "Bug Fixes — Cleanup, Auth & Staff Roster Safety",
+    changes: [
+      "Fixed: Abandoned pending user cleanup now correctly deletes notifications, push subscriptions, dismissed notices, and magic links — previously referenced wrong column names and non-existent tables, causing cleanup failures",
+      "Fixed: HubSpot contact data lookups during login now safely handle missing contact properties — previously could crash if HubSpot returned incomplete data",
+      "Fixed: Staff roster management views no longer crash when roster data is temporarily unavailable during loading",
+      "Fixed: Group billing display no longer crashes when family group data is loading",
+      "Fixed: Invoice line item display now safely handles missing line data from Stripe",
+    ]
+  },
+  {
     version: "8.87.36",
     date: "2026-03-15",
     title: "TypeScript & Test Stability Fixes",

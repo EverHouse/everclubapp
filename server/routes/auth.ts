@@ -573,7 +573,7 @@ router.post('/api/auth/verify-member', async (req, res) => {
             limit: 1
           });
           const hsContact = hsSearch.results[0];
-          if (hsContact?.properties.firstname) {
+          if (hsContact?.properties?.firstname) {
             memberFirstName = hsContact.properties.firstname;
             memberLastName = memberLastName || hsContact.properties.lastname || '';
             await db.update(users).set({
@@ -653,9 +653,9 @@ router.post('/api/auth/verify-member', async (req, res) => {
     const role = isStaffOrAdmin ? staffUserData!.role : 'member';
 
     // Prefer database data, fall back to HubSpot
-    let firstName = dbUser[0]?.firstName || contact?.properties.firstname || '';
-    let lastName = dbUser[0]?.lastName || contact?.properties.lastname || '';
-    let phone = dbUser[0]?.phone || contact?.properties.phone || '';
+    let firstName = dbUser[0]?.firstName || contact?.properties?.firstname || '';
+    let lastName = dbUser[0]?.lastName || contact?.properties?.lastname || '';
+    let phone = dbUser[0]?.phone || contact?.properties?.phone || '';
     let jobTitle = '';
 
     if (hasDbUser && !dbUser[0]?.firstName && firstName) {
@@ -694,18 +694,18 @@ router.post('/api/auth/verify-member', async (req, res) => {
       'paused': 'Paused',
       'pending': 'Pending'
     };
-    const memberStatusStr = isStaffOrAdmin ? 'active' : ((dbUser[0]?.membershipStatus || contact?.properties.membership_status || '').toLowerCase());
+    const memberStatusStr = isStaffOrAdmin ? 'active' : ((dbUser[0]?.membershipStatus || contact?.properties?.membership_status || '').toLowerCase());
     
     const member = {
       id: memberId,
       firstName,
       lastName,
-      email: dbUser[0]?.email || contact?.properties.email || normalizedEmail,
+      email: dbUser[0]?.email || contact?.properties?.email || normalizedEmail,
       phone,
       jobTitle,
-      tier: isStaffOrAdmin ? 'VIP' : normalizeTierName(dbUser[0]?.tier || contact?.properties.membership_tier),
+      tier: isStaffOrAdmin ? 'VIP' : normalizeTierName(dbUser[0]?.tier || contact?.properties?.membership_tier),
       tags: dbUser[0]?.tags || [],
-      mindbodyClientId: dbUser[0]?.mindbodyClientId || contact?.properties.mindbody_client_id || '',
+      mindbodyClientId: dbUser[0]?.mindbodyClientId || contact?.properties?.mindbody_client_id || '',
       status: statusMap[memberStatusStr] || (memberStatusStr ? memberStatusStr.charAt(0).toUpperCase() + memberStatusStr.slice(1) : 'Active'),
       role
     };
@@ -1072,22 +1072,22 @@ router.post('/api/auth/verify-otp', async (req, res) => {
           'paused': 'Paused',
           'pending': 'Pending'
         };
-        const memberStatusStr = (hasDbUser ? dbUser[0].membershipStatus : contact?.properties.membership_status || '' as string | null)?.toLowerCase() || '';
+        const memberStatusStr = (hasDbUser ? dbUser[0].membershipStatus : contact?.properties?.membership_status || '' as string | null)?.toLowerCase() || '';
         
         member = {
           id: hasDbUser ? dbUser[0].id : (contact?.id || crypto.randomUUID()),
-          firstName: (hasDbUser ? dbUser[0].firstName : contact?.properties.firstname) || '',
-          lastName: (hasDbUser ? dbUser[0].lastName : contact?.properties.lastname) || '',
-          email: (hasDbUser ? dbUser[0].email : contact?.properties.email) || normalizedEmail,
-          phone: (hasDbUser ? dbUser[0].phone : contact?.properties.phone) || '',
-          tier: normalizeTierName(hasDbUser ? dbUser[0].tier : contact?.properties.membership_tier),
+          firstName: (hasDbUser ? dbUser[0].firstName : contact?.properties?.firstname) || '',
+          lastName: (hasDbUser ? dbUser[0].lastName : contact?.properties?.lastname) || '',
+          email: (hasDbUser ? dbUser[0].email : contact?.properties?.email) || normalizedEmail,
+          phone: (hasDbUser ? dbUser[0].phone : contact?.properties?.phone) || '',
+          tier: normalizeTierName(hasDbUser ? dbUser[0].tier : contact?.properties?.membership_tier),
           tags: tags as string[],
-          mindbodyClientId: (hasDbUser ? dbUser[0].mindbodyClientId : contact?.properties.mindbody_client_id) || '',
+          mindbodyClientId: (hasDbUser ? dbUser[0].mindbodyClientId : contact?.properties?.mindbody_client_id) || '',
           status: statusMap[memberStatusStr] || (memberStatusStr ? memberStatusStr.charAt(0).toUpperCase() + memberStatusStr.slice(1) : 'Active'),
           role,
           expires_at: Date.now() + sessionTtl,
-          dateOfBirth: (hasDbUser ? dbUser[0].dateOfBirth : contact?.properties.date_of_birth) || null,
-          membershipStartDate: (hasDbUser ? dbUser[0].joinDate : contact?.properties.membership_start_date) || ''
+          dateOfBirth: (hasDbUser ? dbUser[0].dateOfBirth : contact?.properties?.date_of_birth) || null,
+          membershipStartDate: (hasDbUser ? dbUser[0].joinDate : contact?.properties?.membership_start_date) || ''
         };
       }
     }

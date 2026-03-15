@@ -22,7 +22,7 @@ export function PaymentSummaryBody({
   const fs = rosterData?.financialSummary;
   if (!fs) return null;
 
-  const guestPassesUsed = rosterData?.members.filter(
+  const guestPassesUsed = rosterData?.members?.filter(
     m => m.guestInfo && m.guestInfo.usedGuestPass === true && m.guestInfo.fee === 0
   ).length || 0;
 

@@ -68,7 +68,7 @@ export function ManageModeRoster({
   bookingId,
   rosterLocked,
 }: ManageModeRosterProps) {
-  const filledMembers = (rosterData?.members.filter(m => (m.userEmail || m.guestInfo) && m.slotNumber <= editingPlayerCount) || []);
+  const filledMembers = (rosterData?.members?.filter(m => (m.userEmail || m.guestInfo) && m.slotNumber <= editingPlayerCount) || []);
   const emptySlotNumbers: number[] = [];
   if (rosterData?.members) {
     for (const m of rosterData.members) {
@@ -204,7 +204,7 @@ export function ManageModeRoster({
   const renderManageModeEmptySlot = (slotNumber: number) => {
     const isSearching = manageModeSearchSlot === slotNumber;
     const isGuestForm = manageModeGuestForm === slotNumber;
-    const memberSlot = rosterData?.members.find(m => m.slotNumber === slotNumber);
+    const memberSlot = rosterData?.members?.find(m => m.slotNumber === slotNumber);
 
     if (rosterLocked) {
       return (

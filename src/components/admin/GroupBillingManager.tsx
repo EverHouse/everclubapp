@@ -79,7 +79,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
   const [isDeletingGroup, setIsDeletingGroup] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const isPrimaryPayer = familyGroup?.primaryEmail.toLowerCase() === memberEmail.toLowerCase();
+  const isPrimaryPayer = familyGroup?.primaryEmail?.toLowerCase() === memberEmail.toLowerCase();
   const isAddOnMember = familyGroup && !isPrimaryPayer;
   const isCorporateGroup = familyGroup?.type === 'corporate';
 
