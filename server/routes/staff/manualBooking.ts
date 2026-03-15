@@ -174,7 +174,7 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
     
     try {
       const txResult = await db.transaction(async (tx) => {
-        await acquireBookingLocks(tx, {
+        await acquireBookingLocks(tx as unknown as Parameters<typeof acquireBookingLocks>[0], {
           resourceId: resource_id || null,
           requestDate: request_date,
           startTime: start_time,

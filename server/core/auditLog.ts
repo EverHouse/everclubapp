@@ -157,6 +157,8 @@ export type AuditAction =
   | 'fix_trackman_ghost_bookings'
   | 'cleanup_stripe_customers'
   | 'archive_stale_visitors'
+  | 'delete_stale_visitors'
+  | 'contact_info_updated'
   | 'charge_saved_card'
   | 'cancel_payment'
   | 'subscription_payment_collected'

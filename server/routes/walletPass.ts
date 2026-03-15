@@ -208,7 +208,7 @@ router.get('/api/member/booking-wallet-pass/:bookingId', isAuthenticated, async 
       return res.status(404).json({ error: 'Apple Wallet passes are not enabled' });
     }
 
-    const bookingId = parseInt(req.params.bookingId, 10);
+    const bookingId = parseInt(req.params.bookingId as string, 10);
     if (isNaN(bookingId)) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }

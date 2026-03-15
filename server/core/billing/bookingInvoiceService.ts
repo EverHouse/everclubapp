@@ -1000,9 +1000,10 @@ export async function voidBookingInvoice(bookingId: number): Promise<{
           extra: { bookingId, invoiceId, status: invoice.status }
         });
       } else if (invoice.status === 'paid') {
-        let invoicePI = typeof invoice.payment_intent === 'string'
-          ? invoice.payment_intent
-          : invoice.payment_intent?.id;
+        const rawInvPi = (invoice as unknown as { payment_intent: string | { id: string } | null }).payment_intent;
+        let invoicePI = typeof rawInvPi === 'string'
+          ? rawInvPi
+          : rawInvPi?.id;
 
         if (!invoicePI && invoice.amount_paid > 0) {
           const piLookup = await db.execute(sql`

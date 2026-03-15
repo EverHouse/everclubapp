@@ -930,7 +930,7 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
           billingProvider: 'stripe', 
           memberSince: new Date(),
           billingGroupRole: 'Primary',
-          stripeCustomerId: piCustId || undefined,
+          stripeCustomerId: (typeof paymentIntent.customer === 'string' ? paymentIntent.customer : paymentIntent.customer?.id) || undefined,
         });
         logger.info('[Stripe Subscriptions] Synced to HubSpot', { extra: { userEmail } });
       } catch (hubspotError) {

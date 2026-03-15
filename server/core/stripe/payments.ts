@@ -444,7 +444,7 @@ export async function cancelPaymentIntent(
   try {
     const stripe = await getStripeClient();
 
-    const pi = await stripe.paymentIntents.retrieve(paymentIntentId, { expand: ['invoice'] });
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId, { expand: ['invoice'] }) as Stripe.PaymentIntent;
 
     if (pi.status === 'canceled') {
       logger.info(`[Stripe] Payment ${paymentIntentId} already canceled, updating local record`);
@@ -469,8 +469,9 @@ export async function cancelPaymentIntent(
 
     let invoiceId: string | null = null;
 
-    if (pi.invoice) {
-      invoiceId = typeof pi.invoice === 'string' ? pi.invoice : (pi.invoice as unknown as { id: string }).id;
+    const piInvoice = (pi as unknown as { invoice: string | { id: string } | null }).invoice;
+    if (piInvoice) {
+      invoiceId = typeof piInvoice === 'string' ? piInvoice : piInvoice.id;
       logger.info(`[Stripe] Detected invoice from PI expand`, { extra: { paymentIntentId, invoiceId } });
     }
 
@@ -511,7 +512,8 @@ export async function cancelPaymentIntent(
         if (errMsg.includes('created by invoices') || errMsg.includes('voiding the invoice')) {
           logger.warn(`[Stripe] PI ${paymentIntentId} is invoice-created but invoice not found via expand or DB — attempting PI-based invoice lookup`);
           const freshPi = await stripe.paymentIntents.retrieve(paymentIntentId);
-          const piInvId = typeof freshPi.invoice === 'string' ? freshPi.invoice : null;
+          const freshPiInvoice = (freshPi as unknown as { invoice: string | null }).invoice;
+          const piInvId = typeof freshPiInvoice === 'string' ? freshPiInvoice : null;
           if (piInvId) {
             const inv = await stripe.invoices.retrieve(piInvId);
             if (inv.status === 'open' || inv.status === 'uncollectible') {
@@ -756,7 +758,7 @@ export async function chargeWithBalance(params: {
     }
 
     // Get final state
-    const paidInvoice = await stripe.invoices.retrieve(invoice.id);
+    const paidInvoice = await stripe.invoices.retrieve(invoice.id) as Stripe.Invoice;
 
     // Calculate balance usage
     const startingBalance = paidInvoice.starting_balance || 0;
@@ -766,9 +768,10 @@ export async function chargeWithBalance(params: {
     const amountFromBalance = Math.max(0, Math.abs(startingBalance) - Math.abs(endingBalance));
     const amountCharged = Math.max(0, (paidInvoice.amount_paid || 0) - amountFromBalance);
 
-    const invoicePaymentIntentId = typeof paidInvoice.payment_intent === 'string'
-      ? paidInvoice.payment_intent
-      : paidInvoice.payment_intent?.id || `invoice-${invoice.id}`;
+    const rawPi = (paidInvoice as unknown as { payment_intent: string | { id: string } | null }).payment_intent;
+    const invoicePaymentIntentId = typeof rawPi === 'string'
+      ? rawPi
+      : rawPi?.id || `invoice-${invoice.id}`;
 
     await db.execute(sql`INSERT INTO stripe_payment_intents 
        (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)

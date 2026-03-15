@@ -264,8 +264,8 @@ export async function handlePaymentMethodAttached(client: PoolClient, paymentMet
             const stripe = await getStripeClient();
             const pi = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id, { expand: ['invoice'] });
             if (pi.status === 'requires_payment_method') {
-              const invoiceObj = pi.invoice;
-              const invoiceId = typeof invoiceObj === 'string' ? invoiceObj : (invoiceObj as { id: string } | null)?.id;
+              const invoiceObj = (pi as unknown as { invoice: string | { id: string } | null }).invoice;
+              const invoiceId = typeof invoiceObj === 'string' ? invoiceObj : invoiceObj?.id;
 
               let retrySucceeded = false;
               if (invoiceId) {

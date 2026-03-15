@@ -27,7 +27,7 @@ function categorizeCharge(charge: Stripe.Charge): string {
   const pi = charge.payment_intent && typeof charge.payment_intent === 'object' ? charge.payment_intent as Stripe.PaymentIntent : null;
   const meta = pi?.metadata || charge.metadata || {};
   const desc = (pi?.description || charge.description || '').toLowerCase();
-  const hasInvoice = !!(charge.invoice);
+  const hasInvoice = !!(charge as unknown as { invoice: unknown }).invoice;
 
   if (meta.purpose === 'overage_fee' || desc.includes('overage')) return 'overage';
   if (meta.purpose === 'guest_fee' || desc.includes('guest fee') || desc.includes('guest pass')) return 'guest_fee';

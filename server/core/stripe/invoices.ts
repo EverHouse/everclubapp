@@ -545,9 +545,10 @@ export async function createBookingFeeInvoice(
       const endingBalance = expandedInvoice.ending_balance || 0;
       const amountFromBalance = Math.max(0, Math.abs(startingBalance) - Math.abs(endingBalance));
       const amountCharged = expandedInvoice.amount_paid - amountFromBalance;
-      const resultPiId = typeof paidInvoice.payment_intent === 'string'
-        ? paidInvoice.payment_intent
-        : (paidInvoice.payment_intent as Stripe.PaymentIntent | null)?.id || invoicePiId;
+      const paidInvPi = (paidInvoice as unknown as { payment_intent: string | { id: string } | null }).payment_intent;
+      const resultPiId = typeof paidInvPi === 'string'
+        ? paidInvPi
+        : paidInvPi?.id || invoicePiId;
 
       logger.info(`[Stripe Invoices] Booking fee invoice ${invoice.id} charged off-session via invoices.pay: $${(totalCents / 100).toFixed(2)}`, {
         extra: { bookingId, sessionId, status: paidInvoice.status }

@@ -965,7 +965,7 @@ router.get('/api/tours/scheduler-url', async (req, res) => {
     const url = await getSettingValue('hubspot.tour_scheduler_url', '');
     return res.json({ url: url || null });
   } catch (err) {
-    logger.error('[Tours] Failed to fetch scheduler URL:', err);
+    logger.error('[Tours] Failed to fetch scheduler URL:', { error: getErrorMessage(err) });
     return res.json({ url: null });
   }
 });

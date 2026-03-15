@@ -43,6 +43,7 @@ vi.mock('../server/routes/push', () => ({
 vi.mock('../server/core/notificationService', () => ({
   notifyAllStaff: vi.fn().mockResolvedValue(undefined),
   notifyMember: vi.fn().mockResolvedValue(undefined),
+  isSyntheticEmail: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock('../server/core/bookingEvents', () => ({
@@ -170,7 +171,7 @@ describe('BookingStateService', () => {
       expect(result.bookingData.userEmail).toBe('test@example.com');
     });
 
-    it('returns cancellation_pending when booking is already pending cancellation and source is not trackman', async () => {
+    it('returns cancellation_pending when booking is already pending cancellation and source is member', async () => {
       const pendingBooking = {
         id: 2,
         userEmail: 'test@example.com',
@@ -188,7 +189,8 @@ describe('BookingStateService', () => {
 
       const result = await BookingStateService.cancelBooking({
         bookingId: 2,
-        source: 'staff',
+        source: 'member',
+        cancelledBy: 'test@example.com',
       });
 
       expect(result.success).toBe(true);
@@ -217,6 +219,7 @@ describe('BookingStateService', () => {
       };
 
       const txMock = {
+        execute: vi.fn().mockResolvedValue({ rowCount: 1, rows: [] }),
         update: vi.fn().mockReturnValue({
           set: vi.fn().mockReturnValue({
             where: vi.fn().mockResolvedValue(undefined),
@@ -400,12 +403,37 @@ describe('BookingStateService', () => {
         };
       });
 
+      const lockedRow = {
+        id: 4,
+        user_email: 'test@example.com',
+        user_name: 'Test User',
+        resource_id: 1,
+        request_date: '2025-01-01',
+        start_time: '10:00',
+        duration_minutes: 60,
+        status: 'cancellation_pending',
+        calendar_event_id: null,
+        session_id: null,
+        trackman_booking_id: '12345',
+        staff_notes: 'Previous notes',
+      };
+
+      let txExecuteCount = 0;
       const txMock = {
         select: vi.fn().mockReturnValue({
           from: vi.fn().mockReturnThis(),
           where: vi.fn().mockResolvedValue([]),
         }),
-        execute: vi.fn().mockResolvedValue({ rows: [] }),
+        execute: vi.fn().mockImplementation(() => {
+          txExecuteCount++;
+          if (txExecuteCount === 1) {
+            return Promise.resolve({ rows: [lockedRow], rowCount: 1 });
+          }
+          if (txExecuteCount === 2) {
+            return Promise.resolve({ rows: [], rowCount: 0 });
+          }
+          return Promise.resolve({ rows: [], rowCount: 1 });
+        }),
         update: vi.fn().mockReturnValue({
           set: vi.fn().mockReturnValue({
             where: vi.fn().mockResolvedValue(undefined),
@@ -416,6 +444,8 @@ describe('BookingStateService', () => {
         }),
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (db.execute as any).mockResolvedValue({ rows: [] });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (db.transaction as any).mockImplementation(async (fn: any) => {
         return await fn(txMock);

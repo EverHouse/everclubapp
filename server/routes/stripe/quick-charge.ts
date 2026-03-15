@@ -604,9 +604,10 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, validateB
           payment_method: paymentMethod.id,
         });
 
-        const resultPiId = typeof paidInvoice.payment_intent === 'string'
-          ? paidInvoice.payment_intent
-          : (paidInvoice.payment_intent as Stripe.PaymentIntent | null)?.id || invoiceResult.paymentIntentId;
+        const paidInvPi = (paidInvoice as unknown as { payment_intent: string | { id: string } | null }).payment_intent;
+        const resultPiId = typeof paidInvPi === 'string'
+          ? paidInvPi
+          : paidInvPi?.id || invoiceResult.paymentIntentId;
 
         if (paidInvoice.status === 'paid') {
           await logBillingAudit({

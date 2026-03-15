@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.36",
+    date: "2026-03-15",
+    title: "TypeScript & Test Stability Fixes",
+    changes: [
+      "Fixed: Resolved 30 TypeScript compilation errors across the server codebase for Stripe SDK v20 compatibility — payment and invoice handling now uses correct type patterns",
+      "Fixed: Added missing audit action types for stale visitor cleanup and contact info updates",
+      "Fixed: Booking cancellation tests now correctly mock notification service, transaction sequences, and cancellation source flows — all 10 booking state tests passing",
+    ]
+  },
+  {
     version: "8.87.35",
     date: "2026-03-15",
     title: "Financial Safety, Booking Cleanup & Payment Reliability Fixes",

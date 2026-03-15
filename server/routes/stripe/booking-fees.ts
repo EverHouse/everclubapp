@@ -725,9 +725,10 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
             return res.status(409).json({ error: 'A payment is already being processed for this booking. Please wait or check payment history.' });
           }
           if (livePi.status !== 'canceled') {
-            if (livePi.invoice) {
+            const livePiInvoice = (livePi as unknown as { invoice: string | { id: string } | null }).invoice;
+            if (livePiInvoice) {
               logger.info('[Stripe] Stale PI is invoice-generated — skipping cancel, invoice flow will handle it', {
-                extra: { bookingId: resolvedBookingId, piId: row.stripe_payment_intent_id, invoiceId: typeof livePi.invoice === 'string' ? livePi.invoice : (livePi.invoice as { id: string }).id }
+                extra: { bookingId: resolvedBookingId, piId: row.stripe_payment_intent_id, invoiceId: typeof livePiInvoice === 'string' ? livePiInvoice : livePiInvoice.id }
               });
             } else {
               const { cancelPaymentIntent } = await import('../../core/stripe');
