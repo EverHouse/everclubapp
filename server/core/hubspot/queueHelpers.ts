@@ -38,16 +38,18 @@ export async function queueIntegrityFixSync(params: IntegrityFixSyncParams): Pro
 export async function queueTierSync(params: TierSyncParams): Promise<void> {
   const newTierKey = (params.newTier || 'none').replace(/\s+/g, '_');
   const emailKey = params.email.toLowerCase();
+  const idempotencyKey = `tier_sync_${emailKey}_to_${newTierKey}_${Math.floor(Date.now() / 86400000)}`;
+  const payload = JSON.stringify(params);
 
-  await db.execute(sql`UPDATE hubspot_sync_queue 
-    SET status = 'superseded', completed_at = NOW() 
-    WHERE operation = 'sync_tier' 
-      AND status IN ('pending', 'failed', 'processing') 
-      AND LOWER(payload->>'email') = ${emailKey}`);
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`UPDATE hubspot_sync_queue 
+      SET status = 'superseded', completed_at = NOW() 
+      WHERE operation = 'sync_tier' 
+        AND status IN ('pending', 'failed', 'processing') 
+        AND LOWER(payload->>'email') = ${emailKey}`);
 
-  await enqueueHubSpotSync('sync_tier', params, {
-    priority: 2,
-    idempotencyKey: `tier_sync_${emailKey}_to_${newTierKey}_${Math.floor(Date.now() / 86400000)}`,
-    maxRetries: 5
+    await tx.execute(sql`INSERT INTO hubspot_sync_queue (operation, payload, priority, max_retries, idempotency_key)
+      VALUES ('sync_tier', ${payload}::jsonb, 2, 5, ${idempotencyKey})
+      ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL AND status NOT IN ('completed', 'superseded') DO NOTHING`);
   });
 }

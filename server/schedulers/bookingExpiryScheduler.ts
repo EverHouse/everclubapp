@@ -1,5 +1,5 @@
 import { schedulerTracker } from '../core/schedulerTracker';
-import { queryWithRetry } from '../core/db';
+import { queryWithRetry, pool } from '../core/db';
 import { getTodayPacific, formatTimePacific } from '../utils/dateUtils';
 import { notifyAllStaff } from '../core/notificationService';
 import { broadcastAvailabilityUpdate } from '../core/websocket';
@@ -22,37 +22,91 @@ async function expireStaleBookingRequests(): Promise<void> {
     
     logger.info(`[Booking Expiry] Running stale booking check at ${todayStr} ${currentTimePacific}`);
 
-    const trackmanLinked = await queryWithRetry<ExpiredBookingResult>(
-      `UPDATE booking_requests 
-       SET status = 'cancellation_pending',
-           cancellation_pending_at = NOW(),
-           staff_notes = COALESCE(staff_notes || E'\n', '') || '[Auto-expired: booking time passed — routed to cancellation_pending for Trackman cleanup]',
-           updated_at = NOW(),
-           reviewed_at = NOW(),
-           reviewed_by = 'system-auto-expiry'
-       WHERE status IN ('pending', 'pending_approval')
-         AND trackman_booking_id IS NOT NULL
-         AND (
-           request_date < $1::date - INTERVAL '1 day'
-           OR (
-             request_date = $1::date - INTERVAL '1 day'
-             AND CASE
-               WHEN end_time IS NOT NULL AND end_time < start_time
-                 THEN end_time < ($2::time - interval '20 minutes')
-               ELSE start_time < ($2::time - interval '20 minutes')
-             END
-           )
-           OR (
-             request_date = $1
-             AND (end_time IS NULL OR end_time >= start_time)
-             AND start_time < ($2::time - interval '20 minutes')
-           )
-         )
-       RETURNING id, user_email AS "userEmail", user_name AS "userName", request_date AS "requestDate", start_time AS "startTime", resource_id AS "resourceId"`,
-      [todayStr, currentTimePacific]
-    );
+    const client = await pool.connect();
+    let trackmanLinkedRows: ExpiredBookingResult[] = [];
+    let expiredBookingRows: ExpiredBookingResult[] = [];
+    try {
+      await client.query('BEGIN');
 
-    for (const booking of trackmanLinked.rows) {
+      const trackmanLinked = await client.query(
+        `UPDATE booking_requests 
+         SET status = 'cancellation_pending',
+             cancellation_pending_at = NOW(),
+             staff_notes = COALESCE(staff_notes || E'\n', '') || '[Auto-expired: booking time passed — routed to cancellation_pending for Trackman cleanup]',
+             updated_at = NOW(),
+             reviewed_at = NOW(),
+             reviewed_by = 'system-auto-expiry'
+         WHERE status IN ('pending', 'pending_approval')
+           AND trackman_booking_id IS NOT NULL
+           AND (
+             request_date < $1::date - INTERVAL '1 day'
+             OR (
+               request_date = $1::date - INTERVAL '1 day'
+               AND CASE
+                 WHEN end_time IS NOT NULL AND end_time < start_time
+                   THEN end_time < ($2::time - interval '20 minutes')
+                 ELSE start_time < ($2::time - interval '20 minutes')
+               END
+             )
+             OR (
+               request_date = $1
+               AND (end_time IS NULL OR end_time >= start_time)
+               AND start_time < ($2::time - interval '20 minutes')
+             )
+           )
+         RETURNING id, user_email AS "userEmail", user_name AS "userName", request_date AS "requestDate", start_time AS "startTime", resource_id AS "resourceId"`,
+        [todayStr, currentTimePacific]
+      );
+      trackmanLinkedRows = trackmanLinked.rows as ExpiredBookingResult[];
+
+      const expiredBookings = await client.query(
+        `UPDATE booking_requests 
+         SET status = 'expired',
+             is_unmatched = false,
+             staff_notes = COALESCE(staff_notes || E'\n', '') || '[Auto-expired: booking time passed without confirmation]',
+             updated_at = NOW(),
+             reviewed_at = NOW(),
+             reviewed_by = 'system-auto-expiry'
+         WHERE status IN ('pending', 'pending_approval')
+           AND trackman_booking_id IS NULL
+           AND (
+             request_date < $1::date - INTERVAL '1 day'
+             OR (
+               request_date = $1::date - INTERVAL '1 day'
+               AND CASE
+                 WHEN end_time IS NOT NULL AND end_time < start_time
+                   THEN end_time < ($2::time - interval '20 minutes')
+                 ELSE start_time < ($2::time - interval '20 minutes')
+               END
+             )
+             OR (
+               request_date = $1
+               AND (end_time IS NULL OR end_time >= start_time)
+               AND start_time < ($2::time - interval '20 minutes')
+             )
+           )
+         RETURNING id, user_email AS "userEmail", user_name AS "userName", request_date AS "requestDate", start_time AS "startTime", resource_id AS "resourceId"`,
+        [todayStr, currentTimePacific]
+      );
+      expiredBookingRows = expiredBookings.rows as ExpiredBookingResult[];
+
+      const allExpiredIds = [...trackmanLinkedRows, ...expiredBookingRows].map(b => b.id);
+      if (allExpiredIds.length > 0) {
+        await client.query(
+          `UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ANY($1::int[]) AND status IN ('pending', 'requires_action')`,
+          [allExpiredIds]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
+
+    for (const booking of trackmanLinkedRows) {
       logger.info(
         `[Booking Expiry] Trackman-linked request #${booking.id} → cancellation_pending: ` +
         `${booking.userName || booking.userEmail} for ${booking.requestDate} ${booking.startTime}`
@@ -66,46 +120,7 @@ async function expireStaleBookingRequests(): Promise<void> {
       }
     }
 
-    const expiredBookings = await queryWithRetry<ExpiredBookingResult>(
-      `UPDATE booking_requests 
-       SET status = 'expired',
-           is_unmatched = false,
-           staff_notes = COALESCE(staff_notes || E'\n', '') || '[Auto-expired: booking time passed without confirmation]',
-           updated_at = NOW(),
-           reviewed_at = NOW(),
-           reviewed_by = 'system-auto-expiry'
-       WHERE status IN ('pending', 'pending_approval')
-         AND trackman_booking_id IS NULL
-         AND (
-           request_date < $1::date - INTERVAL '1 day'
-           OR (
-             request_date = $1::date - INTERVAL '1 day'
-             AND CASE
-               WHEN end_time IS NOT NULL AND end_time < start_time
-                 THEN end_time < ($2::time - interval '20 minutes')
-               ELSE start_time < ($2::time - interval '20 minutes')
-             END
-           )
-           OR (
-             request_date = $1
-             AND (end_time IS NULL OR end_time >= start_time)
-             AND start_time < ($2::time - interval '20 minutes')
-           )
-         )
-       RETURNING id, user_email AS "userEmail", user_name AS "userName", request_date AS "requestDate", start_time AS "startTime", resource_id AS "resourceId"`,
-      [todayStr, currentTimePacific]
-    );
-
-    const trackmanCount = trackmanLinked.rows.length;
-    const expiredCount = expiredBookings.rows.length;
-    const totalCount = trackmanCount + expiredCount;
-
-    if (totalCount === 0) {
-      logger.info('[Booking Expiry] No stale pending bookings found');
-      return;
-    }
-
-    for (const booking of expiredBookings.rows) {
+    for (const booking of expiredBookingRows) {
       logger.info(
         `[Booking Expiry] Expired request #${booking.id}: ` +
         `${booking.userName || booking.userEmail} for ${booking.requestDate} ${booking.startTime}`
@@ -119,23 +134,20 @@ async function expireStaleBookingRequests(): Promise<void> {
       }
     }
 
-    const allExpiredIds = [...trackmanLinked.rows, ...expiredBookings.rows].map(b => b.id);
-    if (allExpiredIds.length > 0) {
-      try {
-        await queryWithRetry(
-          `UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ANY($1::int[]) AND status IN ('pending', 'requires_action')`,
-          [allExpiredIds]
-        );
-      } catch (snapshotErr) {
-        logger.warn('[Booking Expiry] Non-blocking: failed to cancel fee snapshots for expired bookings', { error: snapshotErr as Error });
-      }
+    const trackmanCount = trackmanLinkedRows.length;
+    const expiredCount = expiredBookingRows.length;
+    const totalCount = trackmanCount + expiredCount;
+
+    if (totalCount === 0) {
+      logger.info('[Booking Expiry] No stale pending bookings found');
+      return;
     }
 
     logger.info(`[Booking Expiry] Processed ${totalCount} stale booking(s): ${expiredCount} expired, ${trackmanCount} → cancellation_pending`);
     schedulerTracker.recordRun('Booking Expiry', true);
 
     if (totalCount >= 2) {
-      const allBookings = [...trackmanLinked.rows, ...expiredBookings.rows];
+      const allBookings = [...trackmanLinkedRows, ...expiredBookingRows];
       const summary = allBookings
         .slice(0, 5)
         .map(b => `• ${b.userName || b.userEmail} - ${b.requestDate} ${b.startTime}`)

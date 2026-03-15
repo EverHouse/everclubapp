@@ -130,6 +130,7 @@ async function claimJobs(): Promise<Array<{ id: number; jobType: string; payload
          AND (locked_at IS NULL OR locked_at < $4::timestamptz)
        ORDER BY priority DESC, scheduled_for ASC
        LIMIT $5
+       FOR UPDATE SKIP LOCKED
      )
      RETURNING id, job_type, payload, retry_count, max_retries`,
     [nowIso, WORKER_ID, nowIso, lockExpiryIso, BATCH_SIZE],

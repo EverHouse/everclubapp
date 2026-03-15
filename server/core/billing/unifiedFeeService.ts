@@ -1063,6 +1063,15 @@ export async function recalculateSessionFees(
           ORDER BY br.start_time ASC
           LIMIT 10
         `);
+        const cascadeCount = (laterSessions.rows as { id: number }[]).length;
+        if (cascadeCount > 0) {
+          logger.info('[UnifiedFeeService] Starting fee cascade recalculation', {
+            triggerSessionId: sessionId,
+            sessionsToRecalculate: cascadeCount,
+            userEmail: sess.user_email,
+            sessionDate: sess.session_date
+          });
+        }
         for (const later of laterSessions.rows as { id: number }[]) {
           try {
             const laterBreakdown = await computeFeeBreakdown({

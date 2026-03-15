@@ -102,17 +102,17 @@ async function processGracePeriodMembers(): Promise<void> {
           reactivationLink
         });
         
-        await db.execute(
-          sql`UPDATE users SET grace_period_email_count = ${newEmailCount}, updated_at = NOW() WHERE id = ${id}`
-        );
-        
         logger.info(`[Grace Period] Sent day ${newEmailCount} email to ${email}`);
         
-        if (newEmailCount >= gracePeriodDays) {
-          const daysSinceStart = getDaysSinceStartPacific(new Date(grace_period_start));
-          
-          if (daysSinceStart >= gracePeriodDays) {
-            await db.execute(
+        const shouldTerminate = newEmailCount >= gracePeriodDays && getDaysSinceStartPacific(new Date(grace_period_start)) >= gracePeriodDays;
+
+        await db.transaction(async (tx) => {
+          await tx.execute(
+            sql`UPDATE users SET grace_period_email_count = ${newEmailCount}, updated_at = NOW() WHERE id = ${id}`
+          );
+
+          if (shouldTerminate) {
+            await tx.execute(
               sql`UPDATE users SET 
                 last_tier = tier,
                 tier = NULL,
@@ -122,29 +122,30 @@ async function processGracePeriodMembers(): Promise<void> {
                 updated_at = NOW()
               WHERE id = ${id}`
             );
-            
-            logger.info(`[Grace Period] TERMINATED membership for ${email} (was tier: ${tier})`);
-            
-            // Sync terminated status to HubSpot
-            try {
-              const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
-              const memberBillingResult = await db.execute(sql`SELECT billing_provider FROM users WHERE id = ${id}`);
-              const memberBillingProvider = (memberBillingResult.rows[0] as { billing_provider: string | null })?.billing_provider || 'stripe';
-              await syncMemberToHubSpot({ email, status: 'terminated', billingProvider: memberBillingProvider });
-              logger.info(`[Grace Period] Synced ${email} status=terminated to HubSpot`);
-              schedulerTracker.recordRun('Grace Period', true);
-            } catch (hubspotError: unknown) {
-              logger.error('[Grace Period] HubSpot sync failed:', { error: hubspotError as Error });
-              schedulerTracker.recordRun('Grace Period', false, String(hubspotError));
-            }
-            
-            await notifyAllStaff(
-              'Membership Terminated',
-              `${memberName} (${email}) membership has been terminated after ${gracePeriodDays} days of failed payment. Previous tier: ${tier || 'unknown'}.`,
-              'membership_terminated',
-              { sendPush: true }
-            );
           }
+        });
+
+        if (shouldTerminate) {
+          logger.info(`[Grace Period] TERMINATED membership for ${email} (was tier: ${tier})`);
+          
+          try {
+            const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
+            const memberBillingResult = await db.execute(sql`SELECT billing_provider FROM users WHERE id = ${id}`);
+            const memberBillingProvider = (memberBillingResult.rows[0] as { billing_provider: string | null })?.billing_provider || 'stripe';
+            await syncMemberToHubSpot({ email, status: 'terminated', billingProvider: memberBillingProvider });
+            logger.info(`[Grace Period] Synced ${email} status=terminated to HubSpot`);
+            schedulerTracker.recordRun('Grace Period', true);
+          } catch (hubspotError: unknown) {
+            logger.error('[Grace Period] HubSpot sync failed:', { error: hubspotError as Error });
+            schedulerTracker.recordRun('Grace Period', false, String(hubspotError));
+          }
+          
+          await notifyAllStaff(
+            'Membership Terminated',
+            `${memberName} (${email}) membership has been terminated after ${gracePeriodDays} days of failed payment. Previous tier: ${tier || 'unknown'}.`,
+            'membership_terminated',
+            { sendPush: true }
+          );
         }
       } catch (error: unknown) {
         logger.error(`[Grace Period] Error processing member ${email}:`, { error: error as Error });
