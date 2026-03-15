@@ -238,6 +238,7 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
             const deferredFirstName = userInfo.rows[0]?.first_name || '';
             const deferredLastName = userInfo.rows[0]?.last_name || '';
             const deferredPhone = userInfo.rows[0]?.phone || undefined;
+            const deferredCustomerId = customerId;
 
             deferredActions.push(async () => {
               try {
@@ -263,6 +264,7 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
                   tier: deferredTierNameMeta,
                   memberSince: new Date(),
                   billingGroupRole: 'Primary',
+                  stripeCustomerId: deferredCustomerId || undefined,
                 });
               } catch (hubspotError: unknown) {
                 logger.error('[Stripe Webhook] HubSpot sync failed for activation link checkout:', { error: hubspotError });
@@ -315,10 +317,11 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
         }
         
         const deferredResolvedEmail = resolved.primaryEmail;
+        const deferredResolvedCustomerId = customerId;
         deferredActions.push(async () => {
           try {
             const { syncMemberToHubSpot } = await import('../../../hubspot/stages');
-            await syncMemberToHubSpot({ email: deferredResolvedEmail, status: 'active', billingProvider: 'stripe', memberSince: new Date(), billingGroupRole: 'Primary' });
+            await syncMemberToHubSpot({ email: deferredResolvedEmail, status: 'active', billingProvider: 'stripe', memberSince: new Date(), billingGroupRole: 'Primary', stripeCustomerId: deferredResolvedCustomerId || undefined });
             logger.info(`[Stripe Webhook] Synced existing user ${deferredResolvedEmail} to HubSpot`);
           } catch (hubspotError: unknown) {
             logger.error('[Stripe Webhook] HubSpot sync failed for existing user:', { error: hubspotError });
@@ -351,10 +354,11 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
           }
           
           const deferredDirectEmail = email;
+          const deferredDirectCustomerId = customerId;
           deferredActions.push(async () => {
             try {
               const { syncMemberToHubSpot } = await import('../../../hubspot/stages');
-              await syncMemberToHubSpot({ email: deferredDirectEmail, status: 'active', billingProvider: 'stripe', memberSince: new Date(), billingGroupRole: 'Primary' });
+              await syncMemberToHubSpot({ email: deferredDirectEmail, status: 'active', billingProvider: 'stripe', memberSince: new Date(), billingGroupRole: 'Primary', stripeCustomerId: deferredDirectCustomerId || undefined });
               logger.info(`[Stripe Webhook] Synced existing user ${deferredDirectEmail} to HubSpot`);
             } catch (hubspotError: unknown) {
               logger.error('[Stripe Webhook] HubSpot sync failed for existing user:', { error: hubspotError });
@@ -408,6 +412,7 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
       const deferredStaffFirstName = firstName || '';
       const deferredStaffLastName = lastName || '';
       const deferredStaffTierName = tierName || undefined;
+      const deferredStaffCustomerId = customerId;
 
       deferredActions.push(async () => {
         try {
@@ -429,6 +434,7 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
             tier: deferredStaffTierName,
             memberSince: new Date(),
             billingGroupRole: 'Primary',
+            stripeCustomerId: deferredStaffCustomerId || undefined,
           });
           logger.info(`[Stripe Webhook] Synced ${deferredStaffEmail} to HubSpot: status=active, tier=${deferredStaffTierName}, billing=stripe, memberSince=now`);
         } catch (hubspotError: unknown) {

@@ -45,6 +45,19 @@ export async function findOrCreateHubSpotContact(
   }
   
   const hubspot = await getHubSpotClient();
+
+  let dbStatus: string | null = null;
+  let dbStripeCustomerId: string | null = null;
+  try {
+    const dbResult = await db.execute(sql`SELECT membership_status, stripe_customer_id FROM users WHERE LOWER(email) = ${email.toLowerCase()} LIMIT 1`);
+    if (dbResult.rows.length > 0) {
+      const row = dbResult.rows[0] as { membership_status: string | null; stripe_customer_id: string | null };
+      dbStatus = row.membership_status;
+      dbStripeCustomerId = row.stripe_customer_id;
+    }
+  } catch (dbErr: unknown) {
+    logger.warn(`[HubSpot] Failed to look up DB status for ${email}:`, { error: dbErr });
+  }
   
   try {
     const searchResponse = await retryableHubSpotRequest(() =>
@@ -68,7 +81,8 @@ export async function findOrCreateHubSpotContact(
       const isVisitor = options?.role === 'visitor' || options?.role === 'day-pass';
       
       const targetLifecycle = isVisitor ? 'lead' : 'customer';
-      const targetStatus = isVisitor ? 'Non-Member' : 'Active';
+      const resolvedHubSpotStatus = isVisitor ? 'Non-Member' : (dbStatus ? (DB_STATUS_TO_HUBSPOT_STATUS[dbStatus] || 'Active') : 'Active');
+      const targetStatus = resolvedHubSpotStatus;
       
       const shouldUpdateLifecycle = isVisitor
         ? currentLifecycle !== 'customer' && currentLifecycle !== 'lead'
@@ -154,12 +168,13 @@ export async function findOrCreateHubSpotContact(
     const hubspotTier = tier ? await denormalizeTierForHubSpotAsync(tier) : null;
     
     const isVisitor = options?.role === 'visitor' || options?.role === 'day-pass';
+    const newContactStatus = isVisitor ? 'Non-Member' : (dbStatus ? (DB_STATUS_TO_HUBSPOT_STATUS[dbStatus] || 'Active') : 'Active');
     const properties: Record<string, string> = {
       email: email.toLowerCase(),
       firstname: firstName,
       lastname: lastName,
       phone: phone || '',
-      membership_status: isVisitor ? 'Non-Member' : 'Active',
+      membership_status: newContactStatus,
       lifecyclestage: isVisitor ? 'lead' : 'customer'
     };
     

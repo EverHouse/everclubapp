@@ -331,7 +331,7 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
             try {
               await findOrCreateHubSpotContact(email, firstName ?? '', lastName ?? '');
               const { syncMemberToHubSpot } = await import('../hubspot/stages');
-              await syncMemberToHubSpot({ email, status: 'active', tier, billingProvider: 'stripe', memberSince: new Date() });
+              await syncMemberToHubSpot({ email, status: 'active', tier, billingProvider: 'stripe', memberSince: new Date(), stripeCustomerId: stripeCustomerId || undefined });
             } catch (e: unknown) {
               logger.warn(`[Stripe Sync] Failed to sync new user to HubSpot for ${email}:`, { extra: { detail: getErrorMessage(e) } });
             }
