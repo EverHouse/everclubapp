@@ -695,6 +695,7 @@ export async function createBalanceAwarePayment(params: {
 export async function chargeWithBalance(params: {
   stripeCustomerId: string;
   email: string;
+  userId: string;
   amountCents: number;
   purpose: PaymentPurpose;
   description: string;
@@ -708,7 +709,7 @@ export async function chargeWithBalance(params: {
   amountCharged: number;
   error?: string;
 }> {
-  const { stripeCustomerId, email, amountCents, purpose, description, bookingId, sessionId, metadata = {} } = params;
+  const { stripeCustomerId, email, userId, amountCents, purpose, description, bookingId, sessionId, metadata = {} } = params;
 
   try {
     const stripe = await getStripeClient();
@@ -767,7 +768,7 @@ export async function chargeWithBalance(params: {
 
     await db.execute(sql`INSERT INTO stripe_payment_intents 
        (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
-       VALUES (${email}, ${`invoice-${invoice.id}`}, ${stripeCustomerId}, ${amountCents}, ${purpose}, ${bookingId || null}, ${sessionId || null}, ${description}, ${paidInvoice.status === 'paid' ? 'succeeded' : paidInvoice.status})`);
+       VALUES (${userId}, ${`invoice-${invoice.id}`}, ${stripeCustomerId}, ${amountCents}, ${purpose}, ${bookingId || null}, ${sessionId || null}, ${description}, ${paidInvoice.status === 'paid' ? 'succeeded' : paidInvoice.status})`);
 
     logger.info(`[Stripe] Charged ${purpose} via invoice ${invoice.id}: $${(amountCents / 100).toFixed(2)} (balance: $${(amountFromBalance / 100).toFixed(2)}, card: $${(amountCharged / 100).toFixed(2)})`);
 
