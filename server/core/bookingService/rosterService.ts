@@ -626,7 +626,7 @@ export async function previewRosterFees(
       db.execute(sql`SELECT 
            COUNT(*) FILTER (WHERE payment_status IN ('paid', 'waived')) as paid_count,
            COUNT(*) FILTER (WHERE cached_fee_cents > 0 OR payment_status IN ('paid', 'waived')) as total_with_fees,
-           COUNT(*) FILTER (WHERE payment_status = 'pending' OR (payment_status IS NULL AND cached_fee_cents > 0)) as pending_count
+           COUNT(*) FILTER (WHERE cached_fee_cents > 0 AND payment_status NOT IN ('paid', 'waived')) as pending_count
          FROM booking_participants 
          WHERE session_id = ${booking.session_id}`),
       db.execute(sql`SELECT id, total_cents FROM booking_fee_snapshots WHERE session_id = ${booking.session_id} AND status IN ('completed', 'paid') ORDER BY created_at DESC LIMIT 1`),
@@ -643,9 +643,12 @@ export async function previewRosterFees(
     allPaid = (hasCompletedFeeSnapshot && pendingCount === 0) || (pendingCount === 0 && hasPaidFees);
 
     if (allPaid) {
-      const invoicePaid = await isBookingInvoicePaid(booking.booking_id);
-      if (!invoicePaid) {
-        allPaid = false;
+      const invoiceStatus = await isBookingInvoicePaid(booking.booking_id);
+      if (invoiceStatus.locked === false && hasPaidFees) {
+        const hasSucceededPi = await db.execute(sql`SELECT 1 FROM stripe_payment_intents WHERE booking_id = ${booking.booking_id} AND status = 'succeeded' LIMIT 1`);
+        if (hasSucceededPi.rows.length === 0) {
+          allPaid = false;
+        }
       }
     }
   }

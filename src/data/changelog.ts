@@ -17,6 +17,7 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Stale pending payment intents are automatically cleaned up before new card-on-file charges",
       "Safety: Double-charge prevention — if a payment is already processing or succeeded, the system blocks duplicate charges instead of creating a second one",
       "Safety: POS café/shop saved card charges now use the same corrected payment method",
+      "Fixed: Member dashboard now shows 'Fees Paid' with green checkmark after payment — previously showed 'Estimated Fees' when some participants had $0 fees within their allowance",
     ]
   },
   {
