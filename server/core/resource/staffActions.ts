@@ -1,10 +1,8 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../../db';
-import { resources, users, notifications, bookingRequests } from '../../../shared/schema';
+import { resources, users, bookingRequests } from '../../../shared/schema';
 import { logger } from '../logger';
-import { isSyntheticEmail } from '../notificationService';
-import { sendPushNotification } from '../../routes/push';
-import { sendNotificationToUser } from '../websocket';
+import { notifyMember } from '../notificationService';
 import { checkAllConflicts } from '../bookingValidation';
 import { bookingEvents } from '../bookingEvents';
 import { recalculateSessionFees } from '../billing/unifiedFeeService';
@@ -74,16 +72,14 @@ export async function assignMemberToBooking(bookingId: number, memberEmail: stri
   const formattedTime = result.startTime || '';
   
   if (memberEmail) {
-    await db.execute(sql`INSERT INTO notifications (user_email, title, message, type, related_type, created_at)
-       VALUES (${memberEmail.toLowerCase()}, ${'Booking Confirmed'}, ${`Your simulator booking for ${formattedDate} at ${formattedTime} has been confirmed.`}, ${'booking'}, ${'booking'}, NOW())`);
+    await notifyMember({
+      userEmail: memberEmail,
+      title: 'Booking Confirmed',
+      message: `Your simulator booking for ${formattedDate} at ${formattedTime} has been confirmed.`,
+      type: 'booking_confirmed',
+      relatedType: 'booking'
+    });
   }
-  
-  sendNotificationToUser(memberEmail, {
-    type: 'booking_confirmed',
-    title: 'Booking Confirmed',
-    message: `Your simulator booking for ${formattedDate} at ${formattedTime} has been confirmed.`,
-    data: { bookingId },
-  });
   
   return result;
 }
@@ -301,14 +297,12 @@ export async function assignWithPlayers(
         : '';
       const timeStr = result.booking.startTime || '';
       
-      await db.execute(sql`INSERT INTO notifications (user_email, title, message, type, related_type, created_at)
-         VALUES (${owner.email.toLowerCase()}, ${'Booking Confirmed'}, ${`Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.${feeMessage}`}, ${'booking'}, ${'booking'}, NOW())`);
-      
-      sendNotificationToUser(owner.email, {
-        type: 'booking_confirmed',
+      await notifyMember({
+        userEmail: owner.email,
         title: 'Booking Confirmed',
         message: `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.${feeMessage}`,
-        data: { bookingId, feeCents: totalCents },
+        type: 'booking_confirmed',
+        relatedType: 'booking'
       });
     } catch (notifyErr: unknown) {
       logger.warn('[assign-with-players] Failed to notify member', {
@@ -534,30 +528,14 @@ export async function createManualBooking(params: {
     const notifTitle = 'Booking Confirmed';
     const notifMessage = `Your ${resource.type === 'simulator' ? 'golf simulator' : 'conference room'} booking for ${formattedDate} at ${formatTime(params.startTime)} has been confirmed.`;
     
-    if (!isSyntheticEmail(resolvedMemberEmail)) {
-      await db.insert(notifications).values({
-        userEmail: resolvedMemberEmail,
-        title: notifTitle,
-        message: notifMessage,
-        type: 'booking_approved',
-        relatedId: newBooking.id,
-        relatedType: 'booking'
-      });
-    }
-    
-    await sendPushNotification(resolvedMemberEmail, {
-      title: notifTitle,
-      body: notifMessage,
-      url: '/dashboard',
-      tag: `booking-${newBooking.id}`
-    });
-    
-    sendNotificationToUser(resolvedMemberEmail, {
-      type: 'notification',
+    await notifyMember({
+      userEmail: resolvedMemberEmail,
       title: notifTitle,
       message: notifMessage,
-      data: { bookingId: newBooking.id, eventType: 'booking_approved' }
-    }, { action: 'manual_booking', bookingId: newBooking.id, resourceType: resource.type, triggerSource: 'resourceService.ts' });
+      type: 'booking_approved',
+      relatedId: newBooking.id,
+      relatedType: 'booking'
+    });
   } catch (notifErr: unknown) {
     logger.error('Failed to send manual booking notification', { error: notifErr as Error });
   }

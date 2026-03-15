@@ -1,9 +1,9 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../../db';
-import { resources, notifications, bookingRequests } from '../../../shared/schema';
+import { resources, bookingRequests } from '../../../shared/schema';
 import { logger } from '../logger';
 import { createPacificDate, formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
-import { notifyMember, notifyAllStaff, isSyntheticEmail } from '../notificationService';
+import { notifyMember, notifyAllStaff } from '../notificationService';
 import { refundGuestPass } from '../../routes/guestPasses';
 import { broadcastAvailabilityUpdate } from '../websocket';
 import { getCalendarIdByName, deleteCalendarEvent, CALENDAR_CONFIG } from '../calendar/index';
@@ -673,8 +673,8 @@ export async function memberCancelBooking(bookingId: number, userEmail: string, 
       }
     ).catch(err => logger.error('Staff cancellation notification failed', { extra: { error: getErrorMessage(err) } }));
     
-    if (existing.userEmail && !isSyntheticEmail(existing.userEmail)) {
-      await db.insert(notifications).values({
+    if (existing.userEmail) {
+      await notifyMember({
         userEmail: existing.userEmail,
         title: 'Cancellation Request Submitted',
         message: `Your cancellation request for ${bookingDate} at ${bookingTime} has been submitted. You'll be notified once it's fully processed.`,

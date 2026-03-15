@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.39",
+    date: "2026-03-15",
+    title: "Notification Delivery Fix — Cancellations & Booking Confirmations",
+    changes: [
+      "Fixed: Members now receive real-time push notifications and in-app notification panel updates when their cancellation request is submitted — previously only a database record was created, so members had to refresh to see the update",
+      "Fixed: Booking confirmation notifications from staff actions now use the unified notification service, ensuring consistent delivery across all three channels (database, real-time panel, and push)",
+      "Fixed: Assign-with-players booking confirmations now deliver push notifications — previously only database and WebSocket were triggered",
+    ]
+  },
+  {
     version: "8.87.38",
     date: "2026-03-15",
     title: "Dashboard Cache Consistency Fix",
