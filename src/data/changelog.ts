@@ -18,6 +18,7 @@ export const changelog: ChangelogEntry[] = [
       "Safety: Double-charge prevention — if a payment is already processing or succeeded, the system blocks duplicate charges instead of creating a second one",
       "Safety: POS café/shop saved card charges now use the same corrected payment method",
       "Fixed: Member dashboard now shows 'Fees Paid' with green checkmark after payment — previously showed 'Estimated Fees' when some participants had $0 fees within their allowance",
+      "Internal: Unified payment status logic between member and staff views — both now use the same 'checkBookingPaymentStatus' function to prevent future discrepancies",
     ]
   },
   {

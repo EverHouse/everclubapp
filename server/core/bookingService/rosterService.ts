@@ -37,7 +37,7 @@ import { upsertVisitor } from '../visitors/matchingService';
 import { getErrorMessage } from '../../utils/errorUtils';
 import type { FeeBreakdown } from '../../../shared/models/billing';
 import type { BookingParticipant } from '../../../shared/models/scheduling';
-import { syncBookingInvoice, isBookingInvoicePaid } from '../billing/bookingInvoiceService';
+import { syncBookingInvoice, isBookingInvoicePaid, checkBookingPaymentStatus } from '../billing/bookingInvoiceService';
 import { broadcastBookingRosterUpdate } from '../websocket';
 
 export interface BookingWithSession {
@@ -622,35 +622,11 @@ export async function previewRosterFees(
 
   let allPaid = false;
   if (booking.session_id) {
-    const [paidCheck, feeSnapshotCheck] = await Promise.all([
-      db.execute(sql`SELECT 
-           COUNT(*) FILTER (WHERE payment_status IN ('paid', 'waived')) as paid_count,
-           COUNT(*) FILTER (WHERE cached_fee_cents > 0 OR payment_status IN ('paid', 'waived')) as total_with_fees,
-           COUNT(*) FILTER (WHERE cached_fee_cents > 0 AND payment_status NOT IN ('paid', 'waived')) as pending_count
-         FROM booking_participants 
-         WHERE session_id = ${booking.session_id}`),
-      db.execute(sql`SELECT id, total_cents FROM booking_fee_snapshots WHERE session_id = ${booking.session_id} AND status IN ('completed', 'paid') ORDER BY created_at DESC LIMIT 1`),
-    ]);
-
-    interface PaidCheckRow { paid_count: string; total_with_fees: string; pending_count: string }
-    const paidCount = parseInt((paidCheck.rows[0] as unknown as PaidCheckRow)?.paid_count || '0');
-    const totalWithFees = parseInt((paidCheck.rows[0] as unknown as PaidCheckRow)?.total_with_fees || '0');
-    const pendingCount = parseInt((paidCheck.rows[0] as unknown as PaidCheckRow)?.pending_count || '0');
-    const hasCompletedFeeSnapshot = feeSnapshotCheck.rows.length > 0;
-    const hasPaidFees = paidCount > 0;
-    const _hasOriginalFees = totalWithFees > 0;
-
-    allPaid = (hasCompletedFeeSnapshot && pendingCount === 0) || (pendingCount === 0 && hasPaidFees);
-
-    if (allPaid) {
-      const invoiceStatus = await isBookingInvoicePaid(booking.booking_id);
-      if (invoiceStatus.locked === false && hasPaidFees) {
-        const hasSucceededPi = await db.execute(sql`SELECT 1 FROM stripe_payment_intents WHERE booking_id = ${booking.booking_id} AND status = 'succeeded' LIMIT 1`);
-        if (hasSucceededPi.rows.length === 0) {
-          allPaid = false;
-        }
-      }
-    }
+    const paymentStatus = await checkBookingPaymentStatus({
+      bookingId: booking.booking_id,
+      sessionId: booking.session_id,
+    });
+    allPaid = paymentStatus.allPaid;
   }
 
   return {

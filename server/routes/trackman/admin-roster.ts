@@ -15,7 +15,7 @@ import { refundGuestPassForParticipant } from '../../core/billing/guestPassConsu
 import { getErrorMessage } from '../../utils/errorUtils';
 import { createPacificDate } from '../../utils/dateUtils';
 import { broadcastBookingRosterUpdate } from '../../core/websocket';
-import { syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
+import { syncBookingInvoice, checkBookingPaymentStatus } from '../../core/billing/bookingInvoiceService';
 
 interface DbRow {
   [key: string]: unknown;
@@ -1090,28 +1090,24 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     guestPassesRemainingAfterBooking = ownerGuestPassesRemaining - guestPassesUsedThisBooking;
     let grandTotal = ownerOverageFee + guestFeesWithoutPass + totalPlayersOwe;
     
-    let hasPaidFees = false;
-    let hasOriginalFees = false;
-    let pendingFeeCount = 0;
-    if (sessionId) {
-      const paidCheck = await db.execute(sql`SELECT 
-          COUNT(*) FILTER (WHERE payment_status IN ('paid', 'waived') AND cached_fee_cents > 0) as paid_count,
-          COUNT(*) FILTER (WHERE cached_fee_cents > 0 OR payment_status IN ('paid', 'waived')) as total_with_fees,
-          COUNT(*) FILTER (WHERE payment_status = 'pending' AND cached_fee_cents > 0) as pending_count
-        FROM booking_participants 
-        WHERE session_id = ${sessionId}`);
-      hasPaidFees = parseInt(((paidCheck.rows[0] as DbRow)?.paid_count as string) || '0') > 0;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      hasOriginalFees = parseInt(((paidCheck.rows[0] as DbRow)?.total_with_fees as string) || '0') > 0;
-      pendingFeeCount = parseInt(((paidCheck.rows[0] as DbRow)?.pending_count as string) || '0');
-    }
-    
-    if (hasCompletedFeeSnapshot && snapshotTotalCents > 0 && pendingFeeCount === 0) {
-      grandTotal = Math.max(grandTotal, snapshotTotalCents / 100);
-    }
-    
     const hasEmptySlots = actualPlayerCount < expectedPlayerCount;
-    const allPaid = !hasEmptySlots && ((hasCompletedFeeSnapshot && pendingFeeCount === 0) || (pendingFeeCount === 0 && hasPaidFees));
+    let hasPaidFees = false;
+    let pendingFeeCount = 0;
+    let allPaid = false;
+    if (sessionId) {
+      const paymentStatus = await checkBookingPaymentStatus({
+        bookingId: Number(bookingId),
+        sessionId: Number(sessionId),
+        hasEmptySlots,
+      });
+      allPaid = paymentStatus.allPaid;
+      hasPaidFees = paymentStatus.hasPaidFees;
+      pendingFeeCount = paymentStatus.pendingFeeCount;
+      
+      if (paymentStatus.hasCompletedSnapshot && snapshotTotalCents > 0 && pendingFeeCount === 0) {
+        grandTotal = Math.max(grandTotal, snapshotTotalCents / 100);
+      }
+    }
     
     const isOwnerStaff = ownerEmail ? staffEmailSet.has(String(ownerEmail).toLowerCase()) : false;
     
