@@ -8,6 +8,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.17",
+    date: "2026-03-15",
+    title: "Bug Fixes & Stability Improvements",
+    changes: [
+      "Fixed: Prepayment now shows specific error messages when a card is declined, expired, or has insufficient funds — no more generic 'Payment processing failed'",
+      "Fixed: 'Add to Apple Wallet' button now appears on your Dashboard booking cards, not just the booking page",
+      "Fixed: Your Apple Wallet pass now updates when staff approve, modify, or reassign your booking",
+      "Fixed: Staff no longer receive duplicate 'Roster Changed After Payment' notifications when roster changes are attempted on paid bookings",
+      "Fixed: Roster lock now reliably blocks changes on paid bookings even during brief payment system delays",
+      "New: Staff can scan the QR code on your Apple Wallet booking pass to check you in directly",
+    ]
+  },
+  {
     version: "8.87.16",
     date: "2026-03-15",
     title: "Apple Wallet Lock-Screen Notifications",

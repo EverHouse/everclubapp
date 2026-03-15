@@ -1236,11 +1236,11 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
 }
 
 export async function isBookingInvoicePaid(bookingId: number): Promise<{ locked: boolean; invoiceId?: string; reason?: string }> {
-  try {
-    const result = await db.execute(sql`SELECT stripe_invoice_id FROM booking_requests WHERE id = ${bookingId} LIMIT 1`);
-    const invoiceId = (result.rows as unknown as BookingInvoiceIdRow[])[0]?.stripe_invoice_id;
-    if (!invoiceId) return { locked: false };
+  const bookingResult = await db.execute(sql`SELECT stripe_invoice_id FROM booking_requests WHERE id = ${bookingId} LIMIT 1`);
+  const invoiceId = (bookingResult.rows as unknown as BookingInvoiceIdRow[])[0]?.stripe_invoice_id;
+  if (!invoiceId) return { locked: false };
 
+  try {
     const stripe = await getStripeClient();
     const invoice = await stripe.invoices.retrieve(invoiceId);
     if (invoice.status === 'paid') {
@@ -1248,7 +1248,20 @@ export async function isBookingInvoicePaid(bookingId: number): Promise<{ locked:
     }
     return { locked: false };
   } catch (err) {
-    logger.warn('[BookingInvoice] Failed to check if booking invoice is paid', { error: err instanceof Error ? err.message : err });
+    logger.warn('[BookingInvoice] Stripe check failed, falling back to local payment status', {
+      extra: { bookingId, invoiceId, error: err instanceof Error ? err.message : err }
+    });
+    const paidParticipants = await db.execute(sql`
+      SELECT COUNT(*) as cnt FROM booking_participants bp
+      JOIN booking_sessions bs ON bp.session_id = bs.id
+      WHERE bs.booking_id = ${bookingId}
+        AND bp.payment_status = 'paid'
+        AND bp.cached_fee_cents > 0
+    `);
+    const paidCount = Number((paidParticipants.rows as unknown as Array<{ cnt: string }>)[0]?.cnt ?? 0);
+    if (paidCount > 0) {
+      return { locked: true, invoiceId, reason: 'Invoice has been paid (verified from local payment records)' };
+    }
     return { locked: false };
   }
 }
