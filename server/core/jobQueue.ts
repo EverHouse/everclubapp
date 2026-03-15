@@ -343,14 +343,19 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
         break;
       }
       case 'stripe_cancel_payment_intent': {
-        const { getStripeClient: getStripeForCancel } = await import('./stripe/client');
-        const stripeCancel = await getStripeForCancel();
-        const pi = await stripeCancel.paymentIntents.retrieve(payload.paymentIntentId as string);
-        if (pi.status !== 'canceled') {
-          await stripeCancel.paymentIntents.cancel(payload.paymentIntentId as string);
+        const { cancelPaymentIntent } = await import('./stripe/payments');
+        const cancelResult = await cancelPaymentIntent(payload.paymentIntentId as string);
+        if (cancelResult.success) {
           logger.info(`[JobQueue] Cancelled payment intent: ${payload.paymentIntentId}`);
+        } else if (cancelResult.error?.includes('already succeeded') || cancelResult.error?.includes('use refund instead')) {
+          logger.warn(`[JobQueue] PI already succeeded, queuing refund instead: ${payload.paymentIntentId}`);
+          await queueJob('stripe_auto_refund', {
+            paymentIntentId: payload.paymentIntentId,
+            reason: 'requested_by_customer',
+            metadata: { reason: 'booking_cancellation_pi_succeeded_race' },
+          }, { maxRetries: 5 });
         } else {
-          logger.info(`[JobQueue] Payment intent already cancelled: ${payload.paymentIntentId}`);
+          logger.error(`[JobQueue] Failed to cancel payment intent: ${payload.paymentIntentId}`, { extra: { error: cancelResult.error } });
         }
         if (payload.markParticipantsRefunded) {
           await queryWithRetry(

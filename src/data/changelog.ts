@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.31",
+    date: "2026-03-15",
+    title: "Deep Code Audit — Race Condition & Logic Bug Fixes",
+    changes: [
+      "Fixed: Payment cancellation job now uses the cancelPaymentIntent helper instead of calling Stripe directly — if a payment races to 'succeeded' before the cancel job runs, it now automatically queues a refund instead of failing and leaving the member charged",
+      "Fixed: Staff manual day pass bookings now verify session creation succeeded — previously a failed session creation would silently commit the booking without a session, consuming the day pass with no usable reservation",
+      "Fixed: Guest pass refund failures during cancellation are now properly detected and logged — previously the return value was ignored and the catch block was unreachable, so failed refunds were silently lost",
+    ]
+  },
+  {
     version: "8.87.30",
     date: "2026-03-15",
     title: "Trackman Logging Consistency — Structured Logger Migration",

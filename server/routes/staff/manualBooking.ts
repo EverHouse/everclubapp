@@ -311,7 +311,7 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
         }
         
         if (isDayPassPayment && dbRow.resource_id) {
-          await ensureSessionForBooking({
+          const sessionResult = await ensureSessionForBooking({
             bookingId: bookingId,
             resourceId: dbRow.resource_id as number,
             sessionDate: request_date,
@@ -322,6 +322,9 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
             source: 'staff_manual',
             createdBy: 'staff_manual_day_pass'
           }, createTxQueryClient(tx));
+          if (sessionResult.error) {
+            throw new Error(`Session creation failed for day pass booking: ${sessionResult.error}`);
+          }
         }
 
         return {

@@ -583,9 +583,12 @@ export class BookingStateService {
         for (const guest of guestParticipants) {
           if (guest.usedGuestPass) {
             try {
-              await refundGuestPass(existing.userEmail || '', guest.displayName || undefined, false);
+              const guestRefundResult = await refundGuestPass(existing.userEmail || '', guest.displayName || undefined, false);
+              if (!guestRefundResult.success) {
+                logger.error('[BookingStateService] Guest pass refund failed', { extra: { memberEmail: existing.userEmail, guestName: guest.displayName, error: guestRefundResult.error } });
+              }
             } catch (guestErr: unknown) {
-              logger.error('[BookingStateService] Failed to refund guest pass', { extra: { error: getErrorMessage(guestErr) } });
+              logger.error('[BookingStateService] Guest pass refund threw', { extra: { memberEmail: existing.userEmail, guestName: guest.displayName, error: getErrorMessage(guestErr) } });
             }
           }
         }
