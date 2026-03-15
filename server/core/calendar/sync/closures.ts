@@ -279,16 +279,22 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
     // Use Pacific midnight for consistent timezone handling
     const pacificMidnight = getPacificMidnightUTC();
     
-    const response = await calendar.events.list({
-      calendarId,
-      timeMin: pacificMidnight.toISOString(),
-      maxResults: 100,
-      singleEvents: true,
-      orderBy: 'startTime',
-      showDeleted: true,
-    });
-    
-    const events = response.data.items || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const events: any[] = [];
+    let pageToken: string | undefined;
+    do {
+      const response = await calendar.events.list({
+        calendarId,
+        timeMin: pacificMidnight.toISOString(),
+        maxResults: 250,
+        singleEvents: true,
+        orderBy: 'startTime',
+        showDeleted: true,
+        pageToken,
+      });
+      if (response.data.items) events.push(...response.data.items);
+      pageToken = response.data.nextPageToken ?? undefined;
+    } while (pageToken);
     const fetchedEventIds = new Set<string>();
     const cancelledEventIds = new Set<string>();
     let created = 0;

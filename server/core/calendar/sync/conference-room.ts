@@ -26,16 +26,22 @@ export async function getConferenceRoomBookingsFromCalendar(
     // Use Pacific midnight for consistent timezone handling
     const pacificMidnight = getPacificMidnightUTC();
     
-    const response = await calendar.events.list({
-      calendarId,
-      timeMin: pacificMidnight.toISOString(),
-      maxResults: 100,
-      singleEvents: true,
-      orderBy: 'startTime',
-      showDeleted: true,
-    });
-    
-    const events = response.data.items || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const events: any[] = [];
+    let confPageToken: string | undefined;
+    do {
+      const response = await calendar.events.list({
+        calendarId,
+        timeMin: pacificMidnight.toISOString(),
+        maxResults: 250,
+        singleEvents: true,
+        orderBy: 'startTime',
+        showDeleted: true,
+        pageToken: confPageToken,
+      });
+      if (response.data.items) events.push(...response.data.items);
+      confPageToken = response.data.nextPageToken ?? undefined;
+    } while (confPageToken);
     const bookings: ConferenceRoomBooking[] = [];
     
     for (const event of events) {

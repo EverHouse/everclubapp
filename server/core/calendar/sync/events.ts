@@ -84,16 +84,22 @@ export async function syncGoogleCalendarEvents(options?: { suppressAlert?: boole
     const oneYearAgo = getPacificMidnightUTC();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
     
-    const response = await calendar.events.list({
-      calendarId,
-      timeMin: oneYearAgo.toISOString(),
-      maxResults: 250,
-      singleEvents: true,
-      orderBy: 'startTime',
-      showDeleted: true,
-    });
-    
-    const calendarEvents = response.data.items || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const calendarEvents: any[] = [];
+    let pageToken: string | undefined;
+    do {
+      const response = await calendar.events.list({
+        calendarId,
+        timeMin: oneYearAgo.toISOString(),
+        maxResults: 250,
+        singleEvents: true,
+        orderBy: 'startTime',
+        showDeleted: true,
+        pageToken,
+      });
+      if (response.data.items) calendarEvents.push(...response.data.items);
+      pageToken = response.data.nextPageToken ?? undefined;
+    } while (pageToken);
     const fetchedEventIds = new Set<string>();
     const cancelledEventIds = new Set<string>();
     let created = 0;
