@@ -44,7 +44,12 @@ const DEFAULT_TIER_COLORS: Record<string, TierColors> = {
   Social: { bg: '#CCB8E4', foreground: '#293515', label: '#4a4a4a' },
 };
 
+function isValidHexColor(hex: string): boolean {
+  return typeof hex === 'string' && /^#[0-9A-Fa-f]{6}$/.test(hex);
+}
+
 function isLightBackground(hex: string): boolean {
+  if (!isValidHexColor(hex)) return false;
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
@@ -80,6 +85,9 @@ pU8RBWk6z/Kf
 -----END CERTIFICATE-----`;
 
 function hexToRgb(hex: string): string {
+  if (!isValidHexColor(hex)) {
+    return 'rgb(204, 184, 228)';
+  }
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
@@ -90,9 +98,9 @@ function resolveTierColors(tier: string, dbColors?: TierColors | null): TierColo
   const defaults = DEFAULT_TIER_COLORS[tier] || DEFAULT_TIER_COLORS.Social;
   if (!dbColors) return defaults;
   return {
-    bg: dbColors.bg || defaults.bg,
-    foreground: dbColors.foreground || defaults.foreground,
-    label: dbColors.label || defaults.label,
+    bg: isValidHexColor(dbColors.bg) ? dbColors.bg : defaults.bg,
+    foreground: isValidHexColor(dbColors.foreground) ? dbColors.foreground : defaults.foreground,
+    label: isValidHexColor(dbColors.label) ? dbColors.label : defaults.label,
   };
 }
 

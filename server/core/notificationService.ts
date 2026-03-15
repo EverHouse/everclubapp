@@ -166,6 +166,17 @@ const BOOKING_WALLET_TYPES = new Set<NotificationType>([
   'booking_checked_in',
 ]);
 
+const WALLET_SILENT_SAFE_TYPES = new Set<NotificationType>([
+  'booking_approved',
+  'booking_updated',
+  'booking_cancelled',
+  'booking_cancelled_by_staff',
+  'booking_cancelled_via_trackman',
+  'member_status_change',
+  'membership_tier_change',
+  'guest_pass',
+]);
+
 async function hasWalletPassRegistrationForSerial(serialNumber: string): Promise<boolean> {
   try {
     const [reg] = await db.select({ id: walletPassDeviceRegistrations.id })
@@ -186,8 +197,9 @@ async function shouldDedupeForWalletPass(
   userEmail: string,
   relatedId: number | null
 ): Promise<boolean> {
+  if (!WALLET_SILENT_SAFE_TYPES.has(type)) return false;
   if (BOOKING_WALLET_TYPES.has(type)) {
-    if (!relatedId) return false;
+    if (relatedId == null) return false;
     return hasWalletPassRegistrationForSerial(`EVERBOOKING-${relatedId}`);
   }
   if (MEMBERSHIP_WALLET_TYPES.has(type)) {

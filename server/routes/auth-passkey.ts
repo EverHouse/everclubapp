@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { eq, sql } from 'drizzle-orm';
 import {
   generateRegistrationOptions,
@@ -68,9 +69,12 @@ router.post('/api/auth/passkey/register/options', async (req, res) => {
       .from(passkeys)
       .where(eq(passkeys.userId, sessionUser.id));
 
+    const userIdHash = crypto.createHash('sha256').update(String(sessionUser.id)).digest();
+
     const options = await generateRegistrationOptions({
       rpName: getRpName(),
       rpID: getRpId(),
+      userID: userIdHash,
       userName: normalizedEmail,
       userDisplayName: [sessionUser.firstName, sessionUser.lastName].filter(Boolean).join(' ') || normalizedEmail,
       attestationType: 'none',
@@ -106,6 +110,10 @@ router.post('/api/auth/passkey/register/verify', async (req, res) => {
       return res.status(401).json({ error: 'You must be logged in to register a passkey' });
     }
 
+    if (String(sessionUser.id).startsWith('staff-')) {
+      return res.status(403).json({ error: 'Passkey registration is only available for members' });
+    }
+
     const challenge = req.session.webauthnChallenge;
     if (!challenge) {
       return res.status(400).json({ error: 'No registration challenge found. Please try again.' });
@@ -124,7 +132,9 @@ router.post('/api/auth/passkey/register/verify', async (req, res) => {
     });
 
     if (!verification.verified || !verification.registrationInfo) {
-      req.session.save(() => {});
+      req.session.save((err) => {
+        if (err) logger.warn('[Passkey] Session save error after failed registration verify', { error: err as Error });
+      });
       return res.status(400).json({ error: 'Passkey registration failed verification' });
     }
 
@@ -202,7 +212,9 @@ router.post('/api/auth/passkey/authenticate/verify', authRateLimiterByIp, async 
       .limit(1);
 
     if (passkeyRecord.length === 0) {
-      req.session.save(() => {});
+      req.session.save((err) => {
+        if (err) logger.warn('[Passkey] Session save error after passkey not found', { error: err as Error });
+      });
       return res.status(404).json({ error: 'Passkey not found. It may have been removed.' });
     }
 
@@ -222,7 +234,9 @@ router.post('/api/auth/passkey/authenticate/verify', authRateLimiterByIp, async 
     });
 
     if (!verification.verified) {
-      req.session.save(() => {});
+      req.session.save((err) => {
+        if (err) logger.warn('[Passkey] Session save error after failed authentication verify', { error: err as Error });
+      });
       return res.status(400).json({ error: 'Passkey authentication failed' });
     }
 

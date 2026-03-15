@@ -19,6 +19,13 @@ async function sendApnPush(pushToken: string, passTypeId: string): Promise<boole
 
   return new Promise((resolve) => {
     try {
+      let settled = false;
+      function settle(result: boolean): void {
+        if (settled) return;
+        settled = true;
+        resolve(result);
+      }
+
       const client = http2.connect(APN_HOST, {
         cert: certPem,
         key: keyPem,
@@ -26,8 +33,10 @@ async function sendApnPush(pushToken: string, passTypeId: string): Promise<boole
 
       client.on('error', (err) => {
         logger.error('[WalletPass APN] HTTP/2 connection error', { error: err });
-        client.close();
-        resolve(false);
+        if (!settled) {
+          try { client.close(); } catch { /* already closed */ }
+        }
+        settle(false);
       });
 
       const headers = {
@@ -52,28 +61,37 @@ async function sendApnPush(pushToken: string, passTypeId: string): Promise<boole
       });
 
       req.on('end', () => {
-        client.close();
+        if (!settled) {
+          try { client.close(); } catch { /* already closed */ }
+        }
         if (responseStatus === 200) {
-          resolve(true);
+          settle(true);
         } else {
           logger.warn('[WalletPass APN] Push failed', {
             extra: { status: responseStatus, body: responseBody, pushToken: pushToken.substring(0, 8) + '...' }
           });
-          resolve(false);
+          settle(false);
         }
       });
 
       req.on('error', (err) => {
         logger.error('[WalletPass APN] Request error', { error: err });
-        client.close();
-        resolve(false);
+        if (!settled) {
+          try { client.close(); } catch { /* already closed */ }
+        }
+        settle(false);
       });
 
       req.end(JSON.stringify({}));
 
       setTimeout(() => {
-        try { client.close(); } catch { /* ignored */ }
-        resolve(false);
+        if (!settled) {
+          logger.warn('[WalletPass APN] Push request timed out after 10s', {
+            extra: { pushToken: pushToken.substring(0, 8) + '...' }
+          });
+          try { client.close(); } catch { /* already closed */ }
+          settle(false);
+        }
       }, 10000);
     } catch (err) {
       logger.error('[WalletPass APN] Failed to send push', { error: err instanceof Error ? err : new Error(String(err)) });
