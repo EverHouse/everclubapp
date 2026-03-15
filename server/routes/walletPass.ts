@@ -178,7 +178,7 @@ router.get('/api/member/wallet-pass', isAuthenticated, async (req, res) => {
       memberSince,
       dailySimulatorMinutes: tierData?.dailySimMinutes ?? null,
       dailyConfRoomMinutes: tierData?.dailyConfRoomMinutes ?? null,
-      guestPassesRemaining: guestPassData ? (guestPassData.passesTotal - guestPassData.passesUsed) : null,
+      guestPassesRemaining: guestPassData ? Math.max(0, guestPassData.passesTotal - guestPassData.passesUsed) : null,
       guestPassesTotal: guestPassData?.passesTotal ?? null,
       authenticationToken: authToken,
       webServiceURL: webServiceURL || undefined,
