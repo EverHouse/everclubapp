@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.16",
+    date: "2026-03-15",
+    title: "Apple Wallet Lock-Screen Notifications",
+    changes: [
+      "Your Apple Wallet pass now shows lock-screen notifications when your booking details change — bay, time, date, status, or player count",
+      "Membership wallet pass notifications for tier changes, status updates, and guest pass balance changes",
+      "Booking passes now show a status field (Confirmed, Checked In, Cancelled, etc.) that updates automatically",
+      "If you have an Apple Wallet pass, you won't receive duplicate push notifications for the same event — the wallet notification takes priority",
+      "Booking passes now include a direct link to your bookings page on the back of the pass",
+    ]
+  },
+  {
     version: "8.87.15",
     date: "2026-03-14",
     title: "Sign In with Face ID & Touch ID",

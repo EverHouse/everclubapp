@@ -1,6 +1,6 @@
 # Ever Club Members App
 
-**Current Version**: 8.87.15 (March 14, 2026)
+**Current Version**: 8.87.16 (March 15, 2026)
 
 ## Overview
 The Ever Club Members App is a private members club application designed for golf and wellness centers. Its primary purpose is to serve as a central digital hub for managing golf simulator bookings, wellness service appointments, and club events. The project aims to enhance member satisfaction and operational efficiency through comprehensive membership management, facility booking, and community-building tools, ultimately creating a seamless digital experience for club members and staff.
@@ -161,6 +161,7 @@ The following large files have been split into sub-modules with barrel re-export
 - **Directory Sync Fix & Membership Status Overhaul (v8.87.0)**: Fixed directory sync timeout by replacing HTTP push with direct batched function call. Fixed membership status display across all auth paths (OTP, Google, Apple) and all member-facing pages (Dashboard, BookGolf, Wellness, Events). All frontend active-access checks now consistently use `ACTIVE_STATUSES: ['active', 'trialing', 'past_due']`. HubSpot push now includes trialing/past_due members. TierBadge shows "No Active Membership" for inactive statuses. Session endpoint consolidated to single save. pushErrors surfaced in admin directory sync UI.
 - **Welcome Header Name Fix (v8.86.7)**: Dashboard welcome greeting now uses first name instead of email address.
 - **Passkey Biometric Login (v8.87.15)**: WebAuthn passkeys (Face ID / Touch ID) as additive login method. `passkeys` table, 6 endpoints in `auth-passkey.ts`, conditional UI on login, nudge banner on dashboard, passkey management on profile. Staff blocked. `@simplewebauthn/server@11`, `@simplewebauthn/browser@11`.
+- **Apple Wallet Lock-Screen Notifications (v8.87.16)**: `changeMessage` on all membership pass fields (tier, status, guest passes) and booking pass fields (date, time, bay, duration, players, status). PWA push dedupe: `notifyMember()` skips web push for notification types covered by wallet `changeMessage` when member has active wallet pass device registration. Booking passes now show status field and back-field link to `/dashboard/bookings`. `membershipStatus` wired into `PassData`.
 - **Push Notification Polish (v8.87.14)**: All push notifications enriched with semantic tags (`buildPushTag`), deep links (`buildDeepLink`), icon/badge. Service worker uses `/icon-192.png` + `/badge-72.png`. Tag-based iOS grouping with `renotify: true`. Click handler deep-links to relevant page.
 - **Apple Wallet Booking Passes (v8.87.13)**: Booking event tickets for Apple Wallet. `booking_wallet_passes` table, `bookingPassService.ts` with generate/void/refresh lifecycle. Void on cancel, refresh on Trackman bay/time update. "Add to Apple Wallet" button on BookGolf, optional link in confirmation email.
 - **Auth Linking Hardening (v8.86.6)**: Config guards on all Google/Apple auth routes (503 if env var missing), partial unique indexes on google_id/apple_id, 12 integration tests for auth linking logic.

@@ -2,7 +2,7 @@ import { eq, inArray, and, sql } from 'drizzle-orm';
 import { getErrorMessage, getErrorStatusCode } from '../utils/errorUtils';
 import webpush from 'web-push';
 import { db } from '../db';
-import { notifications, staffUsers, pushSubscriptions, users } from '../../shared/schema';
+import { notifications, staffUsers, pushSubscriptions, users, walletPassDeviceRegistrations } from '../../shared/schema';
 import { sendNotificationToUser, broadcastToStaff } from './websocket';
 import { logger } from './logger';
 import { getResendClient } from '../utils/resend';
@@ -141,6 +141,63 @@ function buildDeepLink(type: NotificationType, url?: string): string {
 
 const PUSH_ICON = '/icon-192.png';
 const PUSH_BADGE = '/badge-72.png';
+
+const MEMBERSHIP_WALLET_TYPES = new Set<NotificationType>([
+  'membership_renewed',
+  'membership_past_due',
+  'membership_cancelled',
+  'membership_terminated',
+  'membership_cancellation',
+  'member_status_change',
+  'guest_pass',
+]);
+
+const BOOKING_WALLET_TYPES = new Set<NotificationType>([
+  'booking_approved',
+  'booking_update',
+  'booking_updated',
+  'booking_confirmed',
+  'booking_auto_confirmed',
+  'booking_cancelled',
+  'booking_cancelled_by_staff',
+  'booking_cancelled_via_trackman',
+  'booking_checked_in',
+]);
+
+async function hasWalletPassRegistrationForSerial(serialNumber: string): Promise<boolean> {
+  try {
+    const [reg] = await db.select({ id: walletPassDeviceRegistrations.id })
+      .from(walletPassDeviceRegistrations)
+      .where(eq(walletPassDeviceRegistrations.serialNumber, serialNumber))
+      .limit(1);
+    return !!reg;
+  } catch (err: unknown) {
+    logger.warn('[Notification] Wallet pass registration check failed, proceeding with push', {
+      extra: { serialNumber, error: getErrorMessage(err) }
+    });
+    return false;
+  }
+}
+
+async function shouldDedupeForWalletPass(
+  type: NotificationType,
+  userEmail: string,
+  relatedId: number | null
+): Promise<boolean> {
+  if (BOOKING_WALLET_TYPES.has(type)) {
+    if (!relatedId) return false;
+    return hasWalletPassRegistrationForSerial(`EVERBOOKING-${relatedId}`);
+  }
+  if (MEMBERSHIP_WALLET_TYPES.has(type)) {
+    const [userRow] = await db.select({ id: users.id })
+      .from(users)
+      .where(sql`LOWER(${users.email}) = LOWER(${userEmail})`)
+      .limit(1);
+    if (!userRow) return false;
+    return hasWalletPassRegistrationForSerial(`EVERCLUB-${userRow.id}`);
+  }
+  return false;
+}
 
 export interface DeliveryResult {
   channel: 'database' | 'websocket' | 'push' | 'email';
@@ -478,15 +535,31 @@ export async function notifyMember(
   }
   
   if (sendPush) {
-    const pushResult = await deliverViaPush(payload.userEmail, {
-      title: payload.title,
-      body: payload.message,
-      icon: PUSH_ICON,
-      badge: PUSH_BADGE,
-      url: buildDeepLink(payload.type, payload.url),
-      tag: buildPushTag(payload.type, payload.relatedId)
-    });
-    deliveryResults.push(pushResult);
+    const skipPushForWalletPass = await shouldDedupeForWalletPass(
+      payload.type,
+      payload.userEmail,
+      payload.relatedId ?? null
+    );
+    if (skipPushForWalletPass) {
+      logger.info(`[Notification] Skipping PWA push for ${payload.userEmail} (${payload.type}) — wallet pass will show changeMessage`, {
+        extra: { event: 'notification.push_deduped_wallet_pass', type: payload.type }
+      });
+      deliveryResults.push({
+        channel: 'push',
+        success: true,
+        details: { skipped: 'wallet_pass_dedupe', type: payload.type }
+      });
+    } else {
+      const pushResult = await deliverViaPush(payload.userEmail, {
+        title: payload.title,
+        body: payload.message,
+        icon: PUSH_ICON,
+        badge: PUSH_BADGE,
+        url: buildDeepLink(payload.type, payload.url),
+        tag: buildPushTag(payload.type, payload.relatedId)
+      });
+      deliveryResults.push(pushResult);
+    }
   }
   
   if (sendEmail && emailSubject && emailHtml) {

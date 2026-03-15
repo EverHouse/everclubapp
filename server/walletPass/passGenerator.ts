@@ -11,6 +11,7 @@ interface PassData {
   lastName: string;
   memberEmail: string;
   tier: string;
+  membershipStatus: string;
   memberSince: string;
   dailySimulatorMinutes: number | null;
   dailyConfRoomMinutes: number | null;
@@ -95,8 +96,23 @@ function resolveTierColors(tier: string, dbColors?: TierColors | null): TierColo
   };
 }
 
+function formatMembershipStatusDisplay(status: string): string {
+  const statusMap: Record<string, string> = {
+    active: 'Active',
+    trialing: 'Trial',
+    past_due: 'Past Due',
+    suspended: 'Suspended',
+    cancelled: 'Cancelled',
+    expired: 'Expired',
+    archived: 'Archived',
+    'non-member': 'Inactive',
+  };
+  return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
+}
+
 function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors): Record<string, unknown> {
-  const backFields: Array<{ key: string; label: string; value: string }> = [];
+  type PassField = { key: string; label: string; value: string; changeMessage?: string; textAlignment?: string; attributedValue?: string };
+  const backFields: Array<PassField> = [];
 
   if (data.dailySimulatorMinutes !== null && data.dailySimulatorMinutes > 0) {
     backFields.push({
@@ -119,6 +135,7 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
       key: 'guestPasses',
       label: 'Guest Passes',
       value: `${data.guestPassesRemaining} / ${data.guestPassesTotal} remaining`,
+      changeMessage: 'Guest passes updated to %@',
     });
   }
 
@@ -126,18 +143,19 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
     key: 'tierName',
     label: 'Membership Tier',
     value: data.tier,
+    changeMessage: 'Membership tier changed to %@',
   });
 
   const portalUrl = process.env.APP_URL || 'https://everclub.app';
+  const membershipUrl = `${portalUrl}/dashboard/membership`;
   backFields.push({
     key: 'memberPortal',
     label: 'Member Portal',
-    value: portalUrl,
-    attributedValue: `<a href="${portalUrl}">Open Member Portal</a>`,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any);
+    value: membershipUrl,
+    attributedValue: `<a href="${membershipUrl}">Open Member Portal</a>`,
+  });
 
-  const headerFields: Array<{ key: string; label: string; value: string; textAlignment?: string }> = [];
+  const headerFields: Array<PassField> = [];
   if (data.memberSince) {
     headerFields.push({
       key: 'memberSince',
@@ -148,7 +166,7 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
   }
 
   const memberName = [data.firstName, data.lastName].filter(Boolean).join(' ');
-  const secondaryFields: Array<{ key: string; label: string; value: string }> = [
+  const secondaryFields: Array<PassField> = [
     {
       key: 'memberName',
       label: 'MEMBER',
@@ -158,10 +176,19 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
       key: 'tier',
       label: 'TIER',
       value: data.tier,
+      changeMessage: 'Your tier changed to %@',
     },
   ];
 
-  const auxiliaryFields: Array<{ key: string; label: string; value: string }> = [];
+  const statusDisplay = formatMembershipStatusDisplay(data.membershipStatus);
+  const auxiliaryFields: Array<PassField> = [
+    {
+      key: 'status',
+      label: 'STATUS',
+      value: statusDisplay,
+      changeMessage: 'Membership status changed to %@',
+    },
+  ];
   if (data.memberEmail) {
     auxiliaryFields.push({
       key: 'email',
@@ -419,9 +446,26 @@ export interface BookingPassData {
   clubAddress?: string;
   expirationDate: string;
   voided?: boolean;
+  bookingStatus?: string;
+}
+
+function formatBookingStatusDisplay(status?: string): string {
+  if (!status) return 'Confirmed';
+  const statusMap: Record<string, string> = {
+    approved: 'Confirmed',
+    confirmed: 'Confirmed',
+    attended: 'Attended',
+    checked_in: 'Checked In',
+    cancelled: 'Cancelled',
+    cancellation_pending: 'Cancellation Pending',
+    declined: 'Declined',
+    no_show: 'No Show',
+  };
+  return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 function buildBookingPassJson(data: BookingPassData, config: WalletConfig): Record<string, unknown> {
+  type PassField = { key: string; label: string; value: string; changeMessage?: string };
   const formattedDate = new Date(data.bookingDate + 'T12:00:00').toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -445,7 +489,10 @@ function buildBookingPassJson(data: BookingPassData, config: WalletConfig): Reco
     label: '#D1D5DB',
   };
 
-  const backFields: Array<{ key: string; label: string; value: string }> = [
+  const portalUrl = process.env.APP_URL || 'https://everclub.app';
+  const bookingsUrl = `${portalUrl}/dashboard/bookings`;
+
+  const backFields: Array<PassField> = [
     { key: 'bookingId', label: 'Booking ID', value: `#${data.bookingId}` },
     { key: 'memberName', label: 'Member', value: data.memberName },
     { key: 'memberEmail', label: 'Email', value: data.memberEmail },
@@ -454,6 +501,13 @@ function buildBookingPassJson(data: BookingPassData, config: WalletConfig): Reco
   if (data.clubAddress) {
     backFields.push({ key: 'clubAddress', label: 'Club Address', value: data.clubAddress });
   }
+
+  backFields.push({
+    key: 'viewBookings',
+    label: 'View Bookings',
+    value: bookingsUrl,
+    attributedValue: `<a href="${bookingsUrl}">View Your Bookings</a>`,
+  } as Record<string, string>);
 
   const passJson: Record<string, unknown> = {
     formatVersion: 1,
@@ -477,17 +531,21 @@ function buildBookingPassJson(data: BookingPassData, config: WalletConfig): Reco
     passJson.authenticationToken = data.authenticationToken;
   }
 
+  const bookingStatusDisplay = formatBookingStatusDisplay(data.voided ? 'cancelled' : data.bookingStatus);
+
   passJson.eventTicket = {
     primaryFields: [
       {
         key: 'eventDate',
         label: 'DATE',
         value: formattedDate,
+        changeMessage: 'Booking date changed to %@',
       },
       {
         key: 'eventTime',
         label: 'TIME',
         value: `${formattedStart} – ${formattedEnd}`,
+        changeMessage: 'Booking time changed to %@',
       },
     ],
     secondaryFields: [
@@ -495,11 +553,13 @@ function buildBookingPassJson(data: BookingPassData, config: WalletConfig): Reco
         key: 'bayName',
         label: 'BAY',
         value: data.bayName,
+        changeMessage: 'Bay changed to %@',
       },
       {
         key: 'duration',
         label: 'DURATION',
         value: `${data.durationMinutes} min`,
+        changeMessage: 'Duration changed to %@',
       },
     ],
     auxiliaryFields: [
@@ -507,6 +567,13 @@ function buildBookingPassJson(data: BookingPassData, config: WalletConfig): Reco
         key: 'playerCount',
         label: 'PLAYERS',
         value: `${data.playerCount}`,
+        changeMessage: 'Player count changed to %@',
+      },
+      {
+        key: 'bookingStatus',
+        label: 'STATUS',
+        value: bookingStatusDisplay,
+        changeMessage: 'Booking status changed to %@',
       },
     ],
     backFields,

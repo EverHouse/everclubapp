@@ -106,6 +106,7 @@ export async function generatePassForMember(memberId: string): Promise<Buffer | 
       lastName: user.lastName || '',
       memberEmail: user.email || '',
       tier,
+      membershipStatus: user.membershipStatus || 'active',
       memberSince,
       dailySimulatorMinutes: tierData?.dailySimMinutes ?? null,
       dailyConfRoomMinutes: tierData?.dailyConfRoomMinutes ?? null,

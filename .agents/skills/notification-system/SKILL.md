@@ -73,6 +73,22 @@ All push notifications are enriched with semantic tags, deep links, and consiste
 
 **All push call sites updated** with `tag` and `url` parameters: booking events, approval/decline/cancel flows, wellness enrollment, event RSVP, guest passes, Trackman notifications, closures, roster linking, daily reminders.
 
+## Apple Wallet Pass Notification Channel (v8.87.16)
+
+In addition to PWA web push, Apple Wallet passes with `changeMessage` fields provide a 4th visible notification channel. When a pass is updated via APN silent push, iOS shows a lock-screen notification for any field whose value changed, using the field's `changeMessage` template (e.g., "Bay changed to Bay 3").
+
+**Membership pass changeMessage fields:** `tier` (secondaryFields), `status` (auxiliaryFields), `guestPasses` (backFields), `tierName` (backFields).
+
+**Booking pass changeMessage fields:** `eventDate`, `eventTime` (primaryFields), `bayName`, `duration` (secondaryFields), `playerCount`, `bookingStatus` (auxiliaryFields).
+
+**PWA push dedupe (v8.87.16):** `shouldDedupeForWalletPass()` in `notificationService.ts` checks the correct pass serial before skipping PWA push:
+- **Booking types** (`BOOKING_WALLET_TYPES`): checks `EVERBOOKING-{relatedId}` — only skips push if the *specific booking* has a registered wallet pass. Requires `relatedId` (booking ID) to be set.
+- **Membership types** (`MEMBERSHIP_WALLET_TYPES`): checks `EVERCLUB-{userId}` — skips push if the member has a registered membership wallet pass.
+In-app database and WebSocket notifications are always delivered regardless.
+
+**Booking dedupe types:** `booking_approved`, `booking_update(d)`, `booking_confirmed`, `booking_auto_confirmed`, `booking_cancelled*`, `booking_checked_in`.
+**Membership dedupe types:** `membership_renewed`, `membership_past_due`, `membership_cancelled`, `membership_terminated`, `membership_cancellation`, `member_status_change`, `guest_pass`.
+
 ## Hard Rules
 
 1. **Always use `notifyMember()` from `notificationService.ts`.** NEVER insert directly into the `notifications` table.
@@ -91,6 +107,7 @@ All push notifications are enriched with semantic tags, deep links, and consiste
 14. **Deduplication (v8.5.0).** Same `title` + `user_email` + `related_id` within 60 seconds → skip.
 15. **Staff deletion safety (v8.81.0).** All fan-out paths use INNER JOIN with `users` table. Deleted/archived staff with orphaned `staff_users` rows are excluded.
 16. **Push payloads must include icon + badge (v8.87.14).** All `deliverViaPush` and `deliverPushToStaff` calls enrich payloads with `PUSH_ICON` and `PUSH_BADGE` defaults. Always include `tag` (via `buildPushTag`) and `url` (via `buildDeepLink`) for proper iOS grouping and deep linking.
+17. **Wallet pass dedupe (v8.87.16).** When adding new notification types that correspond to wallet pass field changes, add them to `WALLET_PASS_COVERED_TYPES` in `notificationService.ts` to prevent duplicate alerts for members with wallet passes.
 
 ## Anti-Patterns (NEVER)
 

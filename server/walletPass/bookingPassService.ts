@@ -162,6 +162,7 @@ export async function generateBookingPass(bookingId: number, requestingMemberId?
       clubLongitude: clubLng && !isNaN(parseFloat(clubLng)) ? parseFloat(clubLng) : undefined,
       clubAddress: [addressLine1, cityStateZip].filter(Boolean).join(', '),
       expirationDate: computeBookingExpirationDate(booking.requestDate, booking.endTime),
+      bookingStatus: booking.status || 'approved',
     };
 
     if (hasVoidedPass || isCancelledOrVoided) {
