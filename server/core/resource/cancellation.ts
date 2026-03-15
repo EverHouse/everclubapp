@@ -357,7 +357,12 @@ export async function deleteBooking(bookingId: number, archivedBy: string, hardD
 
     try {
       const { voidBookingInvoice } = await import('../billing/bookingInvoiceService');
-      await voidBookingInvoice(bookingId);
+      const voidResult = await voidBookingInvoice(bookingId);
+      if (!voidResult.success) {
+        logger.error('[DELETE /api/bookings] Invoice void/refund incomplete before hard delete', {
+          extra: { bookingId, stripeInvoiceId: booking.stripeInvoiceId, error: voidResult.error }
+        });
+      }
     } catch (voidErr: unknown) {
       logger.warn('[DELETE /api/bookings] Failed to void invoice before hard delete', {
         extra: { bookingId, stripeInvoiceId: booking.stripeInvoiceId, error: getErrorMessage(voidErr) }
@@ -402,7 +407,12 @@ export async function deleteBooking(bookingId: number, archivedBy: string, hardD
     
     try {
       const { voidBookingInvoice } = await import('../billing/bookingInvoiceService');
-      await voidBookingInvoice(bookingId);
+      const voidResult = await voidBookingInvoice(bookingId);
+      if (!voidResult.success) {
+        logger.error('[DELETE /api/bookings] Invoice void/refund incomplete', {
+          extra: { bookingId, error: voidResult.error }
+        });
+      }
     } catch (voidErr: unknown) {
       logger.warn('[DELETE /api/bookings] Failed to void booking invoice', {
         extra: { bookingId, error: getErrorMessage(voidErr) }
@@ -615,7 +625,12 @@ export async function memberCancelBooking(bookingId: number, userEmail: string, 
   
   try {
     const { voidBookingInvoice } = await import('../billing/bookingInvoiceService');
-    await voidBookingInvoice(bookingId);
+    const voidResult = await voidBookingInvoice(bookingId);
+    if (!voidResult.success) {
+      logger.error('[Member Cancel] Invoice void/refund incomplete', {
+        extra: { bookingId, error: voidResult.error }
+      });
+    }
   } catch (voidErr: unknown) {
     logger.warn('[Member Cancel] Failed to void booking invoice', { 
       extra: { bookingId, error: getErrorMessage(voidErr) }

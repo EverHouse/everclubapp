@@ -836,7 +836,12 @@ export class BookingStateService {
 
     if (manifest.invoiceVoid) {
       try {
-        await voidBookingInvoice(manifest.invoiceVoid.bookingId);
+        const voidResult = await voidBookingInvoice(manifest.invoiceVoid.bookingId);
+        if (!voidResult.success) {
+          const msg = `Invoice void/refund incomplete for booking ${manifest.invoiceVoid.bookingId}: ${voidResult.error}`;
+          errors.push(msg);
+          logger.error('[BookingStateService] Invoice void returned failure', { extra: { bookingId: manifest.invoiceVoid.bookingId, error: voidResult.error } });
+        }
       } catch (err: unknown) {
         const msg = `Failed to void invoice for booking ${manifest.invoiceVoid.bookingId}: ${getErrorMessage(err)}`;
         errors.push(msg);
