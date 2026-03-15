@@ -88,6 +88,12 @@ router.get('/api/financials/recent-transactions', isStaffOrAdmin, async (req: Re
         LEFT JOIN stripe_payment_intents spi ON spi.stripe_payment_intent_id = stc.stripe_id
         WHERE stc.status IN ('succeeded', 'paid')
           AND (spi.status IS NULL OR spi.status NOT IN ('refunded', 'refunding'))
+          AND NOT EXISTS (
+            SELECT 1 FROM stripe_transaction_cache ref_ch
+            WHERE ref_ch.payment_intent_id = stc.stripe_id
+            AND ref_ch.object_type = 'charge'
+            AND ref_ch.status IN ('refunded', 'partially_refunded')
+          )
           AND stc.stripe_id NOT IN (SELECT stripe_payment_intent_id FROM day_pass_purchases WHERE stripe_payment_intent_id IS NOT NULL)${stcDateFilter}${stcCursorFilter}
         
         UNION ALL
@@ -420,7 +426,7 @@ router.post('/api/financials/sync-member-payments', isStaffOrAdmin, async (req: 
           customer: user.stripe_customer_id as string,
           limit: 100,
           created: { gte: startDate },
-          expand: ['data.customer']
+          expand: ['data.customer', 'data.latest_charge']
         };
         if (startingAfter) params.starting_after = startingAfter;
         
@@ -429,10 +435,12 @@ router.post('/api/financials/sync-member-payments', isStaffOrAdmin, async (req: 
         for (const pi of page.data) {
           if (pi.status === 'succeeded' || pi.status === 'requires_payment_method') {
             const customer = pi.customer && typeof pi.customer === 'object' ? pi.customer as Stripe.Customer : null;
+            const latestCharge = pi.latest_charge && typeof pi.latest_charge === 'object' ? pi.latest_charge as Stripe.Charge : null;
+            const effectiveStatus = latestCharge?.refunded ? 'refunded' : pi.status;
             await upsertTransactionCache({
               stripeId: pi.id,
               objectType: 'payment_intent',
-              status: pi.status,
+              status: effectiveStatus,
               amountCents: pi.amount,
               currency: pi.currency || 'usd',
               createdAt: new Date(pi.created * 1000),

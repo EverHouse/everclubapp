@@ -173,6 +173,9 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
                 OR stc.description ILIKE '%subscription%' THEN 'subscription'
               WHEN stc.description ILIKE '%payment for invoice%' THEN 'subscription'
               WHEN stc.description ILIKE '%overage%' THEN 'overage'
+              WHEN stc.metadata->>'purpose' = 'add_funds'
+                OR stc.description ILIKE '%top-up%'
+                OR stc.description ILIKE '%account balance%' THEN 'account_balance'
               ELSE 'other'
             END AS category,
             stc.amount_cents
@@ -182,6 +185,12 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
             AND stc.status = 'succeeded'
             AND stc.created_at >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '5 months')
             AND (spi.status IS NULL OR spi.status NOT IN ('refunded', 'refunding'))
+            AND NOT EXISTS (
+              SELECT 1 FROM stripe_transaction_cache ref_ch
+              WHERE ref_ch.payment_intent_id = stc.stripe_id
+              AND ref_ch.object_type = 'charge'
+              AND ref_ch.status IN ('refunded', 'partially_refunded')
+            )
         )
         SELECT
           m.month,
@@ -189,6 +198,7 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
           COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'booking'), 0)::int AS booking_cents,
           COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'overage'), 0)::int AS overage_cents,
           COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'pos_sale'), 0)::int AS pos_sale_cents,
+          COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'account_balance'), 0)::int AS account_balance_cents,
           COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'other'), 0)::int AS other_cents,
           COALESCE(SUM(c.amount_cents), 0)::int AS total_cents
         FROM months m
@@ -282,12 +292,13 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
         bucket: r.bucket,
         memberCount: r.member_count,
       })),
-      revenueOverTime: (revenueOverTimeResult.rows as { month: string; subscription_cents: number; booking_cents: number; overage_cents: number; pos_sale_cents: number; other_cents: number; total_cents: number }[]).map(r => ({
+      revenueOverTime: (revenueOverTimeResult.rows as { month: string; subscription_cents: number; booking_cents: number; overage_cents: number; pos_sale_cents: number; account_balance_cents: number; other_cents: number; total_cents: number }[]).map(r => ({
         month: r.month,
         subscriptionRevenue: Math.round(r.subscription_cents) / 100,
         bookingRevenue: Math.round(r.booking_cents) / 100,
         overageRevenue: Math.round(r.overage_cents) / 100,
         posSaleRevenue: Math.round(r.pos_sale_cents) / 100,
+        accountBalanceRevenue: Math.round(r.account_balance_cents) / 100,
         otherRevenue: Math.round(r.other_cents) / 100,
         totalRevenue: Math.round(r.total_cents) / 100,
       })),

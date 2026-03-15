@@ -263,6 +263,12 @@ router.get('/api/admin/financials/summary', isStaffOrAdmin, async (req, res) => 
         AND stc.created_at >= to_timestamp(${startOfDay})
         AND stc.created_at < to_timestamp(${endOfDay})
         AND (spi.status IS NULL OR spi.status NOT IN ('refunded', 'refunding'))
+        AND NOT EXISTS (
+          SELECT 1 FROM stripe_transaction_cache ref_ch
+          WHERE ref_ch.payment_intent_id = stc.stripe_id
+          AND ref_ch.object_type = 'charge'
+          AND ref_ch.status IN ('refunded', 'partially_refunded')
+        )
       `);
       results.todayRevenueCents = parseInt(String(todayRevenue.rows[0]?.total_cents || '0'));
     } catch (err) { logger.debug('[Financials] Failed to query today revenue — table may not exist', { error: err instanceof Error ? err.message : err }); }

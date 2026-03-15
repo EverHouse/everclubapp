@@ -65,6 +65,7 @@ interface RevenueEntry {
   bookingRevenue: number;
   overageRevenue: number;
   posSaleRevenue: number;
+  accountBalanceRevenue: number;
   otherRevenue: number;
   totalRevenue: number;
 }
@@ -410,6 +411,7 @@ const REVENUE_LABEL_MAP: Record<string, string> = {
   booking: 'Booking Fees',
   overage: 'Overage',
   posSale: 'POS Sales',
+  accountBalance: 'Account Balance',
   other: 'Other',
 };
 
@@ -424,6 +426,7 @@ const RevenueChart: React.FC<{ data: RevenueEntry[] }> = ({ data }) => {
     booking: r.bookingRevenue,
     overage: r.overageRevenue,
     posSale: r.posSaleRevenue,
+    accountBalance: r.accountBalanceRevenue,
     other: r.otherRevenue,
     total: r.totalRevenue,
   }));
@@ -433,6 +436,7 @@ const RevenueChart: React.FC<{ data: RevenueEntry[] }> = ({ data }) => {
     { key: 'booking', color: '#8b5cf6' },
     { key: 'overage', color: '#f59e0b' },
     { key: 'posSale', color: '#22c55e' },
+    { key: 'accountBalance', color: '#06b6d4' },
     { key: 'other', color: '#94a3b8' },
   ];
 
