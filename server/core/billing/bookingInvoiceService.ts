@@ -304,6 +304,12 @@ export async function createDraftInvoiceForBooking(
           return { invoiceId: existingInvoiceId, totalCents: existingInvoice.amount_due };
         }
       }
+      if (existingInvoice.status === 'void' || existingInvoice.status === 'uncollectible') {
+        logger.info('[BookingInvoice] Existing invoice is void/uncollectible, clearing reference before creating new draft', {
+          extra: { bookingId, invoiceId: existingInvoiceId, status: existingInvoice.status }
+        });
+        await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = ${bookingId}`);
+      }
     } catch (retrieveErr: unknown) {
       logger.warn('[BookingInvoice] Could not retrieve existing invoice, creating new one', {
         extra: { bookingId, existingInvoiceId, error: getErrorMessage(retrieveErr) }
@@ -314,7 +320,7 @@ export async function createDraftInvoiceForBooking(
   const description = await buildInvoiceDescription(bookingId, trackmanBookingId);
   const invoiceMetadata = buildInvoiceMetadata(params, feeLineItems);
 
-  const invoice = await stripe.invoices.create({
+  let invoice = await stripe.invoices.create({
     customer: customerId,
     auto_advance: false,
     collection_method: 'charge_automatically',
@@ -325,8 +331,27 @@ export async function createDraftInvoiceForBooking(
       payment_method_types: ['card', 'link'],
     },
   }, {
-    idempotencyKey: `invoice_booking_draft_${bookingId}_${sessionId}_${createHash('sha256').update(JSON.stringify(feeLineItems.map(li => ({ id: li.participantId, o: li.overageCents, g: li.guestCents, t: li.totalCents })).sort((a, b) => String(a.id || '').localeCompare(String(b.id || ''))))).digest('hex').substring(0, 12)}`
+    idempotencyKey: `invoice_booking_draft_${bookingId}_${sessionId}_${createHash('sha256').update(JSON.stringify(feeLineItems.map(li => ({ id: li.participantId, o: li.overageCents, g: li.guestCents, t: li.totalCents })).sort((a, b) => String(a.id || '').localeCompare(String(b.id || ''))))).digest('hex').substring(0, 12)}_${Math.floor(Date.now() / 60000)}`
   });
+
+  if (invoice.status === 'void' || invoice.status === 'uncollectible') {
+    logger.warn('[BookingInvoice] Idempotency key returned stale void/uncollectible invoice, retrying with fresh key', {
+      extra: { bookingId, staleInvoiceId: invoice.id, status: invoice.status }
+    });
+    invoice = await stripe.invoices.create({
+      customer: customerId,
+      auto_advance: false,
+      collection_method: 'charge_automatically',
+      description,
+      metadata: invoiceMetadata,
+      pending_invoice_items_behavior: 'exclude',
+      payment_settings: {
+        payment_method_types: ['card', 'link'],
+      },
+    }, {
+      idempotencyKey: `invoice_booking_draft_${bookingId}_${sessionId}_retry_${Date.now()}`
+    });
+  }
 
   try {
     await addLineItemsToInvoice(stripe, invoice.id, customerId, feeLineItems);
