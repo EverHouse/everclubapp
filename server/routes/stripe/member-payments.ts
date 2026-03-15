@@ -1255,48 +1255,6 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
       };
     });
 
-    const stalePis = await db.execute(sql`SELECT stripe_payment_intent_id FROM stripe_payment_intents 
-       WHERE booking_id = ${bookingId} AND status NOT IN ('succeeded', 'canceled', 'refunded')`);
-    for (const row of stalePis.rows as Array<{ stripe_payment_intent_id: string }>) {
-      try {
-        const { getStripeClient } = await import('../../core/stripe/client');
-        const stripeClient = await getStripeClient();
-        const livePi = await stripeClient.paymentIntents.retrieve(row.stripe_payment_intent_id);
-        if (livePi.status === 'succeeded' || livePi.status === 'processing' || livePi.status === 'requires_capture') {
-          logger.warn('[MemberPayments] Existing PI is already processing/succeeded — blocking duplicate charge', {
-            extra: { bookingId, piId: row.stripe_payment_intent_id, liveStatus: livePi.status }
-          });
-          return res.status(409).json({ error: 'A payment is already being processed for this booking.' });
-        }
-        if (livePi.status !== 'canceled') {
-          if (livePi.invoice) {
-            logger.info('[MemberPayments] Stale PI is invoice-generated — skipping cancel, invoice flow will handle it', {
-              extra: { bookingId, piId: row.stripe_payment_intent_id, invoiceId: typeof livePi.invoice === 'string' ? livePi.invoice : (livePi.invoice as { id: string }).id }
-            });
-          } else {
-            const { cancelPaymentIntent } = await import('../../core/stripe');
-            const cancelResult = await cancelPaymentIntent(row.stripe_payment_intent_id);
-            if (!cancelResult.success) {
-              logger.warn('[MemberPayments] Could not cancel stale PI — checking if booking has invoice to fall through', {
-                extra: { bookingId, piId: row.stripe_payment_intent_id, error: cancelResult.error }
-              });
-              const bookingInvoice = await getBookingInvoiceId(bookingId);
-              if (!bookingInvoice) {
-                throw new Error(cancelResult.error || 'Failed to cancel stale PI');
-              }
-            }
-          }
-        } else {
-          await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
-        }
-      } catch (_cancelErr) {
-        logger.error('[MemberPayments] Could not verify/cancel stale PI — blocking charge to prevent duplicate', {
-          extra: { bookingId, piId: row.stripe_payment_intent_id }
-        });
-        return res.status(503).json({ error: 'Could not verify existing payment status. Please try again.' });
-      }
-    }
-
     const existingInvoiceId = await getBookingInvoiceId(bookingId);
 
     let invoiceResult;
@@ -1309,7 +1267,7 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
           offSession: true,
         });
       } catch (draftErr: unknown) {
-        logger.warn('[MemberPayments] Failed to use existing draft invoice for saved card, creating new', {
+        logger.warn('[MemberPayments] Failed to use existing invoice for saved card, will clean up and retry', {
           extra: { bookingId, existingInvoiceId, error: getErrorMessage(draftErr) }
         });
         invoiceResult = null;
@@ -1317,6 +1275,44 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
     }
 
     if (!invoiceResult) {
+      const stalePis = await db.execute(sql`SELECT stripe_payment_intent_id FROM stripe_payment_intents 
+         WHERE booking_id = ${bookingId} AND status NOT IN ('succeeded', 'canceled', 'refunded')`);
+      for (const row of stalePis.rows as Array<{ stripe_payment_intent_id: string }>) {
+        try {
+          const { getStripeClient } = await import('../../core/stripe/client');
+          const stripeClient = await getStripeClient();
+          const livePi = await stripeClient.paymentIntents.retrieve(row.stripe_payment_intent_id);
+          if (livePi.status === 'succeeded' || livePi.status === 'processing' || livePi.status === 'requires_capture') {
+            logger.warn('[MemberPayments] Existing PI is already processing/succeeded — blocking duplicate charge', {
+              extra: { bookingId, piId: row.stripe_payment_intent_id, liveStatus: livePi.status }
+            });
+            return res.status(409).json({ error: 'A payment is already being processed for this booking.' });
+          }
+          if (livePi.status !== 'canceled') {
+            if (livePi.invoice) {
+              logger.info('[MemberPayments] Stale PI is invoice-generated — skipping cancel, invoice flow will handle it', {
+                extra: { bookingId, piId: row.stripe_payment_intent_id, invoiceId: typeof livePi.invoice === 'string' ? livePi.invoice : (livePi.invoice as { id: string }).id }
+              });
+            } else {
+              const { cancelPaymentIntent } = await import('../../core/stripe');
+              const cancelResult = await cancelPaymentIntent(row.stripe_payment_intent_id);
+              if (!cancelResult.success) {
+                logger.warn('[MemberPayments] Could not cancel stale PI — checking if booking has invoice to fall through', {
+                  extra: { bookingId, piId: row.stripe_payment_intent_id, error: cancelResult.error }
+                });
+              }
+            }
+          } else {
+            await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
+          }
+        } catch (_cancelErr) {
+          logger.error('[MemberPayments] Could not verify/cancel stale PI — blocking charge to prevent duplicate', {
+            extra: { bookingId, piId: row.stripe_payment_intent_id }
+          });
+          return res.status(503).json({ error: 'Could not verify existing payment status. Please try again.' });
+        }
+      }
+
       if (existingInvoiceId) {
         try {
           const { getStripeClient } = await import('../../core/stripe/client');

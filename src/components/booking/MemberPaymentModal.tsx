@@ -70,11 +70,13 @@ export function MemberPaymentModal({
   const [savedCardLoading, setSavedCardLoading] = useState(false);
   const [savedCardSuccess, setSavedCardSuccess] = useState(false);
   const paymentSucceededRef = useRef(false);
+  const savedCardPayingRef = useRef(false);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const initializePayment = useCallback(async () => {
     try {
       paymentSucceededRef.current = false;
+      savedCardPayingRef.current = false;
       setLoading(true);
       setError(null);
       setSavedCard(null);
@@ -84,7 +86,8 @@ export function MemberPaymentModal({
       const [payResult, methodsResult] = await Promise.all([
         apiRequest<PayFeesResponse>(
           `/api/member/bookings/${bookingId}/pay-fees`,
-          { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+          { method: 'POST', headers: { 'Content-Type': 'application/json' } },
+          { maxRetries: 1, timeout: 60000 }
         ),
         apiRequest<{ paymentMethods: SavedPaymentMethod[] }>(
           `/api/member/payment-methods`,
@@ -131,7 +134,7 @@ export function MemberPaymentModal({
     const currentPiId = paymentIntentId;
     
     const handleBeforeUnload = () => {
-      if (currentPiId && !paymentSucceededRef.current) {
+      if (currentPiId && !paymentSucceededRef.current && !savedCardPayingRef.current) {
         navigator.sendBeacon(
           `/api/member/bookings/${bookingId}/cancel-payment`,
           new Blob([JSON.stringify({ paymentIntentId: currentPiId })], { type: 'application/json' })
@@ -145,7 +148,7 @@ export function MemberPaymentModal({
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      if (currentPiId && !paymentSucceededRef.current) {
+      if (currentPiId && !paymentSucceededRef.current && !savedCardPayingRef.current) {
         fetch(`/api/member/bookings/${bookingId}/cancel-payment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -169,34 +172,46 @@ export function MemberPaymentModal({
   const handleSavedCardPayment = async () => {
     if (!savedCard) return;
     setSavedCardLoading(true);
+    savedCardPayingRef.current = true;
     setError(null);
 
     try {
-      const { ok, data, error: apiError, errorData } = await apiRequest<{ success: boolean; cardBrand?: string; cardLast4?: string; amountCents?: number }>(
-        `/api/member/bookings/${bookingId}/pay-saved-card`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentMethodId: savedCard.id }),
-        }
-      );
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-      if (ok && data?.success) {
+      const res = await fetch(`/api/member/bookings/${bookingId}/pay-saved-card`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ paymentMethodId: savedCard.id }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const responseData = await res.json().catch(() => ({}));
+
+      if (res.ok && responseData?.success) {
         paymentSucceededRef.current = true;
+        savedCardPayingRef.current = false;
         setSavedCardSuccess(true);
         setSavedCardLoading(false);
         if (successTimerRef.current) clearTimeout(successTimerRef.current);
         successTimerRef.current = setTimeout(() => onSuccess(), 1500);
-      } else if (errorData?.requiresAction) {
+      } else if (responseData?.requiresAction) {
         setSavedCard(null);
         setSavedCardLoading(false);
+        savedCardPayingRef.current = false;
       } else {
-        setError(apiError || 'Payment failed. Please try using the card form below.');
+        setError(responseData?.error || 'Payment failed. Please try using the card form below.');
         setSavedCardLoading(false);
+        savedCardPayingRef.current = false;
       }
     } catch (err: unknown) {
-      setError((err instanceof Error ? err.message : String(err)) || 'Payment failed. Please try the card form below.');
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg.includes('abort') ? 'Payment is taking longer than expected. Please check your booking status before trying again.' : (msg || 'Payment failed. Please try the card form below.'));
       setSavedCardLoading(false);
+      savedCardPayingRef.current = false;
     }
   };
 

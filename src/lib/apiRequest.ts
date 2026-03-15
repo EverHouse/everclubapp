@@ -21,6 +21,7 @@ interface RetryConfig {
   baseDelay?: number;
   maxDelay?: number;
   retryNonIdempotent?: boolean;
+  timeout?: number;
 }
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
@@ -79,7 +80,7 @@ export async function apiRequest<T = unknown>(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), config.timeout || 30000);
 
       const onCallerAbort = () => controller.abort();
       if (signal) {
