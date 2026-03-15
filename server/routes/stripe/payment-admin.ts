@@ -432,7 +432,7 @@ router.post('/api/payments/refund', isStaffOrAdmin, validateBody(refundPaymentSc
       return res.status(404).json({ error: 'Payment not found' });
     }
 
-    if (payment.status !== 'succeeded') {
+    if (payment.status !== 'succeeded' && payment.status !== 'refunding') {
       return res.status(400).json({ error: `Cannot refund payment with status: ${payment.status}` });
     }
 
