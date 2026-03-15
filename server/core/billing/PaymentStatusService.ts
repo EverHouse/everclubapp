@@ -161,8 +161,7 @@ export class PaymentStatusService {
             await tx.execute(
               sql`UPDATE booking_fee_snapshots SET status = 'superseded', used_at = NOW() WHERE id = ${snapshot.id}`
             );
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            logger.info(`[PaymentStatusService] Snapshot ${snapshot.id} superseded — session ${snapshot.session_id} already has completed snapshot ${(existingCompleted.rows[0] as any).id}`);
+            logger.info(`[PaymentStatusService] Snapshot ${snapshot.id} superseded — session ${snapshot.session_id} already has completed snapshot ${(existingCompleted.rows[0] as Record<string, unknown>).id}`);
             return { success: true, participantsUpdated: 0, snapshotsUpdated: 0 } as PaymentStatusResult;
           }
         }
