@@ -300,26 +300,17 @@ const Profile: React.FC = () => {
         '/api/member/profile',
         data
       ),
-    onMutate: async (_data) => {
-      await queryClient.cancelQueries({ queryKey: ['member', 'dashboard-data', user?.email] });
-      const previousDashboard = queryClient.getQueryData(['member', 'dashboard-data', user?.email]);
-      return { previousDashboard, previousName: user?.name, previousPhone: user?.phone };
-    },
     onSuccess: async () => {
       showToast('Profile updated', 'success');
       setEditingProfile(false);
       await refreshUser();
     },
-    onError: (err: Error, _data, context: unknown) => {
-      const ctx = context as { previousDashboard?: unknown; previousName?: string; previousPhone?: string } | undefined;
-      if (ctx?.previousDashboard) {
-        queryClient.setQueryData(['member', 'dashboard-data', user?.email], ctx.previousDashboard);
-      }
+    onError: (err: Error) => {
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to update profile', 'error');
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['memberOnboarding'] });
-      queryClient.invalidateQueries({ queryKey: ['member', 'dashboard-data'] });
+      queryClient.invalidateQueries({ queryKey: ['member', 'dashboard'] });
     },
   });
 

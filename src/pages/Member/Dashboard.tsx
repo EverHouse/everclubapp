@@ -1437,7 +1437,7 @@ const Dashboard: React.FC = () => {
         member_email: user?.email || ''
       }}
       onSuccess={async () => {
-        queryClient.invalidateQueries({ queryKey: ['member', 'dashboard-data'] });
+        queryClient.invalidateQueries({ queryKey: ['member', 'dashboard'] });
       }}
     />
 

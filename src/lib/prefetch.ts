@@ -16,7 +16,7 @@ registerMemberRoutes(
     '/events': ['/api/events'],
     '/wellness': ['/api/wellness-classes'],
     '/updates': ['/api/announcements', '/api/closures'],
-    '/dashboard': ['/api/member/dashboard-data'],
+    '/dashboard': ['/api/member/dashboard/bookings', '/api/member/dashboard/booking-requests', '/api/member/dashboard/stats'],
   }
 );
 

@@ -361,9 +361,9 @@ const BookGolf: React.FC = () => {
     onMutate: async (bookingData) => {
       await queryClient.cancelQueries({ queryKey: bookGolfKeys.all });
 
-      const dashboardKey = ['member', 'dashboard-data', effectiveUser?.email];
-      await queryClient.cancelQueries({ queryKey: dashboardKey });
-      const previousDashboard = queryClient.getQueryData(dashboardKey);
+      const bookingRequestsKey = ['member', 'dashboard', effectiveUser?.email, 'booking-requests'];
+      await queryClient.cancelQueries({ queryKey: bookingRequestsKey });
+      const previousBookingRequests = queryClient.getQueryData(bookingRequestsKey);
 
       const startTimeParts = bookingData.start_time.split(':').map(Number);
       const endTotalMinutes = (startTimeParts[0] * 60 + startTimeParts[1]) + bookingData.duration_minutes;
@@ -391,28 +391,21 @@ const BookGolf: React.FC = () => {
         declared_player_count: bookingData.declared_player_count,
       };
 
-      queryClient.setQueryData(dashboardKey, (old: Record<string, unknown> | undefined) => {
-        if (!old) return old;
-        const existingRequests = (old.bookingRequests || []) as Array<Record<string, unknown>>;
-        return {
-          ...old,
-          bookingRequests: [...existingRequests, optimisticRequest],
-        };
+      queryClient.setQueryData(bookingRequestsKey, (old: unknown[] | undefined) => {
+        if (!old) return [optimisticRequest];
+        return [...old, optimisticRequest];
       });
 
-      return { previousDashboard, dashboardKey };
+      return { previousBookingRequests, bookingRequestsKey };
     },
     onError: (_err, _vars, context) => {
-      if (context?.previousDashboard && context?.dashboardKey) {
-        queryClient.setQueryData(context.dashboardKey, context.previousDashboard);
+      if (context?.previousBookingRequests && context?.bookingRequestsKey) {
+        queryClient.setQueryData(context.bookingRequestsKey, context.previousBookingRequests);
       }
     },
-    onSettled: (_data, _err, _vars, context) => {
+    onSettled: (_data, _err, _vars) => {
       queryClient.invalidateQueries({ queryKey: bookGolfKeys.all });
-      if (context?.dashboardKey) {
-        queryClient.invalidateQueries({ queryKey: context.dashboardKey });
-      }
-      queryClient.invalidateQueries({ queryKey: ['member', 'dashboard-data'] });
+      queryClient.invalidateQueries({ queryKey: ['member', 'dashboard'] });
     },
   });
 
