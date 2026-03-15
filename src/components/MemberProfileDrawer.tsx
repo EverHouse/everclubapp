@@ -750,7 +750,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1">
                 <h2 className={`text-xl sm:text-2xl font-bold truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{enrichedMember.name}</h2>
-                {isAdmin && !visitorMode && !showNameEdit && (
+                {isAdmin && !showNameEdit && (
                   <button
                     onClick={() => {
                       setEditFirstName(enrichedMember.firstName || enrichedMember.name?.split(' ')[0] || '');
@@ -871,7 +871,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 {member.email}
               </a>
               <CopyButton value={member.email} isDark={isDark} />
-              {isAdmin && !visitorMode && (
+              {isAdmin && (
                 <button
                   onClick={() => {
                     setShowEmailChange(true);
@@ -970,7 +970,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     No phone
                   </span>
                 )}
-                {isAdmin && !visitorMode && (
+                {isAdmin && (
                   <button
                     onClick={() => {
                       setEditPhone(enrichedMember.phone || '');
