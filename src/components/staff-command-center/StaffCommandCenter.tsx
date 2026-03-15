@@ -15,6 +15,7 @@ import { StaffCommandCenterSkeleton } from '../skeletons';
 import { AnimatedPage } from '../motion';
 import { useBookingActions } from '../../hooks/useBookingActions';
 import { playSound } from '../../utils/sounds';
+import { parseQrCode } from '../../utils/qrCodeParser';
 
 import { useCommandCenterData } from './hooks/useCommandCenterData';
 import { formatTodayDate } from './helpers';
@@ -131,9 +132,10 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
   const handleScanSuccess = async (decodedText: string) => {
     setQrScannerOpen(false);
 
-    const memberMatch = decodedText.match(/^MEMBER:(.+)$/);
-    if (memberMatch) {
-      const memberId = memberMatch[1];
+    const parsed = parseQrCode(decodedText);
+
+    if (parsed.type === 'member' && parsed.memberId) {
+      const memberId = parsed.memberId;
       try {
         showToast('Processing check-in...', 'info');
         const response = await fetch('/api/staff/qr-checkin', {
@@ -225,42 +227,27 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
       return;
     }
 
-    const bookingMatch = decodedText.match(/^BOOKING:(\d+)$/);
-    if (bookingMatch) {
-      const scannedBookingId = Number(bookingMatch[1]);
+    if (parsed.type === 'booking' && parsed.bookingId) {
+      const scannedBookingId = parsed.bookingId;
       const booking = data.todaysBookings.find(b => Number(b.id) === scannedBookingId);
       if (booking) {
         handleCheckIn(booking);
         showToast(`Checking in ${booking.user_name} for booking #${scannedBookingId}...`, 'info');
       } else {
-        playSound('checkinWarning');
-        showToast(`Booking #${scannedBookingId} not found for today`, 'error');
+        const result = await checkInWithToast(scannedBookingId, { status: 'attended' });
+        if (result?.success) {
+          window.dispatchEvent(new CustomEvent('booking-action-completed'));
+          refresh();
+        } else {
+          playSound('checkinWarning');
+          showToast(`Booking #${scannedBookingId} not found for today`, 'error');
+        }
       }
       return;
     }
 
-    try {
-      const scanData = JSON.parse(decodedText);
-      if (scanData.bookingId) {
-        const booking = data.todaysBookings.find(b => Number(b.id) === Number(scanData.bookingId));
-        if (booking) {
-          handleCheckIn(booking);
-          showToast(`Checking in ${booking.user_name}...`, 'info');
-        } else {
-          const result = await checkInWithToast(scanData.bookingId, { status: 'attended' });
-          if (result?.success) {
-            window.dispatchEvent(new CustomEvent('booking-action-completed'));
-            refresh();
-          }
-        }
-      } else {
-        playSound('checkinWarning');
-        showToast('Invalid QR code format.', 'error');
-      }
-    } catch (_error: unknown) {
-      playSound('checkinWarning');
-      showToast('Invalid QR code.', 'error');
-    }
+    playSound('checkinWarning');
+    showToast('Invalid QR code format.', 'error');
   };
   
   const _safeRevertOptimisticUpdate = useCallback((

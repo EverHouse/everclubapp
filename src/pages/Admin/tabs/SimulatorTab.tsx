@@ -12,10 +12,13 @@ import { TabType, tabToPath } from '../layout/types';
 import { TrackmanBookingModal } from '../../../components/staff-command-center/modals/TrackmanBookingModal';
 import { UnifiedBookingSheet } from '../../../components/staff-command-center/modals/UnifiedBookingSheet';
 import { StaffManualBookingModal } from '../../../components/staff-command-center/modals/StaffManualBookingModal';
+import QrScannerModal from '../../../components/staff-command-center/modals/QrScannerModal';
 import { useBookingActions } from '../../../hooks/useBookingActions';
 import { AnimatedPage } from '../../../components/motion';
 import { useConfirmDialog } from '../../../components/ConfirmDialog';
 import { SimulatorTabSkeleton } from '../../../components/skeletons';
+import { parseQrCode } from '../../../utils/qrCodeParser';
+import FloatingActionButton from '../../../components/FloatingActionButton';
 import {
     useResources,
     useBays,
@@ -224,6 +227,7 @@ const SimulatorTab: React.FC = () => {
     }>({});
     
     const [actionInProgress, setActionInProgress] = useState<Record<string, string>>({});
+    const [qrScannerOpen, setQrScannerOpen] = useState(false);
     
     const calendarColRef = useRef<HTMLDivElement>(null);
     const [queueMaxHeight, setQueueMaxHeight] = useState<number | null>(null);
@@ -542,6 +546,88 @@ const SimulatorTab: React.FC = () => {
             return false;
         }
     }, [queryClient, calendarStartDate, calendarEndDate, showToast, checkInWithToast, revertToApprovedWithToast]);
+
+    const handleQrScanSuccess = useCallback(async (decodedText: string) => {
+        setQrScannerOpen(false);
+        const parsed = parseQrCode(decodedText);
+
+        if (parsed.type === 'member' && parsed.memberId) {
+            try {
+                showToast('Processing check-in...', 'info');
+                const response = await fetch('/api/staff/qr-checkin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ memberId: parsed.memberId })
+                });
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    const isAlreadyCheckedIn = !!result.alreadyCheckedIn;
+                    if (result.hasBooking && result.bookingId) {
+                        const bookingId = Number(result.bookingId);
+                        if (checkinInProgressRef.current.has(bookingId)) return;
+
+                        const booking = approvedBookings.find(b => Number(b.id) === bookingId);
+                        if (booking) {
+                            await updateBookingStatusOptimistic(booking, 'attended');
+                        } else {
+                            const syntheticBooking: BookingRequest = {
+                                id: bookingId,
+                                user_email: result.memberEmail,
+                                user_name: result.memberName,
+                                resource_id: null,
+                                bay_name: result.bookingDetails?.bayName || null,
+                                resource_preference: null,
+                                request_date: getTodayPacific(),
+                                start_time: result.bookingDetails?.startTime || '',
+                                end_time: result.bookingDetails?.endTime || '',
+                                duration_minutes: 60,
+                                notes: null,
+                                status: 'approved',
+                                staff_notes: null,
+                                suggested_time: null,
+                                created_at: null,
+                                source: 'booking'
+                            };
+                            await updateBookingStatusOptimistic(syntheticBooking, 'attended');
+                        }
+                        if (isAlreadyCheckedIn) {
+                            showToast('Already checked in — booking marked as attended', 'info');
+                        }
+                    } else {
+                        showToast(`${result.memberName} checked in (no booking found for today)`, 'info');
+                        handleRefresh();
+                    }
+                } else if (result.alreadyCheckedIn) {
+                    showToast('This member was already checked in', 'info');
+                } else {
+                    showToast(result.error || 'Check-in failed', 'error');
+                }
+            } catch {
+                showToast('Failed to process check-in', 'error');
+            }
+            return;
+        }
+
+        if (parsed.type === 'booking' && parsed.bookingId) {
+            const scannedBookingId = parsed.bookingId;
+            if (checkinInProgressRef.current.has(scannedBookingId)) return;
+            const booking = approvedBookings.find(b => Number(b.id) === scannedBookingId);
+            if (booking) {
+                await updateBookingStatusOptimistic(booking, 'attended');
+            } else {
+                showToast('Processing check-in...', 'info');
+                const result = await checkInWithToast(scannedBookingId, { source: 'booking' });
+                if (result.success) {
+                    handleRefresh();
+                }
+            }
+            return;
+        }
+
+        showToast('Invalid QR code format', 'error');
+    }, [approvedBookings, showToast, handleRefresh, updateBookingStatusOptimistic, checkInWithToast]);
 
     const showCancelConfirmation = useCallback((booking: BookingRequest) => {
         const hasTrackman = !!(booking.trackman_booking_id) || 
@@ -1598,6 +1684,21 @@ const SimulatorTab: React.FC = () => {
                 </div>
 
                 <ConfirmDialogComponent />
+
+                <FloatingActionButton
+                    onClick={() => setQrScannerOpen(true)}
+                    icon="qr_code_scanner"
+                    label="Scan Check-in"
+                    text="Scan Check-in"
+                    extended
+                    color="brand"
+                />
+
+                <QrScannerModal
+                    isOpen={qrScannerOpen}
+                    onClose={() => setQrScannerOpen(false)}
+                    onScanSuccess={handleQrScanSuccess}
+                />
             </AnimatedPage>
     );
 };
