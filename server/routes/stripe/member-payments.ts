@@ -1269,10 +1269,22 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
           return res.status(409).json({ error: 'A payment is already being processed for this booking.' });
         }
         if (livePi.status !== 'canceled') {
-          const { cancelPaymentIntent } = await import('../../core/stripe');
-          const cancelResult = await cancelPaymentIntent(row.stripe_payment_intent_id);
-          if (!cancelResult.success) {
-            throw new Error(cancelResult.error || 'Failed to cancel stale PI');
+          if (livePi.invoice) {
+            logger.info('[MemberPayments] Stale PI is invoice-generated — skipping cancel, invoice flow will handle it', {
+              extra: { bookingId, piId: row.stripe_payment_intent_id, invoiceId: typeof livePi.invoice === 'string' ? livePi.invoice : (livePi.invoice as { id: string }).id }
+            });
+          } else {
+            const { cancelPaymentIntent } = await import('../../core/stripe');
+            const cancelResult = await cancelPaymentIntent(row.stripe_payment_intent_id);
+            if (!cancelResult.success) {
+              logger.warn('[MemberPayments] Could not cancel stale PI — checking if booking has invoice to fall through', {
+                extra: { bookingId, piId: row.stripe_payment_intent_id, error: cancelResult.error }
+              });
+              const bookingInvoice = await getBookingInvoiceId(bookingId);
+              if (!bookingInvoice) {
+                throw new Error(cancelResult.error || 'Failed to cancel stale PI');
+              }
+            }
           }
         } else {
           await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);

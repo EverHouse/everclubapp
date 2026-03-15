@@ -725,15 +725,27 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
             return res.status(409).json({ error: 'A payment is already being processed for this booking. Please wait or check payment history.' });
           }
           if (livePi.status !== 'canceled') {
-            const { cancelPaymentIntent } = await import('../../core/stripe');
-            const cancelResult = await cancelPaymentIntent(row.stripe_payment_intent_id);
-            if (!cancelResult.success) {
-              throw new Error(cancelResult.error || 'Failed to cancel stale PI');
+            if (livePi.invoice) {
+              logger.info('[Stripe] Stale PI is invoice-generated — skipping cancel, invoice flow will handle it', {
+                extra: { bookingId: resolvedBookingId, piId: row.stripe_payment_intent_id, invoiceId: typeof livePi.invoice === 'string' ? livePi.invoice : (livePi.invoice as { id: string }).id }
+              });
+            } else {
+              const { cancelPaymentIntent } = await import('../../core/stripe');
+              const cancelResult = await cancelPaymentIntent(row.stripe_payment_intent_id);
+              if (!cancelResult.success) {
+                logger.warn('[Stripe] Could not cancel stale PI — checking if booking has invoice to fall through', {
+                  extra: { bookingId: resolvedBookingId, piId: row.stripe_payment_intent_id, error: cancelResult.error }
+                });
+                const bookingInvoice = resolvedBookingId ? await getBookingInvoiceId(Number(resolvedBookingId)) : null;
+                if (!bookingInvoice) {
+                  throw new Error(cancelResult.error || 'Failed to cancel stale PI');
+                }
+              }
             }
           } else {
             await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
           }
-          logger.info('[Stripe] Staff charge cancelled stale pending PI', {
+          logger.info('[Stripe] Staff charge stale PI check complete', {
             extra: { bookingId: resolvedBookingId, piId: row.stripe_payment_intent_id, oldStatus: row.status }
           });
         } catch (cancelErr: unknown) {

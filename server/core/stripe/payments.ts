@@ -448,11 +448,13 @@ export async function cancelPaymentIntent(
       return { success: true };
     }
 
-    const piInvoice = (pi as unknown as Record<string, unknown>).invoice;
     let invoiceId: string | null = null;
-    if (piInvoice) {
-      invoiceId = typeof piInvoice === 'string' ? piInvoice : (piInvoice as { id: string }).id;
+
+    if (pi.invoice) {
+      invoiceId = typeof pi.invoice === 'string' ? pi.invoice : (pi.invoice as unknown as { id: string }).id;
+      logger.info(`[Stripe] Detected invoice from PI expand`, { extra: { paymentIntentId, invoiceId } });
     }
+
     if (!invoiceId) {
       const localBooking = await db.execute(sql`SELECT booking_id FROM stripe_payment_intents WHERE stripe_payment_intent_id = ${paymentIntentId} AND booking_id IS NOT NULL LIMIT 1`);
       if (localBooking.rows.length > 0) {
@@ -460,17 +462,12 @@ export async function cancelPaymentIntent(
         const { getBookingInvoiceId } = await import('../billing/bookingInvoiceService');
         const foundInvoiceId = await getBookingInvoiceId(bookingId);
         if (foundInvoiceId) {
-          const verifyInvoice = await stripe.invoices.retrieve(foundInvoiceId);
-          const invoicePi = typeof verifyInvoice.payment_intent === 'string' ? verifyInvoice.payment_intent : (verifyInvoice.payment_intent as { id: string } | null)?.id;
-          if (invoicePi === paymentIntentId) {
-            invoiceId = foundInvoiceId;
-            logger.info(`[Stripe] Detected invoice-generated PI via booking invoice lookup`, { extra: { paymentIntentId, invoiceId, bookingId } });
-          } else {
-            logger.info(`[Stripe] Booking invoice PI mismatch — not using for cancel`, { extra: { paymentIntentId, foundInvoiceId, invoicePi, bookingId } });
-          }
+          invoiceId = foundInvoiceId;
+          logger.info(`[Stripe] Detected invoice via booking DB lookup`, { extra: { paymentIntentId, invoiceId, bookingId } });
         }
       }
     }
+
     if (invoiceId) {
       const invoice = await stripe.invoices.retrieve(invoiceId);
       if (invoice.status === 'open' || invoice.status === 'uncollectible') {
@@ -488,7 +485,32 @@ export async function cancelPaymentIntent(
         return { success: false, error: `Invoice is ${invoice.status}, cannot cancel payment` };
       }
     } else {
-      await stripe.paymentIntents.cancel(paymentIntentId);
+      try {
+        await stripe.paymentIntents.cancel(paymentIntentId);
+      } catch (cancelErr: unknown) {
+        const errMsg = cancelErr instanceof Error ? cancelErr.message : String(cancelErr);
+        if (errMsg.includes('created by invoices') || errMsg.includes('voiding the invoice')) {
+          logger.warn(`[Stripe] PI ${paymentIntentId} is invoice-created but invoice not found via expand or DB — attempting PI-based invoice lookup`);
+          const freshPi = await stripe.paymentIntents.retrieve(paymentIntentId);
+          const piInvId = typeof freshPi.invoice === 'string' ? freshPi.invoice : null;
+          if (piInvId) {
+            const inv = await stripe.invoices.retrieve(piInvId);
+            if (inv.status === 'open' || inv.status === 'uncollectible') {
+              await stripe.invoices.voidInvoice(piInvId);
+              logger.info(`[Stripe] Voided invoice ${piInvId} (fallback) to cancel PI ${paymentIntentId}`);
+            } else if (inv.status === 'draft') {
+              await stripe.invoices.del(piInvId);
+              logger.info(`[Stripe] Deleted draft invoice ${piInvId} (fallback) to cancel PI ${paymentIntentId}`);
+            } else {
+              throw cancelErr;
+            }
+          } else {
+            throw cancelErr;
+          }
+        } else {
+          throw cancelErr;
+        }
+      }
     }
 
     await db.execute(sql`UPDATE stripe_payment_intents 
