@@ -876,6 +876,7 @@ export class BookingStateService {
           if (!cancelResult.success) {
             throw new Error(cancelResult.error || 'Failed to cancel pending snapshot PI');
           }
+          await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE stripe_payment_intent_id = ${snapshotRefund.paymentIntentId} AND status IN ('pending', 'requires_action')`);
           logger.info('[BookingStateService] Cancelled pending snapshot PI instead of refunding', { extra: { paymentIntentId: snapshotRefund.paymentIntentId, originalStatus: piRow.status } });
           continue;
         }
@@ -900,6 +901,8 @@ export class BookingStateService {
             WHERE stripe_payment_intent_id = ${snapshotRefund.paymentIntentId} AND status = 'refunding'`);
           throw new Error(refundResult.error);
         }
+        await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'refunded', updated_at = NOW() WHERE stripe_payment_intent_id = ${snapshotRefund.paymentIntentId} AND status IN ('pending', 'requires_action')`);
+
       } catch (err: unknown) {
         const msg = `Failed snapshot refund ${snapshotRefund.paymentIntentId.substring(0, 12)}: ${getErrorMessage(err)}`;
         errors.push(msg);

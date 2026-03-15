@@ -1450,6 +1450,13 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
       } catch (cancelIntentsErr: unknown) {
         logger.error('[Member Cancel] Failed to cancel pending payment intents (non-blocking)', { extra: { error: getErrorMessage(cancelIntentsErr) } });
       }
+    } else {
+      try {
+        await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_action')`);
+        logger.info('[Member Cancel] Late cancel — marked pending fee snapshots as cancelled (Stripe PIs preserved for fee collection)', { extra: { bookingId } });
+      } catch (snapshotErr: unknown) {
+        logger.error('[Member Cancel] Failed to cancel fee snapshots for late cancel (non-blocking)', { extra: { bookingId, error: getErrorMessage(snapshotErr) } });
+      }
     }
     
     const cancelResult = await db.update(bookingRequests)

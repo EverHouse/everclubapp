@@ -4,6 +4,7 @@ import { getTodayPacific, formatTimePacific } from '../utils/dateUtils';
 import { notifyAllStaff } from '../core/notificationService';
 import { broadcastAvailabilityUpdate } from '../core/websocket';
 import { logger } from '../core/logger';
+import { cancelPendingPaymentIntentsForBooking } from '../core/billing/paymentIntentCleanup';
 
 interface ExpiredBookingResult {
   id: number;
@@ -104,6 +105,15 @@ async function expireStaleBookingRequests(): Promise<void> {
       throw txErr;
     } finally {
       client.release();
+    }
+
+    const allExpiredBookings = [...trackmanLinkedRows, ...expiredBookingRows];
+    for (const booking of allExpiredBookings) {
+      try {
+        await cancelPendingPaymentIntentsForBooking(booking.id, { skipSnapshotUpdate: true });
+      } catch (err: unknown) {
+        logger.warn(`[Booking Expiry] Failed to cancel Stripe PIs for expired booking #${booking.id}`, { error: err });
+      }
     }
 
     for (const booking of trackmanLinkedRows) {
@@ -268,6 +278,14 @@ export async function runManualBookingExpiry(): Promise<{ expiredCount: number }
       );
     } catch (snapshotErr) {
       logger.warn('[Booking Expiry] Non-blocking: failed to cancel fee snapshots for manually expired bookings', { error: snapshotErr as Error });
+    }
+
+    for (const expiredId of expiredIds) {
+      try {
+        await cancelPendingPaymentIntentsForBooking(expiredId, { skipSnapshotUpdate: true });
+      } catch (err: unknown) {
+        logger.warn(`[Booking Expiry] Manual: failed to cancel Stripe PIs for expired booking #${expiredId}`, { error: err });
+      }
     }
   }
 

@@ -6,19 +6,34 @@ import { getErrorMessage } from '../../utils/errorUtils';
 import { getStripeClient } from '../stripe/client';
 import { markPaymentRefunded } from './PaymentStatusService';
 
-export async function cancelPendingPaymentIntentsForBooking(bookingId: number): Promise<void> {
+export async function cancelPendingPaymentIntentsForBooking(bookingId: number, options?: { skipSnapshotUpdate?: boolean }): Promise<void> {
   try {
     const pendingIntents = await db.execute(
       sql`SELECT stripe_payment_intent_id 
        FROM stripe_payment_intents 
        WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')`
     );
+    const cancelledPiIds: string[] = [];
     for (const row of pendingIntents.rows) {
+      const piId = row.stripe_payment_intent_id as string;
       try {
-        await cancelPaymentIntent(row.stripe_payment_intent_id as string);
-        logger.info(`Cancelled payment intent ${row.stripe_payment_intent_id}`);
+        const result = await cancelPaymentIntent(piId);
+        if (result.success) {
+          cancelledPiIds.push(piId);
+          logger.info(`Cancelled payment intent ${piId}`);
+        } else {
+          logger.warn(`Failed to cancel payment intent ${piId}: ${result.error}`);
+        }
       } catch (cancelErr: unknown) {
-        logger.warn(`Failed to cancel payment intent ${row.stripe_payment_intent_id}: ${getErrorMessage(cancelErr)}`);
+        logger.warn(`Failed to cancel payment intent ${piId}: ${getErrorMessage(cancelErr)}`);
+      }
+    }
+
+    if (!options?.skipSnapshotUpdate && cancelledPiIds.length > 0) {
+      for (const piId of cancelledPiIds) {
+        await db.execute(
+          sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE stripe_payment_intent_id = ${piId} AND status IN ('pending', 'requires_action')`
+        );
       }
     }
   } catch (e: unknown) {
