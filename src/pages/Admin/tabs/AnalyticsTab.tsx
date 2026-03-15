@@ -830,7 +830,7 @@ const AnalyticsTab: React.FC = () => {
                 <AtRiskMembersList data={memberData.atRiskMembers} />
               </SectionCard>
             </div>
-            <SectionCard icon="trending_up" title="New Member Growth" subtitle="New signups over the last 6 months">
+            <SectionCard icon="trending_up" title="New Member Growth" subtitle="New members by join date over the last 6 months">
               <NewMemberGrowthChart data={memberData.newMemberGrowth} />
             </SectionCard>
           </>

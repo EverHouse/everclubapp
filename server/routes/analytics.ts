@@ -428,14 +428,14 @@ router.get('/api/analytics/membership-insights', isStaffOrAdmin, async (_req: Re
         ),
         signups AS (
           SELECT
-            TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS month,
+            TO_CHAR(DATE_TRUNC('month', COALESCE(join_date, created_at::date)), 'YYYY-MM') AS month,
             COUNT(*)::int AS new_members
           FROM users
           WHERE role = 'member'
             AND archived_at IS NULL
             AND membership_status IN ('active', 'trialing', 'past_due')
-            AND created_at >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '5 months')
-          GROUP BY DATE_TRUNC('month', created_at)
+            AND COALESCE(join_date, created_at::date) >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '5 months')
+          GROUP BY DATE_TRUNC('month', COALESCE(join_date, created_at::date))
         )
         SELECT m.month, COALESCE(s.new_members, 0)::int AS new_members
         FROM months m
