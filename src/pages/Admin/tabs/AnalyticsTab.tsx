@@ -66,6 +66,7 @@ interface RevenueEntry {
   overageRevenue: number;
   posSaleRevenue: number;
   accountBalanceRevenue: number;
+  guestFeeRevenue: number;
   otherRevenue: number;
   totalRevenue: number;
 }
@@ -410,6 +411,7 @@ const REVENUE_LABEL_MAP: Record<string, string> = {
   subscription: 'Memberships',
   booking: 'Booking Fees',
   overage: 'Overage',
+  guestFee: 'Guest Fees',
   posSale: 'POS Sales',
   accountBalance: 'Account Balance',
   other: 'Other',
@@ -425,6 +427,7 @@ const RevenueChart: React.FC<{ data: RevenueEntry[] }> = ({ data }) => {
     subscription: r.subscriptionRevenue,
     booking: r.bookingRevenue,
     overage: r.overageRevenue,
+    guestFee: r.guestFeeRevenue,
     posSale: r.posSaleRevenue,
     accountBalance: r.accountBalanceRevenue,
     other: r.otherRevenue,
@@ -435,6 +438,7 @@ const RevenueChart: React.FC<{ data: RevenueEntry[] }> = ({ data }) => {
     { key: 'subscription', color: '#6366f1' },
     { key: 'booking', color: '#8b5cf6' },
     { key: 'overage', color: '#f59e0b' },
+    { key: 'guestFee', color: '#ec4899' },
     { key: 'posSale', color: '#22c55e' },
     { key: 'accountBalance', color: '#06b6d4' },
     { key: 'other', color: '#94a3b8' },
@@ -771,7 +775,7 @@ const AnalyticsTab: React.FC = () => {
             <SectionCard icon="trending_up" title="Bookings Over Time" subtitle="Weekly booking volume (last 6 months)">
               <BookingsOverTimeChart data={extData.bookingsOverTime} />
             </SectionCard>
-            <SectionCard icon="attach_money" title="Revenue Over Time" subtitle="Confirmed Stripe payments by category (last 6 months)">
+            <SectionCard icon="attach_money" title="Revenue Over Time" subtitle="Live Stripe data by category (last 6 months)">
               <RevenueChart data={extData.revenueOverTime} />
             </SectionCard>
           </div>

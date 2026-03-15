@@ -4,8 +4,103 @@ import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
+import { getStripeClient } from '../core/stripe/client';
+import type Stripe from 'stripe';
 
 const router = Router();
+
+interface RevenueMonth {
+  subscription_cents: number;
+  booking_cents: number;
+  overage_cents: number;
+  pos_sale_cents: number;
+  account_balance_cents: number;
+  guest_fee_cents: number;
+  other_cents: number;
+  total_cents: number;
+}
+
+let revenueCache: { data: Record<string, RevenueMonth>; fetchedAt: number } | null = null;
+const REVENUE_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function categorizeCharge(charge: Stripe.Charge): string {
+  const pi = charge.payment_intent && typeof charge.payment_intent === 'object' ? charge.payment_intent as Stripe.PaymentIntent : null;
+  const meta = pi?.metadata || charge.metadata || {};
+  const desc = (pi?.description || charge.description || '').toLowerCase();
+
+  if (meta.purpose === 'overage_fee' || desc.includes('overage')) return 'overage';
+  if (meta.purpose === 'guest_fee' || desc.includes('guest fee') || desc.includes('guest pass')) return 'guest_fee';
+  if (meta.purpose === 'booking_fee' || meta.purpose === 'prepayment' || meta.paymentType === 'booking_fee') return 'booking';
+  if (meta.purpose === 'one_time_purchase' || meta.source === 'pos') return 'pos_sale';
+  if (meta.purpose === 'add_funds' || desc.includes('top-up') || desc.includes('account balance')) return 'account_balance';
+  if (meta.paymentType === 'subscription_terminal' || meta.source === 'membership_inline_payment') return 'subscription';
+  if (desc.includes('subscription') || desc.includes('payment for invoice')) return 'subscription';
+  if (desc.includes('booking') || desc.includes('simulator') || desc.includes('bay')) return 'booking';
+  return 'other';
+}
+
+async function fetchRevenueFromStripe(): Promise<Record<string, RevenueMonth>> {
+  const now = Date.now();
+  if (revenueCache && (now - revenueCache.fetchedAt) < REVENUE_CACHE_TTL_MS) {
+    return revenueCache.data;
+  }
+
+  const stripe = await getStripeClient();
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+  sixMonthsAgo.setDate(1);
+  sixMonthsAgo.setHours(0, 0, 0, 0);
+  const startTimestamp = Math.floor(sixMonthsAgo.getTime() / 1000);
+
+  const months: Record<string, RevenueMonth> = {};
+  const currentDate = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    months[key] = { subscription_cents: 0, booking_cents: 0, overage_cents: 0, pos_sale_cents: 0, account_balance_cents: 0, guest_fee_cents: 0, other_cents: 0, total_cents: 0 };
+  }
+
+  let hasMore = true;
+  let startingAfter: string | undefined;
+
+  while (hasMore) {
+    const params: Stripe.ChargeListParams = {
+      limit: 100,
+      created: { gte: startTimestamp },
+      expand: ['data.payment_intent'],
+    };
+    if (startingAfter) params.starting_after = startingAfter;
+
+    const page = await stripe.charges.list(params);
+
+    for (const charge of page.data) {
+      if (!charge.paid || charge.refunded) continue;
+
+      const netAmount = charge.amount - (charge.amount_refunded || 0);
+      if (netAmount <= 0) continue;
+
+      const created = new Date(charge.created * 1000);
+      const monthKey = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}`;
+      if (!months[monthKey]) continue;
+
+      const category = categorizeCharge(charge);
+      const catKey = `${category}_cents` as keyof RevenueMonth;
+      if (catKey in months[monthKey]) {
+        months[monthKey][catKey] += netAmount;
+      }
+      months[monthKey].total_cents += netAmount;
+    }
+
+    hasMore = page.has_more;
+    if (page.data.length > 0) {
+      startingAfter = page.data[page.data.length - 1].id;
+    }
+  }
+
+  revenueCache = { data: months, fetchedAt: now };
+  logger.info('[Analytics] Fetched revenue data from Stripe', { extra: { monthCount: Object.keys(months).length } });
+  return months;
+}
 
 const STAFF_EMAILS_SUBQUERY = sql`(SELECT email FROM users WHERE role IN ('staff', 'admin'))`;
 
@@ -148,64 +243,10 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
         ORDER BY MIN(booking_count)
       `),
 
-      db.execute(sql`
-        WITH months AS (
-          SELECT TO_CHAR(d, 'YYYY-MM') AS month
-          FROM generate_series(
-            DATE_TRUNC('month', CURRENT_DATE - INTERVAL '5 months'),
-            DATE_TRUNC('month', CURRENT_DATE),
-            '1 month'::interval
-          ) d
-        ),
-        categorized AS (
-          SELECT
-            TO_CHAR(DATE_TRUNC('month', stc.created_at), 'YYYY-MM') AS month,
-            CASE
-              WHEN stc.metadata->>'purpose' = 'overage_fee' OR spi.purpose = 'overage_fee' THEN 'overage'
-              WHEN stc.metadata->>'purpose' = 'booking_fee'
-                OR stc.metadata->>'purpose' = 'prepayment'
-                OR stc.metadata->>'paymentType' = 'booking_fee'
-                OR spi.purpose IN ('booking_fee', 'prepayment') THEN 'booking'
-              WHEN stc.metadata->>'purpose' = 'one_time_purchase'
-                OR stc.metadata->>'source' = 'pos' THEN 'pos_sale'
-              WHEN stc.metadata->>'paymentType' = 'subscription_terminal'
-                OR stc.metadata->>'source' = 'membership_inline_payment'
-                OR stc.description ILIKE '%subscription%' THEN 'subscription'
-              WHEN stc.description ILIKE '%payment for invoice%' THEN 'subscription'
-              WHEN stc.description ILIKE '%overage%' THEN 'overage'
-              WHEN stc.metadata->>'purpose' = 'add_funds'
-                OR stc.description ILIKE '%top-up%'
-                OR stc.description ILIKE '%account balance%' THEN 'account_balance'
-              ELSE 'other'
-            END AS category,
-            stc.amount_cents
-          FROM stripe_transaction_cache stc
-          LEFT JOIN stripe_payment_intents spi ON spi.stripe_payment_intent_id = stc.stripe_id
-          WHERE stc.object_type = 'payment_intent'
-            AND stc.status = 'succeeded'
-            AND stc.created_at >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '5 months')
-            AND (spi.status IS NULL OR spi.status NOT IN ('refunded', 'refunding'))
-            AND NOT EXISTS (
-              SELECT 1 FROM stripe_transaction_cache ref_ch
-              WHERE ref_ch.payment_intent_id = stc.stripe_id
-              AND ref_ch.object_type = 'charge'
-              AND ref_ch.status IN ('refunded', 'partially_refunded')
-            )
-        )
-        SELECT
-          m.month,
-          COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'subscription'), 0)::int AS subscription_cents,
-          COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'booking'), 0)::int AS booking_cents,
-          COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'overage'), 0)::int AS overage_cents,
-          COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'pos_sale'), 0)::int AS pos_sale_cents,
-          COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'account_balance'), 0)::int AS account_balance_cents,
-          COALESCE(SUM(c.amount_cents) FILTER (WHERE c.category = 'other'), 0)::int AS other_cents,
-          COALESCE(SUM(c.amount_cents), 0)::int AS total_cents
-        FROM months m
-        LEFT JOIN categorized c ON c.month = m.month
-        GROUP BY m.month
-        ORDER BY m.month
-      `),
+      fetchRevenueFromStripe().then(months => {
+        const sortedMonths = Object.keys(months).sort();
+        return { rows: sortedMonths.map(month => ({ month, ...months[month] })) };
+      }),
 
       db.execute(sql`
         SELECT
@@ -292,13 +333,14 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
         bucket: r.bucket,
         memberCount: r.member_count,
       })),
-      revenueOverTime: (revenueOverTimeResult.rows as { month: string; subscription_cents: number; booking_cents: number; overage_cents: number; pos_sale_cents: number; account_balance_cents: number; other_cents: number; total_cents: number }[]).map(r => ({
+      revenueOverTime: (revenueOverTimeResult.rows as (RevenueMonth & { month: string })[]).map(r => ({
         month: r.month,
         subscriptionRevenue: Math.round(r.subscription_cents) / 100,
         bookingRevenue: Math.round(r.booking_cents) / 100,
         overageRevenue: Math.round(r.overage_cents) / 100,
         posSaleRevenue: Math.round(r.pos_sale_cents) / 100,
         accountBalanceRevenue: Math.round(r.account_balance_cents) / 100,
+        guestFeeRevenue: Math.round(r.guest_fee_cents) / 100,
         otherRevenue: Math.round(r.other_cents) / 100,
         totalRevenue: Math.round(r.total_cents) / 100,
       })),
