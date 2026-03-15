@@ -906,12 +906,7 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
     throw createServiceError('Booking not found', 404);
   }
 
-  try {
-    await enforceRosterLock(bookingId);
-  } catch (lockErr: unknown) {
-    if (lockErr instanceof Error && lockErr.message.startsWith('ROSTER_LOCKED:')) throw lockErr;
-    logger.warn('[rosterService] Roster lock check failed (non-blocking)', { extra: { bookingId, error: getErrorMessage(lockErr) } });
-  }
+  await enforceRosterLock(bookingId);
 
   const isOwner = booking.owner_email?.toLowerCase() === userEmail;
   const isStaff = await isStaffOrAdminCheck(userEmail);
@@ -1442,12 +1437,7 @@ export async function removeParticipant(params: RemoveParticipantParams): Promis
     throw createServiceError('Booking not found', 404);
   }
 
-  try {
-    await enforceRosterLock(bookingId);
-  } catch (lockErr: unknown) {
-    if (lockErr instanceof Error && lockErr.message.startsWith('ROSTER_LOCKED:')) throw lockErr;
-    logger.warn('[rosterService] Roster lock check failed (non-blocking)', { extra: { bookingId, error: getErrorMessage(lockErr) } });
-  }
+  await enforceRosterLock(bookingId);
 
   if (!booking.session_id) {
     throw createServiceError('Booking does not have an active session', 400);
@@ -1620,12 +1610,7 @@ export async function removeParticipant(params: RemoveParticipantParams): Promis
 export async function updateDeclaredPlayerCount(params: UpdatePlayerCountParams): Promise<UpdatePlayerCountResult> {
   const { bookingId, playerCount, staffEmail } = params;
 
-  try {
-    await enforceRosterLock(bookingId);
-  } catch (lockErr: unknown) {
-    if (lockErr instanceof Error && lockErr.message.startsWith('ROSTER_LOCKED:')) throw lockErr;
-    logger.warn('[rosterService] Roster lock check failed (non-blocking)', { extra: { bookingId, error: getErrorMessage(lockErr) } });
-  }
+  await enforceRosterLock(bookingId);
 
   const txResult = await db.transaction(async (tx) => {
     const bookingResult = await tx.execute(sql`
@@ -1724,12 +1709,7 @@ export async function applyRosterBatch(params: BatchRosterUpdateParams): Promise
     throw createServiceError('Booking not found', 404);
   }
 
-  try {
-    await enforceRosterLock(bookingId);
-  } catch (lockErr: unknown) {
-    if (lockErr instanceof Error && lockErr.message.startsWith('ROSTER_LOCKED:')) throw lockErr;
-    logger.warn('[rosterService] Roster lock check failed (non-blocking)', { extra: { bookingId, error: getErrorMessage(lockErr) } });
-  }
+  await enforceRosterLock(bookingId);
 
   const isStaff = await isStaffOrAdminCheck(staffEmail);
   if (!isStaff) {

@@ -81,7 +81,7 @@ Has trackman_booking_id?
 17. **Outstanding balance queries MUST filter:** (a) 90-day lookback, (b) exclude cancelled/declined bookings, (c) exclude completed/paid snapshots.
 18. **One Stripe invoice per booking.** Draft at approval → sync on roster changes → finalize at payment → void on cancel.
 19. **`FOR UPDATE` queries MUST use `ORDER BY id ASC`.** Multi-row `FOR UPDATE` without consistent ordering causes PostgreSQL deadlocks. Applied in `manualBooking.ts` and `payments.ts`.
-20. **Roster lock after paid invoice.** `enforceRosterLock()` blocks edits. Staff override with reason. Fail-open if Stripe check fails.
+20. **Roster lock after paid invoice.** `enforceRosterLock()` blocks edits. Staff override with reason. `isBookingInvoicePaid()` checks Stripe first; on Stripe failure, falls back to `booking_fee_snapshots` (locks only if completed snapshot with `total_cents > 0` — real money collected). If both Stripe and DB fallback fail, locks as a precaution. Staff check-in direct-add path bypasses roster lock entirely (correct — staff need to add walk-in guests).
 21. **Auto-complete runs every 1 hr.** Marks approved/confirmed as `attended` 30 min after end time (same-day) or next day (overnight). Fee guard blocks if unpaid fees exist.
 22. **Terminal status MUST clear `is_unmatched`.** Three defense layers: DB trigger, application code, scheduler safety net.
 23. **Drizzle SQL null safety.** All optional values in `sql` template literals MUST use `?? null`. Prevents empty placeholder syntax errors.

@@ -72,7 +72,7 @@ export function GuestPaymentChoiceModal({
     setError(null);
 
     try {
-      const { ok, error: apiError } = await apiRequest(
+      const { ok, error: apiError, errorData } = await apiRequest(
         `/api/bookings/${bookingId}/participants`,
         {
           method: 'POST',
@@ -90,6 +90,8 @@ export function GuestPaymentChoiceModal({
 
       if (ok) {
         onSuccess(fullName);
+      } else if (errorData?.code === 'ROSTER_LOCKED') {
+        setError('This booking has been paid — the roster is locked. Please ask staff to add your guest at check-in.');
       } else {
         setError(apiError || "We couldn't add your guest at this time. Please try again.");
       }
@@ -109,7 +111,7 @@ export function GuestPaymentChoiceModal({
     setLoading(true);
     setError(null);
     try {
-      const { ok, error: apiError } = await apiRequest(
+      const { ok, error: apiError, errorData } = await apiRequest(
         `/api/bookings/${bookingId}/participants`,
         {
           method: 'POST',
@@ -122,6 +124,8 @@ export function GuestPaymentChoiceModal({
       );
       if (ok) {
         onSuccess('Guest (info pending)');
+      } else if (errorData?.code === 'ROSTER_LOCKED') {
+        setError('This booking has been paid — the roster is locked. Please ask staff to add your guest at check-in.');
       } else {
         setError(apiError || "Something went wrong adding your guest. Please try again.");
       }

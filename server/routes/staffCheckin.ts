@@ -209,7 +209,7 @@ async function _getMemberDisplayName(email: string): Promise<string> {
       return [result[0].firstName, result[0].lastName].filter(Boolean).join(' ');
     }
   } catch (error: unknown) {
-    logger.error('[StaffCheckin] Error looking up member name', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[StaffCheckin] Error looking up member name', { error: getErrorMessage(error) });
   }
   return email.split('@')[0];
 }
@@ -652,7 +652,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
           logger.warn('[StaffCheckin] Invoice sync failed after fee recalculation', { extra: { bookingId, sessionId, error: getErrorMessage(err) } });
         });
       } catch (calcError: unknown) {
-        logger.error('[StaffCheckin] Failed to recalculate fees before payment action', { extra: { calcError } });
+        logger.error('[StaffCheckin] Failed to recalculate fees before payment action', { extra: { error: getErrorMessage(calcError) } });
         // Continue with existing values - non-blocking error
       }
     }
@@ -935,7 +935,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
             });
           }
         } catch (sessionErr: unknown) {
-          logger.error('[StaffCheckin] Failed to create session for payment action', { extra: { sessionErr, bookingId } });
+          logger.error('[StaffCheckin] Failed to create session for payment action', { extra: { bookingId, error: getErrorMessage(sessionErr) } });
         }
       }
 
@@ -1031,7 +1031,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
           });
         } catch (snapshotErr: unknown) {
           if (getErrorMessage(snapshotErr) !== 'SNAPSHOT_RACE') {
-            logger.error('[StaffCheckin] Failed to create fee snapshot', { extra: { snapshotErr } });
+            logger.error('[StaffCheckin] Failed to create fee snapshot', { extra: { error: getErrorMessage(snapshotErr) } });
           }
         }
 
@@ -1349,10 +1349,10 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
               }
             }
           } catch (prepayErr: unknown) {
-            logger.warn('[Staff Add Member] Failed to create prepayment intent', { extra: { sessionId, error: String(prepayErr) } });
+            logger.warn('[Staff Add Member] Failed to create prepayment intent', { extra: { sessionId, error: getErrorMessage(prepayErr) } });
           }
         } catch (feeErr: unknown) {
-          logger.warn('[Staff Add Guest->Member] Failed to recalculate fees', { extra: { sessionId, error: String(feeErr) } });
+          logger.warn('[Staff Add Guest->Member] Failed to recalculate fees', { extra: { sessionId, error: getErrorMessage(feeErr) } });
         }
 
         logFromRequest(req, 'direct_add_participant', 'booking', bookingId.toString(), booking.resource_name || `Booking #${bookingId}`, {
@@ -1441,10 +1441,10 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
             }
           }
         } catch (prepayErr: unknown) {
-          logger.warn('[Staff Add Guest] Failed to create prepayment intent', { extra: { sessionId, error: String(prepayErr) } });
+          logger.warn('[Staff Add Guest] Failed to create prepayment intent', { extra: { sessionId, error: getErrorMessage(prepayErr) } });
         }
       } catch (feeErr: unknown) {
-        logger.warn('[Staff Add Guest] Failed to recalculate fees', { extra: { sessionId, error: String(feeErr) } });
+        logger.warn('[Staff Add Guest] Failed to recalculate fees', { extra: { sessionId, error: getErrorMessage(feeErr) } });
       }
 
       logFromRequest(req, 'direct_add_participant', 'booking', bookingId.toString(), booking.resource_name || `Booking #${bookingId}`, {
@@ -1548,7 +1548,7 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
           logger.warn('[Staff Add Member] Invoice sync failed after fee recalculation', { extra: { bookingId, sessionId, error: getErrorMessage(err) } });
         });
       } catch (feeErr: unknown) {
-        logger.warn('[Staff Add Member] Failed to recalculate fees for session', { extra: { sessionId, feeErr } });
+        logger.warn('[Staff Add Member] Failed to recalculate fees for session', { extra: { sessionId, error: getErrorMessage(feeErr) } });
       }
 
       logFromRequest(req, 'direct_add_participant', 'booking', bookingId.toString(), booking.resource_name || `Booking #${bookingId}`, {

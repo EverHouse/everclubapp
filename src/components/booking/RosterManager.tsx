@@ -246,7 +246,9 @@ const RosterManager: React.FC<RosterManagerProps> = ({
       } else {
         haptic.error();
         
-        if (errorType === 'booking_conflict' || (error && error.includes('scheduling conflict'))) {
+        if (errorData?.code === 'ROSTER_LOCKED') {
+          showToast('This booking has been paid — roster is locked. Use the check-in flow to add walk-in guests.', 'warning');
+        } else if (errorType === 'booking_conflict' || (error && error.includes('scheduling conflict'))) {
           const conflict = errorData?.conflict as ConflictData | undefined;
           setConflictDetails({
             memberName: member.name,
@@ -299,7 +301,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
     };
 
     try {
-      const { ok, error } = await apiRequest(
+      const { ok, error, errorData } = await apiRequest(
         `/api/bookings/${bookingId}/participants/${participantId}`,
         { method: 'DELETE' }
       );
@@ -312,7 +314,11 @@ const RosterManager: React.FC<RosterManagerProps> = ({
       } else {
         haptic.error();
         rollback();
-        showToast(error || 'Failed to remove participant', 'error');
+        if (errorData?.code === 'ROSTER_LOCKED') {
+          showToast('This booking has been paid — roster is locked.', 'warning');
+        } else {
+          showToast(error || 'Failed to remove participant', 'error');
+        }
       }
     } catch {
       haptic.error();

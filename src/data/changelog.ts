@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.18",
+    date: "2026-03-15",
+    title: "Roster Lock Improvements",
+    changes: [
+      "Fixed: Bookings within your daily allowance ($0 fees) no longer get falsely locked — staff can add walk-in guests at check-in",
+      "Fixed: Roster lock now shows a clear message when you try to edit a paid booking — suggests using the check-in flow for walk-in guests",
+      "Improved: Roster lock is now fail-closed — if the system can't verify payment status, it locks as a precaution instead of silently allowing changes",
+    ]
+  },
+  {
     version: "8.87.17",
     date: "2026-03-15",
     title: "Bug Fixes & Stability Improvements",

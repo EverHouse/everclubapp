@@ -1250,7 +1250,7 @@ export async function isBookingInvoicePaid(bookingId: number): Promise<{ locked:
       return { locked: false };
     } catch (stripeErr) {
       logger.warn('[BookingInvoice] Stripe check failed, falling back to local fee snapshot', {
-        extra: { bookingId, invoiceId, error: stripeErr instanceof Error ? stripeErr.message : stripeErr }
+        extra: { bookingId, invoiceId, error: getErrorMessage(stripeErr) }
       });
       try {
         const completedSnapshot = await db.execute(sql`
@@ -1267,16 +1267,16 @@ export async function isBookingInvoicePaid(bookingId: number): Promise<{ locked:
         return { locked: false };
       } catch (fallbackErr) {
         logger.error('[BookingInvoice] Both Stripe and local fallback failed for invoice check', {
-          extra: { bookingId, invoiceId, error: fallbackErr instanceof Error ? fallbackErr.message : fallbackErr }
+          extra: { bookingId, invoiceId, error: getErrorMessage(fallbackErr) }
         });
         return { locked: true, invoiceId, reason: 'Unable to verify invoice status — locked as a precaution' };
       }
     }
   } catch (dbErr) {
-    logger.error('[BookingInvoice] DB query failed in isBookingInvoicePaid', {
-      extra: { bookingId, error: dbErr instanceof Error ? dbErr.message : dbErr }
+    logger.error('[BookingInvoice] DB query failed in isBookingInvoicePaid — locking as precaution', {
+      extra: { bookingId, error: getErrorMessage(dbErr) }
     });
-    return { locked: false };
+    return { locked: true, reason: 'Unable to verify invoice status — locked as a precaution' };
   }
 }
 
