@@ -95,8 +95,7 @@ export async function syncMemberToHubSpot(
    
    
    
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { email, status, billingProvider, tier, memberSince, createIfMissing = true, stripeCustomerId: _stripeCustomerId, stripeCreatedDate, stripeDelinquent, stripeDiscountId, stripePricingInterval, billingGroupRole } = input;
+  const { email, status, billingProvider, tier, memberSince, createIfMissing = true, billingGroupRole } = input;
   
   if (isPlaceholderEmail(email)) {
     logger.info(`[HubSpot Sync] Skipping sync for placeholder email: ${email}`);
@@ -220,16 +219,10 @@ export async function syncMemberToHubSpot(
     const isLiveStripe = await isLiveStripeEnvironment();
 
     if (isLiveStripe) {
-      if (input.stripeCustomerId) {
-        properties.stripe_customer_id = input.stripeCustomerId;
-      }
       if (input.stripeCreatedDate) {
         const date = input.stripeCreatedDate instanceof Date ? input.stripeCreatedDate : new Date(input.stripeCreatedDate);
         const midnightUtc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
         properties.stripe_created_date = midnightUtc.getTime().toString();
-      }
-      if (input.stripeDelinquent !== undefined) {
-        properties.stripe_delinquent = input.stripeDelinquent ? 'true' : 'false';
       }
       if (input.stripeDiscountId) {
         properties.stripe_discount_id = input.stripeDiscountId;
@@ -241,7 +234,7 @@ export async function syncMemberToHubSpot(
         updated.stripeFields = true;
       }
     } else {
-      if (input.stripeCustomerId || input.stripeCreatedDate || input.stripeDelinquent !== undefined || input.stripeDiscountId || input.stripePricingInterval) {
+      if (input.stripeCreatedDate || input.stripeDiscountId || input.stripePricingInterval) {
         logger.info(`[HubSpot Sync] Skipping Stripe field push for ${email} — sandbox/test Stripe environment detected`);
       }
     }

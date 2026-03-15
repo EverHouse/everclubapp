@@ -47,13 +47,11 @@ export async function findOrCreateHubSpotContact(
   const hubspot = await getHubSpotClient();
 
   let dbStatus: string | null = null;
-  let dbStripeCustomerId: string | null = null;
   try {
-    const dbResult = await db.execute(sql`SELECT membership_status, stripe_customer_id FROM users WHERE LOWER(email) = ${email.toLowerCase()} LIMIT 1`);
+    const dbResult = await db.execute(sql`SELECT membership_status FROM users WHERE LOWER(email) = ${email.toLowerCase()} LIMIT 1`);
     if (dbResult.rows.length > 0) {
-      const row = dbResult.rows[0] as { membership_status: string | null; stripe_customer_id: string | null };
+      const row = dbResult.rows[0] as { membership_status: string | null };
       dbStatus = row.membership_status;
-      dbStripeCustomerId = row.stripe_customer_id;
     }
   } catch (dbErr: unknown) {
     logger.warn(`[HubSpot] Failed to look up DB status for ${email}:`, { error: dbErr });
