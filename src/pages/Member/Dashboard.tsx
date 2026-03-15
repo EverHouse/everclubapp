@@ -233,30 +233,66 @@ const Dashboard: React.FC = () => {
   const isStaffOrAdminProfile = user?.role === 'admin' || user?.role === 'staff';
   const { permissions: tierPermissions } = useTierPermissions(user?.tier);
 
-  // Combined dashboard data query - replaces 9 separate API calls
-  // When admin is in "View As" mode, include member_email param to fetch that member's data
-  const dashboardUrl = viewAsEmail 
-    ? `/api/member/dashboard-data?member_email=${encodeURIComponent(viewAsEmail)}`
-    : '/api/member/dashboard-data';
-  
-  const { data: dashboardData, isLoading, error: dashboardError, refetch: _refetchDashboardData } = useQuery({
-    queryKey: ['member', 'dashboard-data', viewAsEmail || user?.email],
-    queryFn: () => fetchWithCredentials<DashboardData>(dashboardUrl),
-    enabled: !!user?.email,
+  const viewAsParam = viewAsEmail ? `?member_email=${encodeURIComponent(viewAsEmail)}` : '';
+  const dashboardQueryBase = ['member', 'dashboard', viewAsEmail || user?.email];
+  const dashboardQueryOpts = { enabled: !!user?.email, refetchOnWindowFocus: true, staleTime: 300000 };
+
+  const { data: bookingsData, isLoading: bookingsLoading, error: bookingsError } = useQuery({
+    queryKey: [...dashboardQueryBase, 'bookings'],
+    queryFn: () => fetchWithCredentials<DBBooking[]>(`/api/member/dashboard/bookings${viewAsParam}`),
+    ...dashboardQueryOpts,
+  });
+  const { data: bookingRequestsData, isLoading: bookingRequestsLoading, error: bookingRequestsError } = useQuery({
+    queryKey: [...dashboardQueryBase, 'booking-requests'],
+    queryFn: () => fetchWithCredentials<DBBookingRequest[]>(`/api/member/dashboard/booking-requests${viewAsParam}`),
+    ...dashboardQueryOpts,
+  });
+  const { data: rsvpsData, isLoading: rsvpsLoading, error: rsvpsError } = useQuery({
+    queryKey: [...dashboardQueryBase, 'rsvps'],
+    queryFn: () => fetchWithCredentials<DBRSVP[]>(`/api/member/dashboard/rsvps${viewAsParam}`),
+    ...dashboardQueryOpts,
+  });
+  const { data: wellnessData, isLoading: wellnessLoading, error: wellnessError } = useQuery({
+    queryKey: [...dashboardQueryBase, 'wellness'],
+    queryFn: () => fetchWithCredentials<{ enrollments: DBWellnessEnrollment[]; classes: DashboardData['wellnessClasses'] }>(`/api/member/dashboard/wellness${viewAsParam}`),
+    ...dashboardQueryOpts,
+  });
+  const { data: eventsData } = useQuery({
+    queryKey: [...dashboardQueryBase, 'events'],
+    queryFn: () => fetchWithCredentials<DashboardData['events']>(`/api/member/dashboard/events${viewAsParam}`),
+    ...dashboardQueryOpts,
+  });
+  const { data: conferenceRoomData } = useQuery({
+    queryKey: [...dashboardQueryBase, 'conference-rooms'],
+    queryFn: () => fetchWithCredentials<DashboardBookingItem[]>(`/api/member/dashboard/conference-rooms${viewAsParam}`),
+    ...dashboardQueryOpts,
+  });
+  const { data: statsData } = useQuery({
+    queryKey: [...dashboardQueryBase, 'stats'],
+    queryFn: () => fetchWithCredentials<{ guestPasses: GuestPasses | null; lifetimeVisitCount: number }>(`/api/member/dashboard/stats${viewAsParam}`),
+    enabled: !!user?.email && !isStaffOrAdminProfile,
     refetchOnWindowFocus: true,
-    staleTime: 300000, // 5 minutes - makes returning to dashboard instant
+    staleTime: 300000,
+  });
+  const { data: bannerAnnouncementData } = useQuery({
+    queryKey: [...dashboardQueryBase, 'announcements'],
+    queryFn: () => fetchWithCredentials<BannerAnnouncement | null>(`/api/member/dashboard/announcements${viewAsParam}`),
+    ...dashboardQueryOpts,
   });
 
-  // Extract individual data with fallbacks
-  const dbBookings = useMemo(() => dashboardData?.bookings ?? [], [dashboardData?.bookings]);
-  const dbRSVPs = useMemo(() => dashboardData?.rsvps ?? [], [dashboardData?.rsvps]);
-  const dbWellnessEnrollments = useMemo(() => dashboardData?.wellnessEnrollments ?? [], [dashboardData?.wellnessEnrollments]);
-  const dbBookingRequests = useMemo(() => dashboardData?.bookingRequests ?? [], [dashboardData?.bookingRequests]);
-  const dbConferenceRoomBookings = useMemo(() => dashboardData?.conferenceRoomBookings ?? [], [dashboardData?.conferenceRoomBookings]);
-  const allWellnessClasses = dashboardData?.wellnessClasses ?? [];
-  const allEvents = dashboardData?.events ?? [];
-  const guestPasses = isStaffOrAdminProfile ? null : dashboardData?.guestPasses;
-  const bannerAnnouncement = dashboardData?.bannerAnnouncement;
+  const coreScheduleLoading = bookingsLoading || bookingRequestsLoading;
+  const initialLoading = coreScheduleLoading && !bookingsData && !bookingRequestsData;
+  const isLoading = coreScheduleLoading;
+
+  const dbBookings = useMemo(() => bookingsData ?? [], [bookingsData]);
+  const dbRSVPs = useMemo(() => rsvpsData ?? [], [rsvpsData]);
+  const dbWellnessEnrollments = useMemo(() => wellnessData?.enrollments ?? [], [wellnessData]);
+  const dbBookingRequests = useMemo(() => bookingRequestsData ?? [], [bookingRequestsData]);
+  const dbConferenceRoomBookings = useMemo(() => conferenceRoomData ?? [], [conferenceRoomData]);
+  const allWellnessClasses = wellnessData?.classes ?? [];
+  const allEvents = eventsData ?? [];
+  const guestPasses = isStaffOrAdminProfile ? null : statsData?.guestPasses ?? null;
+  const bannerAnnouncement = bannerAnnouncementData ?? undefined;
 
   const { data: walletPassStatus } = useQuery({
     queryKey: ['wallet-pass-status'],
@@ -266,10 +302,13 @@ const Dashboard: React.FC = () => {
   });
   const walletPassAvailable = walletPassStatus?.available ?? false;
   
-  const error = dashboardError ? 'Failed to load dashboard data. Pull down to refresh.' : null;
+  const scheduleError = !!(bookingsError && bookingRequestsError);
+  const error = scheduleError ? 'Failed to load your schedule. Pull down to refresh.' : null;
+  const rsvpSectionError = rsvpsError && !rsvpsData;
+  const wellnessSectionError = wellnessError && !wellnessData;
 
   const refetchAllData = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['member', 'dashboard-data'] });
+    queryClient.invalidateQueries({ queryKey: ['member', 'dashboard'] });
   }, [queryClient]);
 
   useEffect(() => {
@@ -289,13 +328,13 @@ const Dashboard: React.FC = () => {
     const handleMemberStatsUpdated = (event: CustomEvent) => {
       const detail = event.detail;
       if (detail?.memberEmail?.toLowerCase() === user?.email?.toLowerCase() && (detail?.guestPasses !== undefined || detail?.lifetimeVisits !== undefined)) {
-        queryClient.invalidateQueries({ queryKey: ['member', 'dashboard-data'] });
+        queryClient.invalidateQueries({ queryKey: ['member', 'dashboard', viewAsEmail || user?.email, 'stats'] });
       }
     };
 
     window.addEventListener('member-stats-updated', handleMemberStatsUpdated as EventListener);
     return () => window.removeEventListener('member-stats-updated', handleMemberStatsUpdated as EventListener);
-  }, [user?.email, queryClient]);
+  }, [user?.email, queryClient, viewAsEmail]);
 
   const isBannerInitiallyDismissed = useMemo(() => {
     if (user?.email && bannerAnnouncement) {
@@ -839,12 +878,12 @@ const Dashboard: React.FC = () => {
 
   return (
     <AnimatedPage>
-    <SmoothReveal isLoaded={!isLoading}>
+    <SmoothReveal isLoaded={!initialLoading}>
     <div 
       className="min-h-screen flex flex-col"
       style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'var(--header-offset)' }}
     >
-    {isLoading ? (
+    {initialLoading ? (
       <DashboardSkeleton isDark={isDark} />
     ) : (
     <>
@@ -960,7 +999,7 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Member Card + Quick Actions - side by side on desktop, stacked on mobile */}
-        <SmoothReveal isLoaded={!isStaffOrAdminProfile && !isLoading} delay={150}>
+        <SmoothReveal isLoaded={!isStaffOrAdminProfile} delay={150}>
         {!isStaffOrAdminProfile && (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
             {/* Membership Card */}
@@ -1011,7 +1050,7 @@ const Dashboard: React.FC = () => {
                             <p className="text-xs mt-2" style={{ color: `${cardTextColor}80` }}>Joined {formatMemberSince(user.joinDate)}</p>
                           )}
                           {(() => {
-                            const visitCount = dashboardData?.lifetimeVisitCount ?? user?.lifetimeVisits;
+                            const visitCount = statsData?.lifetimeVisitCount ?? user?.lifetimeVisits;
                             return visitCount !== undefined ? (
                               <p className="text-xs" style={{ color: `${cardTextColor}80` }}>{visitCount} {visitCount === 1 ? 'lifetime visit' : 'lifetime visits'}</p>
                             ) : null;
@@ -1046,7 +1085,7 @@ const Dashboard: React.FC = () => {
         )}
         </SmoothReveal>
 
-        <SmoothReveal isLoaded={!isLoading} delay={200}>
+        <SmoothReveal isLoaded={!coreScheduleLoading} delay={200}>
         {error ? (
         <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm flex items-center gap-3 mb-6">
           <span className="material-symbols-outlined">error</span>
@@ -1338,6 +1377,18 @@ const Dashboard: React.FC = () => {
                 </div>
               )}
             </div>
+            {rsvpSectionError && (
+              <div className={`mt-3 p-3 rounded-xl text-xs flex items-center gap-2 ${isDark ? 'bg-red-500/10 border border-red-500/20 text-red-300' : 'bg-red-50 border border-red-200 text-red-600'}`}>
+                <span className="material-symbols-outlined text-sm">error</span>
+                Unable to load RSVPs. Other sections are up to date.
+              </div>
+            )}
+            {wellnessSectionError && (
+              <div className={`mt-3 p-3 rounded-xl text-xs flex items-center gap-2 ${isDark ? 'bg-red-500/10 border border-red-500/20 text-red-300' : 'bg-red-50 border border-red-200 text-red-600'}`}>
+                <span className="material-symbols-outlined text-sm">error</span>
+                Unable to load wellness classes. Other sections are up to date.
+              </div>
+            )}
           </div>
         </>
       )}

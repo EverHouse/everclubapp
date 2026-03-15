@@ -256,14 +256,14 @@ describe('Booking Concurrency Tests', () => {
       expect(resourceLockCall).toBeDefined();
     });
 
-    it('acquireBookingLocks acquires resource lock before member lock (ordering)', async () => {
-      const callOrder: string[] = [];
+    it('acquireBookingLocks acquires locks in deterministic sorted order', async () => {
+      const lockValues: string[] = [];
       const txMock = {
         execute: vi.fn().mockImplementation((query: unknown) => {
-          const sqlQuery = query as { __sqlStrings?: string[] };
+          const sqlQuery = query as { __sqlStrings?: string[]; __sqlValues?: unknown[] };
           if (sqlQuery?.__sqlStrings?.some(s => s.includes('pg_advisory_xact_lock'))) {
-            const isResourceLock = sqlQuery.__sqlStrings.some(s => s.includes('::'));
-            callOrder.push(isResourceLock ? 'resource_lock' : 'member_lock');
+            const lockId = sqlQuery.__sqlValues?.[0] as string;
+            lockValues.push(lockId);
           }
           return { rows: [{ cnt: 0 }] };
         }),
@@ -280,7 +280,9 @@ describe('Booking Concurrency Tests', () => {
         resourceType: 'simulator',
       });
 
-      expect(callOrder).toEqual(['resource_lock', 'member_lock']);
+      expect(lockValues.length).toBe(2);
+      const sorted = [...lockValues].sort();
+      expect(lockValues).toEqual(sorted);
     });
 
     it('checkResourceOverlap uses FOR UPDATE to lock conflicting rows', async () => {
@@ -361,16 +363,15 @@ describe('Booking Concurrency Tests', () => {
         resourceType: 'simulator',
       });
 
-      const resourceLockCall = sqlCalls.find(c =>
-        c.strings.some(s => s.includes('pg_advisory_xact_lock')) &&
-        c.strings.some(s => s.includes("|| '::' ||"))
-      );
-      expect(resourceLockCall).toBeUndefined();
-
-      const memberLockCall = sqlCalls.find(c =>
+      const lockCalls = sqlCalls.filter(c =>
         c.strings.some(s => s.includes('pg_advisory_xact_lock'))
       );
-      expect(memberLockCall).toBeDefined();
+      expect(lockCalls.length).toBe(1);
+
+      const hasResourceLock = lockCalls.some(c =>
+        c.values.some(v => typeof v === 'string' && v.includes('::'))
+      );
+      expect(hasResourceLock).toBe(false);
     });
 
     it('acquireBookingLocks skips pending check for conference rooms', async () => {

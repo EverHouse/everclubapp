@@ -26,23 +26,33 @@ export async function acquireBookingLocks(
 ): Promise<void> {
   const { resourceId, requestDate, requestEmail, isStaffRequest, isViewAsMode, resourceType } = params;
 
+  const lockIdentifiers: string[] = [];
+
   if (resourceId) {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${String(resourceId)} || '::' || ${requestDate}))`);
-    logger.debug('[BookingGuard] Acquired resource advisory lock', { extra: { resourceId, requestDate } });
+    lockIdentifiers.push(`${String(resourceId)}::${requestDate}`);
   }
 
-  if (!isStaffRequest || isViewAsMode) {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${requestEmail}))`);
-    if (resourceType !== 'conference_room') {
-      const pendingCheck = await tx.execute(sql`
-        SELECT COUNT(*)::int AS cnt FROM booking_requests
-        WHERE LOWER(user_email) = LOWER(${requestEmail}) AND status = 'pending'
-      `);
-      if ((pendingCheck.rows[0] as Record<string, unknown>).cnt as number > 0) {
-        throw new BookingConflictError(409, {
-          error: 'You already have a pending request. Please wait for it to be approved or denied before requesting another slot.'
-        });
-      }
+  const needsUserLock = !isStaffRequest || isViewAsMode;
+  if (needsUserLock) {
+    lockIdentifiers.push(requestEmail);
+  }
+
+  lockIdentifiers.sort();
+
+  for (const lockId of lockIdentifiers) {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${lockId}))`);
+    logger.debug('[BookingGuard] Acquired advisory lock', { extra: { lockId } });
+  }
+
+  if (needsUserLock && resourceType !== 'conference_room') {
+    const pendingCheck = await tx.execute(sql`
+      SELECT COUNT(*)::int AS cnt FROM booking_requests
+      WHERE LOWER(user_email) = LOWER(${requestEmail}) AND status = 'pending'
+    `);
+    if ((pendingCheck.rows[0] as Record<string, unknown>).cnt as number > 0) {
+      throw new BookingConflictError(409, {
+        error: 'You already have a pending request. Please wait for it to be approved or denied before requesting another slot.'
+      });
     }
   }
 }
