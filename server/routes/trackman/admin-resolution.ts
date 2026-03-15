@@ -32,20 +32,28 @@ const unmatchedQuerySchema = z.object({
   search: z.string().optional(),
   resolved: z.enum(['true', 'false']).optional(),
   category: z.string().optional(),
+  dateRange: z.enum(['30', '90', '180', '365', 'all']).optional(),
 }).passthrough();
 
 router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, validateQuery(unmatchedQuerySchema), async (req, res) => {
   try {
     const vq = (req as Request & { validatedQuery: z.infer<typeof unmatchedQuerySchema> }).validatedQuery;
-    const { limit = '50', offset = '0', search = '', resolved = 'false', category = '' } = vq;
+    const { limit = '50', offset = '0', search = '', resolved = 'false', category = '', dateRange = 'all' } = vq;
     const limitNum = Math.min(parseInt(limit) || 50, 100);
     const offsetNum = parseInt(offset) || 0;
     const categoryFilter = category.toLowerCase();
     
     const sqlConditions: ReturnType<typeof sql>[] = [
       sql`br.is_unmatched = true`,
-      sql`br.status NOT IN ('cancelled', 'declined', 'deleted', 'attended', 'no_show', 'expired')`
+      sql`br.status NOT IN ('cancelled', 'declined', 'deleted')`
     ];
+
+    if (dateRange && dateRange !== 'all') {
+      const days = parseInt(dateRange);
+      if (!isNaN(days)) {
+        sqlConditions.push(sql`br.request_date >= CURRENT_DATE - ${days}::integer`);
+      }
+    }
     
     if (resolved === 'false') {
       sqlConditions.push(sql`(br.user_email IS NULL OR br.user_email = '' OR br.user_email LIKE 'unmatched-%@%' OR br.user_email LIKE '%@trackman.local')`);
@@ -97,6 +105,7 @@ router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, validateQuery(unmatc
         br.staff_notes,
         br.trackman_customer_notes as notes,
         br.trackman_player_count as player_count,
+        br.status,
         br.created_at,
         br.updated_at,
         EXISTS (
@@ -152,6 +161,7 @@ router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, validateQuery(unmatc
         match_attempt_reason: matchAttemptReason,
         notes: row.notes,
         player_count: row.player_count,
+        status: row.status,
         created_at: row.created_at,
         category: bookingCategory
       };

@@ -149,6 +149,7 @@ const TrackmanTab: React.FC = () => {
   const showToast = toastContext?.showToast || (() => {});
   
   const [unmatchedPage, setUnmatchedPage] = useState(1);
+  const [unmatchedDateRange, setUnmatchedDateRange] = useState<'30' | '90' | '180' | '365' | 'all'>('all');
   const [needsPlayersPage, setNeedsPlayersPage] = useState(1);
   const [needsPlayersSearchQuery, setNeedsPlayersSearchQuery] = useState('');
   const [fuzzyMatchModal, setFuzzyMatchModal] = useState<{ booking: TrackmanBooking; selectedEmail: string; rememberEmail: boolean } | null>(null);
@@ -185,10 +186,11 @@ const TrackmanTab: React.FC = () => {
   const needsPlayersOffset = (needsPlayersPage - 1) * ITEMS_PER_PAGE;
 
   const { data: unmatchedData, isLoading: unmatchedLoading } = useQuery<UnmatchedResponse>({
-    queryKey: ['trackman', 'unmatched', unmatchedPage, unmatchedSearchQuery],
+    queryKey: ['trackman', 'unmatched', unmatchedPage, unmatchedSearchQuery, unmatchedDateRange],
     queryFn: () => {
       const searchParam = unmatchedSearchQuery ? `&search=${encodeURIComponent(unmatchedSearchQuery)}` : '';
-      return fetchWithCredentials(`/api/admin/trackman/unmatched?resolved=false&limit=${ITEMS_PER_PAGE}&offset=${unmatchedOffset}${searchParam}`);
+      const dateParam = `&dateRange=${unmatchedDateRange}`;
+      return fetchWithCredentials(`/api/admin/trackman/unmatched?resolved=false&limit=${ITEMS_PER_PAGE}&offset=${unmatchedOffset}${searchParam}${dateParam}`);
     },
   });
 
@@ -372,7 +374,7 @@ const TrackmanTab: React.FC = () => {
 
   React.useEffect(() => {
     setUnmatchedPage(1);
-  }, [unmatchedSearchQuery]);
+  }, [unmatchedSearchQuery, unmatchedDateRange]);
 
   React.useEffect(() => {
     setNeedsPlayersPage(1);
@@ -575,8 +577,8 @@ const TrackmanTab: React.FC = () => {
           These bookings have no owner assigned. The email or name from Trackman didn't match any member in our system. Click "Resolve" to link each booking to the correct member.
         </p>
         
-        <div className="mb-4">
-          <div className="relative">
+        <div className="mb-4 flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40 text-lg">search</span>
             <input
               type="text"
@@ -594,6 +596,17 @@ const TrackmanTab: React.FC = () => {
               </button>
             )}
           </div>
+          <select
+            value={unmatchedDateRange}
+            onChange={(e) => setUnmatchedDateRange(e.target.value as '30' | '90' | '180' | '365' | 'all')}
+            className="px-3 py-2 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/10 dark:border-white/10 text-primary dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-accent sm:w-auto"
+          >
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="180">Last 6 months</option>
+            <option value="365">Last year</option>
+            <option value="all">All time</option>
+          </select>
         </div>
         
         {unmatchedBookings.length === 0 && unmatchedTotalCount === 0 ? (
@@ -663,10 +676,21 @@ const TrackmanTab: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="mb-3">
+                      <div className="mb-3 flex flex-wrap gap-2">
                         <span className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10 px-2 py-1 rounded-full">
                           {booking.matchAttemptReason || booking.match_attempt_reason || 'No match'}
                         </span>
+                        {booking.status && (
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            booking.status === 'attended' ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10' :
+                            booking.status === 'no_show' ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10' :
+                            booking.status === 'expired' ? 'text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-500/10' :
+                            booking.status === 'approved' ? 'text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-500/10' :
+                            'text-primary/70 dark:text-white/70 bg-primary/5 dark:bg-white/5'
+                          }`}>
+                            {booking.status.replace(/_/g, ' ')}
+                          </span>
+                        )}
                       </div>
                       <button
                         onClick={() => setAssignPlayersModal({ booking, isOpen: true })}
@@ -690,6 +714,7 @@ const TrackmanTab: React.FC = () => {
                     <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Trackman Name</th>
                     <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Email</th>
                     <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Bay</th>
+                    <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Status</th>
                     <th className="text-right py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Action</th>
                   </tr>
                 </thead>
@@ -731,6 +756,19 @@ const TrackmanTab: React.FC = () => {
                             <div className="truncate max-w-[180px]">{booking.originalEmail || booking.original_email || 'No email'}</div>
                           </td>
                           <td className="py-2 px-3 text-primary dark:text-white font-medium">{booking.bayNumber || booking.bay_number}</td>
+                          <td className="py-2 px-3">
+                            {booking.status && (
+                              <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${
+                                booking.status === 'attended' ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10' :
+                                booking.status === 'no_show' ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10' :
+                                booking.status === 'expired' ? 'text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-500/10' :
+                                booking.status === 'approved' ? 'text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-500/10' :
+                                'text-primary/70 dark:text-white/70 bg-primary/5 dark:bg-white/5'
+                              }`}>
+                                {booking.status.replace(/_/g, ' ')}
+                              </span>
+                            )}
+                          </td>
                           <td className="py-2 px-3 text-right">
                             <button
                               onClick={() => setAssignPlayersModal({ booking, isOpen: true })}
