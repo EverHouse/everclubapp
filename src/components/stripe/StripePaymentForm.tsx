@@ -292,11 +292,10 @@ export function StripePaymentForm({
   }, [onSuccess]);
 
   useEffect(() => {
-    if (intentCreatedRef.current) {
-      return;
-    }
-    
     const initStripe = async () => {
+      if (intentCreatedRef.current) {
+        return;
+      }
       try {
         intentCreatedRef.current = true;
         const stripe = await getStripePromise();
@@ -394,17 +393,19 @@ export function StripePaymentForm({
   };
 
   return (
-    <Elements stripe={stripeInstance} options={options}>
-      <div className="space-y-4">
-        <div className="bg-primary/5 dark:bg-white/5 rounded-xl p-4 flex items-center justify-between">
-          <span className="text-primary/70 dark:text-white/70">{description}</span>
-          <span className="text-xl font-bold text-primary dark:text-white">
-            ${amount.toFixed(2)}
-          </span>
+    <div style={{ transform: 'none', animation: 'none' }}>
+      <Elements stripe={stripeInstance} options={options}>
+        <div className="space-y-4">
+          <div className="bg-primary/5 dark:bg-white/5 rounded-xl p-4 flex items-center justify-between">
+            <span className="text-primary/70 dark:text-white/70">{description}</span>
+            <span className="text-xl font-bold text-primary dark:text-white">
+              ${amount.toFixed(2)}
+            </span>
+          </div>
+          <CheckoutForm onSuccess={wrappedOnSuccess} onCancel={onCancel} />
         </div>
-        <CheckoutForm onSuccess={wrappedOnSuccess} onCancel={onCancel} />
-      </div>
-    </Elements>
+      </Elements>
+    </div>
   );
 }
 

@@ -170,6 +170,7 @@ export async function createPaymentIntent(
     automatic_payment_methods: {
       enabled: true,
     },
+    setup_future_usage: 'off_session',
   }, {
     idempotencyKey
   });
@@ -642,6 +643,7 @@ export async function createBalanceAwarePayment(params: {
         : description,
       metadata: stripeMetadata,
       automatic_payment_methods: { enabled: true },
+      setup_future_usage: 'off_session',
     }, {
       idempotencyKey
     });

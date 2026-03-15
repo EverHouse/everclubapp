@@ -1039,18 +1039,18 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
     logger.info(`[Stripe Webhook] Queued credit consumption of $${(creditToConsume / 100).toFixed(2)} for ${metadata?.email || 'unknown'}`);
   }
 
-  if (metadata?.draftInvoiceId) {
-    const draftInvoiceId = metadata.draftInvoiceId;
+  const posInvoiceId = metadata?.draftInvoiceId || metadata?.invoice_id;
+  if (posInvoiceId) {
     deferredActions.push(async () => {
       try {
-        const result = await finalizeInvoicePaidOutOfBand(draftInvoiceId);
+        const result = await finalizeInvoicePaidOutOfBand(posInvoiceId);
         if (result.success) {
-          logger.info(`[Stripe Webhook] Draft invoice ${draftInvoiceId} finalized and marked paid out-of-band for terminal PI ${id}`);
+          logger.info(`[Stripe Webhook] Invoice ${posInvoiceId} finalized and marked paid out-of-band for terminal PI ${id}`);
         } else {
-          logger.error(`[Stripe Webhook] Failed to finalize draft invoice ${draftInvoiceId}: ${result.error}`);
+          logger.error(`[Stripe Webhook] Failed to finalize invoice ${posInvoiceId}: ${result.error}`);
         }
       } catch (invoiceErr: unknown) {
-        logger.error(`[Stripe Webhook] Error finalizing draft invoice ${draftInvoiceId}:`, { error: invoiceErr });
+        logger.error(`[Stripe Webhook] Error finalizing invoice ${posInvoiceId}:`, { error: invoiceErr });
       }
     });
   }
