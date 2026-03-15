@@ -657,11 +657,29 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
     });
   });
 
+  const bookingIdFromMeta = metadata?.bookingId ? parseInt(metadata.bookingId, 10) : NaN;
+  const sessionIdFromMeta = metadata?.sessionId ? parseInt(metadata.sessionId, 10) : NaN;
+  const userIdFromMeta = metadata?.email || metadata?.memberEmail || customerEmail || '';
+
   await client.query(
-    `UPDATE stripe_payment_intents 
-     SET status = 'succeeded', updated_at = NOW() 
-     WHERE stripe_payment_intent_id = $1`,
-    [id]
+    `INSERT INTO stripe_payment_intents 
+       (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'succeeded', NOW(), NOW())
+     ON CONFLICT (stripe_payment_intent_id) DO UPDATE SET
+       status = 'succeeded',
+       updated_at = NOW(),
+       booking_id = COALESCE(stripe_payment_intents.booking_id, EXCLUDED.booking_id),
+       session_id = COALESCE(stripe_payment_intents.session_id, EXCLUDED.session_id)`,
+    [
+      userIdFromMeta,
+      id,
+      customerId || null,
+      amount,
+      metadata?.purpose || 'payment',
+      isNaN(bookingIdFromMeta) ? null : bookingIdFromMeta,
+      isNaN(sessionIdFromMeta) ? null : sessionIdFromMeta,
+      description || metadata?.productName || 'Stripe payment',
+    ]
   );
 
   const sessionId = metadata?.sessionId ? parseInt(metadata.sessionId, 10) : NaN;

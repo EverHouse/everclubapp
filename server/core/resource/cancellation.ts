@@ -424,6 +424,8 @@ export async function deleteBooking(bookingId: number, archivedBy: string, hardD
       logger.warn('[DELETE /api/bookings] Non-blocking: failed to cancel fee snapshots', { extra: { bookingId, error: getErrorMessage(err) } });
     });
 
+    voidBookingPass(bookingId).catch(err => logger.error('[DELETE /api/bookings] Failed to void booking wallet pass:', { extra: { err } }));
+
     logger.info('[DELETE /api/bookings] Soft delete complete', {
       extra: {
         bookingId,

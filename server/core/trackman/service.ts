@@ -301,6 +301,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             } catch (voidErr: unknown) {
               process.stderr.write(`[Trackman Import] Failed to void invoice for booking #${booking.id}: ${getErrorMessage(voidErr)}\n`);
             }
+
+            voidBookingPass(booking.id).catch(err => process.stderr.write(`[Trackman Import] Failed to void booking wallet pass for booking #${booking.id}: ${getErrorMessage(err)}\n`));
             
             process.stderr.write(`[Trackman Import] Cancelled booking #${booking.id} (Trackman ID: ${row.bookingId}, date: ${bookingDate}) - status was ${booking.status}\n`);
             cancelledBookings++;
@@ -1689,6 +1691,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         } catch (voidErr: unknown) {
           process.stderr.write(`[Trackman Import] Failed to void invoice for booking #${booking.id}: ${getErrorMessage(voidErr)}\n`);
         }
+
+        voidBookingPass(booking.id).catch(err => process.stderr.write(`[Trackman Import] Failed to void booking wallet pass for stale booking #${booking.id}: ${getErrorMessage(err)}\n`));
         
         cancelledBookings++;
         process.stderr.write(`[Trackman Import] Cancelled booking ${booking.trackmanBookingId} (${booking.userName}) for ${bookingDateStr} - no longer in Trackman\n`);

@@ -1442,6 +1442,13 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
       refundSkippedDueToLateCancel = true;
     }
     
+    try {
+      const { voidBookingPass } = await import('../../walletPass/bookingPassService');
+      voidBookingPass(bookingId).catch(err => logger.error('[Member Cancel] Failed to void booking wallet pass:', { extra: { err } }));
+    } catch (importErr: unknown) {
+      logger.error('[Member Cancel] Failed to import voidBookingPass:', { extra: { error: getErrorMessage(importErr) } });
+    }
+
     logFromRequest(req, 'cancel_booking', 'booking', idStr, undefined, {
       member_email: existing.userEmail
     });

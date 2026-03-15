@@ -40,6 +40,44 @@ import { createStandaloneBlock } from '../../core/availabilityBlockService';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { transferRequestParticipantsToSession } from '../../core/trackmanImport';
+import { voidBookingPass } from '../../walletPass/bookingPassService';
+import { cancelPendingPaymentIntentsForBooking, refundSucceededPaymentIntentsForBooking } from '../../core/billing/paymentIntentCleanup';
+import { getErrorMessage } from '../../utils/errorUtils';
+
+function runReprocessConflictSideEffects(bookingId: number, userEmail: string, reason: string): void {
+  (async () => {
+    try {
+      await cancelPendingPaymentIntentsForBooking(bookingId);
+    } catch (err: unknown) {
+      logger.error('[Trackman Reprocess] Failed to cancel pending PIs for conflict-cancelled booking', { extra: { bookingId, error: getErrorMessage(err) } });
+    }
+
+    try {
+      await refundSucceededPaymentIntentsForBooking(bookingId);
+    } catch (err: unknown) {
+      logger.error('[Trackman Reprocess] Failed to refund succeeded PIs for conflict-cancelled booking', { extra: { bookingId, error: getErrorMessage(err) } });
+    }
+
+    try {
+      const { voidBookingInvoice } = await import('../../core/billing/bookingInvoiceService');
+      await voidBookingInvoice(bookingId);
+    } catch (err: unknown) {
+      logger.error('[Trackman Reprocess] Failed to void invoice for conflict-cancelled booking', { extra: { bookingId, error: getErrorMessage(err) } });
+    }
+
+    voidBookingPass(bookingId).catch(err => logger.error('[Trackman Reprocess] Failed to void wallet pass for conflict-cancelled booking', { extra: { bookingId, error: getErrorMessage(err) } }));
+
+    if (userEmail && !userEmail.endsWith('@trackman.local')) {
+      notifyMember(
+        userEmail,
+        'Booking Cancelled',
+        `Your booking has been automatically cancelled: ${reason}. Please contact staff if you have questions.`,
+        'booking_cancelled',
+        { relatedId: bookingId, relatedType: 'booking_request', url: '/my-bookings' }
+      ).catch(err => logger.error('[Trackman Reprocess] Failed to notify member about conflict cancellation', { extra: { bookingId, userEmail, error: getErrorMessage(err) } }));
+    }
+  })().catch(err => logger.error('[Trackman Reprocess] Conflict cancellation side effects failed', { extra: { bookingId, error: getErrorMessage(err) } }));
+}
 
 interface TotalCountRow {
   total: string;
@@ -1764,9 +1802,9 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
             const errMsg = insertErr instanceof Error ? insertErr.message : String(insertErr);
             const cause = (insertErr as { cause?: { code?: string } })?.cause;
             if (cause?.code === '23P01' || errMsg.includes('booking_requests_no_overlap') || errMsg.includes('23P01')) {
-              newBooking = await db.transaction(async (tx) => {
+              const txResult = await db.transaction(async (tx) => {
                 const conflicting = await tx.execute(sql`
-                  SELECT id FROM booking_requests
+                  SELECT id, user_email, status FROM booking_requests
                   WHERE resource_id = ${resourceId}
                     AND request_date = ${requestDate}
                     AND status IN ('pending', 'approved', 'confirmed')
@@ -1774,15 +1812,23 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
                     AND end_time > ${startTime}
                     AND (trackman_booking_id IS NULL OR trackman_booking_id != ${event.trackman_booking_id})
                   FOR UPDATE`);
-                const conflictIds = (conflicting.rows as { id: number }[]).map(r => r.id);
+                const conflictRows = conflicting.rows as { id: number; user_email: string; status: string }[];
+                const conflictIds = conflictRows.map(r => r.id);
+                const reprocessConflicts: { id: number; userEmail: string }[] = [];
                 if (conflictIds.length > 0) {
                   await tx.execute(sql`
                     UPDATE booking_requests SET status = 'cancelled', updated_at = NOW(),
                       staff_notes = COALESCE(staff_notes, '') || ${`\n[Auto-cancelled: superseded by Trackman reprocess ${event.trackman_booking_id}]`}
                     WHERE id = ANY(${sql.raw(`ARRAY[${conflictIds.join(',')}]::int[]`)})`);
                   logger.info('[Trackman Reprocess] Cancelled overlapping bookings', { extra: { trackmanBookingId: event.trackman_booking_id, cancelledIds: conflictIds } });
+
+                  for (const conflictRow of conflictRows) {
+                    if (['approved', 'confirmed'].includes(conflictRow.status)) {
+                      reprocessConflicts.push({ id: conflictRow.id, userEmail: conflictRow.user_email });
+                    }
+                  }
                 }
-                return await tx.execute(sql`INSERT INTO booking_requests 
+                const insertResult = await tx.execute(sql`INSERT INTO booking_requests 
                   (request_date, start_time, end_time, duration_minutes, resource_id,
                    user_email, user_name, status, trackman_booking_id, trackman_external_id,
                    trackman_player_count, is_unmatched, 
@@ -1793,7 +1839,14 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
                     last_trackman_sync_at = NOW(),
                     updated_at = NOW()
                   RETURNING id, (xmax = 0) AS was_inserted`);
+                return { insertResult, reprocessConflicts };
               });
+
+              for (const conflict of txResult.reprocessConflicts) {
+                runReprocessConflictSideEffects(conflict.id, conflict.userEmail, `superseded by Trackman reprocess ${event.trackman_booking_id}`);
+              }
+
+              newBooking = txResult.insertResult;
             } else {
               throw insertErr;
             }

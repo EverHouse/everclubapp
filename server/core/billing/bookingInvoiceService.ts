@@ -11,6 +11,7 @@ import { eq, sql } from 'drizzle-orm';
 import type Stripe from 'stripe';
 import type { BookingFeeLineItem } from '../stripe/invoices';
 import { PRICING } from './pricingConfig';
+import { queueJob } from '../jobQueue';
 
 interface _InvoiceWithPaymentIntent extends Stripe.Invoice {
   payment_intent: string | Stripe.PaymentIntent | null;
@@ -972,9 +973,57 @@ export async function voidBookingInvoice(bookingId: number): Promise<{
           extra: { bookingId, invoiceId, status: invoice.status }
         });
       } else if (invoice.status === 'paid') {
-        logger.info('[BookingInvoice] Paid invoice found — refund handled by cancellation cascade via stripe_payment_intents', {
-          extra: { bookingId, invoiceId, amountPaid: invoice.amount_paid }
-        });
+        const invoicePI = typeof invoice.payment_intent === 'string'
+          ? invoice.payment_intent
+          : invoice.payment_intent?.id;
+
+        if (invoicePI && invoice.amount_paid > 0) {
+          const alreadyQueued = await db.execute(sql`
+            SELECT 1 FROM stripe_payment_intents 
+            WHERE stripe_payment_intent_id = ${invoicePI} AND status IN ('refunding', 'refunded')
+            LIMIT 1`);
+
+          if ((alreadyQueued.rows?.length || 0) === 0) {
+            const idempotencyKey = `refund_paid_invoice_${bookingId}_${invoiceId}`;
+            try {
+              await queueJob('stripe_auto_refund', {
+                paymentIntentId: invoicePI,
+                reason: 'requested_by_customer',
+                metadata: {
+                  reason: 'booking_cancellation_paid_invoice',
+                  bookingId: bookingId.toString(),
+                  invoiceId,
+                },
+                idempotencyKey,
+              }, { maxRetries: 5 });
+
+              const invoiceCustomerEmail = typeof invoice.customer_email === 'string' ? invoice.customer_email : '';
+
+              await db.execute(sql`
+                INSERT INTO stripe_payment_intents 
+                  (user_id, stripe_payment_intent_id, amount_cents, purpose, booking_id, description, status, created_at, updated_at)
+                VALUES (${invoiceCustomerEmail}, ${invoicePI}, ${invoice.amount_paid}, 'booking_fee', ${bookingId}, 'Invoice payment refund', 'refunding', NOW(), NOW())
+                ON CONFLICT (stripe_payment_intent_id) DO UPDATE SET status = 'refunding', updated_at = NOW()`);
+
+              logger.info('[BookingInvoice] Queued refund for paid invoice', {
+                extra: { bookingId, invoiceId, paymentIntentId: invoicePI, amountPaid: invoice.amount_paid }
+              });
+            } catch (refundErr: unknown) {
+              logger.error('[BookingInvoice] Failed to queue refund for paid invoice', {
+                extra: { bookingId, invoiceId, paymentIntentId: invoicePI, error: getErrorMessage(refundErr) }
+              });
+              errors.push(`Failed to refund paid invoice ${invoiceId}: ${getErrorMessage(refundErr)}`);
+            }
+          } else {
+            logger.info('[BookingInvoice] Paid invoice PI already being refunded, skipping', {
+              extra: { bookingId, invoiceId, paymentIntentId: invoicePI }
+            });
+          }
+        } else {
+          logger.info('[BookingInvoice] Paid invoice has no payment intent or zero amount, skipping refund', {
+            extra: { bookingId, invoiceId, amountPaid: invoice.amount_paid }
+          });
+        }
       }
     } catch (error: unknown) {
       const msg = `Failed to void/handle invoice ${invoiceId}: ${getErrorMessage(error)}`;

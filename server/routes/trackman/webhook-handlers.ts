@@ -29,6 +29,43 @@ import {
   createBookingForMember
 } from './webhook-billing';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { voidBookingPass } from '../../walletPass/bookingPassService';
+import { cancelPendingPaymentIntentsForBooking, refundSucceededPaymentIntentsForBooking } from '../../core/billing/paymentIntentCleanup';
+
+function runConflictCancellationSideEffects(bookingId: number, userEmail: string, reason: string): void {
+  (async () => {
+    try {
+      await cancelPendingPaymentIntentsForBooking(bookingId);
+    } catch (err: unknown) {
+      logger.error('[Trackman Webhook] Failed to cancel pending PIs for conflict-cancelled booking', { extra: { bookingId, error: getErrorMessage(err) } });
+    }
+
+    try {
+      await refundSucceededPaymentIntentsForBooking(bookingId);
+    } catch (err: unknown) {
+      logger.error('[Trackman Webhook] Failed to refund succeeded PIs for conflict-cancelled booking', { extra: { bookingId, error: getErrorMessage(err) } });
+    }
+
+    try {
+      const { voidBookingInvoice } = await import('../../core/billing/bookingInvoiceService');
+      await voidBookingInvoice(bookingId);
+    } catch (err: unknown) {
+      logger.error('[Trackman Webhook] Failed to void invoice for conflict-cancelled booking', { extra: { bookingId, error: getErrorMessage(err) } });
+    }
+
+    voidBookingPass(bookingId).catch(err => logger.error('[Trackman Webhook] Failed to void wallet pass for conflict-cancelled booking', { extra: { bookingId, error: getErrorMessage(err) } }));
+
+    if (userEmail && !userEmail.endsWith('@trackman.local')) {
+      notifyMember(
+        userEmail,
+        'Booking Cancelled',
+        `Your booking has been automatically cancelled: ${reason}. Please contact staff if you have questions.`,
+        'booking_cancelled',
+        { relatedId: bookingId, relatedType: 'booking_request', url: '/my-bookings' }
+      ).catch(err => logger.error('[Trackman Webhook] Failed to notify member about conflict cancellation', { extra: { bookingId, userEmail, error: getErrorMessage(err) } }));
+    }
+  })().catch(err => logger.error('[Trackman Webhook] Conflict cancellation side effects failed', { extra: { bookingId, error: getErrorMessage(err) } }));
+}
 
 interface PendingBookingRow {
   id: number;
@@ -210,11 +247,12 @@ export async function handleBookingModification(
   try {
     const staffNoteAddition = ` [Modified via Trackman: ${changes.join(', ')}]`;
     let newSessionIdForFees: number | null = null;
+    const cancelledConflicts: { id: number; userEmail: string; status: string }[] = [];
 
     await db.transaction(async (tx) => {
       if (bayChanged || timeChanged || dateChanged) {
         const conflicting = await tx.execute(sql`
-          SELECT id, trackman_booking_id, user_email
+          SELECT id, trackman_booking_id, user_email, status
           FROM booking_requests
           WHERE resource_id = ${newResourceId}
             AND request_date = ${newDate}
@@ -222,7 +260,7 @@ export async function handleBookingModification(
             AND start_time < ${newEndTime}
             AND end_time > ${newStartTime}
             AND id != ${bookingId}`);
-        const conflictingRows = conflicting.rows as { id: number; trackman_booking_id: string | null; user_email: string }[];
+        const conflictingRows = conflicting.rows as { id: number; trackman_booking_id: string | null; user_email: string; status: string }[];
         if (conflictingRows.length > 0) {
           const conflictIds = conflictingRows.map(r => r.id);
           await tx.execute(sql`
@@ -233,6 +271,12 @@ export async function handleBookingModification(
           logger.info('[Trackman Webhook] Cancelled conflicting bookings at destination slot for modification', {
             extra: { bookingId, trackmanBookingId: incoming.trackmanBookingId, cancelledBookingIds: conflictIds }
           });
+
+          for (const conflictRow of conflictingRows) {
+            if (['approved', 'confirmed'].includes(conflictRow.status)) {
+              cancelledConflicts.push({ id: conflictRow.id, userEmail: conflictRow.user_email, status: conflictRow.status });
+            }
+          }
         }
       }
 
@@ -348,6 +392,10 @@ export async function handleBookingModification(
         }
       }
     });
+
+    for (const conflict of cancelledConflicts) {
+      runConflictCancellationSideEffects(conflict.id, conflict.userEmail, `superseded by Trackman modification of booking ${incoming.trackmanBookingId}`);
+    }
 
     const effectiveSessionId = newSessionIdForFees || sessionId;
     if (effectiveSessionId && incoming.playerCount > 1) {
@@ -914,7 +962,7 @@ export async function createUnmatchedBookingRequest(
         });
 
         try {
-          result = await db.transaction(async (tx) => {
+          const txResultWithConflicts = await db.transaction(async (tx) => {
             const conflicting = await tx.execute(sql`
               SELECT id, trackman_booking_id, user_email, status
               FROM booking_requests
@@ -927,6 +975,8 @@ export async function createUnmatchedBookingRequest(
               FOR UPDATE`);
 
             const conflictingRows = conflicting.rows as { id: number; trackman_booking_id: string | null; user_email: string; status: string }[];
+
+            const newBookingConflicts: { id: number; userEmail: string }[] = [];
 
             if (conflictingRows.length > 0) {
               const conflictIds = conflictingRows.map(r => r.id);
@@ -943,9 +993,15 @@ export async function createUnmatchedBookingRequest(
                   cancelledDetails: conflictingRows.map(r => ({ id: r.id, trackmanId: r.trackman_booking_id, email: r.user_email }))
                 }
               });
+
+              for (const conflictRow of conflictingRows) {
+                if (['approved', 'confirmed'].includes(conflictRow.status)) {
+                  newBookingConflicts.push({ id: conflictRow.id, userEmail: conflictRow.user_email });
+                }
+              }
             }
 
-            return await tx.execute(sql`INSERT INTO booking_requests 
+            const insertResult = await tx.execute(sql`INSERT INTO booking_requests 
                (request_date, start_time, end_time, duration_minutes, resource_id,
                 user_email, user_name, status, trackman_booking_id, trackman_external_id,
                 trackman_player_count, is_unmatched, staff_notes,
@@ -956,7 +1012,15 @@ export async function createUnmatchedBookingRequest(
                  last_trackman_sync_at = NOW(),
                  updated_at = NOW()
                RETURNING id, (xmax = 0) AS was_inserted`);
+
+            return { insertResult, newBookingConflicts };
           });
+
+          for (const conflict of txResultWithConflicts.newBookingConflicts) {
+            runConflictCancellationSideEffects(conflict.id, conflict.userEmail, `superseded by Trackman booking ${trackmanBookingId}`);
+          }
+
+          result = txResultWithConflicts.insertResult;
         } catch (retryError: unknown) {
           logger.error('[Trackman Webhook] Failed to create booking even after cancelling conflicts', {
             error: retryError instanceof Error ? retryError : new Error(String(retryError)),

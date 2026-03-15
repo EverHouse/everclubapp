@@ -1294,6 +1294,20 @@ router.post('/api/data-integrity/fix/cancel-stale-booking', isAdmin, validateBod
     }
 
     try {
+      const { refundSucceededPaymentIntentsForBooking } = await import('../core/billing/paymentIntentCleanup');
+      await refundSucceededPaymentIntentsForBooking(recordId);
+    } catch (refundErr: unknown) {
+      logger.warn('[DataIntegrity] Failed to refund succeeded PIs for stale booking', { extra: { bookingId: recordId, error: getErrorMessage(refundErr) } });
+    }
+
+    try {
+      const { voidBookingPass } = await import('../walletPass/bookingPassService');
+      voidBookingPass(recordId).catch(err => logger.warn('[DataIntegrity] Failed to void wallet pass for stale booking', { extra: { bookingId: recordId, error: getErrorMessage(err) } }));
+    } catch (importErr: unknown) {
+      logger.warn('[DataIntegrity] Failed to import voidBookingPass', { extra: { error: getErrorMessage(importErr) } });
+    }
+
+    try {
       await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${recordId} AND status IN ('pending', 'requires_action')`);
     } catch (snapshotErr: unknown) {
       logger.warn('[DataIntegrity] Non-blocking: failed to cancel fee snapshots for stale booking', { extra: { bookingId: recordId, error: getErrorMessage(snapshotErr) } });
@@ -1351,6 +1365,19 @@ router.post('/api/data-integrity/fix/bulk-cancel-stale-bookings', isAdmin, async
         }
       }
       logger.info(`[DataIntegrity] Bulk stale cancel invoice cleanup complete: ${voided}/${invoiceRows.length} voided`);
+    }
+
+    if (cancelledIds.length > 0) {
+      const { refundSucceededPaymentIntentsForBooking } = await import('../core/billing/paymentIntentCleanup');
+      const { voidBookingPass } = await import('../walletPass/bookingPassService');
+      for (const id of cancelledIds) {
+        try {
+          await refundSucceededPaymentIntentsForBooking(id);
+        } catch (refundErr: unknown) {
+          logger.warn('[DataIntegrity] Failed to refund succeeded PIs during bulk stale cancel', { extra: { bookingId: id, error: getErrorMessage(refundErr) } });
+        }
+        voidBookingPass(id).catch(err => logger.warn('[DataIntegrity] Failed to void wallet pass during bulk stale cancel', { extra: { bookingId: id, error: getErrorMessage(err) } }));
+      }
     }
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Bulk cancel stale bookings error', { extra: { error: getErrorMessage(error) } });
