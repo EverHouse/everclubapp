@@ -465,7 +465,7 @@ function formatBookingStatusDisplay(status?: string): string {
 }
 
 function buildBookingPassJson(data: BookingPassData, config: WalletConfig): Record<string, unknown> {
-  type PassField = { key: string; label: string; value: string; changeMessage?: string };
+  type PassField = { key: string; label: string; value: string; changeMessage?: string; attributedValue?: string };
   const formattedDate = new Date(data.bookingDate + 'T12:00:00').toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -507,7 +507,7 @@ function buildBookingPassJson(data: BookingPassData, config: WalletConfig): Reco
     label: 'View Bookings',
     value: bookingsUrl,
     attributedValue: `<a href="${bookingsUrl}">View Your Bookings</a>`,
-  } as Record<string, string>);
+  });
 
   const passJson: Record<string, unknown> = {
     formatVersion: 1,

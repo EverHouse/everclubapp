@@ -109,7 +109,7 @@ In-app database and WebSocket notifications are always delivered regardless.
 14. **Deduplication (v8.5.0).** Same `title` + `user_email` + `related_id` within 60 seconds → skip.
 15. **Staff deletion safety (v8.81.0).** All fan-out paths use INNER JOIN with `users` table. Deleted/archived staff with orphaned `staff_users` rows are excluded.
 16. **Push payloads must include icon + badge (v8.87.14).** All `deliverViaPush` and `deliverPushToStaff` calls enrich payloads with `PUSH_ICON` and `PUSH_BADGE` defaults. Always include `tag` (via `buildPushTag`) and `url` (via `buildDeepLink`) for proper iOS grouping and deep linking.
-17. **Wallet pass dedupe (v8.87.16).** When adding new notification types that correspond to wallet pass field changes, add them to `WALLET_PASS_COVERED_TYPES` in `notificationService.ts` to prevent duplicate alerts for members with wallet passes.
+17. **Wallet pass dedupe (v8.87.16).** When adding new notification types that correspond to wallet pass field changes, add them to `BOOKING_WALLET_TYPES` or `MEMBERSHIP_WALLET_TYPES` in `notificationService.ts` to prevent duplicate alerts for members with wallet passes.
 
 ## Anti-Patterns (NEVER)
 
