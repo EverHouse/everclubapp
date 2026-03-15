@@ -8,14 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "8.87.20",
+    version: "8.87.21",
     date: "2026-03-15",
-    title: "Fee Display Fix",
+    title: "Fee Display & Payment Fix",
     changes: [
       "Fixed: Dashboard no longer shows 'Fees Paid' with a green checkmark when no payment was actually made",
       "Fixed: Empty slots now show 'Estimated Fees' as informational with 'Fill empty slots or pay at check-in' — no Pay Now button until an actual guest is added",
       "Fixed: 'Fees Paid' badge only appears after a verified Stripe payment",
       "Fixed: Pay Now button only appears when there are actual guest fees to pay, not for empty slot estimates",
+      "Fixed: 'Payment processing failed' error when Stripe auto-applies account credit to cover the full invoice — now handled gracefully as a completed payment",
     ]
   },
   {

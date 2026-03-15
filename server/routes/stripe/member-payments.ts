@@ -117,14 +117,25 @@ function describeFee(
   return { feeType: 'overage', feeDescription: '' };
 }
 
+type FinalizeResult =
+  | { paidInFull: false; piId: string; clientSecret: string }
+  | { paidInFull: true };
+
 async function finalizeInvoiceWithPi(
   stripe: Stripe,
   invoiceId: string,
-): Promise<{ piId: string; clientSecret: string }> {
+): Promise<FinalizeResult> {
   const finalized = await stripe.invoices.finalizeInvoice(invoiceId, {
     auto_advance: false,
     expand: ['payment_intent', 'confirmation_secret'],
   }) as unknown as StripeInvoiceExpanded;
+
+  if (finalized.status === 'paid') {
+    logger.info('[Stripe] Invoice auto-paid after finalization (credit balance or $0 total)', {
+      extra: { invoiceId, amountDue: finalized.amount_due, amountPaid: finalized.amount_paid }
+    });
+    return { paidInFull: true };
+  }
 
   if (finalized.confirmation_secret?.client_secret) {
     let piId: string | undefined;
@@ -147,25 +158,25 @@ async function finalizeInvoiceWithPi(
       throw new Error(`Invoice ${invoiceId} finalized with confirmation_secret but no PaymentIntent ID could be resolved`);
     }
     logger.info('[Stripe] Got client_secret via confirmation_secret', { extra: { invoiceId, piId } });
-    return { piId, clientSecret: finalized.confirmation_secret.client_secret };
+    return { paidInFull: false, piId, clientSecret: finalized.confirmation_secret.client_secret };
   }
 
   if (finalized.payment_intent) {
     if (typeof finalized.payment_intent === 'string') {
       const fullPi = await stripe.paymentIntents.retrieve(finalized.payment_intent);
       if (fullPi.status !== 'canceled' && fullPi.client_secret) {
-        return { piId: fullPi.id, clientSecret: fullPi.client_secret };
+        return { paidInFull: false, piId: fullPi.id, clientSecret: fullPi.client_secret };
       }
     } else {
       const pi = finalized.payment_intent as Stripe.PaymentIntent;
       if (pi.status !== 'canceled' && pi.client_secret) {
         logger.info('[Stripe] Got client_secret via expanded payment_intent', { extra: { invoiceId, piId: pi.id } });
-        return { piId: pi.id, clientSecret: pi.client_secret };
+        return { paidInFull: false, piId: pi.id, clientSecret: pi.client_secret };
       }
       if (pi.id) {
         const fullPi = await stripe.paymentIntents.retrieve(pi.id);
         if (fullPi.client_secret) {
-          return { piId: fullPi.id, clientSecret: fullPi.client_secret };
+          return { paidInFull: false, piId: fullPi.id, clientSecret: fullPi.client_secret };
         }
       }
     }
@@ -434,6 +445,26 @@ async function handleExistingInvoicePayment(params: {
         },
       });
       const piResult = await finalizeInvoiceWithPi(stripe, existingInvoiceId);
+      if (piResult.paidInFull) {
+        const paidParticipantIds = pendingFees.map(f => f.participantId!).filter(Boolean);
+        if (paidParticipantIds.length > 0) {
+          await db.execute(sql`
+            UPDATE booking_participants
+             SET payment_status = 'paid', paid_at = NOW(), updated_at = NOW()
+             WHERE id = ANY(${toIntArrayLiteral(paidParticipantIds)}::int[])
+          `);
+        }
+        logger.info('[Stripe] Existing draft invoice auto-paid after finalization', { extra: { bookingId, invoiceId: existingInvoiceId } });
+        return {
+          paidInFull: true,
+          invoiceId: existingInvoiceId,
+          paymentIntentId: '',
+          totalAmount: serverTotal / 100,
+          balanceApplied: serverTotal / 100,
+          remainingAmount: 0,
+          participantFees: participantFeesList,
+        };
+      }
       invoicePiId = piResult.piId;
       invoicePiSecret = piResult.clientSecret;
       logger.info('[Stripe] Finalized draft invoice as charge_automatically for interactive member payment', { extra: { bookingId, invoiceId: existingInvoiceId, paymentIntentId: invoicePiId } });
@@ -771,12 +802,35 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       collection_method: 'charge_automatically',
     });
 
-    const { piId: invoicePiId, clientSecret: invoicePiSecret } = await finalizeInvoiceWithPi(stripe, draftResult.invoiceId);
-    logger.info('[Stripe] Finalized new invoice as charge_automatically for interactive member payment', { extra: { bookingId, invoiceId: draftResult.invoiceId, paymentIntentId: invoicePiId } });
+    const newPiResult = await finalizeInvoiceWithPi(stripe, draftResult.invoiceId);
 
-    logger.info('[Stripe] Returning invoice PI for interactive member payment (new invoice)', {
-      extra: { bookingId, invoiceId: draftResult.invoiceId, paymentIntentId: invoicePiId }
-    });
+    if (newPiResult.paidInFull) {
+      const paidParticipantIds = pendingFees.map(f => f.participantId!).filter(Boolean);
+      if (paidParticipantIds.length > 0) {
+        await db.execute(sql`
+          UPDATE booking_participants
+           SET payment_status = 'paid', paid_at = NOW(), updated_at = NOW()
+           WHERE id = ANY(${toIntArrayLiteral(paidParticipantIds)}::int[])
+        `);
+      }
+      await db.execute(sql`
+        UPDATE booking_fee_snapshots SET status = 'completed', used_at = NOW() WHERE id = ${snapshotId}
+      `);
+      logger.info('[Stripe] New invoice auto-paid after finalization', { extra: { bookingId, invoiceId: draftResult.invoiceId } });
+      return res.json({
+        paidInFull: true,
+        invoiceId: draftResult.invoiceId,
+        paymentIntentId: '',
+        totalAmount: serverTotal / 100,
+        balanceApplied: serverTotal / 100,
+        remainingAmount: 0,
+        participantFees: participantFeesList,
+      });
+    }
+
+    const invoicePiId = newPiResult.piId;
+    const invoicePiSecret = newPiResult.clientSecret;
+    logger.info('[Stripe] Finalized new invoice as charge_automatically for interactive member payment', { extra: { bookingId, invoiceId: draftResult.invoiceId, paymentIntentId: invoicePiId } });
 
     await db.execute(sql`
       UPDATE booking_fee_snapshots SET stripe_payment_intent_id = ${invoicePiId}, status = 'pending' WHERE id = ${snapshotId}
@@ -1349,6 +1403,17 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
         },
       });
       const piResult = await finalizeInvoiceWithPi(stripe, invoiceId as string);
+      if (piResult.paidInFull) {
+        logger.info('[Stripe] Invoice auto-paid after finalization', { extra: { invoiceId } });
+        return res.json({
+          paidInFull: true,
+          invoiceId,
+          paymentIntentId: '',
+          totalAmount: amountDue / 100,
+          balanceApplied: amountDue / 100,
+          remainingAmount: 0,
+        });
+      }
       invoicePiId = piResult.piId;
       invoicePiSecret = piResult.clientSecret;
       logger.info('[Stripe] Finalized draft invoice as charge_automatically for interactive member payment', { extra: { invoiceId, paymentIntentId: invoicePiId } });
