@@ -14,14 +14,6 @@ interface ParticipantFee {
   participantType?: 'owner' | 'member' | 'guest';
 }
 
-interface SavedPaymentMethod {
-  id: string;
-  brand: string | undefined;
-  last4: string | undefined;
-  expMonth: number | undefined;
-  expYear: number | undefined;
-}
-
 export interface MemberPaymentModalProps {
   isOpen: boolean;
   bookingId: number;
@@ -66,38 +58,20 @@ export function MemberPaymentModal({
   const [confirming, setConfirming] = useState(false);
   const [paymentData, setPaymentData] = useState<PayFeesResponse | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
-  const [savedCard, setSavedCard] = useState<SavedPaymentMethod | null>(null);
-  const [savedCardLoading, setSavedCardLoading] = useState(false);
-  const [savedCardSuccess, setSavedCardSuccess] = useState(false);
   const paymentSucceededRef = useRef(false);
-  const savedCardPayingRef = useRef(false);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const initializePayment = useCallback(async () => {
     try {
       paymentSucceededRef.current = false;
-      savedCardPayingRef.current = false;
       setLoading(true);
       setError(null);
-      setSavedCard(null);
-      setSavedCardSuccess(false);
-      setSavedCardLoading(false);
 
-      const [payResult, methodsResult] = await Promise.all([
-        apiRequest<PayFeesResponse>(
-          `/api/member/bookings/${bookingId}/pay-fees`,
-          { method: 'POST', headers: { 'Content-Type': 'application/json' } },
-          { maxRetries: 1, timeout: 60000 }
-        ),
-        apiRequest<{ paymentMethods: SavedPaymentMethod[] }>(
-          `/api/member/payment-methods`,
-          { method: 'GET' }
-        ),
-      ]);
-
-      if (methodsResult.ok && methodsResult.data?.paymentMethods?.length) {
-        setSavedCard(methodsResult.data.paymentMethods[0]);
-      }
+      const payResult = await apiRequest<PayFeesResponse>(
+        `/api/member/bookings/${bookingId}/pay-fees`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' } },
+        { maxRetries: 1, timeout: 60000 }
+      );
 
       if (payResult.ok && payResult.data) {
         setPaymentData(payResult.data);
@@ -134,7 +108,7 @@ export function MemberPaymentModal({
     const currentPiId = paymentIntentId;
     
     const handleBeforeUnload = () => {
-      if (currentPiId && !paymentSucceededRef.current && !savedCardPayingRef.current) {
+      if (currentPiId && !paymentSucceededRef.current) {
         navigator.sendBeacon(
           `/api/member/bookings/${bookingId}/cancel-payment`,
           new Blob([JSON.stringify({ paymentIntentId: currentPiId })], { type: 'application/json' })
@@ -148,7 +122,7 @@ export function MemberPaymentModal({
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      if (currentPiId && !paymentSucceededRef.current && !savedCardPayingRef.current) {
+      if (currentPiId && !paymentSucceededRef.current) {
         fetch(`/api/member/bookings/${bookingId}/cancel-payment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -159,61 +133,6 @@ export function MemberPaymentModal({
       }
     };
   }, [paymentIntentId, bookingId, isOpen]);
-
-  const formatCardBrand = (brand: string | undefined) => {
-    if (!brand) return 'Card';
-    const brands: Record<string, string> = {
-      visa: 'Visa', mastercard: 'Mastercard', amex: 'Amex',
-      discover: 'Discover', diners: 'Diners', jcb: 'JCB', unionpay: 'UnionPay',
-    };
-    return brands[brand.toLowerCase()] || brand.charAt(0).toUpperCase() + brand.slice(1);
-  };
-
-  const handleSavedCardPayment = async () => {
-    if (!savedCard) return;
-    setSavedCardLoading(true);
-    savedCardPayingRef.current = true;
-    setError(null);
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-      const res = await fetch(`/api/member/bookings/${bookingId}/pay-saved-card`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ paymentMethodId: savedCard.id }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      const responseData = await res.json().catch(() => ({}));
-
-      if (res.ok && responseData?.success) {
-        paymentSucceededRef.current = true;
-        savedCardPayingRef.current = false;
-        setSavedCardSuccess(true);
-        setSavedCardLoading(false);
-        if (successTimerRef.current) clearTimeout(successTimerRef.current);
-        successTimerRef.current = setTimeout(() => onSuccess(), 1500);
-      } else if (responseData?.requiresAction) {
-        setSavedCard(null);
-        setSavedCardLoading(false);
-        savedCardPayingRef.current = false;
-      } else {
-        setError(responseData?.error || 'Payment failed. Please try using the card form below.');
-        setSavedCardLoading(false);
-        savedCardPayingRef.current = false;
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setError(msg.includes('abort') ? 'Payment is taking longer than expected. Please check your booking status before trying again.' : (msg || 'Payment failed. Please try the card form below.'));
-      setSavedCardLoading(false);
-      savedCardPayingRef.current = false;
-    }
-  };
 
   const handlePaymentSuccess = async () => {
     paymentSucceededRef.current = true;
@@ -362,17 +281,7 @@ export function MemberPaymentModal({
               )}
             </div>
 
-            {savedCardSuccess ? (
-              <div className={`rounded-xl p-4 text-center ${isDark ? 'bg-emerald-500/20' : 'bg-emerald-100'}`}>
-                <span className="material-symbols-outlined text-4xl text-emerald-500 mb-2">check_circle</span>
-                <p className={`text-lg font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
-                  Payment Successful
-                </p>
-                <p className={`text-sm mt-1 ${isDark ? 'text-emerald-400/80' : 'text-emerald-600'}`}>
-                  Charged to {formatCardBrand(savedCard?.brand)} •••• {savedCard?.last4}
-                </p>
-              </div>
-            ) : paymentData.paidInFull ? (
+            {paymentData.paidInFull ? (
               <div className={`rounded-xl p-4 text-center ${isDark ? 'bg-emerald-500/20' : 'bg-emerald-100'}`}>
                 <span className="material-symbols-outlined text-4xl text-emerald-500 mb-2">check_circle</span>
                 <p className={`text-lg font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
@@ -383,48 +292,14 @@ export function MemberPaymentModal({
                 </p>
               </div>
             ) : paymentData.clientSecret ? (
-              <>
-                {savedCard && !savedCardLoading && (
-                  <div className="space-y-3">
-                    <button
-                      onClick={handleSavedCardPayment}
-                      className={`w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold transition-all tactile-btn ${
-                        isDark
-                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30'
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200/60'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-lg">credit_card</span>
-                      Pay ${(paymentData.remainingAmount || paymentData.totalAmount).toFixed(2)} with {formatCardBrand(savedCard.brand)} •••• {savedCard.last4}
-                    </button>
-                    <div className="flex items-center gap-3">
-                      <div className={`flex-1 h-px ${isDark ? 'bg-white/10' : 'bg-primary/10'}`} />
-                      <span className={`text-xs font-medium ${isDark ? 'text-white/40' : 'text-primary/40'}`}>or pay with a different method</span>
-                      <div className={`flex-1 h-px ${isDark ? 'bg-white/10' : 'bg-primary/10'}`} />
-                    </div>
-                  </div>
-                )}
-
-                {savedCardLoading && (
-                  <div className="flex flex-col items-center justify-center py-6 gap-3">
-                    <WalkingGolferSpinner size="sm" variant="light" />
-                    <p className={`text-sm font-medium ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                      Charging {formatCardBrand(savedCard?.brand)} •••• {savedCard?.last4}...
-                    </p>
-                  </div>
-                )}
-
-                {!savedCardLoading && (
-                  <StripePaymentWithSecret
-                    clientSecret={paymentData.clientSecret}
-                    amount={paymentData.remainingAmount || paymentData.totalAmount}
-                    description={paymentData.description || `Booking fees for #${bookingId}`}
-                    onSuccess={handlePaymentSuccess}
-                    onCancel={onClose}
-                    customerSessionClientSecret={paymentData.customerSessionClientSecret}
-                  />
-                )}
-              </>
+              <StripePaymentWithSecret
+                clientSecret={paymentData.clientSecret}
+                amount={paymentData.remainingAmount || paymentData.totalAmount}
+                description={paymentData.description || `Booking fees for #${bookingId}`}
+                onSuccess={handlePaymentSuccess}
+                onCancel={onClose}
+                customerSessionClientSecret={paymentData.customerSessionClientSecret}
+              />
             ) : paymentData.error ? (
               <div className={`rounded-xl p-4 text-center animate-content-enter ${isDark ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-amber-50 border border-amber-200/60'}`}>
                 <span className={`material-symbols-outlined text-4xl mb-2 ${isDark ? 'text-amber-400' : 'text-amber-500'}`}>info</span>

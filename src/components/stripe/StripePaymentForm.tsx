@@ -115,6 +115,10 @@ export function SimpleCheckoutForm({
         <PaymentElement
           options={{
             layout: 'tabs',
+            wallets: {
+              applePay: 'auto',
+              googlePay: 'auto',
+            },
           }}
           onReady={() => {
             console.log('[StripePaymentForm] PaymentElement ready');
