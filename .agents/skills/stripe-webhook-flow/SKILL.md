@@ -148,6 +148,26 @@ Migration subscriptions have `metadata.migration === 'true'`. When detected in `
 | `source === 'staff_invite'` | Resolve via linked emails, create/activate user |
 | `purpose === 'day_pass'` | Record day pass, send QR email |
 
+## Critical Rules: Off-Session / Saved Card Payments
+
+**NEVER use `paymentIntents.confirm()` with `off_session: true` on an invoice-generated PI.**
+Invoice-generated PIs may have `confirmation_method: automatic` or use `confirmation_secret` (newer Stripe API), making them incompatible with server-side `off_session` confirmation.
+
+**ALWAYS use `stripe.invoices.pay(invoiceId, { payment_method: pmId })` for off-session saved card charges.**
+This is the correct Stripe API — it handles PI creation/confirmation internally.
+
+**Before creating a new charge, check Stripe live PI state:**
+- If existing PI is `succeeded`, `processing`, or `requires_capture` → block the operation (already paid / in progress)
+- If existing PI is `requires_payment_method`, `requires_confirmation`, or `requires_action` → cancel it first via `paymentIntents.cancel()`, then proceed
+- Only mark local DB status as `canceled` AFTER confirmed Stripe cancel succeeds
+
+**Files where this rule applies:**
+- `server/core/billing/bookingInvoiceService.ts` — `finalizeAndPayInvoice()`
+- `server/core/stripe/invoices.ts` — `createBookingFeeInvoice()`
+- `server/routes/stripe/booking-fees.ts` — staff "Charge Card on File"
+- `server/routes/stripe/member-payments.ts` — member "Pay with Saved Card"
+- `server/routes/stripe/quick-charge.ts` — POS saved card charges
+
 ## Supporting Services
 
 | Service | File | Purpose |

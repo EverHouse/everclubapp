@@ -638,11 +638,9 @@ export async function finalizeAndPayInvoice(params: {
     };
   }
 
-  let invoicePiId = extractPaymentIntentId(finalizedInvoice);
-
-  if (!invoicePiId && offSession && paymentMethodId) {
-    logger.info('[BookingInvoice] No PI after finalization, paying invoice explicitly with saved card', {
-      extra: { bookingId, invoiceId, paymentMethodId }
+  if (offSession && paymentMethodId) {
+    logger.info('[BookingInvoice] Paying invoice with saved card via invoices.pay()', {
+      extra: { bookingId, invoiceId, paymentMethodId, invoiceStatus: finalizedInvoice.status }
     });
     const paidInvoice = await stripe.invoices.pay(invoiceId, {
       payment_method: paymentMethodId,
@@ -651,26 +649,31 @@ export async function finalizeAndPayInvoice(params: {
     const amountCharged = paidInvoice.amount_paid - amountFromBalance;
     const resultPiId = extractPaymentIntentId(paidInvoice) || `invoice-pay-${invoiceId}`;
 
-    safeBroadcast({
-      bookingId,
-      action: 'invoice_paid',
-      invoiceId,
-      paidInFull: true,
-      totalCents: paidInvoice.amount_paid,
-    });
+    const isPaid = paidInvoice.status === 'paid';
+    if (isPaid) {
+      safeBroadcast({
+        bookingId,
+        action: 'invoice_paid',
+        invoiceId,
+        paidInFull: true,
+        totalCents: paidInvoice.amount_paid,
+      });
+    }
 
     return {
       invoiceId,
       paymentIntentId: resultPiId,
       clientSecret: '',
-      status: 'succeeded',
-      paidInFull: true,
+      status: isPaid ? 'succeeded' : 'requires_action',
+      paidInFull: isPaid,
       hostedInvoiceUrl: paidInvoice.hosted_invoice_url ?? null,
       invoicePdf: paidInvoice.invoice_pdf ?? null,
       amountFromBalance,
       amountCharged: Math.max(0, amountCharged),
     };
   }
+
+  let invoicePiId = extractPaymentIntentId(finalizedInvoice);
 
   if (!invoicePiId) {
     const expandedInvoice = await stripe.invoices.retrieve(invoiceId, { expand: ['payment_intent'] });
@@ -708,46 +711,6 @@ export async function finalizeAndPayInvoice(params: {
     },
     description: finalizedInvoice.description || undefined,
   });
-
-  if (offSession && paymentMethodId) {
-    const pi = await stripe.paymentIntents.confirm(invoicePiId, {
-      payment_method: paymentMethodId,
-      off_session: true,
-    });
-
-    const paidInvoice = await stripe.invoices.retrieve(invoiceId, { expand: ['lines.data'] });
-    const amountFromBalance = computeBalanceApplied(paidInvoice);
-    const amountCharged = paidInvoice.amount_paid - amountFromBalance;
-
-    logger.info('[BookingInvoice] Invoice paid off-session via saved card', {
-      extra: { bookingId, invoiceId, paymentIntentId: invoicePiId, status: pi.status }
-    });
-
-    const broadcastAction = pi.status === 'succeeded' 
-      ? 'invoice_paid' 
-      : pi.status === 'requires_action' 
-        ? 'payment_requires_action' 
-        : 'payment_confirmed';
-    safeBroadcast({
-      bookingId,
-      action: broadcastAction,
-      invoiceId,
-      paidInFull: pi.status === 'succeeded',
-      totalCents: paidInvoice.amount_paid,
-    });
-
-    return {
-      invoiceId,
-      paymentIntentId: invoicePiId,
-      clientSecret: pi.client_secret || '',
-      status: pi.status,
-      paidInFull: pi.status === 'succeeded',
-      hostedInvoiceUrl: paidInvoice.hosted_invoice_url ?? null,
-      invoicePdf: paidInvoice.invoice_pdf ?? null,
-      amountFromBalance,
-      amountCharged: Math.max(0, amountCharged),
-    };
-  }
 
   const paymentIntent = await stripe.paymentIntents.retrieve(invoicePiId);
 

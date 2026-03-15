@@ -711,15 +711,32 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
     }
 
     if (resolvedBookingId) {
-      const existingIntent = await db.execute(sql`SELECT stripe_payment_intent_id, status FROM stripe_payment_intents 
-         WHERE booking_id = ${resolvedBookingId} AND status NOT IN ('succeeded', 'canceled', 'refunded')
-         LIMIT 1`);
+      const existingIntents = await db.execute(sql`SELECT stripe_payment_intent_id, status FROM stripe_payment_intents 
+         WHERE booking_id = ${resolvedBookingId} AND status NOT IN ('succeeded', 'canceled', 'refunded')`);
 
-      if (existingIntent.rows.length > 0) {
-        return res.status(409).json({ 
-          error: 'An active payment intent already exists for this booking',
-          existingIntentId: existingIntent.rows[0].stripe_payment_intent_id 
-        });
+      for (const row of existingIntents.rows as Array<{ stripe_payment_intent_id: string; status: string }>) {
+        try {
+          const stripeClient = await getStripeClient();
+          const livePi = await stripeClient.paymentIntents.retrieve(row.stripe_payment_intent_id);
+          if (livePi.status === 'succeeded' || livePi.status === 'processing' || livePi.status === 'requires_capture') {
+            logger.warn('[Stripe] Existing PI is already processing/succeeded — cannot charge again', {
+              extra: { bookingId: resolvedBookingId, piId: row.stripe_payment_intent_id, liveStatus: livePi.status }
+            });
+            return res.status(409).json({ error: 'A payment is already being processed for this booking. Please wait or check payment history.' });
+          }
+          if (livePi.status !== 'canceled') {
+            await stripeClient.paymentIntents.cancel(row.stripe_payment_intent_id);
+          }
+          await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
+          logger.info('[Stripe] Staff charge cancelled stale pending PI', {
+            extra: { bookingId: resolvedBookingId, piId: row.stripe_payment_intent_id, oldStatus: row.status }
+          });
+        } catch (cancelErr: unknown) {
+          logger.error('[Stripe] Could not verify/cancel stale PI — blocking charge to prevent duplicate', {
+            extra: { piId: row.stripe_payment_intent_id, error: getErrorMessage(cancelErr) }
+          });
+          return res.status(503).json({ error: 'Could not verify existing payment status. Please try again or use a different payment method.' });
+        }
       }
     }
 

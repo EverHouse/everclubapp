@@ -600,17 +600,20 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, validateB
           }
         });
 
-        const paymentIntent = await stripe.paymentIntents.confirm(invoiceResult.paymentIntentId, {
+        const paidInvoice = await stripe.invoices.pay(invoiceResult.invoiceId, {
           payment_method: paymentMethod.id,
-          off_session: true,
         });
 
-        if (paymentIntent.status === 'succeeded') {
+        const resultPiId = typeof paidInvoice.payment_intent === 'string'
+          ? paidInvoice.payment_intent
+          : (paidInvoice.payment_intent as Stripe.PaymentIntent | null)?.id || invoiceResult.paymentIntentId;
+
+        if (paidInvoice.status === 'paid') {
           await logBillingAudit({
             memberEmail: member.email,
             actionType: 'pos_saved_card_charge',
             actionDetails: {
-              paymentIntentId: paymentIntent.id,
+              paymentIntentId: resultPiId,
               memberId: member.id,
               amountCents: numericAmount,
               description: description || 'POS saved card charge',
@@ -618,7 +621,7 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, validateB
             performedBy: staffEmail,
           });
 
-          logFromRequest(req, 'charge_saved_card', 'payment', paymentIntent.id, member.email, {
+          logFromRequest(req, 'charge_saved_card', 'payment', resultPiId, member.email, {
             amountCents: numericAmount,
             description: description || 'POS saved card charge',
             invoiceId: invoiceResult.invoiceId,
@@ -629,18 +632,13 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, validateB
 
           return res.json({
             success: true,
-            paymentIntentId: paymentIntent.id,
+            paymentIntentId: resultPiId,
             cardLast4,
             cardBrand
           });
-        } else if (paymentIntent.status === 'requires_action') {
-          return res.status(400).json({
-            error: 'Card requires additional verification. Use Online Card instead so the customer can authenticate.',
-            requiresAction: true
-          });
         } else {
           return res.status(400).json({
-            error: `Payment not completed (status: ${paymentIntent.status}). Try Online Card instead.`
+            error: `Payment not completed (invoice status: ${paidInvoice.status}). Try Online Card instead.`
           });
         }
       } catch (invoiceErr: unknown) {

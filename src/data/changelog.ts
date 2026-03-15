@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.23",
+    date: "2026-03-15",
+    title: "Charge Card on File Fix & Payment Safety Audit",
+    changes: [
+      "Fixed: 'Charge Card on File' now works for both staff and members — previously failed with 'active payment intent already exists' error",
+      "Fixed: All saved card payments (booking fees, POS charges, staff charges) now use the correct Stripe API to prevent payment failures",
+      "Fixed: Stale pending payment intents are automatically cleaned up before new card-on-file charges",
+      "Safety: Double-charge prevention — if a payment is already processing or succeeded, the system blocks duplicate charges instead of creating a second one",
+      "Safety: POS café/shop saved card charges now use the same corrected payment method",
+    ]
+  },
+  {
     version: "8.87.22",
     date: "2026-03-15",
     title: "Credit Balance Protection & UX Fix",

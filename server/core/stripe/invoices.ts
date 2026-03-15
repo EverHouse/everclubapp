@@ -536,28 +536,30 @@ export async function createBookingFeeInvoice(
     });
 
     if (offSession && paymentMethodId) {
-      const pi = await stripe.paymentIntents.confirm(invoicePiId, {
+      const paidInvoice = await stripe.invoices.pay(invoice.id, {
         payment_method: paymentMethodId,
-        off_session: true,
       });
 
-      const paidInvoice = await stripe.invoices.retrieve(invoice.id, { expand: ['lines.data'] });
-      const startingBalance = paidInvoice.starting_balance || 0;
-      const endingBalance = paidInvoice.ending_balance || 0;
+      const expandedInvoice = await stripe.invoices.retrieve(invoice.id, { expand: ['lines.data'] });
+      const startingBalance = expandedInvoice.starting_balance || 0;
+      const endingBalance = expandedInvoice.ending_balance || 0;
       const amountFromBalance = Math.max(0, Math.abs(startingBalance) - Math.abs(endingBalance));
-      const amountCharged = paidInvoice.amount_paid - amountFromBalance;
+      const amountCharged = expandedInvoice.amount_paid - amountFromBalance;
+      const resultPiId = typeof paidInvoice.payment_intent === 'string'
+        ? paidInvoice.payment_intent
+        : (paidInvoice.payment_intent as Stripe.PaymentIntent | null)?.id || invoicePiId;
 
-      logger.info(`[Stripe Invoices] Booking fee invoice ${invoice.id} charged off-session: $${(totalCents / 100).toFixed(2)} (PI: ${invoicePiId})`, {
-        extra: { bookingId, sessionId, status: pi.status }
+      logger.info(`[Stripe Invoices] Booking fee invoice ${invoice.id} charged off-session via invoices.pay: $${(totalCents / 100).toFixed(2)}`, {
+        extra: { bookingId, sessionId, status: paidInvoice.status }
       });
 
       return {
         invoiceId: invoice.id,
-        paymentIntentId: invoicePiId,
-        clientSecret: pi.client_secret || '',
-        status: pi.status,
-        hostedInvoiceUrl: paidInvoice.hosted_invoice_url ?? null,
-        invoicePdf: paidInvoice.invoice_pdf ?? null,
+        paymentIntentId: resultPiId,
+        clientSecret: '',
+        status: paidInvoice.status === 'paid' ? 'succeeded' : 'requires_action',
+        hostedInvoiceUrl: expandedInvoice.hosted_invoice_url ?? null,
+        invoicePdf: expandedInvoice.invoice_pdf ?? null,
         amountFromBalance,
         amountCharged: Math.max(0, amountCharged),
       };
