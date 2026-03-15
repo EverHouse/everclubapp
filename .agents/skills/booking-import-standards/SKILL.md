@@ -111,6 +111,8 @@ Has trackman_booking_id?
 11. NEVER add a member to a booking without calling `findConflictingBookings()` first — applies to both member-facing `addParticipant` and staff-facing link-member endpoints.
 12. NEVER insert directly into `notifications` table from booking code — use `notifyMember()` or `notifyAllStaff()`.
 13. NEVER use `process.stderr.write` in Trackman service — use structured `logger.*` calls.
+14. NEVER ignore `ensureSessionForBooking()` return value — always check `sessionResult.error` and log/throw on failure. The function returns `{error}` for validation failures (missing time, invalid format, zero duration) instead of throwing (v8.87.31).
+15. NEVER ignore `refundGuestPass()` return value — always check `refundResult.success`. The function returns `{success: false}` on failure instead of throwing, so catch blocks alone are dead code (v8.87.31).
 
 ## Cross-References
 

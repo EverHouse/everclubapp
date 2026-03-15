@@ -364,6 +364,9 @@ router.post('/api/staff/conference-room/booking', isStaffOrAdmin, async (req: Re
           source: 'staff_manual',
           createdBy: staffEmail
         });
+        if (sessionResult.error) {
+          logger.error('[Staff Conference Booking] Session creation failed', { extra: { bookingId, error: sessionResult.error } });
+        }
         if (sessionResult.sessionId) {
           await recalculateSessionFees(sessionResult.sessionId, 'staff_booking');
           await syncBookingInvoice(bookingId, sessionResult.sessionId);

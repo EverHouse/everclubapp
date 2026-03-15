@@ -852,7 +852,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           logger.warn('[ConferenceRoom] Usage tracking returned failure, falling back to session-only', {
             extra: { bookingId: row.id, error: result.error }
           });
-          await ensureSessionForBooking({
+          const fallbackSession = await ensureSessionForBooking({
             bookingId: row.id,
             resourceId: row.resourceId,
             sessionDate: request_date,
@@ -863,12 +863,15 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
             source: 'member_request',
             createdBy: 'conference_room_auto_confirm'
           });
+          if (fallbackSession.error) {
+            logger.error('[ConferenceRoom] Fallback session creation failed', { extra: { bookingId: row.id, error: fallbackSession.error } });
+          }
         }
       } catch (confError) {
         logger.error('[ConferenceRoom] Failed to create session with usage tracking, falling back', {
           error: confError instanceof Error ? confError : new Error(String(confError))
         });
-        await ensureSessionForBooking({
+        const catchFallbackSession = await ensureSessionForBooking({
           bookingId: row.id,
           resourceId: row.resourceId,
           sessionDate: request_date,
@@ -1346,10 +1349,14 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
     if (!shouldSkipRefund) {
       for (const guest of guestPassRecipientsToRefund) {
         try {
-          await refundGuestPass(existing.userEmail, guest.displayName || undefined, false);
-          logger.info('[Member Cancel] Refunded guest pass for participant', { extra: { bookingId, guestName: guest.displayName, ownerEmail: existing.userEmail } });
+          const refundResult = await refundGuestPass(existing.userEmail, guest.displayName || undefined, false);
+          if (refundResult.success) {
+            logger.info('[Member Cancel] Refunded guest pass for participant', { extra: { bookingId, guestName: guest.displayName, ownerEmail: existing.userEmail } });
+          } else {
+            logger.error('[Member Cancel] Guest pass refund failed', { extra: { bookingId, guestName: guest.displayName, ownerEmail: existing.userEmail, error: refundResult.error } });
+          }
         } catch (refundErr: unknown) {
-          logger.error('[Member Cancel] Failed to refund guest pass (non-blocking)', { extra: { bookingId, guestName: guest.displayName, error: getErrorMessage(refundErr) } });
+          logger.error('[Member Cancel] Guest pass refund threw (non-blocking)', { extra: { bookingId, guestName: guest.displayName, error: getErrorMessage(refundErr) } });
         }
       }
     } else {

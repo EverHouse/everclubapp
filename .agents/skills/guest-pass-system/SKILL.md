@@ -63,6 +63,7 @@ Booking cancelled
 2. NEVER refund guest passes from `tryLinkCancelledBooking`.
 3. NEVER skip `SELECT FOR UPDATE` on concurrent pass operations. `createGuestPassHold`, `convertHoldToUsage`, and `consumeGuestPassForParticipant` all use `FOR UPDATE` with `UPDATE WHERE passes_used < passes_total` guards (v8.86.0 — verified with 14 concurrency tests in `tests/guestPassConcurrency.test.ts`).
 4. NEVER trust that holds match the final guest count — use `Math.min()`.
+5. NEVER ignore `refundGuestPass()` return value — always check `refundResult.success`. The function returns `{success: false}` on failure instead of throwing, so catch blocks alone are dead code. All 4 cancellation paths (member cancel, staff cancel, complete pending cancellation, bookingStateService) now check the return value (v8.87.31).
 
 ## Cross-References
 

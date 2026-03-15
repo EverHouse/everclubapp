@@ -402,6 +402,9 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           source: 'staff_manual',
           createdBy: 'checkin_context'
         });
+        if (sessionResult.error) {
+          logger.error('[Checkin Context] Session creation failed', { extra: { bookingId, error: sessionResult.error } });
+        }
         sessionId = sessionResult.sessionId || null;
         
         if (sessionId) {
@@ -909,6 +912,9 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
             source: 'staff_manual',
             createdBy: 'payment_action'
           });
+          if (sessionResult.error) {
+            logger.error('[Payment Action] Session creation failed', { extra: { bookingId, error: sessionResult.error } });
+          }
           sessionId = sessionResult.sessionId || null;
 
           if (sessionId) {

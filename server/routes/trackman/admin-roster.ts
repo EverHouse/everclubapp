@@ -1452,6 +1452,10 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
             source: 'staff_manual',
             createdBy: linkedBy
           });
+          if (sessionResult.error || !sessionResult.sessionId) {
+            logger.error('[Link Member] Session creation failed', { extra: { bookingId, error: sessionResult.error || 'sessionId=0' } });
+            return res.status(500).json({ error: 'Failed to create booking session' });
+          }
           sessionId = sessionResult.sessionId;
           await db.execute(sql`UPDATE booking_requests SET session_id = ${sessionId} WHERE id = ${bookingId}`);
           logger.info('[Link Member] Created session for booking without one', { extra: { bookingId, sessionId } });

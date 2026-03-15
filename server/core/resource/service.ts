@@ -287,7 +287,7 @@ export async function approveBooking(bookingId: number) {
             ? (updated.requestDate as Date).toISOString().split('T')[0]
             : '';
 
-        await ensureSessionForBooking({
+        const sessionResult = await ensureSessionForBooking({
           bookingId: updated.id,
           resourceId: updated.resourceId,
           sessionDate: dateStr,
@@ -299,6 +299,9 @@ export async function approveBooking(bookingId: number) {
           source: 'member_request',
           createdBy: 'resource_confirmation'
         });
+        if (sessionResult.error) {
+          logger.error('[Resource Confirmation] Session creation returned error', { extra: { bookingId: updated.id, error: sessionResult.error } });
+        }
       } catch (sessionErr: unknown) {
         logger.error('[Resource Confirmation] Failed to ensure session', { error: sessionErr instanceof Error ? sessionErr : new Error(getErrorMessage(sessionErr)) });
       }

@@ -1857,7 +1857,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
             
             await db.execute(sql`UPDATE trackman_webhook_events SET matched_booking_id = ${bookingId} WHERE id = ${event.id}`);
             
-            await ensureSessionForBooking({
+            const reprocessSession = await ensureSessionForBooking({
               bookingId: bookingId as number,
               resourceId,
               sessionDate: requestDate,
@@ -1869,6 +1869,9 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
               source: 'trackman_webhook',
               createdBy: 'trackman_reprocess'
             });
+            if (reprocessSession.error) {
+              logger.error('[Trackman Reprocess] Session creation failed', { extra: { bookingId, trackmanBookingId: event.trackman_booking_id, error: reprocessSession.error } });
+            }
             
             results.created++;
             results.details.push({ 

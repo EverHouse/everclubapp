@@ -585,7 +585,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
 
           if (!matchedBooking.sessionId) {
             try {
-              await ensureSessionForBooking({
+              const sessionResult = await ensureSessionForBooking({
                 bookingId: matchedBooking.id,
                 resourceId: conferenceRoomId,
                 sessionDate: eventDate,
@@ -597,6 +597,9 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
                 source: 'staff_manual',
                 createdBy: 'calendar_sync'
               });
+              if (sessionResult.error) {
+                logger.error('[Conference Room Sync] Session creation returned error for linked booking', { extra: { bookingId: matchedBooking.id, error: sessionResult.error } });
+              }
             } catch (sessionErr: unknown) {
               logger.error('[Conference Room Sync] Failed to ensure session for linked booking:', { error: sessionErr });
             }
@@ -619,7 +622,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
 
           if (newBooking) {
             try {
-              await ensureSessionForBooking({
+              const sessionResult = await ensureSessionForBooking({
                 bookingId: newBooking.id,
                 resourceId: conferenceRoomId,
                 sessionDate: eventDate,
@@ -631,6 +634,9 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
                 source: 'staff_manual',
                 createdBy: 'calendar_sync'
               });
+              if (sessionResult.error) {
+                logger.error('[Conference Room Sync] Session creation returned error for new booking', { extra: { bookingId: newBooking.id, error: sessionResult.error } });
+              }
             } catch (sessionErr: unknown) {
               logger.error('[Conference Room Sync] Failed to ensure session for new booking:', { error: sessionErr });
             }

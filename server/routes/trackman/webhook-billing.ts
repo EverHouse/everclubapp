@@ -892,6 +892,8 @@ export async function refundGuestPassesForCancelledBooking(bookingId: number, me
       const result = await refundGuestPass(memberEmail, (guest.display_name as string) || undefined, false);
       if (result.success) {
         refundedCount++;
+      } else {
+        logger.error('[Trackman Webhook] Guest pass refund failed', { extra: { bookingId, memberEmail, guestName: guest.display_name, error: result.error } });
       }
     }
     

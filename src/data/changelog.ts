@@ -14,7 +14,9 @@ export const changelog: ChangelogEntry[] = [
     changes: [
       "Fixed: Payment cancellation job now uses the cancelPaymentIntent helper instead of calling Stripe directly — if a payment races to 'succeeded' before the cancel job runs, it now automatically queues a refund instead of failing and leaving the member charged",
       "Fixed: Staff manual day pass bookings now verify session creation succeeded — previously a failed session creation would silently commit the booking without a session, consuming the day pass with no usable reservation",
-      "Fixed: Guest pass refund failures during cancellation are now properly detected and logged — previously the return value was ignored and the catch block was unreachable, so failed refunds were silently lost",
+      "Fixed: Guest pass refund failures during cancellation are now properly detected and logged across all 4 cancellation paths (member cancel, staff cancel, complete pending cancellation, bookingStateService) — previously the return value was ignored and the catch block was unreachable, so failed refunds were silently lost",
+      "Fixed: Session creation errors now logged across all ensureSessionForBooking callers (check-in context, payment action, conference room sync, staff conference booking, resource confirmation, Trackman reprocess, admin link member) — previously validation failures returned sessionId=0 with no log entry",
+      "Fixed: Admin link-member now returns 500 on session creation failure instead of setting session_id=0 in the database",
     ]
   },
   {

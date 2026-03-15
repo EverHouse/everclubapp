@@ -1290,6 +1290,10 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
             remainingPasses: refundResult.remaining
           }
         });
+      } else {
+        logger.error('[rosterService] Guest pass refund failed when replacing guest with member', {
+          extra: { bookingId, ownerEmail: gpRefund.ownerEmail, guestName: gpRefund.guestName, error: refundResult.error }
+        });
       }
     } catch (refundErr: unknown) {
       logger.warn('[rosterService] Failed to refund guest pass after tx (non-blocking)', {
@@ -1987,12 +1991,18 @@ export async function applyRosterBatch(params: BatchRosterUpdateParams): Promise
 
   for (const refund of deferredBatchRefunds) {
     try {
-      await refundGuestPass(refund.ownerEmail, refund.guestName, true);
-      logger.info('[rosterService:batch] Guest pass refunded (deferred)', {
-        extra: { bookingId, ownerEmail: refund.ownerEmail, guestName: refund.guestName }
-      });
+      const refundResult = await refundGuestPass(refund.ownerEmail, refund.guestName, true);
+      if (refundResult.success) {
+        logger.info('[rosterService:batch] Guest pass refunded (deferred)', {
+          extra: { bookingId, ownerEmail: refund.ownerEmail, guestName: refund.guestName }
+        });
+      } else {
+        logger.error('[rosterService:batch] Guest pass refund failed (deferred)', {
+          extra: { bookingId, ownerEmail: refund.ownerEmail, guestName: refund.guestName, error: refundResult.error }
+        });
+      }
     } catch (refundErr: unknown) {
-      logger.warn('[rosterService:batch] Failed to refund guest pass after tx (non-blocking)', {
+      logger.warn('[rosterService:batch] Guest pass refund threw after tx (non-blocking)', {
         error: refundErr as Error,
         extra: { bookingId, ownerEmail: refund.ownerEmail, guestName: refund.guestName }
       });

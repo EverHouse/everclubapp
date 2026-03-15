@@ -1350,9 +1350,12 @@ export async function cancelBooking(params: CancelBookingParams) {
   if (guestPassRefundData && guestPassRefundData.length > 0) {
     for (const refund of guestPassRefundData) {
       try {
-        await refundGuestPass(refund.ownerEmail, refund.displayName || undefined, false);
+        const refundResult = await refundGuestPass(refund.ownerEmail, refund.displayName || undefined, false);
+        if (!refundResult.success) {
+          logger.error('[Staff Cancel] Guest pass refund failed', { extra: { ownerEmail: refund.ownerEmail, displayName: refund.displayName, error: refundResult.error } });
+        }
       } catch (refundErr: unknown) {
-        logger.error('[Staff Cancel] Failed to refund guest pass (non-blocking)', { extra: { ownerEmail: refund.ownerEmail, displayName: refund.displayName, error: getErrorMessage(refundErr) } });
+        logger.error('[Staff Cancel] Guest pass refund threw (non-blocking)', { extra: { ownerEmail: refund.ownerEmail, displayName: refund.displayName, error: getErrorMessage(refundErr) } });
       }
     }
     logger.info('[Staff Cancel] Guest pass refunds completed', { extra: { count: guestPassRefundData.length, bookingId } });
@@ -2609,10 +2612,14 @@ export async function completeCancellation(params: CompleteCancellationParams) {
       for (const guest of guestParticipants) {
         if (!guest.usedGuestPass) continue;
         try {
-          await refundGuestPass(existing.userEmail || '', guest.displayName || undefined, false);
+          const refundResult = await refundGuestPass(existing.userEmail || '', guest.displayName || undefined, false);
+          if (!refundResult.success) {
+            errors.push(`Guest pass refund failed for ${guest.displayName}: ${refundResult.error}`);
+            logger.error('[Complete Cancellation] Guest pass refund failed', { extra: { guestName: guest.displayName, error: refundResult.error } });
+          }
         } catch (guestErr: unknown) {
-          errors.push(`Failed to refund guest pass for ${guest.displayName}: ${getErrorMessage(guestErr)}`);
-          logger.error('[Complete Cancellation] Failed to refund guest pass', { extra: { guestErr } });
+          errors.push(`Guest pass refund threw for ${guest.displayName}: ${getErrorMessage(guestErr)}`);
+          logger.error('[Complete Cancellation] Guest pass refund threw', { extra: { guestName: guest.displayName, error: getErrorMessage(guestErr) } });
         }
       }
     } catch (err: unknown) {
