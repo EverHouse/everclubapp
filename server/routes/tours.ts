@@ -6,8 +6,8 @@ import { tours, dismissedHubspotMeetings } from '../../shared/schema';
 import { eq, gte, asc, desc, and, sql, or, ilike } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../core/middleware';
 import { getHubSpotClient } from '../core/integrations';
-import { getResourceConfig, getCalendarIdByName, getCalendarAvailability, createCalendarEventOnCalendar } from '../core/calendar/index';
-import { safeSendEmail } from '../utils/resend';
+import { getResourceConfig, getCalendarAvailability } from '../core/calendar/index';
+
 import { notifyAllStaff } from '../core/notificationService';
 import { getTodayPacific } from '../utils/dateUtils';
 import { getSessionUser } from '../types/session';
@@ -16,7 +16,7 @@ import { broadcastToStaff } from '../core/websocket';
 import { getErrorMessage } from '../utils/errorUtils';
 import { checkoutRateLimiter } from '../middleware/rateLimiting';
 import { getSettingValue } from '../core/settingsHelper';
-import { getTourConfirmationHtml } from '../emails/tourEmails';
+
 
 function parseTimeToMinutes(timeStr: string): number {
   const [hours, minutes] = timeStr.split(':').map(Number);
@@ -1078,19 +1078,6 @@ router.post('/api/tours/schedule', checkoutRateLimiter, async (req, res) => {
       status: 'scheduled',
     }).returning();
 
-    const calendarId = await getCalendarIdByName('Tours Scheduled');
-    if (calendarId) {
-      const summary = `Tour: ${firstName} ${lastName}`;
-      const description = `Tour booking\nGuest: ${firstName} ${lastName}\nEmail: ${email}\nPhone: ${phone || 'N/A'}`;
-      const googleEventId = await createCalendarEventOnCalendar(calendarId, summary, description, date, startTime, endTime);
-
-      if (googleEventId) {
-        await db.update(tours)
-          .set({ googleCalendarId: googleEventId })
-          .where(eq(tours.id, newTour.id));
-      }
-    }
-
     (async () => {
       try {
         const schedulerUrl = await getSettingValue('hubspot.tour_scheduler_url', '');
@@ -1124,34 +1111,7 @@ router.post('/api/tours/schedule', checkoutRateLimiter, async (req, res) => {
       }
     })();
 
-    const tourDateObj = new Date(date);
-    const formattedDate = tourDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' });
-
-    await notifyAllStaff(
-      'New Tour Scheduled',
-      `${guestName} scheduled a tour for ${formattedDate} at ${startTime}`,
-      'tour_scheduled',
-      { relatedId: newTour.id, relatedType: 'tour', url: '/admin/tours' }
-    );
-
     broadcastToStaff({ type: 'tour_update', action: 'created', tourId: newTour.id });
-
-    if (email) {
-      (async () => {
-        try {
-          const addressLine1 = await getSettingValue('contact.address_line1', '15771 Red Hill Ave, Ste 500');
-          const cityStateZip = await getSettingValue('contact.city_state_zip', 'Tustin, CA 92780');
-          const html = await getTourConfirmationHtml({ guestName, date, time: startTime, addressLine1, cityStateZip });
-          await safeSendEmail({
-            to: email,
-            subject: 'Your Tour at Ever Club is Confirmed!',
-            html,
-          });
-        } catch (err) {
-          logger.error('Failed to send tour confirmation email', { extra: { err: getErrorMessage(err) } });
-        }
-      })();
-    }
 
     res.json({
       success: true,
