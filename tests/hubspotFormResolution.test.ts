@@ -84,10 +84,6 @@ describe('HubSpot Form Resolution', () => {
       expect(await resolveFormId('event-inquiry')).toBe(KNOWN_IDS['event-inquiry']);
     });
 
-    it('returns null for tour-request (no hardcoded, no env, no admin, no discovery)', async () => {
-      expect(await resolveFormId('tour-request')).toBeNull();
-    });
-
     it('returns null for guest-checkin (no hardcoded, no env, no admin, no discovery)', async () => {
       expect(await resolveFormId('guest-checkin')).toBeNull();
     });
@@ -121,11 +117,6 @@ describe('HubSpot Form Resolution', () => {
       expect(await resolveFormId('membership')).toBe('env-override-id');
     });
 
-    it('admin setting provides form ID for types with no hardcoded fallback', async () => {
-      const settingsHelper = await import('../server/core/settingsHelper');
-      vi.mocked(settingsHelper.getSettingValue).mockResolvedValueOnce('admin-tour-id');
-      expect(await resolveFormId('tour-request')).toBe('admin-tour-id');
-    });
   });
 
   describe('logFormIdResolutionStatus', () => {
@@ -133,9 +124,6 @@ describe('HubSpot Form Resolution', () => {
       const loggerModule = await import('../server/core/logger');
       const { logger } = loggerModule;
       await logFormIdResolutionStatus();
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('tour-request')
-      );
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('Resolved form IDs')
       );
@@ -143,8 +131,8 @@ describe('HubSpot Form Resolution', () => {
   });
 
   describe('VALID_FORM_TYPES consistency with resolveFormId', () => {
-    const VALID_FORM_TYPES = ['tour-request', 'membership', 'private-hire', 'event-inquiry', 'guest-checkin', 'contact'];
-    const RESOLVE_FORM_TYPES = ['tour-request', 'membership', 'private-hire', 'event-inquiry', 'guest-checkin', 'contact'];
+    const VALID_FORM_TYPES = ['membership', 'private-hire', 'event-inquiry', 'guest-checkin', 'contact'];
+    const RESOLVE_FORM_TYPES = ['membership', 'private-hire', 'event-inquiry', 'guest-checkin', 'contact'];
 
     it('route VALID_FORM_TYPES matches resolveFormId env var keys', () => {
       expect(VALID_FORM_TYPES.sort()).toEqual(RESOLVE_FORM_TYPES.sort());
@@ -158,7 +146,7 @@ describe('HubSpot Form Resolution', () => {
   });
 
   describe('Frontend form type consistency', () => {
-    const VALID_FORM_TYPES = new Set(['tour-request', 'membership', 'private-hire', 'event-inquiry', 'guest-checkin', 'contact']);
+    const VALID_FORM_TYPES = new Set(['membership', 'private-hire', 'event-inquiry', 'guest-checkin', 'contact']);
 
     it('Contact.tsx uses valid form type', () => {
       expect(VALID_FORM_TYPES.has('contact')).toBe(true);
@@ -173,7 +161,7 @@ describe('HubSpot Form Resolution', () => {
     });
 
     it('HubSpotFormModal allows only valid types', () => {
-      const modalTypes = ['tour-request', 'membership', 'private-hire', 'guest-checkin'];
+      const modalTypes = ['membership', 'private-hire', 'guest-checkin'];
       for (const mt of modalTypes) {
         expect(VALID_FORM_TYPES.has(mt)).toBe(true);
       }
@@ -219,10 +207,6 @@ describe('updateDiscoveredFormIds behavior', () => {
     delete process.env.HUBSPOT_FORM_GUEST_CHECKIN;
     delete process.env.HUBSPOT_FORM_CONTACT;
     formSyncModule = await import('../server/core/hubspot/formSync');
-  });
-
-  it('resolveFormId returns null for tour-request before discovery', async () => {
-    expect(await formSyncModule.resolveFormId('tour-request')).toBeNull();
   });
 
   it('resolveFormId returns null for contact before discovery', async () => {

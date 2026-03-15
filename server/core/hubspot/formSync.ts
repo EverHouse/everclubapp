@@ -39,7 +39,6 @@ import { getSettingValue } from '../settingsHelper';
 import { logger } from '../logger';
 
 const FORM_TYPE_LABELS: Record<string, string> = {
-  'tour-request': 'Tour Request',
   'event-inquiry': 'Event Inquiry',
   'membership': 'Membership Application',
   'private-hire': 'Private Hire Inquiry',
@@ -57,7 +56,6 @@ const discoveredFormIds: Map<string, string> = new Map();
 
 export async function resolveFormId(formType: string): Promise<string | null> {
   const envVarMap: Record<string, string | undefined> = {
-    'tour-request': process.env.HUBSPOT_FORM_TOUR_REQUEST,
     'membership': process.env.HUBSPOT_FORM_MEMBERSHIP,
     'private-hire': process.env.HUBSPOT_FORM_PRIVATE_HIRE,
     'event-inquiry': process.env.HUBSPOT_FORM_EVENT_INQUIRY,
@@ -78,7 +76,7 @@ export async function resolveFormId(formType: string): Promise<string | null> {
 }
 
 export async function logFormIdResolutionStatus(): Promise<void> {
-  const allTypes = ['tour-request', 'membership', 'private-hire', 'event-inquiry', 'guest-checkin', 'contact'];
+  const allTypes = ['membership', 'private-hire', 'event-inquiry', 'guest-checkin', 'contact'];
   const resolved: string[] = [];
   const missing: string[] = [];
   for (const ft of allTypes) {
@@ -100,7 +98,6 @@ function inferFormTypeStrict(formName: string): string | null {
   if (name.includes('check-in') || name.includes('checkin') || name.includes('waiver')) return 'guest-checkin';
   if (name.includes('membership') || name.includes('application')) return 'membership';
   if (name.includes('private') && (name.includes('event') || name.includes('hire'))) return 'private-hire';
-  if (name.includes('tour')) return 'tour-request';
   if (name.includes('contact')) return 'contact';
   if (name.includes('event') || name.includes('inquiry')) return 'event-inquiry';
   return null;
@@ -230,7 +227,6 @@ function inferFormTypeFromPageUrl(pageUrl: string | undefined, defaultType: stri
   const url = pageUrl.toLowerCase();
   if (url.includes('private-hire') || url.includes('privatehire')) return 'private-hire';
   if (url.includes('event')) return 'event-inquiry';
-  if (url.includes('tour')) return 'tour-request';
   if (url.includes('membership')) return 'membership';
   if (url.includes('contact')) return 'contact';
   if (url.includes('checkin') || url.includes('check-in')) return 'guest-checkin';

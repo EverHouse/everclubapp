@@ -868,6 +868,17 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
   }
 }
 
+// PUBLIC ROUTE - get configurable tour scheduler URL
+router.get('/api/tours/scheduler-url', async (req, res) => {
+  try {
+    const url = await getSettingValue('hubspot.tour_scheduler_url', '');
+    return res.json({ url: url || null });
+  } catch (err) {
+    logger.error('[Tours] Failed to fetch scheduler URL:', err);
+    return res.json({ url: null });
+  }
+});
+
 // PUBLIC ROUTE
 router.get('/api/tours/availability', async (req, res) => {
   try {

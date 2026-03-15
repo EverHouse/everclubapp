@@ -27,7 +27,7 @@ interface FormField {
 interface HubSpotFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  formType: 'tour-request' | 'membership' | 'private-hire' | 'guest-checkin';
+  formType: 'membership' | 'private-hire' | 'guest-checkin';
   title: string;
   subtitle?: string;
   fields: FormField[];

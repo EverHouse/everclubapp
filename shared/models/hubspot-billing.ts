@@ -70,7 +70,7 @@ export const hubspotLineItems = pgTable("hubspot_line_items", {
 
 export const hubspotFormConfigs = pgTable("hubspot_form_configs", {
   id: serial("id").primaryKey(),
-  formType: varchar("form_type").notNull().unique(), // 'tour-request', 'membership', 'private-hire', etc.
+  formType: varchar("form_type").notNull().unique(), // 'membership', 'private-hire', 'event-inquiry', etc.
   hubspotFormId: varchar("hubspot_form_id").notNull(),
   formName: varchar("form_name").notNull(),
   formFields: jsonb("form_fields").default(sql`'[]'::jsonb`), // cached field definitions from HubSpot

@@ -92,7 +92,7 @@ const DEFAULT_SETTINGS: Record<string, { value: string; category: string }> = {
   'hubspot.form_id.membership': { value: '', category: 'hubspot_forms' },
   'hubspot.form_id.private-hire': { value: '', category: 'hubspot_forms' },
   'hubspot.form_id.event-inquiry': { value: '', category: 'hubspot_forms' },
-  'hubspot.form_id.tour-request': { value: '', category: 'hubspot_forms' },
+  'hubspot.tour_scheduler_url': { value: '', category: 'hubspot_tours' },
   'hubspot.form_id.guest-checkin': { value: '', category: 'hubspot_forms' },
   'hubspot.form_id.contact': { value: '', category: 'hubspot_forms' },
 

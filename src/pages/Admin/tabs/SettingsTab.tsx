@@ -42,13 +42,13 @@ interface SettingsState {
   maxOnboardingNudges: string;
   gracePeriodDays: string;
   trialCouponCode: string;
+  hubspotTourSchedulerUrl: string;
 }
 
 const HUBSPOT_FORM_ID_KEYS = [
   { key: 'membership', label: 'Membership Application' },
   { key: 'private-hire', label: 'Private Hire Inquiry' },
   { key: 'event-inquiry', label: 'Event Inquiry' },
-  { key: 'tour-request', label: 'Tour Request' },
   { key: 'guest-checkin', label: 'Guest Check-in' },
   { key: 'contact', label: 'Contact Form' },
 ] as const;
@@ -167,8 +167,9 @@ const SettingsTab: React.FC = () => {
     resourceToursSlotDuration: '30',
     hubspotFormIds: {
       'membership': '', 'private-hire': '', 'event-inquiry': '',
-      'tour-request': '', 'guest-checkin': '', 'contact': '',
+      'guest-checkin': '', 'contact': '',
     },
+    hubspotTourSchedulerUrl: '',
     hubspotTiers: {
       'core': 'Core Membership', 'core-founding': 'Core Membership Founding Members',
       'premium': 'Premium Membership', 'premium-founding': 'Premium Membership Founding Members',
@@ -240,6 +241,7 @@ const SettingsTab: React.FC = () => {
         resourceConferenceSlotDuration: data['resource.conference.slot_duration']?.value || '30',
         resourceToursSlotDuration: data['resource.tours.slot_duration']?.value || '30',
         hubspotFormIds,
+        hubspotTourSchedulerUrl: data['hubspot.tour_scheduler_url']?.value || '',
         hubspotTiers,
         hubspotStatuses,
         dailyReminderHour: data['scheduling.daily_reminder_hour']?.value || '18',
@@ -303,6 +305,7 @@ const SettingsTab: React.FC = () => {
       for (const [key, val] of Object.entries(settingsToSave.hubspotFormIds ?? {})) {
         payload[`hubspot.form_id.${key}`] = val;
       }
+      payload['hubspot.tour_scheduler_url'] = settingsToSave.hubspotTourSchedulerUrl || '';
       for (const [key, val] of Object.entries(settingsToSave.hubspotTiers ?? {})) {
         payload[`hubspot.tier.${key}`] = val;
       }
@@ -626,6 +629,30 @@ const SettingsTab: React.FC = () => {
           ))}
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
             Priority: Environment variable → Admin setting → Auto-discovered → Hardcoded fallback
+          </p>
+        </div>
+      </div>
+
+      <div className={sectionClass}>
+        <SectionHeader icon="calendar_month" title="HubSpot Tour Scheduler" subtitle="Configure the HubSpot meeting scheduler URL used for tour bookings." />
+        <div className="space-y-3">
+          <div className="flex items-center gap-4">
+            <div className="w-44 flex-shrink-0">
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Meeting Scheduler URL</span>
+            </div>
+            <input
+              type="text"
+              value={settings.hubspotTourSchedulerUrl ?? ''}
+              onChange={(e) => {
+                setSettings(prev => ({ ...prev, hubspotTourSchedulerUrl: e.target.value }));
+                setHasChanges(true);
+              }}
+              className={inputSmClass}
+              placeholder="https://meetings-na2.hubspot.com/..."
+            />
+          </div>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+            Paste your HubSpot meeting scheduler link for tour bookings. This URL can be used on the public tour page or shared externally.
           </p>
         </div>
       </div>

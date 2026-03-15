@@ -439,7 +439,7 @@ export const TRAINING_SEED_DATA = [
     isAdminOnly: true,
     steps: [
       { title: 'Access Inquiries', content: 'Go to Inquiries from the Admin section of the sidebar or hamburger menu.', pageIcon: 'mail' },
-      { title: 'Filter by Type', content: 'Use the filter chips to view specific form types: Contact, Tour Request, Private Hire, Guest Check-in, or Event Inquiry.' },
+      { title: 'Filter by Type', content: 'Use the filter chips to view specific form types: Contact, Private Hire, Guest Check-in, or Event Inquiry.' },
       { title: 'Filter by Status', content: 'Filter by status tabs at the top: All, New (unread, highlighted with a blue border), Read, Replied, or Archived. Each tab shows a count.' },
       { title: 'Auto-Read', content: 'Opening a "New" inquiry automatically marks it as "Read" so you can tell which submissions have been seen by staff.' },
       { title: 'View Submission Details', content: 'Tap an inquiry to open its detail modal with the full submission including contact info, message, and structured metadata.' },

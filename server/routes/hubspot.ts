@@ -745,7 +745,7 @@ router.get('/api/hubspot/contacts/:id', isStaffOrAdmin, async (req, res) => {
 
 const HUBSPOT_PORTAL_ID_DEFAULT = '244200670';
 const VALID_FORM_TYPES = new Set([
-  'tour-request', 'membership', 'private-hire',
+  'membership', 'private-hire',
   'event-inquiry', 'guest-checkin', 'contact'
 ]);
 
@@ -919,7 +919,6 @@ router.post('/api/hubspot/forms/:formType', async (req, res) => {
       }).returning();
       
       const formTypeLabels: Record<string, string> = {
-        'tour-request': 'Tour Request',
         'membership': 'Membership Application',
         'private-hire': 'Private Hire Inquiry',
         'guest-checkin': 'Guest Check-in',
