@@ -779,6 +779,26 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
     }
     
     if (!invoiceResult) {
+      if (existingInvoiceId) {
+        try {
+          const stripeClient = await getStripeClient();
+          const oldInvoice = await stripeClient.invoices.retrieve(existingInvoiceId);
+          if (oldInvoice.status === 'open') {
+            logger.info('[Stripe] Staff charge: voiding broken open invoice before fresh draft', {
+              extra: { bookingId: resolvedBookingId, invoiceId: existingInvoiceId }
+            });
+            await stripeClient.invoices.voidInvoice(existingInvoiceId);
+          }
+          await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = ${Number(resolvedBookingId)}`);
+          await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW()
+            WHERE booking_id = ${Number(resolvedBookingId)} AND status NOT IN ('succeeded', 'canceled', 'refunded')`);
+        } catch (voidErr: unknown) {
+          logger.warn('[Stripe] Staff charge: could not void existing invoice, proceeding with fresh draft', {
+            extra: { bookingId: resolvedBookingId, invoiceId: existingInvoiceId, error: getErrorMessage(voidErr) }
+          });
+          await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = ${Number(resolvedBookingId)}`);
+        }
+      }
       await createDraftInvoiceForBooking({
         customerId: member.stripe_customer_id,
         bookingId: Number(resolvedBookingId),

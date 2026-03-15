@@ -1317,6 +1317,27 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
     }
 
     if (!invoiceResult) {
+      if (existingInvoiceId) {
+        try {
+          const { getStripeClient } = await import('../../core/stripe/client');
+          const stripeClient = await getStripeClient();
+          const oldInvoice = await stripeClient.invoices.retrieve(existingInvoiceId);
+          if (oldInvoice.status === 'open') {
+            logger.info('[MemberPayments] Voiding broken open invoice before creating fresh draft', {
+              extra: { bookingId, invoiceId: existingInvoiceId }
+            });
+            await stripeClient.invoices.voidInvoice(existingInvoiceId);
+          }
+          await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = ${bookingId}`);
+          await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW()
+            WHERE booking_id = ${bookingId} AND status NOT IN ('succeeded', 'canceled', 'refunded')`);
+        } catch (voidErr: unknown) {
+          logger.warn('[MemberPayments] Could not void existing invoice, proceeding with fresh draft', {
+            extra: { bookingId, invoiceId: existingInvoiceId, error: getErrorMessage(voidErr) }
+          });
+          await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = ${bookingId}`);
+        }
+      }
       await createDraftInvoiceForBooking({
         customerId: user.stripe_customer_id,
         bookingId,

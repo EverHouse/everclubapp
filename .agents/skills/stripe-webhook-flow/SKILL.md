@@ -160,8 +160,12 @@ This is the correct Stripe API — it handles PI creation/confirmation internall
 
 **Before creating a new charge, check Stripe live PI state:**
 - If existing PI is `succeeded`, `processing`, or `requires_capture` → block the operation (already paid / in progress)
-- If existing PI is `requires_payment_method`, `requires_confirmation`, or `requires_action` → cancel it first via `paymentIntents.cancel()`, then proceed
+- If existing PI has `livePi.invoice` set → SKIP cancel entirely; let `invoices.pay()` handle it
+- If existing PI is `requires_payment_method`, `requires_confirmation`, or `requires_action` (non-invoice) → cancel it first via `cancelPaymentIntent()` helper, then proceed
 - Only mark local DB status as `canceled` AFTER confirmed Stripe cancel succeeds
+
+**Invoice reuse loop prevention (v8.87.25):**
+When `finalizeAndPayInvoice` fails on an existing invoice and the fallback tries `createDraftInvoiceForBooking`, the latter will REUSE the same broken `open` invoice if the amount matches. This causes the same failure in a loop. FIX: before calling `createDraftInvoiceForBooking`, VOID the broken invoice via `stripe.invoices.voidInvoice()` and clear `booking_requests.stripe_invoice_id` in DB. Also mark stale PIs as `canceled` in `stripe_payment_intents` table.
 
 **Files where this rule applies:**
 - `server/core/billing/bookingInvoiceService.ts` — `finalizeAndPayInvoice()`

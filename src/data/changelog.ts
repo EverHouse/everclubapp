@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.25",
+    date: "2026-03-15",
+    title: "Saved Card Payment — Invoice Reuse Loop Fix",
+    changes: [
+      "Fixed: 'Pay with Saved Card' no longer fails with 'Payment failed' when the existing invoice has a broken payment — system now voids the broken invoice and creates a fresh one instead of retrying the same broken invoice in a loop",
+      "Fixed: Staff 'Charge Card on File' has the same invoice recovery fix — broken invoices are voided and recreated before retrying",
+      "Improved: Better error logging when Stripe invoice payment fails — now captures the specific Stripe error code and decline reason for faster debugging",
+      "Improved: Cards requiring additional verification (3D Secure) during saved-card payment now return proper status instead of a generic failure",
+    ]
+  },
+  {
     version: "8.87.24",
     date: "2026-03-15",
     title: "Stripe Payment API Fixes — Saved Card & Invoice Handling",

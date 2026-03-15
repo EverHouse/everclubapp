@@ -642,35 +642,90 @@ export async function finalizeAndPayInvoice(params: {
     logger.info('[BookingInvoice] Paying invoice with saved card via invoices.pay()', {
       extra: { bookingId, invoiceId, paymentMethodId, invoiceStatus: finalizedInvoice.status }
     });
-    const paidInvoice = await stripe.invoices.pay(invoiceId, {
-      payment_method: paymentMethodId,
-    });
-    const amountFromBalance = computeBalanceApplied(paidInvoice);
-    const amountCharged = paidInvoice.amount_paid - amountFromBalance;
-    const resultPiId = extractPaymentIntentId(paidInvoice) || `invoice-pay-${invoiceId}`;
-
-    const isPaid = paidInvoice.status === 'paid';
-    if (isPaid) {
-      safeBroadcast({
-        bookingId,
-        action: 'invoice_paid',
-        invoiceId,
-        paidInFull: true,
-        totalCents: paidInvoice.amount_paid,
+    try {
+      const paidInvoice = await stripe.invoices.pay(invoiceId, {
+        payment_method: paymentMethodId,
       });
-    }
+      const amountFromBalance = computeBalanceApplied(paidInvoice);
+      const amountCharged = paidInvoice.amount_paid - amountFromBalance;
+      const resultPiId = extractPaymentIntentId(paidInvoice) || `invoice-pay-${invoiceId}`;
 
-    return {
-      invoiceId,
-      paymentIntentId: resultPiId,
-      clientSecret: '',
-      status: isPaid ? 'succeeded' : 'requires_action',
-      paidInFull: isPaid,
-      hostedInvoiceUrl: paidInvoice.hosted_invoice_url ?? null,
-      invoicePdf: paidInvoice.invoice_pdf ?? null,
-      amountFromBalance,
-      amountCharged: Math.max(0, amountCharged),
-    };
+      const isPaid = paidInvoice.status === 'paid';
+      if (isPaid) {
+        safeBroadcast({
+          bookingId,
+          action: 'invoice_paid',
+          invoiceId,
+          paidInFull: true,
+          totalCents: paidInvoice.amount_paid,
+        });
+      }
+
+      return {
+        invoiceId,
+        paymentIntentId: resultPiId,
+        clientSecret: '',
+        status: isPaid ? 'succeeded' : 'requires_action',
+        paidInFull: isPaid,
+        hostedInvoiceUrl: paidInvoice.hosted_invoice_url ?? null,
+        invoicePdf: paidInvoice.invoice_pdf ?? null,
+        amountFromBalance,
+        amountCharged: Math.max(0, amountCharged),
+      };
+    } catch (payErr: unknown) {
+      const stripeErr = payErr as { type?: string; code?: string; decline_code?: string; payment_intent?: { id: string; status: string; client_secret: string } | string; raw?: { payment_intent?: { id: string; status: string; client_secret: string } | string } };
+      const rawPi = typeof stripeErr.payment_intent === 'object' && stripeErr.payment_intent
+        ? stripeErr.payment_intent
+        : typeof stripeErr.raw?.payment_intent === 'object' && stripeErr.raw.payment_intent
+          ? stripeErr.raw.payment_intent
+          : null;
+      const piId = rawPi?.id || (typeof stripeErr.payment_intent === 'string' ? stripeErr.payment_intent : undefined);
+      logger.error('[BookingInvoice] invoices.pay() failed for saved card', {
+        error: payErr instanceof Error ? payErr : new Error(String(payErr)),
+        extra: {
+          bookingId,
+          invoiceId,
+          paymentMethodId,
+          stripeType: stripeErr.type,
+          stripeCode: stripeErr.code,
+          declineCode: stripeErr.decline_code,
+          piStatus: rawPi?.status,
+          piId,
+        }
+      });
+      if (rawPi?.status === 'requires_action' && rawPi?.client_secret) {
+        return {
+          invoiceId,
+          paymentIntentId: rawPi.id,
+          clientSecret: rawPi.client_secret,
+          status: 'requires_action' as const,
+          paidInFull: false,
+          hostedInvoiceUrl: null,
+          invoicePdf: null,
+          amountFromBalance: 0,
+          amountCharged: 0,
+        };
+      }
+      if (piId && !rawPi) {
+        try {
+          const retrievedPi = await stripe.paymentIntents.retrieve(piId);
+          if (retrievedPi.status === 'requires_action' && retrievedPi.client_secret) {
+            return {
+              invoiceId,
+              paymentIntentId: retrievedPi.id,
+              clientSecret: retrievedPi.client_secret,
+              status: 'requires_action' as const,
+              paidInFull: false,
+              hostedInvoiceUrl: null,
+              invoicePdf: null,
+              amountFromBalance: 0,
+              amountCharged: 0,
+            };
+          }
+        } catch { /* PI retrieval failed, fall through to rethrow */ }
+      }
+      throw payErr;
+    }
   }
 
   let invoicePiId = extractPaymentIntentId(finalizedInvoice);
