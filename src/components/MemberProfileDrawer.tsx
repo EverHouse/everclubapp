@@ -114,6 +114,10 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
       setShowEmailChange(false);
       setNewEmailValue('');
       setEmailChangeError('');
+      setShowNameEdit(false);
+      setNameEditError('');
+      setShowPhoneEdit(false);
+      setPhoneEditError('');
     }
   }, [isOpen, visitorMode]);
   
@@ -187,6 +191,15 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   const [newEmailValue, setNewEmailValue] = useState('');
   const [isChangingEmail, setIsChangingEmail] = useState(false);
   const [emailChangeError, setEmailChangeError] = useState('');
+  const [showNameEdit, setShowNameEdit] = useState(false);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [isSavingName, setIsSavingName] = useState(false);
+  const [nameEditError, setNameEditError] = useState('');
+  const [showPhoneEdit, setShowPhoneEdit] = useState(false);
+  const [editPhone, setEditPhone] = useState('');
+  const [isSavingPhone, setIsSavingPhone] = useState(false);
+  const [phoneEditError, setPhoneEditError] = useState('');
 
   useEffect(() => {
     setDisplayedTier(member?.rawTier || member?.tier || '');
@@ -735,7 +748,99 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         >
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
-              <h2 className={`text-xl sm:text-2xl font-bold truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{enrichedMember.name}</h2>
+              <div className="flex items-center gap-1">
+                <h2 className={`text-xl sm:text-2xl font-bold truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{enrichedMember.name}</h2>
+                {isAdmin && !visitorMode && !showNameEdit && (
+                  <button
+                    onClick={() => {
+                      setEditFirstName(enrichedMember.firstName || enrichedMember.name?.split(' ')[0] || '');
+                      setEditLastName(enrichedMember.lastName || enrichedMember.name?.split(' ').slice(1).join(' ') || '');
+                      setNameEditError('');
+                      setShowNameEdit(true);
+                    }}
+                    className={`material-symbols-outlined text-xs opacity-60 hover:opacity-100 transition-opacity cursor-pointer tactile-btn ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                    title="Edit name"
+                  >
+                    edit
+                  </button>
+                )}
+              </div>
+              {showNameEdit && (
+                <div className={`mt-2 p-3 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+                  <p className={`text-xs mb-2 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                    This will update the name across all systems (database, Stripe, HubSpot).
+                  </p>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      placeholder="First name"
+                      value={editFirstName}
+                      onChange={(e) => { setEditFirstName(e.target.value); setNameEditError(''); }}
+                      className={`flex-1 px-3 py-2 rounded-lg border text-sm ${isDark ? 'bg-white/10 border-white/20 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Last name"
+                      value={editLastName}
+                      onChange={(e) => { setEditLastName(e.target.value); setNameEditError(''); }}
+                      className={`flex-1 px-3 py-2 rounded-lg border text-sm ${isDark ? 'bg-white/10 border-white/20 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        setIsSavingName(true);
+                        setNameEditError('');
+                        try {
+                          const res = await fetch(`/api/members/${encodeURIComponent(member.email)}/contact-info`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({ firstName: editFirstName.trim(), lastName: editLastName.trim() }),
+                          });
+                          const data = await res.json();
+                          if (res.ok) {
+                            setShowNameEdit(false);
+                            if (data.name !== undefined) {
+                              setEnrichedMember(prev => prev ? { ...prev, name: data.name, firstName: data.firstName, lastName: data.lastName } : prev);
+                            }
+                            const failedSyncs = [];
+                            if (data.syncResults?.stripe === false) failedSyncs.push('Stripe');
+                            if (data.syncResults?.hubspot === false) failedSyncs.push('HubSpot');
+                            if (failedSyncs.length > 0) {
+                              setNameEditError(`Saved locally but failed to sync to ${failedSyncs.join(' and ')}`);
+                            }
+                            fetchMemberData();
+                            onMemberUpdated?.();
+                          } else {
+                            setNameEditError(data.error || 'Failed to update name');
+                          }
+                        } catch {
+                          setNameEditError('Failed to update name');
+                        } finally {
+                          setIsSavingName(false);
+                        }
+                      }}
+                      disabled={isSavingName}
+                      className="px-4 py-2 rounded-lg bg-brand-green text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 tactile-btn"
+                    >
+                      {isSavingName ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => { setShowNameEdit(false); setNameEditError(''); }}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium tactile-btn ${isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} transition-colors`}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {nameEditError && (
+                    <p className={`text-xs mt-2 ${isDark ? 'text-red-400' : 'text-red-600'}`}>{nameEditError}</p>
+                  )}
+                </div>
+              )}
+              {!showNameEdit && nameEditError && (
+                <p className={`text-xs mt-1 ${nameEditError.includes('Saved locally') ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-red-400' : 'text-red-600')}`}>{nameEditError}</p>
+              )}
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <TierBadge tier={displayedTier || enrichedMember.rawTier || enrichedMember.tier} size="md" showNoTier={true} lastTier={enrichedMember.lastTier} membershipStatus={enrichedMember.membershipStatus} />
                 {enrichedMember.status && typeof enrichedMember.status === 'string' && enrichedMember.status.toLowerCase() !== 'active' && (
@@ -846,17 +951,104 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 )}
               </div>
             )}
-            {enrichedMember.phone && (
+            {!showPhoneEdit && (
               <div className="flex items-center gap-1">
-                <a 
-                  href={`tel:${enrichedMember.phone}`}
-                  className={`flex items-center gap-2 text-sm hover:underline ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
-                >
-                  <span className="material-symbols-outlined text-lg">phone</span>
-                  {formatPhoneNumber(enrichedMember.phone)}
-                </a>
-                <CopyButton value={enrichedMember.phone} isDark={isDark} />
+                {enrichedMember.phone ? (
+                  <>
+                    <a 
+                      href={`tel:${enrichedMember.phone}`}
+                      className={`flex items-center gap-2 text-sm hover:underline ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
+                    >
+                      <span className="material-symbols-outlined text-lg">phone</span>
+                      {formatPhoneNumber(enrichedMember.phone)}
+                    </a>
+                    <CopyButton value={enrichedMember.phone} isDark={isDark} />
+                  </>
+                ) : (
+                  <span className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <span className="material-symbols-outlined text-lg">phone</span>
+                    No phone
+                  </span>
+                )}
+                {isAdmin && !visitorMode && (
+                  <button
+                    onClick={() => {
+                      setEditPhone(enrichedMember.phone || '');
+                      setPhoneEditError('');
+                      setShowPhoneEdit(true);
+                    }}
+                    className={`material-symbols-outlined text-xs opacity-60 hover:opacity-100 transition-opacity cursor-pointer tactile-btn ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                    title={enrichedMember.phone ? 'Edit phone' : 'Add phone'}
+                  >
+                    edit
+                  </button>
+                )}
               </div>
+            )}
+            {showPhoneEdit && (
+              <div className={`mt-1 p-3 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+                <p className={`text-xs mb-2 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                  This will update the phone across all systems (database, Stripe, HubSpot).
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="tel"
+                    placeholder="(555) 123-4567"
+                    value={editPhone}
+                    onChange={(e) => { setEditPhone(e.target.value); setPhoneEditError(''); }}
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm ${isDark ? 'bg-white/10 border-white/20 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                  />
+                  <button
+                    onClick={async () => {
+                      setIsSavingPhone(true);
+                      setPhoneEditError('');
+                      try {
+                        const res = await fetch(`/api/members/${encodeURIComponent(member.email)}/contact-info`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ phone: editPhone.trim() || null }),
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                          setShowPhoneEdit(false);
+                          setEnrichedMember(prev => prev ? { ...prev, phone: data.phone || '' } : prev);
+                          const failedSyncs = [];
+                          if (data.syncResults?.stripe === false) failedSyncs.push('Stripe');
+                          if (data.syncResults?.hubspot === false) failedSyncs.push('HubSpot');
+                          if (failedSyncs.length > 0) {
+                            setPhoneEditError(`Saved locally but failed to sync to ${failedSyncs.join(' and ')}`);
+                          }
+                          fetchMemberData();
+                          onMemberUpdated?.();
+                        } else {
+                          setPhoneEditError(data.error || 'Failed to update phone');
+                        }
+                      } catch {
+                        setPhoneEditError('Failed to update phone');
+                      } finally {
+                        setIsSavingPhone(false);
+                      }
+                    }}
+                    disabled={isSavingPhone}
+                    className="px-4 py-2 rounded-lg bg-brand-green text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 tactile-btn"
+                  >
+                    {isSavingPhone ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => { setShowPhoneEdit(false); setPhoneEditError(''); }}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium tactile-btn ${isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} transition-colors`}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {phoneEditError && (
+                  <p className={`text-xs mt-2 ${isDark ? 'text-red-400' : 'text-red-600'}`}>{phoneEditError}</p>
+                )}
+              </div>
+            )}
+            {!showPhoneEdit && phoneEditError && (
+              <p className={`text-xs mt-1 ${phoneEditError.includes('Saved locally') ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-red-400' : 'text-red-600')}`}>{phoneEditError}</p>
             )}
             <div className="flex items-center gap-4 flex-wrap text-xs">
               <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>

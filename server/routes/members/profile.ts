@@ -303,6 +303,133 @@ router.put('/api/members/:email/sms-preferences', isAuthenticated, async (req, r
   }
 });
 
+const contactInfoSchema = z.object({
+  firstName: z.string().max(200).optional(),
+  lastName: z.string().max(200).optional(),
+  phone: z.string().max(30).nullable().optional(),
+});
+
+router.put('/api/members/:email/contact-info', isStaffOrAdmin, async (req, res) => {
+  try {
+    const emailParseResult = emailParamSchema.safeParse(req.params.email);
+    if (!emailParseResult.success) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    const normalizedEmail = emailParseResult.data;
+
+    const bodyParseResult = contactInfoSchema.safeParse(req.body);
+    if (!bodyParseResult.success) {
+      return res.status(400).json({ error: 'Invalid contact info format' });
+    }
+
+    const { firstName, lastName, phone } = bodyParseResult.data;
+
+    const updateData: Record<string, unknown> = { updatedAt: new Date() };
+    if (firstName !== undefined) updateData.firstName = firstName || null;
+    if (lastName !== undefined) updateData.lastName = lastName || null;
+    if (phone !== undefined) updateData.phone = phone || null;
+
+    if (Object.keys(updateData).length === 1) {
+      return res.status(400).json({ error: 'No valid updates provided' });
+    }
+
+    const result = await db.update(users)
+      .set(updateData)
+      .where(sql`LOWER(${users.email}) = ${normalizedEmail}`)
+      .returning({
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        phone: users.phone,
+        stripeCustomerId: users.stripeCustomerId,
+        hubspotId: users.hubspotId,
+        tier: users.tier,
+        id: users.id,
+      });
+
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+
+    const member = result[0];
+    const sessionUser = getSessionUser(req);
+    await logFromRequest(req, {
+      action: 'contact_info_updated',
+      resourceType: 'member',
+      resourceId: normalizedEmail,
+      details: {
+        updatedFields: Object.keys(updateData).filter(k => k !== 'updatedAt'),
+        updatedBy: sessionUser?.email || 'unknown',
+      },
+    });
+
+    invalidateCache(`member-details:${normalizedEmail}`);
+
+    const resolvedFirstName = member.firstName || '';
+    const resolvedLastName = member.lastName || '';
+    const resolvedPhone = member.phone || '';
+    const fullName = [resolvedFirstName, resolvedLastName].filter(Boolean).join(' ');
+
+    const syncResults: { stripe?: boolean; hubspot?: boolean } = {};
+
+    if (member.stripeCustomerId) {
+      try {
+        const { getStripeClient } = await import('../../core/stripe/client');
+        const stripe = await getStripeClient();
+        const stripeUpdate: Record<string, string> = {};
+        if (firstName !== undefined || lastName !== undefined) {
+          stripeUpdate.name = fullName || '';
+        }
+        if (phone !== undefined) {
+          stripeUpdate.phone = resolvedPhone || '';
+        }
+        if (Object.keys(stripeUpdate).length > 0) {
+          await stripe.customers.update(member.stripeCustomerId, stripeUpdate);
+          logger.info('[ContactInfo] Updated Stripe customer', { extra: { email: normalizedEmail, fields: Object.keys(stripeUpdate) } });
+        }
+        syncResults.stripe = true;
+      } catch (stripeErr: unknown) {
+        logger.error('[ContactInfo] Failed to update Stripe customer', { extra: { email: normalizedEmail, error: stripeErr } });
+        syncResults.stripe = false;
+      }
+    }
+
+    if (member.hubspotId) {
+      try {
+        const { getHubSpotClient } = await import('../../core/integrations');
+        const { retryableHubSpotRequest } = await import('../../core/hubspot/request');
+        const hubspot = await getHubSpotClient();
+        const hubspotUpdate: Record<string, string> = {};
+        if (firstName !== undefined) hubspotUpdate.firstname = resolvedFirstName;
+        if (lastName !== undefined) hubspotUpdate.lastname = resolvedLastName;
+        if (phone !== undefined) hubspotUpdate.phone = resolvedPhone;
+        if (Object.keys(hubspotUpdate).length > 0) {
+          await retryableHubSpotRequest(() =>
+            hubspot.crm.contacts.basicApi.update(member.hubspotId!, { properties: hubspotUpdate })
+          );
+          logger.info('[ContactInfo] Updated HubSpot contact', { extra: { email: normalizedEmail, fields: Object.keys(hubspotUpdate) } });
+        }
+        syncResults.hubspot = true;
+      } catch (hubspotErr: unknown) {
+        logger.error('[ContactInfo] Failed to update HubSpot contact', { extra: { email: normalizedEmail, error: hubspotErr } });
+        syncResults.hubspot = false;
+      }
+    }
+
+    res.json({
+      success: true,
+      firstName: member.firstName,
+      lastName: member.lastName,
+      phone: member.phone,
+      name: fullName,
+      syncResults,
+    });
+  } catch (error: unknown) {
+    logger.error('Contact info update error', { error: error instanceof Error ? error : new Error(String(error)) });
+    res.status(500).json({ error: 'Failed to update contact info' });
+  }
+});
+
 const profileDetailsSchema = z.object({
   dateOfBirth: z.string().nullable().optional(),
   streetAddress: z.string().max(500).nullable().optional(),
