@@ -82,8 +82,8 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
 
   const menuContent = (
     <div 
-      className="fixed left-0 right-0 flex justify-start overflow-visible pointer-events-auto" 
-      style={{ zIndex: 'var(--z-drawer)', top: 0, bottom: '-100px', height: 'calc(100% + 100px)' }}
+      className="fixed inset-0 flex justify-start pointer-events-auto" 
+      style={{ zIndex: 'var(--z-drawer)' }}
     >
       <div 
         className={`absolute inset-0 bg-black/20 backdrop-blur-xl ${isClosing ? 'animate-backdrop-out' : 'animate-backdrop-in'}`}
