@@ -8,6 +8,21 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.33",
+    date: "2026-03-15",
+    title: "HubSpot Tour Scheduler Integration & Stripe Payment Fixes",
+    changes: [
+      "New: Tour bookings from the app now automatically create a meeting in HubSpot, triggering HubSpot's confirmation and reminder emails — no more duplicate emails from the app",
+      "New: Admin Settings now has a 'HubSpot Tour Scheduler' section to configure the meeting scheduler URL used for tour bookings",
+      "Improved: Removed redundant Google Calendar event creation, staff notifications, and confirmation emails from tour booking — HubSpot handles all of these automatically",
+      "Removed: 'Tour Request' form ID from HubSpot Form IDs settings (tours use HubSpot meeting scheduler, not forms)",
+      "Fixed: iOS Safari rendering issue with Stripe payment forms in modals — CSS transform/animation interference now prevented",
+      "Fixed: POS invoice settlement now correctly detects standalone terminal payments by checking both metadata keys",
+      "Fixed: Card vaulting now properly saves payment methods for future billing via setup_future_usage",
+      "Fixed: Stripe payment form cleanup now always runs on unmount, preventing orphaned payment intents in React StrictMode",
+    ]
+  },
+  {
     version: "8.87.32",
     date: "2026-03-15",
     title: "Bug Audit — Notification & Wallet Pass Fixes",

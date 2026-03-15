@@ -23,6 +23,8 @@ description: HubSpot CRM synchronization system — queue-based sync of contacts
 | Request wrapper | `server/core/hubspot/request.ts` | Rate-limit-aware p-retry |
 | Form submissions | `server/core/hubspot/formSync.ts` | Form ingestion from HubSpot; `resolveFormId()` (async) uses 4-tier fallback: env var → admin setting → auto-discovered → hardcoded |
 | Form submission routes | `server/routes/hubspot.ts` | Public form submission endpoint; `VALID_HUBSPOT_CONTACT_FIELDS` allowlist controls which fields pass through to HubSpot |
+| Tour scheduler booking | `server/routes/tours.ts` | `bookHubSpotMeeting()` calls HubSpot Scheduler API; `parseHubSpotMeetingLink()` extracts slug + hublet; `pacificToUtcMs()` for timezone conversion |
+| Tour sync (inbound) | `server/routes/tours.ts` | `syncToursFromHubSpot()` pulls HubSpot meetings into local tours table; deduplicates by `hubspotMeetingId` or email+date+time fallback |
 | Full member sync | `server/core/memberSync.ts` | Daily inbound reconciliation |
 | Payment line items | `server/core/hubspot/queueHelpers.ts` | Stripe → HubSpot line items (via queue) |
 | Queue monitor | `server/core/hubspotQueueMonitor.ts` | Admin dashboard stats |
@@ -87,8 +89,35 @@ MindBody-billed active member's HubSpot status changes to non-active
 17. **Retry backoff has random jitter.** Exponential backoff adds 0–5s random jitter (`Math.floor(Math.random() * 5000)` ms) to prevent thundering herd when multiple failed jobs retry simultaneously.
 18. **Form submissions use `VALID_HUBSPOT_CONTACT_FIELDS` allowlist (v8.87.6).** Only explicitly listed field names pass through to HubSpot — unlisted fields are silently dropped. The allowlist in `server/routes/hubspot.ts` includes: `firstname`, `lastname`, `email`, `phone`, `company`, `message`, `membership_interest`, `event_type`, `guest_count`, `eh_email_updates_opt_in`, `event_date`, `event_time`, `additional_details`, `event_services`, `topic`, `guest_firstname`, `guest_lastname`, `guest_email`, `guest_phone`, `member_name`, `member_email`. When adding new form fields, add them to this allowlist or they will be silently dropped.
 19. **`inferFormTypeStrict()` is the primary form classifier (v8.87.4).** `inferFormTypeFromName()` now delegates to `inferFormTypeStrict()` for consistent classification. Discovery map clears stale entries each sync and logs collisions.
-20. **Admin-configurable form IDs (v8.87.5).** 6 `hubspot.form_id.*` settings keys in the admin Settings page. `resolveFormId()` is async (awaits `getSettingValue()` with 30s cache). Startup calls `logFormIdResolutionStatus()` to log which form types have resolved IDs.
+20. **Admin-configurable form IDs (v8.87.5).** 5 `hubspot.form_id.*` settings keys in the admin Settings page (`membership`, `private-hire`, `event-inquiry`, `guest-checkin`, `contact`). `tour-request` was removed in v8.87.33 — tours use `hubspot.tour_scheduler_url` instead (HubSpot Meeting Scheduler, not forms). `resolveFormId()` is async (awaits `getSettingValue()` with 30s cache). Startup calls `logFormIdResolutionStatus()` to log which form types have resolved IDs.
 21. **Supersede-then-enqueue is NOT atomic.** `queueTierSync` supersedes old jobs via Drizzle `db.execute()` then enqueues via `queryWithRetry()` (raw pg pool). These use different DB connections, so a crash between them could leave jobs superseded with no replacement. Risk is extremely low and self-healing (next tier change creates a new job).
+
+## Tour Scheduler Integration (v8.87.33)
+
+Tours use HubSpot's Meeting Scheduler, not HubSpot Forms. The `tour-request` form ID was removed.
+
+### Outbound (App → HubSpot)
+When a tour is booked via `POST /api/tours/schedule`:
+1. Local tour record created in DB (immediate display)
+2. `bookHubSpotMeeting()` calls `POST /scheduler/v3/meetings/meeting-links/book` (non-blocking, fire-and-forget)
+3. On success, `hubspotMeetingId` stored on tour record
+4. HubSpot handles: Google Calendar event, confirmation email, reminder email, staff notifications
+
+Admin setting `hubspot.tour_scheduler_url` stores the meeting link (e.g. `https://meetings-na2.hubspot.com/memberships/tourbooking`).
+`parseHubSpotMeetingLink()` extracts slug and hublet from URL. `pacificToUtcMs()` converts Pacific wall-clock time to UTC epoch ms.
+
+### Inbound (HubSpot → App)
+`syncToursFromHubSpot()` (manual via `POST /api/tours/sync`):
+1. Fetches meetings from HubSpot with "tour" in title/location/URL
+2. Matches by `hubspotMeetingId` first (exact match)
+3. Falls back to email + date + time window (±15 min) for records without `hubspotMeetingId`
+4. Creates new tour records for unmatched meetings
+5. Cancels tours whose HubSpot outcome is "canceled"/"no show"/"rescheduled"
+
+### Available Time Slots
+Both systems should show matching availability:
+- App uses business hours from settings (default 10 AM–5 PM Pacific) + Google Calendar "Tours Scheduled" busy times + local DB tour records
+- HubSpot meeting link should be configured with matching hours and connected to the same Google Calendar
 
 ## Anti-Patterns (NEVER)
 
@@ -97,6 +126,7 @@ MindBody-billed active member's HubSpot status changes to non-active
 3. NEVER write membership_status to HubSpot for MindBody-billed members.
 4. NEVER skip the sync exclusions check on inbound sync.
 5. NEVER push Stripe fields (customer ID, subscription ID) in sandbox environments.
+6. NEVER send app confirmation emails or create Google Calendar events for tour bookings — HubSpot handles these via the Scheduler API.
 
 ## Cross-References
 

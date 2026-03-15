@@ -178,6 +178,18 @@ When `finalizeAndPayInvoice` fails on an existing invoice and the fallback tries
 - `server/routes/stripe/member-payments.ts` — member "Pay with Saved Card"
 - `server/routes/stripe/quick-charge.ts` — POS saved card charges
 
+**POS invoice settlement metadata (v8.87.33, Task #69):**
+The `payment_intent.succeeded` handler in `handlers/payments.ts` must check BOTH `metadata?.draftInvoiceId` and `metadata?.invoice_id` when detecting standalone terminal payments that need invoice settlement. The `invoice_id` key is set by `createInvoiceWithLineItems` in `payments.ts`. Checking only one key causes some terminal payments to skip invoice settlement.
+
+**Card vaulting via `setup_future_usage` (v8.87.33, Task #69):**
+Both `createPaymentIntent` and `createBalanceAwarePayment` in `server/core/stripe/payments.ts` include `setup_future_usage: 'off_session'` so the payment method is saved to the customer for future billing (subscriptions, staff charges). Removing this breaks card vaulting.
+
+**iOS Safari Stripe Elements rendering (v8.87.33, Task #69):**
+`StripePaymentWithSecret` and `StripePaymentForm` in `src/components/stripe/StripePaymentForm.tsx` wrap the payment form in a div with `transform: 'none', animation: 'none'` to prevent iOS Safari CSS interference when Stripe Elements renders inside modals with CSS animations/transforms.
+
+**React StrictMode payment intent cleanup (v8.87.33, Task #69):**
+`StripePaymentForm` uses `intentCreatedRef` inside `initStripe()` to guard against duplicate payment intent creation in React StrictMode. The cleanup function (cancels orphaned PIs on unmount) is returned unconditionally from the useEffect — it was previously only returned conditionally, causing orphaned PIs when StrictMode double-mounted.
+
 ## Supporting Services
 
 | Service | File | Purpose |
