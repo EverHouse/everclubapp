@@ -4,6 +4,7 @@ import { notifyAllStaff } from '../../core/notificationService';
 import { broadcastAvailabilityUpdate } from '../../core/websocket';
 import { logFromRequest } from '../../core/auditLog';
 import {logAndRespond, logger } from '../../core/logger';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
 import { db } from '../../db';
 import { resources, bookingRequests } from '../../../shared/schema';
@@ -404,7 +405,7 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
     try {
       if (row.status === 'approved') {
         refreshBookingPass(row.id as number).catch(err =>
-          logger.error('[StaffManualBooking] Wallet pass refresh failed', { extra: { bookingId: row.id, error: err } })
+          logger.error('[StaffManualBooking] Wallet pass refresh failed', { extra: { bookingId: row.id, error: getErrorMessage(err) } })
         );
       }
 

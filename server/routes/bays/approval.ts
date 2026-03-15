@@ -54,7 +54,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
       });
 
       refreshBookingPass(bookingId).catch(err =>
-        logger.error('[Approval] Wallet pass refresh failed after approve', { extra: { bookingId, error: err } })
+        logger.error('[Approval] Wallet pass refresh failed after approve', { extra: { bookingId, error: getErrorMessage(err) } })
       );
 
       return res.json(formatBookingRow(updated));
@@ -105,7 +105,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
     }
 
     refreshBookingPass(bookingId).catch(err =>
-      logger.error('[Approval] Wallet pass refresh failed after status update', { extra: { bookingId, status, error: err } })
+      logger.error('[Approval] Wallet pass refresh failed after status update', { extra: { bookingId, status, error: getErrorMessage(err) } })
     );
 
     res.json(formatBookingRow(result[0]));
@@ -249,7 +249,7 @@ router.put('/api/bookings/:id/revert-to-approved', isStaffOrAdmin, async (req, r
     }
 
     refreshBookingPass(bookingId).catch(err =>
-      logger.error('[Approval] Wallet pass refresh failed after revert to approved', { extra: { bookingId, error: err } })
+      logger.error('[Approval] Wallet pass refresh failed after revert to approved', { extra: { bookingId, error: getErrorMessage(err) } })
     );
 
     logFromRequest(req, 'revert_to_approved', 'booking', req.params.id as string, staffEmail, {
