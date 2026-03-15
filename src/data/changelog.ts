@@ -35,8 +35,11 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.87.36",
     date: "2026-03-15",
-    title: "TypeScript & Test Stability Fixes",
+    title: "Dashboard Performance Overhaul & Deadlock Prevention",
     changes: [
+      "Improvement: Dashboard now loads up to 6x faster — your bookings, events, wellness, and stats all load independently instead of waiting for one big request",
+      "Improvement: If one section of your dashboard has an issue, the rest still loads normally — no more blank dashboard from a single data hiccup",
+      "Fixed: Booking creation no longer risks freezing when two members book the same bay at the exact same moment — lock acquisition is now ordered to prevent deadlocks",
       "Fixed: Resolved 30 TypeScript compilation errors across the server codebase for Stripe SDK v20 compatibility — payment and invoice handling now uses correct type patterns",
       "Fixed: Added missing audit action types for stale visitor cleanup and contact info updates",
       "Fixed: Booking cancellation tests now correctly mock notification service, transaction sequences, and cancellation source flows — all 10 booking state tests passing",

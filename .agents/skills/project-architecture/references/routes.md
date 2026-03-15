@@ -70,7 +70,7 @@ All mutating routes (POST/PUT/PATCH/DELETE) must be protected. Two equivalent pa
 
 ## Member Routes (`server/routes/members/`)
 
-- `dashboard.ts` — Member dashboard data
+- `dashboard.ts` — Member dashboard data (8 independent endpoints: `/api/member/dashboard/bookings`, `booking-requests`, `rsvps`, `wellness`, `events`, `conference-rooms`, `stats`, `announcements` + legacy monolithic `/api/member/dashboard-data` kept for backward compat)
 - `profile.ts` — Profile endpoints
 - `admin-actions.ts` — Admin member management
 - `communications.ts` — Communication preferences

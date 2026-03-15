@@ -726,6 +726,97 @@ export const TRAINING_SEED_DATA = [
       { title: 'New Member Growth', content: 'A line chart showing monthly new signups over the last 6 months. Track the impact of marketing campaigns and seasonal trends on acquisition.', pageIcon: 'trending_up' },
     ]
   },
+  {
+    guideId: 'apple-wallet',
+    icon: 'wallet',
+    title: 'Apple Wallet Passes',
+    description: 'Digital membership cards and booking tickets in Apple Wallet',
+    sortOrder: 39,
+    isAdminOnly: false,
+    steps: [
+      { title: 'Membership Card', content: 'Members can add their Ever Club membership card to Apple Wallet from their Profile page. The digital card shows their name, tier, and member status, and updates automatically when their membership changes.', pageIcon: 'badge' },
+      { title: 'Booking Passes', content: 'When a booking is approved or confirmed, members can tap "Add to Apple Wallet" on their booking card to get a digital event ticket. The pass shows the bay name, date, time, player count, and booking status.', pageIcon: 'confirmation_number' },
+      { title: 'Automatic Updates', content: 'Booking passes update automatically when details change. If staff moves a booking to a different bay or time, the member gets a lock-screen notification on their iPhone with the updated info — no need to check the app.', pageIcon: 'sync' },
+      { title: 'Cancellation', content: 'When a booking is cancelled, the Apple Wallet pass is automatically voided and visually struck through on the member\'s device. The member sees the status change without needing to open the app.', pageIcon: 'cancel' },
+      { title: 'Email Links', content: 'Booking confirmation emails include an "Add to Apple Wallet" link so members can save the pass directly from their email. This works for approved, confirmed, and checked-in bookings.', pageIcon: 'email' },
+    ]
+  },
+  {
+    guideId: 'passkey-login',
+    icon: 'fingerprint',
+    title: 'Passkey & Biometric Login',
+    description: 'Face ID, Touch ID, and passkey authentication for faster login',
+    sortOrder: 40,
+    isAdminOnly: false,
+    steps: [
+      { title: 'What Are Passkeys?', content: 'Passkeys let members log in using Face ID, Touch ID, or their device PIN instead of typing a verification code. It\'s faster and more secure than email codes because the authentication happens on the member\'s device.', pageIcon: 'fingerprint' },
+      { title: 'Setting Up a Passkey', content: 'Members can register a passkey from their Profile page under "Security." After verifying their identity, they tap "Add Passkey" and follow their device\'s biometric prompt. The passkey is stored securely on their device.', pageIcon: 'add_circle' },
+      { title: 'Logging In with Passkey', content: 'On the login page, members with a registered passkey see a "Sign in with Passkey" option. One tap triggers Face ID or Touch ID, and they\'re logged in instantly — no email code needed.', pageIcon: 'login' },
+      { title: 'Multiple Devices', content: 'Members can register passkeys on multiple devices (iPhone, iPad, Mac). Each device has its own passkey. If they get a new device, they just register a new passkey from their profile.', pageIcon: 'devices' },
+      { title: 'Fallback Options', content: 'Passkeys are optional. Members can always fall back to email verification code, Google Sign-In, or Apple Sign-In. Removing a passkey from the profile revokes it immediately.', pageIcon: 'key' },
+    ]
+  },
+  {
+    guideId: 'apple-sign-in',
+    icon: 'phone_iphone',
+    title: 'Apple Sign-In',
+    description: 'Sign in with Apple account for quick, secure access',
+    sortOrder: 41,
+    isAdminOnly: false,
+    steps: [
+      { title: 'Apple Sign-In Option', content: 'Members see a "Sign in with Apple" button on the login page alongside email code and Google options. Tapping it opens Apple\'s authentication sheet where they use Face ID, Touch ID, or their Apple ID password.', pageIcon: 'phone_iphone' },
+      { title: 'First-Time Setup', content: 'The first time a member signs in with Apple, the system matches their Apple account to their existing membership by email. Once linked, future logins are instant — one tap and they\'re in.', pageIcon: 'link' },
+      { title: 'Linking Apple Account', content: 'Members who already use email or Google login can also link their Apple account from Profile → Connected Accounts. This gives them the option to sign in whichever way is most convenient.', pageIcon: 'person_add' },
+      { title: 'Unlinking', content: 'Members can unlink their Apple account from Profile → Connected Accounts at any time. They\'ll still be able to log in with their other methods (email code, Google, or passkey).', pageIcon: 'link_off' },
+      { title: 'Privacy', content: 'Apple Sign-In respects Apple\'s privacy features. If a member chooses to hide their email, the system uses their linked membership email for all communications. Staff see the member\'s real name and membership email, not the relay address.', pageIcon: 'shield' },
+    ]
+  },
+  {
+    guideId: 'mobile-payments',
+    icon: 'contactless',
+    title: 'Apple Pay & Google Pay',
+    description: 'Pay with mobile wallets for fast, secure checkout',
+    sortOrder: 42,
+    isAdminOnly: false,
+    steps: [
+      { title: 'Mobile Wallet Payments', content: 'Members can pay for bookings, overage fees, and guest fees using Apple Pay or Google Pay. The payment option appears automatically in the payment sheet if their device has a wallet set up.', pageIcon: 'contactless' },
+      { title: 'How It Works', content: 'When a member taps "Pay Now," the Stripe payment form detects available wallet options and shows Apple Pay or Google Pay buttons. One tap authenticates with Face ID or fingerprint and completes the payment instantly.', pageIcon: 'touch_app' },
+      { title: 'Security', content: 'Mobile wallet payments are tokenized by Apple/Google — the actual card number is never shared with the app or stored on our servers. Each transaction uses a unique token, making it more secure than entering card details manually.', pageIcon: 'lock' },
+      { title: 'Staff Terminal', content: 'For in-person payments, members can also tap their phone on the Stripe card reader to pay with Apple Pay or Google Pay, just like tapping a credit card. The reader supports contactless NFC payments.', pageIcon: 'point_of_sale' },
+    ]
+  },
+  {
+    guideId: 'push-notifications',
+    icon: 'notifications_active',
+    title: 'Push Notifications',
+    description: 'Real-time alerts for bookings, events, and club updates',
+    sortOrder: 43,
+    isAdminOnly: false,
+    steps: [
+      { title: 'What Members Receive', content: 'Members get push notifications for: booking approvals, booking modifications (bay/time changes), booking cancellations, check-in confirmations, event reminders, wellness class reminders, and club announcements. Each notification type can be independently controlled.', pageIcon: 'notifications' },
+      { title: 'Enabling Push', content: 'Members enable push notifications from their Profile page by toggling "Push Notifications" on. Their browser will ask for permission — they need to tap "Allow." On iOS, the app must be added to the home screen (PWA) for push to work.', pageIcon: 'toggle_on' },
+      { title: 'Deep Links', content: 'Tapping a notification opens the relevant page in the app. For example, a booking approval notification opens the dashboard bookings section, and an event reminder opens the events page. This saves members from hunting for the update.', pageIcon: 'open_in_new' },
+      { title: 'Staff Notifications', content: 'Staff receive push notifications for: new booking requests, payment failures, stuck cancellations, data integrity alerts, and tour bookings. Staff push works on desktop browsers and mobile PWA.', pageIcon: 'support_agent' },
+      { title: 'Announcement Push', content: 'When creating an announcement, staff can toggle "Send push notification to all members" to instantly alert everyone. Use this sparingly for important club-wide updates to avoid notification fatigue.', pageIcon: 'campaign' },
+      { title: 'Daily Reminders', content: 'Members with bookings tomorrow receive an automatic push reminder at 6 PM Pacific. This runs automatically — no staff action needed. The reminder includes the bay, time, and player count.', pageIcon: 'alarm' },
+      { title: 'Troubleshooting', content: 'If a member isn\'t receiving notifications: (1) Check their browser allows notifications for the site, (2) On iOS, the app must be installed to the home screen, (3) Check Profile to confirm the toggle is on. The Data Integrity dashboard shows push subscription counts.', pageIcon: 'build' },
+    ]
+  },
+  {
+    guideId: 'saved-card-payments',
+    icon: 'credit_card',
+    title: 'Saved Card & One-Tap Payment',
+    description: 'Pay instantly with a saved card — no re-entering details',
+    sortOrder: 44,
+    isAdminOnly: false,
+    steps: [
+      { title: 'How Cards Get Saved', content: 'When a member pays for a booking or their membership, their card is automatically saved to their Stripe profile (with their consent). They don\'t need to do anything extra — the next time they pay, they\'ll see their saved card option.', pageIcon: 'credit_card' },
+      { title: 'One-Tap Payment', content: 'On the payment screen, members see a "Pay with [Card Brand] ••••[Last 4]" button (e.g., "Pay with Visa ••••1234"). One tap charges the saved card instantly — no need to re-enter card details or go through the full checkout flow.', pageIcon: 'touch_app' },
+      { title: 'Staff Card on File', content: 'Staff can also charge a member\'s saved card from the Booking Sheet. Under payment methods, "Card on File" shows the member\'s saved card brand and last 4 digits. Tap to charge instantly without the card reader.', pageIcon: 'point_of_sale' },
+      { title: 'Managing Saved Cards', content: 'Members can view and manage their saved cards from their Profile → Payment Methods. They can remove a card at any time. If they need to update their card (new expiration date), they just make a payment with the new card and it replaces the old one.', pageIcon: 'settings' },
+      { title: 'Security', content: 'Saved cards are stored securely by Stripe — the app never sees or stores full card numbers. Each saved card payment is authenticated through Stripe\'s fraud prevention system. If 3D Secure verification is needed, the member is prompted automatically.', pageIcon: 'lock' },
+    ]
+  },
 ];
 
 // Function to seed training sections with upsert logic (exported for use in startup)

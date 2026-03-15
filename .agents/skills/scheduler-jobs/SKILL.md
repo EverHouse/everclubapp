@@ -1,6 +1,6 @@
 ---
 name: scheduler-jobs
-description: "Scheduled maintenance tasks — daily, hourly, and continuous background jobs. Covers all 28 schedulers, their timing, idempotency, the scheduler tracker, and the job queue processor. Use when adding new scheduled tasks, debugging scheduler issues, understanding maintenance windows, or checking scheduler health via the admin dashboard."
+description: "Scheduled maintenance tasks — daily, hourly, and continuous background jobs. Covers all 28 logical schedulers (25 files — `integrityScheduler.ts` contains 3), their timing, idempotency, the scheduler tracker, and the job queue processor. Use when adding new scheduled tasks, debugging scheduler issues, understanding maintenance windows, or checking scheduler health via the admin dashboard."
 ---
 
 # Scheduler Jobs
@@ -16,7 +16,7 @@ All schedulers registered in `server/schedulers/index.ts` via `initSchedulers()`
 | Job queue processor | `server/core/jobQueue.ts` | Background job processing |
 | Individual schedulers | `server/schedulers/*.ts` | Each scheduler implementation |
 
-## Scheduler Registry (28 tasks)
+## Scheduler Registry (28 logical tasks across 25 files)
 
 | Name | File | Interval | Time Gate | Purpose |
 |---|---|---|---|---|

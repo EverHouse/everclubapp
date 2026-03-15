@@ -70,7 +70,7 @@ Is this inside a db.transaction()?
 1. **Session before roster.** A `booking_sessions` row must exist before any `booking_participants` can be linked. Always call `ensureSessionForBooking()`.
 2. **Fee calculation is post-commit.** `recalculateSessionFees()` uses the global `db` pool. NEVER call inside `db.transaction()` — causes $0 fees or deadlock under Read Committed isolation.
 3. **Optimistic locking on status transitions.** All status-changing UPDATEs must include `WHERE status IN (...)` matching expected source statuses. Check `rowCount` after — if 0, reject (concurrent change).
-3a. **Advisory locks on booking creation.** `acquireBookingLocks()` in `bookingCreationGuard.ts` acquires `pg_advisory_xact_lock` on resource first, then member, to prevent double-booking races. `checkResourceOverlap()` uses `SELECT FOR UPDATE` to verify no overlapping bookings exist (multi-row — must use `ORDER BY id ASC` per convention 18a in `project-architecture`). Roster edits use `roster_version` optimistic locking with `SELECT FOR UPDATE` (v8.86.0, single-row by booking ID).
+3a. **Advisory locks on booking creation.** `acquireBookingLocks()` in `bookingCreationGuard.ts` acquires `pg_advisory_xact_lock` on resource and member, **sorted lexicographically by identifier** to prevent ABBA deadlocks between concurrent requests (v8.87.36). `checkResourceOverlap()` uses `SELECT FOR UPDATE` to verify no overlapping bookings exist (multi-row — must use `ORDER BY id ASC` per convention 18a in `project-architecture`). Roster edits use `roster_version` optimistic locking with `SELECT FOR UPDATE` (v8.86.0, single-row by booking ID).
 4. **Social tier CAN bring guests.** `enforceSocialTierRules()` always returns `{ allowed: true }`. Social members pay full overage (0 daily minutes) and full guest fees (0 complimentary passes). The restriction is economic, not a hard block.
 5. **Post-commit notifications.** Send HTTP response BEFORE post-commit ops (notifications, event publishing, availability broadcast).
 6. **One invoice per booking.** Each booking has at most one Stripe invoice (`booking_requests.stripe_invoice_id`). Draft at approval → updated on roster changes → finalized at payment → voided on cancel.
@@ -85,6 +85,7 @@ Is this inside a db.transaction()?
 1. NEVER call `recalculateSessionFees()` inside a `db.transaction()` block.
 2. NEVER write raw `INSERT INTO booking_sessions` — use `ensureSessionForBooking()`.
 3. NEVER update booking status without `WHERE status IN (...)` guard.
+3b. NEVER acquire advisory locks in non-deterministic order. `acquireBookingLocks()` sorts lock identifiers lexicographically before calling `pg_advisory_xact_lock` — this prevents ABBA deadlocks when concurrent booking requests lock the same resources in different orders. If you add new lock acquisition code, always sort the lock keys first (v8.87.36).
 4. NEVER skip `syncBookingInvoice()` after `recalculateSessionFees()` if the booking has a Stripe invoice.
 5. NEVER assume social tier members are blocked from guests — they are allowed but pay full fees.
 6. NEVER create new roster editors or player management modals — use the Unified Booking Sheet.

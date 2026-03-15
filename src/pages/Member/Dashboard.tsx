@@ -126,18 +126,8 @@ interface BannerAnnouncement {
   linkTarget?: string;
 }
 
-interface DashboardData {
-  bookings: DBBooking[];
-  rsvps: DBRSVP[];
-  wellnessEnrollments: DBWellnessEnrollment[];
-  bookingRequests: DBBookingRequest[];
-  conferenceRoomBookings: DashboardBookingItem[];
-  wellnessClasses: { id: number; title: string; date: string; time: string }[];
-  events: { id: number; title: string; event_date: string; start_time: string }[];
-  guestPasses: GuestPasses | null;
-  bannerAnnouncement: BannerAnnouncement | null;
-  lifetimeVisitCount?: number;
-}
+interface DashboardWellnessClass { id: number; title: string; date: string; time: string }
+interface DashboardEvent { id: number; title: string; event_date: string; start_time: string }
 
 const formatDate = (dateStr: string): string => {
   return formatDateShort(dateStr);
@@ -254,12 +244,12 @@ const Dashboard: React.FC = () => {
   });
   const { data: wellnessData, isLoading: wellnessLoading, error: wellnessError } = useQuery({
     queryKey: [...dashboardQueryBase, 'wellness'],
-    queryFn: () => fetchWithCredentials<{ enrollments: DBWellnessEnrollment[]; classes: DashboardData['wellnessClasses'] }>(`/api/member/dashboard/wellness${viewAsParam}`),
+    queryFn: () => fetchWithCredentials<{ enrollments: DBWellnessEnrollment[]; classes: DashboardWellnessClass[] }>(`/api/member/dashboard/wellness${viewAsParam}`),
     ...dashboardQueryOpts,
   });
   const { data: eventsData } = useQuery({
     queryKey: [...dashboardQueryBase, 'events'],
-    queryFn: () => fetchWithCredentials<DashboardData['events']>(`/api/member/dashboard/events${viewAsParam}`),
+    queryFn: () => fetchWithCredentials<DashboardEvent[]>(`/api/member/dashboard/events${viewAsParam}`),
     ...dashboardQueryOpts,
   });
   const { data: conferenceRoomData } = useQuery({

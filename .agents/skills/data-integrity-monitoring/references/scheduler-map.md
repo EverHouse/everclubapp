@@ -120,7 +120,7 @@ Exposed via `GET /api/admin/monitoring/schedulers`.
 
 | Scheduler | File | Purpose |
 |---|---|---|
-| Abandoned Pending Cleanup | `integrityScheduler.ts` | Delete users in `pending` status >24h with no Stripe subscription. Cascade-deletes notifications, bookings, RSVPs, enrollments, fees, notes, and guest passes in a transaction. |
+| Abandoned Pending Cleanup | `integrityScheduler.ts` | Delete users in `pending` status >24h with no Stripe subscription. Cascade-deletes notifications (by `user_email`), push_subscriptions, user_dismissed_notices, magic_links, bookings, RSVPs, enrollments, fees, notes, member_notes, and guest passes in a transaction (v8.87.37). |
 | Pending User Cleanup | `pendingUserCleanupScheduler.ts` | Additional cleanup for stale pending user records. |
 | Supabase Heartbeat | `supabaseHeartbeatScheduler.ts` | Ping Supabase to keep connection alive and verify user count. |
 
