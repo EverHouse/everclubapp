@@ -256,11 +256,13 @@ router.get('/api/admin/financials/summary', isStaffOrAdmin, async (req, res) => 
     // Today's revenue from Stripe cache
     try {
       const todayRevenue = await db.execute(sql`
-        SELECT COALESCE(SUM(amount_cents), 0) as total_cents
-        FROM stripe_transaction_cache
-        WHERE status IN ('succeeded', 'paid')
-        AND created_at >= to_timestamp(${startOfDay})
-        AND created_at < to_timestamp(${endOfDay})
+        SELECT COALESCE(SUM(stc.amount_cents), 0) as total_cents
+        FROM stripe_transaction_cache stc
+        LEFT JOIN stripe_payment_intents spi ON spi.stripe_payment_intent_id = stc.stripe_id
+        WHERE stc.status IN ('succeeded', 'paid')
+        AND stc.created_at >= to_timestamp(${startOfDay})
+        AND stc.created_at < to_timestamp(${endOfDay})
+        AND (spi.status IS NULL OR spi.status NOT IN ('refunded', 'refunding'))
       `);
       results.todayRevenueCents = parseInt(String(todayRevenue.rows[0]?.total_cents || '0'));
     } catch (err) { logger.debug('[Financials] Failed to query today revenue — table may not exist', { error: err instanceof Error ? err.message : err }); }
