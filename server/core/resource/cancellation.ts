@@ -177,10 +177,25 @@ export async function handleCancellationCascade(
         if (row.stripe_payment_intent_id.startsWith('balance-')) {
           if (row.stripe_customer_id) {
             const stripe = await getStripeClient();
+            const refundableResult = await db.execute(sql`
+              SELECT amount_cents - COALESCE(refunded_amount_cents, 0) AS remaining_cents
+              FROM stripe_payment_intents
+              WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
+            const remainingRaw = (refundableResult.rows[0] as Record<string, unknown>)?.remaining_cents;
+            const remainingCents = remainingRaw != null ? Number(remainingRaw) : (row.amount_cents as number);
+            if (remainingCents <= 0) {
+              logger.info('[cancellation-cascade] Balance already fully refunded, skipping', {
+                extra: { bookingId, paymentIntentId: row.stripe_payment_intent_id }
+              });
+              await db.execute(sql`UPDATE stripe_payment_intents 
+                 SET status = 'refunded', updated_at = NOW() 
+                 WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id} AND status = 'refunding'`);
+              return;
+            }
             const balanceTxn = await stripe.customers.createBalanceTransaction(
               row.stripe_customer_id,
               {
-                amount: -(row.amount_cents as number),
+                amount: -remainingCents,
                 currency: 'usd',
                 description: `Refund for cancelled booking #${bookingId}`,
               },
@@ -212,7 +227,7 @@ export async function handleCancellationCascade(
         } else {
           const idempotencyKey = `refund-booking-${bookingId}-${row.stripe_payment_intent_id}`;
           const stripe = await getStripeClient();
-          const refundParams: { payment_intent: string; reason: 'requested_by_customer'; metadata: Record<string, string>; amount?: number } = {
+          const refundParams: { payment_intent: string; reason: 'requested_by_customer'; metadata: Record<string, string> } = {
             payment_intent: row.stripe_payment_intent_id,
             reason: 'requested_by_customer',
             metadata: {
@@ -220,9 +235,6 @@ export async function handleCancellationCascade(
               bookingId: bookingId.toString(),
             },
           };
-          if (row.amount_cents) {
-            refundParams.amount = row.amount_cents as number;
-          }
           const refund = await stripe.refunds.create(refundParams, { idempotencyKey });
           try {
             await markPaymentRefunded({
@@ -245,14 +257,16 @@ export async function handleCancellationCascade(
           });
         }
       } catch (refundErr: unknown) {
-        await db.execute(sql`UPDATE stripe_payment_intents 
-           SET status = 'succeeded', updated_at = NOW() 
-           WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id} AND status = 'refunding'`).catch((rollbackErr) => {
+        try {
+          await db.execute(sql`UPDATE stripe_payment_intents 
+             SET status = 'succeeded', updated_at = NOW() 
+             WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id} AND status = 'refunding'`);
+        } catch (rollbackErr: unknown) {
           logger.error('[cancellation-cascade] CRITICAL: Failed to rollback payment_intent status after refund queue failure', {
             error: getErrorMessage(rollbackErr),
             extra: { paymentIntentId: row.stripe_payment_intent_id }
           });
-        });
+        }
         
         const errorMsg = `Failed to queue refund for prepayment ${row.stripe_payment_intent_id}: ${getErrorMessage(refundErr)}`;
         result.errors.push(errorMsg);

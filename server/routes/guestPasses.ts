@@ -333,13 +333,14 @@ export async function useGuestPass(
 export async function refundGuestPass(
   memberEmail: string,
   guestName?: string,
-  sendNotification: boolean = true
+  sendNotification: boolean = true,
+  txClient?: Parameters<Parameters<typeof db.transaction>[0]>[0]
 ): Promise<{ success: boolean; error?: string; remaining?: number }> {
   try {
     // Normalize email for consistent matching
     const normalizedEmail = memberEmail.toLowerCase();
     
-    const { data: _data, remaining, notificationMessage } = await db.transaction(async (tx) => {
+    const executeRefund = async (tx: Parameters<Parameters<typeof db.transaction>[0]>[0]) => {
       const result = await tx.update(guestPasses)
         .set({ passesUsed: sql`GREATEST(0, ${guestPasses.passesUsed} - 1)` })
         .where(sql`LOWER(${guestPasses.memberEmail}) = ${normalizedEmail}`)
@@ -369,7 +370,11 @@ export async function refundGuestPass(
       }
       
       return { data, remaining, notificationMessage };
-    });
+    };
+
+    const { data: _data, remaining, notificationMessage } = txClient
+      ? await executeRefund(txClient)
+      : await db.transaction(async (tx) => executeRefund(tx));
     
     if (notificationMessage) {
       sendPushNotification(normalizedEmail, {

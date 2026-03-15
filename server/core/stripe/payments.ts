@@ -368,17 +368,17 @@ export async function confirmPaymentSuccess(
     });
 
     if (!result.success) {
-      logger.error(`[Stripe] PaymentStatusService failed:`, { error: result.error });
+      logger.error(`[Stripe] PaymentStatusService failed, marking as requires_reconciliation:`, { error: result.error });
       if (txClient) {
         await txClient.query(
           `UPDATE stripe_payment_intents 
-           SET status = 'succeeded', updated_at = NOW() 
+           SET status = 'requires_reconciliation', updated_at = NOW() 
            WHERE stripe_payment_intent_id = $1`,
           [paymentIntentId]
         );
       } else {
         await db.execute(sql`UPDATE stripe_payment_intents 
-           SET status = 'succeeded', updated_at = NOW() 
+           SET status = 'requires_reconciliation', updated_at = NOW() 
            WHERE stripe_payment_intent_id = ${paymentIntentId}`);
       }
     }

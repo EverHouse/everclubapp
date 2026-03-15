@@ -586,7 +586,7 @@ export class BookingStateService {
         for (const guest of guestParticipants) {
           if (guest.usedGuestPass) {
             try {
-              const guestRefundResult = await refundGuestPass(existing.userEmail || '', guest.displayName || undefined, false);
+              const guestRefundResult = await refundGuestPass(existing.userEmail || '', guest.displayName || undefined, false, tx);
               if (!guestRefundResult.success) {
                 logger.error('[BookingStateService] Guest pass refund failed', { extra: { memberEmail: existing.userEmail, guestName: guest.displayName, error: guestRefundResult.error } });
               }

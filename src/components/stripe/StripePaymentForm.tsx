@@ -66,6 +66,32 @@ export function SimpleCheckoutForm({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const isSubmittingRef = useRef(false);
 
+  useEffect(() => {
+    if (!stripe) return;
+    const params = new URLSearchParams(window.location.search);
+    const piId = params.get('payment_intent');
+    const piSecret = params.get('payment_intent_client_secret');
+    if (!piId || !piSecret) return;
+
+    setIsProcessing(true);
+    stripe.retrievePaymentIntent(piSecret).then(({ paymentIntent, error }) => {
+      if (error) {
+        const msg = error.message || 'Failed to verify payment';
+        setErrorMessage(msg);
+        onError?.(msg);
+        setIsProcessing(false);
+      } else if (paymentIntent && paymentIntent.id === piId && paymentIntent.status === 'succeeded') {
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+        onSuccess(paymentIntent.id);
+      } else {
+        setIsProcessing(false);
+      }
+    }).catch(() => {
+      setIsProcessing(false);
+    });
+  }, [stripe]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
