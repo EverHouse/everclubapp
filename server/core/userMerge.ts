@@ -598,6 +598,7 @@ async function executeMergeInternal(
          archived_at = NOW(),
          archived_by = ${performedBy},
          membership_status = 'merged',
+         last_modified_at = CASE WHEN membership_status IS DISTINCT FROM 'merged' THEN NOW() ELSE last_modified_at END,
          email = ${archivedEmail},
          stripe_customer_id = NULL,
          stripe_subscription_id = NULL,
