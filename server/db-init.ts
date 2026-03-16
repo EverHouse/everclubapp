@@ -945,24 +945,6 @@ export async function ensureDatabaseConstraints() {
       logger.warn(`[DB Init] Usage ledger legacy cleanup: ${getErrorMessage(err)}`);
     }
 
-    try {
-      await db.execute(sql`
-        DO $$ BEGIN
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.table_constraints
-            WHERE constraint_name = 'usage_ledger_member_id_users_id_fk'
-              AND table_name = 'usage_ledger'
-          ) THEN
-            ALTER TABLE usage_ledger
-            ADD CONSTRAINT usage_ledger_member_id_users_id_fk
-            FOREIGN KEY (member_id) REFERENCES public.users(id) ON DELETE SET NULL ON UPDATE NO ACTION;
-          END IF;
-        END $$;
-      `);
-      logger.info('[DB Init] usage_ledger member_id FK constraint ensured');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Usage ledger FK constraint: ${getErrorMessage(err)}`);
-    }
 
     try {
       await db.execute(sql`
@@ -975,26 +957,6 @@ export async function ensureDatabaseConstraints() {
       logger.warn(`[DB Init] Trackman webhook legacy cleanup: ${getErrorMessage(err)}`);
     }
 
-    try {
-      await db.execute(sql`
-        DO $$
-        BEGIN
-          IF NOT EXISTS (
-            SELECT 1 FROM pg_constraint
-            WHERE conrelid = 'trackman_webhook_events'::regclass
-              AND contype = 'f'
-              AND conname LIKE '%matched_booking_id%'
-          ) THEN
-            ALTER TABLE trackman_webhook_events
-            ADD CONSTRAINT trackman_webhook_events_matched_booking_id_booking_requests_id_
-            FOREIGN KEY (matched_booking_id) REFERENCES public.booking_requests(id) ON DELETE SET NULL ON UPDATE NO ACTION;
-          END IF;
-        END $$;
-      `);
-      logger.info('[DB Init] Trackman webhook matched_booking_id FK constraint ensured');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Trackman webhook FK constraint: ${getErrorMessage(err)}`);
-    }
 
     try {
       await db.execute(sql`
@@ -1033,7 +995,9 @@ export async function ensureDatabaseConstraints() {
       { table: 'booking_requests', constraint: 'booking_requests_session_id_fkey' },
       { table: 'booking_requests', constraint: 'booking_requests_closure_id_fkey' },
       { table: 'usage_ledger', constraint: 'usage_ledger_member_id_fkey' },
+      { table: 'usage_ledger', constraint: 'usage_ledger_member_id_users_id_fk' },
       { table: 'trackman_webhook_events', constraint: 'trackman_webhook_events_matched_booking_id_fkey' },
+      { table: 'trackman_webhook_events', constraint: 'trackman_webhook_events_matched_booking_id_booking_requests_id_' },
       { table: 'booking_wallet_passes', constraint: 'booking_wallet_passes_member_id_fkey' },
     ];
     for (const fk of legacyFKNames) {
@@ -1231,8 +1195,6 @@ export async function verifyIntegrityConstraints(): Promise<{ verified: boolean;
     { table: 'booking_participants', column: 'user_id', justifies: 'Participant User Relationships check elimination' },
     { table: 'booking_requests', column: 'session_id', justifies: 'Booking session FK integrity' },
     { table: 'booking_requests', column: 'closure_id', justifies: 'Booking closure FK integrity' },
-    { table: 'usage_ledger', column: 'member_id', justifies: 'Usage ledger member FK integrity' },
-    { table: 'trackman_webhook_events', column: 'matched_booking_id', justifies: 'Trackman webhook booking FK integrity' },
     { table: 'booking_wallet_passes', column: 'member_id', justifies: 'Wallet pass member FK integrity' },
   ];
 
