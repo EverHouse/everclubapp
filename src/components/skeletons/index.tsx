@@ -188,7 +188,7 @@ export const DashboardSkeleton: React.FC<SkeletonCardProps> = ({ isDark = false 
   const bg = isDark ? bgDark : bgAuto;
   return (
     <div 
-      className="full-bleed-page px-6 pb-32 bg-transparent pt-[calc(var(--header-offset)+1rem)]"
+      className="full-bleed-page px-6 pb-32 bg-transparent pt-4"
     >
       <div className="mb-6">
         <div className="flex items-center gap-3">

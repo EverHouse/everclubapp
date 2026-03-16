@@ -848,7 +848,7 @@ const Dashboard: React.FC = () => {
   if (error) {
     return (
       <div 
-        className="full-bleed-page px-6 pb-32 bg-transparent pt-[calc(var(--header-offset)+1rem)]"
+        className="full-bleed-page px-6 pb-32 bg-transparent pt-4"
       >
         <ErrorState
           title="Unable to load dashboard"

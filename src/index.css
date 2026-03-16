@@ -147,14 +147,13 @@
 }
 
 /* ── Full-Bleed Page Layout ──────────────────────────────────────────────
-   Replaces negative-margin hacks. Pages use .full-bleed-page for header
-   clearance and .full-bleed-bg on a child div to extend the background
-   color behind the transparent header via absolute inset positioning.
-   Placed in @layer base so Tailwind utilities (e.g. pt-[…]) can override. */
+   Pages use .full-bleed-page for layout isolation and .full-bleed-bg on a
+   child div to extend the background color behind the transparent header
+   via absolute inset positioning. Header clearance padding is provided by
+   <main> in App.tsx — do NOT duplicate it here. */
 @layer base {
   .full-bleed-page {
     position: relative;
-    padding-top: var(--header-offset);
     padding-bottom: env(safe-area-inset-bottom, 0px);
     isolation: isolate;
     min-height: 100vh;
