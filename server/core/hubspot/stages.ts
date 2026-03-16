@@ -40,6 +40,12 @@ export async function updateContactMembershipStatus(
   newStatus: ContactMembershipStatus,
   _performedBy: string
 ): Promise<boolean> {
+  const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('./readOnlyGuard');
+  if (isHubSpotReadOnly()) {
+    logHubSpotWriteSkipped('update_membership_status', hubspotContactId);
+    return true;
+  }
+
   try {
     const hubspot = await getHubSpotClient();
     
@@ -91,10 +97,12 @@ export interface SyncMemberToHubSpotResult {
 export async function syncMemberToHubSpot(
   input: SyncMemberToHubSpotInput
 ): Promise<SyncMemberToHubSpotResult> {
-   
-   
-   
-   
+  const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('./readOnlyGuard');
+  if (isHubSpotReadOnly()) {
+    logHubSpotWriteSkipped('sync_member', input.email);
+    return { success: true, updated: {} };
+  }
+
   const { email, status, billingProvider, tier, memberSince, createIfMissing = true, billingGroupRole } = input;
   
   if (isPlaceholderEmail(email)) {
@@ -297,6 +305,12 @@ export async function syncMemberToHubSpot(
 }
 
 export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean; created: string[]; existing: string[]; errors: string[] }> {
+  const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('./readOnlyGuard');
+  if (isHubSpotReadOnly()) {
+    logHubSpotWriteSkipped('ensure_properties_exist', 'property creation');
+    return { success: true, created: [], existing: [], errors: [] };
+  }
+
   const created: string[] = [];
   const existing: string[] = [];
   const errors: string[] = [];

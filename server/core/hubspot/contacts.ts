@@ -19,6 +19,12 @@ export async function syncSmsPreferencesToHubSpot(
   email: string,
   preferences: SmsPreferences
 ): Promise<{ success: boolean; error?: string }> {
+  const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('./readOnlyGuard');
+  if (isHubSpotReadOnly()) {
+    logHubSpotWriteSkipped('sync_sms_preferences', email);
+    return { success: true };
+  }
+
   const normalizedEmail = email.toLowerCase().trim();
 
   try {
@@ -155,6 +161,12 @@ export async function syncProfileDetailsToHubSpot(
   email: string,
   details: ProfileDetails
 ): Promise<{ success: boolean; error?: string }> {
+  const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('./readOnlyGuard');
+  if (isHubSpotReadOnly()) {
+    logHubSpotWriteSkipped('sync_profile_details', email);
+    return { success: true };
+  }
+
   const normalizedEmail = email.toLowerCase().trim();
 
   try {
@@ -247,6 +259,12 @@ export interface SyncDayPassPurchaseResult {
 export async function syncDayPassPurchaseToHubSpot(
   data: SyncDayPassPurchaseInput
 ): Promise<SyncDayPassPurchaseResult> {
+  const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('./readOnlyGuard');
+  if (isHubSpotReadOnly()) {
+    logHubSpotWriteSkipped('sync_day_pass_purchase', data.email);
+    return { success: true };
+  }
+
   const { email, firstName, lastName, phone, productName, amountCents, purchaseDate } = data;
   const normalizedEmail = email.toLowerCase().trim();
 

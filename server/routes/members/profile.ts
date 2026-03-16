@@ -399,20 +399,26 @@ router.put('/api/members/:email/contact-info', isStaffOrAdmin, async (req, res) 
 
     if (member.hubspotId) {
       try {
-        const { getHubSpotClient } = await import('../../core/integrations');
-        const { retryableHubSpotRequest } = await import('../../core/hubspot/request');
-        const hubspot = await getHubSpotClient();
-        const hubspotUpdate: Record<string, string> = {};
-        if (firstName !== undefined) hubspotUpdate.firstname = resolvedFirstName;
-        if (lastName !== undefined) hubspotUpdate.lastname = resolvedLastName;
-        if (phone !== undefined) hubspotUpdate.phone = resolvedPhone;
-        if (Object.keys(hubspotUpdate).length > 0) {
-          await retryableHubSpotRequest(() =>
-            hubspot.crm.contacts.basicApi.update(member.hubspotId!, { properties: hubspotUpdate })
-          );
-          logger.info('[ContactInfo] Updated HubSpot contact', { extra: { email: normalizedEmail, fields: Object.keys(hubspotUpdate) } });
+        const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('../../core/hubspot/readOnlyGuard');
+        if (isHubSpotReadOnly()) {
+          logHubSpotWriteSkipped('update_contact_info', normalizedEmail);
+          syncResults.hubspot = true;
+        } else {
+          const { getHubSpotClient } = await import('../../core/integrations');
+          const { retryableHubSpotRequest } = await import('../../core/hubspot/request');
+          const hubspot = await getHubSpotClient();
+          const hubspotUpdate: Record<string, string> = {};
+          if (firstName !== undefined) hubspotUpdate.firstname = resolvedFirstName;
+          if (lastName !== undefined) hubspotUpdate.lastname = resolvedLastName;
+          if (phone !== undefined) hubspotUpdate.phone = resolvedPhone;
+          if (Object.keys(hubspotUpdate).length > 0) {
+            await retryableHubSpotRequest(() =>
+              hubspot.crm.contacts.basicApi.update(member.hubspotId!, { properties: hubspotUpdate })
+            );
+            logger.info('[ContactInfo] Updated HubSpot contact', { extra: { email: normalizedEmail, fields: Object.keys(hubspotUpdate) } });
+          }
+          syncResults.hubspot = true;
         }
-        syncResults.hubspot = true;
       } catch (hubspotErr: unknown) {
         logger.error('[ContactInfo] Failed to update HubSpot contact', { extra: { email: normalizedEmail, error: hubspotErr } });
         syncResults.hubspot = false;

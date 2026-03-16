@@ -28,6 +28,12 @@ function extractDomainFromEmail(email: string): string {
 export async function syncCompanyToHubSpot(
   input: SyncCompanyInput
 ): Promise<SyncCompanyResult> {
+  const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('./readOnlyGuard');
+  if (isHubSpotReadOnly()) {
+    logHubSpotWriteSkipped('sync_company', input.userEmail);
+    return { success: true };
+  }
+
   const { companyName, userEmail, userHubSpotContactId } = input;
   const domain = input.domain || extractDomainFromEmail(userEmail);
   const normalizedEmail = userEmail.toLowerCase().trim();

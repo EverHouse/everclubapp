@@ -44,6 +44,7 @@ export async function findOrCreateHubSpotContact(
     throw new Error(`Cannot create HubSpot contact for placeholder email: ${email}`);
   }
   
+  const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('./readOnlyGuard');
   const hubspot = await getHubSpotClient();
 
   let dbStatus: string | null = null;
@@ -109,28 +110,32 @@ export async function findOrCreateHubSpotContact(
       }
       
       if (Object.keys(updateProps).length > 0) {
-        try {
-          if (updateProps.lifecyclestage) {
-            await retryableHubSpotRequest(() =>
-              hubspot.crm.contacts.basicApi.update(contactId, { properties: { lifecyclestage: '' } })
-            );
-          }
-          await retryableHubSpotRequest(() =>
-            hubspot.crm.contacts.basicApi.update(contactId, { properties: updateProps })
-          );
-          logger.info(`[HubSpot] Updated existing contact ${contactId} for ${email.toLowerCase()}: ${JSON.stringify(updateProps)}`);
-        } catch (updateErr: unknown) {
-          if (updateProps.lifecyclestage) {
-            try {
+        if (isHubSpotReadOnly()) {
+          logHubSpotWriteSkipped('update_existing_contact', email.toLowerCase());
+        } else {
+          try {
+            if (updateProps.lifecyclestage) {
               await retryableHubSpotRequest(() =>
-                hubspot.crm.contacts.basicApi.update(contactId, { properties: { lifecyclestage: currentLifecycle || 'lead' } })
+                hubspot.crm.contacts.basicApi.update(contactId, { properties: { lifecyclestage: '' } })
               );
-              logger.warn(`[HubSpot] Restored lifecycle to '${currentLifecycle || 'lead'}' for contact ${contactId} after update failure`);
-            } catch (restoreErr: unknown) {
-              logger.error(`[HubSpot] CRITICAL: Contact ${contactId} may have blank lifecycle after failed update + failed restore`, { error: restoreErr });
             }
+            await retryableHubSpotRequest(() =>
+              hubspot.crm.contacts.basicApi.update(contactId, { properties: updateProps })
+            );
+            logger.info(`[HubSpot] Updated existing contact ${contactId} for ${email.toLowerCase()}: ${JSON.stringify(updateProps)}`);
+          } catch (updateErr: unknown) {
+            if (updateProps.lifecyclestage) {
+              try {
+                await retryableHubSpotRequest(() =>
+                  hubspot.crm.contacts.basicApi.update(contactId, { properties: { lifecyclestage: currentLifecycle || 'lead' } })
+                );
+                logger.warn(`[HubSpot] Restored lifecycle to '${currentLifecycle || 'lead'}' for contact ${contactId} after update failure`);
+              } catch (restoreErr: unknown) {
+                logger.error(`[HubSpot] CRITICAL: Contact ${contactId} may have blank lifecycle after failed update + failed restore`, { error: restoreErr });
+              }
+            }
+            logger.warn(`[HubSpot] Failed to update existing contact ${contactId} for ${email.toLowerCase()}:`, { error: updateErr });
           }
-          logger.warn(`[HubSpot] Failed to update existing contact ${contactId} for ${email.toLowerCase()}:`, { error: updateErr });
         }
       }
       
@@ -161,6 +166,11 @@ export async function findOrCreateHubSpotContact(
     if (!isProduction) logger.warn('[HubSpot] Error searching for contact, will create new one:', { error: error });
   }
   
+  if (isHubSpotReadOnly()) {
+    logHubSpotWriteSkipped('create_contact', email.toLowerCase());
+    return { contactId: '', isNew: false };
+  }
+
   try {
     const { denormalizeTierForHubSpotAsync } = await import('../../utils/tierUtils');
     const hubspotTier = tier ? await denormalizeTierForHubSpotAsync(tier) : null;
@@ -291,6 +301,12 @@ export async function syncTierToHubSpot(params: {
   changedBy?: string;
   changedByName?: string;
 }): Promise<void> {
+  const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('./readOnlyGuard');
+  if (isHubSpotReadOnly()) {
+    logHubSpotWriteSkipped('sync_tier', params.email);
+    return;
+  }
+
   const { email, newTier } = params;
   const normalizedEmail = email.toLowerCase().trim();
   

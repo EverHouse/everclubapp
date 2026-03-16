@@ -371,13 +371,18 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
             
             if (!dryRun) {
               try {
-                await retryableHubSpotRequest(() =>
-                  hubspot.crm.contacts.basicApi.update(member.hubspot_id!, {
-                    properties: {
-                      total_visit_count: appVisitCount.toString()
-                    }
-                  })
-                );
+                const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('../../core/hubspot/readOnlyGuard');
+                if (isHubSpotReadOnly()) {
+                  logHubSpotWriteSkipped('maintenance_visit_count_update', member.email);
+                } else {
+                  await retryableHubSpotRequest(() =>
+                    hubspot.crm.contacts.basicApi.update(member.hubspot_id!, {
+                      properties: {
+                        total_visit_count: appVisitCount.toString()
+                      }
+                    })
+                  );
+                }
                 
                 updated.push({
                   email: member.email,

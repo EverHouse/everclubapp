@@ -268,7 +268,10 @@ async function syncProfileToExternalServices(
       logger.info('[ProfileSync] Updated Stripe customer name/phone', { extra: { email } });
     }
 
-    if (user?.hubspot_id) {
+    const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('../../core/hubspot/readOnlyGuard');
+    if (isHubSpotReadOnly()) {
+      logHubSpotWriteSkipped('onboarding_profile_sync', email);
+    } else if (user?.hubspot_id) {
       const hubspot = await getHubSpotClient();
       await retryableHubSpotRequest(() =>
         hubspot.crm.contacts.basicApi.update(user.hubspot_id as string, {

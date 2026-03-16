@@ -1034,11 +1034,16 @@ router.delete('/api/visitors/:id', isStaffOrAdmin, async (req, res) => {
     let hubspotArchived = false;
     if (deleteFromHubSpot === 'true' && visitor.hubspotId) {
       try {
-        const { getHubSpotClient } = await import('../../core/integrations');
-        const hubspot = await getHubSpotClient();
-        await hubspot.crm.contacts.basicApi.archive(visitor.hubspotId);
-        hubspotArchived = true;
-        deletionLog.push('hubspot_contact (archived)');
+        const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('../../core/hubspot/readOnlyGuard');
+        if (isHubSpotReadOnly()) {
+          logHubSpotWriteSkipped('archive_visitor_contact', visitor.hubspotId);
+        } else {
+          const { getHubSpotClient } = await import('../../core/integrations');
+          const hubspot = await getHubSpotClient();
+          await hubspot.crm.contacts.basicApi.archive(visitor.hubspotId);
+          hubspotArchived = true;
+          deletionLog.push('hubspot_contact (archived)');
+        }
       } catch (hubspotError: unknown) {
         logger.error('[Visitors] Failed to archive HubSpot contact', { extra: { hubspotId: visitor.hubspotId, error: getErrorMessage(hubspotError) } });
       }

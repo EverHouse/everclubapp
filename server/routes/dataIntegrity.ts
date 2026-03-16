@@ -457,26 +457,31 @@ router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, validate
     
     if (hubspotContactIds?.length > 0) {
       try {
-        const { client: hubspot } = await getHubSpotClientWithFallback();
-        
-        const HUBSPOT_BATCH_SIZE = 100;
-        for (let i = 0; i < hubspotContactIds.length; i += HUBSPOT_BATCH_SIZE) {
-          const batch = hubspotContactIds.slice(i, i + HUBSPOT_BATCH_SIZE);
-          try {
-            await retryableHubSpotRequest(() =>
-              hubspot.crm.contacts.batchApi.archive({ inputs: batch.map((id: string) => ({ id })) })
-            );
-            results.hubspotDeleted += batch.length;
-          } catch (_batchErr: unknown) {
-            for (const contactId of batch) {
-              try {
-                await retryableHubSpotRequest(() =>
-                  hubspot.crm.contacts.basicApi.archive(contactId)
-                );
-                results.hubspotDeleted++;
-              } catch (error: unknown) {
-                results.hubspotFailed++;
-                results.hubspotErrors.push(`${contactId}: ${getErrorMessage(error)}`);
+        const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('../core/hubspot/readOnlyGuard');
+        if (isHubSpotReadOnly()) {
+          logHubSpotWriteSkipped('batch_archive_orphaned_contacts', `${hubspotContactIds.length} contacts`);
+        } else {
+          const { client: hubspot } = await getHubSpotClientWithFallback();
+          
+          const HUBSPOT_BATCH_SIZE = 100;
+          for (let i = 0; i < hubspotContactIds.length; i += HUBSPOT_BATCH_SIZE) {
+            const batch = hubspotContactIds.slice(i, i + HUBSPOT_BATCH_SIZE);
+            try {
+              await retryableHubSpotRequest(() =>
+                hubspot.crm.contacts.batchApi.archive({ inputs: batch.map((id: string) => ({ id })) })
+              );
+              results.hubspotDeleted += batch.length;
+            } catch (_batchErr: unknown) {
+              for (const contactId of batch) {
+                try {
+                  await retryableHubSpotRequest(() =>
+                    hubspot.crm.contacts.basicApi.archive(contactId)
+                  );
+                  results.hubspotDeleted++;
+                } catch (error: unknown) {
+                  results.hubspotFailed++;
+                  results.hubspotErrors.push(`${contactId}: ${getErrorMessage(error)}`);
+                }
               }
             }
           }

@@ -1377,6 +1377,12 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
 
 // Push lifetimeVisits to HubSpot when visit count changes
 export async function updateHubSpotContactVisitCount(hubspotId: string, visitCount: number): Promise<boolean> {
+  const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('./hubspot/readOnlyGuard');
+  if (isHubSpotReadOnly()) {
+    logHubSpotWriteSkipped('update_visit_count', hubspotId);
+    return true;
+  }
+
   try {
     const hubspot = await getHubSpotClient();
     await hubspot.crm.contacts.basicApi.update(hubspotId, {
@@ -1761,6 +1767,12 @@ export async function updateHubSpotContactPreferences(
   hubspotId: string, 
   preferences: { emailOptIn?: boolean; smsOptIn?: boolean }
 ): Promise<boolean> {
+  const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('./hubspot/readOnlyGuard');
+  if (isHubSpotReadOnly()) {
+    logHubSpotWriteSkipped('update_preferences', hubspotId);
+    return true;
+  }
+
   try {
     const hubspot = await getHubSpotClient();
     const properties: Record<string, string> = {};

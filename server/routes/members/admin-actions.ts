@@ -694,16 +694,21 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
 
     if (effectiveHubspotId) {
       try {
-        const { getHubSpotClient } = await import('../../core/integrations');
-        const hubspot = await getHubSpotClient();
-        await hubspot.crm.contacts.basicApi.update(effectiveHubspotId, { properties: { membership_status: 'Terminated' } });
-        deletionLog.push('hubspot_membership_status_set_terminated');
-        logger.info('[Admin] Set HubSpot membership_status to terminated before deletion', { extra: { hubspotId: effectiveHubspotId, normalizedEmail } });
+        const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('../../core/hubspot/readOnlyGuard');
+        if (isHubSpotReadOnly()) {
+          logHubSpotWriteSkipped('permanent_delete_hubspot_update', normalizedEmail);
+        } else {
+          const { getHubSpotClient } = await import('../../core/integrations');
+          const hubspot = await getHubSpotClient();
+          await hubspot.crm.contacts.basicApi.update(effectiveHubspotId, { properties: { membership_status: 'Terminated' } });
+          deletionLog.push('hubspot_membership_status_set_terminated');
+          logger.info('[Admin] Set HubSpot membership_status to terminated before deletion', { extra: { hubspotId: effectiveHubspotId, normalizedEmail } });
 
-        if (deleteFromHubSpot === 'true') {
-          await hubspot.crm.contacts.basicApi.archive(effectiveHubspotId);
-          hubspotArchived = true;
-          deletionLog.push('hubspot_contact (archived)');
+          if (deleteFromHubSpot === 'true') {
+            await hubspot.crm.contacts.basicApi.archive(effectiveHubspotId);
+            hubspotArchived = true;
+            deletionLog.push('hubspot_contact (archived)');
+          }
         }
       } catch (hubspotError: unknown) {
         const msg = `Failed to update/archive HubSpot contact: ${getErrorMessage(hubspotError)}`;

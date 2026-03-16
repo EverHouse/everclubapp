@@ -1,4 +1,9 @@
 export {
+  isHubSpotReadOnly,
+  logHubSpotWriteSkipped
+} from './readOnlyGuard';
+
+export {
   MINDBODY_TO_CONTACT_STATUS_MAP,
   INACTIVE_STATUSES,
   CHURNED_STATUSES,

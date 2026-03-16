@@ -621,15 +621,20 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
             
             if (!dryRun) {
               try {
-                await retryableHubSpotRequest(() =>
-                  hubspot.crm.contacts.basicApi.update(member.hubspot_id!, {
-                    properties: {
-                      last_payment_status: stripePaymentStatus,
-                      last_payment_date: lastInvoiceDate || '',
-                      last_payment_amount: lastInvoiceAmount ? (lastInvoiceAmount / 100).toFixed(2) : ''
-                    }
-                  })
-                );
+                const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('../../core/hubspot/readOnlyGuard');
+                if (isHubSpotReadOnly()) {
+                  logHubSpotWriteSkipped('maintenance_payment_status_update', member.email);
+                } else {
+                  await retryableHubSpotRequest(() =>
+                    hubspot.crm.contacts.basicApi.update(member.hubspot_id!, {
+                      properties: {
+                        last_payment_status: stripePaymentStatus,
+                        last_payment_date: lastInvoiceDate || '',
+                        last_payment_amount: lastInvoiceAmount ? (lastInvoiceAmount / 100).toFixed(2) : ''
+                      }
+                    })
+                  );
+                }
                 
                 updated.push({
                   email: member.email,

@@ -277,6 +277,13 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
 
 // Execute a specific HubSpot operation
 async function executeHubSpotOperation(operation: string, payload: Record<string, unknown>): Promise<void> {
+  const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('./readOnlyGuard');
+  if (isHubSpotReadOnly()) {
+    const context = (payload.email as string) || JSON.stringify(payload).substring(0, 100);
+    logHubSpotWriteSkipped(operation, context);
+    return;
+  }
+
   // Import handlers dynamically to avoid circular deps
   const members = await import('./members');
   const companies = await import('./companies');

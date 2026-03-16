@@ -1111,20 +1111,25 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
     
     // Execute updates if not dry run
     if (!dryRun && updateBatch.length > 0) {
-      const batchSize = 100;
-      for (let i = 0; i < updateBatch.length; i += batchSize) {
-        const batch = updateBatch.slice(i, i + batchSize);
-        try {
-          await retryableHubSpotRequest(() => 
-            hubspot.crm.contacts.batchApi.update({
-              inputs: batch
-            })
-          );
-          results.updated += batch.length;
-          logger.info('[Tier Sync] Updated batch : contacts', { extra: { MathFloor_i_batchSize_1: Math.floor(i / batchSize) + 1, batchLength: batch.length } });
-        } catch (err: unknown) {
-          results.errors.push(`Batch ${Math.floor(i / batchSize) + 1} failed: ${getErrorMessage(err)}`);
-          logger.error('[Tier Sync] Batch update error:', { extra: { err } });
+      const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('../core/hubspot/readOnlyGuard');
+      if (isHubSpotReadOnly()) {
+        logHubSpotWriteSkipped('batch_tier_update', `${updateBatch.length} contacts`);
+      } else {
+        const batchSize = 100;
+        for (let i = 0; i < updateBatch.length; i += batchSize) {
+          const batch = updateBatch.slice(i, i + batchSize);
+          try {
+            await retryableHubSpotRequest(() => 
+              hubspot.crm.contacts.batchApi.update({
+                inputs: batch
+              })
+            );
+            results.updated += batch.length;
+            logger.info('[Tier Sync] Updated batch : contacts', { extra: { MathFloor_i_batchSize_1: Math.floor(i / batchSize) + 1, batchLength: batch.length } });
+          } catch (err: unknown) {
+            results.errors.push(`Batch ${Math.floor(i / batchSize) + 1} failed: ${getErrorMessage(err)}`);
+            logger.error('[Tier Sync] Batch update error:', { extra: { err } });
+          }
         }
       }
     } else if (dryRun) {
@@ -1224,13 +1229,18 @@ router.put('/api/hubspot/contacts/:id/tier', isStaffOrAdmin, async (req, res) =>
     logger.info('[Tier Update] Updated local database for', { extra: { contactEmail } });
     
     if (hubspotContactId) {
-      const hubspotTier = await denormalizeTierForHubSpotAsync(tier);
-      if (hubspotTier) {
-        await retryableHubSpotRequest(() =>
-          hubspot.crm.contacts.basicApi.update(hubspotContactId!, {
-            properties: { membership_tier: hubspotTier }
-          })
-        );
+      const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('../core/hubspot/readOnlyGuard');
+      if (isHubSpotReadOnly()) {
+        logHubSpotWriteSkipped('single_tier_update', contactEmail);
+      } else {
+        const hubspotTier = await denormalizeTierForHubSpotAsync(tier);
+        if (hubspotTier) {
+          await retryableHubSpotRequest(() =>
+            hubspot.crm.contacts.basicApi.update(hubspotContactId!, {
+              properties: { membership_tier: hubspotTier }
+            })
+          );
+        }
       }
     }
     
@@ -1584,18 +1594,23 @@ router.post('/api/hubspot/push-db-tiers', isStaffOrAdmin, async (req, res) => {
     results.toUpdate = updateBatch.length;
     
     if (!dryRun && updateBatch.length > 0) {
-      const batchSize = 100;
-      for (let i = 0; i < updateBatch.length; i += batchSize) {
-        const batch = updateBatch.slice(i, i + batchSize);
-        try {
-          await retryableHubSpotRequest(() => 
-            hubspot.crm.contacts.batchApi.update({ inputs: batch })
-          );
-          results.updated += batch.length;
-          logger.info('[DB Tier Push] Updated batch : contacts', { extra: { MathFloor_i_batchSize_1: Math.floor(i / batchSize) + 1, batchLength: batch.length } });
-        } catch (err: unknown) {
-          results.errors.push(`Batch ${Math.floor(i / batchSize) + 1} failed: ${getErrorMessage(err)}`);
-          logger.error('[DB Tier Push] Batch update error:', { extra: { err } });
+      const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('../core/hubspot/readOnlyGuard');
+      if (isHubSpotReadOnly()) {
+        logHubSpotWriteSkipped('batch_billing_fix', `${updateBatch.length} contacts`);
+      } else {
+        const batchSize = 100;
+        for (let i = 0; i < updateBatch.length; i += batchSize) {
+          const batch = updateBatch.slice(i, i + batchSize);
+          try {
+            await retryableHubSpotRequest(() => 
+              hubspot.crm.contacts.batchApi.update({ inputs: batch })
+            );
+            results.updated += batch.length;
+            logger.info('[DB Tier Push] Updated batch : contacts', { extra: { MathFloor_i_batchSize_1: Math.floor(i / batchSize) + 1, batchLength: batch.length } });
+          } catch (err: unknown) {
+            results.errors.push(`Batch ${Math.floor(i / batchSize) + 1} failed: ${getErrorMessage(err)}`);
+            logger.error('[DB Tier Push] Batch update error:', { extra: { err } });
+          }
         }
         
         // Rate limiting delay
@@ -2129,6 +2144,11 @@ async function ensureNonMarketingProperty(hubspot: any): Promise<'ready' | 'skip
         status,
       });
     }
+    const { isHubSpotReadOnly: isReadOnly, logHubSpotWriteSkipped: logSkipped } = await import('../core/hubspot/readOnlyGuard');
+    if (isReadOnly()) {
+      logSkipped('create_property', PROP_NAME);
+      return 'skip';
+    }
     try {
       await retryableHubSpotRequest(() =>
         hubspot.crm.properties.coreApi.create('contacts', {
@@ -2187,8 +2207,14 @@ router.post('/api/admin/hubspot/remove-marketing-contacts', isAdmin, async (req:
     const failedIds: string[] = [];
     const errors: string[] = [];
 
+    const { isHubSpotReadOnly: isRO, logHubSpotWriteSkipped: logSkip } = await import('../core/hubspot/readOnlyGuard');
     for (let i = 0; i < contactIds.length; i += batchSize) {
       const batch = contactIds.slice(i, i + batchSize);
+      if (isRO()) {
+        logSkip('bulk_status_update', `batch of ${batch.length} contacts`);
+        succeededIds.push(...batch);
+        continue;
+      }
       try {
         await retryableHubSpotRequest(() =>
           hubspot.crm.contacts.batchApi.update({
