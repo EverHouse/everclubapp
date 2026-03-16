@@ -341,11 +341,19 @@ export async function syncTierToHubSpot(params: {
   try {
     const hubspot = await getHubSpotClient();
     
+    const isMindbodyBilled = (billingProvider || '').toLowerCase() === 'mindbody';
+
     const properties: Record<string, string> = {
       membership_tier: hubspotTier || '',
       membership_status: hubspotStatus,
       lifecyclestage: lifecyclestage
     };
+    
+    if (!isMindbodyBilled) {
+      const midnightUtc = new Date();
+      midnightUtc.setUTCHours(0, 0, 0, 0);
+      properties.last_modified_at = midnightUtc.getTime().toString();
+    }
     
     if (hubspotBillingProvider) {
       properties.billing_provider = hubspotBillingProvider;

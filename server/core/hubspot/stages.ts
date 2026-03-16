@@ -194,6 +194,10 @@ export async function syncMemberToHubSpot(
       const isActive = ['active', 'trialing', 'past_due'].includes(normalizedStatus);
       targetLifecycleStage = isActive ? 'customer' : 'other';
       properties.lifecyclestage = targetLifecycleStage;
+
+      const midnightUtc = new Date();
+      midnightUtc.setUTCHours(0, 0, 0, 0);
+      properties.last_modified_at = midnightUtc.getTime().toString();
     }
     
     if (billingProvider) {

@@ -253,7 +253,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
       'hs_sms_promotional',
       'hs_sms_customer_updates',
       'hs_sms_reminders',
-      // Merged contact IDs (for linked emails)
+      'last_modified_at',
       'hs_merged_object_ids'
     ];
     
@@ -502,6 +502,14 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
               dateOfBirth = dobStr.split('T')[0];
             }
           }
+
+          let statusChangedDate: Date | null = null;
+          if (isMindBodyBilled && contact.properties.last_modified_at) {
+            const parsed = new Date(contact.properties.last_modified_at);
+            if (!isNaN(parsed.getTime())) {
+              statusChangedDate = parsed;
+            }
+          }
           
           await retryDbOperation(() => db.insert(users)
             .values({
@@ -545,7 +553,9 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
                 tags: tags.length > 0 ? tags : sql`${users.tags}`,
                 hubspotId: contact.id,
                 membershipStatus: isStatusProtected ? sql`${users.membershipStatus}` : status,
-                membershipStatusChangedAt: (!isStatusProtected && oldStatus && oldStatus !== status) ? sql`NOW()` : sql`${users.membershipStatusChangedAt}`,
+                membershipStatusChangedAt: (!isStatusProtected && oldStatus && oldStatus !== status)
+                  ? (statusChangedDate ? sql`${statusChangedDate}` : sql`NOW()`)
+                  : sql`${users.membershipStatusChangedAt}`,
                 billingProvider: isMindBodyDeactivation ? sql`'stripe'` : sql`${users.billingProvider}`,
                 role: isVisitorProtected ? sql`${users.role}` : sql`COALESCE(${users.role}, 'member')`,
                 mindbodyClientId: contact.properties.mindbody_client_id || null,
@@ -842,6 +852,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
       'hs_sms_promotional',
       'hs_sms_customer_updates',
       'hs_sms_reminders',
+      'last_modified_at',
       'hs_merged_object_ids'
     ];
     
@@ -1096,6 +1107,14 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
               dateOfBirth = dobStr.split('T')[0];
             }
           }
+
+          let statusChangedDate: Date | null = null;
+          if (isMindBodyBilled && contact.properties.last_modified_at) {
+            const parsed = new Date(contact.properties.last_modified_at);
+            if (!isNaN(parsed.getTime())) {
+              statusChangedDate = parsed;
+            }
+          }
           
           await retryDbOperation(() => db.insert(users)
             .values({
@@ -1139,7 +1158,9 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
                 tags: tags.length > 0 ? tags : sql`${users.tags}`,
                 hubspotId: contact.id,
                 membershipStatus: isStatusProtected ? sql`${users.membershipStatus}` : status,
-                membershipStatusChangedAt: (!isStatusProtected && oldStatus && oldStatus !== status) ? sql`NOW()` : sql`${users.membershipStatusChangedAt}`,
+                membershipStatusChangedAt: (!isStatusProtected && oldStatus && oldStatus !== status)
+                  ? (statusChangedDate ? sql`${statusChangedDate}` : sql`NOW()`)
+                  : sql`${users.membershipStatusChangedAt}`,
                 billingProvider: isMindBodyDeactivation ? sql`'stripe'` : sql`${users.billingProvider}`,
                 role: isVisitorProtected ? sql`${users.role}` : sql`COALESCE(${users.role}, 'member')`,
                 mindbodyClientId: contact.properties.mindbody_client_id || null,

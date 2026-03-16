@@ -8,12 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "8.87.43",
+    version: "8.87.44",
     date: "2026-03-16",
     title: "Membership Trends & Former Members Fix",
     changes: [
       "Fixed: The 'Former Members' line in the membership trends chart was always showing 0 — it now correctly displays members who have left the club over time",
       "Improved: Member status changes are now tracked with accurate dates across all sync paths (HubSpot, Stripe, and daily sync), ensuring the analytics stay accurate going forward",
+      "Fixed: Manual directory sync (focused sync) was returning zero contacts due to a timing bug — it now correctly picks up recent changes from HubSpot",
+      "Improved: For MindBody-billed members, status change dates now use HubSpot's actual change date instead of the sync time, giving more accurate membership history",
     ]
   },
   {
