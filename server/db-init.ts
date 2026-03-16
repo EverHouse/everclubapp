@@ -978,21 +978,6 @@ export async function ensureDatabaseConstraints() {
       logger.warn(`[DB Init] Booking requests closure cleanup: ${getErrorMessage(err)}`);
     }
 
-    const legacyFKs = [
-      { table: 'booking_requests', constraint: 'booking_requests_session_id_fkey' },
-      { table: 'booking_requests', constraint: 'booking_requests_closure_id_fkey' },
-      { table: 'usage_ledger', constraint: 'usage_ledger_member_id_fkey' },
-      { table: 'trackman_webhook_events', constraint: 'trackman_webhook_events_matched_booking_id_fkey' },
-      { table: 'booking_wallet_passes', constraint: 'booking_wallet_passes_member_id_fkey' },
-    ];
-    for (const fk of legacyFKs) {
-      try {
-        await db.execute(sql.raw(`ALTER TABLE ${fk.table} DROP CONSTRAINT IF EXISTS ${fk.constraint}`));
-      } catch (err: unknown) {
-        logger.warn(`[DB Init] Could not drop ${fk.constraint}: ${getErrorMessage(err)}`);
-      }
-    }
-
     try {
       await db.execute(sql`
         DELETE FROM booking_wallet_passes
@@ -1004,7 +989,21 @@ export async function ensureDatabaseConstraints() {
       logger.warn(`[DB Init] Wallet pass orphan cleanup: ${getErrorMessage(err)}`);
     }
 
-    logger.info('[DB Init] Dropped legacy non-schema FK constraints');
+    const legacyFKNames = [
+      { table: 'booking_requests', constraint: 'booking_requests_session_id_fkey' },
+      { table: 'booking_requests', constraint: 'booking_requests_closure_id_fkey' },
+      { table: 'usage_ledger', constraint: 'usage_ledger_member_id_fkey' },
+      { table: 'trackman_webhook_events', constraint: 'trackman_webhook_events_matched_booking_id_fkey' },
+      { table: 'booking_wallet_passes', constraint: 'booking_wallet_passes_member_id_fkey' },
+    ];
+    for (const fk of legacyFKNames) {
+      try {
+        await db.execute(sql.raw(`ALTER TABLE ${fk.table} DROP CONSTRAINT IF EXISTS ${fk.constraint}`));
+      } catch (err: unknown) {
+        logger.warn(`[DB Init] Could not drop legacy ${fk.constraint}: ${getErrorMessage(err)}`);
+      }
+    }
+    logger.info('[DB Init] Legacy db-init FK constraints cleaned up (now managed by Drizzle schema)');
 
     try {
       await db.execute(sql`
@@ -1190,6 +1189,11 @@ export async function verifyIntegrityConstraints(): Promise<{ verified: boolean;
 
   const requiredFKs = [
     { table: 'booking_participants', column: 'user_id', justifies: 'Participant User Relationships check elimination' },
+    { table: 'booking_requests', column: 'session_id', justifies: 'Booking session FK integrity' },
+    { table: 'booking_requests', column: 'closure_id', justifies: 'Booking closure FK integrity' },
+    { table: 'usage_ledger', column: 'member_id', justifies: 'Usage ledger member FK integrity' },
+    { table: 'trackman_webhook_events', column: 'matched_booking_id', justifies: 'Trackman webhook booking FK integrity' },
+    { table: 'booking_wallet_passes', column: 'member_id', justifies: 'Wallet pass member FK integrity' },
   ];
 
   const missing: string[] = [];

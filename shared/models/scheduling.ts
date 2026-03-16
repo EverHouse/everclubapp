@@ -70,7 +70,7 @@ export const bookingRequests = pgTable("booking_requests", {
   trackmanBookingId: varchar("trackman_booking_id"),
   guestCount: integer("guest_count").default(0),
   trackmanPlayerCount: integer("trackman_player_count"),
-  sessionId: integer("session_id"),
+  sessionId: integer("session_id").references(() => bookingSessions.id, { onDelete: 'set null' }),
   declaredPlayerCount: integer("declared_player_count"),
   finalPlayerCount: integer("final_player_count"),
   memberNotes: varchar("member_notes", { length: 280 }),
@@ -109,7 +109,7 @@ export const bookingRequests = pgTable("booking_requests", {
   // Optimistic locking version for roster edits to prevent concurrent overwrites
   rosterVersion: integer("roster_version").default(0),
   // Link to facility closure when booking is marked as private event
-  closureId: integer("closure_id"),
+  closureId: integer("closure_id").references(() => facilityClosures.id, { onDelete: 'set null' }),
   cancellationPendingAt: timestamp("cancellation_pending_at"),
 }, (table) => [
   uniqueIndex("idx_booking_requests_trackman_booking_id").on(table.trackmanBookingId),
@@ -265,7 +265,7 @@ export const guests = pgTable("guests", {
 export const usageLedger = pgTable("usage_ledger", {
   id: serial("id").primaryKey(),
   sessionId: integer("session_id").notNull().references(() => bookingSessions.id, { onDelete: 'cascade' }),
-  memberId: varchar("member_id"),
+  memberId: varchar("member_id").references(() => users.id, { onDelete: 'set null' }),
   minutesCharged: integer("minutes_charged").notNull().default(0),
   overageFee: numeric("overage_fee", { precision: 10, scale: 2 }).default("0.00"),
   guestFee: numeric("guest_fee", { precision: 10, scale: 2 }).default("0.00"),
@@ -360,7 +360,7 @@ export const trackmanWebhookEvents = pgTable("trackman_webhook_events", {
   payload: jsonb("payload").notNull(),
   processedAt: timestamp("processed_at"),
   processingError: text("processing_error"),
-  matchedBookingId: integer("matched_booking_id"),
+  matchedBookingId: integer("matched_booking_id").references(() => bookingRequests.id, { onDelete: 'set null' }),
   matchedUserId: varchar("matched_user_id"),
   dedupKey: varchar("dedup_key"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -401,7 +401,7 @@ export const bookingWalletPasses = pgTable("booking_wallet_passes", {
   bookingId: integer("booking_id").notNull().references(() => bookingRequests.id, { onDelete: 'cascade' }),
   serialNumber: varchar("serial_number").notNull().unique(),
   authenticationToken: varchar("authentication_token").notNull(),
-  memberId: varchar("member_id").notNull(),
+  memberId: varchar("member_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   createdAt: timestamp("created_at").defaultNow(),
   voidedAt: timestamp("voided_at"),
 }, (table) => [
