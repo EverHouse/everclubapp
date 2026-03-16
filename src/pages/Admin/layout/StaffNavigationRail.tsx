@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { TabType, NavItemData, tabToPath, MAIN_NAV_ITEMS, ADMIN_NAV_ITEMS } from './types';
-import { useNavigationLoading } from '../../../contexts/NavigationLoadingContext';
+import { useNavigationLoading } from '../../../stores/navigationLoadingStore';
 import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../../../lib/prefetch-actions';
 
 interface StaffNavigationRailProps {

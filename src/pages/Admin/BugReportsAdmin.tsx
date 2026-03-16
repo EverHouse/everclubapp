@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import EmptyState from '../../components/EmptyState';
 import { useTheme } from '../../contexts/ThemeContext';
 import ModalShell from '../../components/ModalShell';

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useBottomNav } from '../contexts/BottomNavContext';
+import { useBottomNav } from '../stores/bottomNavStore';
 import { useScrollDirection } from '../hooks/useScrollDirection';
 
 export type FABColor = 'brand' | 'amber' | 'green' | 'purple' | 'red';

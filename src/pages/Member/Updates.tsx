@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthData, useAnnouncementData, Announcement } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import SwipeablePage from '../../components/SwipeablePage';
 import { MotionList, MotionListItem } from '../../components/motion';
 import { getTodayPacific, formatDateDisplayWithDay, formatDateTimePacific, addDaysToPacificDate } from '../../utils/dateUtils';

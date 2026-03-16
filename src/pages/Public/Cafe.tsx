@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Footer } from '../../components/Footer';
 import { MenuItemSkeleton, SkeletonList } from '../../components/skeletons';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
 

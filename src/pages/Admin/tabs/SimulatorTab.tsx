@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallba
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthData, useMemberData } from '../../../contexts/DataContext';
-import { usePageReady } from '../../../contexts/PageReadyContext';
+import { usePageReady } from '../../../stores/pageReadyStore';
 import { getTodayPacific, formatTime12Hour } from '../../../utils/dateUtils';
 import { usePricing } from '../../../hooks/usePricing';
 import ModalShell from '../../../components/ModalShell';

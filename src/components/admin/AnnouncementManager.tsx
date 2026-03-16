@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAnnouncementData, Announcement } from '../../contexts/DataContext';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import { useToast } from '../Toast';
 import { SlideUpDrawer } from '../SlideUpDrawer';
 

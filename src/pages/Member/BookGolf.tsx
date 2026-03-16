@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthData, useBookingData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import { useToast } from '../../components/Toast';
 import { bookingEvents } from '../../lib/bookingEvents';
 import { fetchWithCredentials, postWithCredentials, putWithCredentials } from '../../hooks/queries/useFetch';

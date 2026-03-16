@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import VirtualTour from '../../components/VirtualTour';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import { useParallax } from '../../hooks/useParallax';
 import SEO from '../../components/SEO';
 

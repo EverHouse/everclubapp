@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import BackToTop from '../../components/BackToTop';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import { useAuthData } from '../../contexts/DataContext';
 import { useParallax } from '../../hooks/useParallax';
 import EditorialShowcase from '../../components/layout/EditorialShowcase';

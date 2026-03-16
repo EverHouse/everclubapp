@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSupabase } from '../../lib/supabase';
-import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
+import { useNavigationLoading } from '../../stores/navigationLoadingStore';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 
 const AuthCallback: React.FC = () => {

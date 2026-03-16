@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import Toggle from '../../components/Toggle';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import FloatingActionButton from '../../components/FloatingActionButton';
 import ModalShell from '../../components/ModalShell';
 import { haptic } from '../../utils/haptics';

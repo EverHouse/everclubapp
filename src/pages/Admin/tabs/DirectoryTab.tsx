@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import FeatureErrorBoundary from '../../../components/FeatureErrorBoundary';
 import { useNavigate } from 'react-router-dom';
 import { useAuthData, useMemberData, MemberProfile } from '../../../contexts/DataContext';
-import { usePageReady } from '../../../contexts/PageReadyContext';
+import { usePageReady } from '../../../stores/pageReadyStore';
 import MemberProfileDrawer from '../../../components/MemberProfileDrawer';
 import { NewUserDrawer } from '../../../components/staff-command-center/drawers/NewUserDrawer';
 import { AnimatedPage } from '../../../components/motion';

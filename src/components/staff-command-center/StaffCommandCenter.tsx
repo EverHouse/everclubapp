@@ -6,7 +6,7 @@ import { AnnouncementFormDrawer } from '../admin/AnnouncementFormDrawer';
 import { NoticeFormDrawer } from '../admin/NoticeFormDrawer';
 import { EventFormDrawer } from '../admin/EventFormDrawer';
 import { WellnessFormDrawer } from '../admin/WellnessFormDrawer';
-import { useBottomNav } from '../../contexts/BottomNavContext';
+import { useBottomNav } from '../../stores/bottomNavStore';
 import { useIsMobile } from '../../hooks/useBreakpoint';
 import PullToRefresh from '../PullToRefresh';
 import { useToast } from '../Toast';

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
-import { useNavigationLoading } from '../contexts/NavigationLoadingContext';
+import { useNavigationLoading } from '../stores/navigationLoadingStore';
 import { haptic } from '../utils/haptics';
 
 interface MenuOverlayProps {

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import EmptyState from '../../../components/EmptyState';
-import { usePageReady } from '../../../contexts/PageReadyContext';
+import { usePageReady } from '../../../stores/pageReadyStore';
 import { useAuthData } from '../../../contexts/DataContext';
 import { useToast } from '../../../components/Toast';
 import { formatDateTimePacific, formatDateDisplayWithDay, formatTime12Hour } from '../../../utils/dateUtils';

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
-import { useAnnouncementBadge } from '../contexts/AnnouncementBadgeContext';
+import { useAnnouncementBadge } from '../stores/announcementBadgeStore';
 import { Announcement } from '../contexts/DataContext';
 import { haptic } from '../utils/haptics';
 

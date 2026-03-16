@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { useBottomNav } from '../../../contexts/BottomNavContext';
+import { useBottomNav } from '../../../stores/bottomNavStore';
 import { useToast } from '../../Toast';
 import { SlideUpDrawer } from '../../SlideUpDrawer';
 import IdScannerModal from '../modals/IdScannerModal';

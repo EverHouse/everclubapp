@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Footer } from '../../components/Footer';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import EmptyState from '../../components/EmptyState';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
 import { useAutoAnimate } from '@formkit/auto-animate/react';

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { usePageReady } from '../../../contexts/PageReadyContext';
+import { usePageReady } from '../../../stores/pageReadyStore';
 import { useToast } from '../../../components/Toast';
 import ModalShell from '../../../components/ModalShell';
 import { useCafeMenu, useUploadCafeImage, useSeedCafeMenu, useUpdateCafeItem, useDeleteCafeItem } from '../../../hooks/queries/useCafeQueries';

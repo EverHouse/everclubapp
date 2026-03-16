@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
 

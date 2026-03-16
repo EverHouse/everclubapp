@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import ModalShell from '../../components/ModalShell';
 import { formatRelativeTime } from '../../utils/dateUtils';
 import { ApplicationPipelineSkeleton } from '../../components/skeletons';

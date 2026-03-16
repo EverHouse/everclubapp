@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthData } from '../../../contexts/DataContext';
-import { usePageReady } from '../../../contexts/PageReadyContext';
+import { usePageReady } from '../../../stores/pageReadyStore';
 import { formatRelativeTime } from '../../../utils/dateUtils';
 import { useNotificationSounds } from '../../../hooks/useNotificationSounds';
 import { useVisibilityAwareInterval } from '../../../hooks/useVisibilityAwareInterval';

@@ -3,8 +3,8 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import Input from '../../components/Input';
 import EmptyState from '../../components/EmptyState';
-import { usePageReady } from '../../contexts/PageReadyContext';
-import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
+import { usePageReady } from '../../stores/pageReadyStore';
+import { useNavigationLoading } from '../../stores/navigationLoadingStore';
 import SEO from '../../components/SEO';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 

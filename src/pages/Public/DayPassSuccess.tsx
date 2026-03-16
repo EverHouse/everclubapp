@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
-import { usePageReady } from '../../contexts/PageReadyContext';
-import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
+import { usePageReady } from '../../stores/pageReadyStore';
+import { useNavigationLoading } from '../../stores/navigationLoadingStore';
 
 const DayPassSuccess: React.FC = () => {
   const navigate = useNavigate();

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import { useToast } from '../../components/Toast';
 import { apiRequest } from '../../lib/apiRequest';
 import { SegmentedButton } from '../../components/ui/SegmentedButton';

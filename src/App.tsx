@@ -6,7 +6,6 @@ import { QueryClientProvider, useQueryClient, useQuery } from '@tanstack/react-q
 import { queryClient } from './lib/queryClient';
 import { DataProvider, useAuthData, useAnnouncementData } from './contexts/DataContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
-import { SmoothScrollProvider } from './components/motion/SmoothScroll';
 import DirectionalPageTransition, { TransitionContext } from './components/motion/DirectionalPageTransition';
 import Logo from './components/Logo';
 import MenuOverlay from './components/MenuOverlay';
@@ -17,12 +16,9 @@ import Avatar from './components/Avatar';
 import { ToastProvider } from './components/Toast';
 import OfflineBanner from './components/OfflineBanner';
 import { NotificationContext } from './contexts/NotificationContext';
-import { BottomNavProvider } from './contexts/BottomNavContext';
-import { AnnouncementBadgeProvider } from './contexts/AnnouncementBadgeContext';
 import { BottomSentinel } from './components/layout/BottomSentinel';
 import MemberBottomNav from './components/MemberBottomNav';
-import { NavigationLoadingProvider, useNavigationLoading } from './contexts/NavigationLoadingContext';
-import { PageReadyProvider } from './contexts/PageReadyContext';
+import { useNavigationLoading } from './stores/navigationLoadingStore';
 import WalkingGolferLoader from './components/WalkingGolferLoader';
 import { useNotificationSounds } from './hooks/useNotificationSounds';
 import { useNotificationStore } from './stores/notificationStore';
@@ -877,27 +873,17 @@ const App: React.FC = () => {
         <ThemeProvider>
           <DataProvider>
             <ToastProvider>
-            <BottomNavProvider>
-            <AnnouncementBadgeProvider>
-            <NavigationLoadingProvider>
-            <PageReadyProvider>
             <InitialLoadingScreen>
               <OfflineBanner />
               <StaffBookingToast />
               <UpdateNotification />
               <BrowserRouter>
-                <SmoothScrollProvider>
-                  <ScrollToTop />
-                  <Layout>
-                    <AnimatedRoutes />
-                  </Layout>
-                </SmoothScrollProvider>
+                <ScrollToTop />
+                <Layout>
+                  <AnimatedRoutes />
+                </Layout>
               </BrowserRouter>
             </InitialLoadingScreen>
-            </PageReadyProvider>
-            </NavigationLoadingProvider>
-            </AnnouncementBadgeProvider>
-            </BottomNavProvider>
             </ToastProvider>
           </DataProvider>
         </ThemeProvider>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../contexts/ThemeContext';
-import { useBottomNav } from '../contexts/BottomNavContext';
+import { useBottomNav } from '../stores/bottomNavStore';
 import TierBadge from './TierBadge';
 import { formatPhoneNumber } from '../utils/formatting';
 import { getMemberStatusColor, getMemberStatusLabel } from '../utils/statusColors';

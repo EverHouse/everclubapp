@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { useBottomNav } from '../../contexts/BottomNavContext';
+import { useBottomNav } from '../../stores/bottomNavStore';
 
 export const BottomSentinel: React.FC = () => {
   const sentinelRef = useRef<HTMLDivElement>(null);

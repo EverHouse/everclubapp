@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthData, useEventData, EventData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import { useToast } from '../../components/Toast';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from '../../hooks/queries/useFetch';
 import { EventCardSkeleton, SkeletonList } from '../../components/skeletons';

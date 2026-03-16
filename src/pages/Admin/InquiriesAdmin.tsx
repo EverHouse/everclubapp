@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import ModalShell from '../../components/ModalShell';
 import { getInquiryStatusColor, formatStatusLabel } from '../../utils/statusColors';
 import { formatRelativeTime } from '../../utils/dateUtils';

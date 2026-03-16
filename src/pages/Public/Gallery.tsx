@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import EmptyState from '../../components/EmptyState';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
 

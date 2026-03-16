@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
-import { useNavigationLoading } from '../contexts/NavigationLoadingContext';
-import { useBottomNav } from '../contexts/BottomNavContext';
+import { useNavigationLoading } from '../stores/navigationLoadingStore';
+import { useBottomNav } from '../stores/bottomNavStore';
 import { haptic } from '../utils/haptics';
 import BugReportModal from './BugReportModal';
 

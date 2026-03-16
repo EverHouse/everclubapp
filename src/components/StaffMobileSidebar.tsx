@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useNavigationLoading } from '../contexts/NavigationLoadingContext';
+import { useNavigationLoading } from '../stores/navigationLoadingStore';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
 import { getLatestVersion } from '../data/changelog-version';
 import { TabType, tabToPath } from '../lib/nav-constants';

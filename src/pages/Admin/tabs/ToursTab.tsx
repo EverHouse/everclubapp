@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { usePageReady } from '../../../contexts/PageReadyContext';
+import { usePageReady } from '../../../stores/pageReadyStore';
 import EmptyState from '../../../components/EmptyState';
 import { formatDateDisplayWithDay, formatTime12Hour } from '../../../utils/dateUtils';
 import { formatPhoneNumber } from '../../../utils/formatting';

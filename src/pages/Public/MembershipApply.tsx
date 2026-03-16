@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import { triggerHaptic } from '../../utils/haptics';
 import { formatPhoneNumber } from '../../utils/phoneFormat';
-import { usePageReady } from '../../contexts/PageReadyContext';
+import { usePageReady } from '../../stores/pageReadyStore';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import SEO from '../../components/SEO';
 import ConfirmDialogComponent from '../../components/ConfirmDialog';

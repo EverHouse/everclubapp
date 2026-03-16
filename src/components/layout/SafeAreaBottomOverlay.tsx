@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { useBottomNav } from '../../contexts/BottomNavContext';
+import { useBottomNav } from '../../stores/bottomNavStore';
 
 interface SafeAreaBottomOverlayProps {
   children: React.ReactNode;
