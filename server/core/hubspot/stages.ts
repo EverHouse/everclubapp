@@ -197,7 +197,7 @@ export async function syncMemberToHubSpot(
 
       const midnightUtc = new Date();
       midnightUtc.setUTCHours(0, 0, 0, 0);
-      properties.last_modified_at = midnightUtc.getTime().toString();
+      properties.membership_status_changed_at = midnightUtc.getTime().toString();
     }
     
     if (billingProvider) {

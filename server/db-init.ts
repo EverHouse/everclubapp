@@ -515,23 +515,23 @@ export async function ensureDatabaseConstraints() {
     logger.info('[DB Init] Billing migration columns verified');
 
     try {
-      await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_modified_at TIMESTAMP`);
+      await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS membership_status_changed_at TIMESTAMP`);
       await db.execute(sql`
         DO $$ BEGIN
-          IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'membership_status_changed_at') THEN
-            UPDATE users SET last_modified_at = membership_status_changed_at WHERE last_modified_at IS NULL AND membership_status_changed_at IS NOT NULL;
-            ALTER TABLE users DROP COLUMN membership_status_changed_at;
+          IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'last_modified_at') THEN
+            UPDATE users SET membership_status_changed_at = last_modified_at WHERE membership_status_changed_at IS NULL AND last_modified_at IS NOT NULL;
+            ALTER TABLE users DROP COLUMN last_modified_at;
           END IF;
         END $$
       `);
-    } catch (err: unknown) { logger.debug('[DB Init] last_modified_at column migration: ' + getErrorMessage(err)); }
+    } catch (err: unknown) { logger.debug('[DB Init] membership_status_changed_at column migration: ' + getErrorMessage(err)); }
     try {
       await db.execute(sql`
         CREATE OR REPLACE FUNCTION trg_track_membership_status_change()
         RETURNS TRIGGER AS $$
         BEGIN
           IF OLD.membership_status IS DISTINCT FROM NEW.membership_status THEN
-            NEW.last_modified_at = NOW();
+            NEW.membership_status_changed_at = NOW();
           END IF;
           RETURN NEW;
         END;
@@ -552,16 +552,16 @@ export async function ensureDatabaseConstraints() {
     try {
       const backfillResult = await db.execute(sql`
         UPDATE users
-        SET last_modified_at = updated_at
+        SET membership_status_changed_at = updated_at
         WHERE membership_status IN ('terminated', 'expired', 'suspended', 'inactive', 'cancelled', 'canceled', 'frozen', 'froze', 'declined', 'churned', 'former_member', 'deleted')
-          AND last_modified_at IS NULL
+          AND membership_status_changed_at IS NULL
           AND updated_at IS NOT NULL
       `);
       const backfilled = backfillResult.rowCount || 0;
       if (backfilled > 0) {
-        logger.info(`[DB Init] Backfilled last_modified_at for ${backfilled} former members from updated_at`);
+        logger.info(`[DB Init] Backfilled membership_status_changed_at for ${backfilled} former members from updated_at`);
       }
-    } catch (err: unknown) { logger.debug('[DB Init] last_modified_at backfill failed: ' + getErrorMessage(err)); }
+    } catch (err: unknown) { logger.debug('[DB Init] membership_status_changed_at backfill failed: ' + getErrorMessage(err)); }
 
     try { await db.execute(sql`ALTER TABLE membership_tiers ADD COLUMN IF NOT EXISTS wallet_pass_bg_color VARCHAR`); } catch { logger.debug('[DB Init] wallet_pass_bg_color column already exists or failed'); }
     try { await db.execute(sql`ALTER TABLE membership_tiers ADD COLUMN IF NOT EXISTS wallet_pass_foreground_color VARCHAR`); } catch { logger.debug('[DB Init] wallet_pass_foreground_color column already exists or failed'); }
@@ -1407,7 +1407,7 @@ export async function setupInstantDataTriggers(): Promise<void> {
       BEGIN
         IF NEW.is_active = true THEN
           UPDATE public.users
-          SET role = NEW.role, tier = 'VIP', membership_status = 'active', last_modified_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE last_modified_at END, updated_at = NOW()
+          SET role = NEW.role, tier = 'VIP', membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, updated_at = NOW()
           WHERE LOWER(email) = LOWER(NEW.email)
             AND role NOT IN ('admin', 'staff', 'golf_instructor');
         END IF;

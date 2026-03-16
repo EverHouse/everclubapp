@@ -678,7 +678,7 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
             if (changes.length > 0) {
               const updateParts = [
                 sql`membership_status = ${mappedStatus}`,
-                sql`last_modified_at = CASE WHEN membership_status IS DISTINCT FROM ${mappedStatus} THEN NOW() ELSE last_modified_at END`,
+                sql`membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM ${mappedStatus} THEN NOW() ELSE membership_status_changed_at END`,
                 sql`billing_provider = 'stripe'`,
                 sql`stripe_current_period_end = ${periodEnd}`,
                 sql`updated_at = NOW()`
@@ -727,7 +727,7 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
               const updateParts = [
                 sql`stripe_subscription_id = ${sub.id}`,
                 sql`membership_status = ${mappedStatus}`,
-                sql`last_modified_at = CASE WHEN membership_status IS DISTINCT FROM ${mappedStatus} THEN NOW() ELSE last_modified_at END`,
+                sql`membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM ${mappedStatus} THEN NOW() ELSE membership_status_changed_at END`,
                 sql`billing_provider = 'stripe'`,
                 sql`stripe_current_period_end = ${periodEnd}`,
                 sql`updated_at = NOW()`

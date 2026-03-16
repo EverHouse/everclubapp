@@ -256,7 +256,7 @@ export async function createMemberLocally(input: AddMemberInput): Promise<Create
           role = 'member',
           tier = ${tier},
           membership_status = 'active',
-          last_modified_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE last_modified_at END,
+          membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END,
           billing_provider = COALESCE(billing_provider, 'stripe'),
           join_date = COALESCE(join_date, ${startDate || getTodayPacific()}),
           discount_code = ${discountReason || null},
@@ -353,7 +353,7 @@ export async function syncTierToHubSpot(params: {
     if (!isMindbodyBilled) {
       const midnightUtc = new Date();
       midnightUtc.setUTCHours(0, 0, 0, 0);
-      properties.last_modified_at = midnightUtc.getTime().toString();
+      properties.membership_status_changed_at = midnightUtc.getTime().toString();
     }
     
     if (hubspotBillingProvider) {

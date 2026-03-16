@@ -38,6 +38,7 @@ export const users = pgTable("users", {
   stripeSubscriptionId: varchar("stripe_subscription_id"),
   stripeCurrentPeriodEnd: timestamp("stripe_current_period_end"),
   lastSyncedAt: timestamp("last_synced_at"),
+  lastModifiedAt: timestamp("membership_status_changed_at"),
   joinDate: date("join_date"),
   memberSince: timestamp("member_since"),
   legacySource: varchar("legacy_source"),

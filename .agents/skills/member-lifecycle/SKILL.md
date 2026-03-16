@@ -84,8 +84,8 @@ invoice.payment_failed webhook fires
 13. **Reactivation clears archived flag.** `archived = false`, `archived_at = NULL` when member reactivated.
 14. **Dispute-won reactivation is guarded.** When a dispute is closed in the merchant's favor, `handleChargeDisputeClosed` checks: (a) no other open disputes exist for that member, and (b) the Stripe subscription is not in a non-viable state (`past_due`, `unpaid`, `canceled`). Only then does it reactivate. Subscription API failures are fail-closed (block reactivation, notify staff for manual review).
 15. **`FOR UPDATE` queries MUST use `ORDER BY id ASC`.** Prevents PostgreSQL deadlocks on concurrent multi-row locking. Required in `payments.ts` and `manualBooking.ts`.
-16. **`last_modified_at` MUST be updated on every status change (v8.87.44).** Every SQL path that writes `membership_status` must also set `last_modified_at = CASE WHEN membership_status IS DISTINCT FROM '[new_status]' THEN NOW() ELSE last_modified_at END`. This powers the "Former Members" analytics trend line and HubSpot sync. INSERT statements for new users are exempt (no prior status). Regression check: `grep -rn "SET.*membership_status\s*=" server/ --include="*.ts" | grep -v "last_modified_at"` — all results should be multi-line continuations, WHERE clauses, or the lowercase normalizer in `db-init.ts`.
-17. **MindBody deactivation converts `billing_provider` to `'stripe'`.** Former MindBody members get `billing_provider = 'stripe'` during deactivation cascade, so `isMindBodyBilled` checks will return false for them. Any logic that reads HubSpot data for former members must NOT gate on `billing_provider = 'mindbody'` — use HubSpot's data for ALL members. The memberSync reads HubSpot's `last_modified_at` for all billing providers and corrects backfill artifacts (where DB `last_modified_at ≈ updated_at`).
+16. **`membership_status_changed_at` MUST be updated on every status change (v8.87.44).** Every SQL path that writes `membership_status` must also set `membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM '[new_status]' THEN NOW() ELSE membership_status_changed_at END`. This powers the "Former Members" analytics trend line and HubSpot sync. INSERT statements for new users are exempt (no prior status). The Drizzle ORM property is `users.lastModifiedAt` (maps to DB column `membership_status_changed_at`). Regression check: `grep -rn "SET.*membership_status\s*=" server/ --include="*.ts" | grep -v "membership_status_changed_at"` — all results should be multi-line continuations, WHERE clauses, or the lowercase normalizer in `db-init.ts`.
+17. **MindBody deactivation converts `billing_provider` to `'stripe'`.** Former MindBody members get `billing_provider = 'stripe'` during deactivation cascade, so `isMindBodyBilled` checks will return false for them. Any logic that reads HubSpot data for former members must NOT gate on `billing_provider = 'mindbody'` — use HubSpot's data for ALL members. The memberSync reads HubSpot's `last_modified_at` property (HubSpot-side name) for all billing providers and corrects backfill artifacts (where DB `membership_status_changed_at ≈ updated_at`).
 
 ## Anti-Patterns (NEVER)
 
@@ -96,7 +96,7 @@ invoice.payment_failed webhook fires
 5. NEVER create a billing group without wrapping INSERT + user UPDATE in a transaction.
 6. NEVER skip the per-email operation lock during subscription creation.
 7. NEVER use `FOR UPDATE` on multi-row queries without `ORDER BY id ASC`.
-8. NEVER write `membership_status` in an UPDATE without also setting `last_modified_at` using the IS DISTINCT FROM pattern. This breaks the membership trends analytics.
+8. NEVER write `membership_status` in an UPDATE without also setting `membership_status_changed_at` using the IS DISTINCT FROM pattern. This breaks the membership trends analytics.
 
 ## Apple Wallet Pass Integration (v8.87.16)
 

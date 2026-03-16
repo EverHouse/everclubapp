@@ -80,7 +80,7 @@ export async function autoFixMissingTiers(): Promise<{
 
     const clearedLinkedTiers = await db.execute(sql`
       UPDATE users u
-      SET tier = NULL, membership_status = ${MEMBERSHIP_STATUS.INACTIVE}, last_modified_at = CASE WHEN membership_status IS DISTINCT FROM ${MEMBERSHIP_STATUS.INACTIVE} THEN NOW() ELSE last_modified_at END, updated_at = NOW()
+      SET tier = NULL, membership_status = ${MEMBERSHIP_STATUS.INACTIVE}, membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM ${MEMBERSHIP_STATUS.INACTIVE} THEN NOW() ELSE membership_status_changed_at END, updated_at = NOW()
       FROM user_linked_emails ule
       WHERE LOWER(ule.linked_email) = LOWER(u.email)
         AND LOWER(ule.primary_email) != LOWER(ule.linked_email)

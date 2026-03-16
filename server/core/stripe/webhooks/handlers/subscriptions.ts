@@ -141,7 +141,7 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
         await client.query(
           `UPDATE users SET 
             stripe_customer_id = $1, stripe_subscription_id = $2, membership_status = $3,
-            last_modified_at = CASE WHEN membership_status IS DISTINCT FROM $3 THEN NOW() ELSE last_modified_at END,
+            membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM $3 THEN NOW() ELSE membership_status_changed_at END,
             billing_provider = 'stripe', stripe_current_period_end = COALESCE($4, stripe_current_period_end),
             tier = COALESCE($5, tier), join_date = COALESCE(join_date, NOW()),
             archived_at = NULL, archived_by = NULL, updated_at = NOW()
@@ -181,7 +181,7 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
                  stripe_customer_id = EXCLUDED.stripe_customer_id,
                  stripe_subscription_id = EXCLUDED.stripe_subscription_id,
                  membership_status = CASE WHEN users.billing_provider IS NULL OR users.billing_provider = '' OR users.billing_provider = 'stripe' THEN $7 ELSE users.membership_status END,
-                 last_modified_at = CASE WHEN (users.billing_provider IS NULL OR users.billing_provider = '' OR users.billing_provider = 'stripe') AND users.membership_status IS DISTINCT FROM $7 THEN NOW() ELSE users.last_modified_at END,
+                 membership_status_changed_at = CASE WHEN (users.billing_provider IS NULL OR users.billing_provider = '' OR users.billing_provider = 'stripe') AND users.membership_status IS DISTINCT FROM $7 THEN NOW() ELSE users.membership_status_changed_at END,
                  billing_provider = CASE WHEN users.billing_provider IS NULL OR users.billing_provider = '' OR users.billing_provider = 'stripe' THEN 'stripe' ELSE users.billing_provider END,
                  stripe_current_period_end = COALESCE($9, users.stripe_current_period_end),
                  tier = COALESCE(EXCLUDED.tier, users.tier),
@@ -321,9 +321,9 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
             WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member', 'terminated', 'cancelled', 'expired', 'former_member', 'deleted', 'suspended', 'frozen', 'froze', 'declined', 'churned') THEN $3
             ELSE membership_status 
           END,
-          last_modified_at = CASE
+          membership_status_changed_at = CASE
             WHEN membership_status IS DISTINCT FROM $3 AND (membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member', 'terminated', 'cancelled', 'expired', 'former_member', 'deleted', 'suspended', 'frozen', 'froze', 'declined', 'churned')) THEN NOW()
-            ELSE last_modified_at
+            ELSE membership_status_changed_at
           END,
           archived_at = NULL,
           archived_by = NULL,
@@ -464,9 +464,9 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
               WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member', 'terminated', 'cancelled', 'expired', 'former_member', 'deleted', 'suspended', 'frozen', 'froze', 'declined', 'churned') THEN $6
               ELSE membership_status 
             END,
-            last_modified_at = CASE
+            membership_status_changed_at = CASE
               WHEN membership_status IS DISTINCT FROM $6 AND (membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member', 'terminated', 'cancelled', 'expired', 'former_member', 'deleted', 'suspended', 'frozen', 'froze', 'declined', 'churned')) THEN NOW()
-              ELSE last_modified_at
+              ELSE membership_status_changed_at
             END,
             archived_at = NULL, archived_by = NULL,
             updated_at = NOW() 
@@ -582,9 +582,9 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
                           WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member', 'terminated', 'cancelled', 'expired', 'former_member', 'deleted', 'suspended', 'frozen', 'froze', 'declined', 'churned') THEN $4
                           ELSE membership_status 
                         END,
-                        last_modified_at = CASE
+                        membership_status_changed_at = CASE
                           WHEN membership_status IS DISTINCT FROM $4 AND (membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member', 'terminated', 'cancelled', 'expired', 'former_member', 'deleted', 'suspended', 'frozen', 'froze', 'declined', 'churned')) THEN NOW()
-                          ELSE last_modified_at
+                          ELSE membership_status_changed_at
                         END,
                         billing_provider = 'stripe',
                         stripe_current_period_end = COALESCE($3, stripe_current_period_end),
@@ -851,7 +851,7 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
 
       await client.query(
         `UPDATE users SET membership_status = 'active', billing_provider = 'stripe', stripe_current_period_end = COALESCE($2, stripe_current_period_end),
-         last_modified_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE last_modified_at END,
+         membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END,
          archived_at = NULL, archived_by = NULL, updated_at = NOW() 
          WHERE id = $1 
          AND (membership_status IS NULL OR membership_status IN (${allowedStatuses.map((_, i) => `$${i + 3}`).join(', ')}))`,
@@ -935,7 +935,7 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
           
           const subMembersResult = await client.query(
             `UPDATE users u SET membership_status = 'active', billing_provider = 'stripe',
-             last_modified_at = CASE WHEN u.membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE u.last_modified_at END,
+             membership_status_changed_at = CASE WHEN u.membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE u.membership_status_changed_at END,
              updated_at = NOW()
              FROM group_members gm
              WHERE gm.billing_group_id = $1 
@@ -997,7 +997,7 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
       });
     } else if (status === 'past_due') {
       await client.query(
-        `UPDATE users SET membership_status = 'past_due', last_modified_at = CASE WHEN membership_status IS DISTINCT FROM 'past_due' THEN NOW() ELSE last_modified_at END, billing_provider = 'stripe', stripe_current_period_end = COALESCE($2, stripe_current_period_end), updated_at = NOW() WHERE id = $1`,
+        `UPDATE users SET membership_status = 'past_due', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'past_due' THEN NOW() ELSE membership_status_changed_at END, billing_provider = 'stripe', stripe_current_period_end = COALESCE($2, stripe_current_period_end), updated_at = NOW() WHERE id = $1`,
         [userId, subscriptionPeriodEnd]
       );
 
@@ -1050,7 +1050,7 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
           
           const subMembersResult = await client.query(
             `UPDATE users u SET membership_status = 'past_due',
-             last_modified_at = CASE WHEN u.membership_status IS DISTINCT FROM 'past_due' THEN NOW() ELSE u.last_modified_at END,
+             membership_status_changed_at = CASE WHEN u.membership_status IS DISTINCT FROM 'past_due' THEN NOW() ELSE u.membership_status_changed_at END,
              updated_at = NOW()
              FROM group_members gm
              WHERE gm.billing_group_id = $1 
@@ -1114,7 +1114,7 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
       logger.info(`[Stripe Webhook] Subscription canceled for ${email} - handled by subscription.deleted webhook`);
     } else if (status === 'unpaid') {
       await client.query(
-        `UPDATE users SET membership_status = 'suspended', billing_provider = 'stripe', stripe_current_period_end = COALESCE($2, stripe_current_period_end), last_modified_at = CASE WHEN membership_status IS DISTINCT FROM 'suspended' THEN NOW() ELSE last_modified_at END, updated_at = NOW() WHERE id = $1`,
+        `UPDATE users SET membership_status = 'suspended', billing_provider = 'stripe', stripe_current_period_end = COALESCE($2, stripe_current_period_end), membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'suspended' THEN NOW() ELSE membership_status_changed_at END, updated_at = NOW() WHERE id = $1`,
         [userId, subscriptionPeriodEnd]
       );
 
@@ -1161,7 +1161,7 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
           
           const subMembersResult = await client.query(
             `UPDATE users u SET membership_status = 'suspended',
-             last_modified_at = CASE WHEN u.membership_status IS DISTINCT FROM 'suspended' THEN NOW() ELSE u.last_modified_at END,
+             membership_status_changed_at = CASE WHEN u.membership_status IS DISTINCT FROM 'suspended' THEN NOW() ELSE u.membership_status_changed_at END,
              updated_at = NOW()
              FROM group_members gm
              WHERE gm.billing_group_id = $1 
@@ -1290,7 +1290,7 @@ export async function handleSubscriptionPaused(client: PoolClient, subscription:
     }
 
     await client.query(
-      `UPDATE users SET membership_status = 'frozen', last_modified_at = CASE WHEN membership_status IS DISTINCT FROM 'frozen' THEN NOW() ELSE last_modified_at END, billing_provider = 'stripe', updated_at = NOW() WHERE id = $1`,
+      `UPDATE users SET membership_status = 'frozen', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'frozen' THEN NOW() ELSE membership_status_changed_at END, billing_provider = 'stripe', updated_at = NOW() WHERE id = $1`,
       [userId]
     );
     logger.info(`[Stripe Webhook] Subscription paused: ${email} membership_status set to frozen`);
@@ -1392,7 +1392,7 @@ export async function handleSubscriptionResumed(client: PoolClient, subscription
     }
 
     await client.query(
-      `UPDATE users SET membership_status = 'active', last_modified_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE last_modified_at END, billing_provider = 'stripe', stripe_current_period_end = COALESCE($2, stripe_current_period_end), archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $1`,
+      `UPDATE users SET membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, billing_provider = 'stripe', stripe_current_period_end = COALESCE($2, stripe_current_period_end), archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $1`,
       [userId, subscriptionPeriodEnd]
     );
     logger.info(`[Stripe Webhook] Subscription resumed: ${email} membership_status set to active`);
@@ -1503,7 +1503,7 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
       const pauseResult = await client.query(
         `UPDATE users SET 
           membership_status = 'paused',
-          last_modified_at = CASE WHEN membership_status IS DISTINCT FROM 'paused' THEN NOW() ELSE last_modified_at END,
+          membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'paused' THEN NOW() ELSE membership_status_changed_at END,
           billing_provider = 'stripe',
           stripe_subscription_id = NULL,
           updated_at = NOW()
@@ -1619,7 +1619,7 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
         last_tier = tier,
         tier = NULL,
         membership_status = 'cancelled',
-        last_modified_at = CASE WHEN membership_status IS DISTINCT FROM 'cancelled' THEN NOW() ELSE last_modified_at END,
+        membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'cancelled' THEN NOW() ELSE membership_status_changed_at END,
         billing_provider = 'stripe',
         stripe_subscription_id = NULL,
         grace_period_start = NULL,

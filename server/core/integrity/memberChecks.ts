@@ -95,7 +95,7 @@ export async function checkStuckTransitionalMembers(): Promise<IntegrityCheckRes
               UPDATE users 
               SET stripe_subscription_id = NULL, 
                   membership_status = ${MEMBERSHIP_STATUS.NON_MEMBER},
-                  last_modified_at = CASE WHEN membership_status IS DISTINCT FROM ${MEMBERSHIP_STATUS.NON_MEMBER} THEN NOW() ELSE last_modified_at END,
+                  membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM ${MEMBERSHIP_STATUS.NON_MEMBER} THEN NOW() ELSE membership_status_changed_at END,
                   updated_at = NOW()
               WHERE id = ${member.id}
                 AND stripe_subscription_id = ${subId}
@@ -110,7 +110,7 @@ export async function checkStuckTransitionalMembers(): Promise<IntegrityCheckRes
               UPDATE users 
               SET stripe_subscription_id = NULL, 
                   membership_status = ${MEMBERSHIP_STATUS.NON_MEMBER},
-                  last_modified_at = CASE WHEN membership_status IS DISTINCT FROM ${MEMBERSHIP_STATUS.NON_MEMBER} THEN NOW() ELSE last_modified_at END,
+                  membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM ${MEMBERSHIP_STATUS.NON_MEMBER} THEN NOW() ELSE membership_status_changed_at END,
                   updated_at = NOW()
               WHERE id = ${member.id}
                 AND stripe_subscription_id = ${subId}
