@@ -19,12 +19,17 @@ export const registerStaffRoutes = (imports: RouteImportMap, apis: RouteAPIMap) 
   staffRouteAPIs = apis;
 };
 
+export const resetPrefetchState = () => {
+  prefetchedAPIs.clear();
+};
+
 const doPrefetch = (path: string, imports: RouteImportMap, apis: RouteAPIMap) => {
-  if (prefetchedPaths.has(path)) return;
-  const importFn = imports[path];
-  if (importFn) {
-    prefetchedPaths.add(path);
-    importFn();
+  if (!prefetchedPaths.has(path)) {
+    const importFn = imports[path];
+    if (importFn) {
+      prefetchedPaths.add(path);
+      importFn();
+    }
   }
   const apiList = apis[path];
   if (apiList) {
@@ -53,12 +58,14 @@ export const prefetchAllNavRoutes = () => {
   Object.keys(memberRouteImports).forEach(prefetchRoute);
 };
 
-export const prefetchOnIdle = () => {
+export const prefetchOnIdle = (): (() => void) => {
   if ('requestIdleCallback' in window) {
-    (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void }).requestIdleCallback!(() => prefetchAllNavRoutes(), { timeout: 2000 });
-  } else {
-    setTimeout(prefetchAllNavRoutes, 100);
+    const win = window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number; cancelIdleCallback: (id: number) => void };
+    const id = win.requestIdleCallback(() => prefetchAllNavRoutes(), { timeout: 2000 });
+    return () => win.cancelIdleCallback(id);
   }
+  const id = setTimeout(prefetchAllNavRoutes, 100);
+  return () => clearTimeout(id);
 };
 
 export const prefetchStaffRoute = (path: string) => {

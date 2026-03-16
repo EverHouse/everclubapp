@@ -1,6 +1,6 @@
 import { registerMemberRoutes, registerStaffRoutes } from './prefetch-actions';
 
-export { prefetchRoute, prefetchAdjacentRoutes, prefetchOnIdle, prefetchAllNavRoutes, prefetchStaffRoute, prefetchAdjacentStaffRoutes, prefetchMemberProfile, prefetchBookingDetail } from './prefetch-actions';
+export { prefetchRoute, prefetchAdjacentRoutes, prefetchOnIdle, prefetchAllNavRoutes, prefetchStaffRoute, prefetchAdjacentStaffRoutes, prefetchMemberProfile, prefetchBookingDetail, resetPrefetchState } from './prefetch-actions';
 
 registerMemberRoutes(
   {

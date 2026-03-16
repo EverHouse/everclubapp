@@ -157,7 +157,7 @@ const ToursTab = lazy(() => import('./pages/Admin/tabs/ToursTab'));
 const EmailTemplatesTab = lazy(() => import('./pages/Admin/tabs/EmailTemplatesTab'));
 const AnalyticsTab = lazy(() => import('./pages/Admin/tabs/AnalyticsTab'));
 
-import { prefetchOnIdle } from './lib/prefetch';
+import { prefetchOnIdle, resetPrefetchState } from './lib/prefetch';
 
 const useDebugLayout = () => {
   useEffect(() => {
@@ -381,10 +381,21 @@ const ROUTE_INDICES: Record<string, number> = {
 const AnimatedRoutes: React.FC = () => {
   const location = useLocation();
   const prevPathRef = useRef(location.pathname);
+  const { user } = useAuthData();
+  const prevEmailRef = useRef(user?.email);
   
   useEffect(() => {
-    prefetchOnIdle();
-  }, []);
+    if (prevEmailRef.current && prevEmailRef.current !== user?.email) {
+      resetPrefetchState();
+    }
+    prevEmailRef.current = user?.email;
+  }, [user?.email]);
+  
+  useEffect(() => {
+    if (!user?.email) return;
+    const cancel = prefetchOnIdle();
+    return cancel;
+  }, [user?.email]);
   
   const transitionState = useMemo(() => {
     // eslint-disable-next-line react-hooks/refs

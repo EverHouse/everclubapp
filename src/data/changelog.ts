@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.48",
+    date: "2026-03-16",
+    title: "Bug Fixes & Performance",
+    changes: [
+      "Fixed: App no longer fires unnecessary API calls on public pages (login, membership) — reduces wasted server requests and eliminates console errors for visitors who aren't logged in",
+      "Fixed: Page pre-loading now properly cleans up when navigating away, preventing a potential memory leak",
+      "Fixed: Switching accounts now properly refreshes pre-loaded page data instead of showing stale content from the previous session",
+    ]
+  },
+  {
     version: "8.87.47",
     date: "2026-03-16",
     title: "Code Quality & Accessibility Improvements",
