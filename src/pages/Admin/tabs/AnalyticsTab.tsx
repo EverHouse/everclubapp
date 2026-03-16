@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
 import { AnimatedPage } from '../../../components/motion';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
+import { ChartCardSkeleton, Skeleton, SkeletonCrossfade } from '../../../components/skeletons';
 import {
   BarChart,
   Bar,
@@ -774,42 +775,72 @@ const AnalyticsTab: React.FC = () => {
           />
         </div>
 
-        {extData && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            <SectionCard icon="trending_up" title="Bookings Over Time" subtitle="Weekly booking volume (last 6 months)">
-              <BookingsOverTimeChart data={extData.bookingsOverTime} />
-            </SectionCard>
-            <SectionCard icon="attach_money" title="Revenue Over Time" subtitle="Live Stripe data by category (last 6 months)">
-              <RevenueChart data={extData.revenueOverTime} />
-            </SectionCard>
-          </div>
-        )}
+        <SkeletonCrossfade
+          loading={extLoading}
+          skeleton={
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <ChartCardSkeleton />
+              <ChartCardSkeleton />
+            </div>
+          }
+        >
+          {extData && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <SectionCard icon="trending_up" title="Bookings Over Time" subtitle="Weekly booking volume (last 6 months)">
+                <BookingsOverTimeChart data={extData.bookingsOverTime} />
+              </SectionCard>
+              <SectionCard icon="attach_money" title="Revenue Over Time" subtitle="Live Stripe data by category (last 6 months)">
+                <RevenueChart data={extData.revenueOverTime} />
+              </SectionCard>
+            </div>
+          )}
+        </SkeletonCrossfade>
 
         <SectionCard icon="local_fire_department" title="Weekly Peak Hours">
           <PeakHoursHeatmap data={data.peakHours} />
         </SectionCard>
 
-        {extData && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            <SectionCard icon="date_range" title="Day of Week" subtitle="All-time booking distribution by weekday">
-              <DayOfWeekChart data={extData.dayOfWeekBreakdown} />
-            </SectionCard>
-            <SectionCard icon="speed" title="Utilization by Hour" subtitle="Average simulator utilization per time slot">
-              <UtilizationChart data={extData.utilizationByHour} />
-            </SectionCard>
-          </div>
-        )}
+        <SkeletonCrossfade
+          loading={extLoading}
+          skeleton={
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <ChartCardSkeleton />
+              <ChartCardSkeleton />
+            </div>
+          }
+        >
+          {extData && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <SectionCard icon="date_range" title="Day of Week" subtitle="All-time booking distribution by weekday">
+                <DayOfWeekChart data={extData.dayOfWeekBreakdown} />
+              </SectionCard>
+              <SectionCard icon="speed" title="Utilization by Hour" subtitle="Average simulator utilization per time slot">
+                <UtilizationChart data={extData.utilizationByHour} />
+              </SectionCard>
+            </div>
+          )}
+        </SkeletonCrossfade>
 
-        {extData && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            <SectionCard icon="group" title="Member Activity" subtitle="Unique members who booked within each window">
-              <ActiveMembersCard data={extData.activeMembers} />
-            </SectionCard>
-            <SectionCard icon="bar_chart" title="Booking Frequency" subtitle="How often members book (last 90 days)">
-              <BookingFrequencyChart data={extData.bookingFrequency} />
-            </SectionCard>
-          </div>
-        )}
+        <SkeletonCrossfade
+          loading={extLoading}
+          skeleton={
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <ChartCardSkeleton />
+              <ChartCardSkeleton />
+            </div>
+          }
+        >
+          {extData && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <SectionCard icon="group" title="Member Activity" subtitle="Unique members who booked within each window">
+                <ActiveMembersCard data={extData.activeMembers} />
+              </SectionCard>
+              <SectionCard icon="bar_chart" title="Booking Frequency" subtitle="How often members book (last 90 days)">
+                <BookingFrequencyChart data={extData.bookingFrequency} />
+              </SectionCard>
+            </div>
+          )}
+        </SkeletonCrossfade>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <SectionCard icon="sports_golf" title="Resource Utilization" subtitle="Total hours booked per resource">
@@ -820,31 +851,43 @@ const AnalyticsTab: React.FC = () => {
           </SectionCard>
         </div>
 
-        {memberData && (
-          <>
-            <div>
-              <h2 className="text-lg sm:text-xl font-semibold text-primary dark:text-white mt-2" style={{ fontFamily: 'var(--font-heading)' }}>Membership Insights</h2>
-              <p className="text-sm text-primary/50 dark:text-white/50 mt-1">Member composition, engagement, and growth</p>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              <SectionCard icon="pie_chart" title="Tier Distribution" subtitle="Active members by membership tier">
-                <TierDistributionChart data={memberData.tierDistribution} />
+        <SkeletonCrossfade
+          loading={memberLoading}
+          className="space-y-4 sm:space-y-6"
+          skeleton={
+            <>
+              <div>
+                <Skeleton variant="text" width={192} height={28} className="rounded mt-2" />
+                <Skeleton variant="text" width={256} height={16} className="rounded mt-2" />
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                <ChartCardSkeleton />
+                <ChartCardSkeleton />
+              </div>
+              <ChartCardSkeleton />
+            </>
+          }
+        >
+          {memberData && (
+            <>
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold text-primary dark:text-white mt-2" style={{ fontFamily: 'var(--font-heading)' }}>Membership Insights</h2>
+                <p className="text-sm text-primary/50 dark:text-white/50 mt-1">Member composition, engagement, and growth</p>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                <SectionCard icon="pie_chart" title="Tier Distribution" subtitle="Active members by membership tier">
+                  <TierDistributionChart data={memberData.tierDistribution} />
+                </SectionCard>
+                <SectionCard icon="person_alert" title="At-Risk Members" subtitle="No bookings in the last 45 days">
+                  <AtRiskMembersList data={memberData.atRiskMembers} />
+                </SectionCard>
+              </div>
+              <SectionCard icon="trending_up" title="Membership Trends" subtitle="New vs. former members over the last 6 months">
+                <NewMemberGrowthChart data={memberData.newMemberGrowth} />
               </SectionCard>
-              <SectionCard icon="person_alert" title="At-Risk Members" subtitle="No bookings in the last 45 days">
-                <AtRiskMembersList data={memberData.atRiskMembers} />
-              </SectionCard>
-            </div>
-            <SectionCard icon="trending_up" title="Membership Trends" subtitle="New vs. former members over the last 6 months">
-              <NewMemberGrowthChart data={memberData.newMemberGrowth} />
-            </SectionCard>
-          </>
-        )}
-
-        {(extLoading || memberLoading) && (
-          <div className="flex items-center justify-center py-8">
-            <WalkingGolferSpinner />
-          </div>
-        )}
+            </>
+          )}
+        </SkeletonCrossfade>
       </div>
     </AnimatedPage>
   );

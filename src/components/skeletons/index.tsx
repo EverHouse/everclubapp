@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import Skeleton from './SkeletonPrimitive';
+export { Skeleton };
 
 interface SkeletonCardProps {
   className?: string;
@@ -12,8 +14,6 @@ interface SkeletonCrossfadeProps {
   className?: string;
   duration?: number;
 }
-
-export { default as Skeleton } from './SkeletonPrimitive';
 
 export const SkeletonCrossfade: React.FC<SkeletonCrossfadeProps> = ({ 
   loading, 
@@ -58,6 +58,19 @@ const shimmerClass = "skeleton-shimmer";
 const _bgLight = "bg-gray-200";
 const bgDark = "bg-white/10";
 const bgAuto = "bg-gray-200 dark:bg-white/10";
+
+export const ChartCardSkeleton: React.FC<SkeletonCardProps> = () => {
+  return (
+    <div className="glass-card rounded-xl p-4 sm:p-5 border border-primary/10 dark:border-white/10">
+      <div className="flex items-center gap-2 mb-1">
+        <Skeleton variant="rectangular" width={20} height={20} className="rounded" />
+        <Skeleton variant="text" width={160} height={20} className="rounded" />
+      </div>
+      <Skeleton variant="text" width={224} height={12} className="rounded ml-7 mb-3" />
+      <Skeleton variant="rectangular" height={200} className="w-full rounded-lg" />
+    </div>
+  );
+};
 
 export const EventCardSkeleton: React.FC<SkeletonCardProps> = ({ isDark = false }) => {
   const bg = isDark ? bgDark : bgAuto;
