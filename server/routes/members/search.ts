@@ -520,10 +520,10 @@ router.get('/api/guests/search', isAuthenticated, validateQuery(guestSearchSchem
 router.get('/api/members/frequent-partners', isAuthenticated, async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
-    if (!sessionUser?.userId) {
+    if (!sessionUser?.id) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
-    const userId = sessionUser.userId;
+    const userId = sessionUser.id;
     const userEmail = sessionUser.email?.toLowerCase();
     const isStaff = sessionUser.isStaff || sessionUser.role === 'admin' || sessionUser.role === 'staff';
 
