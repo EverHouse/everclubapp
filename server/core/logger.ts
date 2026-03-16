@@ -142,6 +142,8 @@ function isNoisyRequest(method: string, path: string, statusCode: number): boole
   if (statusCode === 404 && NOISE_PATHS.has(path)) return true;
   if (statusCode === 404 && method === 'POST' && path.endsWith('.gz')) return true;
   if (statusCode === 401 && path === '/api/auth/session') return true;
+  if (statusCode === 401 && path.startsWith('/api/member/')) return true;
+  if (statusCode === 404 && (path === '/api/.env' || path === '/api/user' || path === '/api/credentials')) return true;
   return false;
 }
 

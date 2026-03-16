@@ -19,13 +19,13 @@ function isTableMissingError(error: unknown): boolean {
   const code = (error as unknown as DatabaseError)?.code;
   if (code === '42P01') return true;
   const msg = error instanceof Error ? error.message : String(error);
-  return msg.includes('42P01') || msg.includes('relation "session" does not exist') || msg.includes('relation \\"session\\" does not exist');
+  return msg.includes('42P01') || msg.includes('does not exist');
 }
 
 export async function cleanupExpiredSessions(): Promise<number> {
   try {
     const result = await db.execute(sql`
-      DELETE FROM session 
+      DELETE FROM sessions 
       WHERE expire < NOW()
       RETURNING sid
     `);
@@ -66,7 +66,7 @@ export async function getSessionStats(): Promise<{
         COUNT(*) FILTER (WHERE expire <= NOW()) as expired,
         MIN(expire) FILTER (WHERE expire > NOW()) as oldest_active,
         MAX(expire) FILTER (WHERE expire > NOW()) as newest_active
-      FROM session
+      FROM sessions
     `);
     
     const row = result.rows[0] as unknown as SessionStatsRow;

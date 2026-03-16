@@ -696,7 +696,7 @@ export function broadcastToStaff(notification: {
         if (conn.ws.readyState === WebSocket.OPEN) openConnections++;
       });
     });
-    logger.warn(`[WebSocket] Broadcast to staff: 0 sent (total=${totalConnections}, staff=${staffConnections}, open=${openConnections})`, {
+    logger.debug(`[WebSocket] Broadcast to staff: 0 sent (total=${totalConnections}, staff=${staffConnections}, open=${openConnections})`, {
       extra: { type: notification.type }
     });
   }

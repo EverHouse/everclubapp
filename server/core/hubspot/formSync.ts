@@ -118,7 +118,7 @@ function updateDiscoveredFormIds(forms: Array<{ id: string; name: string }>): vo
     }
   }
   if (collisions.length > 0) {
-    logger.warn(`[HubSpot FormSync] Form type collisions detected (last-wins): ${collisions.join('; ')}`);
+    logger.debug(`[HubSpot FormSync] Form type collisions detected (last-wins): ${collisions.join('; ')}`);
   }
   logger.info(`[HubSpot FormSync] Updated discovered form ID registry: ${JSON.stringify(Object.fromEntries(discoveredFormIds))}`);
 }
