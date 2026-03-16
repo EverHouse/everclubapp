@@ -361,9 +361,9 @@ const DirectoryTab: React.FC = () => {
                 onClick={() => setAddMemberModalOpen(true)}
                 color="green"
                 icon="person_add"
-                label="Add new user"
+                label="Add new guest"
                 extended
-                text="Add User"
+                text="New Guest"
             />
 
             {assignTierModalOpen && memberToAssignTier && createPortal(
