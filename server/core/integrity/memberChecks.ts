@@ -20,6 +20,7 @@ import type {
   OrphanGuestPassRow,
   HubSpotBatchReadResult,
 } from './core';
+import { MEMBERSHIP_STATUS, BOOKING_STATUS, ACTIVE_MEMBERSHIP_STATUSES, PARTICIPANT_TYPE } from '../../../shared/constants/statuses';
 
 export async function checkMembersWithoutEmail(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
@@ -62,7 +63,7 @@ export async function checkStuckTransitionalMembers(): Promise<IntegrityCheckRes
     SELECT id, email, first_name, last_name, tier, membership_status, stripe_subscription_id, stripe_customer_id, updated_at
     FROM users 
     WHERE stripe_subscription_id IS NOT NULL
-      AND membership_status IN ('pending', 'non-member')
+      AND membership_status IN (${MEMBERSHIP_STATUS.PENDING}, ${MEMBERSHIP_STATUS.NON_MEMBER})
       AND updated_at < NOW() - INTERVAL '24 hours'
       AND role = 'member'
       AND (billing_provider IS NULL OR billing_provider NOT IN ('mindbody', 'family_addon', 'comped'))
@@ -93,8 +94,8 @@ export async function checkStuckTransitionalMembers(): Promise<IntegrityCheckRes
             await db.execute(sql`
               UPDATE users 
               SET stripe_subscription_id = NULL, 
-                  membership_status = 'non-member',
-                  last_modified_at = CASE WHEN membership_status IS DISTINCT FROM 'non-member' THEN NOW() ELSE last_modified_at END,
+                  membership_status = ${MEMBERSHIP_STATUS.NON_MEMBER},
+                  last_modified_at = CASE WHEN membership_status IS DISTINCT FROM ${MEMBERSHIP_STATUS.NON_MEMBER} THEN NOW() ELSE last_modified_at END,
                   updated_at = NOW()
               WHERE id = ${member.id}
                 AND stripe_subscription_id = ${subId}
@@ -108,8 +109,8 @@ export async function checkStuckTransitionalMembers(): Promise<IntegrityCheckRes
             await db.execute(sql`
               UPDATE users 
               SET stripe_subscription_id = NULL, 
-                  membership_status = 'non-member',
-                  last_modified_at = CASE WHEN membership_status IS DISTINCT FROM 'non-member' THEN NOW() ELSE last_modified_at END,
+                  membership_status = ${MEMBERSHIP_STATUS.NON_MEMBER},
+                  last_modified_at = CASE WHEN membership_status IS DISTINCT FROM ${MEMBERSHIP_STATUS.NON_MEMBER} THEN NOW() ELSE last_modified_at END,
                   updated_at = NOW()
               WHERE id = ${member.id}
                 AND stripe_subscription_id = ${subId}
@@ -367,7 +368,7 @@ export async function checkMindBodyStaleSyncMembers(): Promise<IntegrityCheckRes
     SELECT id, email, first_name, last_name, tier, membership_status, updated_at, mindbody_client_id
     FROM users 
     WHERE billing_provider = 'mindbody'
-      AND membership_status = 'active'
+      AND membership_status = ${MEMBERSHIP_STATUS.ACTIVE}
       AND role = 'member'
       AND updated_at < NOW() - INTERVAL '30 days'
     ORDER BY updated_at ASC
@@ -419,10 +420,10 @@ export async function checkMindBodyStatusMismatch(): Promise<IntegrityCheckResul
       AND u.role = 'member'
       AND (
         -- Active member without MindBody client ID
-        (u.membership_status = 'active' AND (u.mindbody_client_id IS NULL OR u.mindbody_client_id = ''))
+        (u.membership_status = ${MEMBERSHIP_STATUS.ACTIVE} AND (u.mindbody_client_id IS NULL OR u.mindbody_client_id = ''))
         OR
         -- Active member with MindBody ID but no tier (data incomplete)
-        (u.membership_status = 'active' AND u.mindbody_client_id IS NOT NULL AND u.mindbody_client_id != '' AND (u.tier IS NULL OR u.tier = ''))
+        (u.membership_status = ${MEMBERSHIP_STATUS.ACTIVE} AND u.mindbody_client_id IS NOT NULL AND u.mindbody_client_id != '' AND (u.tier IS NULL OR u.tier = ''))
       )
     ORDER BY u.updated_at DESC
     LIMIT 50
@@ -436,7 +437,7 @@ export async function checkMindBodyStatusMismatch(): Promise<IntegrityCheckResul
     let description: string;
     let suggestion: string;
 
-    if (!hasMindBodyId && member.membership_status === 'active') {
+    if (!hasMindBodyId && member.membership_status === MEMBERSHIP_STATUS.ACTIVE) {
       description = `MindBody member "${memberName}" is active but has no MindBody Client ID`;
       suggestion = 'Add MindBody Client ID or verify billing provider is correct';
     } else {
@@ -520,12 +521,12 @@ export async function checkArchivedMemberLingeringData(): Promise<IntegrityCheck
   const lingeringData = await db.execute(sql`
     WITH archived AS (
       SELECT id, email, first_name, last_name FROM users
-      WHERE membership_status = 'archived' AND archived_at IS NOT NULL
+      WHERE membership_status = ${MEMBERSHIP_STATUS.ARCHIVED} AND archived_at IS NOT NULL
     )
     SELECT a.id, a.email, a.first_name, a.last_name, 'future_bookings' AS issue_type, COUNT(*)::text AS issue_count
     FROM archived a
     JOIN booking_requests br ON (LOWER(br.user_email) = LOWER(a.email) OR br.user_id = a.id)
-    WHERE br.status IN ('pending', 'pending_approval', 'approved', 'confirmed')
+    WHERE br.status IN (${BOOKING_STATUS.PENDING}, ${BOOKING_STATUS.PENDING_APPROVAL}, ${BOOKING_STATUS.APPROVED}, ${BOOKING_STATUS.CONFIRMED})
       AND br.request_date >= (NOW() AT TIME ZONE 'America/Los_Angeles')::date
     GROUP BY a.id, a.email, a.first_name, a.last_name
 
@@ -573,9 +574,9 @@ export async function checkArchivedMemberLingeringData(): Promise<IntegrityCheck
     JOIN booking_participants bp ON bp.user_id = a.id::text
     JOIN booking_requests br ON br.session_id = bp.session_id
       AND br.session_id IS NOT NULL
-      AND br.status IN ('pending', 'pending_approval', 'approved', 'confirmed')
+      AND br.status IN (${BOOKING_STATUS.PENDING}, ${BOOKING_STATUS.PENDING_APPROVAL}, ${BOOKING_STATUS.APPROVED}, ${BOOKING_STATUS.CONFIRMED})
       AND br.request_date >= (NOW() AT TIME ZONE 'America/Los_Angeles')::date
-    WHERE bp.participant_type != 'owner'
+    WHERE bp.participant_type != ${PARTICIPANT_TYPE.OWNER}
     GROUP BY a.id, a.email, a.first_name, a.last_name
 
     LIMIT 100
@@ -632,7 +633,7 @@ export async function checkActiveMembersWithoutWaivers(): Promise<IntegrityCheck
   const missingWaivers = await db.execute(sql`
     SELECT id, email, first_name, last_name, tier, created_at::text
     FROM users
-    WHERE membership_status = 'active'
+    WHERE membership_status = ${MEMBERSHIP_STATUS.ACTIVE}
       AND role = 'member'
       AND (waiver_signed_at IS NULL AND waiver_version IS NULL)
       AND created_at < NOW() - INTERVAL '7 days'

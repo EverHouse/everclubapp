@@ -48,3 +48,4 @@ cert_b64.txt
 
 # Environment files
 .env
+tsconfig.tsbuildinfo

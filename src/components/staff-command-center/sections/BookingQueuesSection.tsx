@@ -8,6 +8,7 @@ import { useAsyncAction } from '../../../hooks/useAsyncAction';
 import type { BookingRequest, TabType } from '../types';
 import { tabToPath } from '../../../lib/nav-constants';
 import { BookingStatusDropdown } from '../../../components/BookingStatusDropdown';
+import { BOOKING_STATUS, RESOURCE_TYPE } from '../../../../shared/constants/statuses';
 
 interface PendingRequestsCardProps {
   pendingRequests: BookingRequest[];
@@ -31,8 +32,8 @@ const PendingRequestsCard = memo<PendingRequestsCardProps>(({
   onCompleteCancellation,
   executeDeny
 }) => {
-  const hasCancellations = pendingRequests.some(r => r.status === 'cancellation_pending');
-  const cancellationCount = pendingRequests.filter(r => r.status === 'cancellation_pending').length;
+  const hasCancellations = pendingRequests.some(r => r.status === BOOKING_STATUS.CANCELLATION_PENDING);
+  const cancellationCount = pendingRequests.filter(r => r.status === BOOKING_STATUS.CANCELLATION_PENDING).length;
   const [listRef] = useAutoAnimate();
 
   return (
@@ -77,7 +78,7 @@ const PendingRequestsCard = memo<PendingRequestsCardProps>(({
                 key={`${request.source || 'request'}-${request.id}`} 
                 className="flex-col !items-stretch !gap-2"
               >
-                {request.status === 'cancellation_pending' ? (
+                {request.status === BOOKING_STATUS.CANCELLATION_PENDING ? (
                   <>
                     <div className="flex items-center gap-3">
                       <DateBlock dateStr={request.request_date} today={today} />
@@ -269,7 +270,7 @@ const UpcomingBookingsCard = memo<UpcomingBookingsCardProps>(({
                           <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-widest bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-[4px]">
                             Needs Assignment
                           </span>
-                          {booking.resource_type === 'conference_room' ? (
+                          {booking.resource_type === RESOURCE_TYPE.CONFERENCE_ROOM ? (
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-glass-surface-primary dark:bg-glass-surface-primary-dark text-glass-surface-primary-text dark:text-purple-400">
                               Conf
                             </span>
@@ -284,7 +285,7 @@ const UpcomingBookingsCard = memo<UpcomingBookingsCardProps>(({
                           <p className="font-semibold text-sm truncate text-primary dark:text-white">
                             {booking.user_name || 'Unknown Customer'}
                           </p>
-                          {booking.resource_type === 'conference_room' ? (
+                          {booking.resource_type === RESOURCE_TYPE.CONFERENCE_ROOM ? (
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-glass-surface-primary dark:bg-glass-surface-primary-dark text-glass-surface-primary-text dark:text-purple-400">
                               Conf
                             </span>
@@ -473,21 +474,21 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
   const _isDesktopGrid = variant === 'desktop-top' || variant === 'desktop-bottom';
 
   const getStatusBadge = (booking: BookingRequest) => {
-    if (booking.status === 'attended' && booking.has_unpaid_fees && (booking.total_owed ?? 0) > 0) {
+    if (booking.status === BOOKING_STATUS.ATTENDED && booking.has_unpaid_fees && (booking.total_owed ?? 0) > 0) {
       return (
         <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-[4px]">
           Payment Due
         </span>
       );
     }
-    if (booking.status === 'attended') {
+    if (booking.status === BOOKING_STATUS.ATTENDED) {
       return (
         <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 rounded-[4px]">
           Checked In
         </span>
       );
     }
-    if (booking.status === 'cancellation_pending') {
+    if (booking.status === BOOKING_STATUS.CANCELLATION_PENDING) {
       return (
         <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 rounded-[4px]">
           Cancellation Pending
@@ -508,7 +509,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
     const isCheckingIn = isActionLoading(`checkin-${booking.id}`);
     const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
     
-    if (booking.status === 'attended' && booking.has_unpaid_fees && (booking.total_owed ?? 0) > 0) {
+    if (booking.status === BOOKING_STATUS.ATTENDED && booking.has_unpaid_fees && (booking.total_owed ?? 0) > 0) {
       return (
         <button
           onClick={(e) => { 
@@ -523,10 +524,10 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
       );
     }
 
-    if (booking.status === 'attended' && !(booking.has_unpaid_fees && (booking.total_owed ?? 0) > 0)) {
+    if (booking.status === BOOKING_STATUS.ATTENDED && !(booking.has_unpaid_fees && (booking.total_owed ?? 0) > 0)) {
       return (
         <BookingStatusDropdown
-          currentStatus="attended"
+          currentStatus={BOOKING_STATUS.ATTENDED}
           onStatusChange={(status) => executeCheckIn(booking, status)}
           showRevert={true}
           size="sm"
@@ -535,10 +536,10 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
       );
     }
 
-    if (booking.status === 'no_show') {
+    if (booking.status === BOOKING_STATUS.NO_SHOW) {
       return (
         <BookingStatusDropdown
-          currentStatus="no_show"
+          currentStatus={BOOKING_STATUS.NO_SHOW}
           onStatusChange={(status) => executeCheckIn(booking, status)}
           showRevert={true}
           size="sm"

@@ -9,6 +9,8 @@ import { BookingStateService } from '../../core/bookingService';
 import { bookingRequests } from '../../../shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../../db';
+import { BOOKING_STATUS, PAYMENT_STATUS, PARTICIPANT_TYPE, RESOURCE_TYPE } from '../../../shared/constants/statuses';
+import type { ParticipantType } from '../../../shared/constants/statuses';
 import {
   TrackmanWebhookPayload,
   TrackmanV2WebhookPayload,
@@ -258,7 +260,7 @@ export async function handleBookingModification(
           FROM booking_requests
           WHERE resource_id = ${newResourceId}
             AND request_date = ${newDate}
-            AND status IN ('pending', 'approved', 'confirmed')
+            AND status IN (${BOOKING_STATUS.PENDING}, ${BOOKING_STATUS.APPROVED}, ${BOOKING_STATUS.CONFIRMED})
             AND start_time < ${newEndTime}
             AND end_time > ${newStartTime}
             AND id != ${bookingId}`);
@@ -275,7 +277,7 @@ export async function handleBookingModification(
           });
 
           for (const conflictRow of conflictingRows) {
-            if (['approved', 'confirmed'].includes(conflictRow.status)) {
+            if ([BOOKING_STATUS.APPROVED, BOOKING_STATUS.CONFIRMED].includes(conflictRow.status)) {
               cancelledConflicts.push({ id: conflictRow.id, userEmail: conflictRow.user_email, status: conflictRow.status });
             }
           }
@@ -290,7 +292,7 @@ export async function handleBookingModification(
              duration_minutes = ${newDuration},
              resource_id = ${newResourceId},
              trackman_player_count = ${incoming.playerCount},
-             status = CASE WHEN status IN ('cancelled', 'declined', 'cancellation_pending') THEN 'approved' ELSE status END,
+             status = CASE WHEN status IN (${BOOKING_STATUS.CANCELLED}, ${BOOKING_STATUS.DECLINED}, ${BOOKING_STATUS.CANCELLATION_PENDING}) THEN ${BOOKING_STATUS.APPROVED} ELSE status END,
              last_trackman_sync_at = NOW(),
              staff_notes = COALESCE(staff_notes, '') || ${reactivationNote + staffNoteAddition},
              updated_at = NOW()
@@ -360,7 +362,7 @@ export async function handleBookingModification(
             const userId = userLookup.rows.length > 0 ? (userLookup.rows[0] as { user_id: string }).user_id : null;
             await tx.execute(sql`INSERT INTO booking_participants
                (session_id, user_id, participant_type, display_name, payment_status, created_at)
-               VALUES (${newSessionId}, ${userId}, 'owner', ${existing.userName || existing.userEmail}, 'waived', NOW())`);
+               VALUES (${newSessionId}, ${userId}, ${PARTICIPANT_TYPE.OWNER}, ${existing.userName || existing.userEmail}, ${PAYMENT_STATUS.WAIVED}, NOW())`);
 
             const rpResult = await tx.execute(sql`SELECT request_participants FROM booking_requests WHERE id = ${bookingId}`);
             const rpData = (rpResult.rows as Array<Record<string, unknown>>)[0]?.request_participants;
@@ -410,7 +412,7 @@ export async function handleBookingModification(
           const slotDuration = newDuration || 60;
           for (let i = 0; i < slotsToFill; i++) {
             await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-              VALUES (${effectiveSessionId}, NULL, 'guest', ${`Guest ${currentParticipants + i + 1}`}, 'waived', ${slotDuration})`);
+              VALUES (${effectiveSessionId}, NULL, ${PARTICIPANT_TYPE.GUEST}, ${`Guest ${currentParticipants + i + 1}`}, ${PAYMENT_STATUS.WAIVED}, ${slotDuration})`);
           }
           logger.info('[Trackman Webhook] Backfilled guest slots after modification', {
             extra: { bookingId, sessionId: effectiveSessionId, slotsToFill, currentParticipants, targetTotal }
@@ -462,13 +464,13 @@ export async function handleBookingModification(
       try {
         broadcastAvailabilityUpdate({
           resourceId: oldResourceId,
-          resourceType: 'simulator',
+          resourceType: RESOURCE_TYPE.SIMULATOR,
           date: existingDate,
           action: 'cancelled'
         });
         broadcastAvailabilityUpdate({
           resourceId: newResourceId!,
-          resourceType: 'simulator',
+          resourceType: RESOURCE_TYPE.SIMULATOR,
           date: newDate,
           action: 'booked'
         });
@@ -481,14 +483,14 @@ export async function handleBookingModification(
       try {
         broadcastAvailabilityUpdate({
           resourceId: newResourceId!,
-          resourceType: 'simulator',
+          resourceType: RESOURCE_TYPE.SIMULATOR,
           date: newDate,
           action: 'booked'
         });
         if (dateChanged) {
           broadcastAvailabilityUpdate({
             resourceId: newResourceId!,
-            resourceType: 'simulator',
+            resourceType: RESOURCE_TYPE.SIMULATOR,
             date: existingDate,
             action: 'cancelled'
           });
@@ -615,7 +617,7 @@ export async function tryAutoApproveBooking(
            OR
            (br.start_time >= br.end_time AND (${startTime}::time < br.end_time OR ${startTime}::time >= br.start_time))
          )
-         AND br.status IN ('pending', 'pending_approval')
+         AND br.status IN (${BOOKING_STATUS.PENDING}, ${BOOKING_STATUS.PENDING_APPROVAL})
          AND br.trackman_booking_id IS NULL
        ORDER BY ABS(EXTRACT(EPOCH FROM (br.start_time::time - ${startTime}::time))), br.created_at DESC
        LIMIT 1`);
@@ -638,7 +640,7 @@ export async function tryAutoApproveBooking(
     try {
       await db.transaction(async (tx) => {
         const updateResult = await tx.execute(sql`UPDATE booking_requests 
-           SET status = 'approved', 
+           SET status = ${BOOKING_STATUS.APPROVED}, 
                trackman_booking_id = ${trackmanBookingId}, 
                staff_notes = ${updatedNotes},
                reviewed_by = 'trackman_webhook',
@@ -672,7 +674,7 @@ export async function tryAutoApproveBooking(
           }
           
           createdSessionId = sessionResult.sessionId;
-          await tx.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${createdSessionId} AND (payment_status = 'pending' OR payment_status IS NULL)`);
+          await tx.execute(sql`UPDATE booking_participants SET payment_status = ${PAYMENT_STATUS.WAIVED} WHERE session_id = ${createdSessionId} AND (payment_status = ${PAYMENT_STATUS.PENDING} OR payment_status IS NULL)`);
         }
       });
 
@@ -715,7 +717,7 @@ export async function tryAutoApproveBooking(
         const resourceResult = await db.execute(sql`SELECT r.type FROM resources r JOIN booking_requests br ON br.resource_id = r.id WHERE br.id = ${bookingId}`);
         const resourceTypeRows = resourceResult.rows as unknown as ResourceTypeRow[];
         const resourceType = resourceTypeRows[0]?.type;
-        if (resourceType !== 'conference_room') {
+        if (resourceType !== RESOURCE_TYPE.CONFERENCE_ROOM) {
           const participantResult = await db.execute(sql`SELECT id, display_name, participant_type, cached_fee_cents
              FROM booking_participants
              WHERE session_id = ${createdSessionId} AND cached_fee_cents > 0`);
@@ -728,9 +730,9 @@ export async function tryAutoApproveBooking(
               const feeLineItems = participantFeeRows.map((row) => ({
                 participantId: row.id,
                 displayName: row.display_name || 'Unknown',
-                participantType: row.participant_type as 'owner' | 'member' | 'guest',
-                overageCents: row.participant_type === 'guest' ? 0 : row.cached_fee_cents,
-                guestCents: row.participant_type === 'guest' ? row.cached_fee_cents : 0,
+                participantType: row.participant_type as ParticipantType,
+                overageCents: row.participant_type === PARTICIPANT_TYPE.GUEST ? 0 : row.cached_fee_cents,
+                guestCents: row.participant_type === PARTICIPANT_TYPE.GUEST ? row.cached_fee_cents : 0,
                 totalCents: row.cached_fee_cents,
               }));
               const trackmanBookingIdForInvoice = trackmanBookingId;
@@ -779,14 +781,14 @@ export async function cancelBookingByTrackmanId(
     }).from(bookingRequests).where(eq(bookingRequests.trackmanBookingId, trackmanBookingId));
 
     if (!booking) return { cancelled: false };
-    if (booking.status === 'cancelled') {
+    if (booking.status === BOOKING_STATUS.CANCELLED) {
       if (booking.isUnmatched) {
         await db.update(bookingRequests).set({ isUnmatched: false }).where(eq(bookingRequests.id, booking.id));
       }
       return { cancelled: true, bookingId: booking.id };
     }
 
-    const wasPendingCancellation = booking.status === 'cancellation_pending';
+    const wasPendingCancellation = booking.status === BOOKING_STATUS.CANCELLATION_PENDING;
 
     let result;
     if (wasPendingCancellation) {
@@ -855,7 +857,7 @@ export async function saveToUnmatchedBookings(
     const result = await db.execute(sql`INSERT INTO trackman_unmatched_bookings 
        (trackman_booking_id, booking_date, start_time, end_time, bay_number, 
         original_email, user_name, player_count, status, match_attempt_reason, created_at)
-       VALUES (${trackmanBookingId}, ${slotDate}, ${startTime}, ${endTime}, ${resourceId ?? null}, ${customerEmail ?? null}, ${customerName ?? null}, ${playerCount}, 'pending', ${reason || 'no_member_match'}, NOW())
+       VALUES (${trackmanBookingId}, ${slotDate}, ${startTime}, ${endTime}, ${resourceId ?? null}, ${customerEmail ?? null}, ${customerName ?? null}, ${playerCount}, ${BOOKING_STATUS.PENDING}, ${reason || 'no_member_match'}, NOW())
        RETURNING id`);
     const insertedRows = result.rows as unknown as IdRow[];
     
@@ -884,7 +886,7 @@ export async function createUnmatchedBookingRequest(
   try {
     const durationMinutes = calculateDurationMinutes(startTime, endTime);
     
-    const bookingStatus = 'approved';
+    const bookingStatus = BOOKING_STATUS.APPROVED;
     let conflictNote = '';
     
     if (resourceId) {
@@ -976,7 +978,7 @@ export async function createUnmatchedBookingRequest(
               FROM booking_requests
               WHERE resource_id = ${resourceId}
                 AND request_date = ${slotDate}
-                AND status IN ('pending', 'approved', 'confirmed')
+                AND status IN (${BOOKING_STATUS.PENDING}, ${BOOKING_STATUS.APPROVED}, ${BOOKING_STATUS.CONFIRMED})
                 AND start_time < ${endTime}
                 AND end_time > ${startTime}
                 AND (trackman_booking_id IS NULL OR trackman_booking_id != ${trackmanBookingId})
@@ -1003,7 +1005,7 @@ export async function createUnmatchedBookingRequest(
               });
 
               for (const conflictRow of conflictingRows) {
-                if (['approved', 'confirmed'].includes(conflictRow.status)) {
+                if ([BOOKING_STATUS.APPROVED, BOOKING_STATUS.CONFIRMED].includes(conflictRow.status)) {
                   newBookingConflicts.push({ id: conflictRow.id, userEmail: conflictRow.user_email });
                 }
               }
@@ -1053,7 +1055,7 @@ export async function createUnmatchedBookingRequest(
         return { created: false, bookingId };
       }
       
-      if (bookingStatus === 'approved' && customerEmail && customerEmail.includes('@')) {
+      if (bookingStatus === BOOKING_STATUS.APPROVED && customerEmail && customerEmail.includes('@')) {
         const sessionResult = await ensureSessionForBooking({
           bookingId,
           resourceId: resourceId!,
@@ -1068,13 +1070,13 @@ export async function createUnmatchedBookingRequest(
         });
 
         if (sessionResult.sessionId) {
-          await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${sessionResult.sessionId} AND (payment_status = 'pending' OR payment_status IS NULL)`);
+          await db.execute(sql`UPDATE booking_participants SET payment_status = ${PAYMENT_STATUS.WAIVED} WHERE session_id = ${sessionResult.sessionId} AND (payment_status = ${PAYMENT_STATUS.PENDING} OR payment_status IS NULL)`);
         } else {
           logger.warn('[Trackman Webhook] Session creation failed for unmatched booking (keeping approved to block calendar)', {
             extra: { bookingId, trackmanBookingId, error: sessionResult.error }
           });
         }
-      } else if (bookingStatus === 'approved') {
+      } else if (bookingStatus === BOOKING_STATUS.APPROVED) {
         logger.info('[Trackman Webhook] Session creation deferred until member assignment (no real customer email)', {
           extra: { bookingId, trackmanBookingId, customerEmail: customerEmail || '(empty)' }
         });
@@ -1586,7 +1588,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
             : 60;
           for (let i = 0; i < slotsToFill; i++) {
             await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-              VALUES (${autoApproveResult.sessionId}, NULL, 'guest', ${`Guest ${currentParticipants + i + 1}`}, 'waived', ${slotDuration})`);
+              VALUES (${autoApproveResult.sessionId}, NULL, ${PARTICIPANT_TYPE.GUEST}, ${`Guest ${currentParticipants + i + 1}`}, ${PAYMENT_STATUS.WAIVED}, ${slotDuration})`);
           }
           await recalculateSessionFees(autoApproveResult.sessionId, 'trackman_webhook');
           syncBookingInvoice(autoApproveResult.bookingId, autoApproveResult.sessionId).catch((syncErr: unknown) => {

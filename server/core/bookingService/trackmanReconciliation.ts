@@ -5,6 +5,7 @@ import { getErrorMessage } from '../../utils/errorUtils';
 import { PRICING } from '../billing/pricingConfig';
 import { logPaymentAudit } from '../auditLog';
 import { recordUsage } from './sessionManager';
+import { BOOKING_STATUS, RECONCILIATION_STATUS } from '../../../shared/constants/statuses';
 
 export interface ReconciliationResult {
   bookingId: number;
@@ -38,7 +39,7 @@ export interface ReconciliationStats {
 export interface FindDiscrepanciesOptions {
   startDate?: string;
   endDate?: string;
-  status?: 'pending' | 'reviewed' | 'adjusted' | 'all';
+  status?: typeof RECONCILIATION_STATUS[keyof typeof RECONCILIATION_STATUS] | 'all';
   limit?: number;
   offset?: number;
 }
@@ -70,7 +71,7 @@ export async function findAttendanceDiscrepancies(
   const { startDate, endDate, status = 'all', limit = 100, offset = 0 } = options;
   
   try {
-    const baseConditions = sql`br.status = 'attended'
+    const baseConditions = sql`br.status = ${BOOKING_STATUS.ATTENDED}
       AND br.trackman_booking_id IS NOT NULL
       AND br.trackman_player_count IS NOT NULL
       AND br.declared_player_count IS NOT NULL
@@ -81,8 +82,8 @@ export async function findAttendanceDiscrepancies(
     
     let statusFilter = sql``;
     if (status !== 'all') {
-      if (status === 'pending') {
-        statusFilter = sql`AND (br.reconciliation_status IS NULL OR br.reconciliation_status = 'pending')`;
+      if (status === RECONCILIATION_STATUS.PENDING) {
+        statusFilter = sql`AND (br.reconciliation_status IS NULL OR br.reconciliation_status = ${RECONCILIATION_STATUS.PENDING})`;
       } else {
         statusFilter = sql`AND br.reconciliation_status = ${status}`;
       }
@@ -95,9 +96,9 @@ export async function findAttendanceDiscrepancies(
     
     const statsResult = await db.execute(sql`SELECT 
         COUNT(*) as total_discrepancies,
-        COUNT(*) FILTER (WHERE reconciliation_status IS NULL OR reconciliation_status = 'pending') as pending_review,
-        COUNT(*) FILTER (WHERE reconciliation_status = 'reviewed') as reviewed,
-        COUNT(*) FILTER (WHERE reconciliation_status = 'adjusted') as adjusted
+        COUNT(*) FILTER (WHERE reconciliation_status IS NULL OR reconciliation_status = ${RECONCILIATION_STATUS.PENDING}) as pending_review,
+        COUNT(*) FILTER (WHERE reconciliation_status = ${RECONCILIATION_STATUS.REVIEWED}) as reviewed,
+        COUNT(*) FILTER (WHERE reconciliation_status = ${RECONCILIATION_STATUS.ADJUSTED}) as adjusted
        FROM booking_requests br
        WHERE ${whereClause}`);
     

@@ -5,6 +5,7 @@ import { formatTime12Hour, isFacilityOpen, formatDateDisplayWithDay } from '../.
 import { isBlockingClosure, getNoticeTypeLabel, getNoticeSecondaryTag } from '../../../utils/closureUtils';
 import type { BayStatus, Closure, Announcement, TabType, RecentActivity, StaffNotification } from '../types';
 import { tabToPath } from '../../../lib/nav-constants';
+import { RESOURCE_TYPE } from '../../../../shared/constants/statuses';
 
 interface NoticeBoardCardProps {
   variant: 'desktop' | 'mobile' | 'mobile-notice-only' | 'mobile-facility-only';
@@ -156,7 +157,7 @@ const FacilityStatusCard = memo<FacilityStatusCardProps>(({
       </div>
     </div>
     
-    {bayStatuses.filter(b => b.type === 'conference_room').map((bay, index) => {
+    {bayStatuses.filter(b => b.type === RESOURCE_TYPE.CONFERENCE_ROOM).map((bay, index) => {
       const facilityStatus = isFacilityOpen();
       const isClosed = bay.isClosed || !facilityStatus.isOpen;
       const dotColor = isClosed ? 'bg-red-500' : bay.isOccupied ? 'bg-amber-500' : 'bg-green-500';
@@ -181,7 +182,7 @@ const FacilityStatusCard = memo<FacilityStatusCardProps>(({
     })}
     
     <div className="grid grid-cols-2 gap-3 mt-3">
-      {bayStatuses.filter(b => b.type === 'simulator').map((bay, index) => {
+      {bayStatuses.filter(b => b.type === RESOURCE_TYPE.SIMULATOR).map((bay, index) => {
         const facilityStatus = isFacilityOpen();
         const isClosed = bay.isClosed || !facilityStatus.isOpen;
         const dotColor = isClosed ? 'bg-red-500' : bay.isOccupied ? 'bg-amber-500' : 'bg-green-500';

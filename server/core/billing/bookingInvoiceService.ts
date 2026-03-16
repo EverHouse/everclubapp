@@ -12,6 +12,8 @@ import type Stripe from 'stripe';
 import type { BookingFeeLineItem } from '../stripe/invoices';
 import { PRICING } from './pricingConfig';
 import { markPaymentRefunded } from './PaymentStatusService';
+import { BOOKING_STATUS, PARTICIPANT_TYPE, RESOURCE_TYPE, PAYMENT_STATUS } from '../../../shared/constants/statuses';
+import type { ParticipantType } from '../../../shared/constants/statuses';
 
 interface _InvoiceWithPaymentIntent extends Stripe.Invoice {
   payment_intent: string | Stripe.PaymentIntent | null;
@@ -184,7 +186,7 @@ async function addLineItemsToInvoice(
     if (li.totalCents <= 0) continue;
 
     if (li.overageCents > 0) {
-      const overageDesc = li.participantType === 'owner'
+      const overageDesc = li.participantType === PARTICIPANT_TYPE.OWNER
         ? `Overage fee — ${li.displayName}`
         : `Overage fee — ${li.displayName} (${li.participantType})`;
 
@@ -577,7 +579,7 @@ export async function finalizeAndPayInvoice(params: {
 
     const bookingInfoResult = await db.execute(sql`
       SELECT br.user_email, br.session_id, br.trackman_booking_id, br.resource_id,
-             COALESCE(r.type, 'simulator') as resource_type
+             COALESCE(r.type, ${RESOURCE_TYPE.SIMULATOR}) as resource_type
       FROM booking_requests br
       LEFT JOIN resources r ON br.resource_id = r.id
       WHERE br.id = ${bookingId} LIMIT 1
@@ -603,11 +605,11 @@ export async function finalizeAndPayInvoice(params: {
       WHERE session_id = ${bookingInfo.session_id} AND cached_fee_cents > 0
     `);
     const newFeeLineItems: BookingFeeLineItem[] = (partResult.rows as unknown as ParticipantFeeRow[]).map((row) => {
-      const isGuest = row.participant_type === 'guest';
+      const isGuest = row.participant_type === PARTICIPANT_TYPE.GUEST;
       return {
         participantId: row.id,
         displayName: row.display_name || 'Unknown',
-        participantType: row.participant_type as 'owner' | 'member' | 'guest',
+        participantType: row.participant_type as ParticipantType,
         overageCents: isGuest ? 0 : row.cached_fee_cents,
         guestCents: isGuest ? row.cached_fee_cents : 0,
         totalCents: row.cached_fee_cents,
@@ -1110,7 +1112,7 @@ export async function recreateDraftInvoiceFromBooking(bookingId: number): Promis
   try {
     const bookingResult = await db.execute(sql`SELECT br.user_email, br.session_id, br.trackman_booking_id, br.status, br.resource_id,
               br.declared_player_count,
-              COALESCE(r.type, 'simulator') as resource_type
+              COALESCE(r.type, ${RESOURCE_TYPE.SIMULATOR}) as resource_type
        FROM booking_requests br
        LEFT JOIN resources r ON br.resource_id = r.id
        WHERE br.id = ${bookingId} LIMIT 1`);
@@ -1122,7 +1124,7 @@ export async function recreateDraftInvoiceFromBooking(bookingId: number): Promis
 
     const booking = (bookingResult.rows as unknown as BookingInfoRow[])[0];
 
-    if (booking.status !== 'approved') {
+    if (booking.status !== BOOKING_STATUS.APPROVED) {
       logger.info('[BookingInvoice] recreateDraftInvoiceFromBooking: booking not approved, skipping', { extra: { bookingId, status: booking.status } });
       return { success: true };
     }
@@ -1141,18 +1143,18 @@ export async function recreateDraftInvoiceFromBooking(bookingId: number): Promis
 
     const feeLineItems: BookingFeeLineItem[] = (participantResult.rows as unknown as ParticipantFeeRow[]).map((row) => {
       const totalCents = row.cached_fee_cents;
-      const isGuest = row.participant_type === 'guest';
+      const isGuest = row.participant_type === PARTICIPANT_TYPE.GUEST;
       return {
         participantId: row.id,
         displayName: row.display_name || 'Unknown',
-        participantType: row.participant_type as 'owner' | 'member' | 'guest',
+        participantType: row.participant_type as ParticipantType,
         overageCents: isGuest ? 0 : totalCents,
         guestCents: isGuest ? totalCents : 0,
         totalCents,
       };
     });
 
-    if (booking.resource_type !== 'conference_room') {
+    if (booking.resource_type !== RESOURCE_TYPE.CONFERENCE_ROOM) {
       const allParticipantResult = await db.execute(sql`SELECT COUNT(*) as cnt FROM booking_participants WHERE session_id = ${booking.session_id}`);
       const actualCount = parseInt((allParticipantResult.rows[0] as { cnt: string }).cnt) || 0;
       const declaredCount = booking.declared_player_count || actualCount;
@@ -1161,7 +1163,7 @@ export async function recreateDraftInvoiceFromBooking(bookingId: number): Promis
         const emptySlotFeeCents = emptySlots * PRICING.GUEST_FEE_CENTS;
         feeLineItems.push({
           displayName: `Empty Slot${emptySlots > 1 ? 's' : ''}`,
-          participantType: 'guest',
+          participantType: PARTICIPANT_TYPE.GUEST,
           overageCents: 0,
           guestCents: emptySlotFeeCents,
           totalCents: emptySlotFeeCents,
@@ -1196,7 +1198,7 @@ export async function recreateDraftInvoiceFromBooking(bookingId: number): Promis
 export async function syncBookingInvoice(bookingId: number, sessionId: number): Promise<void> {
   try {
     const invoiceResult = await db.execute(sql`SELECT br.stripe_invoice_id, br.user_email, br.trackman_booking_id, br.status, br.resource_id,
-              COALESCE(r.type, 'simulator') as resource_type,
+              COALESCE(r.type, ${RESOURCE_TYPE.SIMULATOR}) as resource_type,
               br.declared_player_count
        FROM booking_requests br
        LEFT JOIN resources r ON br.resource_id = r.id
@@ -1206,7 +1208,7 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
     const stripeInvoiceId = booking.stripe_invoice_id;
 
     if (!stripeInvoiceId) {
-      if (booking.status !== 'approved' && booking.status !== 'confirmed' && booking.status !== 'attended') return;
+      if (booking.status !== BOOKING_STATUS.APPROVED && booking.status !== BOOKING_STATUS.CONFIRMED && booking.status !== BOOKING_STATUS.ATTENDED) return;
 
       const participantResult = await db.execute(sql`SELECT id, display_name, participant_type, cached_fee_cents
          FROM booking_participants
@@ -1216,18 +1218,18 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
 
       const feeLineItems: BookingFeeLineItem[] = typedParticipants.map((row) => {
         const totalCents = row.cached_fee_cents;
-        const isGuest = row.participant_type === 'guest';
+        const isGuest = row.participant_type === PARTICIPANT_TYPE.GUEST;
         return {
           participantId: row.id,
           displayName: row.display_name || 'Unknown',
-          participantType: row.participant_type as 'owner' | 'member' | 'guest',
+          participantType: row.participant_type as ParticipantType,
           overageCents: isGuest ? 0 : totalCents,
           guestCents: isGuest ? totalCents : 0,
           totalCents,
         };
       });
 
-      if (booking.resource_type !== 'conference_room') {
+      if (booking.resource_type !== RESOURCE_TYPE.CONFERENCE_ROOM) {
         const allParticipantResult = await db.execute(sql`SELECT COUNT(*) as cnt FROM booking_participants WHERE session_id = ${sessionId}`);
         const actualCount = parseInt((allParticipantResult.rows[0] as { cnt: string }).cnt) || 0;
         const declaredCount = booking.declared_player_count || actualCount;
@@ -1236,7 +1238,7 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
           const emptySlotFeeCents = emptySlots * PRICING.GUEST_FEE_CENTS;
           feeLineItems.push({
             displayName: `Empty Slot${emptySlots > 1 ? 's' : ''}`,
-            participantType: 'guest',
+            participantType: PARTICIPANT_TYPE.GUEST,
             overageCents: 0,
             guestCents: emptySlotFeeCents,
             totalCents: emptySlotFeeCents,
@@ -1303,15 +1305,15 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
           extra: { bookingId, invoiceId: stripeInvoiceId, status: invoice.status }
         });
         await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = ${bookingId}`);
-        if (booking.status === 'approved' || booking.status === 'confirmed' || booking.status === 'attended') {
+        if (booking.status === BOOKING_STATUS.APPROVED || booking.status === BOOKING_STATUS.CONFIRMED || booking.status === BOOKING_STATUS.ATTENDED) {
           const voidRecoveryParts = await db.execute(sql`SELECT id, display_name, participant_type, cached_fee_cents
              FROM booking_participants WHERE session_id = ${sessionId} AND cached_fee_cents > 0`);
           const voidRecoveryItems: BookingFeeLineItem[] = (voidRecoveryParts.rows as unknown as ParticipantFeeRow[]).map((row) => {
-            const isGuest = row.participant_type === 'guest';
+            const isGuest = row.participant_type === PARTICIPANT_TYPE.GUEST;
             return {
               participantId: row.id,
               displayName: row.display_name || 'Unknown',
-              participantType: row.participant_type as 'owner' | 'member' | 'guest',
+              participantType: row.participant_type as ParticipantType,
               overageCents: isGuest ? 0 : row.cached_fee_cents,
               guestCents: isGuest ? row.cached_fee_cents : 0,
               totalCents: row.cached_fee_cents,
@@ -1347,18 +1349,18 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
 
     const feeLineItems: BookingFeeLineItem[] = (participantResult.rows as unknown as ParticipantFeeRow[]).map((row) => {
       const totalCents = row.cached_fee_cents;
-      const isGuest = row.participant_type === 'guest';
+      const isGuest = row.participant_type === PARTICIPANT_TYPE.GUEST;
       return {
         participantId: row.id,
         displayName: row.display_name || 'Unknown',
-        participantType: row.participant_type as 'owner' | 'member' | 'guest',
+        participantType: row.participant_type as ParticipantType,
         overageCents: isGuest ? 0 : totalCents,
         guestCents: isGuest ? totalCents : 0,
         totalCents,
       };
     });
 
-    if (booking.resource_type !== 'conference_room') {
+    if (booking.resource_type !== RESOURCE_TYPE.CONFERENCE_ROOM) {
       const allParticipantResult = await db.execute(sql`SELECT COUNT(*) as cnt FROM booking_participants WHERE session_id = ${sessionId}`);
       const actualCount = parseInt((allParticipantResult.rows[0] as { cnt: string }).cnt) || 0;
       const declaredCount = booking.declared_player_count || actualCount;
@@ -1367,7 +1369,7 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number): 
         const emptySlotFeeCents = emptySlots * PRICING.GUEST_FEE_CENTS;
         feeLineItems.push({
           displayName: `Empty Slot${emptySlots > 1 ? 's' : ''}`,
-          participantType: 'guest',
+          participantType: PARTICIPANT_TYPE.GUEST,
           overageCents: 0,
           guestCents: emptySlotFeeCents,
           totalCents: emptySlotFeeCents,
@@ -1474,9 +1476,9 @@ export async function checkBookingPaymentStatus(params: {
 
   const [paidCheck, feeSnapshotCheck] = await Promise.all([
     db.execute(sql`SELECT 
-         COUNT(*) FILTER (WHERE payment_status IN ('paid', 'waived')) as paid_count,
-         COUNT(*) FILTER (WHERE cached_fee_cents > 0 OR payment_status IN ('paid', 'waived')) as total_with_fees,
-         COUNT(*) FILTER (WHERE cached_fee_cents > 0 AND payment_status NOT IN ('paid', 'waived')) as pending_count
+         COUNT(*) FILTER (WHERE payment_status IN (${PAYMENT_STATUS.PAID}, ${PAYMENT_STATUS.WAIVED})) as paid_count,
+         COUNT(*) FILTER (WHERE cached_fee_cents > 0 OR payment_status IN (${PAYMENT_STATUS.PAID}, ${PAYMENT_STATUS.WAIVED})) as total_with_fees,
+         COUNT(*) FILTER (WHERE cached_fee_cents > 0 AND payment_status NOT IN (${PAYMENT_STATUS.PAID}, ${PAYMENT_STATUS.WAIVED})) as pending_count
        FROM booking_participants 
        WHERE session_id = ${sessionId}`),
     db.execute(sql`SELECT id, total_cents FROM booking_fee_snapshots 

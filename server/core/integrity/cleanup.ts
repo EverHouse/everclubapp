@@ -7,6 +7,7 @@ import type {
   HubSpotTierCandidateRow,
   RemainingMemberRow,
 } from './core';
+import { BOOKING_STATUS, MEMBERSHIP_STATUS } from '../../../shared/constants/statuses';
 
 export async function runDataCleanup(): Promise<{
   orphanedNotifications: number;
@@ -33,7 +34,7 @@ export async function runDataCleanup(): Promise<{
       WHERE user_email IS NOT NULL
         AND NOT EXISTS (SELECT 1 FROM users u WHERE LOWER(u.email) = LOWER(user_email))
         AND notes NOT LIKE '%[Orphaned%'
-        AND status IN ('cancelled', 'declined', 'no_show')
+        AND status IN (${BOOKING_STATUS.CANCELLED}, ${BOOKING_STATUS.DECLINED}, ${BOOKING_STATUS.NO_SHOW})
         AND request_date < NOW() - INTERVAL '90 days'
       RETURNING id
     `);
@@ -73,18 +74,18 @@ export async function autoFixMissingTiers(): Promise<{
         SELECT 1 FROM users u
         WHERE LOWER(u.email) = LOWER(ule.primary_email)
           AND u.archived_at IS NULL
-          AND u.membership_status != 'merged'
+          AND u.membership_status != ${MEMBERSHIP_STATUS.MERGED}
       )
     `);
 
     const clearedLinkedTiers = await db.execute(sql`
       UPDATE users u
-      SET tier = NULL, membership_status = 'inactive', last_modified_at = CASE WHEN membership_status IS DISTINCT FROM 'inactive' THEN NOW() ELSE last_modified_at END, updated_at = NOW()
+      SET tier = NULL, membership_status = ${MEMBERSHIP_STATUS.INACTIVE}, last_modified_at = CASE WHEN membership_status IS DISTINCT FROM ${MEMBERSHIP_STATUS.INACTIVE} THEN NOW() ELSE last_modified_at END, updated_at = NOW()
       FROM user_linked_emails ule
       WHERE LOWER(ule.linked_email) = LOWER(u.email)
         AND LOWER(ule.primary_email) != LOWER(ule.linked_email)
         AND u.role = 'member'
-        AND (u.tier IS NOT NULL OR u.membership_status = 'active')
+        AND (u.tier IS NOT NULL OR u.membership_status = ${MEMBERSHIP_STATUS.ACTIVE})
         AND u.email NOT LIKE '%test%'
         AND u.email NOT LIKE '%example.com'
         AND (u.last_manual_fix_at IS NULL OR u.last_manual_fix_at < NOW() - INTERVAL '1 hour')
@@ -114,7 +115,7 @@ export async function autoFixMissingTiers(): Promise<{
         AND alt_user.email != u1.email 
         AND alt_user.tier IS NOT NULL
       WHERE u1.role = 'member' 
-        AND u1.membership_status = 'active' 
+        AND u1.membership_status = ${MEMBERSHIP_STATUS.ACTIVE} 
         AND u1.tier IS NULL
         AND u1.email NOT LIKE '%test%'
         AND u1.email NOT LIKE '%example.com'
@@ -132,7 +133,7 @@ export async function autoFixMissingTiers(): Promise<{
       SELECT COUNT(*) as count
       FROM users 
       WHERE role = 'member' 
-        AND membership_status = 'active' 
+        AND membership_status = ${MEMBERSHIP_STATUS.ACTIVE} 
         AND tier IS NULL
         AND email NOT LIKE '%test%'
         AND email NOT LIKE '%example.com'
@@ -145,7 +146,7 @@ export async function autoFixMissingTiers(): Promise<{
         SELECT email, first_name, last_name, stripe_customer_id, mindbody_client_id
         FROM users 
         WHERE role = 'member' 
-          AND membership_status = 'active' 
+          AND membership_status = ${MEMBERSHIP_STATUS.ACTIVE} 
           AND tier IS NULL
           AND email NOT LIKE '%test%'
           AND email NOT LIKE '%example.com'

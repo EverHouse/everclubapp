@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { getErrorMessage } from '../../utils/errorUtils';
 
 import { logger } from '../logger';
+import { MEMBERSHIP_STATUS } from '../../../shared/constants/statuses';
 
 interface TierRow {
   id: number;
@@ -79,22 +80,22 @@ export async function syncMemberStatusFromStripe(
     switch (stripeStatus) {
       case 'active':
       case 'trialing':
-        membershipStatus = 'active';
+        membershipStatus = MEMBERSHIP_STATUS.ACTIVE;
         break;
       case 'past_due':
-        membershipStatus = 'past_due';
+        membershipStatus = MEMBERSHIP_STATUS.PAST_DUE;
         break;
       case 'canceled':
-        membershipStatus = 'cancelled';
+        membershipStatus = MEMBERSHIP_STATUS.CANCELLED;
         break;
       case 'unpaid':
-        membershipStatus = 'suspended';
+        membershipStatus = MEMBERSHIP_STATUS.SUSPENDED;
         break;
       case 'incomplete':
-        membershipStatus = 'pending';
+        membershipStatus = MEMBERSHIP_STATUS.PENDING;
         break;
       default:
-        membershipStatus = 'inactive';
+        membershipStatus = MEMBERSHIP_STATUS.INACTIVE;
     }
     
     const updateResult = await db.execute(sql`UPDATE users SET membership_status = ${membershipStatus}, updated_at = NOW() 

@@ -6,6 +6,8 @@ import SlideUpDrawer from '../../SlideUpDrawer';
 import { getApiErrorMessage, getNetworkErrorMessage } from '../../../utils/errorHandling';
 import { useBookingActions } from '../../../hooks/useBookingActions';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
+import { BOOKING_STATUS, PAYMENT_STATUS, PARTICIPANT_TYPE } from '../../../../shared/constants/statuses';
+import type { PaymentStatus, ParticipantType } from '../../../../shared/constants/statuses';
 
 function formatTime12Hour(time: string | undefined): string {
   if (!time) return '';
@@ -32,8 +34,8 @@ function formatBookingDate(dateStr: string | undefined): string {
 interface ParticipantFee {
   participantId: number;
   displayName: string;
-  participantType: 'owner' | 'member' | 'guest';
-  paymentStatus: 'pending' | 'paid' | 'waived';
+  participantType: ParticipantType;
+  paymentStatus: PaymentStatus;
   overageFee: number;
   guestFee: number;
   totalFee: number;
@@ -153,7 +155,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     if (!context || !savedCardInfo?.hasSavedCard) return;
     
     const pendingParticipants = context.participants.filter(p => 
-      p.paymentStatus === 'pending' && p.totalFee > 0
+      p.paymentStatus === PAYMENT_STATUS.PENDING && p.totalFee > 0
     );
     const participantIds = pendingParticipants.map(p => p.participantId);
 
@@ -186,10 +188,10 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     setContext({
       ...context,
       participants: context.participants.map(p =>
-        p.participantId === participantId ? { ...p, paymentStatus: 'paid' } : p
+        p.participantId === participantId ? { ...p, paymentStatus: PAYMENT_STATUS.PAID } : p
       ),
       totalOutstanding: context.totalOutstanding - (context.participants.find(p => p.participantId === participantId)?.totalFee || 0),
-      hasUnpaidBalance: context.participants.filter(p => p.participantId !== participantId && p.paymentStatus === 'pending' && p.totalFee > 0).length > 0
+      hasUnpaidBalance: context.participants.filter(p => p.participantId !== participantId && p.paymentStatus === PAYMENT_STATUS.PENDING && p.totalFee > 0).length > 0
     });
     
     setActionInProgress(`confirm-${participantId}`);
@@ -281,7 +283,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     setContext({
       ...context,
       participants: context.participants.map(p =>
-        p.paymentStatus === 'pending' && p.totalFee > 0 ? { ...p, paymentStatus: 'paid' } : p
+        p.paymentStatus === PAYMENT_STATUS.PENDING && p.totalFee > 0 ? { ...p, paymentStatus: PAYMENT_STATUS.PAID } : p
       ),
       totalOutstanding: 0,
       hasUnpaidBalance: false
@@ -314,7 +316,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   const _handleCheckinWithPayment = async () => {
     setActionInProgress('checkin');
     try {
-      const result = await checkInWithToast(bookingId, { status: 'attended' });
+      const result = await checkInWithToast(bookingId, { status: BOOKING_STATUS.ATTENDED });
       if (result.success) {
         onCheckinComplete();
         onClose();
@@ -333,7 +335,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ status: 'attended' })
+        body: JSON.stringify({ status: BOOKING_STATUS.ATTENDED })
       });
       if (res.ok) {
         onCheckinComplete();
@@ -364,7 +366,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
           body: JSON.stringify({ paymentIntentId })
         });
       }
-      const result = await checkInWithToast(bookingId, { status: 'attended' });
+      const result = await checkInWithToast(bookingId, { status: BOOKING_STATUS.ATTENDED });
       if (result.success) {
         onCheckinComplete();
         onClose();
@@ -385,7 +387,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   
   const handleShowStripePayment = () => {
     if (!context) return;
-    const pendingParticipants = context.participants.filter(p => p.paymentStatus === 'pending' && p.totalFee > 0);
+    const pendingParticipants = context.participants.filter(p => p.paymentStatus === PAYMENT_STATUS.PENDING && p.totalFee > 0);
     const fees = pendingParticipants.map(p => ({ id: p.participantId, amount: p.totalFee }));
     const totalAmount = fees.reduce((sum, f) => sum + f.amount, 0);
     
@@ -420,7 +422,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   };
 
   const unpaidParticipants = context?.participants.filter(p => 
-    p.paymentStatus === 'pending' && p.totalFee > 0
+    p.paymentStatus === PAYMENT_STATUS.PENDING && p.totalFee > 0
   ) || [];
   const hasPendingPayments = unpaidParticipants.length > 0;
   
@@ -646,17 +648,17 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                            p.participantType === 'owner' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' :
-                            p.participantType === 'guest' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
+                            p.participantType === PARTICIPANT_TYPE.OWNER ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' :
+                            p.participantType === PARTICIPANT_TYPE.GUEST ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
                             'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
                           }`}>
-                            {p.participantType === 'owner' ? 'Host' : p.participantType === 'guest' ? 'Guest' : 'Member'}
+                            {p.participantType === PARTICIPANT_TYPE.OWNER ? 'Host' : p.participantType === PARTICIPANT_TYPE.GUEST ? 'Guest' : 'Member'}
                           </span>
                           <span className="font-medium text-primary dark:text-white">{p.displayName}</span>
                         </div>
                         <span className={`text-sm font-bold ${
-                          p.paymentStatus === 'paid' ? 'text-green-600 dark:text-green-400' :
-                          p.paymentStatus === 'waived' ? 'text-gray-500' :
+                          p.paymentStatus === PAYMENT_STATUS.PAID ? 'text-green-600 dark:text-green-400' :
+                          p.paymentStatus === PAYMENT_STATUS.WAIVED ? 'text-gray-500' :
                           'text-primary dark:text-white'
                         }`}>
                           {p.totalFee > 0 ? `$${p.totalFee.toFixed(2)}` : 'No charge'}
@@ -696,8 +698,8 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                             )}
                           </div>
                         )}
-                        {p.totalFee === 0 && p.participantType !== 'guest' && !p.guestPassUsed && (
-                          p.cachedFeeCents === null && p.paymentStatus === 'pending' ? (
+                        {p.totalFee === 0 && p.participantType !== PARTICIPANT_TYPE.GUEST && !p.guestPassUsed && (
+                          p.cachedFeeCents === null && p.paymentStatus === PAYMENT_STATUS.PENDING ? (
                             <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
                               <span className="inline-block w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></span>
                               Calculating fees...
@@ -713,7 +715,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                         )}
                       </div>
 
-                      {p.paymentStatus === 'pending' && p.totalFee > 0 ? (
+                      {p.paymentStatus === PAYMENT_STATUS.PENDING && p.totalFee > 0 ? (
                         showWaiverInput === p.participantId ? (
                           <div className="space-y-2">
                             <input
@@ -740,7 +742,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                             </div>
                           </div>
                         ) : (
-                          <div className={`flex gap-2 ${p.participantType === 'guest' ? 'flex-wrap' : ''}`}>
+                          <div className={`flex gap-2 ${p.participantType === PARTICIPANT_TYPE.GUEST ? 'flex-wrap' : ''}`}>
                             <button
                               onClick={() => handleConfirmPayment(p.participantId)}
                               disabled={actionInProgress !== null}
@@ -748,7 +750,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                             >
                               {actionInProgress === `confirm-${p.participantId}` ? 'Processing...' : 'Mark Paid'}
                             </button>
-                            {p.participantType === 'guest' && (
+                            {p.participantType === PARTICIPANT_TYPE.GUEST && (
                               <button
                                 onClick={() => handleUseGuestPass(p.participantId)}
                                 disabled={actionInProgress !== null}
@@ -771,20 +773,20 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                         <div className="flex items-center gap-2 text-xs flex-wrap">
                           <div className="flex items-center gap-1">
                             <span className={`material-symbols-outlined text-sm ${
-                              p.paymentStatus === 'paid' ? 'text-green-500' : 
-                              p.paymentStatus === 'waived' ? 'text-gray-500' : 'text-yellow-500'
+                              p.paymentStatus === PAYMENT_STATUS.PAID ? 'text-green-500' : 
+                              p.paymentStatus === PAYMENT_STATUS.WAIVED ? 'text-gray-500' : 'text-yellow-500'
                             }`}>
-                              {p.paymentStatus === 'paid' ? 'check_circle' : 
-                               p.paymentStatus === 'waived' ? 'remove_circle' : 'pending'}
+                              {p.paymentStatus === PAYMENT_STATUS.PAID ? 'check_circle' : 
+                               p.paymentStatus === PAYMENT_STATUS.WAIVED ? 'remove_circle' : 'pending'}
                             </span>
                             <span className={`capitalize ${
-                              p.paymentStatus === 'paid' ? 'text-green-600 dark:text-green-400' : 
-                              p.paymentStatus === 'waived' ? 'text-gray-500' : ''
+                              p.paymentStatus === PAYMENT_STATUS.PAID ? 'text-green-600 dark:text-green-400' : 
+                              p.paymentStatus === PAYMENT_STATUS.WAIVED ? 'text-gray-500' : ''
                             }`}>
                               {p.paymentStatus}
                             </span>
                           </div>
-                          {p.paymentStatus === 'paid' && p.prepaidOnline && (
+                          {p.paymentStatus === PAYMENT_STATUS.PAID && p.prepaidOnline && (
                             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium bg-lavender/20 dark:bg-lavender/20 text-primary dark:text-lavender rounded-full">
                               <span className="material-symbols-outlined text-xs">credit_card</span>
                               Prepaid online

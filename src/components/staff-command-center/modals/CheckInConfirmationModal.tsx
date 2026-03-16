@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { playSound } from '../../../utils/sounds';
+import { RESOURCE_TYPE, MEMBERSHIP_STATUS, ACTIVE_MEMBERSHIP_STATUSES, INACTIVE_MEMBERSHIP_STATUSES } from '../../../../shared/constants/statuses';
 
 interface PinnedNote {
   content: string;
@@ -36,8 +37,8 @@ function formatTime(time: string): string {
 }
 
 function formatResourceType(type: string): string {
-  if (type === 'golf_simulator') return 'Golf Simulator';
-  if (type === 'conference_room') return 'Conference Room';
+  if (type === RESOURCE_TYPE.GOLF_SIMULATOR) return 'Golf Simulator';
+  if (type === RESOURCE_TYPE.CONFERENCE_ROOM) return 'Conference Room';
   return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
@@ -54,7 +55,7 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
   const soundPlayedRef = useRef(false);
 
   const statusLower = membershipStatus?.toLowerCase() || '';
-  const isActive = statusLower === 'active' || statusLower === 'trialing' || statusLower === 'past_due';
+  const isActive = ACTIVE_MEMBERSHIP_STATUSES.includes(statusLower as typeof ACTIVE_MEMBERSHIP_STATUSES[number]);
 
   useEffect(() => {
     if (isOpen) {
@@ -82,8 +83,8 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
   }, [isOpen, onClose, isActive, statusLower, bookingDetails]);
 
   if (!isOpen) return null;
-  const _isExpired = statusLower === 'expired';
-  const _isInactive = ['cancelled', 'suspended', 'inactive', 'unpaid', 'terminated', 'paused'].includes(statusLower);
+  const _isExpired = statusLower === MEMBERSHIP_STATUS.EXPIRED;
+  const _isInactive = INACTIVE_MEMBERSHIP_STATUSES.includes(statusLower as typeof INACTIVE_MEMBERSHIP_STATUSES[number]);
   const showWarning = !isActive && statusLower !== '';
 
   const modal = (
@@ -151,7 +152,7 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
 
           {bookingDetails && (
             <div className="mt-3 flex items-center justify-center gap-1.5 text-white/85 text-sm">
-              <span className="material-symbols-outlined text-base">{bookingDetails.resourceType === 'conference_room' ? 'meeting_room' : 'sports_golf'}</span>
+              <span className="material-symbols-outlined text-base">{bookingDetails.resourceType === RESOURCE_TYPE.CONFERENCE_ROOM ? 'meeting_room' : 'sports_golf'}</span>
               <span className="font-medium">
                 {bookingDetails.bayName} · {formatResourceType(bookingDetails.resourceType)} · {formatTime(bookingDetails.startTime)} – {formatTime(bookingDetails.endTime)}
               </span>

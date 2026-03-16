@@ -1,6 +1,7 @@
 import { BookingContextType, ManageModeRosterData, FetchedContext } from './bookingSheetTypes';
 import TrackmanIcon from '../../icons/TrackmanIcon';
 import { formatTime12Hour } from '../../memberProfile/memberProfileTypes';
+import { BOOKING_STATUS, MEMBERSHIP_STATUS, ACTIVE_MEMBERSHIP_STATUSES } from '../../../../shared/constants/statuses';
 
 const formatTimeSlot = (slot: string): string => {
   if (!slot) return slot;
@@ -77,7 +78,7 @@ export function SheetHeader({
   if (isManageMode) {
     return (
       <>
-        {ownerMembershipStatus && !isOwnerStaff && ownerMembershipStatus.toLowerCase() !== 'active' && ownerMembershipStatus.toLowerCase() !== 'trialing' && ownerMembershipStatus.toLowerCase() !== 'past_due' && ownerMembershipStatus.toLowerCase() !== 'unknown' && (
+        {ownerMembershipStatus && !isOwnerStaff && !ACTIVE_MEMBERSHIP_STATUSES.includes(ownerMembershipStatus.toLowerCase() as typeof ACTIVE_MEMBERSHIP_STATUSES[number]) && ownerMembershipStatus.toLowerCase() !== MEMBERSHIP_STATUS.UNKNOWN && (
           <div className="p-3 rounded-xl border border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-900/15 flex items-center gap-2">
             <span className="material-symbols-outlined text-red-500 dark:text-red-400 text-lg">warning</span>
             <div>
@@ -127,9 +128,9 @@ export function SheetHeader({
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">info</span>
                 <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                  (bookingStatus || fetchedContext?.bookingStatus) === 'attended' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
-                  (bookingStatus || fetchedContext?.bookingStatus) === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                  (bookingStatus || fetchedContext?.bookingStatus) === 'confirmed' || (bookingStatus || fetchedContext?.bookingStatus) === 'approved' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                  (bookingStatus || fetchedContext?.bookingStatus) === BOOKING_STATUS.ATTENDED ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                  (bookingStatus || fetchedContext?.bookingStatus) === BOOKING_STATUS.CANCELLED ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                  (bookingStatus || fetchedContext?.bookingStatus) === BOOKING_STATUS.CONFIRMED || (bookingStatus || fetchedContext?.bookingStatus) === BOOKING_STATUS.APPROVED ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
                   'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300'
                 }`}>
                   {(bookingStatus || fetchedContext?.bookingStatus || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}

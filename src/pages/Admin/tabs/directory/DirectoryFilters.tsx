@@ -10,6 +10,7 @@ import {
     BILLING_OPTIONS,
     SORT_OPTIONS,
 } from './directoryTypes';
+import { MEMBERSHIP_STATUS } from '../../../../../shared/constants/statuses';
 
 interface DirectoryFiltersProps {
     memberTab: MemberTab;
@@ -211,7 +212,7 @@ const DirectoryFilters: React.FC<DirectoryFiltersProps> = ({
                                         >
                                             All
                                         </button>
-                                        {(['active', 'trialing', 'past_due', 'grace_period', 'paused', 'pending'] as const).map(status => (
+                                        {([MEMBERSHIP_STATUS.ACTIVE, MEMBERSHIP_STATUS.TRIALING, MEMBERSHIP_STATUS.PAST_DUE, MEMBERSHIP_STATUS.GRACE_PERIOD, MEMBERSHIP_STATUS.PAUSED, MEMBERSHIP_STATUS.PENDING] as const).map(status => (
                                             <button
                                                 key={status}
                                                 onClick={() => setMembershipStatusFilter(status)}
@@ -263,7 +264,7 @@ const DirectoryFilters: React.FC<DirectoryFiltersProps> = ({
                                         >
                                             All
                                         </button>
-                                        {(['terminated', 'expired', 'suspended', 'cancelled', 'frozen', 'inactive', 'former_member'] as const).map(status => (
+                                        {([MEMBERSHIP_STATUS.TERMINATED, MEMBERSHIP_STATUS.EXPIRED, MEMBERSHIP_STATUS.SUSPENDED, MEMBERSHIP_STATUS.CANCELLED, MEMBERSHIP_STATUS.FROZEN, MEMBERSHIP_STATUS.INACTIVE, MEMBERSHIP_STATUS.FORMER_MEMBER] as const).map(status => (
                                             <button
                                                 key={status}
                                                 onClick={() => setStatusFilter(status)}

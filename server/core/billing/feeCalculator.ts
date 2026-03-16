@@ -5,6 +5,7 @@ import { getErrorMessage } from '../../utils/errorUtils';
 
 import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { logger } from '../logger';
+import { PAYMENT_STATUS, PARTICIPANT_TYPE } from '../../../shared/constants/statuses';
 
 interface ParticipantFeeRow {
   participant_id: number;
@@ -62,7 +63,7 @@ export async function calculateAndCacheParticipantFees(
       const feesToUpdate: Array<{id: number; cents: number}> = [];
       
       for (const row of participantsResult.rows as unknown as ParticipantFeeRow[]) {
-        if (row.payment_status === 'paid' || row.payment_status === 'waived') {
+        if (row.payment_status === PAYMENT_STATUS.PAID || row.payment_status === PAYMENT_STATUS.WAIVED) {
           continue;
         }
         
@@ -75,7 +76,7 @@ export async function calculateAndCacheParticipantFees(
         } else if (row.ledger_fee != null && !isNaN(parseFloat(row.ledger_fee)) && parseFloat(row.ledger_fee) > 0) {
           amountCents = Math.round(parseFloat(row.ledger_fee) * 100);
           source = 'ledger';
-        } else if (row.participant_type === 'guest') {
+        } else if (row.participant_type === PARTICIPANT_TYPE.GUEST) {
           if (!row.user_id) {
             amountCents = row.tier_guest_fee_cents ?? PRICING.GUEST_FEE_CENTS;
             source = 'calculated';
