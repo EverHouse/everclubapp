@@ -947,6 +947,25 @@ export async function ensureDatabaseConstraints() {
 
     try {
       await db.execute(sql`
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.table_constraints
+            WHERE constraint_name = 'usage_ledger_member_id_users_id_fk'
+              AND table_name = 'usage_ledger'
+          ) THEN
+            ALTER TABLE usage_ledger
+            ADD CONSTRAINT usage_ledger_member_id_users_id_fk
+            FOREIGN KEY (member_id) REFERENCES public.users(id) ON DELETE SET NULL ON UPDATE NO ACTION;
+          END IF;
+        END $$;
+      `);
+      logger.info('[DB Init] usage_ledger member_id FK constraint ensured');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Usage ledger FK constraint: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
         UPDATE trackman_webhook_events SET matched_booking_id = NULL
         WHERE matched_booking_id IS NOT NULL
           AND NOT EXISTS (SELECT 1 FROM booking_requests br WHERE br.id = matched_booking_id)

@@ -265,7 +265,7 @@ export const guests = pgTable("guests", {
 export const usageLedger = pgTable("usage_ledger", {
   id: serial("id").primaryKey(),
   sessionId: integer("session_id").notNull().references(() => bookingSessions.id, { onDelete: 'cascade' }),
-  memberId: varchar("member_id").references(() => users.id, { onDelete: 'set null' }),
+  memberId: varchar("member_id"),
   minutesCharged: integer("minutes_charged").notNull().default(0),
   overageFee: numeric("overage_fee", { precision: 10, scale: 2 }).default("0.00"),
   guestFee: numeric("guest_fee", { precision: 10, scale: 2 }).default("0.00"),
