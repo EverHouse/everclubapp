@@ -79,6 +79,7 @@ Does it write to the database?
 12. **`FOR UPDATE` queries MUST use `ORDER BY id ASC`.** Multi-row `FOR UPDATE` without consistent ordering causes PostgreSQL deadlocks when concurrent transactions lock rows in different orders. This applies everywhere in `payments.ts` and `manualBooking.ts`.
 13. **All catch blocks MUST use `getErrorMessage(err)`.** Import from `utils/errorUtils`. Never log raw `err` or cast to `Error`. This applies to handler bodies AND deferred action wrappers in `framework.ts`.
 14. **Dispute-won reactivation is guarded.** `handleChargeDisputeClosed` checks for OTHER open disputes on the same member AND verifies the Stripe subscription status. Reactivation is blocked if subscription is `past_due`, `unpaid`, or `canceled`. Subscription lookup failures are fail-closed (block reactivation, alert staff). The `membershipAction` variable tracks whether reactivation actually happened so audit logs and notifications reflect the real outcome.
+15. **`last_modified_at` on every status write.** Every UPDATE that sets `membership_status` must also set `last_modified_at = CASE WHEN membership_status IS DISTINCT FROM '[new_status]' THEN NOW() ELSE last_modified_at END`. This applies to all 37+ write paths across webhook handlers, subscription sync, reconciliation, group billing, admin tools, and member management. See `member-lifecycle` skill Hard Rule #16 for the full regression check command.
 
 ## Anti-Patterns (NEVER)
 
@@ -90,9 +91,10 @@ Does it write to the database?
 6. NEVER process a `subscription.created` event that arrives after `subscription.deleted` for the same subscription.
 7. NEVER use `FOR UPDATE` on multi-row queries without `ORDER BY id ASC` — guaranteed deadlocks under concurrency.
 8. NEVER log raw error objects — always use `getErrorMessage(err)` from `utils/errorUtils`.
-9. NEVER call `stripe.paymentIntents.cancel()` directly — always use `cancelPaymentIntent()` from `server/core/stripe/payments.ts`. It detects invoice-generated PIs (via `expand: ['invoice']` + booking DB fallback) and voids/deletes the invoice instead, since Stripe rejects direct cancel on invoice-created PIs. **Exception**: Pre-OOB payment flows (where `invoices.pay(id, { paid_out_of_band: true })` follows immediately) intentionally use direct cancel to avoid voiding the invoice — these call sites are annotated with explanatory comments (v8.87.29). The `stripe_cancel_payment_intent` job handler in `jobQueue.ts` also uses `cancelPaymentIntent()` and auto-queues a refund if the PI raced to 'succeeded' (v8.87.31).
-10. NEVER call `stripe.paymentIntents.confirm()` on invoice-generated PIs — always use `stripe.invoices.pay(invoiceId)` instead. Detect invoice PIs via `expand: ['invoice']` on retrieve, with DB fallback via `getBookingInvoiceId(bookingId)`.
-11. NEVER insert directly into `notifications` table from webhook handlers — use `notifyMember()` / `notifyAllStaff()` from `server/core/notificationService.ts` (v8.87.28).
+9. NEVER write `membership_status` in a webhook handler UPDATE without also setting `last_modified_at` (IS DISTINCT FROM pattern). See Hard Rule #15.
+10. NEVER call `stripe.paymentIntents.cancel()` directly — always use `cancelPaymentIntent()` from `server/core/stripe/payments.ts`. It detects invoice-generated PIs (via `expand: ['invoice']` + booking DB fallback) and voids/deletes the invoice instead, since Stripe rejects direct cancel on invoice-created PIs. **Exception**: Pre-OOB payment flows (where `invoices.pay(id, { paid_out_of_band: true })` follows immediately) intentionally use direct cancel to avoid voiding the invoice — these call sites are annotated with explanatory comments (v8.87.29). The `stripe_cancel_payment_intent` job handler in `jobQueue.ts` also uses `cancelPaymentIntent()` and auto-queues a refund if the PI raced to 'succeeded' (v8.87.31).
+11. NEVER call `stripe.paymentIntents.confirm()` on invoice-generated PIs — always use `stripe.invoices.pay(invoiceId)` instead. Detect invoice PIs via `expand: ['invoice']` on retrieve, with DB fallback via `getBookingInvoiceId(bookingId)`.
+12. NEVER insert directly into `notifications` table from webhook handlers — use `notifyMember()` / `notifyAllStaff()` from `server/core/notificationService.ts` (v8.87.28).
 
 ## Cross-References
 

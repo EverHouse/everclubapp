@@ -13,7 +13,7 @@ export const changelog: ChangelogEntry[] = [
     title: "Membership Trends & Former Members Fix",
     changes: [
       "Fixed: The 'Former Members' line in the membership trends chart was always showing 0 — it now correctly displays members who have left the club over time",
-      "Improved: Member status changes are now tracked with accurate dates across all sync paths (HubSpot, Stripe, and daily sync), ensuring the analytics stay accurate going forward",
+      "Improved: Member status changes are now tracked with accurate dates across every possible path in the system (37+ code paths including all Stripe webhooks, admin actions, group billing, reconciliation, user merges, and more) — ensuring the membership analytics stay accurate going forward",
       "Fixed: Manual directory sync (focused sync) was returning zero contacts due to a timing bug — it now correctly picks up recent changes from HubSpot",
       "Improved: For MindBody-billed members, status change dates now use HubSpot's actual change date instead of the sync time, giving more accurate membership history",
     ]

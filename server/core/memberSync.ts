@@ -446,6 +446,8 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
             migrationStatus: users.migrationStatus,
             archivedAt: users.archivedAt,
             lastManualFixAt: users.lastManualFixAt,
+            lastModifiedAt: users.lastModifiedAt,
+            updatedAt: users.updatedAt,
           })
             .from(users)
             .where(eq(users.email, email))
@@ -504,12 +506,15 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
           }
 
           let statusChangedDate: Date | null = null;
-          if (isMindBodyBilled && contact.properties.last_modified_at) {
+          if (contact.properties.last_modified_at) {
             const parsed = new Date(contact.properties.last_modified_at);
             if (!isNaN(parsed.getTime())) {
               statusChangedDate = parsed;
             }
           }
+
+          const isBackfillArtifact = existingUser[0]?.lastModifiedAt && existingUser[0]?.updatedAt
+            && Math.abs(new Date(existingUser[0].lastModifiedAt).getTime() - new Date(existingUser[0].updatedAt).getTime()) < 2000;
           
           await retryDbOperation(() => db.insert(users)
             .values({
@@ -555,7 +560,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
                 membershipStatus: isStatusProtected ? sql`${users.membershipStatus}` : status,
                 lastModifiedAt: (!isStatusProtected && oldStatus && oldStatus !== status)
                   ? (statusChangedDate ? sql`${statusChangedDate}` : sql`NOW()`)
-                  : sql`${users.lastModifiedAt}`,
+                  : (isBackfillArtifact && statusChangedDate) ? sql`${statusChangedDate}` : sql`${users.lastModifiedAt}`,
                 billingProvider: isMindBodyDeactivation ? sql`'stripe'` : sql`${users.billingProvider}`,
                 role: isVisitorProtected ? sql`${users.role}` : sql`COALESCE(${users.role}, 'member')`,
                 mindbodyClientId: contact.properties.mindbody_client_id || null,
@@ -1051,6 +1056,8 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
             migrationStatus: users.migrationStatus,
             archivedAt: users.archivedAt,
             lastManualFixAt: users.lastManualFixAt,
+            lastModifiedAt: users.lastModifiedAt,
+            updatedAt: users.updatedAt,
           })
             .from(users)
             .where(eq(users.email, email))
@@ -1109,12 +1116,15 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
           }
 
           let statusChangedDate: Date | null = null;
-          if (isMindBodyBilled && contact.properties.last_modified_at) {
+          if (contact.properties.last_modified_at) {
             const parsed = new Date(contact.properties.last_modified_at);
             if (!isNaN(parsed.getTime())) {
               statusChangedDate = parsed;
             }
           }
+
+          const isBackfillArtifact = existingUser[0]?.lastModifiedAt && existingUser[0]?.updatedAt
+            && Math.abs(new Date(existingUser[0].lastModifiedAt).getTime() - new Date(existingUser[0].updatedAt).getTime()) < 2000;
           
           await retryDbOperation(() => db.insert(users)
             .values({
@@ -1160,7 +1170,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
                 membershipStatus: isStatusProtected ? sql`${users.membershipStatus}` : status,
                 lastModifiedAt: (!isStatusProtected && oldStatus && oldStatus !== status)
                   ? (statusChangedDate ? sql`${statusChangedDate}` : sql`NOW()`)
-                  : sql`${users.lastModifiedAt}`,
+                  : (isBackfillArtifact && statusChangedDate) ? sql`${statusChangedDate}` : sql`${users.lastModifiedAt}`,
                 billingProvider: isMindBodyDeactivation ? sql`'stripe'` : sql`${users.billingProvider}`,
                 role: isVisitorProtected ? sql`${users.role}` : sql`COALESCE(${users.role}, 'member')`,
                 mindbodyClientId: contact.properties.mindbody_client_id || null,

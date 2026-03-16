@@ -116,6 +116,27 @@ When tier is set to null/empty: save current tier to `last_tier`, clear tier, se
 |------|---------|-------|
 | `(any)` | User merge operation via `executeMerge` | Duplicate detection found matching users |
 
+## `last_modified_at` Tracking (v8.87.44)
+
+Every UPDATE path that writes `membership_status` also sets:
+```sql
+last_modified_at = CASE WHEN membership_status IS DISTINCT FROM '[new_status]' THEN NOW() ELSE last_modified_at END
+```
+
+This covers 37+ write paths across:
+- Stripe webhook handlers (`subscriptions.ts` — 11 paths, `checkout.ts` — 5, `invoices.ts` — 1, `payments.ts` — 1)
+- Stripe services (`reconciliation.ts`, `subscriptionSync.ts`, `groupBilling.ts` — 9, `admin.ts` — 2)
+- Member management (`admin-actions.ts` — 3, `memberChecks.ts`, `dataIntegrity.ts`, `auth.ts`, `hubspot/members.ts`, `userMerge.ts`, `db-init.ts` trigger)
+- Route handlers (`terminal.ts`, `quick-charge.ts`, `subscriptions.ts` routes, `myBilling.ts`, `stripe-tools.ts`, `profile.ts`)
+
+INSERT statements for new users are exempt (no prior status to compare). The `db-init.ts` lowercase normalizer is also exempt (doesn't change the status value).
+
+Regression check command:
+```bash
+grep -rn "SET.*membership_status\s*=" server/ --include="*.ts" | grep -v "last_modified_at"
+```
+All results should be multi-line continuations, WHERE clauses, or the lowercase normalizer.
+
 ## Grace Period Details
 
 ### How It Starts
