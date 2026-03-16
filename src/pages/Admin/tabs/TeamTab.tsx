@@ -7,7 +7,7 @@ import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 import FloatingActionButton from '../../../components/FloatingActionButton';
 import { formatPhoneNumber } from '../../../utils/formatting';
 import { AnimatedPage } from '../../../components/motion';
-import { useConfirmDialog } from '../../../components/ConfirmDialog';
+import { useUndoAction } from '../../../hooks/useUndoAction';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from '../../../hooks/queries/useFetch';
 
 type StaffRole = 'staff' | 'admin' | 'golf_instructor';
@@ -88,38 +88,13 @@ const TeamTab: React.FC = () => {
   const [addError, setAddError] = useState<string | null>(null);
   const [editFieldErrors, setEditFieldErrors] = useState<TeamFieldErrors>({});
   const [addFieldErrors, setAddFieldErrors] = useState<TeamFieldErrors>({});
-  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
+  const { execute: undoAction } = useUndoAction();
 
   // Fetch team members with React Query
   const { data: teamMembers = [], isLoading, error: fetchError } = useQuery({
     queryKey: ['staff-users'],
     queryFn: () => fetchWithCredentials<TeamMember[]>('/api/staff-users?include_all=true'),
     enabled: isAdmin,
-  });
-
-  // Mutation for removing a team member
-  const removeTeamMemberMutation = useMutation<unknown, Error, number>({
-    mutationFn: (memberId) => deleteWithCredentials(`/api/staff-users/${memberId}`),
-    onMutate: async (memberId) => {
-      await queryClient.cancelQueries({ queryKey: ['staff-users'] });
-      const previous = queryClient.getQueryData<TeamMember[]>(['staff-users']);
-      queryClient.setQueryData<TeamMember[]>(['staff-users'], (old = []) =>
-        old.filter(m => m.id !== memberId)
-      );
-      return { previous };
-    },
-    onError: (_err, _id, context) => {
-      if ((context as { previous?: TeamMember[] })?.previous) queryClient.setQueryData(['staff-users'], (context as { previous?: TeamMember[] }).previous);
-      setError('Failed to remove team member');
-      setTimeout(() => setError(null), 3000);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['staff-users'] });
-    },
-    onSuccess: () => {
-      setSuccess('Team member removed');
-      setTimeout(() => setSuccess(null), 3000);
-    },
   });
 
   // Mutation for updating a team member
@@ -220,7 +195,7 @@ const TeamTab: React.FC = () => {
     setIsViewingDetails(true);
   };
 
-  const handleRemoveMember = async (member: TeamMember) => {
+  const handleRemoveMember = (member: TeamMember) => {
     if (member.role === 'admin') {
       const adminCount = teamMembers.filter(m => m.role === 'admin' && m.is_active).length;
       if (adminCount <= 1) {
@@ -230,15 +205,26 @@ const TeamTab: React.FC = () => {
       }
     }
 
-    const confirmed = await confirm({
-      title: 'Remove Team Member',
-      message: `Remove ${member.name || member.email} from team?`,
-      confirmText: 'Remove',
-      variant: 'danger'
-    });
-    if (!confirmed) return;
+    const previousData = queryClient.getQueryData<TeamMember[]>(['staff-users']);
+    queryClient.setQueryData<TeamMember[]>(['staff-users'], (old = []) =>
+      old.filter(m => m.id !== member.id)
+    );
+    setIsViewingDetails(false);
+    setSelectedMember(null);
 
-    removeTeamMemberMutation.mutate(member.id);
+    undoAction({
+      message: `${member.name || member.email} removed`,
+      onExecute: async () => {
+        await deleteWithCredentials(`/api/staff-users/${member.id}`);
+        queryClient.invalidateQueries({ queryKey: ['staff-users'] });
+        setSuccess('Team member removed');
+        setTimeout(() => setSuccess(null), 3000);
+      },
+      onUndo: () => {
+        if (previousData) queryClient.setQueryData(['staff-users'], previousData);
+      },
+      errorMessage: 'Failed to remove team member',
+    });
   };
 
   const openEditModal = (member: TeamMember) => {
@@ -701,7 +687,6 @@ const TeamTab: React.FC = () => {
       </ModalShell>
 
       {isAdmin && <FloatingActionButton onClick={() => setIsAddingPerson(true)} color="brand" label="Add team member" extended text="Add Member" />}
-      <ConfirmDialogComponent />
     </AnimatedPage>
   );
 };

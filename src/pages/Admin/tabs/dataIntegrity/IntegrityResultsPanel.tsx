@@ -3,6 +3,7 @@ import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { UseMutationResult } from '@tanstack/react-query';
 import { getCheckMetadata, CheckSeverity } from '../../../../data/integrityCheckMetadata';
 import EmptyState from '../../../../components/EmptyState';
+import { useUndoAction } from '../../../../hooks/useUndoAction';
 import type { IntegrityCheckResult, IntegrityIssue, IssueContext, ActiveIssue } from './dataIntegrityTypes';
 
 
@@ -192,6 +193,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
   handleApproveAllReviewItems,
 }) => {
   const [resultsRef] = useAutoAnimate();
+  const { execute: undoAction } = useUndoAction();
 
   const getStatusColor = (status: 'pass' | 'warning' | 'fail' | 'info') => {
     switch (status) {
@@ -1092,9 +1094,12 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       </button>
                                       <button
                                         onClick={() => {
-                                          if (confirm(`Mark booking #${issue.recordId} as attended? This will resolve the stale booking alert.`)) {
-                                            fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/complete-booking', body: { recordId: issue.recordId } });
-                                          }
+                                          undoAction({
+                                            message: `Booking #${issue.recordId} marked as attended`,
+                                            onExecute: async () => {
+                                              await fixIssueMutation.mutateAsync({ endpoint: '/api/data-integrity/fix/complete-booking', body: { recordId: issue.recordId } });
+                                            },
+                                          });
                                         }}
                                         disabled={fixingIssues.has(String(issue.recordId))}
                                         className="p-1.5 text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30 rounded transition-colors disabled:opacity-50"
@@ -1132,9 +1137,12 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       </button>
                                       <button
                                         onClick={() => {
-                                          if (confirm('Dismiss this unmatched Trackman booking? It will be removed from the unresolved queue.')) {
-                                            fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/dismiss-trackman-unmatched', body: { recordId: issue.recordId } });
-                                          }
+                                          undoAction({
+                                            message: 'Trackman booking dismissed',
+                                            onExecute: async () => {
+                                              await fixIssueMutation.mutateAsync({ endpoint: '/api/data-integrity/fix/dismiss-trackman-unmatched', body: { recordId: issue.recordId } });
+                                            },
+                                          });
                                         }}
                                         disabled={fixingIssues.has(String(issue.recordId))}
                                         className="p-1.5 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 rounded transition-colors disabled:opacity-50"
@@ -1185,9 +1193,12 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                   {!issue.ignored && issue.table === 'booking_participants' && issue.category === 'missing_relationship' && (
                                     <button
                                       onClick={() => {
-                                        if (confirm(`Convert "${issue.context?.memberName || 'this participant'}" to a guest? Their booking record will be kept.`)) {
-                                          fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/convert-participant-to-guest', body: { recordId: issue.recordId } });
-                                        }
+                                        undoAction({
+                                          message: `"${issue.context?.memberName || 'Participant'}" converted to guest`,
+                                          onExecute: async () => {
+                                            await fixIssueMutation.mutateAsync({ endpoint: '/api/data-integrity/fix/convert-participant-to-guest', body: { recordId: issue.recordId } });
+                                          },
+                                        });
                                       }}
                                       disabled={fixingIssues.has(String(issue.recordId))}
                                       className="p-1.5 text-orange-600 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/30 rounded transition-colors disabled:opacity-50"
@@ -1745,9 +1756,12 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          if (confirm(`Mark tour for "${issue.context?.guestName || 'guest'}" as completed?`)) {
-                                            fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/update-tour-status', body: { recordId: issue.recordId, newStatus: 'completed' } });
-                                          }
+                                          undoAction({
+                                            message: `Tour for "${issue.context?.guestName || 'guest'}" marked completed`,
+                                            onExecute: async () => {
+                                              await fixIssueMutation.mutateAsync({ endpoint: '/api/data-integrity/fix/update-tour-status', body: { recordId: issue.recordId, newStatus: 'completed' } });
+                                            },
+                                          });
                                         }}
                                         disabled={fixingIssues.has(String(issue.recordId))}
                                         className="p-1.5 text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30 rounded transition-colors disabled:opacity-50"
@@ -1762,9 +1776,12 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          if (confirm(`Mark tour for "${issue.context?.guestName || 'guest'}" as no-show?`)) {
-                                            fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/update-tour-status', body: { recordId: issue.recordId, newStatus: 'no_show' } });
-                                          }
+                                          undoAction({
+                                            message: `Tour for "${issue.context?.guestName || 'guest'}" marked no-show`,
+                                            onExecute: async () => {
+                                              await fixIssueMutation.mutateAsync({ endpoint: '/api/data-integrity/fix/update-tour-status', body: { recordId: issue.recordId, newStatus: 'no_show' } });
+                                            },
+                                          });
                                         }}
                                         disabled={fixingIssues.has(String(issue.recordId))}
                                         className="p-1.5 text-orange-600 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/30 rounded transition-colors disabled:opacity-50"
@@ -1779,9 +1796,12 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          if (confirm(`Cancel tour for "${issue.context?.guestName || 'guest'}"?`)) {
-                                            fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/update-tour-status', body: { recordId: issue.recordId, newStatus: 'cancelled' } });
-                                          }
+                                          undoAction({
+                                            message: `Tour for "${issue.context?.guestName || 'guest'}" cancelled`,
+                                            onExecute: async () => {
+                                              await fixIssueMutation.mutateAsync({ endpoint: '/api/data-integrity/fix/update-tour-status', body: { recordId: issue.recordId, newStatus: 'cancelled' } });
+                                            },
+                                          });
                                         }}
                                         disabled={fixingIssues.has(String(issue.recordId))}
                                         className="p-1.5 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 rounded transition-colors disabled:opacity-50"

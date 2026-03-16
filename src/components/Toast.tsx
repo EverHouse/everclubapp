@@ -3,6 +3,11 @@ import { useTheme } from '../contexts/ThemeContext';
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
 
+interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface ToastMessage {
   id: string;
   message: string;
@@ -11,10 +16,11 @@ interface ToastMessage {
   key?: string;
   isExiting?: boolean;
   createdAt?: number;
+  action?: ToastAction;
 }
 
 interface ToastContextType {
-  showToast: (message: string, type?: ToastType, duration?: number, key?: string) => void;
+  showToast: (message: string, type?: ToastType, duration?: number, key?: string, action?: ToastAction) => void;
   hideToast: (id: string) => void;
 }
 
@@ -90,6 +96,13 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void; isDark: 
     return () => clearTimeout(timer);
   }, [duration, toast.isExiting, onDismiss]);
 
+  const handleActionClick = () => {
+    if (toast.action) {
+      toast.action.onClick();
+      onDismiss();
+    }
+  };
+
   return (
     <div
       className={`relative overflow-hidden rounded-xl pointer-events-auto
@@ -121,6 +134,16 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void; isDark: 
             {toast.message}
           </p>
         </div>
+        {toast.action && (
+          <button
+            onClick={handleActionClick}
+            className={`tactile-btn px-3 py-1 rounded-lg text-xs font-semibold transition-colors flex-shrink-0 ${
+              isDark ? 'text-white/90 hover:bg-white/15 bg-white/10' : 'text-gray-800 hover:bg-black/10 bg-black/5'
+            }`}
+          >
+            {toast.action.label}
+          </button>
+        )}
         <button
           onClick={onDismiss}
           className={`tactile-btn p-1.5 rounded-lg transition-colors flex-shrink-0 ${
@@ -143,7 +166,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   const recentToastsRef = useRef<Array<{ message: string; type: ToastType; timestamp: number }>>([]);
 
-  const showToast = useCallback((message: string, type: ToastType = 'success', duration: number = 3000, key?: string) => {
+  const showToast = useCallback((message: string, type: ToastType = 'success', duration: number = 3000, key?: string, action?: ToastAction) => {
     if (key) {
       setToasts(prev => {
         const existingIndex = prev.findIndex(t => t.key === key);
@@ -154,6 +177,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           duration,
           key,
           createdAt: Date.now(),
+          action,
         };
         
         if (existingIndex !== -1) {
@@ -178,7 +202,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     recentToastsRef.current = recentToastsRef.current.filter(t => (now - t.timestamp) < 2000);
 
     const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    setToasts(prev => [...prev, { id, message, type, duration, createdAt: now }]);
+    setToasts(prev => [...prev, { id, message, type, duration, createdAt: now, action }]);
   }, []);
 
   const hideToast = useCallback((id: string) => {
@@ -209,4 +233,5 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
+export type { ToastAction };
 export default ToastProvider;

@@ -6,8 +6,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import ModalShell from '../../components/ModalShell';
 import { getBugReportStatusColor, formatStatusLabel, getRoleColor } from '../../utils/statusColors';
 import { formatRelativeTime, formatCardTimestamp } from '../../utils/dateUtils';
-import { useConfirmDialog } from '../../components/ConfirmDialog';
 import { useToast } from '../../components/Toast';
+import { useUndoAction } from '../../hooks/useUndoAction';
 import { haptic } from '../../utils/haptics';
 
 interface BugReport {
@@ -45,8 +45,8 @@ const BugReportsAdmin: React.FC = () => {
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [staffNotes, setStaffNotes] = useState('');
     const [isSaving, setIsSaving] = useState(false);
-    const { confirm, ConfirmDialogComponent } = useConfirmDialog();
     const { showToast } = useToast();
+    const { execute: undoAction } = useUndoAction();
     const [reportsRef] = useAutoAnimate();
 
     useEffect(() => {
@@ -143,38 +143,31 @@ const BugReportsAdmin: React.FC = () => {
         }
     };
 
-    const handleDelete = async () => {
+    const handleDelete = () => {
         if (!selectedReport) return;
-        const confirmed = await confirm({
-            title: 'Delete Bug Report',
-            message: 'Are you sure you want to delete this bug report?',
-            confirmText: 'Delete',
-            variant: 'danger'
-        });
-        if (!confirmed) return;
-        
-        setIsSaving(true);
-        try {
-            const res = await fetch(`/api/admin/bug-reports/${selectedReport.id}`, {
-                method: 'DELETE',
-                credentials: 'include',
-            });
-            if (res.ok) {
-                setReports(prev => prev.filter(r => r.id !== selectedReport.id));
-                setIsDetailOpen(false);
-                setSelectedReport(null);
+        const reportToDelete = selectedReport;
+
+        setReports(prev => prev.filter(r => r.id !== reportToDelete.id));
+        setIsDetailOpen(false);
+        setSelectedReport(null);
+
+        undoAction({
+            message: 'Bug report deleted',
+            onExecute: async () => {
+                const res = await fetch(`/api/admin/bug-reports/${reportToDelete.id}`, {
+                    method: 'DELETE',
+                    credentials: 'include',
+                });
+                if (!res.ok) throw new Error('Failed to delete report');
                 haptic.success();
-                showToast('Bug report deleted', 'success');
-            } else {
-                haptic.error();
-                showToast('Failed to delete report', 'error');
-            }
-        } catch (_err: unknown) {
-            haptic.error();
-            showToast('Failed to delete report', 'error');
-        } finally {
-            setIsSaving(false);
-        }
+            },
+            onUndo: () => {
+                setReports(prev => [reportToDelete, ...prev].sort((a, b) =>
+                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                ));
+            },
+            errorMessage: 'Failed to delete report',
+        });
     };
 
 
@@ -385,7 +378,6 @@ const BugReportsAdmin: React.FC = () => {
                     </div>
                 )}
             </ModalShell>
-            <ConfirmDialogComponent />
         </div>
     );
 };

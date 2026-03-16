@@ -6,7 +6,6 @@ import { formatPhoneNumber } from '../../../utils/formatting';
 import { AnimatedPage } from '../../../components/motion';
 import { useTourData, useSyncTours, useCheckInTour, useUpdateTourStatus } from '../../../hooks/queries';
 import { ToursTabSkeleton } from '../../../components/skeletons';
-import { useConfirmDialog } from '../../../components/ConfirmDialog';
 
 interface Tour {
   id: number;
@@ -154,8 +153,6 @@ const ToursTab: React.FC = () => {
   const _syncMutation = useSyncTours();
   const checkInMutation = useCheckInTour();
   const updateStatusMutation = useUpdateTourStatus();
-  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
-
   const [syncMessage, _setSyncMessage] = useState<string | null>(null);
   const [statusMenuTourId, setStatusMenuTourId] = useState<number | null>(null);
 
@@ -164,20 +161,10 @@ const ToursTab: React.FC = () => {
   }, [setPageReady]);
 
   const handleCheckIn = async (tour: Tour) => {
-    const confirmed = await confirm({
-      title: 'Check In Guest',
-      message: `Mark ${tour.guestName || 'this guest'} as checked in for their tour?`,
-      confirmText: 'Check In',
-      cancelText: 'Cancel',
-      variant: 'info'
-    });
-    
-    if (confirmed) {
-      try {
-        await checkInMutation.mutateAsync({ tourId: tour.id });
-      } catch (err: unknown) {
-        console.error('Check-in failed:', err);
-      }
+    try {
+      await checkInMutation.mutateAsync({ tourId: tour.id });
+    } catch (err: unknown) {
+      console.error('Check-in failed:', err);
     }
   };
 
@@ -269,7 +256,6 @@ const ToursTab: React.FC = () => {
         </div>
       )}
 
-      <ConfirmDialogComponent />
       </AnimatedPage>
   );
 };

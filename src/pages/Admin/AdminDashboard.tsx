@@ -13,7 +13,7 @@ import PageErrorBoundary from '../../components/PageErrorBoundary';
 import { useStaffWebSocketContext, useStaffWebSocketCallback } from '../../contexts/StaffWebSocketContext';
 import { useWebSocketQuerySync } from '../../hooks/useWebSocketQuerySync';
 import StaffMobileSidebar from '../../components/StaffMobileSidebar';
-import { useConfirmDialog } from '../../components/ConfirmDialog';
+import { useUndoAction } from '../../hooks/useUndoAction';
 import { TabTransition } from '../../components/motion';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import PullToRefresh from '../../components/PullToRefresh';
@@ -534,7 +534,7 @@ const StaffTrainingGuide: React.FC = () => {
     const { actualUser } = useData();
     const isAdmin = actualUser?.role === 'admin';
     const printRef = useRef<HTMLDivElement>(null);
-    const { confirm, ConfirmDialogComponent } = useConfirmDialog();
+    const { execute: undoAction } = useUndoAction();
     const { showToast } = useToast();
 
     const fetchSections = useCallback(async () => {
@@ -575,31 +575,27 @@ const StaffTrainingGuide: React.FC = () => {
         await fetchSections();
     };
 
-    const handleDelete = async (id: number) => {
-        const confirmed = await confirm({
-            title: 'Delete Training Section',
-            message: 'Are you sure you want to delete this training section?',
-            confirmText: 'Delete',
-            variant: 'danger'
-        });
-        if (!confirmed) return;
-        try {
-            const response = await fetch(`/api/admin/training-sections/${id}`, {
-                method: 'DELETE',
-                credentials: 'include'
-            });
-            if (response.ok) {
-                await fetchSections();
+    const handleDelete = (id: number) => {
+        const sectionToDelete = sections.find(s => s.id === id);
+        if (!sectionToDelete) return;
+
+        setSections(prev => prev.filter(s => s.id !== id));
+
+        undoAction({
+            message: `"${sectionToDelete.title}" deleted`,
+            onExecute: async () => {
+                const response = await fetch(`/api/admin/training-sections/${id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                if (!response.ok) throw new Error('Failed to delete section');
                 haptic.success();
-                showToast('Training section deleted', 'success');
-            } else {
-                haptic.error();
-                showToast('Failed to delete section', 'error');
-            }
-        } catch {
-            haptic.error();
-            showToast('Failed to delete section', 'error');
-        }
+            },
+            onUndo: () => {
+                setSections(prev => [...prev, sectionToDelete].sort((a, b) => a.sortOrder - b.sortOrder));
+            },
+            errorMessage: 'Failed to delete section',
+        });
     };
 
     const [isPrinting, _setIsPrinting] = useState(false);
@@ -747,7 +743,6 @@ const StaffTrainingGuide: React.FC = () => {
                 section={editingSection}
                 onSave={handleSave}
             />
-            <ConfirmDialogComponent />
         </div>
     );
 };

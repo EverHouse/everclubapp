@@ -9,6 +9,7 @@ import AvailabilityBlocksContent from '../components/AvailabilityBlocksContent';
 import { AnimatedPage } from '../../../components/motion';
 import { TabTransition } from '../../../components/motion/TabTransition';
 import { useConfirmDialog } from '../../../components/ConfirmDialog';
+import { useUndoAction } from '../../../hooks/useUndoAction';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials, putWithCredentials } from '../../../hooks/queries/useFetch';
 import { isBlockingClosure, formatTitleForDisplay, formatAffectedAreas as formatAreasShared, getAffectedAreasList as getAreasListShared } from '../../../utils/closureUtils';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
@@ -118,6 +119,7 @@ const BlocksTab: React.FC = () => {
     });
     const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
     const { confirm, ConfirmDialogComponent } = useConfirmDialog();
+    const { execute: undoAction } = useUndoAction();
 
     // React Query hooks for data fetching
     const { data: closures = [], isLoading: closuresLoading } = useQuery({
@@ -192,28 +194,6 @@ const BlocksTab: React.FC = () => {
         },
     });
 
-    const deleteClosureReasonMutation = useMutation<unknown, Error, number>({
-        mutationFn: (id) => deleteWithCredentials(`/api/closure-reasons/${id}`),
-        onMutate: async (id) => {
-            await queryClient.cancelQueries({ queryKey: ['closureReasons'] });
-            const previous = queryClient.getQueryData<ClosureReason[]>(['closureReasons']);
-            queryClient.setQueryData<ClosureReason[]>(['closureReasons'], (old = []) =>
-                old.filter(r => r.id !== id)
-            );
-            return { previous };
-        },
-        onError: (_err, _id, context) => {
-            if ((context as { previous?: ClosureReason[] })?.previous) queryClient.setQueryData(['closureReasons'], (context as { previous?: ClosureReason[] }).previous);
-            showToast('Failed to delete reason', 'error');
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ['closureReasons'] });
-        },
-        onSuccess: () => {
-            showToast('Closure reason deleted', 'success');
-        }
-    });
-
     const reactivateClosureReasonMutation = useMutation({
         mutationFn: (id: number) => putWithCredentials(`/api/closure-reasons/${id}`, { is_active: true }),
         onMutate: async () => {
@@ -265,28 +245,6 @@ const BlocksTab: React.FC = () => {
         },
     });
 
-    const deleteNoticeTypeMutation = useMutation<unknown, Error, number>({
-        mutationFn: (id) => deleteWithCredentials(`/api/notice-types/${id}`),
-        onMutate: async (id) => {
-            await queryClient.cancelQueries({ queryKey: ['noticeTypes'] });
-            const previous = queryClient.getQueryData<NoticeType[]>(['noticeTypes']);
-            queryClient.setQueryData<NoticeType[]>(['noticeTypes'], (old = []) =>
-                old.filter(t => t.id !== id)
-            );
-            return { previous };
-        },
-        onError: (_err, _id, context) => {
-            if ((context as { previous?: NoticeType[] })?.previous) queryClient.setQueryData(['noticeTypes'], (context as { previous?: NoticeType[] }).previous);
-            showToast('Failed to delete notice type', 'error');
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ['noticeTypes'] });
-        },
-        onSuccess: () => {
-            showToast('Notice type deleted', 'success');
-        }
-    });
-
     const openReasonDrawer = (reason: ClosureReason) => {
         setReasonDrawerData({ id: reason.id, label: reason.label, sortOrder: reason.sortOrder });
         setIsReasonDrawerOpen(true);
@@ -302,15 +260,24 @@ const BlocksTab: React.FC = () => {
         updateClosureReasonMutation.mutate(reasonDrawerData);
     };
 
-    const handleDeleteClosureReason = async (id: number) => {
-        const confirmed = await confirm({
-            title: 'Delete Closure Reason',
-            message: 'Are you sure you want to delete this closure reason?',
-            confirmText: 'Delete',
-            variant: 'danger'
+    const handleDeleteClosureReason = (id: number) => {
+        const reasonToDelete = closureReasons.find(r => r.id === id);
+        const previous = queryClient.getQueryData<ClosureReason[]>(['closureReasons']);
+        queryClient.setQueryData<ClosureReason[]>(['closureReasons'], (old = []) =>
+            old.filter(r => r.id !== id)
+        );
+
+        undoAction({
+            message: `Closure reason "${reasonToDelete?.label || ''}" deleted`,
+            onExecute: async () => {
+                await deleteWithCredentials(`/api/closure-reasons/${id}`);
+                queryClient.invalidateQueries({ queryKey: ['closureReasons'] });
+            },
+            onUndo: () => {
+                if (previous) queryClient.setQueryData(['closureReasons'], previous);
+            },
+            errorMessage: 'Failed to delete reason',
         });
-        if (!confirmed) return;
-        deleteClosureReasonMutation.mutate(id);
     };
 
     const handleReactivateClosureReason = (id: number) => {
@@ -337,15 +304,24 @@ const BlocksTab: React.FC = () => {
         updateNoticeTypeMutation.mutate(noticeTypeDrawerData);
     };
 
-    const handleDeleteNoticeType = async (id: number) => {
-        const confirmed = await confirm({
-            title: 'Delete Notice Type',
-            message: 'Are you sure you want to delete this notice type?',
-            confirmText: 'Delete',
-            variant: 'danger'
+    const handleDeleteNoticeType = (id: number) => {
+        const typeToDelete = noticeTypes.find(t => t.id === id);
+        const previous = queryClient.getQueryData<NoticeType[]>(['noticeTypes']);
+        queryClient.setQueryData<NoticeType[]>(['noticeTypes'], (old = []) =>
+            old.filter(t => t.id !== id)
+        );
+
+        undoAction({
+            message: `Notice type "${typeToDelete?.name || ''}" deleted`,
+            onExecute: async () => {
+                await deleteWithCredentials(`/api/notice-types/${id}`);
+                queryClient.invalidateQueries({ queryKey: ['noticeTypes'] });
+            },
+            onUndo: () => {
+                if (previous) queryClient.setQueryData(['noticeTypes'], previous);
+            },
+            errorMessage: 'Failed to delete notice type',
         });
-        if (!confirmed) return;
-        deleteNoticeTypeMutation.mutate(id);
     };
 
     // Mutations for closures

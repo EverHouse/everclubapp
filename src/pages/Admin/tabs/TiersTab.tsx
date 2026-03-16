@@ -8,7 +8,7 @@ import Toggle from '../../../components/Toggle';
 import FloatingActionButton from '../../../components/FloatingActionButton';
 import DiscountsSubTab from './DiscountsSubTab';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from '../../../hooks/queries/useFetch';
-import { useConfirmDialog } from '../../../components/ConfirmDialog';
+import { useUndoAction } from '../../../hooks/useUndoAction';
 import { TiersTabSkeleton } from '../../../components/skeletons';
 import { useToast } from '../../../components/Toast';
 import CafeTab from './CafeTab';
@@ -125,7 +125,7 @@ const TiersTab: React.FC = () => {
     const [editingLabelId, setEditingLabelId] = useState<number | null>(null);
     const [newFeatureForm, setNewFeatureForm] = useState({ key: '', label: '', type: 'boolean' as 'boolean' | 'number' | 'text' });
     const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
-    const { confirm, ConfirmDialogComponent } = useConfirmDialog();
+    const { execute: undoAction } = useUndoAction();
 
     const SUB_TABS: { key: SubTab; label: string; icon: string }[] = [
         { key: 'tiers', label: 'Memberships', icon: 'layers' },
@@ -339,29 +339,6 @@ const TiersTab: React.FC = () => {
         },
     });
 
-    const deleteFeatureMutation = useMutation({
-        mutationFn: async (featureId: number) => {
-            return deleteWithCredentials<void>(`/api/tier-features/${featureId}`);
-        },
-        onMutate: async (featureId) => {
-            await queryClient.cancelQueries({ queryKey: ['tier-features'] });
-            const snapshot = queryClient.getQueryData<TierFeature[]>(['tier-features']);
-            queryClient.setQueryData<TierFeature[]>(['tier-features'], (old) => {
-                if (!old) return old;
-                return old.filter(f => f.id !== featureId);
-            });
-            return { snapshot };
-        },
-        onError: (_err, _featureId, context) => {
-            if (context?.snapshot !== undefined) {
-                queryClient.setQueryData(['tier-features'], context.snapshot);
-            }
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ['tier-features'] });
-        },
-    });
-
     const syncStripeMutation = useMutation({
         mutationFn: async () => {
             return postWithCredentials<{ success: boolean; synced: number; failed: number; skipped: number; details?: Array<{ success: boolean; tierName: string; error?: string }> }>('/api/admin/stripe/sync-products', {});
@@ -433,15 +410,24 @@ const TiersTab: React.FC = () => {
         });
     };
 
-    const deleteFeature = async (featureId: number) => {
-        const confirmed = await confirm({
-            title: 'Delete Feature',
-            message: 'Are you sure you want to delete this feature? This will remove it from all tiers.',
-            confirmText: 'Delete',
-            variant: 'danger'
+    const deleteFeature = (featureId: number) => {
+        const featureToDelete = tierFeatures.find(f => f.id === featureId);
+        const snapshot = queryClient.getQueryData<TierFeature[]>(['tier-features']);
+        queryClient.setQueryData<TierFeature[]>(['tier-features'], (old) =>
+            old ? old.filter(f => f.id !== featureId) : old
+        );
+
+        undoAction({
+            message: `Feature "${featureToDelete?.displayLabel || ''}" deleted`,
+            onExecute: async () => {
+                await deleteWithCredentials<void>(`/api/tier-features/${featureId}`);
+                queryClient.invalidateQueries({ queryKey: ['tier-features'] });
+            },
+            onUndo: () => {
+                if (snapshot !== undefined) queryClient.setQueryData(['tier-features'], snapshot);
+            },
+            errorMessage: 'Failed to delete feature',
         });
-        if (!confirmed) return;
-        deleteFeatureMutation.mutate(featureId);
     };
 
     const openCreate = () => {
@@ -1348,7 +1334,6 @@ const TiersTab: React.FC = () => {
                     text="Add Coupon"
                 />
             )}
-            <ConfirmDialogComponent />
         </div>
     );
 };
