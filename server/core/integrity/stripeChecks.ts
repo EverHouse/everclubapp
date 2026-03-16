@@ -399,8 +399,9 @@ export async function checkOrphanedPaymentIntents(): Promise<IntegrityCheckResul
 export async function checkBillingProviderHybridState(): Promise<IntegrityCheckResult> {
   // NOTE: As of migration 0047, a CHECK constraint (users_billing_provider_no_hybrid)
   // prevents the critical case of billing_provider='mindbody' with a stripe_subscription_id.
-  // This check still catches softer issues: NULL billing_provider on active members,
-  // and stripe provider without a subscription ID (prod only).
+  // The trg_auto_billing_provider trigger auto-sets billing_provider on INSERT/UPDATE.
+  // This check is now informational — catches softer issues: NULL billing_provider on active members,
+  // and stripe provider without a subscription ID (prod only). Downgraded to medium severity.
   const issues: IntegrityIssue[] = [];
 
   const hybridResult = await db.execute(sql`
@@ -462,7 +463,7 @@ export async function checkBillingProviderHybridState(): Promise<IntegrityCheckR
 
   return {
     checkName: 'Billing Provider Hybrid State',
-    status: issues.length > 0 ? (issues.some(i => i.severity === 'error') ? 'fail' : 'warning') : 'pass',
+    status: issues.length > 0 ? 'warning' : 'pass',
     issueCount: issues.length,
     issues,
     lastRun: new Date()

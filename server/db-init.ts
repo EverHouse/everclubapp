@@ -847,8 +847,430 @@ export async function ensureDatabaseConstraints() {
     } catch (fixErr: unknown) {
       logger.error('[DB Init] Stripe customer reassignment failed:', { extra: { errorMessage: getErrorMessage(fixErr) } });
     }
+    try {
+      await db.execute(sql`
+        DELETE FROM guest_passes gp
+        WHERE NOT EXISTS (SELECT 1 FROM users u WHERE LOWER(u.email) = LOWER(gp.member_email))
+      `);
+      await db.execute(sql`
+        UPDATE guest_passes SET member_email = LOWER(TRIM(member_email))
+        WHERE member_email IS NOT NULL AND member_email != LOWER(TRIM(member_email))
+      `);
+      logger.info('[DB Init] Legacy guest pass data cleaned up');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Guest pass legacy cleanup: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      const emailOrphanCleanup = await db.execute(sql`
+        WITH deleted_notifications AS (
+          DELETE FROM notifications n
+          WHERE n.user_email IS NOT NULL AND n.user_email != ''
+            AND NOT EXISTS (SELECT 1 FROM users u WHERE LOWER(u.email) = LOWER(n.user_email))
+          RETURNING 1
+        ),
+        deleted_push AS (
+          DELETE FROM push_subscriptions ps
+          WHERE ps.user_email IS NOT NULL AND ps.user_email != ''
+            AND NOT EXISTS (SELECT 1 FROM users u WHERE LOWER(u.email) = LOWER(ps.user_email))
+          RETURNING 1
+        ),
+        deleted_dismissed AS (
+          DELETE FROM user_dismissed_notices udn
+          WHERE udn.user_email IS NOT NULL AND udn.user_email != ''
+            AND NOT EXISTS (SELECT 1 FROM users u WHERE LOWER(u.email) = LOWER(udn.user_email))
+          RETURNING 1
+        ),
+        deleted_rsvps AS (
+          DELETE FROM event_rsvps er
+          WHERE er.user_email IS NOT NULL AND er.user_email != ''
+            AND NOT EXISTS (SELECT 1 FROM users u WHERE LOWER(u.email) = LOWER(er.user_email))
+          RETURNING 1
+        ),
+        deleted_wellness AS (
+          DELETE FROM wellness_enrollments we
+          WHERE we.user_email IS NOT NULL AND we.user_email != ''
+            AND NOT EXISTS (SELECT 1 FROM users u WHERE LOWER(u.email) = LOWER(we.user_email))
+          RETURNING 1
+        )
+        SELECT
+          (SELECT COUNT(*) FROM deleted_notifications) AS notifs,
+          (SELECT COUNT(*) FROM deleted_push) AS push,
+          (SELECT COUNT(*) FROM deleted_dismissed) AS dismissed,
+          (SELECT COUNT(*) FROM deleted_rsvps) AS rsvps,
+          (SELECT COUNT(*) FROM deleted_wellness) AS wellness
+      `);
+      const row = emailOrphanCleanup.rows[0] as Record<string, string>;
+      const total = ['notifs', 'push', 'dismissed', 'rsvps', 'wellness'].reduce((sum, k) => sum + parseInt(row[k] || '0'), 0);
+      if (total > 0) {
+        logger.info(`[DB Init] Cleaned ${total} email-orphan records across dependent tables`, { extra: row });
+      }
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Email orphan cleanup: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        UPDATE usage_ledger SET member_id = NULL
+        WHERE member_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = member_id)
+      `);
+      logger.info('[DB Init] Legacy usage_ledger orphan member_id references cleaned up');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Usage ledger legacy cleanup: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        UPDATE trackman_webhook_events SET matched_booking_id = NULL
+        WHERE matched_booking_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM booking_requests br WHERE br.id = matched_booking_id)
+      `);
+      logger.info('[DB Init] Legacy trackman webhook orphan booking references cleaned up');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Trackman webhook legacy cleanup: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        UPDATE booking_requests SET session_id = NULL
+        WHERE session_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM booking_sessions bs WHERE bs.id = session_id)
+      `);
+      logger.info('[DB Init] Legacy booking_requests orphan session_id references cleaned up');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Booking requests session cleanup: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        UPDATE booking_requests SET closure_id = NULL
+        WHERE closure_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM facility_closures fc WHERE fc.id = closure_id)
+      `);
+      logger.info('[DB Init] Legacy booking_requests orphan closure_id references cleaned up');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Booking requests closure cleanup: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          ALTER TABLE booking_requests
+            DROP CONSTRAINT IF EXISTS booking_requests_session_id_fkey;
+          ALTER TABLE booking_requests
+            ADD CONSTRAINT booking_requests_session_id_fkey
+            FOREIGN KEY (session_id) REFERENCES booking_sessions(id) ON DELETE SET NULL;
+        END $$;
+      `);
+      logger.info('[DB Init] FK: booking_requests.session_id → booking_sessions.id created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping booking_requests.session_id FK: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          ALTER TABLE booking_requests
+            DROP CONSTRAINT IF EXISTS booking_requests_closure_id_fkey;
+          ALTER TABLE booking_requests
+            ADD CONSTRAINT booking_requests_closure_id_fkey
+            FOREIGN KEY (closure_id) REFERENCES facility_closures(id) ON DELETE SET NULL;
+        END $$;
+      `);
+      logger.info('[DB Init] FK: booking_requests.closure_id → facility_closures.id created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping booking_requests.closure_id FK: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          ALTER TABLE usage_ledger
+            DROP CONSTRAINT IF EXISTS usage_ledger_member_id_fkey;
+          ALTER TABLE usage_ledger
+            ADD CONSTRAINT usage_ledger_member_id_fkey
+            FOREIGN KEY (member_id) REFERENCES users(id) ON DELETE SET NULL;
+        END $$;
+      `);
+      logger.info('[DB Init] FK: usage_ledger.member_id → users.id created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping usage_ledger.member_id FK: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          ALTER TABLE trackman_webhook_events
+            DROP CONSTRAINT IF EXISTS trackman_webhook_events_matched_booking_id_fkey;
+          ALTER TABLE trackman_webhook_events
+            ADD CONSTRAINT trackman_webhook_events_matched_booking_id_fkey
+            FOREIGN KEY (matched_booking_id) REFERENCES booking_requests(id) ON DELETE SET NULL;
+        END $$;
+      `);
+      logger.info('[DB Init] FK: trackman_webhook_events.matched_booking_id → booking_requests.id created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping trackman_webhook_events.matched_booking_id FK: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          ALTER TABLE booking_wallet_passes
+            DROP CONSTRAINT IF EXISTS booking_wallet_passes_member_id_fkey;
+          ALTER TABLE booking_wallet_passes
+            ADD CONSTRAINT booking_wallet_passes_member_id_fkey
+            FOREIGN KEY (member_id) REFERENCES users(id) ON DELETE CASCADE;
+        END $$;
+      `);
+      logger.info('[DB Init] FK: booking_wallet_passes.member_id → users.id created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping booking_wallet_passes.member_id FK: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'users_membership_status_lowercase_check'
+          ) THEN
+            ALTER TABLE users ADD CONSTRAINT users_membership_status_lowercase_check
+              CHECK (membership_status = LOWER(membership_status));
+          END IF;
+        END $$;
+      `);
+      logger.info('[DB Init] CHECK: users.membership_status lowercase constraint created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping membership_status lowercase CHECK: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION cascade_user_email_delete()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        BEGIN
+          DELETE FROM public.notifications WHERE LOWER(user_email) = LOWER(OLD.email);
+          DELETE FROM public.push_subscriptions WHERE LOWER(user_email) = LOWER(OLD.email);
+          DELETE FROM public.guest_passes WHERE LOWER(member_email) = LOWER(OLD.email);
+          DELETE FROM public.member_notes WHERE LOWER(member_email) = LOWER(OLD.email);
+          DELETE FROM public.event_rsvps WHERE LOWER(user_email) = LOWER(OLD.email);
+          DELETE FROM public.wellness_enrollments WHERE LOWER(user_email) = LOWER(OLD.email);
+          DELETE FROM public.user_dismissed_notices WHERE LOWER(user_email) = LOWER(OLD.email);
+          RETURN OLD;
+        END;
+        $$;
+
+        DROP TRIGGER IF EXISTS trg_cascade_user_email_delete ON users;
+        CREATE TRIGGER trg_cascade_user_email_delete
+        BEFORE DELETE ON users
+        FOR EACH ROW
+        EXECUTE FUNCTION cascade_user_email_delete();
+
+        CREATE OR REPLACE FUNCTION cascade_user_email_update()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        BEGIN
+          IF LOWER(OLD.email) IS DISTINCT FROM LOWER(NEW.email) THEN
+            UPDATE public.notifications SET user_email = NEW.email WHERE LOWER(user_email) = LOWER(OLD.email);
+            UPDATE public.push_subscriptions SET user_email = NEW.email WHERE LOWER(user_email) = LOWER(OLD.email);
+            UPDATE public.guest_passes SET member_email = NEW.email WHERE LOWER(member_email) = LOWER(OLD.email);
+            UPDATE public.member_notes SET member_email = NEW.email WHERE LOWER(member_email) = LOWER(OLD.email);
+            UPDATE public.event_rsvps SET user_email = NEW.email WHERE LOWER(user_email) = LOWER(OLD.email);
+            UPDATE public.wellness_enrollments SET user_email = NEW.email WHERE LOWER(user_email) = LOWER(OLD.email);
+            UPDATE public.user_dismissed_notices SET user_email = NEW.email WHERE LOWER(user_email) = LOWER(OLD.email);
+          END IF;
+          RETURN NEW;
+        END;
+        $$;
+
+        DROP TRIGGER IF EXISTS trg_cascade_user_email_update ON users;
+        CREATE TRIGGER trg_cascade_user_email_update
+        AFTER UPDATE OF email ON users
+        FOR EACH ROW
+        EXECUTE FUNCTION cascade_user_email_update();
+      `);
+      logger.info('[DB Init] Triggers: cascade_user_email_delete + cascade_user_email_update created');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping cascade email triggers: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION validate_email_exists_in_users()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        DECLARE
+          email_col TEXT;
+          email_val TEXT;
+        BEGIN
+          IF TG_TABLE_NAME IN ('notifications', 'push_subscriptions', 'event_rsvps', 'wellness_enrollments', 'user_dismissed_notices') THEN
+            email_val := NEW.user_email;
+          ELSIF TG_TABLE_NAME IN ('member_notes') THEN
+            email_val := NEW.member_email;
+          ELSE
+            RETURN NEW;
+          END IF;
+          IF email_val IS NULL OR email_val = '' THEN
+            RETURN NEW;
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM public.users WHERE LOWER(email) = LOWER(email_val)) THEN
+            RAISE EXCEPTION 'Email "%" in % does not match any user — orphan record rejected', email_val, TG_TABLE_NAME;
+          END IF;
+          RETURN NEW;
+        END;
+        $$;
+      `);
+
+      const emailTables = [
+        { table: 'notifications', col: 'user_email' },
+        { table: 'push_subscriptions', col: 'user_email' },
+        { table: 'event_rsvps', col: 'user_email' },
+        { table: 'wellness_enrollments', col: 'user_email' },
+        { table: 'user_dismissed_notices', col: 'user_email' },
+        { table: 'member_notes', col: 'member_email' },
+      ];
+
+      for (const { table, col } of emailTables) {
+        const triggerName = `trg_validate_email_${table}`;
+        await db.execute(sql.raw(`
+          DROP TRIGGER IF EXISTS ${triggerName} ON ${table};
+          CREATE TRIGGER ${triggerName}
+          BEFORE INSERT OR UPDATE OF ${col} ON ${table}
+          FOR EACH ROW
+          EXECUTE FUNCTION validate_email_exists_in_users();
+        `));
+      }
+
+      logger.info('[DB Init] Email validation triggers created on 6 dependent tables (prevents orphan inserts)');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping email validation triggers: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION validate_guest_pass_member()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM public.users WHERE LOWER(email) = LOWER(NEW.member_email)) THEN
+            RAISE EXCEPTION 'Guest pass member_email "%" does not match any user', NEW.member_email;
+          END IF;
+          RETURN NEW;
+        END;
+        $$;
+
+        DROP TRIGGER IF EXISTS trg_validate_guest_pass_member ON guest_passes;
+        CREATE TRIGGER trg_validate_guest_pass_member
+        BEFORE INSERT OR UPDATE OF member_email ON guest_passes
+        FOR EACH ROW
+        EXECUTE FUNCTION validate_guest_pass_member();
+      `);
+      logger.info('[DB Init] Trigger: validate_guest_pass_member created (prevents orphan guest passes)');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping validate_guest_pass_member trigger: ${getErrorMessage(err)}`);
+    }
+
+    logger.info('[DB Init] Data integrity hardening constraints applied');
   } catch (error: unknown) {
     logger.error('[DB Init] Failed to ensure constraints:', { extra: { errorMessage: getErrorMessage(error) } });
+  }
+}
+
+export async function verifyIntegrityConstraints(): Promise<{ verified: boolean; missing: string[] }> {
+  const requiredConstraints = [
+    { name: 'booking_requests_time_order_check', type: 'constraint', justifies: 'Booking Time Validity check elimination' },
+    { name: 'booking_sessions_time_order_check', type: 'constraint', justifies: 'Booking Time Validity check elimination' },
+    { name: 'users_active_email_check', type: 'constraint', justifies: 'Members Without Email check elimination' },
+    { name: 'users_hubspot_id_unique', type: 'index', justifies: 'HubSpot ID Duplicates check elimination' },
+    { name: 'users_membership_status_lowercase_check', type: 'constraint', justifies: 'Status normalization auto-fix retirement' },
+  ];
+
+  const requiredTriggers = [
+    { name: 'trg_validate_guest_pass_member', justifies: 'Guest Passes Without Members check elimination' },
+    { name: 'trg_cascade_user_email_delete', justifies: 'Email Cascade Orphans check elimination (delete cascade)' },
+    { name: 'trg_cascade_user_email_update', justifies: 'Email Cascade Orphans check elimination (update cascade)' },
+    { name: 'trg_validate_email_notifications', justifies: 'Email Cascade Orphans check elimination (insert validation)' },
+    { name: 'trg_validate_email_push_subscriptions', justifies: 'Email Cascade Orphans check elimination (insert validation)' },
+    { name: 'trg_validate_email_event_rsvps', justifies: 'Email Cascade Orphans check elimination (insert validation)' },
+    { name: 'trg_validate_email_wellness_enrollments', justifies: 'Email Cascade Orphans check elimination (insert validation)' },
+    { name: 'trg_validate_email_user_dismissed_notices', justifies: 'Email Cascade Orphans check elimination (insert validation)' },
+    { name: 'trg_validate_email_member_notes', justifies: 'Email Cascade Orphans check elimination (insert validation)' },
+    { name: 'check_booking_session_overlap', justifies: 'Overlapping Bookings check downgrade' },
+    { name: 'trg_auto_billing_provider', justifies: 'Billing Provider Hybrid State check downgrade' },
+    { name: 'trg_link_participant_user_id', justifies: 'Sessions Without Participants check downgrade' },
+  ];
+
+  const requiredFKs = [
+    { table: 'booking_participants', column: 'user_id', justifies: 'Participant User Relationships check elimination' },
+    { table: 'booking_requests', column: 'session_id', justifies: 'Booking session FK integrity' },
+    { table: 'booking_requests', column: 'closure_id', justifies: 'Booking closure FK integrity' },
+    { table: 'usage_ledger', column: 'member_id', justifies: 'Usage ledger member FK integrity' },
+    { table: 'trackman_webhook_events', column: 'matched_booking_id', justifies: 'Trackman webhook booking FK integrity' },
+    { table: 'booking_wallet_passes', column: 'member_id', justifies: 'Wallet pass member FK integrity' },
+  ];
+
+  const missing: string[] = [];
+
+  try {
+    for (const c of requiredConstraints) {
+      const result = await db.execute(sql`
+        SELECT 1 FROM pg_constraint WHERE conname = ${c.name}
+        UNION ALL
+        SELECT 1 FROM pg_indexes WHERE indexname = ${c.name}
+        LIMIT 1
+      `);
+      if (result.rows.length === 0) {
+        missing.push(`${c.name} (${c.justifies})`);
+      }
+    }
+
+    for (const t of requiredTriggers) {
+      const result = await db.execute(sql`
+        SELECT 1 FROM pg_trigger WHERE tgname = ${t.name} LIMIT 1
+      `);
+      if (result.rows.length === 0) {
+        missing.push(`trigger:${t.name} (${t.justifies})`);
+      }
+    }
+
+    for (const fk of requiredFKs) {
+      const result = await db.execute(sql`
+        SELECT 1 FROM pg_constraint c
+        JOIN pg_class r ON c.conrelid = r.oid
+        JOIN pg_attribute a ON a.attrelid = r.oid AND a.attnum = ANY(c.conkey)
+        WHERE r.relname = ${fk.table} AND a.attname = ${fk.column} AND c.contype = 'f'
+        LIMIT 1
+      `);
+      if (result.rows.length === 0) {
+        missing.push(`fk:${fk.table}.${fk.column} (${fk.justifies})`);
+      }
+    }
+
+    if (missing.length > 0) {
+      logger.error('[DB Init] INTEGRITY CONSTRAINT VERIFICATION FAILED — missing protections:', { extra: { missing } });
+    } else {
+      logger.info('[DB Init] All integrity constraints verified — 6 eliminated checks are safely backed by DB-level enforcement');
+    }
+
+    return { verified: missing.length === 0, missing };
+  } catch (error: unknown) {
+    logger.error('[DB Init] Constraint verification query failed:', { extra: { errorMessage: getErrorMessage(error) } });
+    return { verified: false, missing: ['verification query failed'] };
   }
 }
 

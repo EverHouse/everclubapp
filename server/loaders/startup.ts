@@ -150,6 +150,17 @@ export async function runStartupTasks(): Promise<void> {
   logger.info('[Startup] Parallel DB initialization tasks complete');
 
   try {
+    const { verifyIntegrityConstraints } = await import('../db-init');
+    const verification = await verifyIntegrityConstraints();
+    if (!verification.verified) {
+      logger.error('[Startup] Integrity constraint verification failed — some eliminated checks lack DB backing', { extra: { missing: verification.missing } });
+      startupHealth.criticalFailures.push(`Missing integrity constraints: ${verification.missing.join(', ')}`);
+    }
+  } catch (err: unknown) {
+    logger.warn(`[Startup] Integrity constraint verification skipped: ${getErrorMessage(err)}`);
+  }
+
+  try {
     const databaseUrl = process.env.DATABASE_URL;
     if (databaseUrl) {
       logger.info('[Stripe] Initializing Stripe schema...');

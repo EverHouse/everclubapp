@@ -460,9 +460,6 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Stripe Subscription Sync': 'critical',
   'Stuck Transitional Members': 'critical',
   'Active Bookings Without Sessions': 'critical',
-  'Participant User Relationships': 'high',
-  'Booking Time Validity': 'high',
-  'Members Without Email': 'high',
   'Tier Reconciliation': 'high',
   'Duplicate Stripe Customers': 'high',
   'MindBody Stale Sync': 'medium',
@@ -470,18 +467,16 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Items Needing Review': 'low',
   'Stale Past Tours': 'low',
   'Unmatched Trackman Bookings': 'medium',
-  'HubSpot ID Duplicates': 'high',
   'Sessions Without Participants': 'low',
   'Orphaned Payment Intents': 'critical',
-  'Guest Passes Without Members': 'medium',
-  'Billing Provider Hybrid State': 'critical',
+  'Billing Provider Hybrid State': 'medium',
   'Invoice-Booking Reconciliation': 'critical',
-  'Overlapping Bookings': 'critical',
+  'Overlapping Bookings': 'low',
   'Guest Pass Accounting Drift': 'high',
   'Stale Pending Bookings': 'high',
   'Archived Member Lingering Data': 'high',
   'Active Members Without Waivers': 'medium',
-  'Email Cascade Orphans': 'medium',
+  'Lingering Payment Intents on Terminal Bookings': 'high',
 };
 
 export function getCheckSeverity(checkName: string): 'critical' | 'high' | 'medium' | 'low' {
@@ -746,18 +741,15 @@ export async function getIntegritySummary(): Promise<IntegritySummary> {
 }
 
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<IntegrityCheckResult[]> {
-  const { checkUnmatchedTrackmanBookings, checkParticipantUserRelationships, checkNeedsReviewItems, checkBookingTimeValidity, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings } = await import('./bookingChecks');
-  const { checkHubSpotSyncMismatch, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
+  const { checkUnmatchedTrackmanBookings, checkNeedsReviewItems, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings } = await import('./bookingChecks');
+  const { checkHubSpotSyncMismatch } = await import('./hubspotChecks');
   const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents } = await import('./stripeChecks');
-  const { checkMembersWithoutEmail, checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkGuestPassesForNonExistentMembers, checkArchivedMemberLingeringData, checkActiveMembersWithoutWaivers, checkEmailOrphans } = await import('./memberChecks');
+  const { checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkArchivedMemberLingeringData, checkActiveMembersWithoutWaivers } = await import('./memberChecks');
 
   const checks = await Promise.all([
     safeCheck(checkUnmatchedTrackmanBookings, 'Unmatched Trackman Bookings'),
-    safeCheck(checkParticipantUserRelationships, 'Participant User Relationships'),
     safeCheck(checkHubSpotSyncMismatch, 'HubSpot Sync Mismatch'),
     safeCheck(checkNeedsReviewItems, 'Items Needing Review'),
-    safeCheck(checkBookingTimeValidity, 'Booking Time Validity'),
-    safeCheck(checkMembersWithoutEmail, 'Members Without Email'),
     safeCheck(checkStripeSubscriptionSync, 'Stripe Subscription Sync'),
     safeCheck(checkStuckTransitionalMembers, 'Stuck Transitional Members'),
     safeCheck(checkTierReconciliation, 'Tier Reconciliation'),
@@ -765,10 +757,8 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     safeCheck(checkDuplicateStripeCustomers, 'Duplicate Stripe Customers'),
     safeCheck(checkMindBodyStaleSyncMembers, 'MindBody Stale Sync'),
     safeCheck(checkMindBodyStatusMismatch, 'MindBody Data Quality'),
-    safeCheck(checkHubSpotIdDuplicates, 'HubSpot ID Duplicates'),
     safeCheck(checkSessionsWithoutParticipants, 'Sessions Without Participants'),
     safeCheck(checkOrphanedPaymentIntents, 'Orphaned Payment Intents'),
-    safeCheck(checkGuestPassesForNonExistentMembers, 'Guest Passes Without Members'),
     safeCheck(checkBillingProviderHybridState, 'Billing Provider Hybrid State'),
     safeCheck(checkInvoiceBookingReconciliation, 'Invoice-Booking Reconciliation'),
     safeCheck(checkOverlappingBookings, 'Overlapping Bookings'),
@@ -777,7 +767,6 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     safeCheck(checkStalePastTours, 'Stale Past Tours'),
     safeCheck(checkArchivedMemberLingeringData, 'Archived Member Lingering Data'),
     safeCheck(checkActiveMembersWithoutWaivers, 'Active Members Without Waivers'),
-    safeCheck(checkEmailOrphans, 'Email Cascade Orphans'),
     safeCheck(checkLateCancelPreservedPaymentIntents, 'Lingering Payment Intents on Terminal Bookings'),
   ]);
 

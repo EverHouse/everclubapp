@@ -11,7 +11,7 @@ Layered defense against data corruption, sync drift, and operational failures ac
 
 | Task | Primary File(s) | When to touch |
 |---|---|---|
-| Integrity checks (27) | `server/core/dataIntegrity.ts` (barrel re-export), `server/core/integrity/` (actual modules: `core.ts`, `memberChecks.ts`, `stripeChecks.ts`, `bookingChecks.ts`, `hubspotChecks.ts`, `cleanup.ts`, `resolution.ts`) | Check logic, issue tracking, ignore rules, audit log |
+| Integrity checks (21 active) | `server/core/dataIntegrity.ts` (barrel re-export), `server/core/integrity/` (actual modules: `core.ts`, `memberChecks.ts`, `stripeChecks.ts`, `bookingChecks.ts`, `hubspotChecks.ts`, `cleanup.ts`, `resolution.ts`) | Check logic, issue tracking, ignore rules, audit log |
 | Data alerts (in-app) | `server/core/dataAlerts.ts` | Staff notifications for failures |
 | Error alerts (email) | `server/core/errorAlerts.ts` | Email alerts with plain-language translation |
 | Monitoring core | `server/core/monitoring.ts` | `system_alerts` table + in-memory buffer |
@@ -71,13 +71,14 @@ What type of alert?
 4. **Per-key cooldowns.** Error alerts: 4-hour. Data alerts: 30 min. Integrity alerts: 4 hours. Fingerprint dedup prevents re-notification for unchanged issues.
 5. **Daily email cap: 3 per 24h.** Stored in `system_settings` (key: `alert_rate_limits`) for persistence across restarts.
 6. **DB lock for multi-instance safety.** Integrity scheduler uses `system_settings` upsert with `IS DISTINCT FROM` guard.
-7. **Auto-fix tiers run every 24h (daily safety net).** Normalize status casing, auto-classify billing_provider (Stripe first, then MindBody), sync staff roles. Primary enforcement is via DB triggers.
-8. **Stripe billing_provider classification takes priority over MindBody.** Auto-fix checks Stripe subscription first.
-9. **Default billing_provider is `'stripe'`.** Schema default + db-init ALTER + explicit creation paths.
-10. **Booking auto-complete runs every 1 hr.** Marks approved/confirmed as `attended` 30 min after end time for same-day, or next day for overnight. Fee guard: blocks if unpaid fees exist.
-11. **Abandoned pending cleanup (every 6h).** Delete users pending >24h with no Stripe subscription, cascade-deleting related records in transaction.
-12. **Drizzle SQL null safety.** All optional values in `sql` template literals MUST use `?? null`. Prevents empty placeholder syntax errors.
-13. **Webhook dedup cleanup.** `cleanupOldProcessedEvents()` runs probabilistically (5% of webhooks).
+7. **Auto-fix tiers run every 24h (reduced scope).** Linked-email tier cleanup and HubSpot tier candidates only. Email normalization, status case normalization, billing provider auto-set, staff role sync, and participant user_id linking are now handled exclusively by DB triggers (`normalize_email_trigger`, `users_membership_status_lowercase_check`, `trg_auto_billing_provider`, `trg_sync_staff_role`, `trg_link_participant_user_id`).
+8. **6 integrity checks eliminated by DB constraints.** Participant User Relationships (FK), Booking Time Validity (CHECK), Members Without Email (CHECK), HubSpot ID Duplicates (unique index), Guest Passes Without Members (trigger), Email Cascade Orphans (trigger). These issues are now impossible at the DB level.
+9. **3 integrity checks downgraded to informational.** Overlapping Bookings → low (DB trigger prevents new), Billing Provider Hybrid State → medium (trigger auto-sets), Sessions Without Participants → low (informational).
+10. **Default billing_provider is `'stripe'`.** Schema default + db-init ALTER + explicit creation paths.
+11. **Booking auto-complete runs every 1 hr.** Marks approved/confirmed as `attended` 30 min after end time for same-day, or next day for overnight. Fee guard: blocks if unpaid fees exist.
+12. **Abandoned pending cleanup (every 6h).** Delete users pending >24h with no Stripe subscription, cascade-deleting related records in transaction.
+13. **Drizzle SQL null safety.** All optional values in `sql` template literals MUST use `?? null`. Prevents empty placeholder syntax errors.
+14. **Webhook dedup cleanup.** `cleanupOldProcessedEvents()` runs probabilistically (5% of webhooks).
 
 ## Anti-Patterns (NEVER)
 
@@ -97,7 +98,7 @@ What type of alert?
 
 ## Detailed Reference
 
-- **[references/integrity-checks.md](references/integrity-checks.md)** — Complete list of all 27 integrity checks with detection logic, severity, and recommended actions. Webhook, job queue, and HubSpot queue monitors.
+- **[references/integrity-checks.md](references/integrity-checks.md)** — Complete list of all 21 active integrity checks with detection logic, severity, and recommended actions. Webhook, job queue, and HubSpot queue monitors.
 - **[references/scheduler-map.md](references/scheduler-map.md)** — All 28 scheduled tasks with frequencies, execution windows, multi-instance safety.
 
 ---
@@ -108,10 +109,10 @@ What type of alert?
 
 | Severity | Behavior | Examples |
 |---|---|---|
-| **Critical** | Notify staff every run | Stripe Sub Sync, Billing Provider Hybrid, Orphaned Payments, Overlapping Bookings |
-| **High** | Notify when count > threshold (10) | Tier Reconciliation, Duplicate Stripe Customers, Guest Pass Drift |
-| **Medium** | Dashboard only, no proactive alert | Orphan Participants, Unmatched Trackman, Email Cascade Orphans |
-| **Low** | Informational | Sessions Without Participants, Items Needing Review |
+| **Critical** | Notify staff every run | Stripe Sub Sync, Orphaned Payments, Invoice-Booking Reconciliation, Active Bookings Without Sessions |
+| **High** | Notify when count > threshold (10) | Tier Reconciliation, Duplicate Stripe Customers, Guest Pass Drift, Stale Pending, Archived Lingering |
+| **Medium** | Dashboard only, no proactive alert | Unmatched Trackman, MindBody Stale/Quality, Billing Provider Hybrid, Active Members Without Waivers |
+| **Low** | Informational | Sessions Without Participants, Overlapping Bookings, Items Needing Review, Stale Past Tours |
 
 ### Error Alert Email Types
 
@@ -156,7 +157,7 @@ What type of alert?
 
 | Task | Interval | What |
 |---|---|---|
-| Auto-Fix Tiers | 24h | Normalize status, classify billing_provider, sync staff |
+| Auto-Fix Tiers | 24h | Linked-email tier cleanup, HubSpot tier candidates |
 | Stripe Reconciliation | Daily 5 AM | Subscriptions + payments vs DB |
 | Fee Snapshot Recon | 15 min | Pending fee snapshots |
 | Abandoned Pending | 6h | Delete 24h+ pending users |

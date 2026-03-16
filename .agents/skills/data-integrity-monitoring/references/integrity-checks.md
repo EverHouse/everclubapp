@@ -6,6 +6,35 @@ All checks are defined in `server/core/integrity/` (modular split from `server/c
 
 Issues are categorized as: `orphan_record`, `sync_mismatch`, `data_quality`, `booking_issue`, `billing_issue`.
 
+**Active checks: 21** (reduced from 27 — 6 eliminated by DB constraints/triggers)
+
+---
+
+## Eliminated Checks (prevented at DB level)
+
+The following checks were removed because their issues are now impossible at the database level:
+
+| Former Check | DB Protection | Added In |
+|---|---|---|
+| Participant User Relationships | `booking_participants.user_id` FK → `users.id ON DELETE SET NULL` (Drizzle schema) | Schema |
+| Booking Time Validity | `booking_requests_time_order_check` + `booking_sessions_time_order_check` CHECK constraints | db-init.ts |
+| Members Without Email | `users_active_email_check` CHECK constraint (active members must have email) | db-init.ts |
+| HubSpot ID Duplicates | `users_hubspot_id_unique` partial unique index (production) | db-init.ts |
+| Guest Passes Without Members | `trg_validate_guest_pass_member` trigger (validates member_email exists on INSERT/UPDATE) | db-init.ts |
+| Email Cascade Orphans | 3-layer protection: (1) `trg_cascade_user_email_delete` + `trg_cascade_user_email_update` cascade user changes/deletes to 7 dependent tables; (2) `trg_validate_email_*` triggers on 6 child tables REJECT orphan inserts/updates (RAISE EXCEPTION); (3) startup cleanup removes existing orphans | db-init.ts |
+
+---
+
+## Downgraded Checks (informational safety nets)
+
+These checks remain active but downgraded because DB triggers prevent new occurrences:
+
+| Check | Old Severity | New Severity | DB Protection |
+|---|---|---|---|
+| Overlapping Bookings | critical | low | `check_booking_session_overlap` exclusion trigger |
+| Billing Provider Hybrid State | critical | medium | `users_billing_provider_no_hybrid` CHECK + `trg_auto_billing_provider` trigger |
+| Sessions Without Participants | low (fail) | low (warning) | `trg_link_participant_user_id` trigger auto-links owner |
+
 ---
 
 ## Critical Severity Checks
@@ -14,10 +43,6 @@ Issues are categorized as: `orphan_record`, `sync_mismatch`, `data_quality`, `bo
 - **Detects**: Members where app tier/name differs from HubSpot contact properties (firstname, lastname, membership_tier).
 - **Logic**: Fetch HubSpot contacts by `hubspot_id`, compare normalized tier values using `denormalizeTierForHubSpot()`. Skip churned/no-tier statuses.
 - **Action**: Use sync push (app→HubSpot) or sync pull (HubSpot→app) from the dashboard. Bulk push available via `bulkPushToHubSpot()`.
-
-### Deal Stage Drift
-- **Detects**: HubSpot deals where the pipeline stage does not match the expected stage based on the member's current membership status.
-- **Action**: Review deal in HubSpot and update stage, or update member status in app.
 
 ### Stripe Subscription Sync
 - **Detects**: Members with `billing_provider='stripe'` whose local subscription status differs from the actual Stripe subscription state.
@@ -32,41 +57,17 @@ Issues are categorized as: `orphan_record`, `sync_mismatch`, `data_quality`, `bo
 - **Detects**: Confirmed booking requests that have no corresponding booking sessions.
 - **Action**: Create sessions for the booking or cancel the orphaned request.
 
-### Orphaned Fee Snapshots
-- **Detects**: Fee snapshot records referencing users or bookings that no longer exist.
-- **Action**: Delete orphaned snapshots or re-link to correct records.
-
 ### Orphaned Payment Intents
 - **Detects**: Stripe payment intents recorded locally that have no matching booking or user.
 - **Action**: Verify in Stripe dashboard and clean up orphaned records.
 
-### Billing Provider Hybrid State
-- **Detects**: Three sub-conditions: (1) `billing_provider='mindbody'` but has Stripe subscription (severity: error), (2) Active member with no billing provider set (severity: warning), (3) `billing_provider='stripe'` but no `stripe_subscription_id` (severity: warning).
-- **Action**: Update billing_provider to match actual billing source.
+### Invoice-Booking Reconciliation
+- **Detects**: (1) Duplicate Stripe invoices shared across multiple active bookings (double-billing risk). (2) Attended bookings within the last 90 days with no Stripe invoice created (unbilled service).
+- **Action**: For duplicates, verify in Stripe dashboard and void/refund the duplicate invoice. For missing invoices, create invoice retroactively or investigate why billing was skipped.
 
 ---
 
 ## High Severity Checks
-
-### Participant User Relationships
-- **Detects**: Booking participants referencing user IDs that do not exist in the users table.
-- **Action**: Delete orphaned participants or re-link to correct user.
-
-### Booking Resource Relationships
-- **Detects**: Booking requests referencing resource IDs that do not exist in the resources table.
-- **Action**: Update resource assignment or cancel booking.
-
-### Booking Time Validity
-- **Detects**: Bookings with invalid time ranges (end before start, zero duration, excessive duration).
-- **Action**: Correct time values or cancel invalid bookings.
-
-### Members Without Email
-- **Detects**: User records with role='member' that have no email address.
-- **Action**: Add email or archive the record.
-
-### Deals Without Line Items
-- **Detects**: HubSpot deals that have no associated line items.
-- **Action**: Add line items in HubSpot or mark deal as informational.
 
 ### Tier Reconciliation
 - **Detects**: Members where `tier` and `membership_tier` fields disagree, or tier does not match what Stripe subscription metadata indicates.
@@ -75,50 +76,6 @@ Issues are categorized as: `orphan_record`, `sync_mismatch`, `data_quality`, `bo
 ### Duplicate Stripe Customers
 - **Detects**: Multiple Stripe customer IDs associated with the same member email.
 - **Action**: Merge duplicate Stripe customers and update local references.
-
-### HubSpot ID Duplicates
-- **Detects**: Multiple local user records pointing to the same HubSpot contact ID.
-- **Action**: Merge duplicate users or correct HubSpot ID assignments.
-
----
-
-## Medium Severity Checks
-
-### Orphan Booking Participants
-- **Detects**: Booking participants referencing booking sessions that no longer exist.
-- **Action**: Delete orphaned participant records.
-
-### Orphan Wellness Enrollments
-- **Detects**: Wellness class enrollments referencing classes that no longer exist.
-- **Action**: Delete orphaned enrollment records.
-
-### Orphan Event RSVPs
-- **Detects**: Event RSVPs referencing events that no longer exist.
-- **Action**: Delete orphaned RSVP records.
-
-### MindBody Stale Sync
-- **Detects**: Members with MindBody client IDs whose last sync timestamp is older than a threshold.
-- **Action**: Trigger a fresh MindBody sync for affected members.
-
-### MindBody Data Quality
-- **Detects**: Members with MindBody data that has quality issues (missing fields, inconsistent status).
-- **Action**: Review and correct member data.
-
-### Unmatched Trackman Bookings
-- **Detects**: Trackman webhook booking events that could not be matched to any local booking request.
-- **Action**: Manually match or create bookings for unmatched Trackman events.
-
-### Guest Passes Without Members
-- **Detects**: Guest pass records where the associated member email does not match any user.
-- **Action**: Link to correct member or delete orphaned passes.
-
-### Invoice-Booking Reconciliation
-- **Detects**: (1) Duplicate Stripe invoices shared across multiple active bookings (double-billing risk). (2) Attended bookings within the last 90 days with no Stripe invoice created (unbilled service).
-- **Action**: For duplicates, verify in Stripe dashboard and void/refund the duplicate invoice. For missing invoices, create invoice retroactively or investigate why billing was skipped.
-
-### Overlapping Bookings
-- **Detects**: Booking sessions where two or more active bookings (approved/confirmed/attended) overlap on the same resource (bay) on the same date within the last 30 days.
-- **Action**: Reschedule or cancel one of the overlapping bookings to resolve the conflict. Investigate if this resulted from a race condition in the booking flow.
 
 ### Guest Pass Accounting Drift
 - **Detects**: Three sub-conditions: (1) Guest pass records where passes_used exceeds passes_total (error). (2) Guest pass holds referencing non-existent bookings (orphan). (3) Expired guest pass holds not cleaned up.
@@ -132,25 +89,48 @@ Issues are categorized as: `orphan_record`, `sync_mismatch`, `data_quality`, `bo
 - **Detects**: Archived members who still have active future bookings, guest pass holds, group memberships, push subscriptions, confirmed wellness enrollments, future event RSVPs, or booking participations in others' bookings.
 - **Action**: Clean up lingering data for the archived member or re-archive them using the updated archive flow (which now auto-cleans these records).
 
+### Lingering Payment Intents on Terminal Bookings
+- **Detects**: Payment intents in succeeded/requires_capture state on bookings that have been cancelled, declined, or are in other terminal statuses.
+- **Action**: Cancel or refund the lingering payment intent.
+
 ---
 
-## Medium Severity Checks (Additional)
+## Medium Severity Checks
+
+### MindBody Stale Sync
+- **Detects**: Members with MindBody client IDs whose last sync timestamp is older than a threshold.
+- **Action**: Trigger a fresh MindBody sync for affected members.
+
+### MindBody Data Quality
+- **Detects**: Members with MindBody data that has quality issues (missing fields, inconsistent status).
+- **Action**: Review and correct member data.
+
+### Unmatched Trackman Bookings
+- **Detects**: Trackman webhook booking events that could not be matched to any local booking request.
+- **Action**: Manually match or create bookings for unmatched Trackman events.
+
+### Billing Provider Hybrid State (downgraded from critical)
+- **Detects**: Active members with no billing provider set, or `billing_provider='stripe'` but no `stripe_subscription_id`.
+- **Note**: The critical case (billing_provider='mindbody' with Stripe subscription) is now prevented by `users_billing_provider_no_hybrid` CHECK constraint. Auto-classification is handled by `trg_auto_billing_provider` trigger.
+- **Action**: Classify billing provider as stripe, mindbody, manual, or comped.
 
 ### Active Members Without Waivers
 - **Detects**: Active members (status='active', role='member') who have no signed waiver on file (waiver_signed_at IS NULL AND waiver_version IS NULL), created more than 7 days ago.
 - **Action**: Request waiver signature from the member at their next visit.
 
-### Email Cascade Orphans
-- **Detects**: Records in notifications, booking_participants, event_rsvps, push_subscriptions, wellness_enrollments, and user_dismissed_notices where the email does not match any user in the users table. These are typically caused by email changes that didn't cascade to all tables, or by user deletions.
-- **Action**: Link records to the correct user email or clean up orphaned records.
-
 ---
 
 ## Low Severity Checks
 
-### Sessions Without Participants
+### Sessions Without Participants (downgraded)
 - **Detects**: Booking sessions that have no participants assigned.
+- **Note**: `trg_link_participant_user_id` trigger auto-links owner participants on insert. This check catches edge cases only.
 - **Action**: Add participants or review if session is still needed.
+
+### Overlapping Bookings (downgraded from critical)
+- **Detects**: Booking sessions where two or more active bookings overlap on the same resource on the same date within the last 30 days.
+- **Note**: `check_booking_session_overlap` trigger prevents new overlaps. Remaining detections are legacy data or edge cases.
+- **Action**: Reschedule or cancel one of the overlapping bookings.
 
 ### Items Needing Review
 - **Detects**: Records across various tables flagged with `needs_review=true`.

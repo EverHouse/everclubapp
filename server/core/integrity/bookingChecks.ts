@@ -405,7 +405,7 @@ export async function checkSessionsWithoutParticipants(): Promise<IntegrityCheck
 
   return {
     checkName: 'Sessions Without Participants',
-    status: issues.length === 0 ? 'pass' : issues.length > 5 ? 'fail' : 'warning',
+    status: issues.length === 0 ? 'pass' : 'warning',
     issueCount: issues.length,
     issues,
     lastRun: new Date()
@@ -441,11 +441,11 @@ export async function checkOverlappingBookings(): Promise<IntegrityCheckResult> 
     for (const row of overlapsResult.rows as unknown as OverlapRow[]) {
       issues.push({
         category: 'booking_issue',
-        severity: 'error',
+        severity: 'warning',
         table: 'booking_sessions',
         recordId: `${row.session1_id}-${row.session2_id}`,
         description: `Sessions #${row.session1_id} and #${row.session2_id} overlap on resource ${row.resource_id} on ${row.session_date} (${row.start_time}-${row.end_time} vs ${row.overlap_start}-${row.overlap_end})`,
-        suggestion: 'Two active bookings overlap on the same bay. One should be rescheduled or cancelled to prevent conflicts.',
+        suggestion: 'Informational: DB trigger prevents new overlaps. This may be a legacy overlap or an edge case that slipped through.',
         context: {
           resourceId: Number(row.resource_id),
           resourceName: row.resource_name || undefined,
@@ -483,7 +483,7 @@ export async function checkOverlappingBookings(): Promise<IntegrityCheckResult> 
 
   return {
     checkName: 'Overlapping Bookings',
-    status: issues.length === 0 ? 'pass' : 'fail',
+    status: issues.length === 0 ? 'pass' : 'warning',
     issueCount: issues.length,
     issues,
     lastRun: new Date()

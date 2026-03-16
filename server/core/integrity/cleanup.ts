@@ -3,28 +3,18 @@ import { sql } from 'drizzle-orm';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { logger } from '../logger';
 import type {
-  TotalRow,
   CountRow,
-  EmailRow,
-  CaseNormRow,
   HubSpotTierCandidateRow,
   RemainingMemberRow,
-  StaffSyncRow,
 } from './core';
 
 export async function runDataCleanup(): Promise<{
   orphanedNotifications: number;
   orphanedBookings: number;
-  normalizedEmails: number;
   expiredHolds: number;
 }> {
-  // eslint-disable-next-line no-useless-assignment
   let orphanedNotifications = 0;
-  // eslint-disable-next-line no-useless-assignment
   let orphanedBookings = 0;
-  // eslint-disable-next-line no-useless-assignment
-  let normalizedEmails = 0;
-  // eslint-disable-next-line no-useless-assignment
   let expiredHolds = 0;
 
   try {
@@ -49,48 +39,6 @@ export async function runDataCleanup(): Promise<{
     `);
     orphanedBookings = bookingResult.rows.length;
 
-    const emailResult = await db.execute(sql`
-      WITH 
-        users_updated AS (
-          UPDATE users SET email = LOWER(TRIM(email))
-          WHERE email != LOWER(TRIM(email))
-          RETURNING 1
-        ),
-        bookings_updated AS (
-          UPDATE booking_requests SET user_email = LOWER(TRIM(user_email))
-          WHERE user_email IS NOT NULL AND user_email != LOWER(TRIM(user_email))
-          RETURNING 1
-        ),
-        notifs_updated AS (
-          UPDATE notifications SET user_email = LOWER(TRIM(user_email))
-          WHERE user_email IS NOT NULL AND user_email != LOWER(TRIM(user_email))
-          RETURNING 1
-        ),
-        event_rsvps_updated AS (
-          UPDATE event_rsvps SET user_email = LOWER(TRIM(user_email))
-          WHERE user_email IS NOT NULL AND user_email != LOWER(TRIM(user_email))
-          RETURNING 1
-        ),
-        wellness_updated AS (
-          UPDATE wellness_enrollments SET user_email = LOWER(TRIM(user_email))
-          WHERE user_email IS NOT NULL AND user_email != LOWER(TRIM(user_email))
-          RETURNING 1
-        ),
-        guest_passes_updated AS (
-          UPDATE guest_passes SET member_email = LOWER(TRIM(member_email))
-          WHERE member_email IS NOT NULL AND member_email != LOWER(TRIM(member_email))
-          RETURNING 1
-        )
-      SELECT 
-        (SELECT COUNT(*) FROM users_updated) +
-        (SELECT COUNT(*) FROM bookings_updated) +
-        (SELECT COUNT(*) FROM notifs_updated) +
-        (SELECT COUNT(*) FROM event_rsvps_updated) +
-        (SELECT COUNT(*) FROM wellness_updated) +
-        (SELECT COUNT(*) FROM guest_passes_updated) as total
-    `);
-    normalizedEmails = Number((emailResult.rows[0] as unknown as TotalRow)?.total || 0);
-
     const holdResult = await db.execute(sql`
       DELETE FROM guest_pass_holds gph
       WHERE gph.expires_at < NOW()
@@ -98,77 +46,22 @@ export async function runDataCleanup(): Promise<{
     `);
     expiredHolds = holdResult.rows.length;
 
-    logger.info(`[DataCleanup] Removed ${orphanedNotifications} orphaned notifications, marked ${orphanedBookings} orphaned bookings, normalized ${normalizedEmails} emails, removed ${expiredHolds} expired guest pass holds`);
+    logger.info(`[DataCleanup] Removed ${orphanedNotifications} orphaned notifications, marked ${orphanedBookings} orphaned bookings, removed ${expiredHolds} expired guest pass holds`);
   } catch (error: unknown) {
     logger.error('[DataCleanup] Error during cleanup:', { extra: { detail: getErrorMessage(error) } });
     throw error;
   }
 
-  return { orphanedNotifications, orphanedBookings, normalizedEmails, expiredHolds };
+  return { orphanedNotifications, orphanedBookings, expiredHolds };
 }
 
 export async function autoFixMissingTiers(): Promise<{
-  fixedBillingProvider: number;
   fixedFromAlternateEmail: number;
   remainingWithoutTier: number;
-  normalizedStatusCase: number;
-  syncedStaffRoles: number;
 }> {
-  // eslint-disable-next-line no-useless-assignment
-  let fixedBillingProvider = 0;
-  // eslint-disable-next-line no-useless-assignment
   let fixedFromAlternateEmail = 0;
-  // eslint-disable-next-line no-useless-assignment
-  let normalizedStatusCase = 0;
-  // eslint-disable-next-line no-useless-assignment
-  let syncedStaffRoles = 0;
 
   try {
-    const caseNormResult = await db.execute(sql`
-      UPDATE users SET membership_status = LOWER(membership_status), updated_at = NOW()
-      WHERE membership_status != LOWER(membership_status)
-      RETURNING id, email, membership_status
-    `);
-    normalizedStatusCase = caseNormResult.rows.length;
-    if (normalizedStatusCase > 0) {
-      const details = (caseNormResult.rows as unknown as CaseNormRow[]).map(r => `${r.email} -> ${r.membership_status}`).join(', ');
-      logger.info(`[AutoFix] Normalized membership_status case for ${normalizedStatusCase} members: ${details}`);
-    }
-
-    const stripeProviderResult = await db.execute(sql`
-      UPDATE users SET billing_provider = 'stripe', updated_at = NOW()
-      WHERE membership_status = 'active'
-        AND (billing_provider IS NULL OR billing_provider = '')
-        AND stripe_subscription_id IS NOT NULL
-        AND stripe_subscription_id != ''
-        AND role != 'visitor'
-        AND email NOT LIKE '%test%'
-        AND email NOT LIKE '%example.com'
-        AND (last_manual_fix_at IS NULL OR last_manual_fix_at < NOW() - INTERVAL '1 hour')
-      RETURNING email
-    `);
-    const fixedStripeProvider = stripeProviderResult.rows.length;
-    if (fixedStripeProvider > 0) {
-      const emails = (stripeProviderResult.rows as unknown as EmailRow[]).map(r => r.email).join(', ');
-      logger.info(`[AutoFix] Set billing_provider='stripe' for ${fixedStripeProvider} members with Stripe subscriptions: ${emails}`);
-    }
-
-    const remainingProviderResult = await db.execute(sql`
-      UPDATE users SET billing_provider = 'stripe', updated_at = NOW()
-      WHERE membership_status = 'active'
-        AND (billing_provider IS NULL OR billing_provider = '')
-        AND role != 'visitor'
-        AND email NOT LIKE '%test%'
-        AND email NOT LIKE '%example.com'
-        AND (last_manual_fix_at IS NULL OR last_manual_fix_at < NOW() - INTERVAL '1 hour')
-      RETURNING email
-    `);
-    fixedBillingProvider = remainingProviderResult.rows.length + fixedStripeProvider;
-    if (remainingProviderResult.rows.length > 0) {
-      const emails = (remainingProviderResult.rows as unknown as EmailRow[]).map(r => r.email).join(', ');
-      logger.info(`[AutoFix] Set billing_provider='stripe' for ${remainingProviderResult.rows.length} active members with unclassified billing: ${emails}`);
-    }
-
     await db.execute(sql`
       DELETE FROM user_linked_emails
       WHERE LOWER(primary_email) = LOWER(linked_email)
@@ -263,44 +156,9 @@ export async function autoFixMissingTiers(): Promise<{
       logger.info(`[AutoFix] ${remainingWithoutTier} active members still without tier (cannot auto-determine): ${emails}`);
     }
 
-    // Safety net — primary enforcement via trg_sync_staff_role trigger
-    const staffSyncResult = await db.execute(sql`
-      UPDATE users u
-      SET role = su.role,
-          tier = 'VIP',
-          membership_status = 'active',
-          updated_at = NOW()
-      FROM staff_users su
-      WHERE LOWER(u.email) = LOWER(su.email)
-        AND su.is_active = true
-        AND u.role NOT IN ('admin', 'staff', 'golf_instructor')
-      RETURNING u.id, u.email, su.role as new_role
-    `);
-    syncedStaffRoles = staffSyncResult.rows.length;
-    if (syncedStaffRoles > 0) {
-      const details = (staffSyncResult.rows as unknown as StaffSyncRow[]).map(r => `${r.email} -> role=${r.new_role}, tier=VIP, status=active`).join(', ');
-      logger.info(`[AutoFix] Synced staff role for ${syncedStaffRoles} users: ${details}`);
-    }
-
-    // Safety net — primary enforcement via trg_link_participant_user_id trigger
-    const ownerUserIdFix = await db.execute(sql`
-      UPDATE booking_participants bp
-      SET user_id = u.id
-      FROM booking_requests br
-      JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
-      WHERE bp.session_id = br.session_id
-        AND bp.participant_type = 'owner'
-        AND bp.user_id IS NULL
-        AND br.request_date >= CURRENT_DATE - INTERVAL '90 days'
-      RETURNING bp.id, br.user_email
-    `);
-    if (ownerUserIdFix.rows.length > 0) {
-      logger.info(`[AutoFix] Fixed ${ownerUserIdFix.rows.length} owner participants with missing user_id`);
-    }
-
-    return { fixedBillingProvider, fixedFromAlternateEmail, remainingWithoutTier, normalizedStatusCase, syncedStaffRoles };
+    return { fixedFromAlternateEmail, remainingWithoutTier };
   } catch (error: unknown) {
     logger.error('[AutoFix] Error in periodic auto-fixes:', { extra: { detail: getErrorMessage(error) } });
-    return { fixedBillingProvider: 0, fixedFromAlternateEmail: 0, remainingWithoutTier: -1, normalizedStatusCase: 0, syncedStaffRoles: 0 };
+    return { fixedFromAlternateEmail: 0, remainingWithoutTier: -1 };
   }
 }

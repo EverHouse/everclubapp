@@ -133,8 +133,8 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
           const { runDataCleanup } = await import('../core/dataIntegrity');
           try {
             const cleanupResult = await runDataCleanup();
-            if (cleanupResult.orphanedNotifications > 0 || cleanupResult.orphanedBookings > 0 || cleanupResult.normalizedEmails > 0) {
-              logger.info(`[Integrity Check] Pre-check cleanup: ${cleanupResult.orphanedNotifications} orphaned notifications removed, ${cleanupResult.orphanedBookings} orphaned bookings marked, ${cleanupResult.normalizedEmails} emails normalized`);
+            if (cleanupResult.orphanedNotifications > 0 || cleanupResult.orphanedBookings > 0) {
+              logger.info(`[Integrity Check] Pre-check cleanup: ${cleanupResult.orphanedNotifications} orphaned notifications removed, ${cleanupResult.orphanedBookings} orphaned bookings marked`);
             }
           } catch (cleanupErr: unknown) {
             logger.error('[Integrity Check] Pre-check cleanup failed (continuing with checks):', { error: cleanupErr as Error });
@@ -207,17 +207,8 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
 async function runPeriodicAutoFix(): Promise<void> {
   try {
     const result = await autoFixMissingTiers();
-    if (result.normalizedStatusCase > 0) {
-      logger.info(`[Auto-Fix] Normalized membership_status case for ${result.normalizedStatusCase} members`);
-    }
-    if (result.fixedBillingProvider > 0) {
-      logger.info(`[Auto-Fix] Set billing_provider='stripe' for ${result.fixedBillingProvider} unclassified active members`);
-    }
     if (result.fixedFromAlternateEmail > 0) {
       logger.info(`[Auto-Fix] Cleared tier/status for ${result.fixedFromAlternateEmail} linked user records (data belongs to primary)`);
-    }
-    if (result.syncedStaffRoles > 0) {
-      logger.info(`[Auto-Fix] Synced staff roles for ${result.syncedStaffRoles} users`);
     }
     schedulerTracker.recordRun('Auto-Fix Tiers', true);
   } catch (err: unknown) {
@@ -290,7 +281,7 @@ export function startIntegrityScheduler(): NodeJS.Timeout[] {
   guardedAutoFix().catch((err) => { logger.warn('[Scheduler] Non-critical auto-fix failed:', err); });
   schedulerIntervals = [id1, id2, id3];
   logger.info('[Startup] Daily integrity check scheduler enabled (runs midnight–6am Pacific catch-up window)');
-  logger.info('[Startup] Periodic auto-fix scheduler enabled (daily safety net — primary enforcement via DB triggers)');
+  logger.info('[Startup] Periodic auto-fix scheduler enabled (linked-email tier cleanup — email normalization, status case, billing provider, staff role, participant linking now handled by DB triggers/constraints)');
   return schedulerIntervals;
 }
 
