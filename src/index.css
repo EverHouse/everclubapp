@@ -146,6 +146,36 @@
   animation: badgeAttention 0.5s var(--spring-bounce);
 }
 
+/* ── Full-Bleed Page Layout ──────────────────────────────────────────────
+   Replaces negative-margin hacks. Pages use .full-bleed-page for header
+   clearance and .full-bleed-bg on a child div to extend the background
+   color behind the transparent header via absolute inset positioning.
+   Placed in @layer base so Tailwind utilities (e.g. pt-[…]) can override. */
+@layer base {
+  .full-bleed-page {
+    position: relative;
+    padding-top: var(--header-offset);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    isolation: isolate;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .full-bleed-bg {
+    position: absolute;
+    inset: 0;
+    top: calc(-1 * var(--header-offset));
+    z-index: -1;
+    pointer-events: none;
+    background-color: inherit;
+  }
+
+  .h-dvh {
+    height: 100vh;
+    height: 100dvh;
+  }
+}
+
 :root {
   /* Header Offset - centralized calculation for header height + safe area */
   --header-height: 80px;

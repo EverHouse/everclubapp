@@ -35,9 +35,9 @@ const About: React.FC = () => {
         url="/about"
       />
       <div
-        className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden"
-        style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'var(--header-offset)' }}
+        className="full-bleed-page flex flex-col bg-bone dark:bg-[#141414] overflow-x-hidden"
       >
+        <div className="full-bleed-bg" aria-hidden="true" />
         <section className="px-6 pt-8 md:pt-12 pb-10 text-center animate-content-enter">
           <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>
             About Ever Club

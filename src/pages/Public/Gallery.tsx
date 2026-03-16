@@ -110,9 +110,9 @@ const Gallery: React.FC = () => {
       <SEO title="Gallery & Photos | Ever Club — Golf Club in OC" description="See inside Ever Club in Tustin. Photos of Trackman golf simulators, lounge, café, coworking spaces & member events at OC's private social club." url="/gallery" />
       <AnimatedPage>
       <div 
-        className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden"
-        style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'var(--header-offset)' }}
+        className="full-bleed-page flex flex-col bg-bone dark:bg-[#141414] overflow-x-hidden"
       >
+        <div className="full-bleed-bg" aria-hidden="true" />
         <div className="px-5 pt-4 md:pt-2 pb-6 animate-content-enter">
           <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white leading-none" style={{ fontFamily: 'var(--font-display)' }}>Gallery</h1>
           <p className="text-base text-primary/70 dark:text-white/70 mt-2 leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>Explore the exclusive spaces of Ever Club.</p>

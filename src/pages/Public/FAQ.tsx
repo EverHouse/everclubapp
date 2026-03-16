@@ -96,9 +96,9 @@ const FAQ: React.FC = () => {
     <SEO title="FAQ — Frequently Asked Questions | Ever Club" description="Got questions about Ever Club? Find answers about memberships, Trackman golf simulators, events, hours, day passes & more at our Tustin, OC location." url="/faq" />
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema).replace(/</g, '\\u003c') }} />
     <div 
-      className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden"
-      style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'var(--header-offset)' }}
+      className="full-bleed-page flex flex-col bg-bone dark:bg-[#141414] overflow-x-hidden"
     >
+      <div className="full-bleed-bg" aria-hidden="true" />
       <div className="px-6 pt-4 md:pt-2 pb-4 animate-content-enter">
         <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-2 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Frequently Asked Questions</h1>
         <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>Common questions about membership, amenities, and policies.</p>

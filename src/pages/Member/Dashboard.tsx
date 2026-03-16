@@ -855,8 +855,7 @@ const Dashboard: React.FC = () => {
   if (error) {
     return (
       <div 
-        className="px-6 pb-32 min-h-screen bg-transparent"
-        style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'calc(var(--header-offset) + 1rem)' }}
+        className="full-bleed-page px-6 pb-32 bg-transparent pt-[calc(var(--header-offset)+1rem)]"
       >
         <ErrorState
           title="Unable to load dashboard"
@@ -871,8 +870,7 @@ const Dashboard: React.FC = () => {
     <AnimatedPage>
     <SmoothReveal isLoaded={!initialLoading}>
     <div 
-      className="min-h-screen flex flex-col"
-      style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'var(--header-offset)' }}
+      className="full-bleed-page flex flex-col"
     >
     {initialLoading ? (
       <DashboardSkeleton isDark={isDark} />

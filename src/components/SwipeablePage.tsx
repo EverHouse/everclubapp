@@ -12,10 +12,8 @@ const SwipeablePage: React.FC<SwipeablePageProps> = ({ children, className = "" 
 
   return (
     <div 
-      className={`w-full min-h-[100dvh] bg-transparent relative animate-page-enter ${className}`}
+      className={`full-bleed-page w-full bg-transparent animate-page-enter ${className}`}
       style={{
-        marginTop: 'calc(-1 * var(--header-offset))',
-        paddingTop: 'var(--header-offset)',
         paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)'
       }}
     >

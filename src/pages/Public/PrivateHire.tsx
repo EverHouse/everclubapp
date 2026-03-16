@@ -32,9 +32,8 @@ const PrivateHire: React.FC = () => {
        
        <div 
          ref={heroRef as React.RefObject<HTMLDivElement>}
-         className="relative flex flex-col justify-end p-6 pb-[max(4rem,env(safe-area-inset-bottom))] overflow-visible"
+         className="relative flex flex-col justify-end p-6 pb-[max(4rem,env(safe-area-inset-bottom))] overflow-visible h-dvh"
          style={{ 
-           height: '100vh', 
            minHeight: '700px'
          }}
        >
