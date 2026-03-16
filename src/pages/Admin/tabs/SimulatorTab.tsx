@@ -42,7 +42,6 @@ import CalendarGrid from './simulator/CalendarGrid';
 import BookingRequestsPanel from './simulator/BookingRequestsPanel';
 import GuideBookings from '../../../components/guides/GuideBookings';
 import { TrackmanIcon } from '../../../components/icons/TrackmanIcon';
-import { BOOKING_STATUS } from '../../../../shared/constants/statuses';
 
 const SimulatorTab: React.FC = () => {
     const navigate = useNavigate();
@@ -390,7 +389,7 @@ const SimulatorTab: React.FC = () => {
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({ 
-                    status: BOOKING_STATUS.APPROVED,
+                    status: 'approved',
                     trackman_booking_id: trackmanBookingId
                 })
             });
@@ -458,7 +457,7 @@ const SimulatorTab: React.FC = () => {
         return approvedBookings.filter(b => 
             b.is_unmatched === true && 
             b.request_date >= today &&
-            (b.status === BOOKING_STATUS.APPROVED || b.status === BOOKING_STATUS.CONFIRMED)
+            (b.status === 'approved' || b.status === 'confirmed')
         ).sort((a, b) => {
             if (a.request_date !== b.request_date) {
                 return a.request_date.localeCompare(b.request_date);
@@ -475,19 +474,19 @@ const SimulatorTab: React.FC = () => {
             ? parseInt(String(booking.id).replace('cal_', '')) 
             : booking.id;
         
-        if (newStatus === BOOKING_STATUS.APPROVED) {
+        if (newStatus === 'approved') {
             const result = await revertToApprovedWithToast(bookingId);
             await queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
             await queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(calendarStartDate, calendarEndDate) });
             return !!result.success;
         }
 
-        if (newStatus === BOOKING_STATUS.ATTENDED && checkinInProgressRef.current.has(bookingId)) {
+        if (newStatus === 'attended' && checkinInProgressRef.current.has(bookingId)) {
             // eslint-disable-next-line no-console
             console.log('[Check-in v2] Already in progress for booking', bookingId);
             return false;
         }
-        if (newStatus === BOOKING_STATUS.ATTENDED) {
+        if (newStatus === 'attended') {
             checkinInProgressRef.current.add(bookingId);
         }
         
@@ -529,13 +528,13 @@ const SimulatorTab: React.FC = () => {
                         mode: 'manage' as const,
                     });
                 }
-                if (newStatus === BOOKING_STATUS.ATTENDED) {
+                if (newStatus === 'attended') {
                     checkinInProgressRef.current.delete(bookingId);
                 }
                 return false;
             }
             
-            if (newStatus === BOOKING_STATUS.ATTENDED) {
+            if (newStatus === 'attended') {
                 checkinInProgressRef.current.delete(bookingId);
             }
             queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
@@ -545,7 +544,7 @@ const SimulatorTab: React.FC = () => {
             queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
             queryClient.setQueryData(simulatorKeys.approvedBookings(calendarStartDate, calendarEndDate), previousApproved);
             showToast((err instanceof Error ? err.message : String(err)) || 'Failed to update status', 'error');
-            if (newStatus === BOOKING_STATUS.ATTENDED) {
+            if (newStatus === 'attended') {
                 checkinInProgressRef.current.delete(bookingId);
             }
             return false;
@@ -575,7 +574,7 @@ const SimulatorTab: React.FC = () => {
 
                         const booking = approvedBookings.find(b => Number(b.id) === bookingId);
                         if (booking) {
-                            await updateBookingStatusOptimistic(booking, BOOKING_STATUS.ATTENDED);
+                            await updateBookingStatusOptimistic(booking, 'attended');
                         } else {
                             const syntheticBooking: BookingRequest = {
                                 id: bookingId,
@@ -589,13 +588,13 @@ const SimulatorTab: React.FC = () => {
                                 end_time: result.bookingDetails?.endTime || '',
                                 duration_minutes: 60,
                                 notes: null,
-                                status: BOOKING_STATUS.APPROVED,
+                                status: 'approved',
                                 staff_notes: null,
                                 suggested_time: null,
                                 created_at: null,
                                 source: 'booking'
                             };
-                            await updateBookingStatusOptimistic(syntheticBooking, BOOKING_STATUS.ATTENDED);
+                            await updateBookingStatusOptimistic(syntheticBooking, 'attended');
                         }
                         if (isAlreadyCheckedIn) {
                             showToast('Already checked in — booking marked as attended', 'info');
@@ -620,7 +619,7 @@ const SimulatorTab: React.FC = () => {
             if (checkinInProgressRef.current.has(scannedBookingId)) return;
             const booking = approvedBookings.find(b => Number(b.id) === scannedBookingId);
             if (booking) {
-                await updateBookingStatusOptimistic(booking, BOOKING_STATUS.ATTENDED);
+                await updateBookingStatusOptimistic(booking, 'attended');
             } else {
                 showToast('Processing check-in...', 'info');
                 const result = await checkInWithToast(scannedBookingId, { source: 'booking' });
@@ -670,7 +669,7 @@ const SimulatorTab: React.FC = () => {
         queryClient.setQueryData(simulatorKeys.allRequests(), (old: BookingRequest[] | undefined) => 
             (old || []).map(r => 
                 r.id === booking.id && r.source === booking.source 
-                    ? { ...r, status: BOOKING_STATUS.CANCELLED } 
+                    ? { ...r, status: 'cancelled' } 
                     : r
             )
         );
@@ -686,7 +685,7 @@ const SimulatorTab: React.FC = () => {
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({ 
-                    status: BOOKING_STATUS.CANCELLED, 
+                    status: 'cancelled', 
                     source: booking.source,
                     cancelled_by: actualUser?.email
                 })
@@ -843,8 +842,8 @@ const SimulatorTab: React.FC = () => {
     }, [actionModal, selectedRequest]);
 
     const pendingRequests = requests.filter(r => 
-        r.status === BOOKING_STATUS.PENDING || 
-        r.status === BOOKING_STATUS.PENDING_APPROVAL
+        r.status === 'pending' || 
+        r.status === 'pending_approval'
     );
     
     const _unmatchedWebhookBookings = approvedBookings.filter(b => {
@@ -866,7 +865,7 @@ const SimulatorTab: React.FC = () => {
     });
     
     const cancellationPendingBookings = approvedBookings.filter(b => 
-        b.status === BOOKING_STATUS.CANCELLATION_PENDING
+        b.status === 'cancellation_pending'
     );
 
     const queueItems = [
@@ -896,8 +895,8 @@ const SimulatorTab: React.FC = () => {
         
         return scheduledRangeData
             .filter(b => {
-                const isScheduledStatus = b.status === BOOKING_STATUS.APPROVED || b.status === BOOKING_STATUS.CONFIRMED;
-                const isCheckedInToday = b.status === BOOKING_STATUS.ATTENDED && b.request_date === today;
+                const isScheduledStatus = b.status === 'approved' || b.status === 'confirmed';
+                const isCheckedInToday = b.status === 'attended' && b.request_date === today;
                 if (!(isScheduledStatus || isCheckedInToday) || b.request_date < today) return false;
                 
                 if (scheduledFilter === 'today') return b.request_date === today;
@@ -954,7 +953,7 @@ const SimulatorTab: React.FC = () => {
         queryClient.setQueryData(simulatorKeys.allRequests(), (old: BookingRequest[] | undefined) => 
             (old || []).map(r => 
                 r.id === selectedRequest.id && r.source === selectedRequest.source 
-                    ? { ...r, status: BOOKING_STATUS.CONFIRMED } 
+                    ? { ...r, status: 'confirmed' } 
                     : r
             )
         );
@@ -979,7 +978,7 @@ const SimulatorTab: React.FC = () => {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        status: BOOKING_STATUS.APPROVED,
+                        status: 'approved',
                         resource_id: approvedBayId,
                         staff_notes: approvedStaffNotes || null,
                         reviewed_by: user?.email
@@ -1019,8 +1018,8 @@ const SimulatorTab: React.FC = () => {
         setIsProcessing(true);
         setError(null);
         
-        const newStatus = selectedRequest.status === BOOKING_STATUS.APPROVED ? BOOKING_STATUS.CANCELLED : BOOKING_STATUS.DECLINED;
-        const wasPending = selectedRequest.status === BOOKING_STATUS.PENDING || selectedRequest.status === BOOKING_STATUS.PENDING_APPROVAL;
+        const newStatus = selectedRequest.status === 'approved' ? 'cancelled' : 'declined';
+        const wasPending = selectedRequest.status === 'pending' || selectedRequest.status === 'pending_approval';
         
         setActionInProgress(prev => ({ ...prev, [bookingKey]: 'declining' }));
         
@@ -1060,7 +1059,7 @@ const SimulatorTab: React.FC = () => {
                         staff_notes: declinedStaffNotes || null,
                         suggested_time: declinedSuggestedTime ? declinedSuggestedTime + ':00' : null,
                         reviewed_by: actualUser?.email || user?.email,
-                        cancelled_by: newStatus === BOOKING_STATUS.CANCELLED ? (actualUser?.email || user?.email) : undefined
+                        cancelled_by: newStatus === 'cancelled' ? (actualUser?.email || user?.email) : undefined
                     })
                 });
             }
@@ -1071,7 +1070,7 @@ const SimulatorTab: React.FC = () => {
                 setError(errData.error || 'Failed to process request');
                 showToast(errData.error || 'Failed to process request', 'error');
             } else {
-                const statusLabel = newStatus === BOOKING_STATUS.CANCELLED ? 'cancelled' : 'declined';
+                const statusLabel = newStatus === 'cancelled' ? 'cancelled' : 'declined';
                 showToast(`Booking ${statusLabel}`, 'success');
                 if (wasPending) {
                     window.dispatchEvent(new CustomEvent('booking-action-completed'));
@@ -1336,7 +1335,7 @@ const SimulatorTab: React.FC = () => {
                         </div>
                     )}
                     
-                    {actionModal === 'decline' && selectedRequest?.status !== BOOKING_STATUS.APPROVED && (
+                    {actionModal === 'decline' && selectedRequest?.status !== 'approved' && (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Suggest Alternative Time (Optional)</label>
                             <select
@@ -1389,7 +1388,7 @@ const SimulatorTab: React.FC = () => {
                                     {actionModal === 'approve' ? 'check' : 'close'}
                                 </span>
                             )}
-                            {actionModal === 'approve' ? 'Approve' : (selectedRequest?.status === BOOKING_STATUS.APPROVED ? 'Cancel Booking' : 'Decline')}
+                            {actionModal === 'approve' ? 'Approve' : (selectedRequest?.status === 'approved' ? 'Cancel Booking' : 'Decline')}
                         </button>
                     </div>
                 </div>
@@ -1552,7 +1551,7 @@ const SimulatorTab: React.FC = () => {
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({
-                      status: BOOKING_STATUS.CANCELLED,
+                      status: 'cancelled',
                       staff_notes: 'Cancelled from booking sheet',
                       cancelled_by: actualUser?.email || user?.email
                     })
@@ -1569,7 +1568,7 @@ const SimulatorTab: React.FC = () => {
                 }
               }}
               onCheckIn={async (bookingId, targetStatus) => {
-                const result = await checkInWithToast(bookingId, { status: targetStatus || BOOKING_STATUS.ATTENDED });
+                const result = await checkInWithToast(bookingId, { status: targetStatus || 'attended' });
                 if (result.success) {
                   handleRefresh();
                 }

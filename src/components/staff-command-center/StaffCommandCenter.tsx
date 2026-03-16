@@ -33,7 +33,6 @@ import { NewUserDrawer } from './drawers/NewUserDrawer';
 import type { SelectedMember } from '../shared/MemberSearchInput';
 import { tabToPath } from '../../lib/nav-constants';
 import type { StaffCommandCenterProps, BookingRequest, RecentActivity, TabType } from './types';
-import { BOOKING_STATUS } from '../../../shared/constants/statuses';
 
 interface OptimisticUpdateRef {
   bookingId: number | string;
@@ -179,7 +178,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                 id: result.bookingId,
                 user_email: result.memberEmail,
                 user_name: result.memberName,
-                status: BOOKING_STATUS.APPROVED,
+                status: 'approved',
                 bay_name: result.bookingDetails?.bayName || 'Bay',
                 start_time: result.bookingDetails?.startTime || '',
                 end_time: result.bookingDetails?.endTime || '',
@@ -219,7 +218,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
               id: result.bookingId,
               user_email: result.memberEmail,
               user_name: result.memberName,
-              status: BOOKING_STATUS.APPROVED,
+              status: 'approved',
               bay_name: result.bookingDetails?.bayName || 'Bay',
               start_time: result.bookingDetails?.startTime || '',
               end_time: result.bookingDetails?.endTime || '',
@@ -250,7 +249,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         handleCheckIn(booking);
         showToast(`Checking in ${booking.user_name} for booking #${scannedBookingId}...`, 'info');
       } else {
-        const result = await checkInWithToast(scannedBookingId, { status: BOOKING_STATUS.ATTENDED });
+        const result = await checkInWithToast(scannedBookingId, { status: 'attended' });
         if (result?.success) {
           window.dispatchEvent(new CustomEvent('booking-action-completed'));
           refresh();
@@ -352,7 +351,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ 
-          status: BOOKING_STATUS.APPROVED,
+          status: 'approved',
           trackman_booking_id: trackmanBookingId
         })
       });
@@ -417,7 +416,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ status: BOOKING_STATUS.APPROVED })
+        body: JSON.stringify({ status: 'approved' })
       });
       if (res.ok) {
         showToast('Booking approved', 'success');
@@ -531,7 +530,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
     setActionInProgress(`checkin-${id}`);
     
     const originalStatus = booking.status;
-    const optimisticStatus = targetStatus || BOOKING_STATUS.ATTENDED;
+    const optimisticStatus = targetStatus || 'attended';
     
     optimisticUpdateRef.current = {
       bookingId: booking.id,
@@ -563,7 +562,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
     };
     updateRecentActivity(prev => [newActivity, ...prev]);
     
-    const result = await checkInWithToast(id, { status: (targetStatus === BOOKING_STATUS.APPROVED ? BOOKING_STATUS.ATTENDED : targetStatus) || BOOKING_STATUS.ATTENDED });
+    const result = await checkInWithToast(id, { status: (targetStatus === 'approved' ? 'attended' : targetStatus) || 'attended' });
     
     if (result.success) {
       optimisticUpdateRef.current = null;
