@@ -5,6 +5,7 @@ import { syncBookingInvoice } from './bookingInvoiceService';
 
 import { logger } from '../logger';
 import { isPlaceholderGuestName } from './pricingConfig';
+import { sendPassUpdateForMemberByEmail } from '../../walletPass/apnPushService';
 
 interface GuestPassCheckRow { id: number; used_guest_pass: boolean; guest_id: number | null }
 interface OwnerIdRow { id: number }
@@ -145,7 +146,11 @@ export async function consumeGuestPassForParticipant(
     }
     
     logger.info(`[GuestPassConsumer] Pass consumed for ${guestName} by ${ownerEmailLower}, ${passesRemaining} remaining`);
-    
+
+    sendPassUpdateForMemberByEmail(ownerEmailLower).catch(err =>
+      logger.warn('[GuestPassConsumer] Wallet pass push failed (non-fatal)', { extra: { email: ownerEmailLower, error: String(err) } })
+    );
+
     if (resolvedBookingId) {
       syncBookingInvoice(resolvedBookingId, sessionId).catch(err => {
         logger.warn('[GuestPassConsumer] Non-blocking: draft invoice sync failed after pass consumption', { extra: { error: getErrorMessage(err), bookingId: resolvedBookingId, sessionId } });

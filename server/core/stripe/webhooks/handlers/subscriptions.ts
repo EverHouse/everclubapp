@@ -1094,6 +1094,16 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
                 logger.error('[Stripe Webhook] HubSpot sync failed for past_due sub-members:', { error: getErrorMessage(hubspotErr) });
               }
             });
+
+            deferredActions.push(async () => {
+              for (const subEmail of deferredPastDueSubEmails) {
+                try {
+                  await sendPassUpdateForMemberByEmail(subEmail);
+                } catch (pushErr: unknown) {
+                  logger.warn('[Stripe Webhook] Wallet pass push failed for past_due sub-member (non-fatal):', { extra: { email: subEmail, error: getErrorMessage(pushErr) } });
+                }
+              }
+            });
           }
         }
       } catch (groupErr: unknown) {
@@ -1108,6 +1118,14 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
           logger.info(`[Stripe Webhook] Synced ${deferredPastDueSyncEmail} status=past_due to HubSpot`);
         } catch (hubspotError: unknown) {
           logger.error('[Stripe Webhook] HubSpot sync failed for status past_due:', { error: getErrorMessage(hubspotError) });
+        }
+      });
+
+      deferredActions.push(async () => {
+        try {
+          await sendPassUpdateForMemberByEmail(deferredPastDueSyncEmail);
+        } catch (pushErr: unknown) {
+          logger.warn('[Stripe Webhook] Wallet pass push failed for past_due (non-fatal):', { extra: { error: getErrorMessage(pushErr) } });
         }
       });
     } else if (status === 'canceled') {
@@ -1144,6 +1162,14 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
           );
         } catch (notifyErr: unknown) {
           logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+        }
+      });
+
+      deferredActions.push(async () => {
+        try {
+          await sendPassUpdateForMemberByEmail(deferredUnpaidEmail);
+        } catch (pushErr: unknown) {
+          logger.warn('[Stripe Webhook] Wallet pass push failed for unpaid/suspended (non-fatal):', { extra: { error: getErrorMessage(pushErr) } });
         }
       });
 
@@ -1203,6 +1229,16 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
                 logger.info(`[Stripe Webhook] Synced ${suspendedEmails.length} suspended sub-members to HubSpot`);
               } catch (hubspotErr: unknown) {
                 logger.error('[Stripe Webhook] HubSpot sync failed for suspended sub-members:', { error: getErrorMessage(hubspotErr) });
+              }
+            });
+
+            deferredActions.push(async () => {
+              for (const subEmail of deferredSuspendedSubEmails) {
+                try {
+                  await sendPassUpdateForMemberByEmail(subEmail);
+                } catch (pushErr: unknown) {
+                  logger.warn('[Stripe Webhook] Wallet pass push failed for suspended sub-member (non-fatal):', { extra: { email: subEmail, error: getErrorMessage(pushErr) } });
+                }
               }
             });
           }
@@ -1635,6 +1671,14 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
     }
 
     logger.info(`[Stripe Webhook] Updated ${email} membership_status to cancelled, tier cleared`);
+
+    deferredActions.push(async () => {
+      try {
+        await sendPassUpdateForMemberByEmail(email);
+      } catch (pushErr: unknown) {
+        logger.warn('[Stripe Webhook] Wallet pass push failed for cancellation (non-fatal):', { extra: { error: getErrorMessage(pushErr) } });
+      }
+    });
 
     deferredActions.push(async () => {
       try {

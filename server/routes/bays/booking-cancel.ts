@@ -16,6 +16,7 @@ import { refundGuestPass } from '../guestPasses';
 import { voidBookingInvoice } from '../../core/billing/bookingInvoiceService';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { cancelPendingPaymentIntentsForBooking } from '../../core/billing/paymentIntentCleanup';
+import { voidBookingPass } from '../../walletPass/bookingPassService';
 
 const router = Router();
 
@@ -92,6 +93,9 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
     }
     
     if (existing.status === 'cancellation_pending') {
+      voidBookingPass(bookingId).catch(err =>
+        logger.warn('[BookingCancel] Self-heal void pass failed for already-pending booking (non-fatal)', { extra: { bookingId, error: String(err) } })
+      );
       return res.status(400).json({ error: 'Cancellation is already in progress' });
     }
 
@@ -174,6 +178,10 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
         }, { sendPush: true }).catch(err => logger.error('[Member Cancel] Notification failed', { extra: { error: getErrorMessage(err) } }));
       }
       
+      voidBookingPass(bookingId).catch(err =>
+        logger.error('[Member Cancel] Wallet pass void failed for cancellation_pending', { extra: { bookingId, error: getErrorMessage(err) } })
+      );
+
       await logMemberAction({
         memberEmail: existing.userEmail || '',
         action: 'cancellation_requested',

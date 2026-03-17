@@ -8,6 +8,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.60",
+    date: "2026-03-17",
+    title: "Apple Wallet Pass Notification Gaps Closed",
+    changes: [
+      "Fixed: Booking passes now void immediately when a cancellation is pending (awaiting Trackman cleanup), so members no longer see a valid-looking pass for a booking being cancelled",
+      "Fixed: Membership passes now update when your subscription is cancelled — the pass reflects the new status instead of showing outdated tier/status info",
+      "Fixed: Membership passes now update when your status changes to Past Due or Suspended, so you always see accurate membership status",
+      "Fixed: Changing your name on the profile page now updates your Apple Wallet membership pass to reflect the new name",
+      "Fixed: Using a guest pass now updates the remaining count on your Apple Wallet membership pass immediately",
+      "Fixed: Staff manual bookings for conference rooms now correctly broadcast as conference room updates (not simulator)",
+    ]
+  },
+  {
     version: "8.87.59",
     date: "2026-03-17",
     title: "Codebase Audit — Security & Reliability Improvements",

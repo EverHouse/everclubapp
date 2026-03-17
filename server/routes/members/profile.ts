@@ -22,6 +22,7 @@ import { memberLookupRateLimiter } from '../../middleware/rateLimiting';
 import { z } from 'zod';
 import { invalidateCache } from '../../core/queryCache';
 import { normalizeEmail } from '../../core/utils/emailNormalization';
+import { sendPassUpdateForMemberByEmail } from '../../walletPass/apnPushService';
 
 const router = Router();
 
@@ -425,6 +426,12 @@ router.put('/api/members/:email/contact-info', isStaffOrAdmin, async (req, res) 
         logger.error('[ContactInfo] Failed to update HubSpot contact', { extra: { email: normalizedEmail, error: hubspotErr } });
         syncResults.hubspot = false;
       }
+    }
+
+    if (firstName !== undefined || lastName !== undefined) {
+      sendPassUpdateForMemberByEmail(normalizedEmail).catch(err =>
+        logger.warn('[ContactInfo] Wallet pass push failed (non-fatal)', { extra: { email: normalizedEmail, error: String(err) } })
+      );
     }
 
     res.json({

@@ -60,6 +60,9 @@ export async function cancelBooking(params: CancelBookingParams) {
     }
 
     if (existing.status === 'cancellation_pending') {
+      voidBookingPass(bookingId).catch(err =>
+        logger.warn('[ApprovalCancel] Self-heal void pass failed for already-pending booking (non-fatal)', { extra: { bookingId, error: getErrorMessage(err) } })
+      );
       return {
         updated: existing,
         bookingData: existing,
@@ -95,6 +98,10 @@ export async function cancelBooking(params: CancelBookingParams) {
         const [resource] = await tx.select({ name: resources.name }).from(resources).where(eq(resources.id, existing.resourceId));
         if (resource?.name) bayName = resource.name;
       }
+
+      voidBookingPass(bookingId).catch(err =>
+        logger.error('[Cancel] Wallet pass void failed for cancellation_pending', { extra: { bookingId, error: getErrorMessage(err) } })
+      );
 
       return {
         updated: updatedRow,
