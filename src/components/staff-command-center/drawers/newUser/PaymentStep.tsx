@@ -8,7 +8,7 @@ import {
   MembershipTier,
   MemberStep,
 } from './newUserTypes';
-import { postWithCredentials, deleteWithCredentials } from '../../../../hooks/queries/useFetch';
+import { deleteWithCredentials } from '../../../../hooks/queries/useFetch';
 import WalkingGolferSpinner from '../../../WalkingGolferSpinner';
 
 interface PaymentStepProps {
