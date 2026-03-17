@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, jsonb, pgTable, timestamp, varchar, serial, boolean, text, integer, numeric } from "drizzle-orm/pg-core";
+import { index, uniqueIndex, jsonb, pgTable, timestamp, varchar, serial, boolean, text, integer, numeric } from "drizzle-orm/pg-core";
 
 export const hubspotProductMappings = pgTable("hubspot_product_mappings", {
   id: serial("id").primaryKey(),
@@ -213,6 +213,7 @@ export const stripePaymentIntents = pgTable("stripe_payment_intents", {
   index("stripe_payment_intents_user_id_idx").on(table.userId),
   index("stripe_payment_intents_booking_id_idx").on(table.bookingId),
   index("stripe_payment_intents_status_idx").on(table.status),
+  index("idx_stripe_payment_intents_booking_id").on(table.bookingId),
 ]);
 
 export type StripePaymentIntent = typeof stripePaymentIntents.$inferSelect;
@@ -312,6 +313,33 @@ export type GroupMember = typeof groupMembers.$inferSelect;
 export type InsertGroupMember = typeof groupMembers.$inferInsert;
 export type FamilyAddOnProduct = typeof familyAddOnProducts.$inferSelect;
 export type InsertFamilyAddOnProduct = typeof familyAddOnProducts.$inferInsert;
+
+export const hubspotSyncQueue = pgTable("hubspot_sync_queue", {
+  id: serial("id").primaryKey(),
+  operation: varchar("operation", { length: 100 }).notNull(),
+  payload: jsonb("payload").notNull(),
+  status: varchar("status", { length: 50 }).default("pending"),
+  priority: integer("priority").default(5),
+  retryCount: integer("retry_count").default(0),
+  maxRetries: integer("max_retries").default(5),
+  lastError: text("last_error"),
+  nextRetryAt: timestamp("next_retry_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+  idempotencyKey: varchar("idempotency_key", { length: 255 }),
+}, (table) => [
+  index("hubspot_sync_queue_status_priority_idx")
+    .on(table.status, table.priority, table.createdAt)
+    .where(sql`${table.status} IN ('pending', 'failed')`),
+  index("hubspot_sync_queue_next_retry_idx")
+    .on(table.nextRetryAt)
+    .where(sql`${table.status} = 'failed'`),
+  uniqueIndex("hubspot_sync_queue_idempotency_idx")
+    .on(table.idempotencyKey)
+    .where(sql`${table.idempotencyKey} IS NOT NULL AND ${table.status} NOT IN ('completed', 'superseded')`),
+  index("idx_hubspot_sync_queue_created_at").on(table.createdAt),
+]);
 
 // Legacy table aliases for backwards compatibility
 export const familyGroups = billingGroups;

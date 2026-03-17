@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, jsonb, pgTable, timestamp, varchar, serial, boolean, text, date, time, integer, numeric } from "drizzle-orm/pg-core";
+import { index, uniqueIndex, jsonb, pgTable, timestamp, varchar, serial, boolean, text, date, time, integer, numeric } from "drizzle-orm/pg-core";
 import { users } from "./auth-session";
 
 // Events table - club events
@@ -37,7 +37,9 @@ export const events = pgTable("events", {
   conflictDetected: boolean("conflict_detected").default(false),
   archivedAt: timestamp("archived_at"),
   archivedBy: varchar("archived_by"),
-});
+}, (table) => [
+  index("idx_events_event_date").on(table.eventDate),
+]);
 
 // Event RSVPs table - event registrations
 export const eventRsvps = pgTable("event_rsvps", {
@@ -112,6 +114,9 @@ export const wellnessEnrollments = pgTable("wellness_enrollments", {
 (table) => [
   index("idx_wellness_enrollments_class_id").on(table.classId),
   index("idx_wellness_enrollments_user_email_lower").on(sql`LOWER(${table.userEmail})`),
+  uniqueIndex("wellness_enrollments_unique_active")
+    .on(table.classId, table.userEmail)
+    .where(sql`${table.status} = 'confirmed'`),
 ]);
 
 // Announcements table - club announcements
@@ -130,7 +135,9 @@ export const announcements = pgTable("announcements", {
   createdBy: varchar("created_by"),
   googleSheetRowId: integer("google_sheet_row_id"),
   showAsBanner: boolean("show_as_banner").default(false),
-});
+}, (table) => [
+  index("idx_announcements_created_at").on(table.createdAt),
+]);
 
 // Gallery images table - venue photos
 export const galleryImages = pgTable("gallery_images", {

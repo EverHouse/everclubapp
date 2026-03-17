@@ -81,6 +81,7 @@ export const webhookProcessedEvents = pgTable("webhook_processed_events", {
 }, (table) => ({
   eventIdIdx: uniqueIndex("webhook_processed_events_event_id_idx").on(table.eventId),
   processedAtIdx: index("webhook_processed_events_processed_at_idx").on(table.processedAt),
+  eventTypeIdx: index("idx_webhook_processed_events_type").on(table.eventType),
 }));
 
 export type WebhookProcessedEvent = typeof webhookProcessedEvents.$inferSelect;
@@ -127,6 +128,8 @@ export const adminAuditLog = pgTable("admin_audit_log", {
   createdAtIdx: index("admin_audit_log_created_at_idx").on(table.createdAt),
   actorTypeIdx: index("admin_audit_log_actor_type_idx").on(table.actorType),
   actorEmailIdx: index("admin_audit_log_actor_email_idx").on(table.actorEmail),
+  actionDateIdx: index("idx_admin_audit_log_action_date").on(table.action, table.createdAt),
+  legacyCreatedIdx: index("idx_admin_audit_log_created").on(table.createdAt),
 }));
 
 export type AdminAuditLog = typeof adminAuditLog.$inferSelect;

@@ -219,36 +219,9 @@ export async function createSyncExclusionsTable(): Promise<void> {
 
 export async function createStripeTransactionCache(): Promise<void> {
   try {
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS stripe_transaction_cache (
-        id SERIAL PRIMARY KEY,
-        stripe_id TEXT UNIQUE NOT NULL,
-        object_type TEXT NOT NULL,
-        amount_cents INTEGER NOT NULL,
-        currency TEXT DEFAULT 'usd',
-        status TEXT NOT NULL,
-        created_at TIMESTAMP NOT NULL,
-        updated_at TIMESTAMP DEFAULT NOW(),
-        customer_id TEXT,
-        customer_email TEXT,
-        customer_name TEXT,
-        description TEXT,
-        metadata JSONB,
-        source TEXT DEFAULT 'webhook',
-        payment_intent_id TEXT,
-        charge_id TEXT,
-        invoice_id TEXT
-      )
-    `);
-    
-    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_stripe_cache_created_at ON stripe_transaction_cache(created_at DESC)`);
-    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_stripe_cache_customer_email ON stripe_transaction_cache(customer_email)`);
-    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_stripe_cache_status ON stripe_transaction_cache(status)`);
-    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_stripe_cache_object_type ON stripe_transaction_cache(object_type)`);
-    
-    logger.info('[DB Init] stripe_transaction_cache table created/verified');
+    logger.info('[DB Init] stripe_transaction_cache table and indexes are now managed by Drizzle schema');
   } catch (error: unknown) {
-    logger.error('[DB Init] Failed to create stripe_transaction_cache:', { extra: { errorMessage: getErrorMessage(error) } });
+    logger.error('[DB Init] Failed to verify stripe_transaction_cache:', { extra: { errorMessage: getErrorMessage(error) } });
   }
 }
 
@@ -804,80 +777,14 @@ export async function ensureDatabaseConstraints() {
     }
 
     try {
-      await db.execute(sql`
-        DO $$
-        BEGIN
-          IF NOT EXISTS (
-            SELECT 1 FROM pg_indexes WHERE indexname = 'day_pass_purchases_stripe_pi_unique'
-          ) THEN
-            CREATE UNIQUE INDEX day_pass_purchases_stripe_pi_unique
-              ON day_pass_purchases (stripe_payment_intent_id) WHERE stripe_payment_intent_id IS NOT NULL;
-          END IF;
-        END $$;
-      `);
-      logger.info('[DB Init] Day pass payment intent unique index created/verified');
+      logger.info('[DB Init] Day pass and wellness enrollment indexes are now managed by Drizzle schema');
     } catch (err: unknown) {
-      logger.warn(`[DB Init] Skipping day pass PI unique index: ${getErrorMessage(err)}`);
+      logger.warn(`[DB Init] Skipping index log: ${getErrorMessage(err)}`);
     }
 
-    try {
-      await db.execute(sql`
-        DO $$
-        BEGIN
-          IF NOT EXISTS (
-            SELECT 1 FROM pg_indexes WHERE indexname = 'wellness_enrollments_unique_active'
-          ) THEN
-            CREATE UNIQUE INDEX wellness_enrollments_unique_active
-              ON wellness_enrollments (class_id, user_email) WHERE status = 'confirmed';
-          END IF;
-        END $$;
-      `);
-      logger.info('[DB Init] Wellness enrollment unique active index created/verified');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Skipping wellness enrollment unique index: ${getErrorMessage(err)}`);
-    }
+    logger.info('[DB Init] HubSpot queue idempotency index is now managed by Drizzle schema');
 
-    try {
-      await db.execute(sql`
-        DROP INDEX IF EXISTS hubspot_sync_queue_idempotency_idx;
-        CREATE UNIQUE INDEX hubspot_sync_queue_idempotency_idx 
-          ON hubspot_sync_queue (idempotency_key) 
-          WHERE idempotency_key IS NOT NULL AND status NOT IN ('completed', 'superseded');
-      `);
-      logger.info('[DB Init] HubSpot queue idempotency index updated for superseded status');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Skipping HubSpot queue idempotency index update: ${getErrorMessage(err)}`);
-    }
-
-    const indexQueries = [
-      { name: 'idx_booking_requests_status', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_status ON booking_requests(status)` },
-      { name: 'idx_booking_requests_user_email', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_user_email ON booking_requests(user_email)` },
-      { name: 'idx_booking_requests_resource_date', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_resource_date ON booking_requests(resource_id, start_time)` },
-      { name: 'idx_booking_requests_start_time', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_start_time ON booking_requests(start_time)` },
-      { name: 'idx_availability_blocks_resource_date', query: sql`CREATE INDEX IF NOT EXISTS idx_availability_blocks_resource_date ON availability_blocks(resource_id, block_date)` },
-      { name: 'idx_trackman_unmatched_resolved', query: sql`CREATE INDEX IF NOT EXISTS idx_trackman_unmatched_resolved ON trackman_unmatched_bookings(resolved_at)` },
-      { name: 'idx_events_event_date', query: sql`CREATE INDEX IF NOT EXISTS idx_events_event_date ON events(event_date)` },
-      { name: 'idx_notifications_user_read', query: sql`CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_email, is_read)` },
-      { name: 'idx_users_email_lower', query: sql`CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(LOWER(email))` },
-      { name: 'idx_users_membership_status', query: sql`CREATE INDEX IF NOT EXISTS idx_users_membership_status ON users(membership_status)` },
-      { name: 'idx_booking_participants_session_id', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_participants_session_id ON booking_participants(session_id)` },
-      { name: 'idx_stripe_payment_intents_booking_id', query: sql`CREATE INDEX IF NOT EXISTS idx_stripe_payment_intents_booking_id ON stripe_payment_intents(booking_id)` },
-      { name: 'idx_usage_ledger_member_id', query: sql`CREATE INDEX IF NOT EXISTS idx_usage_ledger_member_id ON usage_ledger(member_id)` },
-      { name: 'idx_admin_audit_log_created', query: sql`CREATE INDEX IF NOT EXISTS idx_admin_audit_log_created ON admin_audit_log(created_at)` },
-      { name: 'idx_webhook_processed_events_type', query: sql`CREATE INDEX IF NOT EXISTS idx_webhook_processed_events_type ON webhook_processed_events(event_type)` },
-      { name: 'idx_communication_logs_email', query: sql`CREATE INDEX IF NOT EXISTS idx_communication_logs_email ON communication_logs(member_email)` },
-      { name: 'idx_guest_check_ins_email', query: sql`CREATE INDEX IF NOT EXISTS idx_guest_check_ins_email ON guest_check_ins(member_email)` },
-    ];
-    
-    for (const { name, query } of indexQueries) {
-      try {
-        await db.execute(query);
-      } catch (err: unknown) {
-        logger.warn(`[DB Init] Skipping index ${name}: ${getErrorMessage(err)}`);
-      }
-    }
-    
-    logger.info('[DB Init] Performance indexes processed');
+    logger.info('[DB Init] Performance indexes are now managed by Drizzle schema');
 
     try {
       const needsFix = await db.execute(sql`

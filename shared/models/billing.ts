@@ -138,6 +138,9 @@ export const dayPassPurchases = pgTable(
     index("idx_day_pass_purchases_purchased_at").on(table.purchasedAt),
     index("idx_day_pass_purchases_status").on(table.status),
     index("idx_day_pass_purchases_lower_email").on(sql`LOWER(${table.purchaserEmail})`),
+    uniqueIndex("day_pass_purchases_stripe_pi_unique")
+      .on(table.stripePaymentIntentId)
+      .where(sql`${table.stripePaymentIntentId} IS NOT NULL`),
   ],
 );
 
@@ -270,6 +273,31 @@ export const failedSideEffects = pgTable("failed_side_effects", {
 ]);
 
 export type FailedSideEffect = typeof failedSideEffects.$inferSelect;
+
+export const stripeTransactionCache = pgTable("stripe_transaction_cache", {
+  id: serial("id").primaryKey(),
+  stripeId: text("stripe_id").unique().notNull(),
+  objectType: text("object_type").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  currency: text("currency").default("usd"),
+  status: text("status").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  customerId: text("customer_id"),
+  customerEmail: text("customer_email"),
+  customerName: text("customer_name"),
+  description: text("description"),
+  metadata: jsonb("metadata"),
+  source: text("source").default("webhook"),
+  paymentIntentId: text("payment_intent_id"),
+  chargeId: text("charge_id"),
+  invoiceId: text("invoice_id"),
+}, (table) => [
+  index("idx_stripe_cache_created_at").on(sql`${table.createdAt} DESC`),
+  index("idx_stripe_cache_customer_email").on(table.customerEmail),
+  index("idx_stripe_cache_status").on(table.status),
+  index("idx_stripe_cache_object_type").on(table.objectType),
+]);
 
 // Note: billingGroups, groupMembers, and familyAddOnProducts are defined in hubspot-billing.ts
 // to avoid duplicate exports. Import them from there or from the main schema.

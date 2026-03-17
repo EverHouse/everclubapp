@@ -107,6 +107,10 @@ export const communicationLogs = pgTable("communication_logs", {
 }, (table) => [
   index("communication_logs_member_email_idx").on(table.memberEmail),
   index("idx_communication_logs_lower_member_email").on(sql`LOWER(${table.memberEmail})`),
+  index("idx_communication_logs_created_at").on(table.createdAt),
+  index("idx_communication_logs_member").on(table.memberEmail, table.createdAt),
+  index("idx_communication_logs_occurred_at").on(table.occurredAt),
+  index("idx_communication_logs_email").on(table.memberEmail),
 ]);
 
 // Guest check-ins table - tracking guest visits by member
@@ -124,6 +128,7 @@ export const guestCheckIns = pgTable("guest_check_ins", {
 }, (table) => [
   index("idx_guest_check_ins_lower_member_email").on(sql`LOWER(${table.memberEmail})`),
   index("idx_guest_check_ins_lower_guest_email").on(sql`LOWER(${table.guestEmail})`),
+  index("idx_guest_check_ins_email").on(table.memberEmail),
 ]);
 
 // Linked emails table - alternate email addresses for members (for Trackman matching)

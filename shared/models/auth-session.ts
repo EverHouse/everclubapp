@@ -118,6 +118,7 @@ export const users = pgTable("users", {
   index("idx_users_lower_trackman_email").on(sql`LOWER(${table.trackmanEmail})`),
   uniqueIndex("users_google_id_unique").on(table.googleId).where(sql`${table.googleId} IS NOT NULL`),
   uniqueIndex("users_apple_id_unique").on(table.appleId).where(sql`${table.appleId} IS NOT NULL`),
+  index("idx_users_membership_status").on(table.membershipStatus),
 ]);
 
 // Staff users table - emails that get staff or admin access

@@ -42,6 +42,7 @@ export const availabilityBlocks = pgTable("availability_blocks", {
   uniqueIndex("availability_blocks_wellness_unique_idx").on(
     table.resourceId, table.blockDate, table.startTime, table.endTime, table.wellnessClassId
   ).where(sql`wellness_class_id IS NOT NULL`),
+  index("idx_availability_blocks_resource_date").on(table.resourceId, table.blockDate),
 ]);
 
 // Booking requests table - pending booking requests
@@ -121,6 +122,10 @@ export const bookingRequests = pgTable("booking_requests", {
   index("booking_requests_status_idx").on(table.status),
   index("booking_requests_status_date_idx").on(table.status, table.requestDate),
   index("idx_booking_requests_lower_email").on(sql`LOWER(${table.userEmail})`),
+  index("idx_booking_requests_status").on(table.status),
+  index("idx_booking_requests_user_email").on(table.userEmail),
+  index("idx_booking_requests_resource_date").on(table.resourceId, table.startTime),
+  index("idx_booking_requests_start_time").on(table.startTime),
 ]);
 
 // Facility closures table - scheduled closures
@@ -170,6 +175,7 @@ export const trackmanUnmatchedBookings = pgTable("trackman_unmatched_bookings", 
 }, (table) => [
   index("idx_trackman_unmatched_lower_original_email").on(sql`LOWER(${table.originalEmail})`),
   index("idx_trackman_unmatched_lower_resolved_email").on(sql`LOWER(${table.resolvedEmail})`),
+  index("idx_trackman_unmatched_resolved").on(table.resolvedAt),
 ]);
 
 // Trackman import runs - track import history
@@ -279,6 +285,8 @@ export const usageLedger = pgTable("usage_ledger", {
   index("usage_ledger_member_idx").on(table.memberId),
   index("usage_ledger_stripe_payment_intent_idx").on(table.stripePaymentIntentId),
   uniqueIndex("usage_ledger_session_member_source_uniq").on(table.sessionId, table.memberId, table.source),
+  index("idx_usage_ledger_member").on(table.memberId, table.createdAt),
+  index("idx_usage_ledger_member_id").on(table.memberId),
 ]);
 
 // Booking participants table - unified table for all participants (replaces booking_members/booking_guests)
@@ -308,6 +316,7 @@ export const bookingParticipants = pgTable("booking_participants", {
   index("booking_participants_session_idx").on(table.sessionId),
   index("booking_participants_user_idx").on(table.userId),
   index("booking_participants_guest_idx").on(table.guestId),
+  index("idx_booking_participants_session_id").on(table.sessionId),
 ]);
 
 export type BookingSession = typeof bookingSessions.$inferSelect;
