@@ -301,7 +301,18 @@ Use `db.transaction(async (tx) => { ... })` from Drizzle ORM for multi-statement
 ### Loaders (`server/loaders/`)
 
 - `routes.ts` — Dynamic route loading
-- `startup.ts` — Deferred startup tasks
+- `startup.ts` — Deferred startup tasks (DB warmup, constraint init, seed tasks, Stripe sync, Supabase realtime)
+
+### Startup Flow (`server/index.ts` → `server/loaders/startup.ts`)
+
+1. `server/index.ts` boots Express, registers middleware and routes, sets `isReady = true` (server accepts requests)
+2. `setImmediate` calls `runStartupTasks()` as a background task (non-blocking to HTTP)
+3. `runStartupTasks()` runs `waitForDatabaseReady()` — `SELECT 1` probe with exponential backoff (up to 20 attempts, ~90s window)
+4. If DB ready: runs `ensureDatabaseConstraints()`, then 11 parallel DB tasks via `Promise.allSettled` (seeds, triggers, cleanups)
+5. After parallel tasks: runs integrity constraint verification, Stripe schema migration, Stripe sync, Supabase realtime setup
+6. If DB unreachable: records critical failure and returns early
+7. `server/index.ts` checks `startupHealth` — on critical failures, auto-retries `runStartupTasks()` up to 3 times (30s apart), resetting health state each attempt
+8. `startupHealth` object tracks `database`, `stripe`, `realtime` status plus `criticalFailures[]` and `warnings[]`
 
 ### Server Utils (`server/utils/`)
 
