@@ -266,12 +266,12 @@
   --z-content: 0;
   --z-header: 1000;
   --z-sticky: 2000;
-  --z-dropdown: 5000;
   --z-overlay: 8000;
   --z-nav: 8500;
   --z-fab: 9000;
   --z-drawer: 9500;
   --z-modal: 10000;
+  --z-dropdown: 10200;
   --z-toast: 10500;
   --z-splash: 11000;
   
