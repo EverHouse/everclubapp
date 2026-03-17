@@ -241,7 +241,11 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: unknown) {
       setUnredeemedPasses(previousUnredeemed);
-      setErrorState({ message: (err instanceof Error ? err.message : String(err)) || 'Failed to refund pass', errorCode: 'NETWORK_ERROR' });
+      if (err instanceof ApiError) {
+        setErrorState({ message: err.message || 'Failed to refund pass', errorCode: (err.errorData.errorCode as string) || 'REFUND_ERROR' });
+      } else {
+        setErrorState({ message: (err instanceof Error ? err.message : String(err)) || 'Failed to refund pass', errorCode: 'NETWORK_ERROR' });
+      }
     } finally {
       setRefundingId(null);
     }

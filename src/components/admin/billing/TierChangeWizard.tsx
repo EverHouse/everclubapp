@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { ModalShell } from '../../ModalShell';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { getApiErrorMessage, getNetworkErrorMessage } from '../../../utils/errorHandling';
+import { getNetworkErrorMessage } from '../../../utils/errorHandling';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
 
 interface Tier {

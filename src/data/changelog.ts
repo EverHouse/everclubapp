@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.54",
+    date: "2026-03-17",
+    title: "Error Handling Polish & Dead Code Cleanup",
+    changes: [
+      "Fixed: Day pass refund errors now show specific server error codes instead of a generic 'network error', matching the same pattern used for redemption errors",
+      "Cleaned up: Removed unused error utility imports from Group Billing and Tier Change pages left over from the data fetching migration",
+    ]
+  },
+  {
     version: "8.87.53",
     date: "2026-03-17",
     title: "Data Fetching Stability Fixes",

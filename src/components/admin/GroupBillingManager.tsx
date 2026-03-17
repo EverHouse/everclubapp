@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import TierBadge from '../TierBadge';
 import { MemberSearchInput, SelectedMember } from '../shared/MemberSearchInput';
 import { useToast } from '../Toast';
-import { getApiErrorMessage, getNetworkErrorMessage } from '../../utils/errorHandling';
+import { getNetworkErrorMessage } from '../../utils/errorHandling';
 import { fetchWithCredentials, postWithCredentials, putWithCredentials, deleteWithCredentials, ApiError } from '../../hooks/queries/useFetch';
 
 interface FamilyMemberInfo {
