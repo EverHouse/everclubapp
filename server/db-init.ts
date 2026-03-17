@@ -711,90 +711,96 @@ export async function ensureDatabaseConstraints() {
       logger.warn(`[DB Init] Skipping HubSpot ID unique index: ${getErrorMessage(err)}`);
     }
 
-    try {
-      await db.execute(sql`
-        DO $$
-        BEGIN
-          DELETE FROM booking_fee_snapshots
-            WHERE booking_id IS NOT NULL
-              AND NOT EXISTS (SELECT 1 FROM booking_requests WHERE id = booking_fee_snapshots.booking_id);
-          UPDATE booking_fee_snapshots SET session_id = NULL
-            WHERE session_id IS NOT NULL
-              AND NOT EXISTS (SELECT 1 FROM booking_sessions WHERE id = booking_fee_snapshots.session_id);
+    const isProduction = process.env.NODE_ENV === 'production';
 
-          ALTER TABLE booking_fee_snapshots
-            DROP CONSTRAINT IF EXISTS booking_fee_snapshots_booking_id_fkey;
-          ALTER TABLE booking_fee_snapshots
-            DROP CONSTRAINT IF EXISTS booking_fee_snapshots_booking_id_booking_requests_id_fk;
-          ALTER TABLE booking_fee_snapshots
-            ADD CONSTRAINT booking_fee_snapshots_booking_id_fkey
-            FOREIGN KEY (booking_id) REFERENCES booking_requests(id) ON DELETE CASCADE
-            NOT VALID;
+    if (isProduction) {
+      try {
+        await db.execute(sql`
+          DO $$
+          BEGIN
+            DELETE FROM booking_fee_snapshots
+              WHERE booking_id IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM booking_requests WHERE id = booking_fee_snapshots.booking_id);
+            UPDATE booking_fee_snapshots SET session_id = NULL
+              WHERE session_id IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM booking_sessions WHERE id = booking_fee_snapshots.session_id);
 
-          ALTER TABLE booking_fee_snapshots
-            DROP CONSTRAINT IF EXISTS booking_fee_snapshots_session_id_fkey;
-          ALTER TABLE booking_fee_snapshots
-            DROP CONSTRAINT IF EXISTS booking_fee_snapshots_session_id_booking_sessions_id_fk;
-          ALTER TABLE booking_fee_snapshots
-            ADD CONSTRAINT booking_fee_snapshots_session_id_fkey
-            FOREIGN KEY (session_id) REFERENCES booking_sessions(id) ON DELETE CASCADE
-            NOT VALID;
-        END $$;
-      `);
-      logger.info('[DB Init] Fee snapshot CASCADE constraints created');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Skipping fee snapshot CASCADE: ${getErrorMessage(err)}`);
-    }
+            ALTER TABLE booking_fee_snapshots
+              DROP CONSTRAINT IF EXISTS booking_fee_snapshots_booking_id_fkey;
+            ALTER TABLE booking_fee_snapshots
+              DROP CONSTRAINT IF EXISTS booking_fee_snapshots_booking_id_booking_requests_id_fk;
+            ALTER TABLE booking_fee_snapshots
+              ADD CONSTRAINT booking_fee_snapshots_booking_id_fkey
+              FOREIGN KEY (booking_id) REFERENCES booking_requests(id) ON DELETE CASCADE
+              NOT VALID;
 
-    try {
-      await db.execute(sql`ALTER TABLE booking_fee_snapshots VALIDATE CONSTRAINT booking_fee_snapshots_booking_id_fkey`);
-      await db.execute(sql`ALTER TABLE booking_fee_snapshots VALIDATE CONSTRAINT booking_fee_snapshots_session_id_fkey`);
-      logger.info('[DB Init] Fee snapshot FK constraints validated');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Fee snapshot FK validation deferred: ${getErrorMessage(err)}`);
-    }
+            ALTER TABLE booking_fee_snapshots
+              DROP CONSTRAINT IF EXISTS booking_fee_snapshots_session_id_fkey;
+            ALTER TABLE booking_fee_snapshots
+              DROP CONSTRAINT IF EXISTS booking_fee_snapshots_session_id_booking_sessions_id_fk;
+            ALTER TABLE booking_fee_snapshots
+              ADD CONSTRAINT booking_fee_snapshots_session_id_fkey
+              FOREIGN KEY (session_id) REFERENCES booking_sessions(id) ON DELETE CASCADE
+              NOT VALID;
+          END $$;
+        `);
+        logger.info('[DB Init] Fee snapshot CASCADE constraints created');
+      } catch (err: unknown) {
+        logger.warn(`[DB Init] Skipping fee snapshot CASCADE: ${getErrorMessage(err)}`);
+      }
 
-    try {
-      await db.execute(sql`
-        DO $$
-        BEGIN
-          DELETE FROM guest_pass_holds
-            WHERE booking_id IS NOT NULL
-              AND NOT EXISTS (SELECT 1 FROM booking_requests WHERE id = guest_pass_holds.booking_id);
-          DELETE FROM conference_prepayments
-            WHERE booking_id IS NOT NULL
-              AND NOT EXISTS (SELECT 1 FROM booking_requests WHERE id = conference_prepayments.booking_id);
+      try {
+        await db.execute(sql`ALTER TABLE booking_fee_snapshots VALIDATE CONSTRAINT booking_fee_snapshots_booking_id_fkey`);
+        await db.execute(sql`ALTER TABLE booking_fee_snapshots VALIDATE CONSTRAINT booking_fee_snapshots_session_id_fkey`);
+        logger.info('[DB Init] Fee snapshot FK constraints validated');
+      } catch (err: unknown) {
+        logger.warn(`[DB Init] Fee snapshot FK validation deferred: ${getErrorMessage(err)}`);
+      }
 
-          ALTER TABLE guest_pass_holds
-            DROP CONSTRAINT IF EXISTS guest_pass_holds_booking_id_fkey;
-          ALTER TABLE guest_pass_holds
-            DROP CONSTRAINT IF EXISTS guest_pass_holds_booking_id_booking_requests_id_fk;
-          ALTER TABLE guest_pass_holds
-            ADD CONSTRAINT guest_pass_holds_booking_id_fkey
-            FOREIGN KEY (booking_id) REFERENCES booking_requests(id) ON DELETE CASCADE
-            NOT VALID;
+      try {
+        await db.execute(sql`
+          DO $$
+          BEGIN
+            DELETE FROM guest_pass_holds
+              WHERE booking_id IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM booking_requests WHERE id = guest_pass_holds.booking_id);
+            DELETE FROM conference_prepayments
+              WHERE booking_id IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM booking_requests WHERE id = conference_prepayments.booking_id);
 
-          ALTER TABLE conference_prepayments
-            DROP CONSTRAINT IF EXISTS conference_prepayments_booking_id_fkey;
-          ALTER TABLE conference_prepayments
-            DROP CONSTRAINT IF EXISTS conference_prepayments_booking_id_booking_requests_id_fk;
-          ALTER TABLE conference_prepayments
-            ADD CONSTRAINT conference_prepayments_booking_id_fkey
-            FOREIGN KEY (booking_id) REFERENCES booking_requests(id) ON DELETE CASCADE
-            NOT VALID;
-        END $$;
-      `);
-      logger.info('[DB Init] Guest pass holds & conference prepayments CASCADE constraints created');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Skipping guest pass/conference CASCADE: ${getErrorMessage(err)}`);
-    }
+            ALTER TABLE guest_pass_holds
+              DROP CONSTRAINT IF EXISTS guest_pass_holds_booking_id_fkey;
+            ALTER TABLE guest_pass_holds
+              DROP CONSTRAINT IF EXISTS guest_pass_holds_booking_id_booking_requests_id_fk;
+            ALTER TABLE guest_pass_holds
+              ADD CONSTRAINT guest_pass_holds_booking_id_fkey
+              FOREIGN KEY (booking_id) REFERENCES booking_requests(id) ON DELETE CASCADE
+              NOT VALID;
 
-    try {
-      await db.execute(sql`ALTER TABLE guest_pass_holds VALIDATE CONSTRAINT guest_pass_holds_booking_id_fkey`);
-      await db.execute(sql`ALTER TABLE conference_prepayments VALIDATE CONSTRAINT conference_prepayments_booking_id_fkey`);
-      logger.info('[DB Init] Guest pass holds & conference prepayments FK constraints validated');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Guest pass/conference FK validation deferred: ${getErrorMessage(err)}`);
+            ALTER TABLE conference_prepayments
+              DROP CONSTRAINT IF EXISTS conference_prepayments_booking_id_fkey;
+            ALTER TABLE conference_prepayments
+              DROP CONSTRAINT IF EXISTS conference_prepayments_booking_id_booking_requests_id_fk;
+            ALTER TABLE conference_prepayments
+              ADD CONSTRAINT conference_prepayments_booking_id_fkey
+              FOREIGN KEY (booking_id) REFERENCES booking_requests(id) ON DELETE CASCADE
+              NOT VALID;
+          END $$;
+        `);
+        logger.info('[DB Init] Guest pass holds & conference prepayments CASCADE constraints created');
+      } catch (err: unknown) {
+        logger.warn(`[DB Init] Skipping guest pass/conference CASCADE: ${getErrorMessage(err)}`);
+      }
+
+      try {
+        await db.execute(sql`ALTER TABLE guest_pass_holds VALIDATE CONSTRAINT guest_pass_holds_booking_id_fkey`);
+        await db.execute(sql`ALTER TABLE conference_prepayments VALIDATE CONSTRAINT conference_prepayments_booking_id_fkey`);
+        logger.info('[DB Init] Guest pass holds & conference prepayments FK constraints validated');
+      } catch (err: unknown) {
+        logger.warn(`[DB Init] Guest pass/conference FK validation deferred: ${getErrorMessage(err)}`);
+      }
+    } else {
+      logger.info('[DB Init] Skipping runtime FK constraints in dev (managed only in production to avoid deployment diff)');
     }
 
     try {
@@ -1000,206 +1006,208 @@ export async function ensureDatabaseConstraints() {
     }
 
 
-    // Orphan cleanup is now done INSIDE each DO $$ block below (same transaction as ADD CONSTRAINT)
-
-    try {
-      await db.execute(sql`
-        DO $$
-        BEGIN
-          UPDATE booking_requests SET session_id = NULL
-          WHERE session_id IS NOT NULL
-            AND NOT EXISTS (SELECT 1 FROM booking_sessions bs WHERE bs.id = booking_requests.session_id);
-
-          UPDATE booking_requests SET closure_id = NULL
-          WHERE closure_id IS NOT NULL
-            AND NOT EXISTS (SELECT 1 FROM facility_closures fc WHERE fc.id = booking_requests.closure_id);
-
-          ALTER TABLE booking_requests
-            DROP CONSTRAINT IF EXISTS booking_requests_session_id_fkey;
-          ALTER TABLE booking_requests
-            DROP CONSTRAINT IF EXISTS booking_requests_session_id_booking_sessions_id_fk;
-          ALTER TABLE booking_requests
-            ADD CONSTRAINT booking_requests_session_id_fkey
-            FOREIGN KEY (session_id) REFERENCES booking_sessions(id) ON DELETE SET NULL
-            NOT VALID;
-
-          ALTER TABLE booking_requests
-            DROP CONSTRAINT IF EXISTS booking_requests_closure_id_fkey;
-          ALTER TABLE booking_requests
-            DROP CONSTRAINT IF EXISTS booking_requests_closure_id_facility_closures_id_fk;
-          ALTER TABLE booking_requests
-            ADD CONSTRAINT booking_requests_closure_id_fkey
-            FOREIGN KEY (closure_id) REFERENCES facility_closures(id) ON DELETE SET NULL
-            NOT VALID;
-        END $$;
-      `);
-      logger.info('[DB Init] Booking_requests session_id & closure_id FK constraints created');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Skipping booking_requests FK constraints: ${getErrorMessage(err)}`);
-    }
-
-    try {
-      await db.execute(sql`ALTER TABLE booking_requests VALIDATE CONSTRAINT booking_requests_session_id_fkey`);
-      await db.execute(sql`ALTER TABLE booking_requests VALIDATE CONSTRAINT booking_requests_closure_id_fkey`);
-      logger.info('[DB Init] Booking_requests FK constraints validated');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Booking_requests FK validation deferred: ${getErrorMessage(err)}`);
-    }
-
-    try {
-      await db.execute(sql`
-        DO $$
-        BEGIN
-          DELETE FROM booking_participants
-          WHERE NOT EXISTS (SELECT 1 FROM booking_sessions WHERE id = booking_participants.session_id);
-
-          UPDATE booking_participants SET user_id = NULL
-          WHERE user_id IS NOT NULL
-            AND NOT EXISTS (SELECT 1 FROM users WHERE id = booking_participants.user_id);
-
-          UPDATE booking_participants SET guest_id = NULL
-          WHERE guest_id IS NOT NULL
-            AND NOT EXISTS (SELECT 1 FROM guests WHERE id = booking_participants.guest_id);
-
-          ALTER TABLE booking_participants
-            DROP CONSTRAINT IF EXISTS booking_participants_session_id_fkey;
-          ALTER TABLE booking_participants
-            DROP CONSTRAINT IF EXISTS booking_participants_session_id_booking_sessions_id_fk;
-          ALTER TABLE booking_participants
-            ADD CONSTRAINT booking_participants_session_id_fkey
-            FOREIGN KEY (session_id) REFERENCES booking_sessions(id) ON DELETE CASCADE
-            NOT VALID;
-
-          ALTER TABLE booking_participants
-            DROP CONSTRAINT IF EXISTS booking_participants_user_id_fkey;
-          ALTER TABLE booking_participants
-            DROP CONSTRAINT IF EXISTS booking_participants_user_id_users_id_fk;
-          ALTER TABLE booking_participants
-            ADD CONSTRAINT booking_participants_user_id_fkey
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-            NOT VALID;
-
-          ALTER TABLE booking_participants
-            DROP CONSTRAINT IF EXISTS booking_participants_guest_id_fkey;
-          ALTER TABLE booking_participants
-            DROP CONSTRAINT IF EXISTS booking_participants_guest_id_guests_id_fk;
-          ALTER TABLE booking_participants
-            ADD CONSTRAINT booking_participants_guest_id_fkey
-            FOREIGN KEY (guest_id) REFERENCES guests(id) ON DELETE SET NULL
-            NOT VALID;
-        END $$;
-      `);
-      logger.info('[DB Init] Booking_participants FK constraints created');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Skipping booking_participants FK constraints: ${getErrorMessage(err)}`);
-    }
-
-    try {
-      await db.execute(sql`ALTER TABLE booking_participants VALIDATE CONSTRAINT booking_participants_session_id_fkey`);
-      await db.execute(sql`ALTER TABLE booking_participants VALIDATE CONSTRAINT booking_participants_user_id_fkey`);
-      await db.execute(sql`ALTER TABLE booking_participants VALIDATE CONSTRAINT booking_participants_guest_id_fkey`);
-      logger.info('[DB Init] Booking_participants FK constraints validated');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Booking_participants FK validation deferred: ${getErrorMessage(err)}`);
-    }
-
-    try {
-      await db.execute(sql`
-        DO $$
-        BEGIN
-          DELETE FROM wellness_enrollments
-          WHERE class_id IS NOT NULL
-            AND NOT EXISTS (SELECT 1 FROM wellness_classes WHERE id = wellness_enrollments.class_id);
-
-          ALTER TABLE wellness_enrollments
-            DROP CONSTRAINT IF EXISTS wellness_enrollments_class_id_fkey;
-          ALTER TABLE wellness_enrollments
-            DROP CONSTRAINT IF EXISTS wellness_enrollments_class_id_wellness_classes_id_fk;
-          ALTER TABLE wellness_enrollments
-            ADD CONSTRAINT wellness_enrollments_class_id_fkey
-            FOREIGN KEY (class_id) REFERENCES wellness_classes(id) ON DELETE CASCADE
-            NOT VALID;
-        END $$;
-      `);
-      logger.info('[DB Init] Wellness_enrollments FK constraint created');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Skipping wellness_enrollments FK constraint: ${getErrorMessage(err)}`);
-    }
-
-    try {
-      await db.execute(sql`ALTER TABLE wellness_enrollments VALIDATE CONSTRAINT wellness_enrollments_class_id_fkey`);
-      logger.info('[DB Init] Wellness_enrollments FK constraint validated');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Wellness_enrollments FK validation deferred: ${getErrorMessage(err)}`);
-    }
-
-    try {
-      await db.execute(sql`
-        DO $$
-        BEGIN
-          IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'booking_wallet_passes') THEN
-            DELETE FROM booking_wallet_passes
-            WHERE booking_id IS NOT NULL
-              AND NOT EXISTS (SELECT 1 FROM booking_requests WHERE id = booking_wallet_passes.booking_id);
-
-            DELETE FROM booking_wallet_passes
-            WHERE member_id IS NOT NULL
-              AND member_id NOT IN (SELECT id FROM users);
-
-            ALTER TABLE booking_wallet_passes
-              DROP CONSTRAINT IF EXISTS booking_wallet_passes_booking_id_fkey;
-            ALTER TABLE booking_wallet_passes
-              DROP CONSTRAINT IF EXISTS booking_wallet_passes_booking_id_booking_requests_id_fk;
-            ALTER TABLE booking_wallet_passes
-              ADD CONSTRAINT booking_wallet_passes_booking_id_fkey
-              FOREIGN KEY (booking_id) REFERENCES booking_requests(id) ON DELETE CASCADE
-              NOT VALID;
-
-            ALTER TABLE booking_wallet_passes
-              DROP CONSTRAINT IF EXISTS booking_wallet_passes_member_id_fkey;
-            ALTER TABLE booking_wallet_passes
-              DROP CONSTRAINT IF EXISTS booking_wallet_passes_member_id_users_id_fk;
-            ALTER TABLE booking_wallet_passes
-              ADD CONSTRAINT booking_wallet_passes_member_id_fkey
-              FOREIGN KEY (member_id) REFERENCES users(id) ON DELETE CASCADE
-              NOT VALID;
-          END IF;
-        END $$;
-      `);
-      logger.info('[DB Init] Booking_wallet_passes FK constraints created');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Skipping booking_wallet_passes FK constraints: ${getErrorMessage(err)}`);
-    }
-
-    try {
-      await db.execute(sql`
-        DO $$
-        BEGIN
-          IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'booking_wallet_passes') THEN
-            ALTER TABLE booking_wallet_passes VALIDATE CONSTRAINT booking_wallet_passes_booking_id_fkey;
-            ALTER TABLE booking_wallet_passes VALIDATE CONSTRAINT booking_wallet_passes_member_id_fkey;
-          END IF;
-        END $$;
-      `);
-      logger.info('[DB Init] Booking_wallet_passes FK constraints validated');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Booking_wallet_passes FK validation deferred: ${getErrorMessage(err)}`);
-    }
-
-    const legacyFKNames = [
-      { table: 'usage_ledger', constraint: 'usage_ledger_member_id_fkey' },
-      { table: 'usage_ledger', constraint: 'usage_ledger_member_id_users_id_fk' },
-      { table: 'trackman_webhook_events', constraint: 'trackman_webhook_events_matched_booking_id_fkey' },
-      { table: 'trackman_webhook_events', constraint: 'trackman_webhook_events_matched_booking_id_booking_requests_id_' },
-    ];
-    for (const fk of legacyFKNames) {
+    if (isProduction) {
       try {
-        await db.execute(sql.raw(`ALTER TABLE ${fk.table} DROP CONSTRAINT IF EXISTS ${fk.constraint}`));
+        await db.execute(sql`
+          DO $$
+          BEGIN
+            UPDATE booking_requests SET session_id = NULL
+            WHERE session_id IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM booking_sessions bs WHERE bs.id = booking_requests.session_id);
+
+            UPDATE booking_requests SET closure_id = NULL
+            WHERE closure_id IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM facility_closures fc WHERE fc.id = booking_requests.closure_id);
+
+            ALTER TABLE booking_requests
+              DROP CONSTRAINT IF EXISTS booking_requests_session_id_fkey;
+            ALTER TABLE booking_requests
+              DROP CONSTRAINT IF EXISTS booking_requests_session_id_booking_sessions_id_fk;
+            ALTER TABLE booking_requests
+              ADD CONSTRAINT booking_requests_session_id_fkey
+              FOREIGN KEY (session_id) REFERENCES booking_sessions(id) ON DELETE SET NULL
+              NOT VALID;
+
+            ALTER TABLE booking_requests
+              DROP CONSTRAINT IF EXISTS booking_requests_closure_id_fkey;
+            ALTER TABLE booking_requests
+              DROP CONSTRAINT IF EXISTS booking_requests_closure_id_facility_closures_id_fk;
+            ALTER TABLE booking_requests
+              ADD CONSTRAINT booking_requests_closure_id_fkey
+              FOREIGN KEY (closure_id) REFERENCES facility_closures(id) ON DELETE SET NULL
+              NOT VALID;
+          END $$;
+        `);
+        logger.info('[DB Init] Booking_requests session_id & closure_id FK constraints created');
       } catch (err: unknown) {
-        logger.warn(`[DB Init] Could not drop legacy ${fk.constraint}: ${getErrorMessage(err)}`);
+        logger.warn(`[DB Init] Skipping booking_requests FK constraints: ${getErrorMessage(err)}`);
       }
+
+      try {
+        await db.execute(sql`ALTER TABLE booking_requests VALIDATE CONSTRAINT booking_requests_session_id_fkey`);
+        await db.execute(sql`ALTER TABLE booking_requests VALIDATE CONSTRAINT booking_requests_closure_id_fkey`);
+        logger.info('[DB Init] Booking_requests FK constraints validated');
+      } catch (err: unknown) {
+        logger.warn(`[DB Init] Booking_requests FK validation deferred: ${getErrorMessage(err)}`);
+      }
+
+      try {
+        await db.execute(sql`
+          DO $$
+          BEGIN
+            DELETE FROM booking_participants
+            WHERE NOT EXISTS (SELECT 1 FROM booking_sessions WHERE id = booking_participants.session_id);
+
+            UPDATE booking_participants SET user_id = NULL
+            WHERE user_id IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM users WHERE id = booking_participants.user_id);
+
+            UPDATE booking_participants SET guest_id = NULL
+            WHERE guest_id IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM guests WHERE id = booking_participants.guest_id);
+
+            ALTER TABLE booking_participants
+              DROP CONSTRAINT IF EXISTS booking_participants_session_id_fkey;
+            ALTER TABLE booking_participants
+              DROP CONSTRAINT IF EXISTS booking_participants_session_id_booking_sessions_id_fk;
+            ALTER TABLE booking_participants
+              ADD CONSTRAINT booking_participants_session_id_fkey
+              FOREIGN KEY (session_id) REFERENCES booking_sessions(id) ON DELETE CASCADE
+              NOT VALID;
+
+            ALTER TABLE booking_participants
+              DROP CONSTRAINT IF EXISTS booking_participants_user_id_fkey;
+            ALTER TABLE booking_participants
+              DROP CONSTRAINT IF EXISTS booking_participants_user_id_users_id_fk;
+            ALTER TABLE booking_participants
+              ADD CONSTRAINT booking_participants_user_id_fkey
+              FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+              NOT VALID;
+
+            ALTER TABLE booking_participants
+              DROP CONSTRAINT IF EXISTS booking_participants_guest_id_fkey;
+            ALTER TABLE booking_participants
+              DROP CONSTRAINT IF EXISTS booking_participants_guest_id_guests_id_fk;
+            ALTER TABLE booking_participants
+              ADD CONSTRAINT booking_participants_guest_id_fkey
+              FOREIGN KEY (guest_id) REFERENCES guests(id) ON DELETE SET NULL
+              NOT VALID;
+          END $$;
+        `);
+        logger.info('[DB Init] Booking_participants FK constraints created');
+      } catch (err: unknown) {
+        logger.warn(`[DB Init] Skipping booking_participants FK constraints: ${getErrorMessage(err)}`);
+      }
+
+      try {
+        await db.execute(sql`ALTER TABLE booking_participants VALIDATE CONSTRAINT booking_participants_session_id_fkey`);
+        await db.execute(sql`ALTER TABLE booking_participants VALIDATE CONSTRAINT booking_participants_user_id_fkey`);
+        await db.execute(sql`ALTER TABLE booking_participants VALIDATE CONSTRAINT booking_participants_guest_id_fkey`);
+        logger.info('[DB Init] Booking_participants FK constraints validated');
+      } catch (err: unknown) {
+        logger.warn(`[DB Init] Booking_participants FK validation deferred: ${getErrorMessage(err)}`);
+      }
+
+      try {
+        await db.execute(sql`
+          DO $$
+          BEGIN
+            DELETE FROM wellness_enrollments
+            WHERE class_id IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM wellness_classes WHERE id = wellness_enrollments.class_id);
+
+            ALTER TABLE wellness_enrollments
+              DROP CONSTRAINT IF EXISTS wellness_enrollments_class_id_fkey;
+            ALTER TABLE wellness_enrollments
+              DROP CONSTRAINT IF EXISTS wellness_enrollments_class_id_wellness_classes_id_fk;
+            ALTER TABLE wellness_enrollments
+              ADD CONSTRAINT wellness_enrollments_class_id_fkey
+              FOREIGN KEY (class_id) REFERENCES wellness_classes(id) ON DELETE CASCADE
+              NOT VALID;
+          END $$;
+        `);
+        logger.info('[DB Init] Wellness_enrollments FK constraint created');
+      } catch (err: unknown) {
+        logger.warn(`[DB Init] Skipping wellness_enrollments FK constraint: ${getErrorMessage(err)}`);
+      }
+
+      try {
+        await db.execute(sql`ALTER TABLE wellness_enrollments VALIDATE CONSTRAINT wellness_enrollments_class_id_fkey`);
+        logger.info('[DB Init] Wellness_enrollments FK constraint validated');
+      } catch (err: unknown) {
+        logger.warn(`[DB Init] Wellness_enrollments FK validation deferred: ${getErrorMessage(err)}`);
+      }
+
+      try {
+        await db.execute(sql`
+          DO $$
+          BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'booking_wallet_passes') THEN
+              DELETE FROM booking_wallet_passes
+              WHERE booking_id IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM booking_requests WHERE id = booking_wallet_passes.booking_id);
+
+              DELETE FROM booking_wallet_passes
+              WHERE member_id IS NOT NULL
+                AND member_id NOT IN (SELECT id FROM users);
+
+              ALTER TABLE booking_wallet_passes
+                DROP CONSTRAINT IF EXISTS booking_wallet_passes_booking_id_fkey;
+              ALTER TABLE booking_wallet_passes
+                DROP CONSTRAINT IF EXISTS booking_wallet_passes_booking_id_booking_requests_id_fk;
+              ALTER TABLE booking_wallet_passes
+                ADD CONSTRAINT booking_wallet_passes_booking_id_fkey
+                FOREIGN KEY (booking_id) REFERENCES booking_requests(id) ON DELETE CASCADE
+                NOT VALID;
+
+              ALTER TABLE booking_wallet_passes
+                DROP CONSTRAINT IF EXISTS booking_wallet_passes_member_id_fkey;
+              ALTER TABLE booking_wallet_passes
+                DROP CONSTRAINT IF EXISTS booking_wallet_passes_member_id_users_id_fk;
+              ALTER TABLE booking_wallet_passes
+                ADD CONSTRAINT booking_wallet_passes_member_id_fkey
+                FOREIGN KEY (member_id) REFERENCES users(id) ON DELETE CASCADE
+                NOT VALID;
+            END IF;
+          END $$;
+        `);
+        logger.info('[DB Init] Booking_wallet_passes FK constraints created');
+      } catch (err: unknown) {
+        logger.warn(`[DB Init] Skipping booking_wallet_passes FK constraints: ${getErrorMessage(err)}`);
+      }
+
+      try {
+        await db.execute(sql`
+          DO $$
+          BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'booking_wallet_passes') THEN
+              ALTER TABLE booking_wallet_passes VALIDATE CONSTRAINT booking_wallet_passes_booking_id_fkey;
+              ALTER TABLE booking_wallet_passes VALIDATE CONSTRAINT booking_wallet_passes_member_id_fkey;
+            END IF;
+          END $$;
+        `);
+        logger.info('[DB Init] Booking_wallet_passes FK constraints validated');
+      } catch (err: unknown) {
+        logger.warn(`[DB Init] Booking_wallet_passes FK validation deferred: ${getErrorMessage(err)}`);
+      }
+
+      const legacyFKNames = [
+        { table: 'usage_ledger', constraint: 'usage_ledger_member_id_fkey' },
+        { table: 'usage_ledger', constraint: 'usage_ledger_member_id_users_id_fk' },
+        { table: 'trackman_webhook_events', constraint: 'trackman_webhook_events_matched_booking_id_fkey' },
+        { table: 'trackman_webhook_events', constraint: 'trackman_webhook_events_matched_booking_id_booking_requests_id_' },
+      ];
+      for (const fk of legacyFKNames) {
+        try {
+          await db.execute(sql.raw(`ALTER TABLE ${fk.table} DROP CONSTRAINT IF EXISTS ${fk.constraint}`));
+        } catch (err: unknown) {
+          logger.warn(`[DB Init] Could not drop legacy ${fk.constraint}: ${getErrorMessage(err)}`);
+        }
+      }
+      logger.info('[DB Init] Runtime FK constraints created and legacy names cleaned up');
+    } else {
+      logger.info('[DB Init] Skipping runtime FK constraints in dev (prevents deployment diff)');
     }
-    logger.info('[DB Init] Runtime FK constraints created and legacy names cleaned up');
 
     try {
       await db.execute(sql`
@@ -1383,12 +1391,13 @@ export async function verifyIntegrityConstraints(): Promise<{ verified: boolean;
     { name: 'trg_link_participant_user_id', justifies: 'Sessions Without Participants check downgrade' },
   ];
 
-  const requiredFKs = [
+  const isProd = process.env.NODE_ENV === 'production';
+  const requiredFKs = isProd ? [
     { table: 'booking_participants', column: 'user_id', justifies: 'Participant User Relationships check elimination' },
     { table: 'booking_requests', column: 'session_id', justifies: 'Booking session FK integrity' },
     { table: 'booking_requests', column: 'closure_id', justifies: 'Booking closure FK integrity' },
     { table: 'booking_wallet_passes', column: 'member_id', justifies: 'Wallet pass member FK integrity' },
-  ];
+  ] : [];
 
   const missing: string[] = [];
 
