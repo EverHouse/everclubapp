@@ -21,18 +21,31 @@ router.post('/v1/devices/:deviceLibraryId/registrations/:passTypeId/:serialNumbe
     const authToken = extractAuthToken(req.headers.authorization);
 
     if (!authToken) {
+      logger.warn('[WalletPass WebService] Registration rejected: missing ApplePass auth header', {
+        extra: { deviceLibraryId, passTypeId, serialNumber, isBookingPass: serialNumber.startsWith('EVERBOOKING-') }
+      });
       return res.status(401).send('Unauthorized');
     }
 
     const isValid = await validateAuthToken(serialNumber, authToken);
     if (!isValid) {
+      logger.warn('[WalletPass WebService] Registration rejected: auth token mismatch', {
+        extra: { deviceLibraryId, passTypeId, serialNumber, isBookingPass: serialNumber.startsWith('EVERBOOKING-') }
+      });
       return res.status(401).send('Unauthorized');
     }
 
     const pushToken = req.body?.pushToken;
     if (!pushToken) {
+      logger.warn('[WalletPass WebService] Registration attempt missing pushToken', {
+        extra: { deviceLibraryId, passTypeId, serialNumber }
+      });
       return res.status(400).send('Missing pushToken');
     }
+
+    logger.info('[WalletPass WebService] Device registration attempt', {
+      extra: { deviceLibraryId, passTypeId, serialNumber, isBookingPass: serialNumber.startsWith('EVERBOOKING-') }
+    });
 
     const existing = await db.select({ id: walletPassDeviceRegistrations.id })
       .from(walletPassDeviceRegistrations)
@@ -49,7 +62,7 @@ router.post('/v1/devices/:deviceLibraryId/registrations/:passTypeId/:serialNumbe
         .where(eq(walletPassDeviceRegistrations.id, existing[0].id));
 
       logger.info('[WalletPass WebService] Device registration updated', {
-        extra: { deviceLibraryId, serialNumber }
+        extra: { deviceLibraryId, serialNumber, isBookingPass: serialNumber.startsWith('EVERBOOKING-') }
       });
       return res.status(200).send('');
     }
@@ -61,8 +74,8 @@ router.post('/v1/devices/:deviceLibraryId/registrations/:passTypeId/:serialNumbe
       serialNumber,
     });
 
-    logger.info('[WalletPass WebService] Device registered', {
-      extra: { deviceLibraryId, serialNumber }
+    logger.info('[WalletPass WebService] Device registered successfully', {
+      extra: { deviceLibraryId, serialNumber, passTypeId, isBookingPass: serialNumber.startsWith('EVERBOOKING-') }
     });
     return res.status(201).send('');
   } catch (err) {
@@ -91,8 +104,7 @@ router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQue
       .where(and(
         eq(walletPassDeviceRegistrations.deviceLibraryId, deviceLibraryId),
         eq(walletPassDeviceRegistrations.passTypeId, passTypeId),
-      ))
-      .limit(1);
+      ));
 
     if (deviceRegistrations.length === 0) {
       return res.status(204).send('');
@@ -103,8 +115,18 @@ router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQue
       return res.status(401).send('Unauthorized');
     }
 
-    const isValid = await validateAuthToken(deviceRegistrations[0].serialNumber, authToken);
-    if (!isValid) {
+    let authValid = false;
+    for (const reg of deviceRegistrations) {
+      const isValid = await validateAuthToken(reg.serialNumber, authToken);
+      if (isValid) {
+        authValid = true;
+        break;
+      }
+    }
+    if (!authValid) {
+      logger.warn('[WalletPass WebService] Auth token does not match any registered serial for device', {
+        extra: { deviceLibraryId, passTypeId, registeredSerials: deviceRegistrations.map(r => r.serialNumber) }
+      });
       return res.status(401).send('Unauthorized');
     }
 

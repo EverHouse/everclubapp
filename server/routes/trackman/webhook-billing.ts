@@ -14,7 +14,7 @@ import { calculateDurationMinutes } from './webhook-helpers';
 import { createPrepaymentIntent } from '../../core/billing/prepaymentService';
 import { syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
 import { transferRequestParticipantsToSession } from '../../core/trackmanImport';
-import { voidBookingPass } from '../../walletPass/bookingPassService';
+import { voidBookingPass, refreshBookingPass } from '../../walletPass/bookingPassService';
 
 export async function updateBaySlotCache(
   trackmanBookingId: string,
@@ -149,6 +149,10 @@ export async function createBookingForMember(
             });
           }
         }
+
+        refreshBookingPass(bookingId).catch(err =>
+          logger.warn('[Trackman Webhook] Wallet pass refresh failed after duration/bay change', { extra: { bookingId, error: getErrorMessage(err) } })
+        );
         
         return { success: true, bookingId, updated: true };
       }
@@ -193,6 +197,10 @@ export async function createBookingForMember(
             extra: { bookingId, error: getErrorMessage(broadcastErr) }
           });
         }
+
+        refreshBookingPass(bookingId).catch(err =>
+          logger.warn('[Trackman Webhook] Wallet pass refresh failed after bay change', { extra: { bookingId, error: getErrorMessage(err) } })
+        );
         
         return { success: true, bookingId, updated: true };
       }

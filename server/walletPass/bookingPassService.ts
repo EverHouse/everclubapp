@@ -195,10 +195,16 @@ export async function voidBookingPass(bookingId: number): Promise<void> {
       .where(eq(bookingWalletPasses.bookingId, bookingId));
 
     await bumpSerialChangeTimestamp(passRecord.serialNumber);
-    await sendPassUpdatePush(passRecord.serialNumber);
-    logger.info('[BookingWalletPass] Voided booking pass and sent push update', {
-      extra: { bookingId, serialNumber: passRecord.serialNumber }
-    });
+    const pushResult = await sendPassUpdatePush(passRecord.serialNumber);
+    if (pushResult.sent === 0 && pushResult.failed === 0) {
+      logger.warn('[BookingWalletPass] Voided booking pass but NO device registrations found — push update not delivered', {
+        extra: { bookingId, serialNumber: passRecord.serialNumber }
+      });
+    } else {
+      logger.info('[BookingWalletPass] Voided booking pass and sent push update', {
+        extra: { bookingId, serialNumber: passRecord.serialNumber, pushSent: pushResult.sent, pushFailed: pushResult.failed }
+      });
+    }
   } catch (err) {
     logger.error('[BookingWalletPass] Failed to void booking pass', {
       error: err instanceof Error ? err : new Error(String(err)),
@@ -219,10 +225,16 @@ export async function refreshBookingPass(bookingId: number): Promise<void> {
     if (!passRecord) return;
 
     await bumpSerialChangeTimestamp(passRecord.serialNumber);
-    await sendPassUpdatePush(passRecord.serialNumber);
-    logger.info('[BookingWalletPass] Sent refresh push update for booking pass', {
-      extra: { bookingId, serialNumber: passRecord.serialNumber }
-    });
+    const pushResult = await sendPassUpdatePush(passRecord.serialNumber);
+    if (pushResult.sent === 0 && pushResult.failed === 0) {
+      logger.warn('[BookingWalletPass] Refresh requested but NO device registrations found — push update not delivered', {
+        extra: { bookingId, serialNumber: passRecord.serialNumber }
+      });
+    } else {
+      logger.info('[BookingWalletPass] Sent refresh push update for booking pass', {
+        extra: { bookingId, serialNumber: passRecord.serialNumber, pushSent: pushResult.sent, pushFailed: pushResult.failed }
+      });
+    }
   } catch (err) {
     logger.error('[BookingWalletPass] Failed to refresh booking pass', {
       error: err instanceof Error ? err : new Error(String(err)),

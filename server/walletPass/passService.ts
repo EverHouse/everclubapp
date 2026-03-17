@@ -27,9 +27,9 @@ export async function getWebServiceURL(): Promise<string> {
   const customUrl = await getSettingValue('apple_wallet.web_service_url', '');
   if (customUrl) return customUrl;
 
-  const appUrl = process.env.APP_URL || process.env.REPLIT_DEV_DOMAIN
+  const appUrl = process.env.APP_URL || (process.env.REPLIT_DEV_DOMAIN
     ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-    : '';
+    : '');
   return appUrl ? `${appUrl}/api/wallet` : '';
 }
 
