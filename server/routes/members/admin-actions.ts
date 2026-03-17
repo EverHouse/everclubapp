@@ -9,6 +9,7 @@ import { getSessionUser } from '../../types/session';
 import { TIER_NAMES } from '../../../shared/constants/tiers';
 import { getTierRank } from './helpers';
 import { createMemberLocally, getAllDiscountRules, queueTierSync, syncTierToHubSpot } from '../../core/hubspot';
+import { retryableHubSpotRequest } from '../../core/hubspot/request';
 import Stripe from 'stripe';
 import { changeSubscriptionTier, pauseSubscription } from '../../core/stripe';
 import { notifyMember } from '../../core/notificationService';
@@ -672,7 +673,7 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
       try {
         const { getHubSpotClient } = await import('../../core/integrations');
         const hubspot = await getHubSpotClient();
-        const searchResult = await hubspot.crm.contacts.searchApi.doSearch({
+        const searchResult = await retryableHubSpotRequest(() => hubspot.crm.contacts.searchApi.doSearch({
           filterGroups: [{
             filters: [{ propertyName: 'email', operator: 'EQ' as unknown as import('@hubspot/api-client/lib/codegen/crm/contacts').FilterOperatorEnum, value: normalizedEmail }]
           }],
@@ -680,7 +681,7 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
           limit: 1,
           after: '0',
           sorts: [],
-        });
+        }));
         if (searchResult.results.length > 0) {
           effectiveHubspotId = searchResult.results[0].id;
           logger.info('[Admin] Found HubSpot contact by email fallback', { extra: { effectiveHubspotId, normalizedEmail } });
@@ -700,12 +701,12 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
         } else {
           const { getHubSpotClient } = await import('../../core/integrations');
           const hubspot = await getHubSpotClient();
-          await hubspot.crm.contacts.basicApi.update(effectiveHubspotId, { properties: { membership_status: 'Terminated' } });
+          await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.update(effectiveHubspotId, { properties: { membership_status: 'Terminated' } }));
           deletionLog.push('hubspot_membership_status_set_terminated');
           logger.info('[Admin] Set HubSpot membership_status to terminated before deletion', { extra: { hubspotId: effectiveHubspotId, normalizedEmail } });
 
           if (deleteFromHubSpot === 'true') {
-            await hubspot.crm.contacts.basicApi.archive(effectiveHubspotId);
+            await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.archive(effectiveHubspotId));
             hubspotArchived = true;
             deletionLog.push('hubspot_contact (archived)');
           }

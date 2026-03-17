@@ -1040,8 +1040,9 @@ router.delete('/api/visitors/:id', isStaffOrAdmin, async (req, res) => {
           logHubSpotWriteSkipped('archive_visitor_contact', visitor.hubspotId);
         } else {
           const { getHubSpotClient } = await import('../../core/integrations');
+          const { retryableHubSpotRequest } = await import('../../core/hubspot/request');
           const hubspot = await getHubSpotClient();
-          await hubspot.crm.contacts.basicApi.archive(visitor.hubspotId);
+          await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.archive(visitor.hubspotId));
           hubspotArchived = true;
           deletionLog.push('hubspot_contact (archived)');
         }

@@ -127,13 +127,13 @@ export async function syncPush(params: SyncPushParams): Promise<{ success: boole
     const isChurned = ['terminated', 'cancelled', 'non-member', 'deleted', 'former_member', 'expired'].includes(String(user.membership_status || '').toLowerCase());
     const mappedTier = isChurned ? '' : (await denormalizeTierForHubSpotAsync(String(user.tier)) || '');
 
-    await hubspot.crm.contacts.basicApi.update(resolvedHubspotId, {
+    await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.update(resolvedHubspotId, {
       properties: {
         firstname: user.first_name || '',
         lastname: user.last_name || '',
         membership_tier: mappedTier
       }
-    });
+    }));
 
     return {
       success: true,
@@ -355,10 +355,10 @@ export async function syncPull(params: SyncPullParams): Promise<{ success: boole
 
     const { client: hubspot } = await getHubSpotClientWithFallback();
 
-    const contact = await hubspot.crm.contacts.basicApi.getById(
+    const contact = await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.getById(
       resolvedHubspotId,
       ['firstname', 'lastname', 'email', 'phone', 'membership_tier']
-    );
+    ));
 
     const props = contact.properties || {};
     const hsTierValue = props.membership_tier || null;

@@ -379,7 +379,7 @@ export async function syncDayPassPurchaseToHubSpot(
           // Re-query by email instead of parsing error message
           logger.info(`[DayPassHubSpot] Contact ${normalizedEmail} already exists (409), re-querying...`);
           
-          const searchResponse = await hubspot.crm.contacts.searchApi.doSearch({
+          const searchResponse = await retryableHubSpotRequest(() => hubspot.crm.contacts.searchApi.doSearch({
             filterGroups: [{
               filters: [{
                 propertyName: 'email',
@@ -389,7 +389,7 @@ export async function syncDayPassPurchaseToHubSpot(
             }],
             properties: ['email', 'firstname', 'lastname'],
             limit: 1
-          });
+          }));
           
           if (searchResponse.results?.length > 0) {
             contactId = searchResponse.results[0].id;

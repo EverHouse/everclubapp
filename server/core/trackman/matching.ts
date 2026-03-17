@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { getHubSpotClient } from '../integrations';
+import { retryableHubSpotRequest } from '../hubspot/request';
 import { logger } from '../logger';
 import { parseCSVLine } from './parser';
 import type { UserIdRow, LinkedEmailRow, HubSpotMember } from './constants';
@@ -45,7 +46,7 @@ export async function getAllHubSpotMembers(): Promise<HubSpotMember[]> {
     const BATCH_SIZE = 100;
     
     do {
-      const response = await hubspot.crm.contacts.basicApi.getPage(BATCH_SIZE, after, properties);
+      const response = await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.getPage(BATCH_SIZE, after, properties));
       totalProcessed += response.results.length;
       
       for (const contact of response.results) {

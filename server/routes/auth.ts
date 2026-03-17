@@ -7,6 +7,7 @@ import { db } from '../db';
 import { users, magicLinks, staffUsers, membershipTiers, rateLimits } from '../../shared/schema';
 import { isProduction } from '../core/db';
 import { getHubSpotClient } from '../core/integrations';
+import { retryableHubSpotRequest } from '../core/hubspot/request';
 import { normalizeTierName, DEFAULT_TIER } from '../../shared/constants/tiers';
 import { getResendClient } from '../utils/resend';
 import { withResendRetry } from '../core/retryUtils';
@@ -620,7 +621,7 @@ router.post('/api/auth/verify-member', async (req, res) => {
     // For Mindbody legacy members or unknown users: check HubSpot
     const hubspot = await getHubSpotClient();
     
-    const searchResponse = await hubspot.crm.contacts.searchApi.doSearch({
+    const searchResponse = await retryableHubSpotRequest(() => hubspot.crm.contacts.searchApi.doSearch({
       filterGroups: [{
         filters: [{
           propertyName: 'email',
@@ -639,7 +640,7 @@ router.post('/api/auth/verify-member', async (req, res) => {
         'mindbody_client_id'
       ],
       limit: 1
-    });
+    }));
     
     const contact = searchResponse.results[0];
     
@@ -806,7 +807,7 @@ router.post('/api/auth/request-otp', async (req, res) => {
       // For non-Stripe members or unknown users: check HubSpot
       const hubspot = await getHubSpotClient();
       
-      const searchResponse = await hubspot.crm.contacts.searchApi.doSearch({
+      const searchResponse = await retryableHubSpotRequest(() => hubspot.crm.contacts.searchApi.doSearch({
         filterGroups: [{
           filters: [{
             propertyName: 'email',
@@ -816,7 +817,7 @@ router.post('/api/auth/request-otp', async (req, res) => {
         }],
         properties: ['firstname', 'lastname', 'email', 'membership_status', 'membership_start_date'],
         limit: 1
-      });
+      }));
       
       const contact = searchResponse.results[0];
       
@@ -1038,7 +1039,7 @@ router.post('/api/auth/verify-otp', async (req, res) => {
         // For Mindbody legacy members or unknown users: check HubSpot
         const hubspot = await getHubSpotClient();
         
-        const searchResponse = await hubspot.crm.contacts.searchApi.doSearch({
+        const searchResponse = await retryableHubSpotRequest(() => hubspot.crm.contacts.searchApi.doSearch({
           filterGroups: [{
             filters: [{
               propertyName: 'email',
@@ -1048,7 +1049,7 @@ router.post('/api/auth/verify-otp', async (req, res) => {
           }],
           properties: ['firstname', 'lastname', 'email', 'phone', 'membership_tier', 'membership_status', 'membership_discount_reason', 'mindbody_client_id', 'membership_start_date', 'date_of_birth'],
           limit: 1
-        });
+        }));
         
         const contact = searchResponse.results[0];
         
@@ -1345,7 +1346,7 @@ router.post('/api/auth/password-login', ...authRateLimiter, async (req, res) => 
     let memberData = null;
     
     try {
-      const searchResponse = await hubspot.crm.contacts.searchApi.doSearch({
+      const searchResponse = await retryableHubSpotRequest(() => hubspot.crm.contacts.searchApi.doSearch({
         filterGroups: [{
           filters: [{
             propertyName: 'email',
@@ -1355,7 +1356,7 @@ router.post('/api/auth/password-login', ...authRateLimiter, async (req, res) => 
         }],
         properties: ['firstname', 'lastname', 'email', 'phone', 'membership_tier', 'membership_status', 'membership_discount_reason', 'mindbody_client_id', 'membership_start_date', 'date_of_birth'],
         limit: 1
-      });
+      }));
       
       if (searchResponse.results.length > 0) {
         const contact = searchResponse.results[0];

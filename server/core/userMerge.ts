@@ -5,6 +5,7 @@ import { logger } from './logger';
 import { normalizeEmail } from './utils/emailNormalization';
 import { getStripeClient } from './stripe/client';
 import { getHubSpotClient } from './integrations';
+import { retryableHubSpotRequest } from './hubspot/request';
 import { toTextArrayLiteral } from '../utils/sqlArrayLiteral';
 
 export interface MergePreview {
@@ -637,13 +638,19 @@ async function executeMergeInternal(
     try {
       const hubspot = await getHubSpotClient();
       if (hubspot) {
-        await hubspot.apiRequest({
-          method: 'POST',
-          path: '/crm/v3/objects/contacts/merge',
-          body: {
-            primaryObjectId: primaryHubspotId,
-            objectIdToMerge: secondaryHubspotId
+        await retryableHubSpotRequest(async () => {
+          const res = await hubspot.apiRequest({
+            method: 'POST',
+            path: '/crm/v3/objects/contacts/merge',
+            body: {
+              primaryObjectId: primaryHubspotId,
+              objectIdToMerge: secondaryHubspotId
+            }
+          });
+          if (res.status === 429) {
+            throw new Error('HTTP 429 Rate Limit from HubSpot merge API');
           }
+          return res;
         });
         logger.info('[UserMerge] HubSpot contacts merged automatically', {
           extra: { primaryHubspotId, secondaryHubspotId }

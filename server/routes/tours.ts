@@ -6,6 +6,7 @@ import { tours, dismissedHubspotMeetings } from '../../shared/schema';
 import { eq, gte, asc, desc, and, sql, or, ilike } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../core/middleware';
 import { getHubSpotClient } from '../core/integrations';
+import { retryableHubSpotRequest } from '../core/hubspot/request';
 import { getResourceConfig, getCalendarAvailability } from '../core/calendar/index';
 
 import { notifyAllStaff } from '../core/notificationService';
@@ -602,7 +603,7 @@ async function fetchHubSpotTourMeetings(): Promise<HubSpotMeetingDetails[]> {
   let after: string | undefined = undefined;
   
   do {
-    const response = await hubspot.crm.objects.meetings.basicApi.getPage(
+    const response = await retryableHubSpotRequest(() => hubspot.crm.objects.meetings.basicApi.getPage(
       100,
       after,
       [
@@ -618,7 +619,7 @@ async function fetchHubSpotTourMeetings(): Promise<HubSpotMeetingDetails[]> {
       ],
       undefined,
       ['contacts']
-    );
+    ));
     
     if (response.results) {
       const filteredMeetings = response.results.filter((meeting) => {
@@ -669,9 +670,9 @@ async function fetchHubSpotTourMeetings(): Promise<HubSpotMeetingDetails[]> {
     if ((associations?.contacts as unknown as { results?: Array<{ id: string }> })?.results?.length) {
       const contactId = (associations!.contacts as unknown as { results: Array<{ id: string }> }).results[0].id;
       try {
-        const contact = await hubspot.crm.contacts.basicApi.getById(contactId, [
+        const contact = await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.getById(contactId, [
           'firstname', 'lastname', 'email', 'phone'
-        ]);
+        ]));
         const firstName = contact.properties.firstname || '';
         const lastName = contact.properties.lastname || '';
         guestName = `${firstName} ${lastName}`.trim() || null;
@@ -744,7 +745,7 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
     let after: string | undefined = undefined;
     
     do {
-      const response = await hubspot.crm.objects.meetings.basicApi.getPage(
+      const response = await retryableHubSpotRequest(() => hubspot.crm.objects.meetings.basicApi.getPage(
         100,
         after,
         [
@@ -760,7 +761,7 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
         ],
         undefined,
         ['contacts']
-      );
+      ));
       
       if (response.results) {
         const filteredMeetings = response.results.filter((meeting) => {
@@ -818,9 +819,9 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
       if ((associations as unknown as { contacts?: { results?: Array<{ id: string }> } })?.contacts?.results?.length) {
         const contactId = (associations as unknown as { contacts: { results: Array<{ id: string }> } }).contacts.results[0].id;
         try {
-          const contact = await hubspot.crm.contacts.basicApi.getById(contactId, [
+          const contact = await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.getById(contactId, [
             'firstname', 'lastname', 'email', 'phone'
-          ]);
+          ]));
           const firstName = contact.properties.firstname || '';
           const lastName = contact.properties.lastname || '';
           guestName = `${firstName} ${lastName}`.trim() || null;

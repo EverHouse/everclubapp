@@ -4,6 +4,7 @@ import { Client } from '@hubspot/api-client';
 import { getErrorMessage, getErrorStatusCode } from '../../utils/errorUtils';
 import { logger } from '../logger';
 import { getHubSpotClientWithFallback } from '../integrations';
+import { retryableHubSpotRequest } from '../hubspot/request';
 import { isProduction } from '../db';
 import { denormalizeTierForHubSpotAsync } from '../../utils/tierUtils';
 import type {
@@ -58,10 +59,10 @@ export async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> 
     if (!member.hubspot_id) continue;
 
     try {
-      const hubspotContact = await hubspot.crm.contacts.basicApi.getById(
+      const hubspotContact = await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.getById(
         String(member.hubspot_id),
         ['firstname', 'lastname', 'email', 'membership_tier']
-      );
+      ));
 
       const props = hubspotContact.properties || {};
       const comparisons: SyncComparisonData[] = [];

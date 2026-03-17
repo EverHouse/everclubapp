@@ -1315,7 +1315,7 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
 
           try {
             const hubspot = await getHubSpotClient();
-            const contact = await hubspot.crm.contacts.basicApi.getById(objectId, ['email', 'membership_status', 'membership_tier', 'mindbody_client_id']);
+            const contact = await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.getById(objectId, ['email', 'membership_status', 'membership_tier', 'mindbody_client_id']));
             const email = contact.properties.email?.toLowerCase();
             const hasMindbodyId = !!(contact.properties as Record<string, string | null>).mindbody_client_id;
             
