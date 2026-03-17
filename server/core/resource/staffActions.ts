@@ -1,16 +1,22 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../../db';
 import { resources, users, bookingRequests } from '../../../shared/schema';
 import { logger } from '../logger';
-import { notifyMember } from '../notificationService';
-import { checkAllConflicts } from '../bookingValidation';
+import { notifyMember, notifyAllStaff } from '../notificationService';
+import { checkAllConflicts, checkClosureConflict, checkAvailabilityBlockConflict } from '../bookingValidation';
 import { bookingEvents } from '../bookingEvents';
 import { recalculateSessionFees } from '../billing/unifiedFeeService';
 import { createPrepaymentIntent } from '../billing/prepaymentService';
-import { ensureSessionForBooking } from '../bookingService/sessionManager';
+import { ensureSessionForBooking, createTxQueryClient } from '../bookingService/sessionManager';
+import { acquireBookingLocks } from '../bookingService/bookingCreationGuard';
 import { createCalendarEventOnCalendar, getCalendarIdByName, CALENDAR_CONFIG } from '../calendar/index';
 import { AppError } from '../errors';
 import { resolveUserByEmail } from '../stripe/customers';
+import { broadcastAvailabilityUpdate } from '../websocket';
+import { formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
+import { getErrorMessage } from '../../utils/errorUtils';
+import { refreshBookingPass } from '../../walletPass/bookingPassService';
+import type { StaffManualBookingInput } from '../../../shared/validators/manualBooking';
 
 interface MemberLookupRow {
   id: string;
@@ -568,4 +574,411 @@ export async function createManualBooking(params: {
         : null
     }
   };
+}
+
+class ManualBookingValidationError extends Error {
+  constructor(public statusCode: number, public errorBody: Record<string, unknown>) {
+    super(typeof errorBody.error === 'string' ? errorBody.error : 'Booking validation error');
+    this.name = 'ManualBookingValidationError';
+  }
+}
+
+export { ManualBookingValidationError };
+
+interface StaffManualBookingResult {
+  row: Record<string, unknown>;
+  dayPassRedeemed: boolean;
+}
+
+export async function createStaffManualBooking(
+  input: StaffManualBookingInput,
+  staffEmail: string
+): Promise<StaffManualBookingResult> {
+  const trackman_id = input.trackman_booking_id || input.trackman_external_id;
+
+  let resolvedEmail = (input.user_email || '').toLowerCase();
+  let resolvedUserId: string | null = null;
+  if (input.user_email) {
+    const resolved = await resolveUserByEmail(resolvedEmail);
+    if (resolved) {
+      if (resolved.matchType !== 'direct') {
+        logger.info('[StaffManualBooking] Resolved linked email to primary', { extra: { originalEmail: resolvedEmail, resolvedEmail: resolved.primaryEmail, matchType: resolved.matchType } });
+        resolvedEmail = resolved.primaryEmail.toLowerCase();
+      }
+      resolvedUserId = resolved.userId;
+    }
+  }
+
+  if (trackman_id) {
+    const [duplicate] = await db.select({ id: bookingRequests.id, status: bookingRequests.status, userEmail: bookingRequests.userEmail })
+      .from(bookingRequests)
+      .where(eq(bookingRequests.trackmanBookingId, trackman_id))
+      .limit(1);
+
+    if (duplicate) {
+      const terminalStatuses = ['cancelled', 'cancellation_pending', 'declined', 'no_show'];
+      const sameEmail = input.user_email && duplicate.userEmail &&
+        resolvedEmail === duplicate.userEmail?.toLowerCase();
+
+      if (terminalStatuses.includes(duplicate.status || '')) {
+        await db.update(bookingRequests)
+          .set({ trackmanBookingId: null })
+          .where(eq(bookingRequests.id, duplicate.id));
+      } else if (sameEmail) {
+        const duplicateId = duplicate.id as number;
+        const updateResult = await db.update(bookingRequests)
+          .set({
+            trackmanBookingId: null,
+            status: 'declined',
+            staffNotes: sql`COALESCE(staff_notes, '') || ' [Auto-declined: Trackman ID re-linked via manual booking for the same member]'`,
+            reviewedBy: 'system_relink',
+            reviewedAt: sql`NOW()`,
+            updatedAt: sql`NOW()`
+          })
+          .where(and(
+            eq(bookingRequests.id, duplicateId),
+            sql`${bookingRequests.status} NOT IN ('cancelled', 'cancellation_pending', 'declined', 'no_show')`
+          ))
+          .returning({ id: bookingRequests.id });
+
+        if (updateResult.length > 0) {
+          const orphanedSession = await db.execute(sql`
+            SELECT id FROM booking_sessions WHERE id = (
+              SELECT session_id FROM booking_requests WHERE id = ${duplicateId}
+            )
+          `).then(r => (r.rows as Array<Record<string, unknown>>)[0]);
+
+          if (orphanedSession?.id) {
+            await db.execute(sql`DELETE FROM booking_sessions WHERE id = ${orphanedSession.id}`);
+          }
+        }
+
+        logger.info('[ManualBooking] Declined orphaned same-member booking during Trackman re-link', {
+          extra: { declinedBookingId: duplicateId, trackmanId: trackman_id, updated: updateResult.length > 0 }
+        });
+      } else {
+        throw new ManualBookingValidationError(409, {
+          error: `Trackman Booking ID ${trackman_id} is already linked to another booking (#${duplicate.id}). Each Trackman booking can only be linked once.`
+        });
+      }
+    }
+  }
+
+  const parsedDate = new Date(input.request_date + 'T00:00:00');
+  if (isNaN(parsedDate.getTime())) {
+    throw new ManualBookingValidationError(400, { error: 'Invalid date format' });
+  }
+
+  const [year, month, day] = input.request_date.split('-').map((n: string) => parseInt(n, 10));
+  const validatedDate = new Date(year, month - 1, day);
+  if (validatedDate.getFullYear() !== year ||
+      validatedDate.getMonth() !== month - 1 ||
+      validatedDate.getDate() !== day) {
+    throw new ManualBookingValidationError(400, { error: 'Invalid date - date does not exist (e.g., Feb 30)' });
+  }
+
+  const [hours, mins] = input.start_time.split(':').map(Number);
+  const totalMins = hours * 60 + mins + input.duration_minutes;
+  const endHours = Math.floor(totalMins / 60);
+  const endMins = totalMins % 60;
+  const end_time = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}:00`;
+
+  if (endHours >= 24) {
+    throw new ManualBookingValidationError(400, { error: 'Booking cannot extend past midnight. Please choose an earlier start time or shorter duration.' });
+  }
+
+  let sanitizedParticipants: Array<{ email: string; type: string; userId?: string; name?: string }> = [];
+  if (input.request_participants && Array.isArray(input.request_participants)) {
+    sanitizedParticipants = input.request_participants
+      .slice(0, 3)
+      .map((p: Record<string, unknown>) => ({
+        email: typeof p.email === 'string' ? p.email.toLowerCase().trim() : '',
+        type: p.type === 'member' ? 'member' : 'guest',
+        userId: p.userId != null ? String(p.userId) : undefined,
+        name: typeof p.name === 'string' ? p.name.trim() : undefined
+      }))
+      .filter((p: { email: string; userId?: string }) => p.email || p.userId);
+  }
+
+  const isDayPassPayment = input.paymentStatus === 'Paid (Day Pass)' && input.dayPassPurchaseId;
+
+  let row: Record<string, unknown>;
+  let dayPassRedeemed = false;
+
+  const txResult = await db.transaction(async (tx) => {
+    await acquireBookingLocks(tx as unknown as Parameters<typeof acquireBookingLocks>[0], {
+      resourceId: input.resource_id || null,
+      requestDate: input.request_date,
+      startTime: input.start_time,
+      endTime: end_time,
+      requestEmail: resolvedEmail,
+      isStaffRequest: true,
+      isViewAsMode: false,
+      resourceType: input.resource_id ? 'simulator' : 'simulator'
+    });
+
+    if (isDayPassPayment) {
+      const dayPassResult = await tx.execute(sql`
+        SELECT id, purchaser_email, redeemed_at, status, remaining_uses, booking_id
+        FROM day_pass_purchases 
+        WHERE id = ${input.dayPassPurchaseId}
+        FOR UPDATE
+      `);
+
+      if (dayPassResult.rows.length === 0) {
+        throw new ManualBookingValidationError(404, { error: 'Day pass not found' });
+      }
+
+      const dayPass = dayPassResult.rows[0] as Record<string, unknown>;
+
+      if ((dayPass.purchaser_email as string).toLowerCase() !== resolvedEmail) {
+        throw new ManualBookingValidationError(403, { error: 'Day pass belongs to a different user' });
+      }
+
+      if (dayPass.redeemed_at !== null || dayPass.booking_id !== null) {
+        throw new ManualBookingValidationError(400, { error: 'Day pass has already been redeemed' });
+      }
+
+      if (dayPass.status === 'redeemed' || (dayPass.remaining_uses !== null && (dayPass.remaining_uses as number) <= 0)) {
+        throw new ManualBookingValidationError(400, { error: 'Day pass has already been used' });
+      }
+    }
+
+    await tx.execute(sql`
+      SELECT id FROM booking_requests 
+      WHERE LOWER(user_email) = LOWER(${resolvedEmail}) 
+      AND request_date = ${input.request_date} 
+      AND status IN ('pending', 'approved', 'confirmed')
+      ORDER BY id ASC
+      FOR UPDATE
+    `);
+
+    if (input.resource_id) {
+      const overlapCheck = await tx.execute(sql`
+        SELECT id, start_time, end_time FROM booking_requests 
+        WHERE resource_id = ${input.resource_id} 
+        AND request_date = ${input.request_date} 
+        AND status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'attended', 'cancellation_pending')
+        AND (
+          (start_time < ${end_time} AND end_time > ${input.start_time}) OR
+          (end_time < start_time AND (start_time < ${end_time} OR end_time > ${input.start_time}))
+        )
+        ORDER BY id ASC
+        FOR UPDATE
+      `);
+
+      if (overlapCheck.rows.length > 0) {
+        const conflict = overlapCheck.rows[0] as Record<string, unknown>;
+        const conflictStart = (conflict.start_time as string)?.substring(0, 5);
+        const conflictEnd = (conflict.end_time as string)?.substring(0, 5);
+        const errorMsg = conflictStart && conflictEnd
+          ? `This time slot conflicts with an existing booking from ${formatTime12Hour(conflictStart)} to ${formatTime12Hour(conflictEnd)}. Please adjust your time or duration.`
+          : 'This time slot is already booked';
+        throw new ManualBookingValidationError(409, { error: errorMsg });
+      }
+
+      const txClient = tx as unknown as { select: typeof db.select, execute: typeof db.execute };
+
+      const closureCheck = await checkClosureConflict(input.resource_id, input.request_date, input.start_time, end_time, txClient);
+      if (closureCheck.hasConflict) {
+        throw new ManualBookingValidationError(409, { error: `This time slot conflicts with a facility closure: ${closureCheck.closureTitle || 'Facility Closure'}` });
+      }
+
+      const blockCheck = await checkAvailabilityBlockConflict(input.resource_id, input.request_date, input.start_time, end_time, txClient);
+      if (blockCheck.hasConflict) {
+        throw new ManualBookingValidationError(409, { error: `This time slot is blocked: ${blockCheck.blockNotes || blockCheck.blockType || 'Event Block'}` });
+      }
+    }
+
+    const bookingStatus = isDayPassPayment ? 'approved' : 'pending';
+
+    const trackmanBookingIdVal = input.trackman_booking_id || input.trackman_external_id;
+    const insertResult = await tx.execute(sql`
+      INSERT INTO booking_requests (
+        user_email, user_name, user_id, resource_id, 
+        request_date, start_time, duration_minutes, end_time,
+        declared_player_count, request_participants,
+        trackman_booking_id, trackman_external_id, origin,
+        status, created_at, updated_at
+      ) VALUES (
+        ${resolvedEmail},
+        ${input.user_name || null},
+        ${resolvedUserId || null},
+        ${input.resource_id || null},
+        ${input.request_date},
+        ${input.start_time},
+        ${input.duration_minutes},
+        ${end_time},
+        ${input.declared_player_count && input.declared_player_count >= 1 && input.declared_player_count <= 4 ? input.declared_player_count : null},
+        ${sanitizedParticipants.length > 0 ? JSON.stringify(sanitizedParticipants) : '[]'},
+        ${trackmanBookingIdVal ?? null},
+        ${input.trackman_external_id || null},
+        ${'staff_manual'},
+        ${bookingStatus},
+        NOW(), NOW()
+      )
+      RETURNING *
+    `);
+
+    const dbRow = insertResult.rows[0] as Record<string, unknown>;
+    const bookingId = dbRow.id as number;
+
+    let txDayPassRedeemed = false;
+    if (isDayPassPayment) {
+      await tx.execute(sql`
+        UPDATE day_pass_purchases 
+        SET redeemed_at = NOW(),
+            booking_id = ${bookingId},
+            status = 'redeemed',
+            remaining_uses = 0,
+            updated_at = NOW()
+        WHERE id = ${input.dayPassPurchaseId}
+      `);
+
+      await tx.execute(sql`
+        INSERT INTO pass_redemption_logs (purchase_id, redeemed_by, location, notes)
+        VALUES (${input.dayPassPurchaseId}, ${staffEmail}, ${'staff_manual_booking'}, ${'Redeemed via manual booking #' + bookingId})
+      `);
+
+      txDayPassRedeemed = true;
+      logger.info('[StaffManualBooking] Day pass redeemed for booking', { extra: { dayPassPurchaseId: input.dayPassPurchaseId, bookingId } });
+    }
+
+    if (isDayPassPayment && dbRow.resource_id) {
+      const sessionResult = await ensureSessionForBooking({
+        bookingId: bookingId,
+        resourceId: dbRow.resource_id as number,
+        sessionDate: input.request_date,
+        startTime: input.start_time,
+        endTime: (dbRow.end_time as string) || end_time,
+        ownerEmail: resolvedEmail,
+        ownerName: input.user_name || (dbRow.user_name as string) || undefined,
+        source: 'staff_manual',
+        createdBy: 'staff_manual_day_pass'
+      }, createTxQueryClient(tx));
+      if (sessionResult.error) {
+        throw new Error(`Session creation failed for day pass booking: ${sessionResult.error}`);
+      }
+    }
+
+    return {
+      row: {
+        id: dbRow.id as number,
+        userEmail: dbRow.user_email as string,
+        userName: dbRow.user_name as string,
+        resourceId: dbRow.resource_id as number,
+        requestDate: dbRow.request_date as string,
+        startTime: dbRow.start_time as string,
+        durationMinutes: dbRow.duration_minutes as number,
+        endTime: dbRow.end_time as string,
+        status: dbRow.status as string,
+        declaredPlayerCount: dbRow.declared_player_count as number,
+        requestParticipants: (dbRow.request_participants as unknown as unknown[]) || [],
+        trackmanExternalId: dbRow.trackman_external_id as string,
+        origin: dbRow.origin as string,
+        createdAt: dbRow.created_at,
+        updatedAt: dbRow.updated_at
+      },
+      dayPassRedeemed: txDayPassRedeemed
+    };
+  });
+
+  row = txResult.row;
+  dayPassRedeemed = txResult.dayPassRedeemed;
+
+  return { row, dayPassRedeemed };
+}
+
+export function fireManualBookingPostCommitEffects(
+  row: Record<string, unknown>,
+  dayPassRedeemed: boolean,
+  input: StaffManualBookingInput,
+  auditLogFn: (action: string, entityType: string, entityId: string, entityName: string, metadata: Record<string, unknown>) => void
+): void {
+  const trackman_id = input.trackman_booking_id || input.trackman_external_id;
+  const isDayPassPayment = input.paymentStatus === 'Paid (Day Pass)' && input.dayPassPurchaseId;
+
+  try {
+    if (row.status === 'approved') {
+      refreshBookingPass(row.id as number).catch(err =>
+        logger.error('[StaffManualBooking] Wallet pass refresh failed', { extra: { bookingId: row.id, error: getErrorMessage(err) } })
+      );
+    }
+
+    let resourceName = 'Bay';
+    if (row.resourceId) {
+      db.select({ name: resources.name }).from(resources).where(eq(resources.id, row.resourceId as number))
+        .then(([resource]) => {
+          if (resource?.name) resourceName = resource.name;
+        })
+        .catch((e: unknown) => logger.error('[ManualBooking] Failed to fetch resource name', { extra: { e } }))
+        .finally(() => {
+          sendNotificationAndBroadcast(row, resourceName, input, dayPassRedeemed, trackman_id!, auditLogFn, isDayPassPayment);
+        });
+    } else {
+      sendNotificationAndBroadcast(row, resourceName, input, dayPassRedeemed, trackman_id!, auditLogFn, isDayPassPayment);
+    }
+  } catch (postCommitError: unknown) {
+    logger.error('[StaffManualBooking] Post-commit operations failed', { extra: { postCommitError } });
+  }
+}
+
+function sendNotificationAndBroadcast(
+  row: Record<string, unknown>,
+  resourceName: string,
+  input: StaffManualBookingInput,
+  dayPassRedeemed: boolean,
+  trackman_id: string,
+  auditLogFn: (action: string, entityType: string, entityId: string, entityName: string, metadata: Record<string, unknown>) => void,
+  isDayPassPayment: unknown
+): void {
+  const dateStr = typeof row.requestDate === 'string'
+    ? row.requestDate
+    : input.request_date;
+  const formattedDate = formatDateDisplayWithDay(dateStr);
+  const formattedTime12h = formatTime12Hour(String(row.startTime || '').substring(0, 5) || input.start_time.substring(0, 5));
+
+  const durationMins = row.durationMinutes || input.duration_minutes;
+  let durationDisplay = '';
+  if (durationMins) {
+    if (Number(durationMins) < 60) {
+      durationDisplay = `${durationMins} min`;
+    } else {
+      const hrs = Number(durationMins) / 60;
+      durationDisplay = hrs === Math.floor(hrs) ? `${hrs} hr${hrs > 1 ? 's' : ''}` : `${hrs.toFixed(1)} hrs`;
+    }
+  }
+
+  const playerCount = input.declared_player_count && input.declared_player_count > 1 ? ` (${input.declared_player_count} players)` : '';
+  const dayPassNote = dayPassRedeemed ? ' [Day Pass]' : '';
+
+  const staffTitle = 'Staff Manual Booking Created';
+  const staffMessage = `${row.userName || row.userEmail}${playerCount} - ${resourceName} on ${formattedDate} at ${formattedTime12h} for ${durationDisplay}${dayPassNote} (Trackman: ${trackman_id})`;
+
+  notifyAllStaff(
+    staffTitle,
+    staffMessage,
+    'booking',
+    {
+      relatedId: row.id as number,
+      relatedType: 'booking_request'
+    }
+  ).catch(err => logger.error('Staff notification failed:', { extra: { err } }));
+
+  broadcastAvailabilityUpdate({
+    resourceId: (row.resourceId as number) || undefined,
+    resourceType: 'simulator',
+    date: row.requestDate as string,
+    action: 'booked'
+  });
+
+  auditLogFn('create_booking', 'booking', String(row.id), (row.userName || row.userEmail) as string, {
+    trackman_booking_id: trackman_id,
+    origin: 'staff_manual',
+    resource_id: row.resourceId,
+    request_date: row.requestDate,
+    start_time: row.startTime,
+    day_pass_id: dayPassRedeemed ? input.dayPassPurchaseId : undefined,
+    payment_status: isDayPassPayment ? 'paid_day_pass' : undefined
+  });
 }

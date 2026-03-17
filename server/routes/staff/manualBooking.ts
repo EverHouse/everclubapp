@@ -1,398 +1,32 @@
 import { Router } from 'express';
 import { isStaffOrAdmin } from '../../core/middleware';
-import { notifyAllStaff } from '../../core/notificationService';
-import { broadcastAvailabilityUpdate } from '../../core/websocket';
 import { logFromRequest } from '../../core/auditLog';
-import {logAndRespond, logger } from '../../core/logger';
-import { getErrorMessage } from '../../utils/errorUtils';
-import { formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
-import { db } from '../../db';
-import { resources, bookingRequests } from '../../../shared/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { logAndRespond } from '../../core/logger';
 import { getSessionUser } from '../../types/session';
-import { ensureSessionForBooking, createTxQueryClient } from '../../core/bookingService/sessionManager';
-import { acquireBookingLocks } from '../../core/bookingService/bookingCreationGuard';
-import { resolveUserByEmail } from '../../core/stripe/customers';
-import { checkClosureConflict, checkAvailabilityBlockConflict } from '../../core/bookingValidation';
-import { refreshBookingPass } from '../../walletPass/bookingPassService';
-
-class ManualBookingValidationError extends Error {
-  constructor(public statusCode: number, public errorBody: Record<string, unknown>) {
-    super(typeof errorBody.error === 'string' ? errorBody.error : 'Booking validation error');
-    this.name = 'ManualBookingValidationError';
-  }
-}
+import { validateBody } from '../../middleware/validate';
+import { staffManualBookingSchema } from '../../../shared/validators/manualBooking';
+import { createStaffManualBooking, ManualBookingValidationError, fireManualBookingPostCommitEffects } from '../../core/resource/staffActions';
 
 const router = Router();
 
-router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
+router.post('/api/staff/manual-booking', isStaffOrAdmin, validateBody(staffManualBookingSchema), async (req, res) => {
   try {
-    const { 
-      user_email, 
-      user_name, 
-      resource_id, 
-      request_date, 
-      start_time, 
-      duration_minutes,
-      declared_player_count,
-      request_participants,
-      dayPassPurchaseId,
-      paymentStatus
-    } = req.body;
-    const trackman_booking_id_val = req.body.trackman_booking_id;
-    const trackman_external_id_val = req.body.trackman_external_id;
-    const trackman_id = trackman_booking_id_val || trackman_external_id_val;
-    
-    if (trackman_id && !/^\d+$/.test(trackman_id)) {
-      return res.status(400).json({ 
-        error: 'Trackman Booking ID must be a number (e.g., 19510379). UUIDs and other formats are not valid Trackman IDs.' 
-      });
-    }
-
-    let resolvedEmail = (user_email || '').toLowerCase();
-    let resolvedUserId: string | null = null;
-    if (user_email) {
-      const resolved = await resolveUserByEmail(resolvedEmail);
-      if (resolved) {
-        if (resolved.matchType !== 'direct') {
-          logger.info('[StaffManualBooking] Resolved linked email to primary', { extra: { originalEmail: resolvedEmail, resolvedEmail: resolved.primaryEmail, matchType: resolved.matchType } });
-          resolvedEmail = resolved.primaryEmail.toLowerCase();
-        }
-        resolvedUserId = resolved.userId;
-      }
-    }
-
-    if (trackman_id) {
-      const [duplicate] = await db.select({ id: bookingRequests.id, status: bookingRequests.status, userEmail: bookingRequests.userEmail })
-        .from(bookingRequests)
-        .where(eq(bookingRequests.trackmanBookingId, trackman_id))
-        .limit(1);
-      
-      if (duplicate) {
-        const terminalStatuses = ['cancelled', 'cancellation_pending', 'declined', 'no_show'];
-        const sameEmail = user_email && duplicate.userEmail &&
-          resolvedEmail === duplicate.userEmail?.toLowerCase();
-
-        if (terminalStatuses.includes(duplicate.status || '')) {
-          await db.update(bookingRequests)
-            .set({ trackmanBookingId: null })
-            .where(eq(bookingRequests.id, duplicate.id));
-        } else if (sameEmail) {
-          const duplicateId = duplicate.id as number;
-          const updateResult = await db.update(bookingRequests)
-            .set({
-              trackmanBookingId: null,
-              status: 'declined',
-              staffNotes: sql`COALESCE(staff_notes, '') || ' [Auto-declined: Trackman ID re-linked via manual booking for the same member]'`,
-              reviewedBy: 'system_relink',
-              reviewedAt: sql`NOW()`,
-              updatedAt: sql`NOW()`
-            })
-            .where(and(
-              eq(bookingRequests.id, duplicateId),
-              sql`${bookingRequests.status} NOT IN ('cancelled', 'cancellation_pending', 'declined', 'no_show')`
-            ))
-            .returning({ id: bookingRequests.id });
-
-          if (updateResult.length > 0) {
-            const orphanedSession = await db.execute(sql`
-              SELECT id FROM booking_sessions WHERE id = (
-                SELECT session_id FROM booking_requests WHERE id = ${duplicateId}
-              )
-            `).then(r => (r.rows as Array<Record<string, unknown>>)[0]);
-
-            if (orphanedSession?.id) {
-              await db.execute(sql`DELETE FROM booking_sessions WHERE id = ${orphanedSession.id}`);
-            }
-          }
-
-          logger.info('[ManualBooking] Declined orphaned same-member booking during Trackman re-link', {
-            extra: { declinedBookingId: duplicateId, trackmanId: trackman_id, updated: updateResult.length > 0 }
-          });
-        } else {
-          return res.status(409).json({ 
-            error: `Trackman Booking ID ${trackman_id} is already linked to another booking (#${duplicate.id}). Each Trackman booking can only be linked once.` 
-          });
-        }
-      }
-    }
-
-    if (!user_email || !request_date || !start_time || !duration_minutes) {
-      return res.status(400).json({ error: 'Missing required fields: user_email, request_date, start_time, duration_minutes' });
-    }
-    
-    if (!trackman_id) {
-      return res.status(400).json({ error: 'Missing required field: trackman_booking_id (or trackman_external_id)' });
-    }
-    
-    const parsedDate = new Date(request_date + 'T00:00:00');
-    if (isNaN(parsedDate.getTime())) {
-      return res.status(400).json({ error: 'Invalid date format' });
-    }
-    
-    const [year, month, day] = request_date.split('-').map((n: string) => parseInt(n, 10));
-    const validatedDate = new Date(year, month - 1, day);
-    if (validatedDate.getFullYear() !== year || 
-        validatedDate.getMonth() !== month - 1 || 
-        validatedDate.getDate() !== day) {
-      return res.status(400).json({ error: 'Invalid date - date does not exist (e.g., Feb 30)' });
-    }
-    
-    if (typeof duration_minutes !== 'number' || !Number.isInteger(duration_minutes) || duration_minutes <= 0 || duration_minutes > 480) {
-      return res.status(400).json({ error: 'Invalid duration. Must be a whole number between 1 and 480 minutes.' });
-    }
-    
-    const [hours, mins] = start_time.split(':').map(Number);
-    const totalMins = hours * 60 + mins + duration_minutes;
-    const endHours = Math.floor(totalMins / 60);
-    const endMins = totalMins % 60;
-    const end_time = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}:00`;
-    
-    if (endHours >= 24) {
-      return res.status(400).json({ error: 'Booking cannot extend past midnight. Please choose an earlier start time or shorter duration.' });
-    }
-    
-    let sanitizedParticipants: Array<{ email: string; type: string; userId?: string; name?: string }> = [];
-    if (request_participants && Array.isArray(request_participants)) {
-      sanitizedParticipants = request_participants
-        .slice(0, 3)
-        .map((p: Record<string, unknown>) => ({
-          email: typeof p.email === 'string' ? p.email.toLowerCase().trim() : '',
-          type: p.type === 'member' ? 'member' : 'guest',
-          userId: p.userId != null ? String(p.userId) : undefined,
-          name: typeof p.name === 'string' ? p.name.trim() : undefined
-        }))
-        .filter((p: { email: string; userId?: string }) => p.email || p.userId);
-    }
-    
-    const isDayPassPayment = paymentStatus === 'Paid (Day Pass)' && dayPassPurchaseId;
+    const input = req.body;
     const sessionUser = getSessionUser(req);
     const staffEmail = sessionUser?.email || 'staff';
-    
-    let row: Record<string, unknown> | undefined;
-    let dayPassRedeemed = false;
-    
+
+    let result;
     try {
-      const txResult = await db.transaction(async (tx) => {
-        await acquireBookingLocks(tx as unknown as Parameters<typeof acquireBookingLocks>[0], {
-          resourceId: resource_id || null,
-          requestDate: request_date,
-          startTime: start_time,
-          endTime: end_time,
-          requestEmail: resolvedEmail,
-          isStaffRequest: true,
-          isViewAsMode: false,
-          resourceType: resource_id ? 'simulator' : 'simulator'
-        });
-
-        if (isDayPassPayment) {
-          const dayPassResult = await tx.execute(sql`
-            SELECT id, purchaser_email, redeemed_at, status, remaining_uses, booking_id
-            FROM day_pass_purchases 
-            WHERE id = ${dayPassPurchaseId}
-            FOR UPDATE
-          `);
-          
-          if (dayPassResult.rows.length === 0) {
-            throw new ManualBookingValidationError(404, { error: 'Day pass not found' });
-          }
-          
-          const dayPass = dayPassResult.rows[0] as Record<string, unknown>;
-          
-          if ((dayPass.purchaser_email as string).toLowerCase() !== resolvedEmail) {
-            throw new ManualBookingValidationError(403, { error: 'Day pass belongs to a different user' });
-          }
-          
-          if (dayPass.redeemed_at !== null || dayPass.booking_id !== null) {
-            throw new ManualBookingValidationError(400, { error: 'Day pass has already been redeemed' });
-          }
-          
-          if (dayPass.status === 'redeemed' || (dayPass.remaining_uses !== null && (dayPass.remaining_uses as number) <= 0)) {
-            throw new ManualBookingValidationError(400, { error: 'Day pass has already been used' });
-          }
-        }
-        
-        await tx.execute(sql`
-          SELECT id FROM booking_requests 
-          WHERE LOWER(user_email) = LOWER(${resolvedEmail}) 
-          AND request_date = ${request_date} 
-          AND status IN ('pending', 'approved', 'confirmed')
-          ORDER BY id ASC
-          FOR UPDATE
-        `);
-        
-        if (resource_id) {
-          const overlapCheck = await tx.execute(sql`
-            SELECT id, start_time, end_time FROM booking_requests 
-            WHERE resource_id = ${resource_id} 
-            AND request_date = ${request_date} 
-            AND status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'attended', 'cancellation_pending')
-            AND (
-              (start_time < ${end_time} AND end_time > ${start_time}) OR
-              (end_time < start_time AND (start_time < ${end_time} OR end_time > ${start_time}))
-            )
-            ORDER BY id ASC
-            FOR UPDATE
-          `);
-          
-          if (overlapCheck.rows.length > 0) {
-            const conflict = overlapCheck.rows[0] as Record<string, unknown>;
-            const conflictStart = (conflict.start_time as string)?.substring(0, 5);
-            const conflictEnd = (conflict.end_time as string)?.substring(0, 5);
-            const errorMsg = conflictStart && conflictEnd
-              ? `This time slot conflicts with an existing booking from ${formatTime12Hour(conflictStart)} to ${formatTime12Hour(conflictEnd)}. Please adjust your time or duration.`
-              : 'This time slot is already booked';
-            throw new ManualBookingValidationError(409, { error: errorMsg });
-          }
-
-          const closureCheck = await checkClosureConflict(resource_id, request_date, start_time, end_time);
-          if (closureCheck.hasConflict) {
-            throw new ManualBookingValidationError(409, { error: `This time slot conflicts with a facility closure: ${closureCheck.closureTitle || 'Facility Closure'}` });
-          }
-
-          const blockCheck = await checkAvailabilityBlockConflict(resource_id, request_date, start_time, end_time);
-          if (blockCheck.hasConflict) {
-            throw new ManualBookingValidationError(409, { error: `This time slot is blocked: ${blockCheck.blockNotes || blockCheck.blockType || 'Event Block'}` });
-          }
-        }
-        
-        const bookingStatus = isDayPassPayment ? 'approved' : 'pending';
-        
-        const trackmanBookingIdVal = trackman_booking_id_val || trackman_external_id_val;
-        const insertResult = await tx.execute(sql`
-          INSERT INTO booking_requests (
-            user_email, user_name, user_id, resource_id, 
-            request_date, start_time, duration_minutes, end_time,
-            declared_player_count, request_participants,
-            trackman_booking_id, trackman_external_id, origin,
-            status, created_at, updated_at
-          ) VALUES (
-            ${resolvedEmail},
-            ${user_name || null},
-            ${resolvedUserId || null},
-            ${resource_id || null},
-            ${request_date},
-            ${start_time},
-            ${duration_minutes},
-            ${end_time},
-            ${declared_player_count && declared_player_count >= 1 && declared_player_count <= 4 ? declared_player_count : null},
-            ${sanitizedParticipants.length > 0 ? JSON.stringify(sanitizedParticipants) : '[]'},
-            ${trackmanBookingIdVal ?? null},
-            ${trackman_external_id_val || null},
-            ${'staff_manual'},
-            ${bookingStatus},
-            NOW(), NOW()
-          )
-          RETURNING *
-        `);
-        
-        const dbRow = insertResult.rows[0] as Record<string, unknown>;
-        const bookingId = dbRow.id as number;
-        
-        let txDayPassRedeemed = false;
-        if (isDayPassPayment) {
-          await tx.execute(sql`
-            UPDATE day_pass_purchases 
-            SET redeemed_at = NOW(),
-                booking_id = ${bookingId},
-                status = 'redeemed',
-                remaining_uses = 0,
-                updated_at = NOW()
-            WHERE id = ${dayPassPurchaseId}
-          `);
-          
-          await tx.execute(sql`
-            INSERT INTO pass_redemption_logs (purchase_id, redeemed_by, location, notes)
-            VALUES (${dayPassPurchaseId}, ${staffEmail}, ${'staff_manual_booking'}, ${'Redeemed via manual booking #' + bookingId})
-          `);
-          
-          txDayPassRedeemed = true;
-          logger.info('[StaffManualBooking] Day pass redeemed for booking', { extra: { dayPassPurchaseId, bookingId } });
-        }
-        
-        if (isDayPassPayment && dbRow.resource_id) {
-          const sessionResult = await ensureSessionForBooking({
-            bookingId: bookingId,
-            resourceId: dbRow.resource_id as number,
-            sessionDate: request_date,
-            startTime: start_time,
-            endTime: (dbRow.end_time as string) || end_time,
-            ownerEmail: resolvedEmail,
-            ownerName: user_name || (dbRow.user_name as string) || undefined,
-            source: 'staff_manual',
-            createdBy: 'staff_manual_day_pass'
-          }, createTxQueryClient(tx));
-          if (sessionResult.error) {
-            throw new Error(`Session creation failed for day pass booking: ${sessionResult.error}`);
-          }
-        }
-
-        return {
-          row: {
-            id: dbRow.id as number,
-            userEmail: dbRow.user_email as string,
-            userName: dbRow.user_name as string,
-            resourceId: dbRow.resource_id as number,
-            requestDate: dbRow.request_date as string,
-            startTime: dbRow.start_time as string,
-            durationMinutes: dbRow.duration_minutes as number,
-            endTime: dbRow.end_time as string,
-            status: dbRow.status as string,
-            declaredPlayerCount: dbRow.declared_player_count as number,
-            requestParticipants: (dbRow.request_participants as unknown as unknown[]) || [],
-            trackmanExternalId: dbRow.trackman_external_id as string,
-            origin: dbRow.origin as string,
-            createdAt: dbRow.created_at,
-            updatedAt: dbRow.updated_at
-          },
-          dayPassRedeemed: txDayPassRedeemed
-        };
-      });
-      
-      row = txResult.row;
-      dayPassRedeemed = txResult.dayPassRedeemed;
+      result = await createStaffManualBooking(input, staffEmail);
     } catch (error: unknown) {
       if (error instanceof ManualBookingValidationError) {
         return res.status(error.statusCode).json(error.errorBody);
       }
       throw error;
     }
-    
-    let resourceName = 'Bay';
-    if (row.resourceId) {
-      try {
-        const [resource] = await db.select({ name: resources.name }).from(resources).where(eq(resources.id, row.resourceId as number));
-        if (resource?.name) {
-          resourceName = resource.name;
-        }
-      } catch (e: unknown) {
-        logger.error('[ManualBooking] Failed to fetch resource name', { extra: { e } });
-      }
-    }
-    
-    const dateStr = typeof row.requestDate === 'string' 
-      ? row.requestDate 
-      : request_date;
-    const formattedDate = formatDateDisplayWithDay(dateStr);
-    const formattedTime12h = formatTime12Hour(String(row.startTime || '').substring(0, 5) || start_time.substring(0, 5));
-    
-    const durationMins = row.durationMinutes || duration_minutes;
-    let durationDisplay = '';
-    if (durationMins) {
-      if (Number(durationMins) < 60) {
-        durationDisplay = `${durationMins} min`;
-      } else {
-        const hours = Number(durationMins)/ 60;
-        durationDisplay = hours === Math.floor(hours) ? `${hours} hr${hours > 1 ? 's' : ''}` : `${hours.toFixed(1)} hrs`;
-      }
-    }
-    
-    const playerCount = declared_player_count && declared_player_count > 1 ? ` (${declared_player_count} players)` : '';
-    const dayPassNote = dayPassRedeemed ? ' [Day Pass]' : '';
-    
-    const staffTitle = 'Staff Manual Booking Created';
-    const staffMessage = `${row.userName || row.userEmail}${playerCount} - ${resourceName} on ${formattedDate} at ${formattedTime12h} for ${durationDisplay}${dayPassNote} (Trackman: ${trackman_id})`;
-    
+
+    const { row, dayPassRedeemed } = result;
+
     res.status(201).json({
       id: row.id,
       user_email: row.userEmail,
@@ -410,45 +44,17 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
       created_at: row.createdAt,
       updated_at: row.updatedAt,
       day_pass_redeemed: dayPassRedeemed,
-      day_pass_id: dayPassRedeemed ? dayPassPurchaseId : undefined
+      day_pass_id: dayPassRedeemed ? input.dayPassPurchaseId : undefined
     });
-    
-    try {
-      if (row.status === 'approved') {
-        refreshBookingPass(row.id as number).catch(err =>
-          logger.error('[StaffManualBooking] Wallet pass refresh failed', { extra: { bookingId: row.id, error: getErrorMessage(err) } })
-        );
-      }
 
-      notifyAllStaff(
-        staffTitle,
-        staffMessage,
-        'booking',
-        {
-          relatedId: row.id as number,
-          relatedType: 'booking_request'
-        }
-      ).catch(err => logger.error('Staff notification failed:', { extra: { err } }));
-      
-      broadcastAvailabilityUpdate({
-        resourceId: (row.resourceId as number) || undefined,
-        resourceType: 'simulator',
-        date: row.requestDate as string,
-        action: 'booked'
-      });
-      
-      logFromRequest(req, 'create_booking', 'booking', String(row.id), (row.userName || row.userEmail) as string, {
-        trackman_booking_id: trackman_id,
-        origin: 'staff_manual',
-        resource_id: row.resourceId,
-        request_date: row.requestDate,
-        start_time: row.startTime,
-        day_pass_id: dayPassRedeemed ? dayPassPurchaseId : undefined,
-        payment_status: isDayPassPayment ? 'paid_day_pass' : undefined
-      });
-    } catch (postCommitError: unknown) {
-      logger.error('[StaffManualBooking] Post-commit operations failed', { extra: { postCommitError } });
-    }
+    fireManualBookingPostCommitEffects(
+      row,
+      dayPassRedeemed,
+      input,
+      (action, entityType, entityId, entityName, metadata) => {
+        logFromRequest(req, action, entityType, entityId, entityName, metadata);
+      }
+    );
   } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to create manual booking', error);
   }

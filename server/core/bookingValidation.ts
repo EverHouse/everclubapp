@@ -55,7 +55,18 @@ export function hasTimeOverlap(start1: number, end1: number, start2: number, end
   return overlapsNormal;
 }
 
-async function getActiveClosuresForDate(bookingDate: string): Promise<Record<string, unknown>[]> {
+async function getActiveClosuresForDate(bookingDate: string, txClient?: { select: typeof db.select, execute: typeof db.execute }): Promise<Record<string, unknown>[]> {
+  if (txClient) {
+    return txClient
+      .select()
+      .from(facilityClosures)
+      .where(and(
+        eq(facilityClosures.isActive, true),
+        sql`${facilityClosures.startDate} <= ${bookingDate}`,
+        sql`${facilityClosures.endDate} >= ${bookingDate}`
+      ));
+  }
+
   const cacheKey = `closures_${bookingDate}`;
   const cached = closureCache.get(cacheKey);
   
@@ -84,10 +95,11 @@ export async function checkClosureConflict(
   resourceId: number,
   bookingDate: string,
   startTime: string,
-  endTime: string
+  endTime: string,
+  txClient?: { select: typeof db.select, execute: typeof db.execute }
 ): Promise<{ hasConflict: boolean; closureTitle?: string }> {
   try {
-    const activeClosures = await getActiveClosuresForDate(bookingDate);
+    const activeClosures = await getActiveClosuresForDate(bookingDate, txClient);
 
     const bookingStartMinutes = parseTimeToMinutes(startTime);
     const bookingEndMinutes = parseTimeToMinutes(endTime);
@@ -196,10 +208,12 @@ export async function checkAvailabilityBlockConflict(
   resourceId: number,
   bookingDate: string,
   startTime: string,
-  endTime: string
+  endTime: string,
+  txClient?: { select: typeof db.select, execute: typeof db.execute }
 ): Promise<{ hasConflict: boolean; blockType?: string; blockNotes?: string }> {
   try {
-    const blocks = await db
+    const dbCtx = txClient || db;
+    const blocks = await dbCtx
       .select()
       .from(availabilityBlocks)
       .where(and(

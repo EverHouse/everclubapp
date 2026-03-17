@@ -37,4 +37,7 @@ export {
   assignWithPlayers,
   changeBookingOwner,
   createManualBooking,
+  createStaffManualBooking,
+  ManualBookingValidationError,
+  fireManualBookingPostCommitEffects,
 } from './staffActions';
