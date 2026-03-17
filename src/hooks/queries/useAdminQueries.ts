@@ -11,7 +11,6 @@ export const adminTabKeys = {
   tiers: (activeOnly?: boolean) => [...adminTabKeys.all, 'tiers', { activeOnly }] as const,
   coupons: () => [...adminTabKeys.all, 'coupons'] as const,
   staffNotifications: (email?: string) => [...adminTabKeys.all, 'staff-notifications', email] as const,
-  staffActivity: (params?: Record<string, unknown>) => [...adminTabKeys.all, 'staff-activity', params] as const,
 };
 
 export function useApplications() {
@@ -343,18 +342,3 @@ export function useDismissAllNotifications() {
   });
 }
 
-export function useStaffActivity(params?: { days?: number; staffFilter?: string; page?: number; pageSize?: number }, options?: { enabled?: boolean }) {
-  return useQuery({
-    queryKey: adminTabKeys.staffActivity(params as Record<string, unknown>),
-    queryFn: () => {
-      const searchParams = new URLSearchParams();
-      if (params?.days) searchParams.append('days', String(params.days));
-      if (params?.staffFilter) searchParams.append('staff', params.staffFilter);
-      if (params?.page) searchParams.append('page', String(params.page));
-      if (params?.pageSize) searchParams.append('pageSize', String(params.pageSize));
-      return fetchWithCredentials<Record<string, unknown>>(`/api/data-tools/staff-activity?${searchParams}`);
-    },
-    enabled: options?.enabled ?? true,
-    staleTime: 1000 * 60 * 2,
-  });
-}
