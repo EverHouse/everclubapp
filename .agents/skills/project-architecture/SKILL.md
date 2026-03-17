@@ -133,11 +133,13 @@ For development: Use `npm run db:push` for schema sync. Schema changes go in `sh
 
 **CRITICAL — FK constraints and deployment:** Replit's deployment system auto-generates migrations by comparing the Drizzle schema to production. If the schema has `.references()` on a column but the FK constraint doesn't exist in production, the deployment generates an `ALTER TABLE ADD CONSTRAINT` statement — which FAILS if production has orphaned data violating the constraint. The auto-generated migration does NOT include data cleanup.
 
-**Rule: Do NOT use `.references()` in the Drizzle schema for FK constraints that don't already exist in production.** Instead, manage them at runtime via `db-init.ts`:
-1. Clean up orphaned data first (UPDATE SET NULL or DELETE)
-2. DROP any existing constraint names (both `_fkey` and `_fk` variants)
-3. ADD the FK constraint with `_fkey` naming
-4. Wrap in try/catch so startup doesn't fail
+**Rule: Do NOT use `.references()` in the Drizzle schema for FK constraints that don't already exist in production.** Instead, manage them at runtime via `db-init.ts` using the `NOT VALID` pattern:
+1. Inside a single `DO $$ BEGIN ... END $$` block (same transaction):
+   a. Clean up orphaned data (UPDATE SET NULL or DELETE)
+   b. DROP any existing constraint names (both `_fkey` and `_fk` variants)
+   c. ADD the FK constraint with `_fkey` naming and `NOT VALID` (skips existing row validation)
+2. In a separate try/catch, run `ALTER TABLE ... VALIDATE CONSTRAINT ...` (checks existing rows, logs warning if orphans remain)
+3. Wrap both steps in try/catch so startup doesn't fail
 
 The `.references()` declarations that DO exist in the schema (e.g., `booking_requests.user_id`, `booking_requests.resource_id`) are safe because their FK constraints already exist in production from earlier migrations (0022, 0023, etc.).
 
