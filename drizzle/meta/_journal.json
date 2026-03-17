@@ -225,6 +225,13 @@
       "when": 1774310400000,
       "tag": "0058_add_missing_fk_constraints",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1774396800000,
+      "tag": "0059_add_terminal_payments_unique_constraint",
+      "breakpoints": true
     }
   ]
 }

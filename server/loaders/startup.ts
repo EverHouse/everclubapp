@@ -10,6 +10,7 @@ import { getErrorMessage } from '../utils/errorUtils';
 import { logger } from '../core/logger';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
+import { stripSslMode } from '../core/db';
 
 async function retryWithBackoff<T>(fn: () => Promise<T>, label: string, maxRetries = 3): Promise<T> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -249,7 +250,7 @@ export async function runStartupTasks(): Promise<void> {
   let origStdoutWrite: typeof process.stdout.write | undefined;
   let origStderrWrite: typeof process.stderr.write | undefined;
   try {
-    const databaseUrl = process.env.DATABASE_URL;
+    const databaseUrl = stripSslMode(process.env.DATABASE_POOLER_URL) || process.env.DATABASE_URL;
     if (databaseUrl) {
       logger.info('[Stripe] Initializing Stripe schema...');
       await retryWithBackoff(() => runMigrations({ databaseUrl, schema: 'stripe' } as unknown as Parameters<typeof runMigrations>[0]), 'Stripe schema migration');

@@ -19,7 +19,7 @@ export function stripSslMode(url: string | undefined): string | undefined {
 const poolerUrl = stripSslMode(process.env.DATABASE_POOLER_URL);
 const rawDirectUrl = stripSslMode(process.env.DATABASE_URL);
 const supabaseDirectUrl = stripSslMode(process.env.SUPABASE_DIRECT_URL);
-const poolerEnabled = process.env.ENABLE_PGBOUNCER === 'true';
+const poolerEnabled = process.env.ENABLE_PGBOUNCER === 'true' || (!!poolerUrl && !isLocalDatabase(rawDirectUrl));
 
 function isLocalDatabase(url: string | undefined): boolean {
   if (!url) return false;

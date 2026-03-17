@@ -1,7 +1,8 @@
 import { defineConfig } from "drizzle-kit";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required");
+const dbUrl = process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL;
+if (!dbUrl) {
+  throw new Error("DATABASE_URL or DATABASE_POOLER_URL is required");
 }
 
 export default defineConfig({
@@ -9,6 +10,6 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: dbUrl,
   },
 });
