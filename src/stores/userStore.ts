@@ -80,6 +80,10 @@ export const useUserStore = create<UserState>()(
         if (!user?.email) return;
         
         try {
+          if (user.role === 'visitor') {
+            set({ guestPasses: null });
+            return;
+          }
           const { ok, data, error: _error } = await apiRequest<GuestPasses>(
             `/api/guest-passes/${encodeURIComponent(user.email)}?tier=${encodeURIComponent(user.tier || 'Social')}`
           );

@@ -89,8 +89,9 @@ const EmailHealthPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
   })();
 
   const latest = stats[0];
-  const totalBounces = stats.reduce((sum, s) => sum + s.bounced, 0);
-  const totalComplaints = stats.reduce((sum, s) => sum + s.complained, 0);
+  const stats30d = stats.find(s => s.period === '30d');
+  const totalBounces = stats30d?.bounced ?? 0;
+  const totalComplaints = stats30d?.complained ?? 0;
 
   return (
     <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">

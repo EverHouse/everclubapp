@@ -151,7 +151,7 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                                         <div className="flex items-center justify-between gap-3 mt-3 pt-3 pb-2 border-t border-gray-50 dark:border-white/20">
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                                 <div className="flex items-center gap-1">
-                                                    <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} />
+                                                    <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} role={m.role} />
                                                     {isMemberPendingUpdate(m.email) && (
                                                         <span className="material-symbols-outlined text-[14px] text-primary dark:!text-lavender animate-spin">progress_activity</span>
                                                     )}
@@ -225,7 +225,7 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                                     <div style={{ width: '11%' }} className="p-3">
                                         <div className="flex items-center gap-1 flex-wrap">
                                             <div className="flex items-center gap-1">
-                                                <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} />
+                                                <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} role={m.role} />
                                                 {isMemberPendingUpdate(m.email) && (
                                                     <span className="material-symbols-outlined text-[12px] text-primary dark:!text-lavender animate-spin">progress_activity</span>
                                                 )}

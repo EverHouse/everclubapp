@@ -950,7 +950,7 @@ const Dashboard: React.FC = () => {
               const tierColors = isVisitor ? { bg: '#EFF6FF', text: '#2563EB', border: '#BFDBFE' } : getTierColor(user?.tier || 'Social');
               const cardBgColor = isExpired ? '#6B7280' : tierColors.bg;
               const cardTextColor = isExpired ? '#F9FAFB' : tierColors.text;
-              const baseTier = isVisitor ? 'Social' : getBaseTier(user?.tier || 'Social');
+              const baseTier = isVisitor ? 'visitor' : getBaseTier(user?.tier || 'Social');
               const useDarkLogo = isExpired || ['Social', 'Premium', 'VIP'].includes(baseTier);
               return (
                 <div 

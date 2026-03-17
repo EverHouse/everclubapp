@@ -150,7 +150,7 @@ router.get('/api/admin/monitoring/email-health', isStaffOrAdmin, async (_req, re
     `);
 
     const recentResult = await db.execute(sql`
-      SELECT event_id, event_type, email_id, recipient_email, subject, created_at
+      SELECT id, event_id, event_type, email_id, recipient_email, subject, created_at
       FROM email_events
       ORDER BY created_at DESC
       LIMIT 20
