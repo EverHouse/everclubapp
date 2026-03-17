@@ -277,7 +277,7 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
             ${end_time},
             ${declared_player_count && declared_player_count >= 1 && declared_player_count <= 4 ? declared_player_count : null},
             ${sanitizedParticipants.length > 0 ? JSON.stringify(sanitizedParticipants) : '[]'},
-            ${trackmanBookingIdVal},
+            ${trackmanBookingIdVal ?? null},
             ${trackman_external_id_val || null},
             ${'staff_manual'},
             ${bookingStatus},
