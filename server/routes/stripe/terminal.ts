@@ -804,9 +804,47 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
       logger.info('[Terminal] Created PI for subscription - will reconcile invoice after payment succeeds', { extra: { paymentIntentId: paymentIntent.id, subscriptionId } });
     }
     
-    const reader = await stripe.terminal.readers.processPaymentIntent(readerId, {
-      payment_intent: paymentIntent.id
-    });
+    let reader: Stripe.Terminal.Reader;
+    let activePiId = paymentIntent.id;
+    try {
+      reader = await stripe.terminal.readers.processPaymentIntent(readerId, {
+        payment_intent: activePiId,
+        allow_redisplay: 'always'
+      });
+    } catch (processErr: unknown) {
+      const errMsg = getErrorMessage(processErr);
+      if (errMsg.includes('requires_payment_method') || errMsg.includes('requires_confirmation') || errMsg.includes('allow_redisplay')) {
+        logger.warn('[Terminal] processPaymentIntent failed on stale/stuck PI, cancelling and creating fresh PI', { extra: { stuckPiId: activePiId, error: errMsg } });
+        const cancelResult = await cancelPaymentIntent(activePiId);
+        if (cancelResult.success) {
+          logger.info('[Terminal] Cancelled stuck PI', { extra: { piId: activePiId } });
+        } else {
+          logger.warn('[Terminal] Could not cancel stuck PI (may already be cancelled)', { extra: { piId: activePiId, error: cancelResult.error } });
+        }
+        const freshPi = await stripe.paymentIntents.create({
+          amount,
+          currency: invoice.currency || 'usd',
+          customer: customerId,
+          payment_method_types: ['card_present'],
+          capture_method: 'automatic',
+          setup_future_usage: 'off_session',
+          description: paymentIntent.description || 'Membership activation',
+          ...(email ? { receipt_email: email } : {}),
+          metadata: {
+            ...paymentIntent.metadata,
+            retriedFromPiId: activePiId,
+          }
+        });
+        activePiId = freshPi.id;
+        logger.info('[Terminal] Created fresh PI after stuck PI cleanup', { extra: { freshPiId: freshPi.id, stuckPiId: paymentIntent.id } });
+        reader = await stripe.terminal.readers.processPaymentIntent(readerId, {
+          payment_intent: activePiId,
+          allow_redisplay: 'always'
+        });
+      } else {
+        throw processErr;
+      }
+    }
     
     if (reader.device_type?.startsWith('simulated')) {
       try {
@@ -822,7 +860,7 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
       resourceId: subscriptionId,
       resourceName: email || userId,
       details: { 
-        paymentIntentId: paymentIntent.id,
+        paymentIntentId: activePiId,
         invoiceId: invoice.id,
         amount,
         readerId,
@@ -832,7 +870,7 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
     
     res.json({
       success: true,
-      paymentIntentId: paymentIntent.id,
+      paymentIntentId: activePiId,
       invoiceId: invoice.id,
       amount,
       readerId: reader.id,
@@ -1243,7 +1281,8 @@ router.post('/api/stripe/terminal/process-existing-payment', isStaffOrAdmin, asy
     }
 
     const reader = await stripe.terminal.readers.processPaymentIntent(readerId, {
-      payment_intent: terminalPiId
+      payment_intent: terminalPiId,
+      allow_redisplay: 'always'
     });
 
     if (reader.device_type?.startsWith('simulated')) {
