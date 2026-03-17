@@ -319,7 +319,10 @@ export async function createBookingForMember(
           }
           
           if (newSessionId && !sessionResult.error) {
-            await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${newSessionId} AND (payment_status = 'pending' OR payment_status IS NULL)`);
+            await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${newSessionId} AND (payment_status = 'pending' OR payment_status IS NULL) AND user_id IS NULL AND guest_id IS NULL`);
+            logger.info('[Trackman Webhook] Auto-linked session: ghost participants waived, real members kept pending', {
+              extra: { bookingId: pendingBookingId, sessionId: newSessionId, trackmanBookingId }
+            });
             const slotDuration = startTime && endTime
               ? Math.round((new Date(`2000-01-01T${endTime}`).getTime() - 
                            new Date(`2000-01-01T${startTime}`).getTime()) / 60000)
@@ -558,7 +561,10 @@ export async function createBookingForMember(
         sessionId = sessionResult.sessionId || null;
         
         if (sessionId && !sessionResult.error) {
-          await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${sessionId} AND (payment_status = 'pending' OR payment_status IS NULL)`);
+          await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${sessionId} AND (payment_status = 'pending' OR payment_status IS NULL) AND user_id IS NULL AND guest_id IS NULL`);
+          logger.info('[Trackman Webhook] createBookingForMember: ghost participants waived, real members kept pending', {
+            extra: { bookingId, sessionId, trackmanBookingId }
+          });
           try {
             const ownerTier = await getMemberTierByEmail(member.email, { allowInactive: true });
             
@@ -827,7 +833,10 @@ export async function tryMatchByBayDateTime(
       }
 
       if (sessionResult.sessionId && !sessionResult.error) {
-        await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${sessionResult.sessionId} AND (payment_status = 'pending' OR payment_status IS NULL)`);
+        await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${sessionResult.sessionId} AND (payment_status = 'pending' OR payment_status IS NULL) AND user_id IS NULL AND guest_id IS NULL`);
+        logger.info('[Trackman Webhook] tryMatchByBayDateTime: ghost participants waived, real members kept pending', {
+          extra: { bookingId, sessionId: sessionResult.sessionId, trackmanBookingId }
+        });
         let transferredCount = 0;
         try {
           const rpResult = await db.execute(sql`SELECT request_participants FROM booking_requests WHERE id = ${bookingId}`);
@@ -853,15 +862,13 @@ export async function tryMatchByBayDateTime(
             VALUES (${sessionResult.sessionId}, NULL, 'guest', ${`Guest ${transferredCount + i + 2}`}, 'pending', ${slotDuration})`);
         }
 
-        if (transferredCount > 0 || remainingSlots > 0) {
-          await recalculateSessionFees(sessionResult.sessionId, 'trackman_auto_match');
-          syncBookingInvoice(bookingId, sessionResult.sessionId).catch((syncErr: unknown) => {
-            logger.warn('[Trackman Webhook] Invoice sync failed after auto-match', { extra: { bookingId, sessionId: sessionResult.sessionId, error: syncErr } });
-          });
-          logger.info('[Trackman Webhook] Created participants for bay/date/time matched booking', {
-            extra: { bookingId, sessionId: sessionResult.sessionId, playerCount, transferredFromRequest: transferredCount, genericGuestSlots: remainingSlots }
-          });
-        }
+        await recalculateSessionFees(sessionResult.sessionId, 'trackman_auto_match');
+        syncBookingInvoice(bookingId, sessionResult.sessionId).catch((syncErr: unknown) => {
+          logger.warn('[Trackman Webhook] Invoice sync failed after auto-match', { extra: { bookingId, sessionId: sessionResult.sessionId, error: syncErr } });
+        });
+        logger.info('[Trackman Webhook] Processed bay/date/time matched booking', {
+          extra: { bookingId, sessionId: sessionResult.sessionId, playerCount, transferredFromRequest: transferredCount, genericGuestSlots: remainingSlots }
+        });
       }
     } catch (sessionErr: unknown) {
       logger.warn('[Trackman Webhook] Failed to ensure session for bay/date/time match', { extra: { bookingId, error: sessionErr } });

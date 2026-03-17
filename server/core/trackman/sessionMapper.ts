@@ -6,6 +6,7 @@ import { getTodayPacific } from '../../utils/dateUtils';
 import { getMemberTierByEmail } from '../tierService';
 import { ensureSessionForBooking, createSession, recordUsage, ParticipantInput, createOrFindGuest } from '../bookingService/sessionManager';
 import { calculateFullSessionBilling, Participant } from '../bookingService/usageCalculator';
+import { recalculateSessionFees } from '../billing/unifiedFeeService';
 import { upsertVisitor } from '../visitors/matchingService';
 import { logger } from '../logger';
 import type { SessionCreationInput } from './constants';
@@ -53,9 +54,15 @@ export async function transferRequestParticipantsToSession(
             .then(v => logger.info('[Participant Transfer] Visitor record ensured for guest', { extra: { email: rp.email, visitorUserId: v.id, sessionId } }))
             .catch(err => logger.error('[Participant Transfer] Non-blocking visitor upsert failed', { extra: { email: rp.email, error: getErrorMessage(err) } }));
         }
+        const guestPaymentStatus = guestId ? 'pending' : 'waived';
         await db.execute(sql`INSERT INTO booking_participants 
            (session_id, guest_id, display_name, participant_type, payment_status, created_at)
-           VALUES (${sessionId}, ${guestId}, ${guestName}, 'guest', 'waived', NOW())`);
+           VALUES (${sessionId}, ${guestId}, ${guestName}, 'guest', ${guestPaymentStatus}, NOW())`);
+        if (guestId) {
+          logger.info('[Participant Transfer] Auto-linked real guest participant set to pending for fee calculation', {
+            extra: { sessionId, guestId, guestName, context: logContext }
+          });
+        }
         existingGuestNames.add(guestName.toLowerCase());
         participantsAdded++;
       }
@@ -79,7 +86,10 @@ export async function transferRequestParticipantsToSession(
         const rpDisplayName = [rpUserRow.first_name, rpUserRow.last_name].filter(Boolean).join(' ') || rpUserRow.email;
         await db.execute(sql`INSERT INTO booking_participants 
            (session_id, user_id, display_name, participant_type, payment_status, created_at)
-           VALUES (${sessionId}, ${rpUserRow.id}, ${rpDisplayName}, 'member', 'waived', NOW())`);
+           VALUES (${sessionId}, ${rpUserRow.id}, ${rpDisplayName}, 'member', 'pending', NOW())`);
+        logger.info('[Participant Transfer] Auto-linked real member participant set to pending for fee calculation', {
+          extra: { sessionId, userId: rpUserRow.id, displayName: rpDisplayName, context: logContext }
+        });
         existingUserIds.add(rpUserRow.id);
         existingEmails.add(rpUserRow.email.toLowerCase());
         participantsAdded++;
@@ -351,12 +361,25 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
       .where(eq(bookingRequests.id, input.bookingId));
 
     if (participants.length > 0) {
-      const participantIds = participants.map(p => p.id);
-      await db.execute(sql`
-        UPDATE booking_participants 
-        SET payment_status = 'waived'
-        WHERE id IN (${sql.join(participantIds.map(id => sql`${id}`), sql`, `)})
-      `);
+      const ghostIds = participants.filter(p => !p.userId && !p.guestId).map(p => p.id);
+      const realIds = participants.filter(p => p.userId || p.guestId).map(p => p.id);
+      if (ghostIds.length > 0) {
+        await db.execute(sql`
+          UPDATE booking_participants 
+          SET payment_status = 'waived'
+          WHERE id IN (${sql.join(ghostIds.map(id => sql`${id}`), sql`, `)})
+        `);
+      }
+      if (realIds.length > 0) {
+        await db.execute(sql`
+          UPDATE booking_participants 
+          SET payment_status = 'pending'
+          WHERE id IN (${sql.join(realIds.map(id => sql`${id}`), sql`, `)})
+        `);
+        logger.info('[TrackmanImport] Real member/guest participants set to pending for fee collection', {
+          extra: { sessionId: session.id, realParticipantCount: realIds.length, ghostCount: ghostIds.length }
+        });
+      }
     }
 
     const billingParticipants: Participant[] = [];
@@ -497,7 +520,19 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
           .set({ sessionId: fallbackSession.id })
           .where(eq(bookingRequests.id, input.bookingId));
 
-        await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${fallbackSession.id}`);
+        await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${fallbackSession.id} AND user_id IS NULL AND guest_id IS NULL`);
+        await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending' WHERE session_id = ${fallbackSession.id} AND (user_id IS NOT NULL OR guest_id IS NOT NULL)`);
+        logger.info('[TrackmanImport] Fallback session: real participants set to pending, ghosts waived', {
+          extra: { sessionId: fallbackSession.id, bookingId: input.bookingId }
+        });
+        try {
+          await recalculateSessionFees(fallbackSession.id, 'trackman_import');
+        } catch (feeErr: unknown) {
+          logger.error('[TrackmanImport] Failed to recalculate fees for fallback session', {
+            extra: { sessionId: fallbackSession.id, bookingId: input.bookingId },
+            error: getErrorMessage(feeErr)
+          });
+        }
 
         const [bookingForNote] = await db.select({ staffNotes: bookingRequests.staffNotes })
           .from(bookingRequests)

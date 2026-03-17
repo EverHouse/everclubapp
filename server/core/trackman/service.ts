@@ -873,9 +873,20 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                   UPDATE booking_participants
                   SET user_id = ${mergeUserId || null},
                       display_name = ${newDisplayName},
-                      payment_status = 'waived'
+                      payment_status = ${mergeUserId ? 'pending' : 'waived'}
                   WHERE id = ${currentOwner.id}
                 `);
+                if (mergeUserId) {
+                  logger.info(`[Trackman Import] Auto-linked real member set to pending for fee calculation (merged placeholder #${placeholder.id})`, {
+                    extra: { participantId: currentOwner.id, userId: mergeUserId, email: matchedEmail }
+                  });
+                  try {
+                    await recalculateSessionFees(placeholder.session_id, 'trackman_import');
+                    logger.info(`[Trackman Import] Recalculated fees after owner reassignment (merged placeholder #${placeholder.id}, session #${placeholder.session_id})`);
+                  } catch (feeErr: unknown) {
+                    logger.error(`[Trackman Import] Failed to recalculate fees after owner reassignment for session #${placeholder.session_id}: ${getErrorMessage(feeErr)}`);
+                  }
+                }
                 logger.info(`[Trackman Import] Updated session owner for merged placeholder #${placeholder.id}: ${currentOwnerEmail || '(unknown)'} → ${matchedEmail}`);
               }
             } catch (ownerUpdateErr: unknown) {
@@ -1269,9 +1280,20 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                       UPDATE booking_participants
                       SET user_id = ${newOwnerUser?.id || null},
                           display_name = ${newDisplayName},
-                          payment_status = 'waived'
+                          payment_status = ${newOwnerUser?.id ? 'pending' : 'waived'}
                       WHERE id = ${currentOwner.id}
                     `);
+                    if (newOwnerUser?.id) {
+                      logger.info(`[Trackman Import] Auto-linked real member set to pending for fee calculation (ghost booking #${existingGhost.id})`, {
+                        extra: { participantId: currentOwner.id, userId: newOwnerUser.id, email: matchedEmail }
+                      });
+                      try {
+                        await recalculateSessionFees(existingGhost.sessionId, 'trackman_import');
+                        logger.info(`[Trackman Import] Recalculated fees after owner reassignment (ghost booking #${existingGhost.id}, session #${existingGhost.sessionId})`);
+                      } catch (feeErr: unknown) {
+                        logger.error(`[Trackman Import] Failed to recalculate fees after owner reassignment for session #${existingGhost.sessionId}: ${getErrorMessage(feeErr)}`);
+                      }
+                    }
                     logger.info(`[Trackman Import] Updated session owner for ghost booking #${existingGhost.id}: ${currentOwnerEmail || '(unknown)'} → ${matchedEmail}`);
                   }
                 } catch (ownerUpdateErr: unknown) {
@@ -1776,8 +1798,14 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             });
             if (sessionResult.sessionId) {
               targetSessionId = sessionResult.sessionId;
-              await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${targetSessionId} AND (payment_status = 'pending' OR payment_status IS NULL)`);
+              await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${targetSessionId} AND (payment_status = 'pending' OR payment_status IS NULL) AND user_id IS NULL AND guest_id IS NULL`);
               logger.info(`[Trackman Import]   Created session #${targetSessionId} for auto-approved booking #${approved.id}`);
+              try {
+                await recalculateSessionFees(targetSessionId, 'trackman_import');
+                logger.info(`[Trackman Import]   Recalculated fees for auto-approved booking #${approved.id} (session #${targetSessionId})`);
+              } catch (feeErr: unknown) {
+                logger.error(`[Trackman Import]   Failed to recalculate fees for session #${targetSessionId}: ${getErrorMessage(feeErr)}`);
+              }
             }
           } catch (sessionErr: unknown) {
             logger.error(`[Trackman Import]   Failed to create session for auto-approved booking #${approved.id}: ${getErrorMessage(sessionErr)}`);
@@ -1785,8 +1813,9 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         }
         
         if (targetSessionId) {
+          let transferred = 0;
           try {
-            const transferred = await transferRequestParticipantsToSession(
+            transferred = await transferRequestParticipantsToSession(
               targetSessionId, approved.request_participants, approved.user_email, `booking #${approved.id}`
             );
             if (transferred > 0) {
@@ -1794,6 +1823,14 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             }
           } catch (rpErr: unknown) {
             logger.error(`[Trackman Import]   Failed to transfer participants for booking #${approved.id}: ${getErrorMessage(rpErr)}`);
+          }
+          if (transferred > 0) {
+            try {
+              await recalculateSessionFees(targetSessionId, 'trackman_import');
+              logger.info(`[Trackman Import]   Recalculated fees after participant transfer for booking #${approved.id} (session #${targetSessionId}, transferred: ${transferred})`);
+            } catch (feeErr: unknown) {
+              logger.error(`[Trackman Import]   Failed to recalculate fees after transfer for session #${targetSessionId}: ${getErrorMessage(feeErr)}`);
+            }
           }
         }
       }
