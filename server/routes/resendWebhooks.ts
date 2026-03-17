@@ -181,10 +181,13 @@ router.post('/api/webhooks/resend', async (req: Request, res: Response) => {
   const isProduction = process.env.NODE_ENV === 'production';
 
   if (webhookSecret) {
+    if (!req.rawBody) {
+      logger.error('Resend webhook received without rawBody — raw body preservation may be misconfigured');
+      return res.status(500).json({ error: 'Internal server error' });
+    }
     try {
       const wh = new Webhook(webhookSecret);
-      const rawBody = JSON.stringify(req.body);
-      wh.verify(rawBody, svixHeaders);
+      wh.verify(req.rawBody, svixHeaders);
     } catch (err: unknown) {
       logger.warn('Resend webhook signature verification failed', {
         error: err as Error
