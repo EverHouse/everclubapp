@@ -79,8 +79,7 @@ async function syncMigrationTracking() {
     }
 
     if (missing > 0) {
-      console.error(`[MigrationSync] ${missing} journal entries have no matching SQL file — build will fail`);
-      process.exit(1);
+      throw new Error(`${missing} journal entries have no matching SQL file — build cannot continue`);
     }
 
     console.log(
