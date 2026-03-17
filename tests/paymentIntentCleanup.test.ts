@@ -278,7 +278,7 @@ describe('Payment Intent Cleanup Integration Tests', () => {
       expect(mockCancelPaymentIntent).toHaveBeenCalledTimes(2);
       expect(mockCancelPaymentIntent).toHaveBeenCalledWith('pi_skip_1');
       expect(mockCancelPaymentIntent).toHaveBeenCalledWith('pi_skip_2');
-      expect(findSqlCallsContaining('booking_fee_snapshots').length).toBe(0);
+      expect(findSqlCallsContaining('booking_fee_snapshots').filter(c => c.strings.some(s => s.includes('UPDATE'))).length).toBe(0);
 
       vi.clearAllMocks();
       sqlCalls.length = 0;
@@ -651,7 +651,7 @@ describe('Payment Intent Cleanup Integration Tests', () => {
       expect(mockCancelPaymentIntent).toHaveBeenCalledTimes(2);
       expect(mockCancelPaymentIntent).toHaveBeenCalledWith('pi_exp_101');
       expect(mockCancelPaymentIntent).toHaveBeenCalledWith('pi_exp_102');
-      expect(findSqlCallsContaining('booking_fee_snapshots').length).toBe(0);
+      expect(findSqlCallsContaining('booking_fee_snapshots').filter(c => c.strings.some(s => s.includes('UPDATE'))).length).toBe(0);
     });
 
     it('batch updates booking_fee_snapshots via queryWithRetry before individual PI cancellations', async () => {

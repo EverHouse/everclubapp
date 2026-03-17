@@ -366,6 +366,7 @@ export interface IssueContext {
   hubspotContactId?: string;
   stripeCustomerId?: string;
   stripePaymentIntentId?: string;
+  bookingStatus?: string;
   userId?: string | number;
   issueType?: string;
   sourceTable?: string;

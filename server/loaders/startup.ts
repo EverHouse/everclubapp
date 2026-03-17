@@ -160,6 +160,8 @@ export async function runStartupTasks(): Promise<void> {
     logger.warn(`[Startup] Integrity constraint verification skipped: ${getErrorMessage(err)}`);
   }
 
+  let origStdoutWrite: typeof process.stdout.write | undefined;
+  let origStderrWrite: typeof process.stderr.write | undefined;
   try {
     const databaseUrl = process.env.DATABASE_URL;
     if (databaseUrl) {
@@ -167,20 +169,20 @@ export async function runStartupTasks(): Promise<void> {
       await retryWithBackoff(() => runMigrations({ databaseUrl, schema: 'stripe' } as unknown as Parameters<typeof runMigrations>[0]), 'Stripe schema migration');
       logger.info('[Stripe] Schema ready');
 
-      const origStdoutWrite = process.stdout.write.bind(process.stdout);
-      const origStderrWrite = process.stderr.write.bind(process.stderr);
+      origStdoutWrite = process.stdout.write.bind(process.stdout);
+      origStderrWrite = process.stderr.write.bind(process.stderr);
       const stripeSyncNoisePatterns = ['StripeSync initialized', 'autoExpandLists', 'Webhook not found', 'orphaned managed webhook', 'StripeInvalidRequestError'];
       const isStripeSyncNoise = (chunk: string | Buffer) => {
         const s = typeof chunk === 'string' ? chunk : chunk.toString();
         return stripeSyncNoisePatterns.some(p => s.includes(p));
       };
-      process.stdout.write = ((chunk: string | Buffer, ...rest: unknown[]) => {
+      process.stdout.write = ((chunk: string | Buffer, encodingOrCb?: BufferEncoding | ((err?: Error | null) => void), cb?: (err?: Error | null) => void) => {
         if (isStripeSyncNoise(chunk)) return true;
-        return origStdoutWrite(chunk, ...rest);
+        return (origStdoutWrite as Function).call(process.stdout, chunk, encodingOrCb, cb);
       }) as typeof process.stdout.write;
-      process.stderr.write = ((chunk: string | Buffer, ...rest: unknown[]) => {
+      process.stderr.write = ((chunk: string | Buffer, encodingOrCb?: BufferEncoding | ((err?: Error | null) => void), cb?: (err?: Error | null) => void) => {
         if (isStripeSyncNoise(chunk)) return true;
-        return origStderrWrite(chunk, ...rest);
+        return (origStderrWrite as Function).call(process.stderr, chunk, encodingOrCb, cb);
       }) as typeof process.stderr.write;
 
       let stripeSync: unknown;
@@ -272,8 +274,8 @@ export async function runStartupTasks(): Promise<void> {
         }
       }
       
-      process.stdout.write = origStdoutWrite;
-      process.stderr.write = origStderrWrite;
+      if (origStdoutWrite) process.stdout.write = origStdoutWrite;
+      if (origStderrWrite) process.stderr.write = origStderrWrite;
       startupHealth.stripe = 'ok';
 
       try {
@@ -382,7 +384,7 @@ export async function runStartupTasks(): Promise<void> {
         .catch((err: unknown) => logger.error('[Stripe] Customer sync failed', { error: err instanceof Error ? err : new Error(String(err)) }));
     }
   } catch (err: unknown) {
-    try { process.stdout.write = origStdoutWrite; process.stderr.write = origStderrWrite; } catch {}
+    try { if (origStdoutWrite) process.stdout.write = origStdoutWrite; if (origStderrWrite) process.stderr.write = origStderrWrite; } catch {}
     logger.error('[Stripe] Initialization failed', { error: err instanceof Error ? err : new Error(String(err)) });
     startupHealth.stripe = 'failed';
     startupHealth.criticalFailures.push(`Stripe initialization: ${getErrorMessage(err)}`);

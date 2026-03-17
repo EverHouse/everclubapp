@@ -1231,7 +1231,7 @@ router.put('/api/hubspot/contacts/:id/tier', isStaffOrAdmin, async (req, res) =>
     if (hubspotContactId) {
       const { isHubSpotReadOnly, logHubSpotWriteSkipped } = await import('../core/hubspot/readOnlyGuard');
       if (isHubSpotReadOnly()) {
-        logHubSpotWriteSkipped('single_tier_update', contactEmail);
+        logHubSpotWriteSkipped('single_tier_update', contactEmail ?? undefined);
       } else {
         const hubspotTier = await denormalizeTierForHubSpotAsync(tier);
         if (hubspotTier) {
@@ -1289,7 +1289,7 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
     const events = Array.isArray(req.body) ? req.body : [req.body];
     
     for (const event of events) {
-      const { subscriptionType, objectId, propertyName, propertyValue } = event;
+      const { subscriptionType, objectId, propertyName, propertyValue } = event as { subscriptionType: string; objectId: string; propertyName: string; propertyValue: string | null };
       
       logger.info('[HubSpot Webhook] Received: for object , =', { extra: { subscriptionType, objectId, propertyName, propertyValue } });
       
@@ -1353,7 +1353,7 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
                       } else if (newStatus === 'non-member' && existingUser.stripe_subscription_id) {
                         logger.info('[HubSpot Webhook] Skipping status change to \'non-member\' for - has active Stripe subscription', { extra: { email } });
                       } else {
-                        const prevStatus = existingUser.membership_status;
+                        const prevStatus = existingUser.membership_status as string | null;
                         const isMindBodyBilled = existingUser.billing_provider === 'mindbody';
                         const wasActive = (prevStatus || '').toLowerCase() === 'active';
                         const isMindBodyDeactivation = isMindBodyBilled && wasActive && newStatus !== 'active';

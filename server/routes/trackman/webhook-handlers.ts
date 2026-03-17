@@ -277,7 +277,7 @@ export async function handleBookingModification(
           });
 
           for (const conflictRow of conflictingRows) {
-            if ([BOOKING_STATUS.APPROVED, BOOKING_STATUS.CONFIRMED].includes(conflictRow.status)) {
+            if (conflictRow.status === BOOKING_STATUS.APPROVED || conflictRow.status === BOOKING_STATUS.CONFIRMED) {
               cancelledConflicts.push({ id: conflictRow.id, userEmail: conflictRow.user_email, status: conflictRow.status });
             }
           }
@@ -1005,7 +1005,7 @@ export async function createUnmatchedBookingRequest(
               });
 
               for (const conflictRow of conflictingRows) {
-                if ([BOOKING_STATUS.APPROVED, BOOKING_STATUS.CONFIRMED].includes(conflictRow.status)) {
+                if (conflictRow.status === BOOKING_STATUS.APPROVED || conflictRow.status === BOOKING_STATUS.CONFIRMED) {
                   newBookingConflicts.push({ id: conflictRow.id, userEmail: conflictRow.user_email });
                 }
               }
