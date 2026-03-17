@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.52",
+    date: "2026-03-17",
+    title: "Startup Reliability Fix",
+    changes: [
+      "Fixed: Server startup no longer fails on first deploy — the app now waits for the database connection to be ready before running initialization tasks, preventing the 'all tasks fail, then succeed on restart' pattern",
+      "Improved: Consolidated scattered startup database queries into a single orchestrated startup sequence for cleaner, more reliable initialization",
+    ]
+  },
+  {
     version: "8.87.51",
     date: "2026-03-17",
     title: "Deployment Migration Fix",

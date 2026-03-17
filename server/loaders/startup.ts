@@ -48,8 +48,45 @@ export function getStartupHealth(): StartupHealth {
   return { ...startupHealth };
 }
 
+async function waitForDatabaseReady(maxAttempts = 20): Promise<void> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await db.execute(sql`SELECT 1`);
+      if (attempt > 1) {
+        logger.info(`[Startup] Database connection ready (after ${attempt} attempts)`);
+      }
+      return;
+    } catch (err: unknown) {
+      if (attempt === maxAttempts) {
+        logger.error(`[Startup] Database not ready after ${maxAttempts} attempts — startup tasks may fail`, { error: err instanceof Error ? err : new Error(String(err)) });
+        throw err;
+      }
+      const delay = Math.min(1000 * Math.pow(1.5, attempt - 1), 10000);
+      logger.warn(`[Startup] Database not ready (attempt ${attempt}/${maxAttempts}), retrying in ${Math.round(delay / 1000)}s...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
 export async function runStartupTasks(): Promise<void> {
   logger.info('[Startup] Running deferred database initialization...');
+
+  startupHealth.database = 'pending';
+  startupHealth.stripe = 'pending';
+  startupHealth.realtime = 'pending';
+  startupHealth.criticalFailures = [];
+  startupHealth.warnings = [];
+  startupHealth.startedAt = new Date().toISOString();
+  delete startupHealth.completedAt;
+
+  try {
+    await waitForDatabaseReady();
+  } catch {
+    startupHealth.database = 'failed';
+    startupHealth.criticalFailures.push('Database connection could not be established');
+    startupHealth.completedAt = new Date().toISOString();
+    return;
+  }
   
   try {
     await ensureDatabaseConstraints();
@@ -143,6 +180,39 @@ export async function runStartupTasks(): Promise<void> {
         logger.error('[Startup] Creating stripe transaction cache failed', { error: err instanceof Error ? err : new Error(String(err)) });
         startupHealth.warnings.push(`Stripe transaction cache: ${getErrorMessage(err)}`);
       }
+    })(),
+    (async () => {
+      await retryWithBackoff(async () => {
+        const result = await db.execute(sql`
+          UPDATE users SET archived_at = NULL, archived_by = NULL, updated_at = NOW()
+          WHERE archived_by = 'system-cleanup'
+            AND archived_at IS NOT NULL
+            AND (
+              role IN ('admin', 'staff', 'golf_instructor')
+              OR EXISTS (SELECT 1 FROM staff_users su WHERE LOWER(su.email) = LOWER(users.email) AND su.is_active = true)
+            )
+          RETURNING email, role
+        `);
+        if (result.rows.length > 0) {
+          logger.info('[Startup] Restored incorrectly archived staff accounts', { extra: { restored: result.rows.map((r: Record<string, unknown>) => r.email) } });
+        }
+      }, 'Archived staff check').catch((err: unknown) => {
+        logger.warn('[Startup] Archived staff check failed after retries (non-critical):', { error: getErrorMessage(err) });
+      });
+    })(),
+    (async () => {
+      await retryWithBackoff(async () => {
+        const cleanupResult = await db.execute(sql`
+          UPDATE users SET stripe_customer_id = NULL, stripe_subscription_id = NULL, updated_at = NOW()
+          WHERE email LIKE '%.merged.%' AND (stripe_customer_id IS NOT NULL OR stripe_subscription_id IS NOT NULL)
+          RETURNING email, stripe_customer_id
+        `);
+        if (cleanupResult.rows.length > 0) {
+          logger.info('[Startup] Cleared Stripe IDs from merged/archived users', { extra: { count: cleanupResult.rows.length, users: cleanupResult.rows.map((r: Record<string, unknown>) => r.email) } });
+        }
+      }, 'Merged user Stripe ID cleanup').catch((err: unknown) => {
+        logger.warn('[Startup] Merged user Stripe ID cleanup failed after retries (non-critical):', { error: getErrorMessage(err) });
+      });
     })(),
   ];
 

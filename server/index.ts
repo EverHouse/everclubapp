@@ -1096,63 +1096,29 @@ async function initializeApp() {
   setImmediate(() => {
     logger.info('[Startup] Starting background initialization tasks...');
 
-    (async () => {
-      const maxRetries = 3;
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          const result = await db.execute(sql`
-            UPDATE users SET archived_at = NULL, archived_by = NULL, updated_at = NOW()
-            WHERE archived_by = 'system-cleanup'
-              AND archived_at IS NOT NULL
-              AND (
-                role IN ('admin', 'staff', 'golf_instructor')
-                OR EXISTS (SELECT 1 FROM staff_users su WHERE LOWER(su.email) = LOWER(users.email) AND su.is_active = true)
-              )
-            RETURNING email, role
-          `);
-          if (result.rows.length > 0) {
-            logger.info('[Startup] Restored incorrectly archived staff accounts', { extra: { restored: result.rows.map((r: Record<string, unknown>) => r.email) } });
-          }
-          break;
-        } catch (err) {
-          const isTimeout = String(getErrorMessage(err)).includes('timeout');
-          if (attempt < maxRetries && isTimeout) {
-            logger.warn(`[Startup] Archived staff check attempt ${attempt}/${maxRetries} timed out, retrying in ${attempt * 5}s...`);
-            await new Promise(r => setTimeout(r, attempt * 5000));
-          } else {
-            logger.error('[Startup] Failed to check archived staff accounts:', { error: getErrorMessage(err) });
-          }
+    const handleStartupResult = (attempt: number) => {
+      const startupHealth = getStartupHealth();
+      if (startupHealth.criticalFailures.length > 0) {
+        if (attempt < 3) {
+          logger.warn(`[Startup] Critical failures on attempt ${attempt} — retrying in 30s...`, { extra: { criticalFailures: startupHealth.criticalFailures } });
+          setTimeout(() => {
+            runStartupTasks().then(() => handleStartupResult(attempt + 1)).catch((err) => {
+              logger.error('[Startup] Startup retry failed unexpectedly:', { error: err as Error });
+            });
+          }, 30000);
+        } else {
+          logger.error('[Startup] Critical failures persist after retries:', { extra: { criticalFailures: startupHealth.criticalFailures } });
+        }
+      } else {
+        logger.info('[Startup] All startup tasks complete');
+        if (startupHealth.warnings.length > 0) {
+          logger.warn('[Startup] Startup completed with warnings:', { extra: { warnings: startupHealth.warnings } });
         }
       }
-    })().catch(err => logger.error('[Startup] Unhandled error in archived staff check:', { error: getErrorMessage(err) }));
-
-    (async () => {
-      try {
-        const cleanupResult = await db.execute(sql`
-          UPDATE users SET stripe_customer_id = NULL, stripe_subscription_id = NULL, updated_at = NOW()
-          WHERE email LIKE '%.merged.%' AND (stripe_customer_id IS NOT NULL OR stripe_subscription_id IS NOT NULL)
-          RETURNING email, stripe_customer_id
-        `);
-        if (cleanupResult.rows.length > 0) {
-          logger.info('[Startup] Cleared Stripe IDs from merged/archived users', { extra: { count: cleanupResult.rows.length, users: cleanupResult.rows.map((r: Record<string, unknown>) => r.email) } });
-        }
-      } catch (err) {
-        logger.warn('[Startup] Failed to cleanup merged user Stripe IDs:', { error: err as Error });
-      }
-    })().catch(err => logger.error('[Startup] Unhandled error in Stripe ID cleanup:', { error: err as Error }));
+    };
 
     runStartupTasks()
-      .then(() => {
-        const startupHealth = getStartupHealth();
-        if (startupHealth.criticalFailures.length > 0) {
-          logger.error('[Startup] Critical failures detected:', { extra: { criticalFailures: startupHealth.criticalFailures } });
-        } else {
-          logger.info('[Startup] All startup tasks complete');
-          if (startupHealth.warnings.length > 0) {
-            logger.warn('[Startup] Startup completed with warnings:', { extra: { warnings: startupHealth.warnings } });
-          }
-        }
-      })
+      .then(() => handleStartupResult(1))
       .catch((err) => {
         logger.error('[Startup] Startup tasks failed unexpectedly:', { error: err as Error });
       });
