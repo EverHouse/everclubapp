@@ -51,7 +51,7 @@ export default function OfflineBanner() {
   return (
     <div
       className={`fixed top-0 left-0 right-0 bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium ${
-        isExiting ? 'transition-all duration-normal var(--m3-emphasized-decel) opacity-0 -translate-y-full' : 'animate-banner-slide-down'
+        isExiting ? 'transition-all duration-normal ease-[var(--m3-emphasized-decel)] opacity-0 -translate-y-full' : 'animate-banner-slide-down'
       }`}
       style={{ zIndex: 'var(--z-nav)' }}
     >
