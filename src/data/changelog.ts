@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.56",
+    date: "2026-03-17",
+    title: "Dead Code Cleanup — React Query Migration Leftovers",
+    changes: [
+      "Removed ~47 unused React Query hooks created during the data-fetching migration that were never adopted by components — covers useAdminQueries (25 hooks), useMemberPageQueries (16 hooks), useBookingsQueries (12 hooks), plus 1 each from financials, cafe, and tours query files",
+      "Cleaned up orphaned query key definitions (notices, announcements, changelog, updates, groupBilling, trackmanWebhookEvents, dayPassProducts, availabilityBlocks, transactions, memberDirectory) from adminTabKeys",
+      "Reduced total bundle size by removing dead mutation/query code and unused interface definitions",
+    ]
+  },
+  {
     version: "8.87.55",
     date: "2026-03-17",
     title: "Fix Notification Mark Read & Dismiss Buttons",

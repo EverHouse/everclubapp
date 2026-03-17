@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchWithCredentials, postWithCredentials } from './useFetch';
+import { useQuery } from '@tanstack/react-query';
+import { fetchWithCredentials } from './useFetch';
 import { bookingsKeys, simulatorKeys } from './adminKeys';
 
 interface BookingRequest {
@@ -67,27 +67,6 @@ export function useResources() {
   });
 }
 
-export function useBookingsByDate(date: string) {
-  return useQuery({
-    queryKey: bookingsKeys.list(date),
-    queryFn: () => fetchWithCredentials<BookingRequest[]>(`/api/bookings?date=${date}`),
-    enabled: !!date,
-  });
-}
-
-export function useBookingRequests(status?: string, date?: string) {
-  return useQuery({
-    queryKey: bookingsKeys.requests({ status, date }),
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (status) params.append('status', status);
-      if (date) params.append('date', date);
-      const url = `/api/booking-requests${params.toString() ? `?${params.toString()}` : ''}`;
-      return fetchWithCredentials<BookingRequest[]>(url);
-    },
-  });
-}
-
 export function useAvailabilityBlocks(date: string, resourceId?: number) {
   return useQuery({
     queryKey: bookingsKeys.availability(date, resourceId),
@@ -106,112 +85,6 @@ export function useCalendarClosures() {
     queryKey: bookingsKeys.closures(),
     queryFn: () => fetchWithCredentials<CalendarClosure[]>('/api/closures'),
     staleTime: 1000 * 60 * 5,
-  });
-}
-
-export function useApproveBooking() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ bookingId, resourceId, staffNotes }: { bookingId: number | string; resourceId?: number; staffNotes?: string }) =>
-      postWithCredentials<{ success: boolean }>(`/api/booking-requests/${bookingId}/approve`, { resourceId, staffNotes }),
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
-    },
-    onError: () => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-    },
-  });
-}
-
-export function useDeclineBooking() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ bookingId, reason }: { bookingId: number | string; reason?: string }) =>
-      postWithCredentials<{ success: boolean }>(`/api/booking-requests/${bookingId}/decline`, { reason }),
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
-    },
-    onError: () => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-    },
-  });
-}
-
-export function useCancelBooking() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ bookingId, reason }: { bookingId: number | string; reason?: string }) =>
-      postWithCredentials<{ success: boolean }>(`/api/bookings/${bookingId}/cancel`, { reason }),
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
-    },
-    onError: () => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-    },
-  });
-}
-
-export function useCheckInBooking() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ sessionId, actualPlayerCount, waiverWaived }: { sessionId: number; actualPlayerCount?: number; waiverWaived?: boolean }) =>
-      postWithCredentials<{ success: boolean }>(`/api/bookings/sessions/${sessionId}/check-in`, { actualPlayerCount, waiverWaived }),
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
-    },
-    onError: () => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-    },
-  });
-}
-
-export function useCheckOutBooking() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ sessionId, actualEndTime }: { sessionId: number; actualEndTime?: string }) =>
-      postWithCredentials<{ success: boolean }>(`/api/bookings/sessions/${sessionId}/check-out`, { actualEndTime }),
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-    },
-  });
-}
-
-export function useCreateManualBooking() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: {
-      memberEmail: string;
-      resourceId: number;
-      bookingDate: string;
-      startTime: string;
-      durationMinutes: number;
-      guestCount?: number;
-      notes?: string;
-      staffNotes?: string;
-      source?: string;
-      trackmanBookingId?: string;
-    }) => postWithCredentials<{ id: number }>('/api/bookings/manual', data),
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-    },
   });
 }
 
@@ -243,7 +116,6 @@ interface MemberContact {
   status?: string;
   manuallyLinkedEmails?: string[];
 }
-
 
 export function useAllBookingRequests() {
   return useQuery({
@@ -317,153 +189,5 @@ export function useFeeEstimate(bookingId: number | string | null, options?: { en
     enabled: isEnabled,
     staleTime: 30_000,
     retry: 1,
-  });
-}
-
-export function useBayAvailability(resourceId: number | null, date: string | null) {
-  return useQuery({
-    queryKey: simulatorKeys.bayAvailability(resourceId ?? 0, date ?? ''),
-    queryFn: () => fetchWithCredentials<Array<{ start_time?: string; block_type?: string }>>(`/api/bays/${resourceId}/availability?date=${date}`),
-    enabled: !!resourceId && !!date,
-  });
-}
-
-export function useCancelBookingWithOptimistic() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ bookingId, source, cancelledBy }: { 
-      bookingId: number | string; 
-      source?: string;
-      cancelledBy?: string;
-    }) => {
-      const response = await fetch(`/api/bookings/${bookingId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ status: 'cancelled', source, cancelled_by: cancelledBy })
-      });
-      
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to cancel booking');
-      }
-      
-      return response.json();
-    },
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
-      await queryClient.cancelQueries({ queryKey: simulatorKeys.all });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
-    },
-  });
-}
-
-export function useApproveBookingRequest() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ bookingId, resourceId, staffNotes, reviewedBy, source }: { 
-      bookingId: number | string; 
-      resourceId?: number;
-      staffNotes?: string;
-      reviewedBy?: string;
-      source?: 'booking' | 'booking_request';
-    }) => {
-      let response;
-      if (source === 'booking') {
-        response = await fetch(`/api/bookings/${bookingId}/approve`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        });
-      } else {
-        response = await fetch(`/api/booking-requests/${bookingId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            status: 'approved',
-            resource_id: resourceId,
-            staff_notes: staffNotes || null,
-            reviewed_by: reviewedBy
-          })
-        });
-      }
-      
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.message || err.error || 'Failed to approve');
-      }
-      
-      return response.json();
-    },
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
-      await queryClient.cancelQueries({ queryKey: simulatorKeys.all });
-    },
-    onSuccess: () => {
-      window.dispatchEvent(new CustomEvent('booking-action-completed'));
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
-    },
-  });
-}
-
-export function useDeclineBookingRequest() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ bookingId, staffNotes, suggestedTime, reviewedBy, cancelledBy, source, newStatus }: { 
-      bookingId: number | string;
-      staffNotes?: string;
-      suggestedTime?: string;
-      reviewedBy?: string;
-      cancelledBy?: string;
-      source?: 'booking' | 'booking_request';
-      newStatus?: 'declined' | 'cancelled';
-    }) => {
-      let response;
-      if (source === 'booking') {
-        response = await fetch(`/api/bookings/${bookingId}/decline`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        });
-      } else {
-        response = await fetch(`/api/booking-requests/${bookingId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            status: newStatus || 'declined',
-            staff_notes: staffNotes || null,
-            suggested_time: suggestedTime ? suggestedTime + ':00' : null,
-            reviewed_by: reviewedBy,
-            cancelled_by: newStatus === 'cancelled' ? cancelledBy : undefined
-          })
-        });
-      }
-      
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to process request');
-      }
-      
-      return response.json();
-    },
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
-      await queryClient.cancelQueries({ queryKey: simulatorKeys.all });
-    },
-    onSuccess: () => {
-      window.dispatchEvent(new CustomEvent('booking-action-completed'));
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
-    },
   });
 }

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchWithCredentials, postWithCredentials, putWithCredentials, deleteWithCredentials } from './useFetch';
+import { fetchWithCredentials, putWithCredentials, deleteWithCredentials } from './useFetch';
 import type { CafeItem } from '../../types/data';
 import { cafeKeys } from './adminKeys';
 
@@ -75,47 +75,6 @@ export function useSeedCafeMenu() {
     mutationFn: () => 
       fetchWithCredentials<SeedCafeResponse>('/api/admin/seed-cafe', { method: 'POST' }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: cafeKeys.menu() });
-    },
-  });
-}
-
-export function useAddCafeItem() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (item: Partial<CafeItem>) =>
-      postWithCredentials<CafeMenuResponse>('/api/cafe-menu', {
-        category: item.category,
-        name: item.name,
-        price: item.price,
-        description: item.desc,
-        icon: item.icon,
-        image_url: item.image
-      }),
-    onMutate: async (item) => {
-      await queryClient.cancelQueries({ queryKey: cafeKeys.menu() });
-      const snapshot = queryClient.getQueryData<CafeItem[]>(cafeKeys.menu());
-      queryClient.setQueryData<CafeItem[]>(cafeKeys.menu(), (old) => {
-        if (!old) return old;
-        const tempItem: CafeItem = {
-          id: `temp-${Date.now()}`,
-          category: item.category || '',
-          name: item.name || '',
-          price: item.price || 0,
-          desc: item.desc || '',
-          icon: item.icon || '',
-          image: item.image || '',
-        };
-        return [...old, tempItem];
-      });
-      return { snapshot };
-    },
-    onError: (_err, _item, context) => {
-      if (context?.snapshot !== undefined) {
-        queryClient.setQueryData(cafeKeys.menu(), context.snapshot);
-      }
-    },
-    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: cafeKeys.menu() });
     },
   });

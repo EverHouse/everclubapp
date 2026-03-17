@@ -157,13 +157,6 @@ export function useFutureBookingsWithFees() {
   });
 }
 
-export function useRefundablePayments() {
-  return useQuery({
-    queryKey: financialsKeys.refundablePayments(),
-    queryFn: () => fetchWithCredentials<RefundablePayment[]>('/api/payments/refundable'),
-  });
-}
-
 export function useRefundedPayments() {
   return useQuery({
     queryKey: financialsKeys.refundedPayments(),
