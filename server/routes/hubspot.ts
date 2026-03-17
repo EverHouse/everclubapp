@@ -1412,10 +1412,16 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
                       if (isStripeProtected) {
                         logger.info('[HubSpot Webhook] STRIPE WINS: Skipping tier change for Stripe-billed member', { extra: { email, propertyValue } });
                       } else {
-                        const normalizedTier = normalizeTierName(propertyValue || '');
-                        if (normalizedTier) {
-                          await db.execute(sql`UPDATE users SET tier = ${normalizedTier}, updated_at = NOW() WHERE LOWER(email) = ${email}`);
-                          logger.info('[HubSpot Webhook] Updated DB tier for', { extra: { email, normalizedTier } });
+                        const visitorCheck = await db.execute(sql`SELECT role FROM users WHERE LOWER(email) = ${email} LIMIT 1`);
+                        const isVisitor = (visitorCheck.rows as Array<{ role: string | null }>)[0]?.role === 'visitor';
+                        if (isVisitor) {
+                          logger.info('[HubSpot Webhook] Skipping tier change for visitor', { extra: { email, propertyValue } });
+                        } else {
+                          const normalizedTier = normalizeTierName(propertyValue || '');
+                          if (normalizedTier) {
+                            await db.execute(sql`UPDATE users SET tier = ${normalizedTier}, updated_at = NOW() WHERE LOWER(email) = ${email}`);
+                            logger.info('[HubSpot Webhook] Updated DB tier for', { extra: { email, normalizedTier } });
+                          }
                         }
                       }
                     }
