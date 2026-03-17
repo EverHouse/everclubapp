@@ -55,6 +55,13 @@ export function MemberFlow({
   const [scanningSubMemberIndex, setScanningSubMemberIndex] = useState<number | null>(null);
   const [_showIdScanner, setShowIdScanner] = useState(false);
   const reviewSubmittingRef = useRef(false);
+  const reviewTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (reviewTimeoutRef.current) clearTimeout(reviewTimeoutRef.current);
+    };
+  }, []);
 
   const getInputClass = (fieldName: string) => `w-full px-3 py-2.5 rounded-lg border ${
     fieldErrors[fieldName]
@@ -513,7 +520,7 @@ export function MemberFlow({
     }
 
     reviewSubmittingRef.current = true;
-    setTimeout(() => { reviewSubmittingRef.current = false; }, 1000);
+    reviewTimeoutRef.current = setTimeout(() => { reviewSubmittingRef.current = false; }, 1000);
 
     setError(null);
     setStep('preview');

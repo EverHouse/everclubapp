@@ -75,6 +75,7 @@ export default defineConfig({
     },
     watch: {
       ignored: [
+        '**/server/**',
         '**/.cache/**',
         '**/node_modules/**',
         '**/.replit',
