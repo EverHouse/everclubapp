@@ -1235,7 +1235,7 @@ router.get('/api/auth/session', async (req, res) => {
       lastName: sessionUser.lastName || '',
       email: sessionUser.email,
       phone: sessionUser.phone || '',
-      tier: sessionUser.tier || 'Social',
+      tier: sessionUser.role === 'visitor' ? null : (sessionUser.tier || 'Social'),
       tags: sessionUser.tags || [],
       mindbodyClientId: sessionUser.mindbodyClientId || '',
       status: freshStatus,

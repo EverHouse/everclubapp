@@ -678,7 +678,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 <p className={`text-xs mt-1 ${nameEditError.includes('Saved locally') ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-red-400' : 'text-red-600')}`}>{nameEditError}</p>
               )}
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <TierBadge tier={displayedTier || enrichedMember.rawTier || enrichedMember.tier} size="md" showNoTier={true} lastTier={enrichedMember.lastTier} membershipStatus={enrichedMember.membershipStatus} />
+                <TierBadge tier={displayedTier || enrichedMember.rawTier || enrichedMember.tier} size="md" showNoTier={true} lastTier={enrichedMember.lastTier} membershipStatus={enrichedMember.membershipStatus} role={enrichedMember.role} />
                 {enrichedMember.status && typeof enrichedMember.status === 'string' && enrichedMember.status.toLowerCase() !== 'active' && (
                   <span className={`w-fit px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-widest ${
                     getMemberStatusColor(enrichedMember.status, isDark)

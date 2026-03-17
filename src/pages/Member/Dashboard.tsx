@@ -946,10 +946,11 @@ const Dashboard: React.FC = () => {
             {/* Membership Card */}
             {(() => {
               const isExpired = user?.status === 'Expired';
-              const tierColors = getTierColor(user?.tier || 'Social');
+              const isVisitor = user?.role === 'visitor';
+              const tierColors = isVisitor ? { bg: '#EFF6FF', text: '#2563EB', border: '#BFDBFE' } : getTierColor(user?.tier || 'Social');
               const cardBgColor = isExpired ? '#6B7280' : tierColors.bg;
               const cardTextColor = isExpired ? '#F9FAFB' : tierColors.text;
-              const baseTier = getBaseTier(user?.tier || 'Social');
+              const baseTier = isVisitor ? 'Social' : getBaseTier(user?.tier || 'Social');
               const useDarkLogo = isExpired || ['Social', 'Premium', 'VIP'].includes(baseTier);
               return (
                 <div 
@@ -980,7 +981,7 @@ const Dashboard: React.FC = () => {
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <TierBadge tier={user?.tier || 'Social'} size="sm" />
+                        <TierBadge tier={user?.tier} size="sm" role={user?.role} membershipStatus={user?.status} />
                       </div>
                       <h3 className="text-xl font-display font-bold tracking-wide" style={{ color: cardTextColor, textShadow: '0 1px 3px rgba(0,0,0,0.15)' }}>{user?.name}</h3>
                       {isExpired ? (
@@ -1392,7 +1393,8 @@ const Dashboard: React.FC = () => {
     >
       {user && (() => {
         const isExpiredModal = user.status === 'Expired';
-        const tierColors = getTierColor(user.tier || 'Social');
+        const isVisitorModal = user.role === 'visitor';
+        const tierColors = isVisitorModal ? { bg: '#EFF6FF', text: '#2563EB', border: '#BFDBFE' } : getTierColor(user.tier || 'Social');
         const cardBgColor = isExpiredModal ? '#6B7280' : (isStaffOrAdminProfile ? '#293515' : tierColors.bg);
         const cardTextColor = isExpiredModal ? '#F9FAFB' : (isStaffOrAdminProfile ? '#F2F2EC' : tierColors.text);
         return (
@@ -1409,7 +1411,7 @@ const Dashboard: React.FC = () => {
                 <h2 className="text-2xl font-bold mb-3" style={{ color: cardTextColor }}>{(user.name || '').includes('@') ? 'Member' : user.name}</h2>
                 
                 <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
-                  <TierBadge tier={user.tier || 'Social'} size="md" />
+                  <TierBadge tier={user.tier} size="md" role={user?.role} membershipStatus={user?.status} />
                   {isExpiredModal && (
                     <span className="px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-red-500 text-white">
                       Expired

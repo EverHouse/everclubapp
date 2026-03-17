@@ -7,14 +7,25 @@ interface TierBadgeProps {
   showNoTier?: boolean;
   lastTier?: string | null;
   membershipStatus?: string | null;
+  role?: string | null;
 }
 
 const INACTIVE_STATUSES = ['terminated', 'suspended', 'expired', 'cancelled', 'frozen', 'paused', 'inactive'];
 
-const TierBadge: React.FC<TierBadgeProps> = ({ tier, size = 'sm', showNoTier = false, lastTier, membershipStatus }) => {
+const TierBadge: React.FC<TierBadgeProps> = ({ tier, size = 'sm', showNoTier = false, lastTier, membershipStatus, role }) => {
   const sizeClasses = size === 'sm' 
     ? 'px-2 py-0.5 text-[11px]' 
     : 'px-3 py-1 text-xs';
+
+  if (role === 'visitor' || membershipStatus?.toLowerCase() === 'visitor') {
+    return (
+      <span
+        className={`inline-flex items-center font-bold rounded ${sizeClasses} bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-700`}
+      >
+        VISITOR
+      </span>
+    );
+  }
 
   const isInactive = membershipStatus && INACTIVE_STATUSES.includes(membershipStatus.toLowerCase());
 
