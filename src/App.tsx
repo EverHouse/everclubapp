@@ -29,6 +29,7 @@ import { useSupabaseRealtime } from './hooks/useSupabaseRealtime';
 import { StaffBookingToast } from './components/StaffBookingToast';
 import UpdateNotification from './components/UpdateNotification';
 import WaiverModal from './components/WaiverModal';
+import { fetchWithCredentials } from './hooks/queries/useFetch';
 import { StaffWebSocketProvider } from './contexts/StaffWebSocketContext';
 import { StaffMobileSidebar } from './components/StaffMobileSidebar';
 import PullToRefresh from './components/PullToRefresh';
@@ -311,13 +312,9 @@ const WaiverGate: React.FC = () => {
   const [currentVersion, setCurrentVersion] = useState('1.0');
   const queryClient = useQueryClient();
 
-  const { data: waiverStatus, isError } = useQuery<{ needsWaiverUpdate?: boolean; currentVersion?: string } | null>({
+  const { data: waiverStatus, isError, isLoading } = useQuery<{ needsWaiverUpdate?: boolean; currentVersion?: string }>({
     queryKey: ['waiverStatus'],
-    queryFn: async () => {
-      const res = await fetch('/api/waivers/status', { credentials: 'include' });
-      if (!res.ok) throw new Error(`Waiver status check failed (${res.status})`);
-      return res.json();
-    },
+    queryFn: () => fetchWithCredentials<{ needsWaiverUpdate?: boolean; currentVersion?: string }>('/api/waivers/status'),
     enabled: !!user?.email,
     staleTime: 5 * 60 * 1000,
     retry: 3,
@@ -330,6 +327,16 @@ const WaiverGate: React.FC = () => {
       setShowWaiverModal(true);
     }
   }, [waiverStatus]);
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="bg-white dark:bg-surface-dark-200 rounded-xl p-6 max-w-sm mx-4 text-center shadow-xl">
+          <p className="text-sm text-neutral-500">Verifying waiver status...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isError) {
     return (
