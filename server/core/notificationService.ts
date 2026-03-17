@@ -779,15 +779,17 @@ async function deliverPushToStaff(payload: PushPayload): Promise<DeliveryResult>
         successCount++;
       } catch (err: unknown) {
         failCount++;
-        if (getErrorStatusCode(err) === 410) {
+        const statusCode = getErrorStatusCode(err);
+        const errMsg = getErrorMessage(err) || String(err);
+        if (statusCode === 410 || statusCode === 404) {
           staleEndpoints.push(sub.endpoint);
         } else {
           logger.warn(`[Notification] Staff push subscription failed`, {
             userEmail: sub.userEmail,
-            error: getErrorMessage(err) || String(err),
+            error: errMsg,
             extra: { 
               event: 'notification.staff_push_subscription_failed', 
-              statusCode: getErrorStatusCode(err),
+              statusCode,
               endpointPrefix: sub.endpoint.substring(0, 60)
             }
           });

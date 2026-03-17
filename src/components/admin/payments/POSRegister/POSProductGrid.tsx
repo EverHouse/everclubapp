@@ -11,6 +11,7 @@ interface POSProductGridProps {
   isMobile: boolean;
   passProducts: { productId: string; name: string; priceCents: number; icon: string }[];
   passProductsLoading: boolean;
+  passProductsError?: string | null;
   cafeLoading: boolean;
   sortedCafeCategories: string[];
   groupedCafeItems: Record<string, CafeItem[]>;
@@ -58,6 +59,7 @@ const POSProductGrid: React.FC<POSProductGridProps> = ({
   isMobile,
   passProducts,
   passProductsLoading,
+  passProductsError,
   cafeLoading,
   sortedCafeCategories,
   groupedCafeItems,
@@ -103,7 +105,9 @@ const POSProductGrid: React.FC<POSProductGridProps> = ({
                 ? Array.from({ length: 3 }).map((_, i) => (
                     <div key={i} className="h-20 rounded-xl bg-surface/50 dark:bg-white/5 animate-pulse" />
                   ))
-                : passProducts.map(renderProductCard)}
+                : passProductsError
+                  ? <div className="col-span-full text-center py-4 text-red-500 dark:text-red-400 text-sm">Failed to load passes. Please refresh.</div>
+                  : passProducts.map(renderProductCard)}
             </div>
           </div>
         )}

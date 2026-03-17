@@ -72,7 +72,7 @@ export function getSession() {
       ttl: sessionTtl,
       tableName: "sessions",
       errorLog: (err: Error) => {
-        logger.error('[Session Store] Error:', { extra: { message: getErrorMessage(err) } });
+        logger.error('[Session Store] Error:', { extra: { message: getErrorMessage(err), stack: err?.stack } });
       },
     });
     

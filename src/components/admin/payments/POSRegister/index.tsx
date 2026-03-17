@@ -119,6 +119,7 @@ const POSRegister: React.FC = () => {
       isMobile={pos.isMobile}
       passProducts={pos.passProducts}
       passProductsLoading={pos.passProductsLoading}
+      passProductsError={pos.passProductsError}
       cafeLoading={pos.cafeLoading}
       sortedCafeCategories={pos.sortedCafeCategories}
       groupedCafeItems={pos.groupedCafeItems}

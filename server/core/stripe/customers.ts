@@ -91,20 +91,24 @@ export async function resolveUserByEmail(email: string): Promise<ResolvedUser | 
 
   const normalizedEmail = email.trim().toLowerCase();
 
-  const directMatch = await db.execute(sql`SELECT id, email, stripe_customer_id, membership_status, tier, first_name, last_name
-     FROM users WHERE LOWER(email) = ${normalizedEmail} AND archived_at IS NULL`);
-  if (directMatch.rows.length > 0) {
-    const u = directMatch.rows[0] as unknown as UserRow;
-    return {
-      userId: u.id,
-      primaryEmail: u.email,
-      stripeCustomerId: u.stripe_customer_id,
-      membershipStatus: u.membership_status,
-      tier: u.tier,
-      firstName: u.first_name,
-      lastName: u.last_name,
-      matchType: 'direct',
-    };
+  try {
+    const directMatch = await db.execute(sql`SELECT id, email, stripe_customer_id, membership_status, tier, first_name, last_name
+       FROM users WHERE LOWER(email) = ${normalizedEmail} AND archived_at IS NULL`);
+    if (directMatch.rows.length > 0) {
+      const u = directMatch.rows[0] as unknown as UserRow;
+      return {
+        userId: u.id,
+        primaryEmail: u.email,
+        stripeCustomerId: u.stripe_customer_id,
+        membershipStatus: u.membership_status,
+        tier: u.tier,
+        firstName: u.first_name,
+        lastName: u.last_name,
+        matchType: 'direct',
+      };
+    }
+  } catch (err: unknown) {
+    logger.error(`[resolveUserByEmail] Direct lookup failed for ${normalizedEmail}, trying fallback resolution:`, { extra: { detail: getErrorMessage(err) } });
   }
 
   try {

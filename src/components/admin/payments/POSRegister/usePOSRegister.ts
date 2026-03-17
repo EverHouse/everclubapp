@@ -25,11 +25,13 @@ export function usePOSRegister() {
 
   const [passProducts, setPassProducts] = useState<{ productId: string; name: string; priceCents: number; icon: string }[]>([]);
   const [passProductsLoading, setPassProductsLoading] = useState(true);
+  const [passProductsError, setPassProductsError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
+        setPassProductsError(null);
         const tiers = await fetchWithCredentials<Array<{ slug: string; stripe_product_id?: string; name: string; price_cents: number }>>('/api/membership-tiers?active=true');
         const products = PASS_PRODUCT_SLUGS
           .map(slug => {
@@ -47,8 +49,11 @@ export function usePOSRegister() {
           setPassProducts(products);
           setPassProductsLoading(false);
         }
-      } catch {
-        if (!cancelled) setPassProductsLoading(false);
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setPassProductsLoading(false);
+          setPassProductsError(err instanceof Error ? err.message : 'Failed to load pass products');
+        }
       }
     })();
     return () => { cancelled = true; };
@@ -289,6 +294,7 @@ export function usePOSRegister() {
     cafeLoading,
     passProducts,
     passProductsLoading,
+    passProductsError,
     stripePromise,
     activeTab,
     setActiveTab,
