@@ -256,6 +256,29 @@ All async fetches in React hooks MUST use one of these patterns to prevent stale
 ### 20a. Member Dashboard Split Queries (v8.87.36)
 The member dashboard uses 8 independent React Query hooks fetching `/api/member/dashboard/{section}` in parallel (`bookings`, `booking-requests`, `rsvps`, `wellness`, `events`, `conference-rooms`, `stats`, `announcements`). Query key pattern: `['member', 'dashboard', email, section]`. Any mutation that affects dashboard data must invalidate `['member', 'dashboard']` (prefix match covers all 8 sections). The legacy monolithic endpoint `/api/member/dashboard-data` is kept for backward compatibility but has no frontend consumers.
 
+### 20b. Frontend Data Fetching Layer (v8.87.53)
+All frontend data fetching uses two layers:
+
+**Layer 1 — Low-level fetch helpers** (`src/hooks/queries/useFetch.ts`):
+- `fetchWithCredentials<T>(url, options?)` — GET requests with credentials. Throws `ApiError` on non-2xx. Returns `undefined as T` for 204/empty/non-JSON responses.
+- `postWithCredentials<T>(url, data)` — POST with JSON body
+- `putWithCredentials<T>(url, data)` — PUT with JSON body
+- `patchWithCredentials<T>(url, data)` — PATCH with JSON body
+- `deleteWithCredentials<T>(url)` — DELETE
+- `ApiError` class — extends `Error` with `.status` (HTTP code) and `.errorData` (parsed JSON body). Use `err instanceof ApiError && err.status === 404` for status-specific handling. Access structured error fields via `err.errorData.errorCode`, `err.errorData.passDetails`, etc.
+
+**Layer 2 — React Query hooks** (`src/hooks/queries/`):
+- `useAdminQueries.ts` — Admin page data (members list, bookings, analytics)
+- `useMemberPageQueries.ts` — Member-facing page data
+- `useMemberProfileQueries.ts` — Member profile and settings
+- Use these for new data fetching instead of `useState` + `useEffect` patterns.
+
+**Error handling rules:**
+- All `catch` blocks that show user-facing errors should use `err instanceof Error ? err.message : String(err)` — `ApiError.message` contains the server's error text.
+- For structured error data (error codes, pass details, etc.), check `err instanceof ApiError` and access `err.errorData`.
+- Never use `getApiErrorMessage(response)` with the new helpers — that utility expects a raw `Response` object. The helpers throw `ApiError` instead.
+- Mutations that affect cached data must invalidate the correct React Query keys after success.
+
 ---
 
 ## Unified Booking Sheet Architecture

@@ -225,7 +225,15 @@ Sub-dirs: `drawers/`, `hooks/`, `modals/`, `sections/`.
 - `useEdgeSwipe.ts`, `useDragAutoScroll.ts` — Touch gestures
 - `useNotificationSounds.ts` — Audio alerts
 - `useAsyncAction.ts` — Async action with loading/error states
-- Sub-dir: `queries/` — TanStack Query hook definitions
+- Sub-dir: `queries/` — TanStack Query hook definitions (see below)
+
+### Query Hooks (`src/hooks/queries/`)
+
+- `useFetch.ts` — Low-level fetch helpers (`fetchWithCredentials`, `postWithCredentials`, `putWithCredentials`, `patchWithCredentials`, `deleteWithCredentials`) and `ApiError` class. All throw `ApiError` on non-2xx responses. Handle 204/empty/non-JSON responses by returning `undefined as T`. **Use these inside React Query `queryFn` callbacks and imperative mutations.**
+- `useAdminQueries.ts` — React Query hooks for admin pages (member lists, bookings, analytics)
+- `useMemberPageQueries.ts` — React Query hooks for member-facing pages
+- `useMemberProfileQueries.ts` — React Query hooks for member profile and settings
+- `ApiError` — Exported from `useFetch.ts`. Has `.status` (HTTP code) and `.errorData` (parsed JSON body). Use `err instanceof ApiError` for status-specific error handling (e.g., 404 detection). Access structured fields like `err.errorData.errorCode`.
 
 ---
 
