@@ -9,6 +9,7 @@ import { sql, eq } from 'drizzle-orm';
 import { isProduction } from './db';
 import { broadcastMemberDataUpdated, broadcastDataIntegrityUpdate } from './websocket';
 import { alertOnHubSpotSyncComplete, alertOnSyncFailure } from './dataAlerts';
+import { retryableHubSpotRequest } from './hubspot/request';
 import pLimit from 'p-limit';
 import { notifyMember, notifyAllStaff } from './notificationService';
 
@@ -292,7 +293,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
         ...(after ? { after } : {})
       };
       
-      const response = await hubspot.crm.contacts.searchApi.doSearch(searchRequest);
+      const response = await retryableHubSpotRequest(() => hubspot.crm.contacts.searchApi.doSearch(searchRequest));
       allContacts = allContacts.concat(response.results as unknown as HubSpotContact[]);
       after = response.paging?.next?.after;
     } while (after);
@@ -738,11 +739,11 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
         for (let i = 0; i < allMergedIds.length; i += BATCH_SIZE) {
           const batchIds = allMergedIds.slice(i, i + BATCH_SIZE);
           try {
-            const batchResponse = await hubspot.crm.contacts.batchApi.read({
+            const batchResponse = await retryableHubSpotRequest(() => hubspot.crm.contacts.batchApi.read({
               inputs: batchIds.map(id => ({ id })),
               properties: ['email'],
               propertiesWithHistory: []
-            });
+            }));
             
             for (const result of batchResponse.results) {
               const email = result.properties?.email?.toLowerCase();
@@ -918,7 +919,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
         ...(after ? { after } : {})
       };
       
-      const response = await hubspot.crm.contacts.searchApi.doSearch(searchRequest);
+      const response = await retryableHubSpotRequest(() => hubspot.crm.contacts.searchApi.doSearch(searchRequest));
       allContacts = allContacts.concat(response.results as unknown as HubSpotContact[]);
       after = response.paging?.next?.after;
     } while (after);
@@ -1351,11 +1352,11 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
         for (let i = 0; i < allMergedIds.length; i += BATCH_SIZE) {
           const batchIds = allMergedIds.slice(i, i + BATCH_SIZE);
           try {
-            const batchResponse = await hubspot.crm.contacts.batchApi.read({
+            const batchResponse = await retryableHubSpotRequest(() => hubspot.crm.contacts.batchApi.read({
               inputs: batchIds.map(id => ({ id })),
               properties: ['email'],
               propertiesWithHistory: []
-            });
+            }));
             
             for (const result of batchResponse.results) {
               const email = result.properties?.email?.toLowerCase();
@@ -1440,11 +1441,11 @@ export async function updateHubSpotContactVisitCount(hubspotId: string, visitCou
 
   try {
     const hubspot = await getHubSpotClient();
-    await hubspot.crm.contacts.basicApi.update(hubspotId, {
+    await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.update(hubspotId, {
       properties: {
         total_visit_count: String(visitCount)
       }
-    });
+    }));
     if (!isProduction) logger.info(`[MemberSync] Updated HubSpot contact ${hubspotId} visit count to ${visitCount}`);
     return true;
   } catch (error: unknown) {
@@ -1520,11 +1521,11 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
     
     do {
       try {
-        const response = await hubspot.crm.objects.calls.basicApi.getPage(
+        const response = await retryableHubSpotRequest(() => hubspot.crm.objects.calls.basicApi.getPage(
           100,
           after,
           callProperties
-        );
+        ));
         
         // Filter to recent calls only
         const recentCalls = (response as unknown as { results: HubSpotCallRecord[] }).results.filter((call) => {
@@ -1580,10 +1581,10 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
               let memberEmail: string | null = null;
               
               try {
-                const associations = await (hubspot.crm.objects.calls as unknown as { associationsApi: { getAll: (id: string, toObjectType: string) => Promise<{ results?: Array<{ id: string }> }> } }).associationsApi.getAll(
+                const associations = await retryableHubSpotRequest(() => (hubspot.crm.objects.calls as unknown as { associationsApi: { getAll: (id: string, toObjectType: string) => Promise<{ results?: Array<{ id: string }> }> } }).associationsApi.getAll(
                   callId,
                   'contacts'
-                );
+                ));
                 
                 if (associations.results && associations.results.length > 0) {
                   const contactId = associations.results[0].id;
@@ -1592,7 +1593,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
                   // If not in our map, try to fetch the contact directly
                   if (!memberEmail) {
                     try {
-                      const contact = await hubspot.crm.contacts.basicApi.getById(contactId, ['email']);
+                      const contact = await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.getById(contactId, ['email']));
                       memberEmail = contact.properties?.email?.toLowerCase() || null;
                     } catch (err) {
                       logger.debug('HubSpot contact not found by ID', { error: err });
@@ -1686,9 +1687,15 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
       do {
         try {
           // HubSpot stores SMS in the 'communications' object type
-          const response = await hubspot.apiRequest({
-            method: 'GET',
-            path: `/crm/v3/objects/communications?limit=100${commAfter ? `&after=${commAfter}` : ''}&properties=${commProperties.join(',')}`
+          const response = await retryableHubSpotRequest(async () => {
+            const res = await hubspot.apiRequest({
+              method: 'GET',
+              path: `/crm/v3/objects/communications?limit=100${commAfter ? `&after=${commAfter}` : ''}&properties=${commProperties.join(',')}`
+            });
+            if (res.status === 429) {
+              throw new Error(`HTTP 429 Rate Limit from HubSpot communications API`);
+            }
+            return res;
           });
           
           const data = await response.json();
@@ -1739,9 +1746,15 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
           // Get associated contact
           let memberEmail: string | null = null;
           try {
-            const assocResponse = await hubspot.apiRequest({
-              method: 'GET',
-              path: `/crm/v3/objects/communications/${commId}/associations/contacts`
+            const assocResponse = await retryableHubSpotRequest(async () => {
+              const res = await hubspot.apiRequest({
+                method: 'GET',
+                path: `/crm/v3/objects/communications/${commId}/associations/contacts`
+              });
+              if (res.status === 429) {
+                throw new Error(`HTTP 429 Rate Limit from HubSpot associations API`);
+              }
+              return res;
             });
             const assocData = await assocResponse.json();
             
@@ -1751,7 +1764,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
               
               if (!memberEmail) {
                 try {
-                  const contact = await hubspot.crm.contacts.basicApi.getById(contactId, ['email']);
+                  const contact = await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.getById(contactId, ['email']));
                   memberEmail = contact.properties?.email?.toLowerCase() || null;
                 } catch (err) {
                   logger.debug('HubSpot contact not found by ID for communication', { error: err });
@@ -1843,7 +1856,7 @@ export async function updateHubSpotContactPreferences(
       return true; // Nothing to update
     }
     
-    await hubspot.crm.contacts.basicApi.update(hubspotId, { properties });
+    await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.update(hubspotId, { properties }));
     if (!isProduction) logger.info(`[MemberSync] Updated HubSpot contact ${hubspotId} preferences:`, { extra: { detail: properties } });
     return true;
   } catch (error: unknown) {
