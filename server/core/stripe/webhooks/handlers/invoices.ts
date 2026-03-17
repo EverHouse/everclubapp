@@ -59,7 +59,7 @@ export async function handleInvoicePaymentSucceeded(client: PoolClient, invoice:
         });
         logger.info(`[Stripe Webhook] Updated payment intent ${invoicePiId} description to: ${invoiceDescription}`);
       } catch (piUpdateErr: unknown) {
-        logger.warn(`[Stripe Webhook] Failed to update payment intent description for ${invoicePiId}`, { error: piUpdateErr });
+        logger.warn(`[Stripe Webhook] Failed to update payment intent description for ${invoicePiId}`, { error: getErrorMessage(piUpdateErr) });
       }
     });
   }
@@ -342,7 +342,7 @@ export async function handleInvoicePaymentFailed(client: PoolClient, invoice: In
       await syncMemberToHubSpot({ email: localEmail, status: actualStatus, billingProvider: 'stripe', billingGroupRole: 'Primary' });
       logger.info(`[Stripe Webhook] Synced ${localEmail} payment failure status to HubSpot (actual status: ${actualStatus})`);
     } catch (hubspotError: unknown) {
-      logger.error('[Stripe Webhook] HubSpot sync failed for payment failure:', { error: hubspotError });
+      logger.error('[Stripe Webhook] HubSpot sync failed for payment failure:', { error: getErrorMessage(hubspotError) });
     }
   });
 
@@ -398,7 +398,7 @@ export async function handleInvoicePaymentFailed(client: PoolClient, invoice: In
         userEmail: localEmail,
       });
     } catch (alertErr: unknown) {
-      logger.warn('[Stripe Webhook] Failed to send error alert for payment failure:', { error: alertErr });
+      logger.warn('[Stripe Webhook] Failed to send error alert for payment failure:', { error: getErrorMessage(alertErr) });
     }
   });
 

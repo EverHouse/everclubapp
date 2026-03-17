@@ -10,10 +10,10 @@ import { broadcastBillingUpdate, broadcastDayPassUpdate } from '../../../websock
 import { recordDayPassPurchaseFromWebhook } from '../../../../routes/dayPasses';
 import { logSystemAction } from '../../../auditLog';
 import { logger } from '../../../logger';
+import { getErrorMessage } from '../../../../utils/errorUtils';
 import type { PoolClient } from 'pg';
 import type { DeferredAction } from '../types';
 import { upsertTransactionCache } from '../framework';
-import { getErrorMessage } from '../../../../utils/errorUtils';
 import { normalizeTierName } from '../../../../utils/tierUtils';
 
 export async function handleCheckoutSessionCompleted(client: PoolClient, session: Stripe.Checkout.Session): Promise<DeferredAction[]> {
@@ -142,7 +142,7 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
           logger.error(`[Stripe Webhook] Company sync failed: ${companyResult.error}`);
         }
       } catch (companyError: unknown) {
-        logger.error('[Stripe Webhook] Error syncing company to HubSpot (will queue retry):', { error: companyError });
+        logger.error('[Stripe Webhook] Error syncing company to HubSpot (will queue retry):', { error: getErrorMessage(companyError) });
         deferredActions.push(async () => {
           try {
             const { enqueueHubSpotSync } = await import('../../../hubspot/queue');
@@ -156,7 +156,7 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
             });
             logger.info(`[Stripe Webhook] Queued HubSpot company sync retry for ${companyName} (${userEmail})`);
           } catch (queueErr: unknown) {
-            logger.error('[Stripe Webhook] Failed to queue HubSpot company sync retry:', { error: queueErr });
+            logger.error('[Stripe Webhook] Failed to queue HubSpot company sync retry:', { error: getErrorMessage(queueErr) });
           }
         });
       }
@@ -252,7 +252,7 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
                   deferredPhone
                 );
               } catch (contactErr: unknown) {
-                logger.error('[Stripe Webhook] HubSpot contact sync failed for activation link:', { error: contactErr });
+                logger.error('[Stripe Webhook] HubSpot contact sync failed for activation link:', { error: getErrorMessage(contactErr) });
               }
             });
 
@@ -269,7 +269,7 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
                   stripeCustomerId: deferredCustomerId || undefined,
                 });
               } catch (hubspotError: unknown) {
-                logger.error('[Stripe Webhook] HubSpot sync failed for activation link checkout:', { error: hubspotError });
+                logger.error('[Stripe Webhook] HubSpot sync failed for activation link checkout:', { error: getErrorMessage(hubspotError) });
               }
             });
           } else {
@@ -326,7 +326,7 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
             await syncMemberToHubSpot({ email: deferredResolvedEmail, status: 'active', billingProvider: 'stripe', memberSince: new Date(), billingGroupRole: 'Primary', stripeCustomerId: deferredResolvedCustomerId || undefined });
             logger.info(`[Stripe Webhook] Synced existing user ${deferredResolvedEmail} to HubSpot`);
           } catch (hubspotError: unknown) {
-            logger.error('[Stripe Webhook] HubSpot sync failed for existing user:', { error: hubspotError });
+            logger.error('[Stripe Webhook] HubSpot sync failed for existing user:', { error: getErrorMessage(hubspotError) });
           }
         });
       } else {
@@ -363,7 +363,7 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
               await syncMemberToHubSpot({ email: deferredDirectEmail, status: 'active', billingProvider: 'stripe', memberSince: new Date(), billingGroupRole: 'Primary', stripeCustomerId: deferredDirectCustomerId || undefined });
               logger.info(`[Stripe Webhook] Synced existing user ${deferredDirectEmail} to HubSpot`);
             } catch (hubspotError: unknown) {
-              logger.error('[Stripe Webhook] HubSpot sync failed for existing user:', { error: hubspotError });
+              logger.error('[Stripe Webhook] HubSpot sync failed for existing user:', { error: getErrorMessage(hubspotError) });
             }
           });
         } else {
@@ -441,7 +441,7 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
           });
           logger.info(`[Stripe Webhook] Synced ${deferredStaffEmail} to HubSpot: status=active, tier=${deferredStaffTierName}, billing=stripe, memberSince=now`);
         } catch (hubspotError: unknown) {
-          logger.error('[Stripe Webhook] HubSpot sync failed for staff invite:', { error: hubspotError });
+          logger.error('[Stripe Webhook] HubSpot sync failed for staff invite:', { error: getErrorMessage(hubspotError) });
         }
       });
       
@@ -452,7 +452,7 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
         );
         logger.info(`[Stripe Webhook] Marked membership application as converted for ${email}`);
       } catch (convErr: unknown) {
-        logger.error('[Stripe Webhook] Failed to mark application as converted:', { error: convErr });
+        logger.error('[Stripe Webhook] Failed to mark application as converted:', { error: getErrorMessage(convErr) });
       }
       
       logger.info(`[Stripe Webhook] Staff invite checkout completed for ${email}`);
@@ -542,7 +542,7 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
           });
           logger.info(`[Stripe Webhook] QR pass email sent to ${deferredDayPassEmail}`);
         } catch (emailError: unknown) {
-          logger.error('[Stripe Webhook] Failed to send QR pass email:', { error: emailError });
+          logger.error('[Stripe Webhook] Failed to send QR pass email:', { error: getErrorMessage(emailError) });
         }
 
         try {
@@ -553,11 +553,11 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
             { sendPush: false, sendWebSocket: true }
           );
         } catch (notifyErr: unknown) {
-          logger.error('[Stripe Webhook] Failed to notify staff of day pass:', { error: notifyErr });
+          logger.error('[Stripe Webhook] Failed to notify staff of day pass:', { error: getErrorMessage(notifyErr) });
         }
 
       } catch (recordErr: unknown) {
-        logger.error('[Stripe Webhook] Day pass deferred recording failed:', { error: recordErr });
+        logger.error('[Stripe Webhook] Day pass deferred recording failed:', { error: getErrorMessage(recordErr) });
       }
     });
 
@@ -579,11 +579,11 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
           paymentIntentId,
         });
       } catch (cacheErr: unknown) {
-        logger.error('[Stripe Webhook] Failed to cache day pass transaction:', { error: cacheErr });
+        logger.error('[Stripe Webhook] Failed to cache day pass transaction:', { error: getErrorMessage(cacheErr) });
       }
     });
   } catch (error: unknown) {
-    logger.error('[Stripe Webhook] Error handling checkout session completed:', { error: error });
+    logger.error('[Stripe Webhook] Error handling checkout session completed:', { error: getErrorMessage(error) });
     throw error;
   }
   return deferredActions;

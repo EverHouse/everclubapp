@@ -880,7 +880,7 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
     try {
       clientFees = JSON.parse(metadata.participantFees);
     } catch (parseErr: unknown) {
-      logger.error(`[Stripe Webhook] Failed to parse participantFees metadata for PI ${id} - marking for review`, { error: parseErr });
+      logger.error(`[Stripe Webhook] Failed to parse participantFees metadata for PI ${id} - marking for review`, { error: getErrorMessage(parseErr) });
       await client.query(
         `INSERT INTO audit_log (action, resource_type, resource_id, details, created_at)
          VALUES ('parse_error', 'payment', $1, $2, NOW())`,
@@ -1066,7 +1066,7 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
           logger.error(`[Stripe Webhook] Failed to finalize invoice ${posInvoiceId}: ${result.error}`);
         }
       } catch (invoiceErr: unknown) {
-        logger.error(`[Stripe Webhook] Error finalizing invoice ${posInvoiceId}:`, { error: invoiceErr });
+        logger.error(`[Stripe Webhook] Error finalizing invoice ${posInvoiceId}:`, { error: getErrorMessage(invoiceErr) });
       }
     });
   }
@@ -1283,7 +1283,7 @@ export async function handlePaymentIntentFailed(client: PoolClient, paymentInten
         }
       });
     } catch (alertErr: unknown) {
-      logger.error('[Stripe Webhook] Error alert send failed (non-blocking):', { error: alertErr });
+      logger.error('[Stripe Webhook] Error alert send failed (non-blocking):', { error: getErrorMessage(alertErr) });
     }
   });
 
