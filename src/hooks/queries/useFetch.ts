@@ -4,6 +4,17 @@
  * apiRequest() from src/lib/apiRequest.ts which adds retry logic and
  * structured error handling via ApiResult<T>.
  */
+export class ApiError extends Error {
+  status: number;
+  errorData: Record<string, unknown>;
+  constructor(message: string, status: number, errorData: Record<string, unknown> = {}) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.errorData = errorData;
+  }
+}
+
 export async function fetchWithCredentials<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     credentials: 'include',
@@ -12,7 +23,18 @@ export async function fetchWithCredentials<T>(url: string, options?: RequestInit
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Request failed with status ${response.status}`);
+    throw new ApiError(
+      errorData.error || `Request failed with status ${response.status}`,
+      response.status,
+      errorData
+    );
+  }
+
+  const contentType = response.headers.get('content-type');
+  const contentLength = response.headers.get('content-length');
+
+  if (response.status === 204 || contentLength === '0' || !contentType?.includes('application/json')) {
+    return undefined as T;
   }
 
   return response.json();

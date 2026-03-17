@@ -9,7 +9,7 @@ import UnredeemedPassesList from './redeemPass/UnredeemedPassesList';
 import PassSearchResults from './redeemPass/PassSearchResults';
 import { formatPassType } from './redeemPass/types';
 import type { SectionProps, RedemptionSuccess, PassHolder, DayPass, RedemptionLog, ErrorState, UnredeemedPass, DayPassUpdateEvent } from './redeemPass/types';
-import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
+import { fetchWithCredentials, postWithCredentials, ApiError } from '../../../hooks/queries/useFetch';
 
 export type { SectionProps, RedemptionLog };
 // eslint-disable-next-line react-refresh/only-export-components
@@ -154,7 +154,16 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
       if (hasSearched && searchEmail) { handleSearch(); }
     } catch (err: unknown) {
       setUnredeemedPasses(previousUnredeemed);
-      setErrorState({ message: (err instanceof Error ? err.message : String(err)) || 'Failed to redeem pass', errorCode: 'NETWORK_ERROR' });
+      if (err instanceof ApiError && err.errorData) {
+        const pd = err.errorData.passDetails as Record<string, unknown> | undefined;
+        setErrorState({
+          message: err.message || 'Failed to redeem pass',
+          errorCode: (err.errorData.errorCode as string) || 'NETWORK_ERROR',
+          passDetails: pd ? { email: String(pd.email || ''), name: String(pd.name || ''), productType: String(pd.productType || ''), totalUses: pd.totalUses as number | undefined, usedCount: pd.usedCount as number | undefined } : undefined
+        });
+      } else {
+        setErrorState({ message: (err instanceof Error ? err.message : String(err)) || 'Failed to redeem pass', errorCode: 'NETWORK_ERROR' });
+      }
     } finally {
       setRedeemingId(null);
       setForceRedeeming(false);

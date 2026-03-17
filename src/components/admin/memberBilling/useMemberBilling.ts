@@ -56,6 +56,8 @@ export function useMemberBilling(
 
   const invalidateBilling = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: memberBillingKeys.info(memberEmail) });
+    queryClient.invalidateQueries({ queryKey: memberBillingKeys.outstanding(memberEmail) });
+    queryClient.invalidateQueries({ queryKey: memberBillingKeys.migrationStatus(memberEmail) });
   }, [queryClient, memberEmail]);
 
   const billingQuery = useQuery({

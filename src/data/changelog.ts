@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.53",
+    date: "2026-03-17",
+    title: "Data Fetching Stability Fixes",
+    changes: [
+      "Fixed: Operations like deleting items or confirming payments no longer fail silently when the server returns an empty response — the app now handles these correctly instead of crashing",
+      "Fixed: Group billing page now correctly detects when a member has no billing group, instead of sometimes showing a generic error message",
+      "Fixed: Billing page now refreshes all balance and migration data after payments, credits, or subscription changes — previously, outstanding balance could appear stale",
+      "Fixed: Day pass redemption errors now show detailed information (pass holder, usage counts) instead of generic 'network error' messages, helping staff resolve issues faster",
+    ]
+  },
+  {
     version: "8.87.52",
     date: "2026-03-17",
     title: "Startup Reliability & Trackman Billing Fixes",

@@ -4,7 +4,7 @@ import TierBadge from '../TierBadge';
 import { MemberSearchInput, SelectedMember } from '../shared/MemberSearchInput';
 import { useToast } from '../Toast';
 import { getApiErrorMessage, getNetworkErrorMessage } from '../../utils/errorHandling';
-import { fetchWithCredentials, postWithCredentials, putWithCredentials, deleteWithCredentials } from '../../hooks/queries/useFetch';
+import { fetchWithCredentials, postWithCredentials, putWithCredentials, deleteWithCredentials, ApiError } from '../../hooks/queries/useFetch';
 
 interface FamilyMemberInfo {
   id: number;
@@ -92,7 +92,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
       const data = await fetchWithCredentials<FamilyGroupData>(`/api/group-billing/group/${encodeURIComponent(memberEmail)}`);
       setFamilyGroup(data);
     } catch (err: unknown) {
-      if (err instanceof Error && err.message.includes('404')) {
+      if ((err instanceof ApiError && err.status === 404) || (err instanceof Error && err.message.includes('404'))) {
         setFamilyGroup(null);
       } else {
         setError(getNetworkErrorMessage());
