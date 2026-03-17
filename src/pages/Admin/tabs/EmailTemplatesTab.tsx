@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
+import { fetchWithCredentials, putWithCredentials } from '../../../hooks/queries/useFetch';
 import Toggle from '../../../components/Toggle';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 
@@ -69,11 +69,7 @@ const EmailTemplatesTab: React.FC = () => {
 
   const toggleMutation = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: string }) => {
-      return fetchWithCredentials(`/api/admin/settings/${encodeURIComponent(key)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value }),
-      });
+      return putWithCredentials(`/api/admin/settings/${encodeURIComponent(key)}`, { value });
     },
     onMutate: async ({ key, value }) => {
       setSavingKey(key);

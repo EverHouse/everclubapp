@@ -7,7 +7,7 @@ import SlideUpDrawer from '../../../components/SlideUpDrawer';
 import Toggle from '../../../components/Toggle';
 import FloatingActionButton from '../../../components/FloatingActionButton';
 import DiscountsSubTab from './DiscountsSubTab';
-import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from '../../../hooks/queries/useFetch';
+import { fetchWithCredentials, postWithCredentials, deleteWithCredentials, putWithCredentials } from '../../../hooks/queries/useFetch';
 import { useUndoAction } from '../../../hooks/useUndoAction';
 import { TiersTabSkeleton } from '../../../components/skeletons';
 import { useToast } from '../../../components/Toast';
@@ -305,16 +305,8 @@ const TiersTab: React.FC = () => {
         
         setIsReordering(true);
         try {
-            await fetchWithCredentials(`/api/tier-features/${currentFeature.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sortOrder: swapFeature.sortOrder }),
-            });
-            await fetchWithCredentials(`/api/tier-features/${swapFeature.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sortOrder: currentFeature.sortOrder }),
-            });
+            await putWithCredentials(`/api/tier-features/${currentFeature.id}`, { sortOrder: swapFeature.sortOrder });
+            await putWithCredentials(`/api/tier-features/${swapFeature.id}`, { sortOrder: currentFeature.sortOrder });
         } catch (error: unknown) {
             queryClient.setQueryData(['tier-features'], previousData);
             console.error('Failed to reorder features:', error);
