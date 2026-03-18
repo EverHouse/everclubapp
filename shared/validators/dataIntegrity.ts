@@ -91,6 +91,15 @@ export const changeBillingProviderSchema = z.object({
   newProvider: z.enum(['stripe', 'manual', 'comped'], { message: 'newProvider is required' }),
 });
 
+export const bulkChangeBillingProviderSchema = z.object({
+  userIds: z.array(z.string().min(1)).min(1, 'At least one userId is required').max(100, 'Maximum 100 users at once'),
+  newProvider: z.enum(['manual', 'comped'], { message: 'newProvider must be manual or comped' }),
+});
+
+export const linkStripeCustomerOnlySchema = z.object({
+  userId: z.string().min(1, 'userId is required'),
+});
+
 export const acceptTierSchema = z.object({
   userId: z.string().min(1, 'userId is required'),
   acceptedTier: z.string().min(1, 'acceptedTier is required'),
@@ -130,6 +139,14 @@ export const deleteOrphanByEmailSchema = z.object({
   email: z.string().min(1, 'email is required').transform(v => v.trim().toLowerCase()),
 });
 
+export const reconnectStripeSubscriptionSchema = z.object({
+  userId: z.string().min(1, 'userId is required'),
+});
+
+export const bulkReconnectStripeSchema = z.object({
+  userIds: z.array(z.string().min(1)).min(1).max(100, 'Maximum 100 users at once'),
+});
+
 export type ResolveIssueInput = z.infer<typeof resolveIssueSchema>;
 export type SyncPushPullInput = z.infer<typeof syncPushPullSchema>;
 export type IgnoreIssueInput = z.infer<typeof ignoreIssueSchema>;
@@ -148,3 +165,7 @@ export type CancelOrphanedPiInput = z.infer<typeof cancelOrphanedPiSchema>;
 export type DryRunInput = z.infer<typeof dryRunSchema>;
 export type UpdateTourStatusInput = z.infer<typeof updateTourStatusSchema>;
 export type ClearStripeIdInput = z.infer<typeof clearStripeIdSchema>;
+export type BulkChangeBillingProviderInput = z.infer<typeof bulkChangeBillingProviderSchema>;
+export type LinkStripeCustomerOnlyInput = z.infer<typeof linkStripeCustomerOnlySchema>;
+export type ReconnectStripeSubscriptionInput = z.infer<typeof reconnectStripeSubscriptionSchema>;
+export type BulkReconnectStripeInput = z.infer<typeof bulkReconnectStripeSchema>;

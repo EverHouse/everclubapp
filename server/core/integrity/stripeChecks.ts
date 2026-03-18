@@ -397,11 +397,6 @@ export async function checkOrphanedPaymentIntents(): Promise<IntegrityCheckResul
 }
 
 export async function checkBillingProviderHybridState(): Promise<IntegrityCheckResult> {
-  // NOTE: As of migration 0047, a CHECK constraint (users_billing_provider_no_hybrid)
-  // prevents the critical case of billing_provider='mindbody' with a stripe_subscription_id.
-  // The trg_auto_billing_provider trigger auto-sets billing_provider on INSERT/UPDATE.
-  // This check is now informational — catches softer issues: NULL billing_provider on active members,
-  // and stripe provider without a subscription ID (prod only). Downgraded to medium severity.
   const issues: IntegrityIssue[] = [];
 
   const hybridResult = await db.execute(sql`
@@ -414,7 +409,8 @@ export async function checkBillingProviderHybridState(): Promise<IntegrityCheckR
         (billing_provider = 'mindbody' AND stripe_subscription_id IS NOT NULL AND stripe_subscription_id != '')
         OR
         (billing_provider IS NULL AND membership_status = 'active')
-        ${isProduction ? sql`OR (billing_provider = 'stripe' AND (stripe_subscription_id IS NULL OR stripe_subscription_id = '') AND membership_status = 'active')` : sql``}
+        OR (billing_provider = 'stripe' AND (stripe_subscription_id IS NULL OR stripe_subscription_id = '') AND membership_status = 'active')
+        OR (billing_provider = 'stripe' AND (stripe_customer_id IS NULL OR stripe_customer_id = '') AND membership_status = 'active')
       )
     ORDER BY membership_status, email
     LIMIT 50
@@ -428,16 +424,27 @@ export async function checkBillingProviderHybridState(): Promise<IntegrityCheckR
     let suggestion: string;
     let severity: 'error' | 'warning' = 'warning';
 
+    let issueType: string = 'unknown';
+
     if (member.billing_provider === 'mindbody' && member.stripe_subscription_id) {
       description = `Member "${memberName}" has billing_provider='mindbody' but has Stripe subscription ${member.stripe_subscription_id} — billing provider should be 'stripe'`;
       suggestion = 'Update billing_provider to stripe — this member has migrated from Mindbody';
       severity = 'error';
+      issueType = 'mindbody_has_stripe_subscription';
     } else if (!member.billing_provider && member.membership_status === 'active') {
       description = `Active member "${memberName}" has no billing provider set — unable to determine billing source`;
       suggestion = 'Classify billing provider as stripe, mindbody, manual, or comped';
+      issueType = 'no_billing_provider';
+    } else if (member.billing_provider === 'stripe' && (!member.stripe_customer_id || member.stripe_customer_id === '')) {
+      description = `Member "${memberName}" has billing_provider='stripe' but NO Stripe customer ID — completely disconnected from Stripe`;
+      suggestion = 'Mark as comped/manual or link an existing Stripe customer. Do NOT create a new subscription — member may have already paid.';
+      severity = 'error';
+      issueType = 'stripe_missing_customer_id';
     } else {
       description = `Member "${memberName}" has billing_provider='stripe' but no Stripe subscription ID`;
-      suggestion = 'Verify Stripe subscription exists or update billing provider';
+      suggestion = 'Verify Stripe subscription exists or update billing provider to comped/manual';
+      severity = 'error';
+      issueType = 'stripe_missing_subscription_id';
     }
 
     issues.push({
@@ -456,14 +463,102 @@ export async function checkBillingProviderHybridState(): Promise<IntegrityCheckR
         stripeSubscriptionId: member.stripe_subscription_id || 'none',
         stripeCustomerId: member.stripe_customer_id || 'none',
         mindbodyClientId: member.mindbody_client_id || 'none',
-        userId: String(member.id)
+        userId: String(member.id),
+        issueType
       }
     });
   }
 
   return {
     checkName: 'Billing Provider Hybrid State',
-    status: issues.length > 0 ? 'warning' : 'pass',
+    status: issues.length > 0 ? (issues.some(i => i.severity === 'error') ? 'fail' : 'warning') : 'pass',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
+export async function checkBillingOrphans(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  const PAID_TIERS = ['Core', 'Premium', 'VIP', 'Corporate'];
+  const tierConditions = PAID_TIERS.map(t => `LOWER(tier) = '${t.toLowerCase()}'`).join(' OR ');
+
+  const orphanResult = await db.execute(sql`
+    SELECT id, email, first_name, last_name, tier, membership_status,
+           billing_provider, stripe_subscription_id, stripe_customer_id, mindbody_client_id
+    FROM users
+    WHERE role = 'member'
+      AND archived_at IS NULL
+      AND membership_status = 'active'
+      AND (${sql.raw(tierConditions)})
+      AND (stripe_subscription_id IS NULL OR stripe_subscription_id = '')
+    ORDER BY
+      CASE billing_provider
+        WHEN 'stripe' THEN 0
+        WHEN 'mindbody' THEN 2
+        ELSE 1
+      END,
+      email
+    LIMIT 300
+  `);
+  const orphans = orphanResult.rows as unknown as HybridBillingRow[];
+
+  for (const member of orphans) {
+    const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'Unknown';
+    const provider = member.billing_provider || 'none';
+    const hasCustomerId = !!(member.stripe_customer_id && member.stripe_customer_id !== '');
+
+    let severity: 'error' | 'warning' = 'warning';
+    let description: string;
+    let suggestion: string;
+
+    if (provider === 'stripe') {
+      severity = 'error';
+      if (!hasCustomerId) {
+        description = `ORPHANED: "${memberName}" (${member.tier}) has billing_provider='stripe' but NO Stripe customer or subscription — completely disconnected`;
+        suggestion = 'Mark as comped or manual. Do NOT create a subscription — this member has already paid and must not be double-charged.';
+      } else {
+        description = `ORPHANED: "${memberName}" (${member.tier}) has billing_provider='stripe' and customer ID but NO subscription`;
+        suggestion = 'Link existing Stripe subscription or mark as comped/manual. Do NOT create a new subscription without verifying payment history.';
+      }
+    } else if (provider === 'comped' || provider === 'manual' || provider === 'family_addon') {
+      continue;
+    } else if (provider === 'mindbody') {
+      severity = 'warning';
+      description = `MindBody member "${memberName}" (${member.tier}) has no Stripe subscription — may need review for migration`;
+      suggestion = 'Verify billing status in MindBody or mark as manual if billed outside the system';
+    } else {
+      severity = 'warning';
+      description = `Active member "${memberName}" (${member.tier}) has no billing provider and no Stripe subscription`;
+      suggestion = 'Set billing provider to comped, manual, or link to Stripe';
+    }
+
+    issues.push({
+      category: 'billing_issue',
+      severity,
+      table: 'users',
+      recordId: member.id,
+      description,
+      suggestion,
+      context: {
+        memberName,
+        memberEmail: member.email,
+        memberTier: member.tier || 'none',
+        memberStatus: member.membership_status,
+        billingProvider: provider,
+        stripeSubscriptionId: member.stripe_subscription_id || 'none',
+        stripeCustomerId: member.stripe_customer_id || 'none',
+        mindbodyClientId: member.mindbody_client_id || 'none',
+        userId: String(member.id),
+        orphanType: provider === 'stripe' ? 'stripe_no_subscription' : provider === 'mindbody' ? 'mindbody_no_subscription' : 'no_provider'
+      }
+    });
+  }
+
+  return {
+    checkName: 'Billing Orphans',
+    status: issues.length === 0 ? 'pass' : issues.some(i => i.severity === 'error') ? 'fail' : 'warning',
     issueCount: issues.length,
     issues,
     lastRun: new Date()

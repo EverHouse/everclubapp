@@ -77,6 +77,7 @@ export interface IssueContext {
   issueType?: string;
   sourceTable?: string;
   count?: number;
+  orphanType?: string;
 }
 
 export interface IgnoreInfo {

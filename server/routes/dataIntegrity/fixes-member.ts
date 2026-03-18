@@ -3,7 +3,7 @@ import { cancelPaymentIntent } from '../../core/stripe/payments';
 import { queueIntegrityFixSync } from '../../core/hubspot/queueHelpers';
 import { logger, isAdmin, validateBody, db, sql, pool, safeRelease, logFromRequest, getSessionUser, getErrorMessage, safeErrorDetail } from './shared';
 import type { Request } from 'express';
-import { unlinkHubspotSchema, mergeHubspotSchema, mergeStripeSchema, changeBillingProviderSchema, acceptTierSchema, userIdSchema, recordIdSchema, cancelOrphanedPiSchema, updateTourStatusSchema, clearStripeIdSchema, deleteOrphanByEmailSchema } from '../../../shared/validators/dataIntegrity';
+import { unlinkHubspotSchema, mergeHubspotSchema, mergeStripeSchema, changeBillingProviderSchema, acceptTierSchema, userIdSchema, recordIdSchema, cancelOrphanedPiSchema, updateTourStatusSchema, clearStripeIdSchema, deleteOrphanByEmailSchema, bulkChangeBillingProviderSchema, linkStripeCustomerOnlySchema, reconnectStripeSubscriptionSchema, bulkReconnectStripeSchema } from '../../../shared/validators/dataIntegrity';
 
 const router = Router();
 
@@ -517,6 +517,275 @@ router.post('/api/data-integrity/fix/clear-stripe-customer-id', isAdmin, validat
     res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
   } finally {
     safeRelease(client);
+  }
+});
+
+router.post('/api/data-integrity/fix/bulk-change-billing-provider', isAdmin, validateBody(bulkChangeBillingProviderSchema), async (req: Request, res) => {
+  const client = await pool.connect();
+  try {
+    const { userIds, newProvider } = req.body;
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
+
+    await client.query('BEGIN');
+
+    const results: { userId: string; email: string; success: boolean }[] = [];
+
+    for (const userId of userIds) {
+      const result = await client.query(
+        `UPDATE users 
+         SET billing_provider = $2, updated_at = NOW(),
+             last_manual_fix_at = NOW(), last_manual_fix_by = $3
+         WHERE id = $1
+         RETURNING email, tier, membership_status`,
+        [userId, newProvider, staffEmail]
+      );
+
+      if (result.rowCount && result.rowCount > 0) {
+        const userEmail = result.rows[0]?.email;
+        results.push({ userId, email: userEmail || '', success: true });
+
+        if (userEmail) {
+          queueIntegrityFixSync({ email: userEmail, billingProvider: newProvider, tier: result.rows[0]?.tier || '', status: result.rows[0]?.membership_status || '', fixAction: 'bulk_change_billing_provider', performedBy: staffEmail }).catch(err => logger.warn('[DataIntegrity] HubSpot sync queue failed', { extra: { error: getErrorMessage(err) } }));
+        }
+      } else {
+        results.push({ userId, email: '', success: false });
+      }
+    }
+
+    await client.query('COMMIT');
+
+    const successCount = results.filter(r => r.success).length;
+
+    logFromRequest(req, 'bulk_change_billing_provider', 'user', undefined, `Bulk changed billing provider to ${newProvider} for ${successCount}/${userIds.length} members`, {
+      newProvider,
+      userIds,
+      successCount,
+      results
+    });
+
+    res.json({ success: true, message: `Changed billing provider to ${newProvider} for ${successCount} member(s)`, results });
+  } catch (error: unknown) {
+    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
+    logger.error('[DataIntegrity] Bulk change billing provider error', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+  } finally {
+    safeRelease(client);
+  }
+});
+
+router.post('/api/data-integrity/fix/link-stripe-customer-only', isAdmin, validateBody(linkStripeCustomerOnlySchema), async (req: Request, res) => {
+  const client = await pool.connect();
+  try {
+    const { userId } = req.body;
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
+
+    await client.query('BEGIN');
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1::text))`, [userId]);
+
+    const userResult = await client.query(
+      `SELECT id, email, first_name, last_name, tier, stripe_customer_id FROM users WHERE id = $1`,
+      [userId]
+    );
+
+    if (userResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const user = userResult.rows[0];
+
+    if (user.stripe_customer_id) {
+      await client.query('ROLLBACK');
+      return res.json({ success: true, message: `Member already has Stripe customer ${user.stripe_customer_id}`, customerId: user.stripe_customer_id, alreadyLinked: true });
+    }
+
+    await client.query('COMMIT');
+
+    const { getOrCreateStripeCustomer } = await import('../../core/stripe/customers');
+    const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || undefined;
+    const custResult = await getOrCreateStripeCustomer(String(user.id), user.email, fullName as string, user.tier as string);
+
+    logFromRequest(req, 'link_stripe_customer_only', 'user', String(userId), `Linked Stripe customer ${custResult.customerId} to "${fullName || user.email}" (${custResult.isNew ? 'created new' : 'found existing'}) — NO subscription created`, {
+      userId,
+      customerId: custResult.customerId,
+      isNew: custResult.isNew,
+      performedBy: staffEmail
+    });
+
+    res.json({
+      success: true,
+      message: `Linked Stripe customer ${custResult.customerId} to member (${custResult.isNew ? 'created new' : 'found existing'}). No subscription was created.`,
+      customerId: custResult.customerId,
+      isNew: custResult.isNew
+    });
+  } catch (error: unknown) {
+    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
+    logger.error('[DataIntegrity] Link Stripe customer only error', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+  } finally {
+    safeRelease(client);
+  }
+});
+
+async function reconnectSingleMember(userId: string, staffEmail: string): Promise<{
+  success: boolean;
+  message: string;
+  customerId?: string;
+  subscriptionId?: string;
+  subscriptionStatus?: string;
+}> {
+  const { getStripeClient } = await import('../../core/stripe/client');
+  const stripe = await getStripeClient();
+
+  const userResult = await db.execute(sql`
+    SELECT id, email, first_name, last_name, tier, billing_provider,
+           stripe_customer_id, stripe_subscription_id, membership_status
+    FROM users WHERE id = ${userId}
+  `);
+
+  if (userResult.rows.length === 0) {
+    return { success: false, message: 'User not found' };
+  }
+
+  const user = userResult.rows[0] as Record<string, string | null>;
+  const memberName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+
+  if (user.stripe_subscription_id) {
+    return { success: true, message: `"${memberName}" already has subscription ${user.stripe_subscription_id}`, subscriptionId: user.stripe_subscription_id };
+  }
+
+  const customers = await stripe.customers.list({ email: (user.email || '').toLowerCase(), limit: 10 });
+  const nonDeletedCustomers = customers.data.filter(c => !c.deleted);
+
+  if (nonDeletedCustomers.length === 0) {
+    return { success: false, message: `No Stripe customer found for "${memberName}" (${user.email}). Cannot reconnect — this member may need manual review.` };
+  }
+
+  if (nonDeletedCustomers.length > 1) {
+    const metadataMatch = nonDeletedCustomers.find(c => c.metadata?.userId === String(userId));
+    if (!metadataMatch) {
+      return {
+        success: false,
+        message: `Found ${nonDeletedCustomers.length} Stripe customers for "${memberName}" (${user.email}): ${nonDeletedCustomers.map(c => c.id).join(', ')}. Cannot auto-reconnect — please link manually to avoid mis-matching.`
+      };
+    }
+  }
+
+  const matchingCustomer = nonDeletedCustomers.find(c => c.metadata?.userId === String(userId)) || nonDeletedCustomers[0];
+
+  const subscriptions = await stripe.subscriptions.list({
+    customer: matchingCustomer.id,
+    limit: 10,
+  });
+
+  const activeSub = subscriptions.data.find(s => ['active', 'past_due', 'trialing'].includes(s.status));
+
+  if (!activeSub) {
+    await db.execute(sql`
+      UPDATE users
+      SET stripe_customer_id = ${matchingCustomer.id},
+          updated_at = NOW()
+      WHERE id = ${userId}
+    `);
+    return {
+      success: false,
+      message: `Found Stripe customer ${matchingCustomer.id} for "${memberName}" but NO active subscription (${subscriptions.data.length} total, statuses: ${subscriptions.data.map(s => s.status).join(', ') || 'none'}). Customer ID restored. Member needs a new subscription or should be marked comped/manual.`,
+      customerId: matchingCustomer.id
+    };
+  }
+
+  await db.execute(sql`
+    UPDATE users
+    SET stripe_customer_id = ${matchingCustomer.id},
+        stripe_subscription_id = ${activeSub.id},
+        billing_provider = 'stripe',
+        updated_at = NOW()
+    WHERE id = ${userId}
+  `);
+
+  queueIntegrityFixSync({
+    email: user.email || '',
+    fixAction: 'reconnect_stripe_subscription',
+    billingProvider: 'stripe',
+    tier: user.tier || undefined,
+    performedBy: staffEmail
+  }).catch((err: unknown) => {
+    logger.warn('[DataIntegrity] HubSpot sync after reconnect failed (non-blocking)', { extra: { error: getErrorMessage(err), userId } });
+  });
+
+  return {
+    success: true,
+    message: `Reconnected "${memberName}" — customer ${matchingCustomer.id}, subscription ${activeSub.id} (${activeSub.status})`,
+    customerId: matchingCustomer.id,
+    subscriptionId: activeSub.id,
+    subscriptionStatus: activeSub.status
+  };
+}
+
+router.post('/api/data-integrity/fix/reconnect-stripe-subscription', isAdmin, validateBody(reconnectStripeSubscriptionSchema), async (req: Request, res) => {
+  try {
+    const { userId } = req.body;
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
+
+    const result = await reconnectSingleMember(userId, staffEmail);
+
+    logFromRequest(req, 'reconnect_stripe_subscription', 'user', userId, result.message, {
+      userId,
+      customerId: result.customerId,
+      subscriptionId: result.subscriptionId,
+      subscriptionStatus: result.subscriptionStatus,
+      performedBy: staffEmail
+    });
+
+    res.status(result.success ? 200 : 404).json(result);
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Reconnect Stripe subscription error', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+  }
+});
+
+router.post('/api/data-integrity/fix/bulk-reconnect-stripe', isAdmin, validateBody(bulkReconnectStripeSchema), async (req: Request, res) => {
+  try {
+    const { userIds } = req.body;
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
+
+    const results: Array<{ userId: string; success: boolean; message: string; customerId?: string; subscriptionId?: string }> = [];
+
+    for (const userId of userIds) {
+      try {
+        const result = await reconnectSingleMember(userId, staffEmail);
+        results.push({ userId, ...result });
+      } catch (err: unknown) {
+        results.push({ userId, success: false, message: getErrorMessage(err) });
+      }
+    }
+
+    const reconnected = results.filter(r => r.success && r.subscriptionId);
+    const customerOnly = results.filter(r => !r.success && r.customerId);
+    const failed = results.filter(r => !r.success && !r.customerId);
+
+    logFromRequest(req, 'bulk_reconnect_stripe', 'user', userIds.join(','), `Bulk reconnect: ${reconnected.length} reconnected, ${customerOnly.length} customer-only, ${failed.length} not found`, {
+      totalRequested: userIds.length,
+      reconnectedCount: reconnected.length,
+      customerOnlyCount: customerOnly.length,
+      failedCount: failed.length,
+      performedBy: staffEmail
+    });
+
+    res.json({
+      success: true,
+      message: `Reconnected ${reconnected.length}/${userIds.length} members. ${customerOnly.length} found customer but no active subscription. ${failed.length} not found in Stripe.`,
+      results,
+      summary: {
+        reconnected: reconnected.length,
+        customerOnly: customerOnly.length,
+        failed: failed.length,
+        total: userIds.length
+      }
+    });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Bulk reconnect Stripe error', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
   }
 });
 

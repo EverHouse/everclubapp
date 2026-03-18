@@ -194,6 +194,24 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
 }) => {
   const [resultsRef] = useAutoAnimate();
   const { execute: undoAction } = useUndoAction();
+  const [selectedOrphans, setSelectedOrphans] = React.useState<Set<string>>(new Set());
+
+  const toggleOrphanSelection = (userId: string) => {
+    setSelectedOrphans(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const toggleAllOrphans = (userIds: string[]) => {
+    setSelectedOrphans(prev => {
+      const allSelected = userIds.every(id => prev.has(id));
+      if (allSelected) return new Set();
+      return new Set(userIds);
+    });
+  };
 
   const getStatusColor = (status: 'pass' | 'warning' | 'fail' | 'info') => {
     switch (status) {
@@ -256,8 +274,11 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
     
     if (context.memberName) parts.push(context.memberName);
     if (context.guestName && !context.memberName) parts.push(context.guestName);
-    if (context.memberEmail && !context.memberName) parts.push(context.memberEmail);
+    if (context.memberEmail) parts.push(context.memberEmail);
     if (context.memberTier) parts.push(`Tier: ${context.memberTier}`);
+    if (context.billingProvider && context.billingProvider !== 'none') parts.push(`Provider: ${context.billingProvider}`);
+    if (context.stripeCustomerId) parts.push(context.stripeCustomerId === 'none' ? 'No Stripe Customer' : `Customer: ${context.stripeCustomerId}`);
+    if (context.stripeSubscriptionId) parts.push(context.stripeSubscriptionId === 'none' ? 'No Subscription' : `Sub: ${context.stripeSubscriptionId}`);
     
     if (context.bookingDate || context.tourDate || context.classDate || context.eventDate) {
       const date = context.bookingDate || context.tourDate || context.classDate || context.eventDate;
@@ -854,6 +875,136 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
           </div>
         );
 
+      case 'Billing Orphans': {
+        const billingOrphansResult = results.find(r => r.checkName === 'Billing Orphans');
+        const orphanIssues = billingOrphansResult?.issues.filter(i => !i.ignored) || [];
+        const allOrphanUserIds = orphanIssues.map(i => String(i.context?.userId)).filter(Boolean);
+        const stripeOrphans = orphanIssues.filter(i => i.context?.billingProvider === 'stripe');
+        const mindbodyOrphans = orphanIssues.filter(i => i.context?.billingProvider === 'mindbody');
+        const otherOrphans = orphanIssues.filter(i => i.context?.billingProvider !== 'stripe' && i.context?.billingProvider !== 'mindbody');
+        const selectedCount = allOrphanUserIds.filter(id => selectedOrphans.has(id)).length;
+        const allSelected = allOrphanUserIds.length > 0 && allOrphanUserIds.every(id => selectedOrphans.has(id));
+        const selectedUserIds = allOrphanUserIds.filter(id => selectedOrphans.has(id));
+
+        return (
+          <div className="space-y-3 mb-4">
+            <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
+              <p className="text-xs text-red-700 dark:text-red-300 mb-2">
+                <strong>Root Cause:</strong> The startup environment validation wiped Stripe subscription/customer IDs from the database when
+                they didn&apos;t match the current Stripe environment. The actual Stripe customers and subscriptions still exist in Stripe.
+                Use <strong>Reconnect Stripe</strong> to search Stripe by email and restore the connection.
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+              <div className="flex items-center gap-3 mb-2">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={() => toggleAllOrphans(allOrphanUserIds)}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  Select All ({allOrphanUserIds.length})
+                </label>
+                {selectedCount > 0 && (
+                  <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                    {selectedCount} selected
+                  </span>
+                )}
+              </div>
+              {selectedCount > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => {
+                      if (confirm(`Reconnect ${selectedCount} selected member(s) to Stripe? This will search Stripe for each member by email and restore their customer + subscription IDs. No new subscriptions or charges will be created.`)) {
+                        fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/bulk-reconnect-stripe', body: { userIds: selectedUserIds } });
+                        setSelectedOrphans(new Set());
+                      }
+                    }}
+                    disabled={fixIssueMutation.isPending}
+                    className="tactile-btn px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">link</span>
+                    Reconnect Selected to Stripe ({selectedCount})
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Mark ${selectedCount} selected member(s) as COMPED? Only use this if they should NOT be billed through Stripe.`)) {
+                        fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/bulk-change-billing-provider', body: { userIds: selectedUserIds, newProvider: 'comped' } });
+                        setSelectedOrphans(new Set());
+                      }
+                    }}
+                    disabled={fixIssueMutation.isPending}
+                    className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">volunteer_activism</span>
+                    Mark Selected as Comped
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Mark ${selectedCount} selected member(s) as MANUAL billing? Only use this for members billed outside the system.`)) {
+                        fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/bulk-change-billing-provider', body: { userIds: selectedUserIds, newProvider: 'manual' } });
+                        setSelectedOrphans(new Set());
+                      }
+                    }}
+                    disabled={fixIssueMutation.isPending}
+                    className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">edit_note</span>
+                    Mark Selected as Manual
+                  </button>
+                  <button
+                    onClick={() => setSelectedOrphans(new Set())}
+                    className="px-3 py-1.5 text-gray-600 dark:text-gray-400 rounded-lg text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">close</span>
+                    Clear
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {stripeOrphans.length > 0 && selectedCount === 0 && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+                <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
+                  <strong>Reconnect All:</strong> {stripeOrphans.length} Stripe member(s) disconnected — search Stripe and restore their subscriptions
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => {
+                      const userIds = stripeOrphans.map(i => String(i.context?.userId)).filter(Boolean);
+                      if (confirm(`Reconnect ALL ${userIds.length} Stripe-orphaned member(s)? This searches Stripe by email and restores customer + subscription IDs. No new charges.`)) {
+                        fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/bulk-reconnect-stripe', body: { userIds } });
+                      }
+                    }}
+                    disabled={fixIssueMutation.isPending}
+                    className="tactile-btn px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">link</span>
+                    Reconnect All Stripe Orphans
+                  </button>
+                </div>
+              </div>
+            )}
+            {mindbodyOrphans.length > 0 && selectedCount === 0 && (
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3">
+                <p className="text-xs text-purple-700 dark:text-purple-300 mb-2">
+                  <strong>MindBody Members:</strong> {mindbodyOrphans.length} member(s) billed through MindBody — review for staff
+                </p>
+              </div>
+            )}
+            {otherOrphans.length > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-800/20 rounded-lg p-3">
+                <p className="text-xs text-gray-700 dark:text-gray-300">
+                  <strong>Other:</strong> {otherOrphans.length} member(s) — review individually or select above
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      }
+
       default:
         return null;
     }
@@ -949,6 +1100,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                           const tracking = getIssueTracking(issue);
                           const contextStr = formatContextString(issue.context);
                           
+                          const isBillingOrphan = result.checkName === 'Billing Orphans' && issue.context?.userId;
                           return (
                             <div
                               key={idx}
@@ -957,6 +1109,14 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                               <div className="space-y-2">
                                 <div>
                                   <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                    {isBillingOrphan && (
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedOrphans.has(String(issue.context?.userId))}
+                                        onChange={() => toggleOrphanSelection(String(issue.context?.userId))}
+                                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                      />
+                                    )}
                                     <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
                                       {getSeverityIcon(issue.severity)}
                                     </span>
@@ -1913,6 +2073,91 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           <span className="material-symbols-outlined text-[16px]">edit_note</span>
                                         )}
                                       </button>
+                                    </>
+                                  )}
+                                  {!issue.ignored && issue.category === 'billing_issue' && issue.context?.userId && (
+                                    <>
+                                      {issue.context?.memberEmail && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleViewProfile(issue.context!.memberEmail!)}
+                                          disabled={loadingMemberEmail === issue.context?.memberEmail}
+                                          className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
+                                          title="View member profile"
+                                        >
+                                          <span className="material-symbols-outlined text-[16px]">person</span>
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (confirm(`Reconnect "${issue.context?.memberName}" to Stripe? This will search Stripe by email (${issue.context?.memberEmail}) and restore their customer + subscription IDs. No new charges.`)) {
+                                            fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/reconnect-stripe-subscription', body: { userId: String(issue.context?.userId) } });
+                                          }
+                                        }}
+                                        disabled={fixingIssues.has(String(issue.context?.userId))}
+                                        className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
+                                        title="Reconnect to Stripe — find existing customer & subscription by email"
+                                      >
+                                        {fixingIssues.has(String(issue.context?.userId)) ? (
+                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        ) : (
+                                          <span className="material-symbols-outlined text-[16px]">link</span>
+                                        )}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (confirm(`Mark "${issue.context?.memberName}" as COMPED? Their tier and active status will be kept, but billing provider will be set to comped. No Stripe charges will be created.`)) {
+                                            fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/change-billing-provider', body: { userId: String(issue.context?.userId), newProvider: 'comped' } });
+                                          }
+                                        }}
+                                        disabled={fixingIssues.has(String(issue.context?.userId))}
+                                        className="p-1.5 text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30 rounded transition-colors disabled:opacity-50"
+                                        title="Mark as Comped — keep tier, no billing"
+                                      >
+                                        {fixingIssues.has(String(issue.context?.userId)) ? (
+                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        ) : (
+                                          <span className="material-symbols-outlined text-[16px]">volunteer_activism</span>
+                                        )}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (confirm(`Mark "${issue.context?.memberName}" as MANUAL billing? Their tier and active status will be kept, billing will be tracked outside the system.`)) {
+                                            fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/change-billing-provider', body: { userId: String(issue.context?.userId), newProvider: 'manual' } });
+                                          }
+                                        }}
+                                        disabled={fixingIssues.has(String(issue.context?.userId))}
+                                        className="p-1.5 text-purple-600 hover:bg-purple-100 dark:text-purple-400 dark:hover:bg-purple-900/30 rounded transition-colors disabled:opacity-50"
+                                        title="Mark as Manual — billed outside the system"
+                                      >
+                                        {fixingIssues.has(String(issue.context?.userId)) ? (
+                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        ) : (
+                                          <span className="material-symbols-outlined text-[16px]">edit_note</span>
+                                        )}
+                                      </button>
+                                      {issue.context?.stripeCustomerId === 'none' && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (confirm(`Search Stripe for "${issue.context?.memberEmail}" and link the customer record? This will NOT create a subscription or charge them.`)) {
+                                              fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/link-stripe-customer-only', body: { userId: String(issue.context?.userId) } });
+                                            }
+                                          }}
+                                          disabled={fixingIssues.has(String(issue.context?.userId))}
+                                          className="p-1.5 text-amber-600 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded transition-colors disabled:opacity-50"
+                                          title="Link Stripe Customer (no subscription)"
+                                        >
+                                          {fixingIssues.has(String(issue.context?.userId)) ? (
+                                            <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          ) : (
+                                            <span className="material-symbols-outlined text-[16px]">link</span>
+                                          )}
+                                        </button>
+                                      )}
                                     </>
                                   )}
                                   {!issue.ignored && issue.table === 'users' && issue.category === 'data_quality' && issue.description?.includes('waiver') && (

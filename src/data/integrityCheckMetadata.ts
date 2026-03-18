@@ -169,6 +169,13 @@ export const integrityCheckMetadata: IntegrityCheckMetadata[] = [
     description: 'Flagged items across the system that require manual staff review before processing.',
     impact: 'Unreviewed items may contain data conflicts that need human judgment to resolve.',
     severity: 'low'
+  },
+  {
+    checkName: 'Billing Orphans',
+    title: 'Billing Orphans',
+    description: 'Active members with paid tiers (Core/Premium/VIP/Corporate) who have no Stripe subscription. Stripe-billed members without any Stripe connection are flagged as critical.',
+    impact: 'These members are active but have no billing relationship. Stripe-orphaned members were likely caused by cancelled subscriptions with manual reactivation, or failed migrations. They must NOT be charged again.',
+    severity: 'critical'
   }
 ];
 
