@@ -965,7 +965,7 @@ export async function ensureDatabaseConstraints() {
           UPDATE users 
           SET stripe_customer_id = NULL,
               stripe_subscription_id = NULL,
-              membership_tier = NULL,
+              tier = NULL,
               membership_status = 'non-member',
               updated_at = NOW()
           WHERE LOWER(email) = 'nick@evenhouse.club'
@@ -973,7 +973,7 @@ export async function ensureDatabaseConstraints() {
         await db.execute(sql`
           UPDATE users 
           SET stripe_customer_id = ${savedCustomerId},
-              membership_tier = 'VIP',
+              tier = 'VIP',
               membership_status = 'active',
               billing_provider = 'stripe',
               updated_at = NOW()

@@ -107,7 +107,7 @@ export async function syncPush(params: SyncPushParams): Promise<{ success: boole
     }
 
     const userResult = await db.execute(sql`
-      SELECT first_name, last_name, email, membership_tier, tier, membership_status, hubspot_id
+      SELECT first_name, last_name, email, tier, membership_status, hubspot_id
       FROM users WHERE id = ${userId}
     `);
 
@@ -186,7 +186,7 @@ export async function bulkPushToHubSpot(dryRun: boolean = true): Promise<{
   const { client: hubspot } = await getHubSpotClientWithFallback();
 
   const allMembersResult = await db.execute(sql`
-    SELECT id, email, first_name, last_name, membership_tier, hubspot_id, tier, membership_status
+    SELECT id, email, first_name, last_name, hubspot_id, tier, membership_status
     FROM users
     WHERE hubspot_id IS NOT NULL
     ORDER BY id
@@ -380,8 +380,6 @@ export async function syncPull(params: SyncPullParams): Promise<{ success: boole
         first_name = COALESCE(${props.firstname ?? null}, first_name),
         last_name = COALESCE(${props.lastname ?? null}, last_name),
         phone = COALESCE(${props.phone ?? null}, phone),
-        membership_tier = CASE WHEN ${recentlyFixed || isStripeProtected ? 'skip' : 'apply'} = 'apply' 
-          THEN COALESCE(${appTier}, membership_tier) ELSE membership_tier END,
         tier = CASE WHEN ${recentlyFixed || isStripeProtected ? 'skip' : 'apply'} = 'apply' 
           THEN COALESCE(${appTier}, tier) ELSE tier END,
         updated_at = NOW()
@@ -449,7 +447,7 @@ export async function syncPull(params: SyncPullParams): Promise<{ success: boole
       const currentTier = (user.tier || '').toLowerCase();
       if (stripeTier !== currentTier) {
         await db.execute(sql`
-          UPDATE users SET tier = ${productName.toLowerCase()}, membership_tier = ${productName.toLowerCase()}, updated_at = NOW()
+          UPDATE users SET tier = ${productName.toLowerCase()}, updated_at = NOW()
           WHERE id = ${userId}
         `);
         updates.push(`tier: "${user.tier}" → "${productName.toLowerCase()}"`);

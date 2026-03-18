@@ -45,7 +45,7 @@ export async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> 
   }
 
   const appMembersResult = await db.execute(sql`
-    SELECT id, email, first_name, last_name, membership_tier, hubspot_id, tier, membership_status
+    SELECT id, email, first_name, last_name, hubspot_id, tier, membership_status
     FROM users 
     WHERE hubspot_id IS NOT NULL
       AND archived_at IS NULL

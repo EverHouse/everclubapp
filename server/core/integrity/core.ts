@@ -97,7 +97,7 @@ export interface NoEmailMemberRow {
   first_name: string;
   last_name: string;
   hubspot_id: string;
-  membership_tier: string;
+  tier: string;
 }
 
 
@@ -296,7 +296,6 @@ export interface SyncPushUserRow {
   first_name: string;
   last_name: string;
   email: string;
-  membership_tier: string;
   tier: string;
   membership_status: string;
   hubspot_id?: string;

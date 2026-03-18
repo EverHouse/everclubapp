@@ -26,7 +26,7 @@ export async function checkMembersWithoutEmail(): Promise<IntegrityCheckResult> 
   const issues: IntegrityIssue[] = [];
 
   const noEmailMembers = await db.execute(sql`
-    SELECT id, first_name, last_name, hubspot_id, membership_tier
+    SELECT id, first_name, last_name, hubspot_id, tier
     FROM users
     WHERE email IS NULL OR email = ''
   `);
@@ -42,7 +42,7 @@ export async function checkMembersWithoutEmail(): Promise<IntegrityCheckResult> 
       suggestion: 'Add an email address for this member or merge with existing record',
       context: {
         memberName: name,
-        memberTier: row.membership_tier || undefined
+        memberTier: row.tier || undefined
       }
     });
   }

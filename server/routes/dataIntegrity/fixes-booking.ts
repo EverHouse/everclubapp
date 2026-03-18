@@ -319,7 +319,7 @@ router.post('/api/data-integrity/fix/assign-session-owner', isAdmin, validateBod
     if (!session.rows.length) return res.status(404).json({ success: false, message: 'Session not found' });
 
     const user = await client.query(
-      `SELECT id, email, first_name, last_name, membership_tier FROM users WHERE LOWER(email) = LOWER($1)`,
+      `SELECT id, email, first_name, last_name, tier FROM users WHERE LOWER(email) = LOWER($1)`,
       [ownerEmail]
     );
     if (!user.rows.length) return res.status(404).json({ success: false, message: 'Member not found' });

@@ -725,7 +725,7 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
 
         let subDescription = 'Membership activation';
         try {
-          const userTier = await db.execute(sql`SELECT t.name AS tier_name FROM users u JOIN membership_tiers t ON u.membership_tier = t.id WHERE u.id = ${userId}`);
+          const userTier = await db.execute(sql`SELECT t.name AS tier_name FROM users u JOIN membership_tiers t ON u.tier_id = t.id WHERE u.id = ${userId}`);
           if (userTier.rows[0]?.tier_name) {
             subDescription = `Membership activation - ${userTier.rows[0].tier_name}`;
           }
@@ -770,7 +770,7 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
 
       let subDescription = 'Membership activation';
       try {
-        const userTier = await db.execute(sql`SELECT t.name AS tier_name FROM users u JOIN membership_tiers t ON u.membership_tier = t.id WHERE u.id = ${userId}`);
+        const userTier = await db.execute(sql`SELECT t.name AS tier_name FROM users u JOIN membership_tiers t ON u.tier_id = t.id WHERE u.id = ${userId}`);
         if (userTier.rows[0]?.tier_name) {
           subDescription = `Membership activation - ${userTier.rows[0].tier_name}`;
         }
