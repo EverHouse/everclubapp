@@ -502,8 +502,8 @@ export async function runStartupTasks(): Promise<void> {
       import('../core/stripe/customerSync.js')
         .then(({ syncStripeCustomersForMindBodyMembers }) => syncStripeCustomersForMindBodyMembers())
         .then((result) => {
-          if (result.updated > 0 || result.cleared > 0) {
-            logger.info('[Stripe] Customer sync complete', { extra: { updated: result.updated, cleared: result.cleared } });
+          if (result.updated > 0 || result.staleFound > 0) {
+            logger.info('[Stripe] Customer sync complete', { extra: { updated: result.updated, staleDetected: result.staleFound } });
           }
         })
         .catch((err: unknown) => logger.error('[Stripe] Customer sync failed', { error: err instanceof Error ? err : new Error(String(err)) }));

@@ -58,6 +58,8 @@ async function backfillTransactionCacheInBackground(stripe: Stripe): Promise<voi
   logger.info(`[Stripe Env] Auto-backfill complete: ${processed} payment intents cached`);
 }
 
+const MASS_WIPE_THRESHOLD = 0.25;
+
 export async function validateStripeEnvironmentIds(): Promise<void> {
   try {
     const stripe = await getStripeClient();
@@ -66,12 +68,14 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
     logger.info(`[Stripe Env] Validating stored Stripe IDs against ${mode} environment...`);
 
     let tiersChecked = 0;
-    let tiersCleared = 0;
-    let clearedSubscriptionTierCount = 0;
+    const staleTiers: Array<{ id: unknown; name: unknown; stripe_product_id: unknown; product_type: unknown }> = [];
     let cafeChecked = 0;
-    let cafeCleared = 0;
+    const staleCafeItems: Array<{ id: unknown; name: unknown }> = [];
     let subsChecked = 0;
-    let subsCleared = 0;
+    const staleSubs: Array<{ id: unknown; email: unknown; stripe_subscription_id: unknown }> = [];
+    let tiersCleared = 0;
+    let cafeCleared = 0;
+    let clearedSubscriptionTierCount = 0;
     let transactionCacheCleared = false;
 
     // a) Validate membership_tiers Stripe IDs
@@ -89,15 +93,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
             await stripe.products.retrieve(tier.stripe_product_id as string);
           } catch (error: unknown) {
             if (getErrorCode(error) === 'resource_missing') {
-              const oldId = tier.stripe_product_id;
-              await db.execute(
-                sql`UPDATE membership_tiers SET stripe_product_id = NULL, stripe_price_id = NULL WHERE id = ${tier.id}`
-              );
-              logger.info(`[Stripe Env] Cleared stale Stripe IDs for tier "${tier.name}" (product ${oldId} not found in ${mode} Stripe)`);
-              tiersCleared++;
-              if (tier.product_type === 'subscription') {
-                clearedSubscriptionTierCount++;
-              }
+              staleTiers.push({ id: tier.id, name: tier.name, stripe_product_id: tier.stripe_product_id, product_type: tier.product_type });
             } else {
               throw error;
             }
@@ -108,6 +104,24 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
       for (const result of results) {
         if (result.status === 'rejected') {
           logger.warn(`[Stripe Env] Error checking tier product:`, { extra: { detail: result.reason?.message || result.reason } });
+        }
+      }
+    }
+
+    if (staleTiers.length > 0 && tiersChecked > 0) {
+      const ratio = staleTiers.length / tiersChecked;
+      if (ratio > MASS_WIPE_THRESHOLD) {
+        logger.warn(`[Stripe Env] SAFETY GUARD: ${staleTiers.length}/${tiersChecked} (${Math.round(ratio * 100)}%) tiers have missing Stripe products. Skipping auto-clear to prevent mass data loss. Stale tiers: ${staleTiers.map(t => `"${t.name}" (${t.stripe_product_id})`).join(', ')}`);
+      } else {
+        for (const tier of staleTiers) {
+          await db.execute(
+            sql`UPDATE membership_tiers SET stripe_product_id = NULL, stripe_price_id = NULL WHERE id = ${tier.id}`
+          );
+          logger.info(`[Stripe Env] Cleared stale Stripe IDs for tier "${tier.name}" (product ${tier.stripe_product_id} not found in ${mode} Stripe)`);
+          tiersCleared++;
+          if (tier.product_type === 'subscription') {
+            clearedSubscriptionTierCount++;
+          }
         }
       }
     }
@@ -127,11 +141,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
             await stripe.products.retrieve(item.stripe_product_id as string);
           } catch (error: unknown) {
             if (getErrorCode(error) === 'resource_missing') {
-              await db.execute(
-                sql`UPDATE cafe_items SET stripe_product_id = NULL, stripe_price_id = NULL WHERE id = ${item.id}`
-              );
-              logger.info(`[Stripe Env] Cleared stale Stripe IDs for cafe item "${item.name}"`);
-              cafeCleared++;
+              staleCafeItems.push({ id: item.id, name: item.name });
             } else {
               throw error;
             }
@@ -146,7 +156,22 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
       }
     }
 
-    // c) Validate users stripe_subscription_id
+    if (staleCafeItems.length > 0 && cafeChecked > 0) {
+      const ratio = staleCafeItems.length / cafeChecked;
+      if (ratio > MASS_WIPE_THRESHOLD) {
+        logger.warn(`[Stripe Env] SAFETY GUARD: ${staleCafeItems.length}/${cafeChecked} (${Math.round(ratio * 100)}%) cafe items have missing Stripe products. Skipping auto-clear. Items: ${staleCafeItems.map(c => `"${c.name}"`).join(', ')}`);
+      } else {
+        for (const item of staleCafeItems) {
+          await db.execute(
+            sql`UPDATE cafe_items SET stripe_product_id = NULL, stripe_price_id = NULL WHERE id = ${item.id}`
+          );
+          logger.info(`[Stripe Env] Cleared stale Stripe IDs for cafe item "${item.name}"`);
+          cafeCleared++;
+        }
+      }
+    }
+
+    // c) Validate users stripe_subscription_id — LOG ONLY, NEVER AUTO-DELETE
     const usersResult = await db.execute(
       sql`SELECT id, email, stripe_subscription_id FROM users WHERE stripe_subscription_id IS NOT NULL`
     );
@@ -161,11 +186,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
             await stripe.subscriptions.retrieve(user.stripe_subscription_id as string);
           } catch (error: unknown) {
             if (getErrorCode(error) === 'resource_missing') {
-              await db.execute(
-                sql`UPDATE users SET stripe_subscription_id = NULL WHERE id = ${user.id}`
-              );
-              logger.info(`[Stripe Env] Cleared stale subscription ID for user "${user.email}"`);
-              subsCleared++;
+              staleSubs.push({ id: user.id, email: user.email, stripe_subscription_id: user.stripe_subscription_id });
             } else {
               throw error;
             }
@@ -180,8 +201,15 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
       }
     }
 
-    // d) Clear stripe_transaction_cache if any IDs were cleared (environment change detected)
-    const totalCleared = tiersCleared + cafeCleared + subsCleared;
+    if (staleSubs.length > 0) {
+      logger.warn(`[Stripe Env] Found ${staleSubs.length} user(s) with subscription IDs not found in ${mode} Stripe. These will NOT be auto-cleared — use Data Integrity tools to review and fix manually:`);
+      for (const sub of staleSubs) {
+        logger.warn(`[Stripe Env]   - "${sub.email}" (sub: ${sub.stripe_subscription_id})`);
+      }
+    }
+
+    // d) Clear stripe_transaction_cache only if tier/cafe IDs were cleared (NOT for user sub issues)
+    const totalCleared = tiersCleared + cafeCleared;
     if (totalCleared > 0) {
       try {
         await db.execute(sql`TRUNCATE TABLE stripe_transaction_cache`);
@@ -197,9 +225,9 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
 
     // e) Log summary
     logger.info(`[Stripe Env] Environment validation complete (${mode} mode):
-  - Tiers: ${tiersChecked} checked, ${tiersCleared} stale IDs cleared
-  - Cafe items: ${cafeChecked} checked, ${cafeCleared} stale IDs cleared
-  - User subscriptions: ${subsChecked} checked, ${subsCleared} stale IDs cleared${transactionCacheCleared ? '\n  - Transaction cache: cleared (backfill started)' : ''}`);
+  - Tiers: ${tiersChecked} checked, ${staleTiers.length} stale found, ${tiersCleared} cleared${staleTiers.length > tiersCleared ? ` (${staleTiers.length - tiersCleared} blocked by safety guard)` : ''}
+  - Cafe items: ${cafeChecked} checked, ${staleCafeItems.length} stale found, ${cafeCleared} cleared${staleCafeItems.length > cafeCleared ? ` (${staleCafeItems.length - cafeCleared} blocked by safety guard)` : ''}
+  - User subscriptions: ${subsChecked} checked, ${staleSubs.length} stale found (LOG ONLY — no auto-clear)${transactionCacheCleared ? '\n  - Transaction cache: cleared (backfill started)' : ''}`);
 
     if (clearedSubscriptionTierCount > 0) {
       logger.warn(`[STARTUP WARNING] ⚠️ ${clearedSubscriptionTierCount} subscription tiers lost their Stripe product links due to environment change. Run "Sync to Stripe" from Products & Pricing before member signups will work.`);

@@ -8,11 +8,11 @@ export interface CustomerSyncResult {
   success: boolean;
   updated: number;
   skipped: number;
-  cleared: number;
+  staleFound: number;
   errors: string[];
   details: Array<{
     email: string;
-    action: 'updated' | 'skipped' | 'error' | 'cleared';
+    action: 'updated' | 'skipped' | 'error' | 'stale';
     customerId?: string;
     reason?: string;
   }>;
@@ -23,7 +23,7 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
     success: true,
     updated: 0,
     skipped: 0,
-    cleared: 0,
+    staleFound: 0,
     errors: [],
     details: [],
   };
@@ -72,13 +72,13 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
         
       } catch (error: unknown) {
         if (getErrorCode(error) === 'resource_missing' || getErrorMessage(error).includes('No such customer')) {
-          await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE id = ${member.id}`);
-          result.cleared++;
+          logger.warn(`[Stripe Customer Sync] Customer ${member.stripe_customer_id} for "${member.email}" not found in Stripe — NOT auto-clearing (use Data Integrity tools to review)`);
+          result.staleFound++;
           result.details.push({
             email: member.email as string,
-            action: 'cleared',
+            action: 'stale',
             customerId: member.stripe_customer_id as string,
-            reason: 'Customer no longer exists in Stripe',
+            reason: 'Customer not found in Stripe (logged only, not auto-cleared)',
           });
         } else {
           logger.error(`[Stripe Customer Sync] Error updating ${member.email}:`, { extra: { detail: getErrorMessage(error) } });
@@ -93,7 +93,7 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
     }
     
     const parts = [`updated=${result.updated}`];
-    if (result.cleared > 0) parts.push(`cleared_stale=${result.cleared}`);
+    if (result.staleFound > 0) parts.push(`stale_detected=${result.staleFound}`);
     if (result.skipped > 0) parts.push(`skipped=${result.skipped}`);
     if (result.errors.length > 0) parts.push(`errors=${result.errors.length}`);
     logger.info(`[Stripe Customer Sync] Completed: ${parts.join(', ')}`);
