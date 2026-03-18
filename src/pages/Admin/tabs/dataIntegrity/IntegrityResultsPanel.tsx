@@ -248,14 +248,14 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
           showToast(`Processing batch ${batchNum} of ${totalBatches}...`, 'info');
         }
         try {
-          const response = await postWithCredentials<{ success: boolean; message: string; summary?: { reconnected?: number; customerOnly?: number; failed?: number; total?: number }; results?: Array<{ userId: string; success: boolean; message: string }> }>(endpoint, {
+          const response = await postWithCredentials<{ success: boolean; message: string; summary?: { reconnected?: number; customerOnly?: number; customerRestored?: number; failed?: number; total?: number }; results?: Array<{ userId: string; success: boolean; message: string }> }>(endpoint, {
             userIds: chunks[i],
             ...extraBody,
           });
           lastResponseMessage = response.message || '';
           if (response.summary && typeof response.summary.reconnected === 'number') {
             successCount += response.summary.reconnected;
-            const failedCount = (response.summary.customerOnly || 0) + (response.summary.failed || 0);
+            const failedCount = (response.summary.failed || 0);
             if (failedCount > 0) {
               const failedResults = response.results?.filter(r => !r.success) || [];
               if (failedResults.length > 0) {

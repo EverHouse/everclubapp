@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.89",
+    date: "2026-03-18",
+    title: "Fix: Stripe Reconnect Now Succeeds When Customer Has No Subscription",
+    changes: [
+      "Fixed: Reconnecting a member to Stripe now correctly reports success when the customer ID is restored, even if the member has no active subscription — previously this was reported as a failure",
+      "Improved: Bulk reconnect summary now clearly shows fully reconnected vs customer-only restored counts",
+    ]
+  },
+  {
     version: "8.87.88",
     date: "2026-03-18",
     title: "Architectural Audit: Security & Reliability Hardening",

@@ -736,8 +736,8 @@ async function reconnectSingleMember(userId: string, staffEmail: string): Promis
       };
     }
     return {
-      success: false,
-      message: `Found Stripe customer ${matchingCustomer.id} for "${memberName}" but NO active subscription (${subscriptions.data.length} total, statuses: ${subscriptions.data.map(s => s.status).join(', ') || 'none'}). Customer ID restored. Member needs a new subscription or should be marked comped/manual.`,
+      success: true,
+      message: `Customer ID restored for "${memberName}" (${matchingCustomer.id}). No active subscription found (${subscriptions.data.length} total, statuses: ${subscriptions.data.map(s => s.status).join(', ') || 'none'}). Member may need a new subscription or should be marked comped/manual.`,
       customerId: matchingCustomer.id
     };
   }
@@ -809,15 +809,13 @@ router.post('/api/data-integrity/fix/bulk-reconnect-stripe', isAdmin, validateBo
     }
 
     const reconnected = results.filter(r => r.success && r.subscriptionId);
-    const restoredOnly = results.filter(r => r.success && !r.subscriptionId && r.customerId);
-    const customerOnly = results.filter(r => !r.success && r.customerId);
-    const failed = results.filter(r => !r.success && !r.customerId);
+    const customerRestored = results.filter(r => r.success && !r.subscriptionId && r.customerId);
+    const failed = results.filter(r => !r.success);
 
-    logFromRequest(req, 'bulk_reconnect_stripe', 'user', `bulk:${userIds.length}`, `Bulk reconnect: ${reconnected.length} reconnected, ${restoredOnly.length} restored (MindBody), ${customerOnly.length} customer-only, ${failed.length} not found`, {
+    logFromRequest(req, 'bulk_reconnect_stripe', 'user', `bulk:${userIds.length}`, `Bulk reconnect: ${reconnected.length} fully reconnected, ${customerRestored.length} customer ID restored, ${failed.length} not found`, {
       totalRequested: userIds.length,
       reconnectedCount: reconnected.length,
-      restoredOnlyCount: restoredOnly.length,
-      customerOnlyCount: customerOnly.length,
+      customerRestoredCount: customerRestored.length,
       failedCount: failed.length,
       performedBy: staffEmail,
       userIds: userIds.join(',')
@@ -825,11 +823,11 @@ router.post('/api/data-integrity/fix/bulk-reconnect-stripe', isAdmin, validateBo
 
     res.json({
       success: true,
-      message: `Reconnected ${reconnected.length}/${userIds.length} members. ${restoredOnly.length} customer ID restored (MindBody-billed). ${customerOnly.length} found customer but no active subscription. ${failed.length} not found in Stripe.`,
+      message: `Reconnected ${reconnected.length}/${userIds.length} members (customer + subscription). ${customerRestored.length} customer ID restored (no active subscription). ${failed.length} not found in Stripe.`,
       results,
       summary: {
-        reconnected: reconnected.length + restoredOnly.length,
-        customerOnly: customerOnly.length,
+        reconnected: reconnected.length + customerRestored.length,
+        customerRestored: customerRestored.length,
         failed: failed.length,
         total: userIds.length
       }
