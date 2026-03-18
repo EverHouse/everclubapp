@@ -487,7 +487,7 @@ async function initializeApp() {
   });
 
   const siteOrigin = isProduction
-    ? 'https://everclub.app'
+    ? 'https://www.everclub.app'
     : `https://${process.env.REPLIT_DEV_DOMAIN || 'localhost:5000'}`;
 
   app.get('/robots.txt', (req, res) => {
@@ -559,6 +559,18 @@ async function initializeApp() {
     res.send(
       `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`
     );
+  });
+
+  app.get([
+    '/sitemap_index.xml',
+    '/sitemap-index.xml',
+    '/sitemaps.xml',
+    '/sitemap1.xml',
+    '/post-sitemap.xml',
+    '/page-sitemap.xml',
+    '/wp-sitemap.xml',
+  ], (req, res) => {
+    res.redirect(301, '/sitemap.xml');
   });
 
   if (isProduction) {
@@ -726,7 +738,7 @@ async function initializeApp() {
       "name": "Ever Members Club",
       "alternateName": ["Ever Club", "Even House"],
       "description": "Orange County's premier private indoor golf & social club featuring Trackman simulators, premium coworking, wellness programs, and curated events.",
-      "url": "https://everclub.app",
+      "url": "https://www.everclub.app",
       "telephone": "+19495455855",
       "email": "info@joinever.club",
       "address": {
@@ -933,7 +945,7 @@ async function initializeApp() {
           "@id": "https://everclub.app/#organization",
           "name": "Ever Members Club",
           "alternateName": ["Ever Club", "Even House"],
-          "url": "https://everclub.app",
+          "url": "https://www.everclub.app",
           "logo": "https://everclub.app/images/everclub-logo-dark.webp",
           "sameAs": [
             "https://www.instagram.com/everclub/",
@@ -959,7 +971,7 @@ async function initializeApp() {
         {
           "@type": "WebSite",
           "@id": "https://everclub.app/#website",
-          "url": "https://everclub.app",
+          "url": "https://www.everclub.app",
           "name": "Ever Members Club",
           "publisher": { "@id": "https://everclub.app/#organization" },
           "potentialAction": {
