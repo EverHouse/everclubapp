@@ -14,7 +14,8 @@ export const changelog: ChangelogEntry[] = [
     changes: [
       "Fixed: Reconnecting a member to Stripe now correctly reports success when the customer ID is restored, even if the member has no active subscription — previously this was reported as a failure",
       "Improved: Bulk reconnect summary now clearly shows fully reconnected vs customer-only restored counts",
-      "Improved: Bulk reconnect now shows a helpful warning (not error) when members don't exist in Stripe — suggests marking as comped/manual instead",
+      "Fixed: Stripe reconnect now creates a new Stripe customer when none exists instead of failing — ensures all members get linked to a Stripe customer ID",
+      "Improved: Bulk reconnect now shows a helpful warning (not error) when partial failures occur",
     ]
   },
   {

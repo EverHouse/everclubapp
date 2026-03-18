@@ -699,7 +699,17 @@ async function reconnectSingleMember(userId: string, staffEmail: string): Promis
   const nonDeletedCustomers = customers.data.filter(c => !c.deleted);
 
   if (nonDeletedCustomers.length === 0) {
-    return { success: false, message: `No Stripe customer found for "${memberName}" (${user.email}). Cannot reconnect — this member may need manual review.` };
+    const { getOrCreateStripeCustomer } = await import('../../core/stripe/customers');
+    try {
+      const { customerId, isNew } = await getOrCreateStripeCustomer(userId, (user.email || '').toLowerCase(), memberName, user.tier || undefined);
+      return {
+        success: true,
+        message: `${isNew ? 'Created' : 'Linked'} Stripe customer ${customerId} for "${memberName}" (${user.email}). No subscription found.`,
+        customerId
+      };
+    } catch (createErr: unknown) {
+      return { success: false, message: `Could not create Stripe customer for "${memberName}" (${user.email}): ${getErrorMessage(createErr)}` };
+    }
   }
 
   if (nonDeletedCustomers.length > 1) {
