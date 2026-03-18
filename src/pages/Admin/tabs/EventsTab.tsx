@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '../../../lib/apiRequest';
 import { useToast } from '../../../components/Toast';
 import FloatingActionButton from '../../../components/FloatingActionButton';
 import PageErrorBoundary from '../../../components/PageErrorBoundary';
@@ -30,31 +31,14 @@ const EventsTab: React.FC = () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const syncMutation = useMutation({
         mutationFn: async () => {
-            const maxRetries = 3;
-            const retryFetch = async (url: string, attempt = 1): Promise<Response> => {
-                try {
-                    return await fetch(url, { method: 'POST', credentials: 'include' });
-                } catch (err: unknown) {
-                    const errMsg = err instanceof Error ? err.message : String(err);
-                    if (attempt < maxRetries && (errMsg?.includes('fetch') || errMsg?.includes('network'))) {
-                        await new Promise(r => setTimeout(r, 500 * attempt));
-                        return retryFetch(url, attempt + 1);
-                    }
-                    throw err;
-                }
-            };
-            
+            const retryConfig = { maxRetries: 3, retryNonIdempotent: true, baseDelay: 500 };
             const [calRes, ebRes] = await Promise.all([
-                retryFetch('/api/calendars/sync-all'),
-                retryFetch('/api/eventbrite/sync')
+                apiRequest<Record<string, unknown>>('/api/calendars/sync-all', { method: 'POST' }, retryConfig),
+                apiRequest<Record<string, unknown>>('/api/eventbrite/sync', { method: 'POST' }, retryConfig)
             ]);
-            
-            const calData = await calRes.json();
-            const ebData = await ebRes.json();
-            
-            return { calRes, ebRes, calData, ebData };
+            return { calRes, ebRes };
         },
-        onSuccess: ({ calRes, ebRes, calData, ebData }) => {
+        onSuccess: ({ calRes, ebRes }) => {
             queryClient.invalidateQueries({ queryKey: ['admin-events'] });
             queryClient.invalidateQueries({ queryKey: ['events-needs-review'] });
             queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
@@ -65,12 +49,15 @@ const EventsTab: React.FC = () => {
             
             const errors: string[] = [];
             if (!calRes.ok) errors.push('Google Calendar');
-            if (!ebRes.ok && !ebData.skipped) errors.push('Eventbrite');
+            if (!ebRes.ok && !(ebRes.data as Record<string, unknown> | undefined)?.skipped) errors.push('Eventbrite');
             
             if (errors.length === 0) {
+                const calData = calRes.data as Record<string, unknown> | undefined;
                 const parts: string[] = [];
-                if (calData.events?.synced) parts.push(`${calData.events.synced} events`);
-                if (calData.wellness?.synced) parts.push(`${calData.wellness.synced} wellness`);
+                const events = calData?.events as Record<string, unknown> | undefined;
+                const wellness = calData?.wellness as Record<string, unknown> | undefined;
+                if (events?.synced) parts.push(`${events.synced} events`);
+                if (wellness?.synced) parts.push(`${wellness.synced} wellness`);
                 setSyncMessage(parts.length > 0 ? `Synced ${parts.join(', ')}` : 'Sync complete');
             } else {
                 setSyncMessage(`Sync failed for: ${errors.join(', ')}`);

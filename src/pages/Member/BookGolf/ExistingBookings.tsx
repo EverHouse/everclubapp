@@ -1,5 +1,6 @@
 import React from 'react';
 import { haptic } from '../../../utils/haptics';
+import { apiRequestBlob } from '../../../lib/apiRequest';
 import { formatDateShort, formatTime12Hour } from '../../../utils/dateUtils';
 import type { BookingRequest } from '../bookGolf/bookGolfTypes';
 
@@ -24,10 +25,9 @@ const ExistingBookings: React.FC<ExistingBookingsProps> = ({
     haptic.light();
     setWalletPassDownloading(booking.id);
     try {
-      const response = await fetch(`/api/member/booking-wallet-pass/${booking.id}`, { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to download');
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
+      const response = await apiRequestBlob(`/api/member/booking-wallet-pass/${booking.id}`);
+      if (!response.ok || !response.blob) throw new Error(response.error || 'Failed to download');
+      const url = URL.createObjectURL(response.blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `EverClub-Booking-${booking.id}.pkpass`;

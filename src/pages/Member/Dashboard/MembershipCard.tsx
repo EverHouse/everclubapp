@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { getBaseTier } from '../../../utils/permissions';
 import { getTierColor } from '../../../utils/tierUtils';
 import { formatMemberSince } from '../../../utils/dateUtils';
+import { apiRequestBlob } from '../../../lib/apiRequest';
 import TierBadge from '../../../components/TierBadge';
 import ModalShell from '../../../components/ModalShell';
 import MetricsGrid from '../../../components/MetricsGrid';
@@ -274,14 +275,12 @@ const MembershipDetailsModal: React.FC<MembershipDetailsModalProps> = ({
                   if (walletLoading) return;
                   setWalletLoading(true);
                   try {
-                    const response = await fetch('/api/member/wallet-pass', { credentials: 'include' });
-                    if (!response.ok) {
-                      const err = await response.json().catch(() => null);
-                      showToast(err?.error || 'Failed to download wallet pass', 'error');
+                    const response = await apiRequestBlob('/api/member/wallet-pass');
+                    if (!response.ok || !response.blob) {
+                      showToast(response.error || 'Failed to download wallet pass', 'error');
                       return;
                     }
-                    const blob = await response.blob();
-                    const url = URL.createObjectURL(blob);
+                    const url = URL.createObjectURL(response.blob);
                     const a = document.createElement('a');
                     a.href = url;
                     a.download = 'EverClub-Pass.pkpass';

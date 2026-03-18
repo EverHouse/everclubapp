@@ -10,11 +10,12 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.87.76",
     date: "2026-03-18",
-    title: "Fix: Migrate Raw fetch() to apiRequest in Booking Actions",
+    title: "Fix: Migrate All Raw fetch() Mutations to apiRequest/apiRequestBlob",
     changes: [
-      "Fixed: Migrated 5 raw fetch() calls in useBookingActions.ts to use apiRequest — check-in (2 calls including retry), charge card, staff cancel, and revert-to-approved now get 30s timeout, structured error handling via ApiResult, and consistent credentials",
-      "Fixed: Migrated wallet pass download in useDashboardActions.ts from raw fetch() to apiRequestBlob — provides structured error handling for .pkpass file downloads on network failures",
-      "Fixed: All 6 endpoints now use credentials: 'include' via apiRequest internally; check-in error handling preserved via errorData fields (requiresPayment, requiresRoster, requiresSync)",
+      "Fixed: Migrated 5 raw fetch() calls in useBookingActions.ts to apiRequest — check-in (2 calls including retry), charge card, staff cancel, and revert-to-approved now get 30s timeout, structured error handling via ApiResult, and consistent credentials",
+      "Fixed: Migrated 4 wallet pass downloads from raw fetch() to apiRequestBlob — useDashboardActions.ts, useDashboardData.ts, ExistingBookings.tsx (booking passes), and MembershipCard.tsx (membership pass) all now get structured error responses on network failures",
+      "Fixed: Replaced hand-rolled retry logic in EventsTab.tsx sync mutation with apiRequest — calendar and Eventbrite sync POST calls now use centralized retry with retryNonIdempotent: true",
+      "Fixed: All 10 migrated endpoints now use credentials: 'include' via apiRequest internally; check-in error handling preserved via errorData fields (requiresPayment, requiresRoster, requiresSync)",
     ]
   },
   {
