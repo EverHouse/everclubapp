@@ -75,14 +75,38 @@ export async function resolveFormId(formType: string): Promise<string | null> {
   return HUBSPOT_KNOWN_FORM_IDS[formType] || null;
 }
 
+async function resolveFormIdWithSource(formType: string): Promise<{ id: string | null; source: string }> {
+  const envVarMap: Record<string, string | undefined> = {
+    'membership': process.env.HUBSPOT_FORM_MEMBERSHIP,
+    'private-hire': process.env.HUBSPOT_FORM_PRIVATE_HIRE,
+    'event-inquiry': process.env.HUBSPOT_FORM_EVENT_INQUIRY,
+    'guest-checkin': process.env.HUBSPOT_FORM_GUEST_CHECKIN,
+    'contact': process.env.HUBSPOT_FORM_CONTACT,
+  };
+
+  const envValue = envVarMap[formType];
+  if (envValue) return { id: envValue, source: 'env' };
+
+  const adminValue = await getSettingValue(`hubspot.form_id.${formType}`, '');
+  if (adminValue) return { id: adminValue, source: 'admin' };
+
+  const discovered = discoveredFormIds.get(formType);
+  if (discovered) return { id: discovered, source: 'discovered' };
+
+  const hardcoded = HUBSPOT_KNOWN_FORM_IDS[formType];
+  if (hardcoded) return { id: hardcoded, source: 'hardcoded' };
+
+  return { id: null, source: 'none' };
+}
+
 export async function logFormIdResolutionStatus(): Promise<void> {
   const allTypes = ['membership', 'private-hire', 'event-inquiry', 'guest-checkin', 'contact'];
   const resolved: string[] = [];
   const missing: string[] = [];
   for (const ft of allTypes) {
-    const id = await resolveFormId(ft);
+    const { id, source } = await resolveFormIdWithSource(ft);
     if (id) {
-      resolved.push(`${ft}=${id.substring(0, 8)}…`);
+      resolved.push(`${ft}=${id.substring(0, 8)}… [${source}]`);
     } else {
       missing.push(ft);
     }
