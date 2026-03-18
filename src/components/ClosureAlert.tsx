@@ -50,6 +50,32 @@ const ClosureAlert: React.FC = () => {
         setDismissedIds(new Set());
       }
     }
+
+    if (!user?.email) return;
+    const controller = new AbortController();
+    const fetchDismissed = async () => {
+      try {
+        const data = await fetchWithCredentials<{ noticeType: string; noticeId: number }[]>(
+          '/api/notices/dismissed',
+          { signal: controller.signal }
+        );
+        const closureIds = data
+          .filter(d => d.noticeType === 'closure')
+          .map(d => d.noticeId);
+        if (closureIds.length > 0) {
+          setDismissedIds(prev => {
+            const merged = new Set(prev);
+            closureIds.forEach(id => merged.add(id));
+            localStorage.setItem(getStorageKey(), JSON.stringify([...merged]));
+            return merged;
+          });
+        }
+      } catch (error: unknown) {
+        if (isAbortError(error)) return;
+      }
+    };
+    fetchDismissed();
+    return () => controller.abort();
   }, [user?.email, getStorageKey]);
 
   useEffect(() => {
@@ -112,6 +138,12 @@ const ClosureAlert: React.FC = () => {
       localStorage.setItem(getStorageKey(), JSON.stringify([...newDismissed]));
       setIsExiting(false);
       exitTimer.current = null;
+
+      fetchWithCredentials('/api/notices/dismiss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noticeType: 'closure', noticeId: closure.id })
+      }).catch(() => {});
     }, EXIT_DURATION);
   }, [activeClosures, dismissedIds, getStorageKey]);
 

@@ -1,6 +1,6 @@
 # Ever Club Members App
 
-**Current Version**: 8.87.77 (March 18, 2026)
+**Current Version**: 8.87.78 (March 18, 2026)
 
 ## Overview
 The Ever Club Members App is a private members club application designed for golf and wellness centers. Its primary purpose is to serve as a central digital hub for managing golf simulator bookings, wellness service appointments, and club events. The project aims to enhance member satisfaction and operational efficiency through comprehensive membership management, facility booking, and community-building tools, ultimately creating a seamless digital experience for club members and staff.
@@ -167,6 +167,7 @@ Frontend data fetching is being migrated from raw `fetch()` calls to React Query
 **Patterns**: `staleTime` 2min default, 5-10min for static data. Type casting uses `as unknown as Type` for `Record<string, unknown>` returns. Mutations use `onSuccess`/`onError` callbacks.
 
 ### Recent Changes
+- **Fix: Facility Notices Stay Dismissed Across Devices (v8.87.78)**: ClosureAlert component now persists notice dismissals to the database (`user_dismissed_notices` table) via `POST /api/notices/dismiss`, and loads previously dismissed notices from `GET /api/notices/dismissed` on mount. Previously dismissals were localStorage-only, causing notices to reappear on different devices or after browser data clearing. localStorage is kept as a fast cache; DB is the source of truth.
 - **Orphaned Payment Intent & Fee Snapshot Cleanup (v8.87.77)**: Fixed `cancelPendingPaymentIntentsForBooking` in `server/core/billing/paymentIntentCleanup.ts` to also cancel fee snapshots with NULL `stripe_payment_intent_id` (snapshots that never reached the Stripe payment stage). Removed invalid `updated_at` column references. Cleaned 2 lingering Stripe PIs and 43 stale fee snapshots from cancelled bookings. Integrity dashboard now shows 0 orphaned payment issues.
 - **Migrate Raw fetch() to apiRequest (v8.87.76)**: Migrated 5 raw `fetch()` calls in `useBookingActions.ts` (check-in ×2, charge card, staff cancel, revert-to-approved) to `apiRequest`. Migrated 4 wallet pass downloads to `apiRequestBlob` (`useDashboardActions.ts`, `useDashboardData.ts`, `ExistingBookings.tsx`, `MembershipCard.tsx`). Replaced hand-rolled retry in `EventsTab.tsx` sync mutation with `apiRequest`. All 10 endpoints now use structured error handling and automatic credentials. Remaining raw `fetch()` calls are intentional: React Query queryFn callbacks (use `fetchWithCredentials`), file uploads (multipart), auth session check, error reporting.
 - **Fix: Remove Invalid .catch() on Synchronous sendNotificationToUser (v8.87.75)**: Removed all `.catch()` chains from `sendNotificationToUser` calls across 22 server files. The function is synchronous (returns `NotificationDeliveryResult`, not a Promise), so `.catch()` would throw `TypeError` at runtime. Also reverts v8.87.74 `.catch()` additions. The function already handles errors internally (`ws.send` wrapped in try/catch), so bare calls are safe.

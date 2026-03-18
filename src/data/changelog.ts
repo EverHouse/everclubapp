@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.78",
+    date: "2026-03-18",
+    title: "Fix: Facility Notices Stay Dismissed Across Devices",
+    changes: [
+      "Fixed: Facility closure notices no longer reappear after being dismissed — dismissals are now saved to your account (previously only stored in browser memory, so switching devices or clearing browser data would bring them back)",
+    ]
+  },
+  {
     version: "8.87.77",
     date: "2026-03-18",
     title: "Fix: Orphaned Payment Intent & Fee Snapshot Cleanup",
