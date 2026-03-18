@@ -603,7 +603,9 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
     const membersResult = await db.execute(sql`SELECT id, email, first_name, last_name, stripe_subscription_id, stripe_customer_id,
               membership_status, billing_provider, stripe_current_period_end, join_date, tier
        FROM users
-       WHERE stripe_subscription_id IS NOT NULL OR stripe_customer_id IS NOT NULL`);
+       WHERE stripe_subscription_id IS NOT NULL
+          OR stripe_customer_id IS NOT NULL
+          OR (billing_provider = 'stripe' AND (stripe_customer_id IS NULL OR stripe_customer_id = '') AND (stripe_subscription_id IS NULL OR stripe_subscription_id = ''))`);
 
     const members = membersResult.rows as unknown as MemberSyncRow[];
     let synced = 0;
@@ -748,6 +750,72 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
               details.push({ email: String(member.email), action: 'linked', changes: changeDetails });
             }
             synced++;
+          } catch (err: unknown) {
+            errorCount++;
+            details.push({ email: String(member.email), action: 'error', changes: [getErrorMessage(err)] });
+          }
+        } else if (member.billing_provider === 'stripe' && member.email) {
+          try {
+            const customers = await stripe.customers.list({
+              email: (member.email as string).toLowerCase(),
+              limit: 10,
+            });
+            const nonDeleted = customers.data.filter(c => !c.deleted);
+
+            if (nonDeleted.length === 0) {
+              details.push({ email: String(member.email), action: 'skipped', changes: ['no Stripe customer found for email'] });
+              synced++;
+            } else {
+              const matchingCustomer = nonDeleted.find(c => c.metadata?.userId === String(member.id)) || (nonDeleted.length === 1 ? nonDeleted[0] : null);
+
+              if (!matchingCustomer) {
+                details.push({ email: String(member.email), action: 'skipped', changes: [`${nonDeleted.length} Stripe customers found — needs manual review`] });
+                synced++;
+              } else {
+                const subscriptions = await stripe.subscriptions.list({
+                  customer: matchingCustomer.id,
+                  limit: 10,
+                });
+                const activeSub = subscriptions.data.find(s => ['active', 'past_due', 'trialing'].includes(s.status));
+
+                if (activeSub) {
+                  const mappedStatus = statusMap[activeSub.status] || activeSub.status;
+                  const periodEnd = activeSub.items.data[0]?.current_period_end
+                    ? new Date(activeSub.items.data[0].current_period_end * 1000)
+                    : null;
+                  const resolvedTier = await resolveTierFromSubscription(activeSub);
+
+                  const updateParts = [
+                    sql`stripe_customer_id = ${matchingCustomer.id}`,
+                    sql`stripe_subscription_id = ${activeSub.id}`,
+                    sql`membership_status = ${mappedStatus}`,
+                    sql`membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM ${mappedStatus} THEN NOW() ELSE membership_status_changed_at END`,
+                    sql`billing_provider = 'stripe'`,
+                    sql`stripe_current_period_end = ${periodEnd}`,
+                    sql`updated_at = NOW()`
+                  ];
+
+                  if (resolvedTier) {
+                    updateParts.push(sql`tier = COALESCE(${resolvedTier}, tier)`);
+                  }
+
+                  if (!member.join_date && (mappedStatus === 'active' || mappedStatus === 'trialing')) {
+                    updateParts.push(sql`join_date = ${new Date()}`);
+                  }
+
+                  await db.execute(sql`UPDATE users SET ${sql.join(updateParts, sql`, `)} WHERE id = ${member.id}`);
+                  updated++;
+                  const changeDetails = [`reconnected customer ${matchingCustomer.id}`, `linked subscription ${activeSub.id}`, `status: ${mappedStatus}`];
+                  if (resolvedTier) changeDetails.push(`tier: ${resolvedTier}`);
+                  details.push({ email: String(member.email), action: 'reconnected', changes: changeDetails });
+                } else {
+                  await db.execute(sql`UPDATE users SET stripe_customer_id = ${matchingCustomer.id}, updated_at = NOW() WHERE id = ${member.id}`);
+                  updated++;
+                  details.push({ email: String(member.email), action: 'partial', changes: [`reconnected customer ${matchingCustomer.id}`, 'no active subscription found'] });
+                }
+                synced++;
+              }
+            }
           } catch (err: unknown) {
             errorCount++;
             details.push({ email: String(member.email), action: 'error', changes: [getErrorMessage(err)] });
