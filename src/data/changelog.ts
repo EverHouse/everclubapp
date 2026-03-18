@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.63",
+    date: "2026-03-18",
+    title: "Accessibility Audit: Main Landmark & Skip Navigation Verified",
+    changes: [
+      "Verified: All public pages already wrapped in a <main id=\"main-content\"> landmark via the global layout",
+      "Verified: Skip-to-content link already present on all pages for keyboard navigation (WCAG 2.4.1)",
+      "No changes needed — existing architecture already provides proper main landmark and skip navigation for all routes",
+    ]
+  },
+  {
     version: "8.87.62",
     date: "2026-03-18",
     title: "Dev Environment Stability & Complete Database Schema Sync",

@@ -1,6 +1,6 @@
 # Ever Club Members App
 
-**Current Version**: 8.87.62 (March 18, 2026)
+**Current Version**: 8.87.63 (March 18, 2026)
 
 ## Overview
 The Ever Club Members App is a private members club application designed for golf and wellness centers. Its primary purpose is to serve as a central digital hub for managing golf simulator bookings, wellness service appointments, and club events. The project aims to enhance member satisfaction and operational efficiency through comprehensive membership management, facility booking, and community-building tools, ultimately creating a seamless digital experience for club members and staff.
@@ -37,7 +37,7 @@ The Ever Club Members App is a private members club application designed for gol
 - **Design Token Standards**: All brand colors must use named Tailwind tokens (`primary`, `lavender`, `danger`, `bone`, `surface-dark-*`) — never hardcoded hex values in class strings. Z-index uses named scale (`z-banner`, `z-modal`, `z-fab`, etc.) defined in `tailwind.config.js`.
 - **Technology Stack**: React 19, Vite, and state management using Zustand/TanStack libraries.
 - **Component Design**: Sheets and modals follow a Header, scrollable Body, and Sticky Footer structure. Button hierarchy differentiates actions.
-- **Accessibility**: Adheres to WCAG conventions, including skip navigation, focus trapping, and proper roles/attributes. `prefers-reduced-motion` is respected. All clickable non-button elements must have `role="button"`, `tabIndex={0}`, and `onKeyDown` handlers. Modal backdrops must not use `aria-hidden="true"` with `onClick`.
+- **Accessibility**: Adheres to WCAG conventions, including skip navigation, focus trapping, and proper roles/attributes. `prefers-reduced-motion` is respected. All clickable non-button elements must have `role="button"`, `tabIndex={0}`, and `onKeyDown` handlers. Modal backdrops must not use `aria-hidden="true"` with `onClick`. The global `AppLayout` in `App.tsx` provides a single `<main id="main-content">` landmark and skip-to-content link (`.skip-link` CSS class) for all routes — do NOT add duplicate `<main>` elements or skip links in individual page components.
 - **M3 Components**: Custom components like `SegmentedButton`, `Chip`, `SearchBar`, and `FloatingActionButton` support M3 design principles.
 - **Bottom Sheet Variants**: `SlideUpDrawer` supports `modal` (default) and `standard` variants.
 - **Navigation Rail**: Staff portal uses `StaffNavigationRail` for tablet/desktop, bottom nav for mobile.
