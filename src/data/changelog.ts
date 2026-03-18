@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.65",
+    date: "2026-03-18",
+    title: "Performance: LCP Preload Hints & Critical Request Chain Optimization",
+    changes: [
+      "Improved: Server now sends HTTP Link header with preload hints for the LCP hero image, main CSS bundle, and font preconnects",
+      "Improved: Main CSS stylesheet is preloaded via Link header, eliminating it from the critical request chain",
+      "Added: dns-prefetch fallbacks for Google Fonts domains alongside existing preconnect hints",
+    ]
+  },
+  {
     version: "8.87.64",
     date: "2026-03-18",
     title: "SEO: Extended Meta Descriptions for Privacy & Terms Pages",

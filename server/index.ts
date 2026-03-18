@@ -15,6 +15,7 @@ let schedulersInitialized = false;
 let websocketInitialized = false;
 let expressApp: import('express').Express | null = null;
 let cachedIndexHtml: string | null = null;
+let mainCssPath: string | null = null;
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -581,6 +582,7 @@ async function initializeApp() {
         maxAge: '1y',
         immutable: true,
         etag: true,
+        index: false,
         setHeaders: (res, filePath) => {
           const fileName = filePath.replace(/\.(br|gz)$/, '');
           if (fileName.endsWith('.html')) {
@@ -1025,7 +1027,13 @@ async function initializeApp() {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
-        res.setHeader('Link', '</images/hero-lounge-optimized.webp>; rel=preload; as=image; type=image/webp');
+        const linkHints = ['</images/hero-lounge-optimized.webp>; rel=preload; as=image; type=image/webp'];
+        if (mainCssPath) {
+          linkHints.push(`<${mainCssPath}>; rel=preload; as=style; crossorigin`);
+        }
+        linkHints.push('<https://fonts.googleapis.com>; rel=preconnect');
+        linkHints.push('<https://fonts.gstatic.com>; rel=preconnect; crossorigin');
+        res.setHeader('Link', linkHints.join(', '));
 
         if (meta) {
           const ogUrl = `${siteOrigin}${routePath === '/' ? '' : routePath}`;
@@ -1088,7 +1096,11 @@ async function initializeApp() {
       const indexPath = path.join(__dirname, '../dist/index.html');
       const fs = await import('fs');
       cachedIndexHtml = fs.readFileSync(indexPath, 'utf8');
-      logger.info('[Startup] Cached index.html for fast serving');
+      const cssMatch = cachedIndexHtml.match(/href="(\/assets\/[^"]+\.css)"/);
+      if (cssMatch) {
+        mainCssPath = cssMatch[1];
+      }
+      logger.info('[Startup] Cached index.html for fast serving', { mainCssPath });
     } catch (err: unknown) {
       logger.error('[Startup] Failed to cache index.html:', { error: err as Error });
     }
