@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.62",
+    date: "2026-03-18",
+    title: "Dev Environment Stability & Database Sync",
+    changes: [
+      "Fixed: Development environment now connects reliably to the database with zero startup errors",
+      "Fixed: All missing database tables and columns synchronized — login, rate limiting, and staff portal now work correctly in dev",
+      "Improved: Stripe initialization completes cleanly with all products and pricing ready",
+    ]
+  },
+  {
     version: "8.87.61",
     date: "2026-03-17",
     title: "Wallet Booking Pass Voids — Bulk Cancellation Coverage",
