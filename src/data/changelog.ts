@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.72",
+    date: "2026-03-18",
+    title: "Fix: Database Connection Stability on Supabase",
+    changes: [
+      "Fixed: Resolved intermittent 500 errors across all API routes caused by empty PostgreSQL search_path on Supabase pooler connections — database tables are now reliably found on every request",
+      "Fixed: Command center, session store, member directory, and all authenticated routes now work consistently without startup-dependent timing",
+    ]
+  },
+  {
     version: "8.87.71",
     date: "2026-03-18",
     title: "Bug Fixes: Cafe Soft Delete & Tier Sync Consistency",

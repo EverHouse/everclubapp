@@ -61,8 +61,25 @@ if (forcePoolerRedirect && poolerUrl) {
 const sslConfig = { rejectUnauthorized: false };
 const needsSsl = !isLocalDatabase(effectiveConnectionString);
 
+function appendSearchPath(connString: string | undefined): string | undefined {
+  if (!connString || isLocalDatabase(connString)) return connString;
+  try {
+    const u = new URL(connString);
+    const existing = u.searchParams.get('options') || '';
+    if (!existing.includes('search_path')) {
+      u.searchParams.set('options', (existing ? existing + ' ' : '') + '-c search_path=public');
+    }
+    return u.toString();
+  } catch {
+    const sep = connString.includes('?') ? '&' : '?';
+    return connString + sep + 'options=-c%20search_path%3Dpublic';
+  }
+}
+
+const mainConnString = appendSearchPath(usingPooler ? poolerUrl : directUrl);
+
 const basePool = new Pool({
-  connectionString: usingPooler ? poolerUrl : directUrl,
+  connectionString: mainConnString,
   connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 10000,
   max: parseInt(process.env.DB_POOL_MAX || '20', 10),
@@ -75,10 +92,11 @@ const basePool = new Pool({
 export const pool = basePool;
 
 const directConnectionUrl = (forcePoolerRedirect && poolerUrl) ? poolerUrl : directUrl;
+const directConnString = appendSearchPath(directConnectionUrl);
 
 export const directPool = usingPooler
   ? new Pool({
-      connectionString: directConnectionUrl,
+      connectionString: directConnString,
       connectionTimeoutMillis: 10000,
       idleTimeoutMillis: 10000,
       max: 5,
