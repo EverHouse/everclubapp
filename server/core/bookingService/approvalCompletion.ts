@@ -265,7 +265,8 @@ export async function devConfirmBooking(params: DevConfirmParams) {
     title: 'Booking Confirmed',
     message: `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.`,
     data: { bookingId: bookingId.toString(), eventType: 'booking_confirmed' }
-  }, { action: 'booking_confirmed', bookingId, triggerSource: 'approval.ts' });
+  }, { action: 'booking_confirmed', bookingId, triggerSource: 'approval.ts' })
+  .catch(err => logger.error('[Dev Confirm] sendNotificationToUser failed', { extra: { error: getErrorMessage(err) } }));
 
   if (participantEmails && participantEmails.length > 0) {
     const ownerName = booking.user_name || (booking.user_email as string)?.split('@')[0] || 'A member';
@@ -289,7 +290,8 @@ export async function devConfirmBooking(params: DevConfirmParams) {
         title: 'Added to Booking',
         message: notificationMsg,
         data: { bookingId: bookingId.toString(), eventType: 'booking_participant_added' }
-      }, { action: 'booking_participant_added', bookingId, triggerSource: 'approval.ts' });
+      }, { action: 'booking_participant_added', bookingId, triggerSource: 'approval.ts' })
+      .catch(err => logger.error('[Dev Confirm] participant sendNotificationToUser failed', { extra: { error: getErrorMessage(err) } }));
 
       logger.info('[Dev Confirm] Sent Added to Booking notification', { extra: { participantEmail, bookingId } });
     }
