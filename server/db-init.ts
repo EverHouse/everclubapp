@@ -993,6 +993,7 @@ export async function ensureDatabaseConstraints() {
           SET stripe_customer_id = NULL,
               stripe_subscription_id = NULL,
               tier = NULL,
+              tier_id = NULL,
               membership_status = 'non-member',
               updated_at = NOW()
           WHERE LOWER(email) = 'nick@evenhouse.club'
@@ -1001,6 +1002,7 @@ export async function ensureDatabaseConstraints() {
           UPDATE users 
           SET stripe_customer_id = ${savedCustomerId},
               tier = 'VIP',
+              tier_id = COALESCE((SELECT id FROM membership_tiers WHERE LOWER(name) = 'vip' LIMIT 1), tier_id),
               membership_status = 'active',
               billing_provider = 'stripe',
               updated_at = NOW()
@@ -1670,7 +1672,7 @@ export async function setupInstantDataTriggers(): Promise<void> {
       BEGIN
         IF NEW.is_active = true THEN
           UPDATE public.users
-          SET role = NEW.role, tier = 'VIP', membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, updated_at = NOW()
+          SET role = NEW.role, tier = 'VIP', tier_id = (SELECT id FROM membership_tiers WHERE LOWER(name) = 'vip' LIMIT 1), membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, updated_at = NOW()
           WHERE LOWER(email) = LOWER(NEW.email)
             AND role NOT IN ('admin', 'staff', 'golf_instructor');
         END IF;

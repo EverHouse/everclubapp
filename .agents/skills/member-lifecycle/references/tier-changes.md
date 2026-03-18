@@ -126,9 +126,23 @@ When a tier changes, HubSpot is updated via two paths:
 1. **Contact properties**: `syncMemberToHubSpot` updates the contact's `membership_tier` property
 2. **Deal line items**: `handleTierChange` removes the old tier's line item from the member's deal and adds the new tier's line item; logs the change via `queueTierSync` if immediate sync fails
 
-## Tier ID Mapping
+## Tier ID Consistency Rule
 
-The `getTierIdFromTierName` function maps display names to numeric IDs:
-- Social → 1, Core → 2, Premium → 3, Corporate → 4, VIP → 5
+**Whenever `tier` (text) is set anywhere, `tier_id` must also be set.** When clearing tier (setting to NULL), tier_id must also be set to NULL.
 
-The `membership_tiers` table is the authoritative source; this mapping is a fallback for quick lookups during processing.
+The `getTierIdFromTierName` function in `memberTierUpdateProcessor.ts` resolves tier names to IDs by querying the `membership_tiers` table (case-insensitive match). It no longer uses a hardcoded map.
+
+For raw SQL paths, use a subquery: `tier_id = COALESCE((SELECT id FROM membership_tiers WHERE LOWER(name) = LOWER($tier) LIMIT 1), tier_id)`
+
+All 13 tier update paths now enforce this rule:
+- `subscriptionSync.ts` (3 paths: update, matched update, insert)
+- `resolution.ts` (2 paths: HubSpot pull, Stripe pull)
+- `auth.ts` (staff VIP auto-assign)
+- `memberTierUpdateProcessor.ts` (general tier updates)
+- `myBilling.ts` (sync tier from Stripe)
+- `hubspot/webhooks.ts` (tier property change + MindBody deactivation)
+- `dataTools/member-sync.ts` (HubSpot resync)
+- `dataIntegrity/fixes-member.ts` (accept tier fix)
+- `members/admin-actions.ts` (manual tier set + clear)
+- `gracePeriodScheduler.ts` (membership termination)
+- `db-init.ts` (data migration + staff role trigger)

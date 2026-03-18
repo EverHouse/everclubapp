@@ -13,7 +13,7 @@ export const changelog: ChangelogEntry[] = [
     title: "Bug Fixes: Cafe Soft Delete & Tier Sync Consistency",
     changes: [
       "Fixed: Deleting a cafe item now deactivates it instead of permanently removing it — preserves POS transaction history and prevents items from reappearing via Stripe sync",
-      "Fixed: All tier update paths (Stripe sync, HubSpot pull, integrity resolution, staff auth) now update both tier name and tier ID together — prevents mismatches between the two fields",
+      "Fixed: All 13 tier update paths now keep tier name and tier ID in sync — covers Stripe sync, HubSpot webhooks, admin actions, data integrity fixes, member sync, billing tier sync, grace period termination, staff role trigger, and startup data fixes",
       "Fixed: Tier ID lookup now queries the database instead of using a hardcoded map — stays correct if tier IDs change",
     ]
   },

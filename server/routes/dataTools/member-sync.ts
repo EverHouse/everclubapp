@@ -141,6 +141,7 @@ router.post('/api/data-tools/resync-member', isAdmin, async (req: Request, res: 
         last_name = COALESCE(${props.lastname || null}, last_name),
         phone = COALESCE(${props.phone || null}, phone),
         tier = COALESCE(${normalizedTier}, tier),
+        tier_id = COALESCE((SELECT id FROM membership_tiers WHERE LOWER(name) = LOWER(${normalizedTier}) LIMIT 1), tier_id),
         membership_status = COALESCE(${props.membership_status || null}, membership_status),
         updated_at = NOW()
       WHERE id = ${user.id}`);

@@ -117,6 +117,7 @@ async function processGracePeriodMembers(): Promise<void> {
               sql`UPDATE users SET 
                 last_tier = tier,
                 tier = NULL,
+                tier_id = NULL,
                 membership_status = 'terminated',
                 membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'terminated' THEN NOW() ELSE membership_status_changed_at END,
                 grace_period_start = NULL,

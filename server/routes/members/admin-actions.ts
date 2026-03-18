@@ -80,12 +80,12 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, validateBody(tierChange
       await client.query('BEGIN');
       if (normalizedTier) {
         await client.query(
-          'UPDATE users SET tier = $1, updated_at = $2, last_manual_fix_at = NOW(), last_manual_fix_by = $3 WHERE LOWER(email) = $4',
+          'UPDATE users SET tier = $1, tier_id = COALESCE((SELECT id FROM membership_tiers WHERE LOWER(name) = LOWER($1) LIMIT 1), tier_id), updated_at = $2, last_manual_fix_at = NOW(), last_manual_fix_by = $3 WHERE LOWER(email) = $4',
           [normalizedTier, new Date(), sessionUser?.email || 'unknown', normalizedEmail]
         );
       } else {
         await client.query(
-          'UPDATE users SET last_tier = tier, tier = NULL, membership_status = $1, membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM $1 THEN NOW() ELSE membership_status_changed_at END, updated_at = $2, last_manual_fix_at = NOW(), last_manual_fix_by = $3 WHERE LOWER(email) = $4',
+          'UPDATE users SET last_tier = tier, tier = NULL, tier_id = NULL, membership_status = $1, membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM $1 THEN NOW() ELSE membership_status_changed_at END, updated_at = $2, last_manual_fix_at = NOW(), last_manual_fix_by = $3 WHERE LOWER(email) = $4',
           ['non-member', new Date(), sessionUser?.email || 'unknown', normalizedEmail]
         );
       }

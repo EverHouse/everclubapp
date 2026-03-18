@@ -707,7 +707,7 @@ router.post('/api/member-billing/:email/sync-tier-from-stripe', requireStaffAuth
     }
     
     // Update the user's tier
-    await db.execute(sql`UPDATE users SET tier = ${newTier}, billing_provider = 'stripe', membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, updated_at = NOW() WHERE id = ${member.id}`);
+    await db.execute(sql`UPDATE users SET tier = ${newTier}, tier_id = COALESCE((SELECT id FROM membership_tiers WHERE LOWER(name) = LOWER(${newTier}) LIMIT 1), tier_id), billing_provider = 'stripe', membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, updated_at = NOW() WHERE id = ${member.id}`);
     
     logger.info('[SyncTierFromStripe] Updated tier for : -> (matched by )', { extra: { targetEmail, previousTier, newTier, matchMethod } });
     

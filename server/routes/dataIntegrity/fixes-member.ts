@@ -424,7 +424,7 @@ router.post('/api/data-integrity/fix/accept-tier', isAdmin, validateBody(acceptT
 
     const result = await client.query(
       `UPDATE users 
-       SET tier = $2, updated_at = NOW(),
+       SET tier = $2, tier_id = COALESCE((SELECT id FROM membership_tiers WHERE LOWER(name) = LOWER($2) LIMIT 1), tier_id), updated_at = NOW(),
            last_manual_fix_at = NOW(), last_manual_fix_by = $3
        WHERE id = $1
        RETURNING email, membership_status`,

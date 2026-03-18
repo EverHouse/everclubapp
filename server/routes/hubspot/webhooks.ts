@@ -160,7 +160,7 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
                         } else {
                           const normalizedTier = normalizeTierName(propertyValue || '');
                           if (normalizedTier) {
-                            await db.execute(sql`UPDATE users SET tier = ${normalizedTier}, updated_at = NOW() WHERE LOWER(email) = ${email}`);
+                            await db.execute(sql`UPDATE users SET tier = ${normalizedTier}, tier_id = COALESCE((SELECT id FROM membership_tiers WHERE LOWER(name) = LOWER(${normalizedTier}) LIMIT 1), tier_id), updated_at = NOW() WHERE LOWER(email) = ${email}`);
                             logger.info('[HubSpot Webhook] Updated DB tier for', { extra: { email, normalizedTier } });
                           }
                         }
