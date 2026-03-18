@@ -1025,7 +1025,16 @@ async function initializeApp() {
     app.use((req, res, next) => {
       if (req.method === 'GET' && !req.path.startsWith('/api/') && !req.path.startsWith('/assets/') && req.path !== '/healthz' && req.path !== '/_health') {
         if (!cachedIndexHtml) {
-          return res.sendFile(path.join(__dirname, '../dist/index.html'));
+          const indexPath = path.join(__dirname, '../dist/index.html');
+          try {
+            const { readFileSync } = require('fs') as typeof import('fs');
+            const rawHtml = readFileSync(indexPath, 'utf8');
+            const nonce = res.locals.cspNonce as string;
+            res.setHeader('Content-Type', 'text/html');
+            return res.send(injectCspNonce(rawHtml, nonce));
+          } catch {
+            return res.sendFile(indexPath);
+          }
         }
 
         const routePath = req.path.replace(/\/+$/, '') || '/';
