@@ -80,9 +80,20 @@ export function createPaymentHandlers(state: PaymentState, setters: PaymentSette
         }
       }
 
-      const data = await postWithCredentials<{ clientSecret: string; paymentIntentId: string }>('/api/stripe/staff/quick-charge', payload);
-      setters.setClientSecret(data.clientSecret);
-      setters.setPaymentIntentId(data.paymentIntentId);
+      const res = await apiRequest<{ clientSecret: string; paymentIntentId: string }>('/api/stripe/staff/quick-charge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }, { retryNonIdempotent: true, maxRetries: 3 });
+
+      if (!res.ok || !res.data) {
+        haptic.error();
+        setters.setError(res.error || 'Failed to create payment');
+        return;
+      }
+
+      setters.setClientSecret(res.data.clientSecret);
+      setters.setPaymentIntentId(res.data.paymentIntentId);
     } catch (err: unknown) {
       haptic.error();
       setters.setError((err instanceof Error ? err.message : String(err)) || 'Failed to create payment');
@@ -195,19 +206,29 @@ export function createPaymentHandlers(state: PaymentState, setters: PaymentSette
           ? 'terminal'
           : 'card';
 
-      await postWithCredentials('/api/purchases/send-receipt', {
-        email,
-        memberName: name,
-        items: state.cartItems.map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          unitPrice: item.priceCents,
-          total: item.priceCents * item.quantity,
-        })),
-        totalAmount: state.totalCents,
-        paymentMethod: effectivePaymentMethod,
-        paymentIntentId: state.paymentIntentId || undefined,
-      });
+      const res = await apiRequest('/api/purchases/send-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          memberName: name,
+          items: state.cartItems.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.priceCents,
+            total: item.priceCents * item.quantity,
+          })),
+          totalAmount: state.totalCents,
+          paymentMethod: effectivePaymentMethod,
+          paymentIntentId: state.paymentIntentId || undefined,
+        }),
+      }, { retryNonIdempotent: true, maxRetries: 3 });
+
+      if (!res.ok) {
+        haptic.error();
+        setters.setError(res.error || 'Failed to send receipt');
+        return;
+      }
 
       setters.setReceiptSent(true);
       haptic.success();
