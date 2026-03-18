@@ -590,7 +590,7 @@ export async function completeCancellation(params: CompleteCancellationParams) {
     startTime: existing.startTime || '',
     status: 'cancelled',
     actionBy: 'staff'
-  });
+  }).catch(err => logger.error('[CompleteCancellation] Booking event publish failed:', { extra: { err: getErrorMessage(err) } }));
 
   logger.info('[Complete Cancellation] Staff manually completed cancellation of booking', { extra: { staffEmail, bookingId, errorCount: errors.length } });
 
