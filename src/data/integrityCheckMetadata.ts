@@ -176,6 +176,13 @@ export const integrityCheckMetadata: IntegrityCheckMetadata[] = [
     description: 'Active members with paid tiers (Core/Premium/VIP/Corporate) who have no Stripe subscription. Stripe-billed members without any Stripe connection are flagged as critical.',
     impact: 'These members are active but have no billing relationship. Stripe-orphaned members were likely caused by cancelled subscriptions with manual reactivation, or failed migrations. They must NOT be charged again.',
     severity: 'critical'
+  },
+  {
+    checkName: 'Orphaned Stripe Subscriptions',
+    title: 'Orphaned Stripe Subscriptions',
+    description: 'Active Stripe subscriptions whose customer email doesn\'t match the linked member\'s email. Detects both emails that match no member and emails that match a different member (cross-member mislink).',
+    impact: 'These subscriptions may be charging someone who is no longer a member, belong to the wrong person, or reflect an email change that wasn\'t synced to Stripe. Represents a real billing risk.',
+    severity: 'critical'
   }
 ];
 

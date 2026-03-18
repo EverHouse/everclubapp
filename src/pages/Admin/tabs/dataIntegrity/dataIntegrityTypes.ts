@@ -78,6 +78,9 @@ export interface IssueContext {
   sourceTable?: string;
   count?: number;
   orphanType?: string;
+  stripeEmail?: string;
+  databaseEmail?: string;
+  subscriptionStatus?: string;
 }
 
 export interface IgnoreInfo {

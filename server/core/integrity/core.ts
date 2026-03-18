@@ -389,6 +389,9 @@ export interface IssueContext {
   stripeSubscriptionId?: string;
   stripeCustomerIds?: string[];
   orphanType?: string;
+  stripeEmail?: string;
+  databaseEmail?: string;
+  subscriptionStatus?: string;
   booking1Id?: number;
   booking1Status?: string;
   member1Email?: string;
@@ -479,6 +482,7 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Active Members Without Waivers': 'medium',
   'Lingering Payment Intents on Terminal Bookings': 'high',
   'Billing Orphans': 'critical',
+  'Orphaned Stripe Subscriptions': 'critical',
   'Auth Linking Data Integrity': 'critical',
 };
 
@@ -752,7 +756,7 @@ export async function getIntegritySummary(): Promise<IntegritySummary> {
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<IntegrityCheckResult[]> {
   const { checkUnmatchedTrackmanBookings, checkNeedsReviewItems, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings } = await import('./bookingChecks');
   const { checkHubSpotSyncMismatch } = await import('./hubspotChecks');
-  const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans } = await import('./stripeChecks');
+  const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions } = await import('./stripeChecks');
   const { checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkArchivedMemberLingeringData, checkActiveMembersWithoutWaivers, checkAuthLinkingDataIntegrity } = await import('./memberChecks');
 
   const checks = await Promise.all([
@@ -778,6 +782,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     safeCheck(checkActiveMembersWithoutWaivers, 'Active Members Without Waivers'),
     safeCheck(checkLateCancelPreservedPaymentIntents, 'Lingering Payment Intents on Terminal Bookings'),
     safeCheck(checkBillingOrphans, 'Billing Orphans'),
+    safeCheck(checkOrphanedStripeSubscriptions, 'Orphaned Stripe Subscriptions'),
     safeCheck(checkAuthLinkingDataIntegrity, 'Auth Linking Data Integrity'),
   ]);
 

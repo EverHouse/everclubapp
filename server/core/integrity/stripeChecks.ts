@@ -493,10 +493,10 @@ export async function checkBillingOrphans(): Promise<IntegrityCheckResult> {
       AND membership_status = 'active'
       AND (${sql.raw(tierConditions)})
       AND (stripe_subscription_id IS NULL OR stripe_subscription_id = '')
+      AND (billing_provider IS NULL OR billing_provider NOT IN ('mindbody', 'comped', 'manual', 'family_addon'))
     ORDER BY
       CASE billing_provider
         WHEN 'stripe' THEN 0
-        WHEN 'mindbody' THEN 2
         ELSE 1
       END,
       email
@@ -522,12 +522,8 @@ export async function checkBillingOrphans(): Promise<IntegrityCheckResult> {
         description = `ORPHANED: "${memberName}" (${member.tier}) has billing_provider='stripe' and customer ID but NO subscription`;
         suggestion = 'Link existing Stripe subscription or mark as comped/manual. Do NOT create a new subscription without verifying payment history.';
       }
-    } else if (provider === 'comped' || provider === 'manual' || provider === 'family_addon') {
+    } else if (provider === 'comped' || provider === 'manual' || provider === 'family_addon' || provider === 'mindbody') {
       continue;
-    } else if (provider === 'mindbody') {
-      severity = 'warning';
-      description = `MindBody member "${memberName}" (${member.tier}) has no Stripe subscription — may need review for migration`;
-      suggestion = 'Verify billing status in MindBody or mark as manual if billed outside the system';
     } else {
       severity = 'warning';
       description = `Active member "${memberName}" (${member.tier}) has no billing provider and no Stripe subscription`;
@@ -551,7 +547,7 @@ export async function checkBillingOrphans(): Promise<IntegrityCheckResult> {
         stripeCustomerId: member.stripe_customer_id || 'none',
         mindbodyClientId: member.mindbody_client_id || 'none',
         userId: String(member.id),
-        orphanType: provider === 'stripe' ? 'stripe_no_subscription' : provider === 'mindbody' ? 'mindbody_no_subscription' : 'no_provider'
+        orphanType: provider === 'stripe' ? 'stripe_no_subscription' : 'no_provider'
       }
     });
   }
@@ -708,6 +704,158 @@ export async function checkLateCancelPreservedPaymentIntents(): Promise<Integrit
   return {
     checkName: 'Lingering Payment Intents on Terminal Bookings',
     status: issues.length === 0 ? 'pass' : 'warning',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
+export async function checkOrphanedStripeSubscriptions(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  let stripe: Stripe;
+  try {
+    stripe = await getStripeClient();
+  } catch (err: unknown) {
+    if (!isProduction) logger.error('[DataIntegrity] Stripe API error:', { error: err });
+    return {
+      checkName: 'Orphaned Stripe Subscriptions',
+      status: 'warning',
+      issueCount: 1,
+      issues: [{
+        category: 'system_error',
+        severity: 'error',
+        table: 'users',
+        recordId: 'stripe_error',
+        description: `Cannot connect to Stripe API: ${getErrorMessage(err)}`,
+        suggestion: 'Check Stripe API key configuration'
+      }],
+      lastRun: new Date()
+    };
+  }
+
+  try {
+    const membersWithStripeResult = await db.execute(sql`
+      SELECT id, email, first_name, last_name, tier, membership_status,
+             billing_provider, stripe_customer_id
+      FROM users
+      WHERE role = 'member'
+        AND archived_at IS NULL
+        AND stripe_customer_id IS NOT NULL
+        AND stripe_customer_id != ''
+      ORDER BY email
+    `);
+
+    const members = membersWithStripeResult.rows as unknown as Array<{
+      id: string | number;
+      email: string;
+      first_name: string;
+      last_name: string;
+      tier: string;
+      membership_status: string;
+      billing_provider: string;
+      stripe_customer_id: string;
+    }>;
+
+    const customerIdToMembers = new Map<string, typeof members>();
+    for (const member of members) {
+      const existing = customerIdToMembers.get(member.stripe_customer_id) || [];
+      existing.push(member);
+      customerIdToMembers.set(member.stripe_customer_id, existing);
+    }
+
+    const allMembersResult = await db.execute(sql`
+      SELECT LOWER(email) as email FROM users
+      WHERE role = 'member' AND archived_at IS NULL AND email IS NOT NULL AND email != ''
+    `);
+    const allMemberEmails = new Set(
+      (allMembersResult.rows as unknown as Array<{ email: string }>).map(r => r.email)
+    );
+
+    const customerIds = Array.from(customerIdToMembers.keys());
+
+    for (const customerId of customerIds) {
+      try {
+        const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
+        if (customer.deleted) continue;
+
+        const stripeEmail = customer.email?.toLowerCase() || '';
+        if (!stripeEmail) continue;
+
+        const linkedMembers = customerIdToMembers.get(customerId) || [];
+        const memberEmails = linkedMembers.map(m => m.email?.toLowerCase()).filter(Boolean);
+
+        if (memberEmails.length > 0 && !memberEmails.includes(stripeEmail)) {
+          const activeSubscriptions: Stripe.Subscription[] = [];
+          for (const status of ['active', 'trialing', 'past_due'] as const) {
+            const subs = await stripe.subscriptions.list({
+              customer: customerId,
+              status,
+              limit: 100,
+            });
+            activeSubscriptions.push(...subs.data);
+          }
+
+          for (const sub of activeSubscriptions) {
+            const memberName = linkedMembers.map(m =>
+              [m.first_name, m.last_name].filter(Boolean).join(' ') || 'Unknown'
+            ).join(', ');
+
+            const matchesDifferentMember = allMemberEmails.has(stripeEmail);
+            const description = matchesDifferentMember
+              ? `Stripe subscription ${sub.id} (status: ${sub.status}) has customer email "${customer.email}" which belongs to a DIFFERENT member in the database. Linked member(s): ${memberName} (${memberEmails.join(', ')}). This subscription may be linked to the wrong person.`
+              : `Stripe subscription ${sub.id} (status: ${sub.status}) has customer email "${customer.email}" which doesn't match any member email in the database. Linked member(s): ${memberName} (${memberEmails.join(', ')}).`;
+
+            const suggestion = matchesDifferentMember
+              ? 'This Stripe customer email matches a different member in the database. Investigate whether the subscription or customer ID is assigned to the wrong member. Update the member record or Stripe customer as needed.'
+              : 'Verify the email in Stripe matches the member record. Update the member email, update the Stripe customer email, or investigate if this subscription belongs to a different person.';
+
+            issues.push({
+              category: 'billing_issue',
+              severity: 'error',
+              table: 'users',
+              recordId: linkedMembers[0]?.id || customerId,
+              description,
+              suggestion,
+              context: {
+                stripeSubscriptionId: sub.id,
+                stripeCustomerId: customerId,
+                stripeEmail: customer.email || 'none',
+                databaseEmail: memberEmails.join(', '),
+                memberName,
+                subscriptionStatus: sub.status,
+                userId: String(linkedMembers[0]?.id || ''),
+                orphanType: matchesDifferentMember ? 'cross_member_mislink' : 'no_matching_member',
+              }
+            });
+          }
+        }
+      } catch (err: unknown) {
+        if (isStripeResourceMissing(err)) continue;
+        logger.warn('[DataIntegrity] Error fetching Stripe customer:', { customerId, error: getErrorMessage(err) });
+      }
+    }
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Error checking orphaned Stripe subscriptions:', { extra: { detail: getErrorMessage(error) } });
+    return {
+      checkName: 'Orphaned Stripe Subscriptions',
+      status: 'warning',
+      issueCount: 1,
+      issues: [{
+        category: 'system_error',
+        severity: 'error',
+        table: 'users',
+        recordId: 'check_error',
+        description: `Failed to check orphaned Stripe subscriptions: ${getErrorMessage(error)}`,
+        suggestion: 'Review server logs for details and retry'
+      }],
+      lastRun: new Date()
+    };
+  }
+
+  return {
+    checkName: 'Orphaned Stripe Subscriptions',
+    status: issues.length === 0 ? 'pass' : 'fail',
     issueCount: issues.length,
     issues,
     lastRun: new Date()

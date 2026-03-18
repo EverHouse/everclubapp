@@ -967,8 +967,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
         const orphanIssues = billingOrphansResult?.issues.filter(i => !i.ignored) || [];
         const allOrphanUserIds = orphanIssues.map(i => String(i.context?.userId)).filter(Boolean);
         const stripeOrphans = orphanIssues.filter(i => i.context?.billingProvider === 'stripe');
-        const mindbodyOrphans = orphanIssues.filter(i => i.context?.billingProvider === 'mindbody');
-        const otherOrphans = orphanIssues.filter(i => i.context?.billingProvider !== 'stripe' && i.context?.billingProvider !== 'mindbody');
+        const otherOrphans = orphanIssues.filter(i => i.context?.billingProvider !== 'stripe');
         const selectedCount = allOrphanUserIds.filter(id => selectedOrphans.has(id)).length;
         const allSelected = allOrphanUserIds.length > 0 && allOrphanUserIds.every(id => selectedOrphans.has(id));
         const selectedUserIds = allOrphanUserIds.filter(id => selectedOrphans.has(id));
@@ -1098,18 +1097,70 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 </div>
               </div>
             )}
-            {mindbodyOrphans.length > 0 && selectedCount === 0 && (
-              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3">
-                <p className="text-xs text-purple-700 dark:text-purple-300 mb-2">
-                  <strong>MindBody Members:</strong> {mindbodyOrphans.length} member(s) billed through MindBody — review for staff
-                </p>
-              </div>
-            )}
             {otherOrphans.length > 0 && (
               <div className="bg-gray-50 dark:bg-gray-800/20 rounded-lg p-3">
                 <p className="text-xs text-gray-700 dark:text-gray-300">
                   <strong>Other:</strong> {otherOrphans.length} member(s) — review individually or select above
                 </p>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      case 'Orphaned Stripe Subscriptions': {
+        const orphanedSubResult = results.find(r => r.checkName === 'Orphaned Stripe Subscriptions');
+        const orphanedSubIssues = orphanedSubResult?.issues.filter(i => !i.ignored) || [];
+
+        return (
+          <div className="space-y-3 mb-4">
+            <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
+              <p className="text-xs text-red-700 dark:text-red-300 mb-2">
+                <strong>Email Mismatch:</strong> These Stripe subscriptions have a customer email that doesn&apos;t match any member email
+                in the database. This could mean the member changed their email, or the subscription belongs to someone no longer in the system.
+              </p>
+            </div>
+            {orphanedSubIssues.length > 0 && (
+              <div className="space-y-2">
+                {orphanedSubIssues.map((issue, idx) => (
+                  <div key={idx} className="bg-white dark:bg-gray-800/50 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <span className="material-symbols-outlined text-red-500 text-[16px] mt-0.5 shrink-0">warning</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mb-2">
+                          <div>
+                            <span className="text-gray-500 dark:text-gray-400">Subscription:</span>{' '}
+                            <span className="font-mono text-red-600 dark:text-red-400">{issue.context?.stripeSubscriptionId}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 dark:text-gray-400">Status:</span>{' '}
+                            <span className="font-medium">{issue.context?.subscriptionStatus}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 dark:text-gray-400">Stripe Email:</span>{' '}
+                            <span className="font-medium text-red-600 dark:text-red-400">{issue.context?.stripeEmail}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 dark:text-gray-400">DB Email:</span>{' '}
+                            <span className="font-medium text-green-600 dark:text-green-400">{issue.context?.databaseEmail}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 dark:text-gray-400">Customer:</span>{' '}
+                            <span className="font-mono text-gray-600 dark:text-gray-300">{issue.context?.stripeCustomerId}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 dark:text-gray-400">Member:</span>{' '}
+                            <span className="font-medium">{issue.context?.memberName}</span>
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/30 rounded p-2">
+                          <strong>Next steps:</strong> Verify if the member changed their email. If so, update the Stripe customer email to match.
+                          If the subscription belongs to someone else, investigate and cancel if appropriate.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
