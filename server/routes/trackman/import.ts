@@ -62,7 +62,7 @@ router.post('/api/admin/trackman/import', isStaffOrAdmin, async (req, res) => {
     
     const result = await importTrackmanBookings(csvPath, user);
     
-    logFromRequest(req, 'import_trackman', 'trackman', undefined, 'Trackman CSV Import', {
+    await logFromRequest(req, 'import_trackman', 'trackman', undefined, 'Trackman CSV Import', {
       filename: safeFilename,
       bookingsImported: result.matchedRows || 0,
       sessionsCreated: result.totalRows || 0

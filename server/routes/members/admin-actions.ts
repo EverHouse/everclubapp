@@ -561,7 +561,7 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
         subscriptionCancelled,
         archivedBy
       }
-    });
+    }).catch(err => logger.error('[Admin] Audit log failed for archive_member', { extra: { normalizedEmail, error: getErrorMessage(err) } }));
   } catch (error: unknown) {
     if (!isProduction) logger.error('Member archive error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to archive member' });
@@ -1030,7 +1030,7 @@ router.post('/api/members/:email/anonymize', isStaffOrAdmin, async (req, res) =>
     
     logger.info('[Privacy] Member anonymized by at', { extra: { normalizedEmail, anonymizedBy, nowToISOString: now.toISOString() } });
     
-    logFromRequest(req, 'archive_member', 'member', normalizedEmail, 
+    await logFromRequest(req, 'archive_member', 'member', normalizedEmail, 
       `${userResult[0].firstName} ${userResult[0].lastName}`.trim() || undefined,
       { action: 'anonymize', reason: 'CCPA compliance' });
     
@@ -1496,7 +1496,7 @@ router.post('/api/members/merge/execute', isAdmin, async (req, res) => {
     
     const result = await executeMerge(primaryUserId, secondaryUserId, sessionUser?.email || 'admin');
     
-    logFromRequest(req, 'merge_users', 'user', primaryUserId, undefined, {
+    await logFromRequest(req, 'merge_users', 'user', primaryUserId, undefined, {
       secondary_user_id: secondaryUserId,
       records_merged: result.recordsMerged,
       merged_lifetime_visits: result.mergedLifetimeVisits
