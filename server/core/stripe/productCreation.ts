@@ -62,6 +62,12 @@ export async function ensureSimulatorOverageProduct(): Promise<{
       logger.info(`[Overage Product] Created database record: ${OVERAGE_NAME}`);
     } else {
       tierId = existing[0].id;
+      if (existing[0].productType !== 'one_time') {
+        await db.update(membershipTiers)
+          .set({ productType: 'one_time' })
+          .where(eq(membershipTiers.id, tierId));
+        logger.info(`[Overage Product] Fixed productType to one_time`);
+      }
     }
     
     if (!stripeProductId) {
@@ -181,11 +187,14 @@ export async function ensureGuestPassProduct(): Promise<{
       logger.info(`[Guest Pass Product] Created database record: ${GUEST_PASS_NAME}`);
     } else {
       tierId = existing[0].id;
-      if (existing[0].name !== GUEST_PASS_NAME) {
+      const updates: Record<string, string> = {};
+      if (existing[0].name !== GUEST_PASS_NAME) updates.name = GUEST_PASS_NAME;
+      if (existing[0].productType !== 'one_time') updates.productType = 'one_time';
+      if (Object.keys(updates).length > 0) {
         await db.update(membershipTiers)
-          .set({ name: GUEST_PASS_NAME })
+          .set(updates)
           .where(eq(membershipTiers.id, tierId));
-        logger.info(`[Guest Pass Product] Renamed DB record: ${existing[0].name} -> ${GUEST_PASS_NAME}`);
+        logger.info(`[Guest Pass Product] Fixed DB record fields: ${Object.keys(updates).join(', ')}`);
       }
     }
     
@@ -316,6 +325,12 @@ export async function ensureDayPassCoworkingProduct(): Promise<{
       logger.info(`[Day Pass Coworking Product] Created database record: ${COWORKING_NAME}`);
     } else {
       tierId = existing[0].id;
+      if (existing[0].productType !== 'one_time') {
+        await db.update(membershipTiers)
+          .set({ productType: 'one_time' })
+          .where(eq(membershipTiers.id, tierId));
+        logger.info(`[Day Pass Coworking Product] Fixed productType to one_time`);
+      }
     }
     
     if (!stripeProductId) {
@@ -425,6 +440,12 @@ export async function ensureDayPassGolfSimProduct(): Promise<{
       logger.info(`[Day Pass Golf Sim Product] Created database record: ${GOLF_SIM_NAME}`);
     } else {
       tierId = existing[0].id;
+      if (existing[0].productType !== 'one_time') {
+        await db.update(membershipTiers)
+          .set({ productType: 'one_time' })
+          .where(eq(membershipTiers.id, tierId));
+        logger.info(`[Day Pass Golf Sim Product] Fixed productType to one_time`);
+      }
     }
     
     if (!stripeProductId) {

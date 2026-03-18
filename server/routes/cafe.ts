@@ -141,8 +141,7 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
       } catch (stripeErr: unknown) {
         const isNotFound = stripeErr instanceof Error && 'statusCode' in stripeErr && (stripeErr as { statusCode: number }).statusCode === 404;
         if (!isNotFound) {
-          logger.error('Failed to archive Stripe product during cafe item delete', { error: stripeErr instanceof Error ? stripeErr : new Error(String(stripeErr)) });
-          return res.status(500).json({ error: 'Failed to archive the linked Stripe product. Please try again.' });
+          logger.warn(`[Cafe] Failed to archive Stripe product ${existing[0].stripeProductId} during delete, proceeding with local delete`, { error: stripeErr instanceof Error ? stripeErr : new Error(String(stripeErr)) });
         }
       }
     }
