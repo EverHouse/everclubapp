@@ -11,8 +11,13 @@ interface QrScannerModalProps {
 const QrScannerModal: React.FC<QrScannerModalProps> = ({ isOpen, onClose, onScanSuccess }) => {
   const qrScannerRef = useRef<Html5Qrcode | null>(null);
   const hasScannedRef = useRef(false);
+  const onScanSuccessRef = useRef(onScanSuccess);
+  const onCloseRef = useRef(onClose);
   const [error, setError] = useState<string | null>(null);
   const [cameraPermission, setCameraPermission] = useState<'idle' | 'pending' | 'granted' | 'denied'>('idle');
+  
+  onScanSuccessRef.current = onScanSuccess;
+  onCloseRef.current = onClose;
   
   const elementId = useMemo(() => `qr-reader-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, []);
 
@@ -75,8 +80,8 @@ const QrScannerModal: React.FC<QrScannerModalProps> = ({ isOpen, onClose, onScan
           (decodedText) => {
             if (!hasScannedRef.current) {
               hasScannedRef.current = true;
-              onScanSuccess(decodedText);
-              stopScanner().then(() => onClose());
+              onScanSuccessRef.current(decodedText);
+              stopScanner().then(() => onCloseRef.current());
             }
           },
           () => {}
@@ -92,7 +97,7 @@ const QrScannerModal: React.FC<QrScannerModalProps> = ({ isOpen, onClose, onScan
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [isOpen, elementId, onScanSuccess, onClose, stopScanner]);
+  }, [isOpen, elementId, stopScanner]);
 
   useEffect(() => {
     return () => {

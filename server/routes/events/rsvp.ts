@@ -148,6 +148,7 @@ router.post('/api/rsvps', isAuthenticated, async (req, res) => {
     
     const result = await db.transaction(async (tx) => {
       if (evt.maxAttendees && evt.maxAttendees > 0) {
+        await tx.execute(sql`SELECT id FROM events WHERE id = ${event_id} FOR UPDATE`);
         const rsvpCountResult = await tx.select({ count: sql<number>`count(*)::int` })
           .from(eventRsvps)
           .where(and(eq(eventRsvps.eventId, event_id), eq(eventRsvps.status, 'confirmed')));

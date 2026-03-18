@@ -61,11 +61,16 @@ router.post('/api/cafe-menu', isStaffOrAdmin, async (req, res) => {
     if (!name || !category) {
       return res.status(400).json({ error: 'Name and category are required' });
     }
+
+    const parsedPrice = parseFloat(price);
+    if (price !== undefined && price !== null && (isNaN(parsedPrice) || parsedPrice < 0)) {
+      return res.status(400).json({ error: 'Price must be a valid non-negative number' });
+    }
     
     const result = await db.insert(cafeItems).values({
       category,
       name,
-      price: String(price || 0),
+      price: String(parsedPrice || 0),
       description: description || '',
       icon: icon || '',
       imageUrl: image_url || '',

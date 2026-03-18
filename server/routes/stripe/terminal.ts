@@ -234,12 +234,17 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
             id: r.id,
             amountCents: r.cached_fee_cents
           }));
-          const serialized = JSON.stringify(fees);
-          if (serialized.length <= 490) {
+          let fittingFees = fees;
+          let serialized = JSON.stringify(fittingFees);
+          while (serialized.length > 490 && fittingFees.length > 0) {
+            fittingFees = fittingFees.slice(0, -1);
+            serialized = JSON.stringify(fittingFees);
+          }
+          if (fittingFees.length < fees.length) {
+            logger.warn('[Terminal] participantFees metadata trimmed to fit Stripe limit', { extra: { sessionId: metadata.sessionId, original: fees.length, kept: fittingFees.length } });
+          }
+          if (fittingFees.length > 0) {
             finalMetadata.participantFees = serialized;
-          } else {
-            finalMetadata.participantFees = serialized.substring(0, 490);
-            logger.warn('[Terminal] participantFees metadata truncated due to size', { extra: { sessionId: metadata.sessionId, count: fees.length } });
           }
           logger.info('[Terminal] Attached participantFees to booking_fee PI metadata', { extra: { sessionId: metadata.sessionId, count: fees.length } });
         }

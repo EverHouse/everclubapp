@@ -9,6 +9,7 @@ import { syncMembershipTiersToStripe, getTierSyncStatus, cleanupOrphanStripeProd
 import { logFromRequest } from '../core/auditLog';
 import { getErrorCode, safeErrorDetail } from '../utils/errorUtils';
 import { getCached, setCache, invalidateCache as invalidateQueryCache } from '../core/queryCache';
+import { broadcastCafeMenuUpdate } from '../core/websocket';
 
 const TIERS_CACHE_KEY = 'membership_tiers';
 const TIERS_CACHE_TTL = 120_000;
@@ -307,6 +308,10 @@ router.post('/api/admin/stripe/pull-from-stripe', isStaffOrAdmin, async (req, re
     });
 
     invalidateQueryCache(TIERS_CACHE_KEY);
+    invalidateQueryCache('cafe_menu');
+    if (cafeResult.synced > 0 || cafeResult.created > 0 || cafeResult.deactivated > 0) {
+      broadcastCafeMenuUpdate('updated');
+    }
 
     res.json({
       success: tierResult.success && cafeResult.success,
