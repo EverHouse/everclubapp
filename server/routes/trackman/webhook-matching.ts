@@ -451,7 +451,7 @@ export async function createUnmatchedBookingRequest(
                 UPDATE booking_requests 
                 SET status = 'cancelled', updated_at = NOW(),
                     staff_notes = COALESCE(staff_notes, '') || ${`\n[Auto-cancelled: superseded by Trackman booking ${trackmanBookingId}]`}
-                WHERE id = ANY(${sql.raw(`ARRAY[${conflictIds.join(',')}]::int[]`)})`);
+                WHERE id = ANY(${conflictIds})`);
 
               logger.info('[Trackman Webhook] Cancelled conflicting bookings to make room for Trackman booking', {
                 extra: { 

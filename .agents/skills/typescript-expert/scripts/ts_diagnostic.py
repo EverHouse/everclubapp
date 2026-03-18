@@ -11,8 +11,15 @@ import json
 import re
 from pathlib import Path
 
+ALLOWED_COMMANDS = {"npx", "tsc", "node", "grep"}
+
 def run_cmd(cmd: list, capture_stderr: bool = False) -> str:
-    """Run command with argument list and return output."""
+    """Run command with a static argument list and return output. Only allows known safe commands."""
+    if not cmd or not isinstance(cmd, list):
+        return "Invalid command"
+    base = os.path.basename(cmd[0])
+    if base not in ALLOWED_COMMANDS:
+        return f"Blocked command: {base}"
     try:
         if capture_stderr:
             result = subprocess.run(cmd, shell=False, capture_output=True, text=True)

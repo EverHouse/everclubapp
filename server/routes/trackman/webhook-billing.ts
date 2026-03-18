@@ -79,7 +79,7 @@ export async function createBookingForMember(
             UPDATE booking_requests 
             SET status = 'cancelled', updated_at = NOW(),
                 staff_notes = COALESCE(staff_notes, '') || ${`\n[Auto-cancelled: superseded by Trackman booking ${trackmanBookingId}]`}
-            WHERE id = ANY(${sql.raw(`ARRAY[${ids.join(',')}]::int[]`)})`);
+            WHERE id = ANY(${ids})`);
           logger.info('[Trackman Webhook] createBookingForMember cancelled overlapping bookings before update', {
             extra: { trackmanBookingId, cancelledBookingIds: ids }
           });
@@ -522,7 +522,7 @@ export async function createBookingForMember(
             UPDATE booking_requests 
             SET status = 'cancelled', updated_at = NOW(),
                 staff_notes = COALESCE(staff_notes, '') || ${`\n[Auto-cancelled: superseded by Trackman booking ${trackmanBookingId}]`}
-            WHERE id = ANY(${sql.raw(`ARRAY[${conflictIds.join(',')}]::int[]`)})`);
+            WHERE id = ANY(${conflictIds})`);
           logger.info('[Trackman Webhook] Cancelled conflicting bookings for member booking', {
             extra: { trackmanBookingId, cancelledBookingIds: conflictIds }
           });

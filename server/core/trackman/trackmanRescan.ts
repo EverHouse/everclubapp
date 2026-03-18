@@ -254,7 +254,7 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
                       await tx.execute(sql`
                         UPDATE booking_requests SET status = 'cancelled', updated_at = NOW(),
                           staff_notes = COALESCE(staff_notes, '') || ${`\n[Auto-cancelled: superseded by Trackman rescan import ${booking.trackmanBookingId}]`}
-                        WHERE id = ANY(${sql.raw(`ARRAY[${conflictIds.join(',')}]::int[]`)})`);
+                        WHERE id = ANY(${conflictIds})`);
                     }
                     await tx.execute(sql`INSERT INTO booking_requests (
                         user_id, user_email, user_name, request_date, start_time, end_time,

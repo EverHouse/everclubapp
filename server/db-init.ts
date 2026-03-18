@@ -36,7 +36,10 @@ export async function setupEmailNormalization(): Promise<void> {
       { table: 'push_subscriptions', column: 'user_email' }
     ];
 
+    const allowedTables = new Set(tables.map(t => t.table));
+    const allowedColumns = new Set(tables.map(t => t.column));
     for (const { table, column } of tables) {
+      if (!allowedTables.has(table) || !allowedColumns.has(column)) continue;
       try {
         await db.execute(sql`
           DROP TRIGGER IF EXISTS normalize_email_trigger ON ${sql.raw(table)};
@@ -1299,9 +1302,12 @@ export async function ensureDatabaseConstraints() {
         { table: 'trackman_webhook_events', constraint: 'trackman_webhook_events_matched_booking_id_fkey' },
         { table: 'trackman_webhook_events', constraint: 'trackman_webhook_events_matched_booking_id_booking_requests_id_' },
       ];
+      const allowedFKTables = new Set(legacyFKNames.map(f => f.table));
+      const allowedFKConstraints = new Set(legacyFKNames.map(f => f.constraint));
       for (const fk of legacyFKNames) {
+        if (!allowedFKTables.has(fk.table) || !allowedFKConstraints.has(fk.constraint)) continue;
         try {
-          await db.execute(sql.raw(`ALTER TABLE ${fk.table} DROP CONSTRAINT IF EXISTS ${fk.constraint}`));
+          await db.execute(sql`ALTER TABLE ${sql.raw(fk.table)} DROP CONSTRAINT IF EXISTS ${sql.raw(fk.constraint)}`);
         } catch (err: unknown) {
           logger.warn(`[DB Init] Could not drop legacy ${fk.constraint}: ${getErrorMessage(err)}`);
         }
@@ -1421,15 +1427,18 @@ export async function ensureDatabaseConstraints() {
         { table: 'member_notes', col: 'member_email' },
       ];
 
+      const allowedEmailTables = new Set(emailTables.map(t => t.table));
+      const allowedEmailCols = new Set(emailTables.map(t => t.col));
       for (const { table, col } of emailTables) {
+        if (!allowedEmailTables.has(table) || !allowedEmailCols.has(col)) continue;
         const triggerName = `trg_validate_email_${table}`;
-        await db.execute(sql.raw(`
-          DROP TRIGGER IF EXISTS ${triggerName} ON ${table};
-          CREATE TRIGGER ${triggerName}
-          BEFORE INSERT OR UPDATE OF ${col} ON ${table}
+        await db.execute(sql`
+          DROP TRIGGER IF EXISTS ${sql.raw(triggerName)} ON ${sql.raw(table)};
+          CREATE TRIGGER ${sql.raw(triggerName)}
+          BEFORE INSERT OR UPDATE OF ${sql.raw(col)} ON ${sql.raw(table)}
           FOR EACH ROW
           EXECUTE FUNCTION validate_email_exists_in_users();
-        `));
+        `);
       }
 
       logger.info('[DB Init] Email validation triggers created on 6 dependent tables (prevents orphan inserts)');

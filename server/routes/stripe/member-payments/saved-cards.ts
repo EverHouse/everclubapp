@@ -275,7 +275,7 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
       });
 
       logger.info('[MemberPayments] Member paid with saved card', {
-        extra: { bookingId, memberEmail: sessionEmail, totalCents, cardLast4: selectedMethod.last4, invoiceId: invoiceResult.invoiceId }
+        extra: { bookingId, totalCents, invoiceId: invoiceResult.invoiceId }
       });
 
       return res.json({

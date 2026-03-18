@@ -291,7 +291,7 @@ router.post('/api/member/invoices/:invoiceId/pay-saved-card', isAuthenticated, p
       });
 
       logger.info('[MemberPayments] Member paid invoice with saved card', {
-        extra: { invoiceId, memberEmail: sessionEmail, amountCents: amountDue, cardLast4: selectedMethod.last4 }
+        extra: { invoiceId, amountCents: amountDue }
       });
 
       return res.json({

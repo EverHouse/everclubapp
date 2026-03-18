@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.73",
+    date: "2026-03-18",
+    title: "Security Hardening: SQL Injection Prevention & Privacy",
+    changes: [
+      "Fixed: Replaced 7 unsafe sql.raw(ARRAY[...]) patterns with parameterized queries across Trackman webhook handlers, rescan, and Stripe reconciliation — eliminates SQL injection surface",
+      "Fixed: Added allowlist validation guards on all DDL sql.raw() calls in database init — table/column/constraint names verified against hardcoded sets before use",
+      "Fixed: Removed member email and card last-4 digits from server log output in payment routes — prevents PII/PCI data exposure in logs",
+      "Fixed: Added shlex escaping and command allowlists to Python diagnostic scripts — prevents potential command injection in agent skill utilities",
+    ]
+  },
+  {
     version: "8.87.72",
     date: "2026-03-18",
     title: "Fix: Database Connection Stability on Supabase",
