@@ -204,6 +204,19 @@ export async function runStartupTasks(): Promise<void> {
     })(),
     (async () => {
       try {
+        await db.execute(sql`
+          INSERT INTO system_settings (key, value, category, updated_at, updated_by)
+          VALUES ('current_waiver_version', '2.0', 'waivers', NOW(), 'system')
+          ON CONFLICT (key) DO UPDATE SET value = '2.0', updated_at = NOW()
+          WHERE CAST(system_settings.value AS numeric) < 2.0
+        `);
+        logger.info('[Startup] Membership agreement version ensured at 2.0');
+      } catch (err: unknown) {
+        logger.warn('[Startup] Membership agreement version upsert failed (non-critical)', { error: err instanceof Error ? err : new Error(String(err)) });
+      }
+    })(),
+    (async () => {
+      try {
         await createStripeTransactionCache();
       } catch (err: unknown) {
         logger.error('[Startup] Creating stripe transaction cache failed', { error: err instanceof Error ? err : new Error(String(err)) });

@@ -41,7 +41,7 @@ export function useProfileData() {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showWaiverModal, setShowWaiverModal] = useState(false);
-  const [currentWaiverVersion, setCurrentWaiverVersion] = useState<string>('1.0');
+  const [currentWaiverVersion, setCurrentWaiverVersion] = useState<string>('2.0');
   const [editingProfile, setEditingProfile] = useState(false);
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
@@ -97,7 +97,7 @@ export function useProfileData() {
 
   useEffect(() => {
     if (waiverStatus?.needsWaiverUpdate) {
-      setCurrentWaiverVersion(waiverStatus.currentVersion || '1.0');
+      setCurrentWaiverVersion(waiverStatus.currentVersion || '2.0');
     }
   }, [waiverStatus]);
 
