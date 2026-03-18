@@ -4,6 +4,24 @@ import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import viteCompression from 'vite-plugin-compression';
 
+function cssPreloadPlugin(): Plugin {
+  return {
+    name: 'css-preload',
+    enforce: 'post',
+    transformIndexHtml(html) {
+      const cssMatch = html.match(/<link rel="stylesheet"[^>]*href="(\/assets\/[^"]+\.css)"[^>]*>/);
+      if (cssMatch) {
+        const cssPath = cssMatch[1];
+        return html.replace(
+          cssMatch[0],
+          `<link rel="preload" href="${cssPath}" as="style" />\n    ${cssMatch[0]}`
+        );
+      }
+      return html;
+    }
+  };
+}
+
 function generateBuildVersion(): Plugin {
   const buildVersion = Date.now().toString();
   return {
@@ -91,6 +109,7 @@ export default defineConfig({
   plugins: [
     react(),
     generateBuildVersion(),
+    cssPreloadPlugin(),
     viteCompression({
       algorithm: 'gzip',
       ext: '.gz',
