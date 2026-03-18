@@ -1704,7 +1704,7 @@ export async function setupInstantDataTriggers(): Promise<void> {
       BEGIN
         IF NEW.is_active = true THEN
           UPDATE public.users
-          SET role = NEW.role, tier = 'VIP', tier_id = (SELECT id FROM membership_tiers WHERE LOWER(name) = 'vip' LIMIT 1), membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, updated_at = NOW()
+          SET role = NEW.role, tier = 'VIP', tier_id = (SELECT id FROM public.membership_tiers WHERE LOWER(name) = 'vip' LIMIT 1), membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, updated_at = NOW()
           WHERE LOWER(email) = LOWER(NEW.email)
             AND role NOT IN ('admin', 'staff', 'golf_instructor');
         END IF;
