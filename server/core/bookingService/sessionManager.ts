@@ -256,10 +256,14 @@ export async function ensureSessionForBooking(params: {
 
     if (reusedStaleSession) {
       await lockClient.query(
+        `DELETE FROM usage_ledger WHERE session_id = $1`,
+        [sessionId]
+      );
+      await lockClient.query(
         `DELETE FROM booking_participants WHERE session_id = $1`,
         [sessionId]
       );
-      logger.info('[SessionManager] Cleared stale participants from reused session (all prior bookings cancelled)', {
+      logger.info('[SessionManager] Cleared stale usage ledger and participants from reused session (all prior bookings cancelled)', {
         extra: { sessionId, newOwnerEmail: params.ownerEmail }
       });
     }

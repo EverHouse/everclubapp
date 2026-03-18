@@ -652,6 +652,25 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
         logger.warn('[Terminal] Could not mark $0 invoice as paid (may already be paid)', { extra: { error: getErrorMessage(payErr) } });
       }
       await db.execute(sql`UPDATE users SET membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = ${Number(userId)}`);
+
+      try {
+        const { users } = await import('../../../shared/schema');
+        const { eq } = await import('drizzle-orm');
+        const [activatedUser] = await db.select().from(users).where(eq(users.id, Number(userId)));
+        if (activatedUser) {
+          const { syncMemberToHubSpot } = await import('../../core/hubspot/stages');
+          await syncMemberToHubSpot({
+            email: activatedUser.email as string,
+            status: 'active',
+            tier: activatedUser.tier || undefined,
+            billingProvider: activatedUser.billingProvider || undefined,
+            billingGroupRole: 'Primary',
+          });
+        }
+      } catch (hubspotError: unknown) {
+        logger.error('[Terminal] HubSpot sync error for $0 activation (non-blocking)', { extra: { error: getErrorMessage(hubspotError) } });
+      }
+
       return res.json({ 
         success: true,
         freeActivation: true,
