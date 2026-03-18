@@ -10,10 +10,12 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.87.62",
     date: "2026-03-18",
-    title: "Dev Environment Stability & Database Sync",
+    title: "Dev Environment Stability & Complete Database Schema Sync",
     changes: [
       "Fixed: Development environment now connects reliably to the database with zero startup errors",
-      "Fixed: All missing database tables and columns synchronized — login, rate limiting, and staff portal now work correctly in dev",
+      "Fixed: Comprehensive Drizzle-to-database schema audit — all 7 missing tables created (job_queue, background_jobs, wallet_pass_auth_tokens, wallet_pass_device_registrations, trackman_bay_slots, account_deletion_requests, data_export_requests)",
+      "Fixed: All 36 missing columns added across 11 existing tables (events, billing_groups, group_members, stripe_payment_intents, trackman_webhook_events, day_pass_purchases, usage_ledger, form_submissions, notice_types, wellness_classes, trackman_unmatched_bookings)",
+      "Fixed: Login, rate limiting, staff portal, and all major API endpoints now work correctly in dev",
       "Improved: Stripe initialization completes cleanly with all products and pricing ready",
     ]
   },
