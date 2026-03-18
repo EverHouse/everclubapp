@@ -4,7 +4,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { getStripeClient } from './client';
 import { createHash } from 'crypto';
 import { getCorporateVolumeTiers, getCorporateBasePrice, getFamilyDiscountPercent, updateFamilyDiscountPercent } from '../billing/pricingConfig';
-import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
+import { getErrorMessage, getErrorCode, isStripeResourceMissing } from '../../utils/errorUtils';
 
 import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { logger } from '../logger';
@@ -68,7 +68,7 @@ export async function getOrCreateFamilyCoupon(): Promise<string> {
       logger.info(`[GroupBilling] Found existing FAMILY20 coupon: ${existingCoupon.id}`);
       return existingCoupon.id;
     } catch (retrieveError: unknown) {
-      if (getErrorCode(retrieveError) === 'resource_missing') {
+      if (isStripeResourceMissing(retrieveError)) {
         const newCoupon = await stripe.coupons.create({
           id: FAMILY_COUPON_ID,
           percent_off: getFamilyDiscountPercent(),

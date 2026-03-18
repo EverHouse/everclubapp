@@ -373,7 +373,10 @@ export async function syncTierToHubSpot(params: {
         hubspot.crm.contacts.basicApi.update(hubspotContactId, { properties })
       );
     } catch (updateError: unknown) {
-      const errBody = updateError && typeof updateError === 'object' && 'body' in updateError ? (updateError as { body: { errors?: Array<{ code: string; context?: { propertyName?: string[] } }> } }).body : undefined;
+      const rawError = (updateError && typeof updateError === 'object' && 'originalError' in updateError)
+        ? (updateError as { originalError: unknown }).originalError
+        : updateError;
+      const errBody = rawError && typeof rawError === 'object' && 'body' in rawError ? (rawError as { body: { errors?: Array<{ code: string; context?: { propertyName?: string[] } }> } }).body : undefined;
       if (errBody?.errors?.some((e) => e.code === 'PROPERTY_DOESNT_EXIST')) {
         const invalidProps = errBody.errors
           .filter((e) => e.code === 'PROPERTY_DOESNT_EXIST')

@@ -1,7 +1,7 @@
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { getStripeClient } from './client';
-import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
+import { getErrorMessage, getErrorCode, isStripeResourceMissing } from '../../utils/errorUtils';
 
 import { logger } from '../logger';
 export interface CustomerSyncResult {
@@ -71,7 +71,7 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
         });
         
       } catch (error: unknown) {
-        if (getErrorCode(error) === 'resource_missing' || getErrorMessage(error).includes('No such customer')) {
+        if (isStripeResourceMissing(error)) {
           logger.warn(`[Stripe Customer Sync] Customer ${member.stripe_customer_id} for "${member.email}" not found in Stripe — NOT auto-clearing (use Data Integrity tools to review)`);
           result.staleFound++;
           result.details.push({

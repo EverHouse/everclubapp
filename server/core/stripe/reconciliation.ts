@@ -3,7 +3,7 @@ import { sql } from 'drizzle-orm';
 import { getStripeClient } from './client';
 import { confirmPaymentSuccess } from './payments';
 import Stripe from 'stripe';
-import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
+import { getErrorMessage, getErrorCode, isStripeResourceMissing } from '../../utils/errorUtils';
 
 import { logger } from '../logger';
 import { sendPassUpdateForMemberByEmail } from '../../walletPass/apnPushService';
@@ -106,7 +106,7 @@ export async function reconcileSubscriptions() {
           mismatches++;
         }
       } catch (err: unknown) {
-        if (getErrorCode(err) !== 'resource_missing') {
+        if (!isStripeResourceMissing(err)) {
           logger.error(`[Reconcile] Error checking subscription for ${member.email}:`, { extra: { detail: getErrorMessage(err) } });
         }
       }

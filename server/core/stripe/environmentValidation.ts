@@ -3,7 +3,7 @@ import { getStripeClient, getStripeEnvironmentInfo } from './client';
 import { upsertTransactionCache } from './webhooks';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
-import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
+import { getErrorMessage, getErrorCode, isStripeResourceMissing } from '../../utils/errorUtils';
 
 import { logger } from '../logger';
 
@@ -92,7 +92,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
           try {
             await stripe.products.retrieve(tier.stripe_product_id as string);
           } catch (error: unknown) {
-            if (getErrorCode(error) === 'resource_missing') {
+            if (isStripeResourceMissing(error)) {
               staleTiers.push({ id: tier.id, name: tier.name, stripe_product_id: tier.stripe_product_id, product_type: tier.product_type });
             } else {
               throw error;
@@ -140,7 +140,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
           try {
             await stripe.products.retrieve(item.stripe_product_id as string);
           } catch (error: unknown) {
-            if (getErrorCode(error) === 'resource_missing') {
+            if (isStripeResourceMissing(error)) {
               staleCafeItems.push({ id: item.id, name: item.name });
             } else {
               throw error;
@@ -185,7 +185,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
           try {
             await stripe.subscriptions.retrieve(user.stripe_subscription_id as string);
           } catch (error: unknown) {
-            if (getErrorCode(error) === 'resource_missing') {
+            if (isStripeResourceMissing(error)) {
               staleSubs.push({ id: user.id, email: user.email, stripe_subscription_id: user.stripe_subscription_id });
             } else {
               throw error;

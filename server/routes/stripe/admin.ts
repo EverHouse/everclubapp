@@ -21,7 +21,7 @@ import { getBillingClassificationSummary, getMembersNeedingStripeMigration } fro
 import { escapeHtml, checkSyncCooldown } from './helpers';
 import { sensitiveActionRateLimiter, checkoutRateLimiter } from '../../middleware/rateLimiting';
 import { logFromRequest } from '../../core/auditLog';
-import { getErrorMessage, getErrorCode, safeErrorDetail } from '../../utils/errorUtils';
+import { getErrorMessage, getErrorCode, safeErrorDetail, isStripeResourceMissing } from '../../utils/errorUtils';
 import { getAppBaseUrl } from '../../utils/urlUtils';
 
 interface MemberSyncRow {
@@ -698,7 +698,7 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
             }
             synced++;
           } catch (err: unknown) {
-            if (getErrorCode(err) === 'resource_missing') {
+            if (isStripeResourceMissing(err)) {
               await db.execute(sql`UPDATE users SET stripe_subscription_id = NULL, updated_at = NOW() WHERE id = ${member.id}`);
               updated++;
               details.push({ email: String(member.email), action: 'cleared', changes: ['subscription not found in Stripe — cleared'] });

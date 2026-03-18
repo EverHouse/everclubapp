@@ -2,7 +2,7 @@ import { db } from '../../db';
 import { discountRules } from '../../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { getStripeClient } from './client';
-import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
+import { getErrorMessage, getErrorCode, isStripeResourceMissing } from '../../utils/errorUtils';
 
 import { logger } from '../logger';
 export interface DiscountSyncResult {
@@ -84,7 +84,7 @@ export async function syncDiscountRulesToStripeCoupons(): Promise<{
             skipped++;
           }
         } catch (retrieveError: unknown) {
-          if (getErrorCode(retrieveError) === 'resource_missing') {
+          if (isStripeResourceMissing(retrieveError)) {
             await stripe.coupons.create({
               id: couponId,
               percent_off: rule.discountPercent,
@@ -181,7 +181,7 @@ export async function findOrCreateCoupon(discountTag: string, discountPercent: n
       await stripe.coupons.retrieve(couponId);
       return couponId;
     } catch (error: unknown) {
-      if (getErrorCode(error) === 'resource_missing') {
+      if (isStripeResourceMissing(error)) {
         await stripe.coupons.create({
           id: couponId,
           percent_off: discountPercent,

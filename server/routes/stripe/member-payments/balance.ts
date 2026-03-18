@@ -247,12 +247,12 @@ router.get('/api/member/balance', isAuthenticated, validateQuery(balanceQuerySch
 
         if (allCacheUpdates.length > 0) {
           try {
-            const ids = allCacheUpdates.map(u => u.id);
-            const cents = allCacheUpdates.map(u => u.cents);
+            const idsLiteral = toIntArrayLiteral(allCacheUpdates.map(u => u.id));
+            const centsLiteral = toIntArrayLiteral(allCacheUpdates.map(u => u.cents));
             await db.execute(sql`
               UPDATE booking_participants bp
                SET cached_fee_cents = updates.cents
-               FROM (SELECT UNNEST(${toIntArrayLiteral(ids)}::int[]) as id, UNNEST(${toIntArrayLiteral(cents)}::int[]) as cents) as updates
+               FROM unnest(${idsLiteral}::int[], ${centsLiteral}::int[]) AS updates(id, cents)
                WHERE bp.id = updates.id
             `);
           } catch (cacheErr: unknown) {

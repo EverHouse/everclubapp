@@ -1,7 +1,7 @@
 import { logger } from '../../core/logger';
 import { Router, Request, Response } from 'express';
 import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
-import { getErrorCode } from '../../utils/errorUtils';
+import { getErrorCode, isStripeResourceMissing } from '../../utils/errorUtils';
 import { logFromRequest } from '../../core/auditLog';
 import { createHash } from 'crypto';
 
@@ -175,7 +175,7 @@ router.put('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Respons
     });
   } catch (error: unknown) {
     logger.error('[Stripe] Error updating coupon', { error: error instanceof Error ? error : new Error(String(error)) });
-    if (getErrorCode(error) === 'resource_missing') {
+    if (isStripeResourceMissing(error)) {
       return res.status(404).json({ error: 'Coupon not found.' });
     }
     res.status(500).json({ error: 'Failed to update coupon' });
@@ -201,7 +201,7 @@ router.delete('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Resp
     res.json({ success: true });
   } catch (error: unknown) {
     logger.error('[Stripe] Error deleting coupon', { error: error instanceof Error ? error : new Error(String(error)) });
-    if (getErrorCode(error) === 'resource_missing') {
+    if (isStripeResourceMissing(error)) {
       return res.status(404).json({ error: 'Coupon not found.' });
     }
     res.status(500).json({ error: 'Failed to delete coupon' });

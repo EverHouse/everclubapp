@@ -9,7 +9,7 @@ import { retryableHubSpotRequest } from '../../core/hubspot/request';
 import { logFromRequest, logBillingAudit } from '../../core/auditLog';
 import { getSessionUser } from '../../types/session';
 import { broadcastToStaff } from '../../core/websocket';
-import { getErrorMessage, getErrorCode, getErrorStatusCode, safeErrorDetail } from '../../utils/errorUtils';
+import { getErrorMessage, getErrorCode, getErrorStatusCode, safeErrorDetail, isStripeResourceMissing } from '../../utils/errorUtils';
 import Stripe from 'stripe';
 
 interface DbUserRow {
@@ -289,9 +289,7 @@ router.post('/api/data-tools/clear-orphaned-stripe-ids', isAdmin, async (req: Re
           try {
             await stripe.customers.retrieve(customerId);
           } catch (err: unknown) {
-            const isNotFound = getErrorCode(err) === 'resource_missing' || 
-              getErrorStatusCode(err) === 404 || 
-              getErrorMessage(err)?.includes('No such customer');
+            const isNotFound = isStripeResourceMissing(err);
             
             if (isNotFound) {
               const userName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';

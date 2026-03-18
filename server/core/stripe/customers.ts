@@ -3,7 +3,7 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { getStripeClient } from './client';
 import { alertOnExternalServiceError } from '../errorAlerts';
-import { getErrorMessage, getErrorCode, isStripeError } from '../../utils/errorUtils';
+import { getErrorMessage, getErrorCode, isStripeError, isStripeResourceMissing } from '../../utils/errorUtils';
 
 import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { logger } from '../logger';
@@ -224,7 +224,7 @@ export async function getOrCreateStripeCustomer(
         return { customerId: existingCustomerId, isNew: false };
       }
     } catch (validationError: unknown) {
-      if (getErrorCode(validationError) === 'resource_missing') {
+      if (isStripeResourceMissing(validationError)) {
         logger.warn(`[Stripe] Stored customer ${existingCustomerId} no longer exists in Stripe for user ${userId}, clearing and re-creating`);
         await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE id = ${userId}`);
       } else {
@@ -264,7 +264,7 @@ export async function getOrCreateStripeCustomer(
       
       return { customerId: existingCustomerId, isNew: false };
     } catch (validationError: unknown) {
-      if (getErrorCode(validationError) === 'resource_missing') {
+      if (isStripeResourceMissing(validationError)) {
         logger.warn(`[Stripe] Stale linked customer ${existingCustomerId} for ${email} — clearing and creating new`);
         await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE stripe_customer_id = ${existingCustomerId}`);
       } else {

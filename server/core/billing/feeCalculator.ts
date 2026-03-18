@@ -99,13 +99,12 @@ export async function calculateAndCacheParticipantFees(
       if (feesToUpdate.length > 0) {
         const ids = feesToUpdate.map(f => f.id);
         const cents = feesToUpdate.map(f => f.cents);
+        const idsLiteral = toIntArrayLiteral(ids);
+        const centsLiteral = toIntArrayLiteral(cents);
         await tx.execute(
           sql`UPDATE booking_participants bp
            SET cached_fee_cents = updates.cents
-           FROM (
-             SELECT UNNEST(${toIntArrayLiteral(ids)}::int[]) as id, 
-                    UNNEST(${toIntArrayLiteral(cents)}::int[]) as cents
-           ) as updates
+           FROM unnest(${idsLiteral}::int[], ${centsLiteral}::int[]) AS updates(id, cents)
            WHERE bp.id = updates.id`
         );
       }

@@ -770,7 +770,7 @@ router.post('/api/data-integrity/fix/bulk-reconnect-stripe', isAdmin, validateBo
       customerOnlyCount: customerOnly.length,
       failedCount: failed.length,
       performedBy: staffEmail,
-      userIds
+      userIds: userIds.join(',')
     });
 
     res.json({

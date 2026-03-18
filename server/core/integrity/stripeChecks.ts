@@ -1,7 +1,7 @@
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import Stripe from 'stripe';
-import { getErrorMessage, getErrorCode, isStripeError } from '../../utils/errorUtils';
+import { getErrorMessage, getErrorCode, isStripeError, isStripeResourceMissing } from '../../utils/errorUtils';
 import { logger } from '../logger';
 import { isProduction } from '../db';
 import { getStripeClient } from '../stripe/client';
@@ -205,7 +205,7 @@ export async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResul
       }
     } catch (err: unknown) {
       const isCustomerNotFound = isStripeError(err) &&
-        (getErrorCode(err) === 'resource_missing' || getErrorMessage(err)?.includes('No such customer'));
+        isStripeResourceMissing(err);
 
       if (isCustomerNotFound) {
         issues.push({

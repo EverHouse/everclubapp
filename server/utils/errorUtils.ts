@@ -18,6 +18,14 @@ export function getErrorCode(error: unknown): string | undefined {
   return undefined;
 }
 
+export function isStripeResourceMissing(error: unknown): boolean {
+  if (getErrorCode(error) === 'resource_missing') return true;
+  const statusCode = getErrorStatusCode(error);
+  const message = getErrorMessage(error);
+  if (statusCode === 404 && /No such (customer|subscription|invoice|charge|payment_intent|product|price|plan|coupon|promotion_code|tax_rate|setup_intent)/i.test(message)) return true;
+  return false;
+}
+
 export function getErrorStatusCode(error: unknown): number | undefined {
   if (hasProperty(error, 'statusCode')) return Number(error.statusCode);
   if (hasProperty(error, 'status')) return Number(error.status);

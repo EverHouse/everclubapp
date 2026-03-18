@@ -1,7 +1,7 @@
 import { schedulerTracker } from '../core/schedulerTracker';
 import { queryWithRetry } from '../core/db';
 import { getStripeClient } from '../core/stripe/client';
-import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
+import { getErrorMessage, getErrorCode, isStripeResourceMissing } from '../utils/errorUtils';
 import { logger } from '../core/logger';
 
 async function cleanupPendingUsers(): Promise<void> {
@@ -55,7 +55,7 @@ async function cleanupPendingUsers(): Promise<void> {
             schedulerTracker.recordRun('Pending User Cleanup', true);
             stripeCleanedUp++;
           } catch (stripeErr: unknown) {
-            if (getErrorCode(stripeErr) === 'resource_missing') {
+            if (isStripeResourceMissing(stripeErr)) {
               logger.info(`[Pending User Cleanup] Stripe customer ${user.stripe_customer_id} already deleted for ${user.email}, proceeding with DB cleanup`);
             } else {
               stripeCleanupFailed = true;

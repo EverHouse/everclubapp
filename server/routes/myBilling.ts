@@ -14,7 +14,7 @@ import { listCustomerSubscriptions } from '../core/stripe/subscriptions';
 import { getBillingGroupByMemberEmail } from '../core/stripe/groupBilling';
 import { listCustomerInvoices } from '../core/stripe/invoices';
 import { notifyAllStaff } from '../core/notificationService';
-import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
+import { getErrorMessage, getErrorCode, isStripeResourceMissing } from '../utils/errorUtils';
 import { getAppBaseUrl } from '../utils/urlUtils';
 import { formatDatePacific } from '../utils/dateUtils';
 import { isStaffOrAdmin } from '../replit_integrations/auth';
@@ -423,7 +423,7 @@ router.get('/api/my/balance', requireAuth, async (req, res) => {
     try {
       customer = await stripe.customers.retrieve(stripeCustomerId);
     } catch (stripeErr: unknown) {
-      if (getErrorCode(stripeErr) === 'resource_missing') {
+      if (isStripeResourceMissing(stripeErr)) {
         logger.warn(`[MyBilling] Stale Stripe customer ${stripeCustomerId} for ${email}, clearing`);
         await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${email.toLowerCase()}`);
         return res.json({ balanceCents: 0, balanceDollars: 0 });
@@ -545,7 +545,7 @@ router.get('/api/my-billing/account-balance', requireAuth, validateQuery(billing
     try {
       customer = await stripe.customers.retrieve(stripeCustomerId);
     } catch (stripeErr: unknown) {
-      if (getErrorCode(stripeErr) === 'resource_missing') {
+      if (isStripeResourceMissing(stripeErr)) {
         logger.warn(`[MyBilling] Stale Stripe customer ${stripeCustomerId} for ${targetEmail}, clearing`);
         await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${targetEmail.toLowerCase()}`);
         return res.json({ balanceCents: 0, balanceDollars: 0 });

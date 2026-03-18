@@ -3,7 +3,7 @@ import { pool, safeRelease } from '../core/db';
 import type { PoolClient } from 'pg';
 import { getStripeClient, cancelPaymentIntent } from '../core/stripe';
 import { PaymentStatusService } from '../core/billing/PaymentStatusService';
-import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
+import { getErrorMessage, getErrorCode, isStripeResourceMissing } from '../utils/errorUtils';
 import { logger } from '../core/logger';
 
 const RECONCILIATION_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
@@ -99,7 +99,7 @@ async function reconcilePendingSnapshots(): Promise<{ synced: number; errors: nu
         }
         
       } catch (err: unknown) {
-        if (getErrorCode(err) === 'resource_missing') {
+        if (isStripeResourceMissing(err)) {
           const updateClient = await connectWithTimeout();
           try {
             await updateClient.query(
@@ -432,7 +432,7 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
               reconciled++;
             }
           } catch (stripeErr: unknown) {
-            if (getErrorCode(stripeErr) === 'resource_missing') {
+            if (isStripeResourceMissing(stripeErr)) {
               const updateClient = await connectWithTimeout();
               try {
                 await updateClient.query(
