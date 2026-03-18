@@ -394,7 +394,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
       if (isCancelledStatus) {
         if (isBlockedBayOption && resourceId && v2Result.normalized.parsedDate && v2Result.normalized.parsedStartTime) {
           const endTime = v2Result.normalized.parsedEndTime || v2Result.normalized.parsedStartTime;
-          await db.delete(availabilityBlocks).where(
+          const deletedRows = await db.delete(availabilityBlocks).where(
             and(
               eq(availabilityBlocks.resourceId, resourceId),
               eq(availabilityBlocks.blockDate, v2Result.normalized.parsedDate),
@@ -402,7 +402,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
               eq(availabilityBlocks.endTime, endTime),
               eq(availabilityBlocks.createdBy, 'trackman_webhook'),
             )
-          );
+          ).returning({ id: availabilityBlocks.id });
           eventType = 'booking.block_cancelled';
           logger.info('[Trackman Webhook] V2: Removed availability block from Trackman block cancellation', {
             extra: {
@@ -411,14 +411,17 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
               blockDate: v2Result.normalized.parsedDate,
               startTime: v2Result.normalized.parsedStartTime,
               endTime,
+              rowsDeleted: deletedRows.length,
             }
           });
-          await notifyAllStaff(
-            'Bay Block Removed (Trackman)',
-            `Bay ${resourceId} block removed for ${v2Result.normalized.parsedDate} ${v2Result.normalized.parsedStartTime}–${endTime}`,
-            'trackman_booking',
-            { relatedId: v2Result.normalized.trackmanBookingId || undefined }
-          ).catch(err => logger.warn('[Trackman Webhook] Failed to notify staff of block removal', { extra: { error: String(err) } }));
+          if (deletedRows.length > 0) {
+            await notifyAllStaff(
+              'Bay Block Removed (Trackman)',
+              `Bay ${resourceId} block removed for ${v2Result.normalized.parsedDate} ${v2Result.normalized.parsedStartTime}–${endTime}`,
+              'trackman_booking',
+              {}
+            ).catch(err => logger.warn('[Trackman Webhook] Failed to notify staff of block removal', { extra: { error: String(err) } }));
+          }
         } else {
           const cancelResult = await cancelBookingByTrackmanId(v2Result.normalized.trackmanBookingId!);
           if (cancelResult.cancelled) {
@@ -475,7 +478,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
               'Bay Blocked (Trackman)',
               `Bay ${resourceId} blocked for ${blockDate} ${startTime}–${endTime}`,
               'trackman_booking',
-              { relatedId: v2Result.normalized.trackmanBookingId || undefined }
+              {}
             ).catch(err => logger.warn('[Trackman Webhook] Failed to notify staff of block creation', { extra: { error: String(err) } }));
           }
         } else {
