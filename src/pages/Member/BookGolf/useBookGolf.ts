@@ -79,6 +79,7 @@ export function useBookGolf() {
   const baySelectionRef = useRef<HTMLDivElement>(null);
   const requestButtonRef = useRef<HTMLDivElement>(null);
   const isFirstRenderRef = useRef(true);
+  const isFirstTabRenderRef = useRef(true);
   const prevDateRef = useRef<string | null>(null);
   const prevDurationRef = useRef<number | null>(null);
 
@@ -114,6 +115,16 @@ export function useBookGolf() {
       setSelectedDateObj(dates[0]);
     }
   }, [dates, selectedDateObj]);
+
+  useEffect(() => {
+    if (isFirstTabRenderRef.current) { isFirstTabRenderRef.current = false; return; }
+    setSelectedDateObj(dates.length > 0 ? dates[0] : null);
+    setDuration(60);
+    setPlayerCount(1);
+    setSelectedSlot(null);
+    setSelectedResource(null);
+    setHasUserSelectedDuration(false);
+  }, [activeTab]);
 
   const resourceType = activeTab === 'simulator' ? 'simulator' : 'conference_room';
   const { data: resources = [], isLoading: resourcesLoading, error: resourcesError } = useQuery({
