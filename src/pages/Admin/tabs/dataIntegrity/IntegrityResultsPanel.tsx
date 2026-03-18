@@ -237,6 +237,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
     const totalBatches = chunks.length;
     const errors: string[] = [];
     let successCount = 0;
+    let lastResponseMessage = '';
 
     setIsBulkActionRunning(true);
     try {
@@ -247,23 +248,48 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
           showToast(`Processing batch ${batchNum} of ${totalBatches}...`, 'info');
         }
         try {
-          await postWithCredentials<{ success: boolean; message: string }>(endpoint, {
+          const response = await postWithCredentials<{ success: boolean; message: string; summary?: { reconnected?: number; customerOnly?: number; failed?: number; total?: number }; results?: Array<{ userId: string; success: boolean; message: string }> }>(endpoint, {
             userIds: chunks[i],
             ...extraBody,
           });
-          successCount += chunks[i].length;
+          lastResponseMessage = response.message || '';
+          if (response.summary && typeof response.summary.reconnected === 'number') {
+            successCount += response.summary.reconnected;
+            const failedCount = (response.summary.customerOnly || 0) + (response.summary.failed || 0);
+            if (failedCount > 0) {
+              const failedResults = response.results?.filter(r => !r.success) || [];
+              if (failedResults.length > 0) {
+                for (const r of failedResults) {
+                  errors.push(r.message);
+                }
+              } else {
+                errors.push(`${failedCount} member(s) could not be reconnected`);
+              }
+            }
+          } else if (response.results && Array.isArray(response.results)) {
+            const succeeded = response.results.filter(r => r.success);
+            const failed = response.results.filter(r => !r.success);
+            successCount += succeeded.length;
+            for (const r of failed) {
+              errors.push(r.message);
+            }
+          } else {
+            successCount += chunks[i].length;
+          }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           errors.push(`Batch ${batchNum}: ${msg}`);
         }
       }
 
-      if (errors.length === 0) {
-        showToast(`${actionLabel} completed — ${successCount} user(s) processed`, 'success');
-      } else if (successCount > 0) {
-        showToast(`${actionLabel} partially completed — ${successCount} succeeded, ${errors.length} batch(es) failed: ${errors.join('; ')}`, 'warning');
+      if (errors.length === 0 && successCount > 0) {
+        showToast(lastResponseMessage || `${actionLabel} completed — ${successCount} user(s) processed`, 'success');
+      } else if (successCount > 0 && errors.length > 0) {
+        showToast(`${actionLabel}: ${successCount} reconnected, ${errors.length} failed. ${errors.slice(0, 3).join('; ')}`, 'warning');
+      } else if (errors.length > 0) {
+        showToast(`${actionLabel} failed — ${errors.slice(0, 3).join('; ')}`, 'error');
       } else {
-        showToast(`${actionLabel} failed — ${errors.join('; ')}`, 'error');
+        showToast(lastResponseMessage || `${actionLabel} completed — no members required changes`, 'info');
       }
 
       queryClient.invalidateQueries({ queryKey: ['data-integrity', 'cached'] });

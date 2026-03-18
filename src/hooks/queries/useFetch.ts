@@ -24,7 +24,7 @@ export async function fetchWithCredentials<T>(url: string, options?: RequestInit
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new ApiError(
-      errorData.error || `Request failed with status ${response.status}`,
+      errorData.error || errorData.message || `Request failed with status ${response.status}`,
       response.status,
       errorData
     );
