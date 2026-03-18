@@ -38,8 +38,6 @@ HUBSPOT_PORTAL_ID = "244200670"
 VAPID_PUBLIC_KEY = "BG-oXwIn5dHb93Y6SuyOpkHm7Qu2La9ge5pwQFAx98WRllqI6-zg-n3A5CURITIR_wA6sIo8zEaBVwGhLz3CCFw"
 SUPABASE_URL = "https://lenzghtdaoxwhnyzprxc.supabase.co"
 ENABLE_CORPORATE_BILLING = "true"
-SUPABASE_DB_SCHEMA = "public"
-ENABLE_PGBOUNCER = "false"
 APPLE_SERVICE_ID = "members.everclub.signin"
 VITE_APPLE_CLIENT_ID = "members.everclub.signin"
 
