@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.67",
+    date: "2026-03-18",
+    title: "Accessibility: Facebook Pixel Alt Text & Thin Content Investigation",
+    changes: [
+      "Fixed: Added empty alt attribute to Facebook pixel noscript tracker image (decorative image per WCAG guidelines)",
+      "Investigated: Thin content warnings on all 15 pages confirmed as false positives — SPA renders content client-side; the HTML shell seen by the static crawler contains only noscript fallback and SEO nav, not the full rendered page",
+    ]
+  },
+  {
     version: "8.87.66",
     date: "2026-03-18",
     title: "Security: Tightened Content Security Policy (CSP) Headers",
