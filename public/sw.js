@@ -57,11 +57,39 @@ self.addEventListener('message', function(event) {
   }
 });
 
+var FONT_CACHE = 'google-fonts-v1';
+
 self.addEventListener('fetch', function(event) {
   var request = event.request;
   var url = new URL(request.url);
 
   if (request.method !== 'GET') return;
+
+  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+    event.respondWith(
+      caches.open(FONT_CACHE).then(function(cache) {
+        return cache.match(request).then(function(cachedResponse) {
+          if (cachedResponse) {
+            fetch(request).then(function(networkResponse) {
+              if (networkResponse.ok) {
+                cache.put(request, networkResponse);
+              }
+            }).catch(function() {});
+            return cachedResponse;
+          }
+          return fetch(request).then(function(networkResponse) {
+            if (networkResponse.ok) {
+              cache.put(request, networkResponse.clone());
+            }
+            return networkResponse;
+          }).catch(function() {
+            return new Response('', { status: 503 });
+          });
+        });
+      })
+    );
+    return;
+  }
 
   if (url.pathname.startsWith('/api/')) {
     if (CACHEABLE_API_ENDPOINTS.some(function(ep) { return url.pathname.includes(ep); })) {
