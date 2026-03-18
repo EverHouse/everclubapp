@@ -32,6 +32,7 @@ async function autoCompletePastBookings(): Promise<void> {
        FROM booking_requests br
        WHERE br.status IN ('approved', 'confirmed')
          AND br.request_date < $1::date
+         AND br.request_date >= $1::date - INTERVAL '3 days'
          AND br.session_id IS NOT NULL
          AND EXISTS (
            SELECT 1 FROM booking_participants bp
@@ -80,6 +81,7 @@ async function autoCompletePastBookings(): Promise<void> {
            reviewed_by = 'system-auto-checkin'
        WHERE status IN ('approved', 'confirmed')
          AND status NOT IN ('attended', 'checked_in')
+         AND request_date >= $1::date - INTERVAL '3 days'
          AND (
            request_date < $1::date - INTERVAL '1 day'
            OR (
@@ -266,6 +268,7 @@ export async function runManualBookingAutoComplete(): Promise<{ markedCount: num
          reviewed_by = 'system-auto-checkin'
      WHERE status IN ('approved', 'confirmed')
        AND status NOT IN ('attended', 'checked_in')
+       AND request_date >= $1::date - INTERVAL '3 days'
        AND (
          request_date < $1::date - INTERVAL '1 day'
          OR (

@@ -85,6 +85,13 @@ router.post('/api/auth/google/verify', requireGoogleConfig, authRateLimiterByIp,
     }
 
     if (dbUser.length === 0) {
+      dbUser = await db.select(userSelectFields)
+        .from(users)
+        .where(sql`LOWER(${users.email}) = LOWER(${googleUser.email}) AND ${users.archivedAt} IS NULL`)
+        .limit(1);
+    }
+
+    if (dbUser.length === 0) {
       const { resolveUserByEmail } = await import('../core/stripe/customers');
       const resolved = await resolveUserByEmail(googleUser.email);
 
@@ -219,6 +226,13 @@ router.post('/api/auth/google/callback', requireGoogleConfig, async (req, res) =
       dbUser = await db.select(userSelectFields)
         .from(users)
         .where(sql`LOWER(${users.googleEmail}) = LOWER(${googleUser.email}) AND ${users.archivedAt} IS NULL`)
+        .limit(1);
+    }
+
+    if (dbUser.length === 0) {
+      dbUser = await db.select(userSelectFields)
+        .from(users)
+        .where(sql`LOWER(${users.email}) = LOWER(${googleUser.email}) AND ${users.archivedAt} IS NULL`)
         .limit(1);
     }
 
