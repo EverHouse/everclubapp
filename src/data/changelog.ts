@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.64",
+    date: "2026-03-18",
+    title: "SEO: Extended Meta Descriptions for Privacy & Terms Pages",
+    changes: [
+      "Improved: Privacy policy meta description extended to 145 characters (was 93) for better search result snippets",
+      "Improved: Terms of service meta description extended to 139 characters (was 89) with key topics like fees, liability waiver, and guest policy",
+    ]
+  },
+  {
     version: "8.87.63",
     date: "2026-03-18",
     title: "Accessibility Audit & SEO Canonical/OG URL Fixes",
