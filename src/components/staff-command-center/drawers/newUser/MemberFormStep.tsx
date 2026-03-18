@@ -359,8 +359,11 @@ export function MemberFormStep({
                   <div className="mb-2">
                     <select
                       value={member.tierId ?? ''}
-                      onChange={(e) => updateGroupMember(index, 'tierId', e.target.value)}
-                      className={`${inputClass} text-sm py-2`}
+                      onChange={(e) => {
+                        updateGroupMember(index, 'tierId', e.target.value);
+                        if (fieldErrors[`groupMember_${index}_tierId`]) setFieldErrors(prev => ({ ...prev, [`groupMember_${index}_tierId`]: '' }));
+                      }}
+                      className={fieldErrors[`groupMember_${index}_tierId`] ? `${inputClass} text-sm py-2 !border-red-500` : `${inputClass} text-sm py-2`}
                     >
                       <option value="">Select tier...</option>
                       {tiers.map(tier => {
@@ -393,27 +396,42 @@ export function MemberFormStep({
                     </select>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      value={member.firstName}
-                      onChange={(e) => updateGroupMember(index, 'firstName', e.target.value)}
-                      placeholder="First name"
-                      className={`${inputClass} text-sm py-2`}
-                    />
-                    <input
-                      type="text"
-                      value={member.lastName}
-                      onChange={(e) => updateGroupMember(index, 'lastName', e.target.value)}
-                      placeholder="Last name"
-                      className={`${inputClass} text-sm py-2`}
-                    />
-                    <input
-                      type="email"
-                      value={member.email}
-                      onChange={(e) => updateGroupMember(index, 'email', e.target.value)}
-                      placeholder="Email"
-                      className={`${inputClass} text-sm py-2`}
-                    />
+                    <div>
+                      <input
+                        type="text"
+                        value={member.firstName}
+                        onChange={(e) => {
+                          updateGroupMember(index, 'firstName', e.target.value);
+                          if (fieldErrors[`groupMember_${index}_firstName`]) setFieldErrors(prev => ({ ...prev, [`groupMember_${index}_firstName`]: '' }));
+                        }}
+                        placeholder="First name *"
+                        className={fieldErrors[`groupMember_${index}_firstName`] ? `${inputClass} text-sm py-2 !border-red-500` : `${inputClass} text-sm py-2`}
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        value={member.lastName}
+                        onChange={(e) => {
+                          updateGroupMember(index, 'lastName', e.target.value);
+                          if (fieldErrors[`groupMember_${index}_lastName`]) setFieldErrors(prev => ({ ...prev, [`groupMember_${index}_lastName`]: '' }));
+                        }}
+                        placeholder="Last name *"
+                        className={fieldErrors[`groupMember_${index}_lastName`] ? `${inputClass} text-sm py-2 !border-red-500` : `${inputClass} text-sm py-2`}
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="email"
+                        value={member.email}
+                        onChange={(e) => {
+                          updateGroupMember(index, 'email', e.target.value);
+                          if (fieldErrors[`groupMember_${index}_email`]) setFieldErrors(prev => ({ ...prev, [`groupMember_${index}_email`]: '' }));
+                        }}
+                        placeholder="Email *"
+                        className={fieldErrors[`groupMember_${index}_email`] ? `${inputClass} text-sm py-2 !border-red-500` : `${inputClass} text-sm py-2`}
+                      />
+                    </div>
                     <input
                       type="tel"
                       value={formatPhoneInput(member.phone)}

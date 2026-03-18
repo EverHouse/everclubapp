@@ -465,10 +465,26 @@ export function MemberFlow({
     else if (!EMAIL_REGEX.test(form.email)) errors.email = 'Please enter a valid email address';
     if (!form.phone) errors.phone = 'Phone number is required';
     if (form.joinExistingGroup && !form.existingGroupId) errors.existingGroupId = 'Please select a billing group to join';
+
+    if (form.addGroupMembers && form.groupMembers.length > 0) {
+      for (let i = 0; i < form.groupMembers.length; i++) {
+        const member = form.groupMembers[i];
+        if (!member.firstName) errors[`groupMember_${i}_firstName`] = `Sub-member ${i + 1}: First name is required`;
+        if (!member.lastName) errors[`groupMember_${i}_lastName`] = `Sub-member ${i + 1}: Last name is required`;
+        if (!member.email) errors[`groupMember_${i}_email`] = `Sub-member ${i + 1}: Email is required`;
+        else if (!EMAIL_REGEX.test(member.email)) errors[`groupMember_${i}_email`] = `Sub-member ${i + 1}: Invalid email`;
+        if (!member.tierId) errors[`groupMember_${i}_tierId`] = `Sub-member ${i + 1}: Please select a tier`;
+      }
+    }
     
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
-      setError('Please fill in all required fields');
+      const groupErrors = Object.keys(errors).filter(k => k.startsWith('groupMember_'));
+      if (groupErrors.length > 0 && Object.keys(errors).length === groupErrors.length) {
+        setError('Please fill in all required fields for group members');
+      } else {
+        setError('Please fill in all required fields');
+      }
       return;
     }
 
@@ -487,10 +503,30 @@ export function MemberFlow({
   };
 
   const removeGroupMember = (index: number) => {
-    setForm(prev => ({
-      ...prev,
-      groupMembers: prev.groupMembers.filter((_, i) => i !== index),
-    }));
+    setForm(prev => {
+      const newMembers = prev.groupMembers.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        groupMembers: newMembers,
+        addGroupMembers: newMembers.length > 0 ? prev.addGroupMembers : false,
+      };
+    });
+    setFieldErrors(prev => {
+      const updated: Record<string, string> = {};
+      for (const [key, val] of Object.entries(prev)) {
+        if (!key.startsWith('groupMember_')) {
+          updated[key] = val;
+          continue;
+        }
+        const match = key.match(/^groupMember_(\d+)_(.+)$/);
+        if (!match) continue;
+        const k = Number(match[1]);
+        if (k === index) continue;
+        if (k < index) updated[key] = val;
+        else updated[`groupMember_${k - 1}_${match[2]}`] = val;
+      }
+      return updated;
+    });
     setSubMemberScannedIds(prev => {
       const updated: Record<number, { base64: string; mimeType: string }> = {};
       for (const [key, val] of Object.entries(prev)) {

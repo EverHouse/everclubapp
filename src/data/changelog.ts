@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.85",
+    date: "2026-03-18",
+    title: "Fix: Group Member Validation",
+    changes: [
+      "Fixed: Adding sub-members to a family group now validates required fields (name, email, tier) before proceeding to the Review/Payment step — previously staff could submit empty sub-member fields, leading to confusing backend errors",
+      "Improved: Sub-member form fields now show red error highlighting and asterisks on required fields for clear visual feedback",
+    ]
+  },
+  {
     version: "8.87.84",
     date: "2026-03-18",
     title: "Fix: Stripe Name Sync & Orphaned Customer ID Cleanup",
