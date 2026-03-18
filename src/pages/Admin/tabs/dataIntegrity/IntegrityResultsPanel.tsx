@@ -1,9 +1,11 @@
 import React from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { UseMutationResult } from '@tanstack/react-query';
+import { UseMutationResult, useQueryClient } from '@tanstack/react-query';
 import { getCheckMetadata, CheckSeverity } from '../../../../data/integrityCheckMetadata';
 import EmptyState from '../../../../components/EmptyState';
 import { useUndoAction } from '../../../../hooks/useUndoAction';
+import { useToast } from '../../../../components/Toast';
+import { postWithCredentials } from '../../../../hooks/queries/useFetch';
 import type { IntegrityCheckResult, IntegrityIssue, IssueContext, ActiveIssue } from './dataIntegrityTypes';
 
 
@@ -194,7 +196,10 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
 }) => {
   const [resultsRef] = useAutoAnimate();
   const { execute: undoAction } = useUndoAction();
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedOrphans, setSelectedOrphans] = React.useState<Set<string>>(new Set());
+  const [batchProgress, setBatchProgress] = React.useState<{ current: number; total: number; label: string } | null>(null);
 
   const toggleOrphanSelection = (userId: string) => {
     setSelectedOrphans(prev => {
@@ -212,6 +217,62 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
       return new Set(userIds);
     });
   };
+
+  const BATCH_SIZE = 100;
+  const [isBulkActionRunning, setIsBulkActionRunning] = React.useState(false);
+
+  const handleBatchedBulkAction = React.useCallback(async (
+    endpoint: string,
+    userIds: string[],
+    extraBody: Record<string, unknown> = {},
+    actionLabel: string,
+  ) => {
+    if (userIds.length === 0) return;
+
+    const chunks: string[][] = [];
+    for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
+      chunks.push(userIds.slice(i, i + BATCH_SIZE));
+    }
+
+    const totalBatches = chunks.length;
+    const errors: string[] = [];
+    let successCount = 0;
+
+    setIsBulkActionRunning(true);
+    try {
+      for (let i = 0; i < totalBatches; i++) {
+        const batchNum = i + 1;
+        if (totalBatches > 1) {
+          setBatchProgress({ current: batchNum, total: totalBatches, label: actionLabel });
+          showToast(`Processing batch ${batchNum} of ${totalBatches}...`, 'info');
+        }
+        try {
+          await postWithCredentials<{ success: boolean; message: string }>(endpoint, {
+            userIds: chunks[i],
+            ...extraBody,
+          });
+          successCount += chunks[i].length;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          errors.push(`Batch ${batchNum}: ${msg}`);
+        }
+      }
+
+      if (errors.length === 0) {
+        showToast(`${actionLabel} completed — ${successCount} user(s) processed`, 'success');
+      } else if (successCount > 0) {
+        showToast(`${actionLabel} partially completed — ${successCount} succeeded, ${errors.length} batch(es) failed: ${errors.join('; ')}`, 'warning');
+      } else {
+        showToast(`${actionLabel} failed — ${errors.join('; ')}`, 'error');
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['data-integrity', 'cached'] });
+      queryClient.invalidateQueries({ queryKey: ['data-integrity', 'history'] });
+    } finally {
+      setBatchProgress(null);
+      setIsBulkActionRunning(false);
+    }
+  }, [showToast, queryClient]);
 
   const getStatusColor = (status: 'pass' | 'warning' | 'fail' | 'info') => {
     switch (status) {
@@ -912,17 +973,29 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                     {selectedCount} selected
                   </span>
                 )}
+                {isBulkActionRunning && batchProgress && (
+                  <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium animate-pulse">
+                    <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
+                    {batchProgress.label}: batch {batchProgress.current} of {batchProgress.total}
+                  </span>
+                )}
+                {isBulkActionRunning && !batchProgress && (
+                  <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium animate-pulse">
+                    <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
+                    Processing...
+                  </span>
+                )}
               </div>
               {selectedCount > 0 && (
                 <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                   <button
                     onClick={() => {
                       if (confirm(`Reconnect ${selectedCount} selected member(s) to Stripe? This will search Stripe for each member by email and restore their customer + subscription IDs. No new subscriptions or charges will be created.`)) {
-                        fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/bulk-reconnect-stripe', body: { userIds: selectedUserIds } });
+                        handleBatchedBulkAction('/api/data-integrity/fix/bulk-reconnect-stripe', selectedUserIds, {}, 'Reconnect to Stripe');
                         setSelectedOrphans(new Set());
                       }
                     }}
-                    disabled={fixIssueMutation.isPending}
+                    disabled={fixIssueMutation.isPending || isBulkActionRunning}
                     className="tactile-btn px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                   >
                     <span className="material-symbols-outlined text-[14px]">link</span>
@@ -931,11 +1004,11 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                   <button
                     onClick={() => {
                       if (confirm(`Mark ${selectedCount} selected member(s) as COMPED? Only use this if they should NOT be billed through Stripe.`)) {
-                        fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/bulk-change-billing-provider', body: { userIds: selectedUserIds, newProvider: 'comped' } });
+                        handleBatchedBulkAction('/api/data-integrity/fix/bulk-change-billing-provider', selectedUserIds, { newProvider: 'comped' }, 'Mark as Comped');
                         setSelectedOrphans(new Set());
                       }
                     }}
-                    disabled={fixIssueMutation.isPending}
+                    disabled={fixIssueMutation.isPending || isBulkActionRunning}
                     className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                   >
                     <span className="material-symbols-outlined text-[14px]">volunteer_activism</span>
@@ -944,11 +1017,11 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                   <button
                     onClick={() => {
                       if (confirm(`Mark ${selectedCount} selected member(s) as MANUAL billing? Only use this for members billed outside the system.`)) {
-                        fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/bulk-change-billing-provider', body: { userIds: selectedUserIds, newProvider: 'manual' } });
+                        handleBatchedBulkAction('/api/data-integrity/fix/bulk-change-billing-provider', selectedUserIds, { newProvider: 'manual' }, 'Mark as Manual');
                         setSelectedOrphans(new Set());
                       }
                     }}
-                    disabled={fixIssueMutation.isPending}
+                    disabled={fixIssueMutation.isPending || isBulkActionRunning}
                     className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                   >
                     <span className="material-symbols-outlined text-[14px]">edit_note</span>
@@ -970,20 +1043,32 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
                   <strong>Reconnect All:</strong> {stripeOrphans.length} Stripe member(s) disconnected — search Stripe and restore their subscriptions
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => {
                       const userIds = stripeOrphans.map(i => String(i.context?.userId)).filter(Boolean);
                       if (confirm(`Reconnect ALL ${userIds.length} Stripe-orphaned member(s)? This searches Stripe by email and restores customer + subscription IDs. No new charges.`)) {
-                        fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/bulk-reconnect-stripe', body: { userIds } });
+                        handleBatchedBulkAction('/api/data-integrity/fix/bulk-reconnect-stripe', userIds, {}, 'Reconnect to Stripe');
                       }
                     }}
-                    disabled={fixIssueMutation.isPending}
+                    disabled={fixIssueMutation.isPending || isBulkActionRunning}
                     className="tactile-btn px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                   >
                     <span className="material-symbols-outlined text-[14px]">link</span>
                     Reconnect All Stripe Orphans
                   </button>
+                  {isBulkActionRunning && batchProgress && (
+                    <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium animate-pulse">
+                      <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
+                      {batchProgress.label}: batch {batchProgress.current} of {batchProgress.total}
+                    </span>
+                  )}
+                  {isBulkActionRunning && !batchProgress && (
+                    <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium animate-pulse">
+                      <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
+                      Processing...
+                    </span>
+                  )}
                 </div>
               </div>
             )}
