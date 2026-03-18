@@ -285,9 +285,14 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
       if (errors.length === 0 && successCount > 0) {
         showToast(lastResponseMessage || `${actionLabel} completed — ${successCount} user(s) processed`, 'success');
       } else if (successCount > 0 && errors.length > 0) {
-        showToast(`${actionLabel}: ${successCount} reconnected, ${errors.length} failed. ${errors.slice(0, 3).join('; ')}`, 'warning');
+        showToast(`${actionLabel}: ${successCount} reconnected, ${errors.length} not found in Stripe — mark those as comped or manual instead`, 'warning');
       } else if (errors.length > 0) {
-        showToast(`${actionLabel} failed — ${errors.slice(0, 3).join('; ')}`, 'error');
+        const notFoundCount = errors.filter(e => e.includes('No Stripe customer found')).length;
+        if (notFoundCount === errors.length) {
+          showToast(`No Stripe customers found for ${notFoundCount} member(s). These members likely need to be marked as comped or manual instead of reconnected.`, 'warning');
+        } else {
+          showToast(`${actionLabel}: ${errors.length} issue(s) — ${errors.slice(0, 2).join('; ')}`, 'error');
+        }
       } else {
         showToast(lastResponseMessage || `${actionLabel} completed — no members required changes`, 'info');
       }
