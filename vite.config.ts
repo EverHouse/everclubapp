@@ -12,9 +12,11 @@ function cssPreloadPlugin(): Plugin {
       const cssMatch = html.match(/<link rel="stylesheet"[^>]*href="(\/assets\/[^"]+\.css)"[^>]*>/);
       if (cssMatch) {
         const cssPath = cssMatch[1];
+        const hasCrossorigin = cssMatch[0].includes('crossorigin');
+        const crossoriginAttr = hasCrossorigin ? ' crossorigin' : '';
         return html.replace(
           cssMatch[0],
-          `<link rel="preload" href="${cssPath}" as="style" />\n    ${cssMatch[0]}`
+          `<link rel="preload" href="${cssPath}" as="style"${crossoriginAttr} />\n    ${cssMatch[0]}`
         );
       }
       return html;
