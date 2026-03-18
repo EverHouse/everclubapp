@@ -1,5 +1,6 @@
 import { haptic } from '../../../../utils/haptics';
 import { postWithCredentials } from '../../../../hooks/queries/useFetch';
+import { apiRequest } from '../../../../lib/apiRequest';
 import type { CartItem, PaymentMethodType } from './posTypes';
 
 interface PaymentState {
@@ -103,27 +104,49 @@ export function createPaymentHandlers(state: PaymentState, setters: PaymentSette
     const intentId = piId || state.paymentIntentId;
     if (!intentId) return;
 
+    setters.setIsProcessing(true);
     try {
-      await postWithCredentials('/api/stripe/staff/quick-charge/confirm', { paymentIntentId: intentId });
-    } catch (err: unknown) {
-      console.error('[POS] Failed to confirm payment record:', err);
-    }
+      const res = await apiRequest('/api/stripe/staff/quick-charge/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentIntentId: intentId }),
+      }, { retryNonIdempotent: true, maxRetries: 3 });
 
-    setters.setPaymentIntentId(intentId);
-    setters.setSuccess(true);
-    haptic.success();
+      if (!res.ok) {
+        haptic.error();
+        setters.setError(res.error || 'Payment charged but server confirmation failed. Please contact support.');
+        return;
+      }
+
+      setters.setPaymentIntentId(intentId);
+      setters.setSuccess(true);
+      haptic.success();
+    } finally {
+      setters.setIsProcessing(false);
+    }
   };
 
   const handleTerminalSuccess = async (piId: string) => {
+    setters.setIsProcessing(true);
     try {
-      await postWithCredentials('/api/stripe/staff/quick-charge/confirm', { paymentIntentId: piId });
-    } catch (err: unknown) {
-      console.error('[POS] Failed to confirm terminal payment record:', err);
-    }
+      const res = await apiRequest('/api/stripe/staff/quick-charge/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentIntentId: piId }),
+      }, { retryNonIdempotent: true, maxRetries: 3 });
 
-    setters.setPaymentIntentId(piId);
-    setters.setSuccess(true);
-    haptic.success();
+      if (!res.ok) {
+        haptic.error();
+        setters.setError(res.error || 'Terminal payment succeeded but server confirmation failed. Please contact support.');
+        return;
+      }
+
+      setters.setPaymentIntentId(piId);
+      setters.setSuccess(true);
+      haptic.success();
+    } finally {
+      setters.setIsProcessing(false);
+    }
   };
 
   const handleSavedCardCharge = async () => {
