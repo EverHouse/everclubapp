@@ -1,4 +1,5 @@
 import { db } from '../../db';
+import { isProduction } from '../db';
 import { sql, eq, and, gt, desc } from 'drizzle-orm';
 import { getErrorMessage, getErrorStatusCode } from '../../utils/errorUtils';
 import { logger } from '../logger';
@@ -348,9 +349,12 @@ export async function syncPull(params: SyncPullParams): Promise<{ success: boole
     const userResult = await db.execute(sql`
       SELECT email, billing_provider, last_manual_fix_at, hubspot_id FROM users WHERE id = ${userId}
     `);
+    if (!userResult.rows.length) {
+      throw new Error('Member not found');
+    }
     const resolvedHubspotId = hubspotContactId || (userResult.rows[0] as { hubspot_id?: string } | undefined)?.hubspot_id;
     if (!resolvedHubspotId) {
-      throw new Error('Member is missing a HubSpot contact link — cannot pull');
+      throw new Error('Member has no HubSpot link');
     }
 
     const { client: hubspot } = await getHubSpotClientWithFallback();
@@ -366,14 +370,14 @@ export async function syncPull(params: SyncPullParams): Promise<{ success: boole
     const user = userResult.rows[0] as { email: string; billing_provider: string | null; last_manual_fix_at: Date | null } | undefined;
     const userEmail = user?.email;
 
-    const recentlyFixed = user?.last_manual_fix_at &&
+    const recentlyFixed = isProduction && user?.last_manual_fix_at &&
       (Date.now() - new Date(user.last_manual_fix_at).getTime()) < 60 * 60 * 1000;
 
     if (recentlyFixed) {
       logger.info(`[Integrity] Skipping syncPull tier/status for user ${userId} — manually fixed ${Math.round((Date.now() - new Date(user!.last_manual_fix_at!).getTime()) / 60000)} min ago`);
     }
 
-    const isStripeProtected = user?.billing_provider === 'stripe';
+    const isStripeProtected = isProduction && user?.billing_provider === 'stripe';
 
     let resolvedTierId: number | null = null;
     if (appTier && !(recentlyFixed || isStripeProtected)) {

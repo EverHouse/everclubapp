@@ -443,7 +443,9 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
         next.delete(variables.issueKey);
         return next;
       });
-      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to pull sync', 'error');
+      const detail = (err as { errorData?: { details?: string } })?.errorData?.details;
+      const msg = detail || (err instanceof Error ? err.message : String(err)) || 'Failed to pull sync';
+      showToast(msg, 'error');
     },
   });
 

@@ -54,7 +54,8 @@ router.post('/api/data-integrity/sync-pull', isAdmin, validateBody(syncPushPullS
     res.json(result);
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Sync pull error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to pull sync', details: safeErrorDetail(error) });
+    const detail = safeErrorDetail(error);
+    res.status(500).json({ error: detail || 'Failed to pull sync', details: detail });
   }
 });
 
