@@ -8,6 +8,7 @@ import { formatPhoneNumber } from '../utils/formatting';
 import { getMemberStatusColor, getMemberStatusLabel } from '../utils/statusColors';
 import { useScrollLock } from '../hooks/useScrollLock';
 import type { MemberProfile } from '../types/data';
+import { copyToClipboard } from '../lib/copyToClipboard';
 import MemberSearchInput, { SelectedMember } from './shared/MemberSearchInput';
 import { TIER_NAMES } from '../../shared/constants/tiers';
 import IdScannerModal from './staff-command-center/modals/IdScannerModal';
@@ -80,11 +81,11 @@ const CopyButton: React.FC<{ value: string; isDark: boolean; size?: 'sm' | 'xs' 
   const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(value);
+    const success = await copyToClipboard(value);
+    if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch { /* noop */ }
+    }
   };
   const iconSize = size === 'xs' ? 'text-[12px]' : 'text-[14px]';
   const btnSize = size === 'xs' ? 'w-5 h-5 min-w-[20px]' : 'w-6 h-6 min-w-[24px]';

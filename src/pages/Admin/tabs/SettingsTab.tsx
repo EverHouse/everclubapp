@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
+import { copyToClipboard } from '../../../lib/copyToClipboard';
 import Toggle from '../../../components/Toggle';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 
@@ -809,12 +810,10 @@ const SettingsTab: React.FC = () => {
             <input type="text" readOnly value={`${window.location.origin}/nfc-checkin`} className="flex-1 px-4 py-3 rounded-lg border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 text-primary dark:text-white text-sm font-mono select-all" />
             <button
               onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(`${window.location.origin}/nfc-checkin`);
+                const success = await copyToClipboard(`${window.location.origin}/nfc-checkin`);
+                if (success) {
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
-                } catch (err) {
-                  console.error('Failed to copy:', err);
                 }
               }}
               className="tactile-btn px-4 py-3 rounded-lg bg-primary dark:bg-accent text-white dark:text-primary font-medium text-sm hover:opacity-90 transition-opacity whitespace-nowrap flex items-center gap-2"

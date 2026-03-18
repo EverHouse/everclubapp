@@ -4,6 +4,7 @@ import { useToast } from '../../Toast';
 import { formatTime12Hour, formatDateShort } from '../../../utils/dateUtils';
 import type { BookingRequest } from '../types';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
+import { copyToClipboard } from '../../../lib/copyToClipboard';
 
 const TRACKMAN_PORTAL_URL = 'https://portal.trackmangolf.com/facility/RmFjaWxpdHkKZGI4YWMyN2FhLTM2YWQtNDM4ZC04MjUzLWVmOWU5NzMwMjkxZg==';
 
@@ -246,13 +247,11 @@ export function TrackmanBookingModal({
   const totalPlayers = booking?.declared_player_count ?? Math.max(1, 1 + guests.length);
 
   const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(notesText);
+    const success = await copyToClipboard(notesText);
+    if (success) {
       setCopied(true);
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
       copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
-    } catch (err: unknown) {
-      console.error('Failed to copy:', err);
     }
   }, [notesText]);
 

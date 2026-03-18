@@ -524,6 +524,13 @@ export function PaymentStep({
                   Payment link generated
                 </p>
               </div>
+              <input
+                type="text"
+                readOnly
+                value={activationUrl}
+                className={`mt-2 w-full px-3 py-2 rounded text-xs font-mono select-all ${isDark ? 'bg-black/30 text-emerald-300 border border-emerald-800' : 'bg-white text-emerald-800 border border-emerald-200'}`}
+                onFocus={(e) => e.target.select()}
+              />
             </div>
           )}
 

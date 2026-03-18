@@ -10,6 +10,7 @@ import {
 } from './newUserTypes';
 import { fetchWithCredentials, postWithCredentials } from '../../../../hooks/queries/useFetch';
 import { apiRequest } from '../../../../lib/apiRequest';
+import { copyToClipboard } from '../../../../lib/copyToClipboard';
 import { SuccessStep } from './SuccessStep';
 import { PreviewStep } from './PreviewStep';
 import { PaymentStep } from './PaymentStep';
@@ -459,9 +460,14 @@ export function MemberFlow({
       const data = result.data as Record<string, unknown>;
       
       if (data.checkoutUrl) {
-        await navigator.clipboard.writeText(data.checkoutUrl as string);
-        setActivationUrl(data.checkoutUrl as string);
-        showToast('Activation link copied to clipboard!', 'success');
+        const url = data.checkoutUrl as string;
+        const copied = await copyToClipboard(url);
+        setActivationUrl(url);
+        if (copied) {
+          showToast('Activation link copied to clipboard!', 'success');
+        } else {
+          showToast('Link ready — long-press the URL below to copy it', 'info');
+        }
         if (scannedIdImage && data.userId) {
           postWithCredentials('/api/admin/save-id-image', {
             userId: data.userId,

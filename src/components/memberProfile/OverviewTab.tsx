@@ -2,17 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { MemberProfile } from '../../types/data';
 import { formatDatePacific } from './memberProfileTypes';
 import { apiRequest } from '../../lib/apiRequest';
+import { copyToClipboard } from '../../lib/copyToClipboard';
 
 const CopyButton: React.FC<{ value: string; isDark: boolean }> = ({ value, isDark }) => {
   const [copied, setCopied] = useState(false);
   const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(value);
+    const success = await copyToClipboard(value);
+    if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch { /* noop */ }
+    }
   };
   return (
     <button

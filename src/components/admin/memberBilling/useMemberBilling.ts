@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TIER_NAMES } from '../../../../shared/constants/tiers';
 import { fetchWithCredentials, postWithCredentials, putWithCredentials } from '../../../hooks/queries/useFetch';
+import { copyToClipboard } from '../../../lib/copyToClipboard';
 import { useToast } from '../../Toast';
 import type { BillingInfo, OutstandingData, MigrationEligibility, CouponOption } from './types';
 
@@ -361,8 +362,12 @@ export function useMemberBilling(
       }
 
       if (url) {
-        await navigator.clipboard.writeText(url);
-        showSuccess('Activation link copied to clipboard!');
+        const copied = await copyToClipboard(url);
+        if (copied) {
+          showSuccess('Activation link copied to clipboard!');
+        } else {
+          showSuccess(`Link ready — long-press to copy: ${url}`);
+        }
       } else {
         showError('Could not generate activation link');
       }
