@@ -20,6 +20,7 @@ interface WebSocketMessage {
   message?: string;
   data?: unknown;
   shouldReauth?: boolean;
+  attemptsRemaining?: number;
 }
 
 interface UseWebSocketOptions {
@@ -85,7 +86,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           const message: WebSocketMessage = JSON.parse(event.data);
           
           if (message.type === 'auth_error') {
-            if (message.shouldReauth) {
+            if (message.shouldReauth || message.attemptsRemaining <= 0) {
               intentionalCloseRef.current = true;
               console.warn('[WebSocket] Session invalid - stopping reconnection until next page load');
             }
@@ -197,12 +198,17 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         isConnectingRef.current = false;
         window.__wsConnected = false;
         
         if (wsRef.current === ws) {
           wsRef.current = null;
+        }
+        
+        if (event.code >= 4001 && event.code <= 4003) {
+          intentionalCloseRef.current = true;
+          console.warn(`[WebSocket] Auth failed (${event.code}) - stopping reconnection`);
         }
         
         if (emailToUse && !intentionalCloseRef.current && wsRef.current === null) {

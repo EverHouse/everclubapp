@@ -374,10 +374,12 @@ export function initWebSocketServer(server: Server) {
                 extra: { event: 'websocket.authenticated', role: verifiedFromMessage.role, isStaff: verifiedFromMessage.isStaff, method: 'auth_message', attempts: authAttempts }
               });
             } else {
+              const attemptsRemaining = MAX_AUTH_ATTEMPTS - authAttempts;
               ws.send(JSON.stringify({ 
                 type: 'auth_error',
                 message: 'Invalid or expired session',
-                attemptsRemaining: MAX_AUTH_ATTEMPTS - authAttempts
+                attemptsRemaining,
+                shouldReauth: attemptsRemaining <= 0
               }));
               
               logger.debug(`[WebSocket] Auth rejected - session verification failed (attempt ${authAttempts}/${MAX_AUTH_ATTEMPTS})`, {

@@ -165,7 +165,7 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
           const message = JSON.parse(event.data);
           
           if (message.type === 'auth_error') {
-            if (message.shouldReauth) {
+            if (message.shouldReauth || message.attemptsRemaining <= 0) {
               intentionalDisconnectRef.current = true;
               console.warn('[StaffWebSocket] Session invalid - stopping reconnection');
             }
@@ -389,10 +389,10 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         const wasThisConnection = connectionIdRef.current === thisConnectionId;
         // eslint-disable-next-line no-console
-        if (import.meta.env.DEV) console.log(`[StaffWebSocket] Connection closed (id=${thisConnectionId}, current=${connectionIdRef.current}, wasActive=${wasThisConnection})`);
+        if (import.meta.env.DEV) console.log(`[StaffWebSocket] Connection closed (id=${thisConnectionId}, current=${connectionIdRef.current}, wasActive=${wasThisConnection}, code=${event.code})`);
         
         if (!wasThisConnection) {
           return;
@@ -402,6 +402,11 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
         setIsConnected(false);
         wsRef.current = null;
         activeConnectionUserRef.current = null;
+        
+        if (event.code >= 4001 && event.code <= 4003) {
+          intentionalDisconnectRef.current = true;
+          console.warn(`[StaffWebSocket] Auth failed (${event.code}) - stopping reconnection`);
+        }
         
         if (!intentionalDisconnectRef.current) {
           const currentEmail = userEmailRef.current;

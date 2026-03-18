@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.81",
+    date: "2026-03-18",
+    title: "Fix: WebSocket Auth Loop & Stripe Overage Billing",
+    changes: [
+      "Fixed: WebSocket clients now properly stop reconnecting when authentication fails — both the close code (4002) and remaining-attempts check are handled, preventing infinite reconnect loops in production",
+      "Fixed: Overage and guest fee billing no longer fails when a Stripe price ID stored in the database has been deleted — the system now validates prices on startup and automatically recreates missing ones",
+    ]
+  },
+  {
     version: "8.87.80",
     date: "2026-03-18",
     title: "Fix: WebSocket Reconnection Loop Flooding Logs",

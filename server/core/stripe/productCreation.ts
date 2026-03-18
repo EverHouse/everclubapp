@@ -88,6 +88,20 @@ export async function ensureSimulatorOverageProduct(): Promise<{
       logger.info(`[Overage Product] Created Stripe product: ${stripeProductId}`);
     }
     
+    if (stripePriceId) {
+      try {
+        await stripe.prices.retrieve(stripePriceId);
+      } catch (priceErr: unknown) {
+        const errMsg = getErrorMessage(priceErr);
+        if (errMsg.includes('No such price') || errMsg.includes('resource_missing')) {
+          logger.warn(`[Overage Product] Stored Stripe price ${stripePriceId} no longer exists, will recreate`);
+          stripePriceId = null;
+        } else {
+          logger.warn(`[Overage Product] Transient error retrieving price ${stripePriceId}, keeping existing`, { error: priceErr });
+        }
+      }
+    }
+
     if (!stripePriceId) {
       const price = await stripe.prices.create({
         product: stripeProductId,
@@ -226,6 +240,20 @@ export async function ensureGuestPassProduct(): Promise<{
       }
     }
     
+    if (stripePriceId) {
+      try {
+        await stripe.prices.retrieve(stripePriceId);
+      } catch (priceErr: unknown) {
+        const errMsg = getErrorMessage(priceErr);
+        if (errMsg.includes('No such price') || errMsg.includes('resource_missing')) {
+          logger.warn(`[Guest Pass Product] Stored Stripe price ${stripePriceId} no longer exists, will recreate`);
+          stripePriceId = null;
+        } else {
+          logger.warn(`[Guest Pass Product] Transient error retrieving price ${stripePriceId}, keeping existing`, { error: priceErr });
+        }
+      }
+    }
+
     if (!stripePriceId) {
       const price = await stripe.prices.create({
         product: stripeProductId,
