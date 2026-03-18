@@ -12,3 +12,9 @@ id = "-XjjP_fIzpS7aBTqNR77J"
 uri = "file://everclub-audit-report.txt"
 type = "text"
 title = "Ever Club Website Audit Report (Full)"
+
+[[outputs]]
+id = "jeYTAhmB7o5Qg7L0Eb66_"
+uri = "file://.local/audit-report-2026-03-18.md"
+type = "text"
+title = "Comprehensive Audit Report — Ever Club Members App v8.87.92"
