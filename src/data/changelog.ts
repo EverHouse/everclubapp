@@ -13,7 +13,7 @@ export const changelog: ChangelogEntry[] = [
     title: "Fix: Stripe Name Sync & Orphaned Customer ID Cleanup",
     changes: [
       "Fixed: Member names are no longer overwritten with email addresses when Stripe sends a customer.updated webhook where the customer name field contains an email — the sync now skips name updates when the Stripe name looks like an email address",
-      "Fixed: Clearing an orphaned Stripe customer ID via the data integrity dashboard now also clears the subscription ID and billing provider — previously it only cleared the customer ID, leaving the member in a broken state where the system still thought they were billed through Stripe",
+      "Fixed: Orphaned Stripe customer IDs are now automatically re-linked by searching Stripe for the correct customer matching the member's email — previously the fix just wiped the connection, now it finds and restores the right customer and subscription before falling back to clearing only when no match exists",
     ]
   },
   {

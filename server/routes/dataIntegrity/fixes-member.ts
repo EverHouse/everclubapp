@@ -490,30 +490,71 @@ router.post('/api/data-integrity/fix/clear-stripe-customer-id', isAdmin, validat
     await client.query('BEGIN');
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1::text))`, [userId]);
 
-    const result = await client.query(
-      `UPDATE users 
-       SET stripe_customer_id = NULL, stripe_subscription_id = NULL, billing_provider = NULL, updated_at = NOW(),
-           last_manual_fix_at = NOW(), last_manual_fix_by = $2
-       WHERE id = $1
-       RETURNING email, first_name, last_name`,
-      [userId, staffEmail]
+    const userResult = await client.query(
+      `SELECT id, email, first_name, last_name, stripe_customer_id FROM users WHERE id = $1`,
+      [userId]
     );
 
-    if (result.rowCount === 0) {
+    if (userResult.rowCount === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    await client.query('COMMIT');
-
-    const user = result.rows[0];
+    const user = userResult.rows[0];
     const memberName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
-    logFromRequest(req, 'clear_stripe_customer_id', 'user', String(userId), `Cleared orphaned Stripe customer ID for "${memberName}" via data integrity`, { userId });
 
-    res.json({ success: true, message: `Cleared Stripe customer ID for "${memberName}"` });
+    const { getStripeClient } = await import('../../core/stripe/client');
+    const stripe = await getStripeClient();
+    const customers = await stripe.customers.list({ email: (user.email || '').toLowerCase(), limit: 10 });
+    const nonDeletedCustomers = customers.data.filter((c: { deleted?: boolean }) => !c.deleted);
+
+    const matchingCustomer = nonDeletedCustomers.find((c: { metadata?: Record<string, string> }) => c.metadata?.userId === String(userId)) || nonDeletedCustomers[0];
+
+    if (matchingCustomer) {
+      let subscriptionId: string | null = null;
+      const subscriptions = await stripe.subscriptions.list({ customer: matchingCustomer.id, limit: 10 });
+      const activeSub = subscriptions.data.find((s: { status: string }) => ['active', 'past_due', 'trialing'].includes(s.status));
+      if (activeSub) {
+        subscriptionId = activeSub.id;
+      }
+
+      await client.query(
+        `UPDATE users 
+         SET stripe_customer_id = $2, 
+             stripe_subscription_id = $3,
+             billing_provider = CASE WHEN $3 IS NOT NULL THEN 'stripe' ELSE billing_provider END,
+             updated_at = NOW(),
+             last_manual_fix_at = NOW(), last_manual_fix_by = $4
+         WHERE id = $1`,
+        [userId, matchingCustomer.id, subscriptionId, staffEmail]
+      );
+
+      await client.query('COMMIT');
+
+      const action = subscriptionId
+        ? `Re-linked to Stripe customer ${matchingCustomer.id} with subscription ${subscriptionId}`
+        : `Re-linked to Stripe customer ${matchingCustomer.id} (no active subscription found)`;
+      logFromRequest(req, 'relink_stripe_customer', 'user', String(userId), `${action} for "${memberName}" via data integrity (was orphaned: ${user.stripe_customer_id})`, { userId, oldCustomerId: user.stripe_customer_id, newCustomerId: matchingCustomer.id, subscriptionId });
+
+      res.json({ success: true, message: `${action} for "${memberName}"`, relinked: true, customerId: matchingCustomer.id, subscriptionId });
+    } else {
+      await client.query(
+        `UPDATE users 
+         SET stripe_customer_id = NULL, stripe_subscription_id = NULL, billing_provider = NULL, updated_at = NOW(),
+             last_manual_fix_at = NOW(), last_manual_fix_by = $2
+         WHERE id = $1`,
+        [userId, staffEmail]
+      );
+
+      await client.query('COMMIT');
+
+      logFromRequest(req, 'clear_stripe_customer_id', 'user', String(userId), `No matching Stripe customer found by email for "${memberName}" — cleared orphaned ID ${user.stripe_customer_id}`, { userId, oldCustomerId: user.stripe_customer_id });
+
+      res.json({ success: true, message: `No matching Stripe customer found for "${memberName}" by email — cleared orphaned billing fields`, relinked: false });
+    }
   } catch (error: unknown) {
     await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
-    logger.error('[DataIntegrity] Clear Stripe customer ID error', { extra: { error: getErrorMessage(error) } });
+    logger.error('[DataIntegrity] Fix orphaned Stripe customer ID error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
   } finally {
     safeRelease(client);

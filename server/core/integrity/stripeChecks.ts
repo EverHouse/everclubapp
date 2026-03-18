@@ -214,7 +214,7 @@ export async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResul
           table: 'users',
           recordId: member.id ?? '',
           description: `Member "${memberName}" has orphaned Stripe customer ID (${customerId}) - customer no longer exists in Stripe`,
-          suggestion: 'Clear the stripe_customer_id field or run Stripe cleanup to remove orphaned references',
+          suggestion: 'Fix orphaned Stripe ID — will search for correct customer by email and re-link, or clear if no match found',
           context: {
             memberName,
             memberEmail: member.email || undefined,
