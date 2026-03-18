@@ -126,22 +126,23 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     
-    const existing = await db.select({ stripeProductId: cafeItems.stripeProductId })
+    const existing = await db.select({ stripeProductId: cafeItems.stripeProductId, name: cafeItems.name })
       .from(cafeItems)
       .where(eq(cafeItems.id, Number(id)));
     if (existing.length > 0 && existing[0].stripeProductId) {
       try {
         const { getStripeClient } = await import('../core/stripe/client');
         const stripe = await getStripeClient();
-        const product = await stripe.products.retrieve(existing[0].stripeProductId) as unknown as { deleted?: boolean };
-        if (product && !product.deleted) {
-          return res.status(400).json({ error: 'This item is linked to an active Stripe product. Archive it in the Stripe Dashboard instead.' });
+        const product = await stripe.products.retrieve(existing[0].stripeProductId) as unknown as { active?: boolean; deleted?: boolean };
+        if (product && !product.deleted && product.active) {
+          await stripe.products.update(existing[0].stripeProductId, { active: false });
+          logger.info(`[Cafe] Archived Stripe product ${existing[0].stripeProductId} for cafe item "${existing[0].name}"`);
         }
       } catch (stripeErr: unknown) {
         const isNotFound = stripeErr instanceof Error && 'statusCode' in stripeErr && (stripeErr as { statusCode: number }).statusCode === 404;
         if (!isNotFound) {
-          if (!isProduction) logger.error('Stripe product check failed', { error: stripeErr instanceof Error ? stripeErr : new Error(String(stripeErr)) });
-          return res.status(400).json({ error: 'This item is linked to an active Stripe product. Archive it in the Stripe Dashboard instead.' });
+          logger.error('Failed to archive Stripe product during cafe item delete', { error: stripeErr instanceof Error ? stripeErr : new Error(String(stripeErr)) });
+          return res.status(500).json({ error: 'Failed to archive the linked Stripe product. Please try again.' });
         }
       }
     }
