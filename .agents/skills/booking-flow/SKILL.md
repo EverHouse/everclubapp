@@ -55,7 +55,7 @@ Who is cancelling?
 └── Staff decline → declineBooking()
     └── Deletes ALL trackman_bay_slots in duration range (not just first slot) (v8.87.35)
     └── Cancels ALL pending PIs via cancelPendingPaymentIntentsForBooking() (v8.87.42)
-    └── Marks fee snapshots as 'cancelled'
+    └── Marks fee snapshots as 'cancelled' (including NULL-PI orphaned snapshots since v8.87.77)
 ```
 
 ### Fee calculation timing

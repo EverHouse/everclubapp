@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.77",
+    date: "2026-03-18",
+    title: "Fix: Orphaned Payment Intent & Fee Snapshot Cleanup",
+    changes: [
+      "Fixed: Booking cancellation now properly cleans up fee snapshots that never reached the Stripe payment stage — previously, snapshots without a Payment Intent ID were left as 'pending' permanently after cancellation",
+      "Fixed: Cancelled 2 lingering Stripe payment intents on terminal bookings #34708 and #34712 (from March 11) — both cancelled in Stripe and locally",
+      "Fixed: Bulk-cleaned 43 stale fee snapshot records for cancelled bookings that were incorrectly showing as 'pending' on the integrity dashboard",
+      "Fixed: Removed invalid 'updated_at' column references in fee snapshot cleanup queries (column doesn't exist on booking_fee_snapshots table)",
+    ]
+  },
+  {
     version: "8.87.76",
     date: "2026-03-18",
     title: "Fix: Migrate All Raw fetch() Mutations to apiRequest/apiRequestBlob",
