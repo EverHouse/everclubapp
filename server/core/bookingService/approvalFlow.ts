@@ -775,7 +775,7 @@ export async function declineBooking(params: DeclineBookingParams) {
     } catch (err: unknown) {
       logger.warn('[Decline] Non-blocking: failed to clean up fee snapshots', { extra: { bookingId, error: getErrorMessage(err) } });
     }
-  })();
+  })().catch(err => logger.error('[Decline] Unhandled async error in fee snapshot cleanup', { extra: { bookingId, error: getErrorMessage(err) } }));
 
   sendPushNotification(updated.userEmail, {
     title: 'Booking Request Update',

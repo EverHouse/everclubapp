@@ -181,7 +181,7 @@ export async function cascadeEmailChange(
       } catch (err: unknown) {
         logger.error('[EmailChangeService] Background sync failed:', { error: err });
       }
-    })();
+    })().catch(err => logger.error('[EmailChangeService] Unhandled async error in background sync', { error: err }));
 
     return {
       success: true,

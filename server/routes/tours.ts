@@ -1110,7 +1110,7 @@ router.post('/api/tours/schedule', checkoutRateLimiter, async (req, res) => {
       } catch (err) {
         logger.error('[Tours] Failed to book HubSpot meeting (non-blocking)', { extra: { error: getErrorMessage(err) } });
       }
-    })();
+    })().catch(err => logger.error('[Tours] Unhandled async error in HubSpot meeting booking', { extra: { error: getErrorMessage(err) } }));
 
     broadcastToStaff({ type: 'tour_update', action: 'created', tourId: newTour.id });
 

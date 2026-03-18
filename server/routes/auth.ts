@@ -1159,7 +1159,7 @@ router.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
       } catch (error: unknown) {
         logger.error('[Welcome Email] Error checking/sending', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
       }
-    })();
+    })().catch(err => logger.error('[Welcome Email] Unhandled async error', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }));
     
     req.session.save((err) => {
       if (err) {
