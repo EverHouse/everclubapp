@@ -422,91 +422,46 @@ export async function runStartupTasks(): Promise<void> {
         .then(() => logger.info('[Stripe] FAMILY20 coupon ready'))
         .catch((err: unknown) => logger.error('[Stripe] FAMILY20 coupon setup failed', { error: err instanceof Error ? err : new Error(String(err)) }));
       
-      const productInitPromises: Promise<void>[] = [];
+      const products = await import('../core/stripe/products.js');
 
-      productInitPromises.push(
-        import('../core/stripe/products.js')
-          .then(({ ensureSimulatorOverageProduct }) => retryWithBackoff(async () => {
-            const r = await ensureSimulatorOverageProduct();
-            if (r.action === 'error') throw new Error(`Simulator Overage product initialization failed (${r.action})`);
-            return r;
-          }, 'Simulator Overage product'))
-          .then((result) => { logger.info(`[Stripe] Simulator Overage product ${result.action}`, { extra: { action: result.action } }); })
-          .catch((err: unknown) => {
-            logger.error('[Stripe] Simulator Overage setup failed', { error: err instanceof Error ? err : new Error(String(err)) });
-            startupHealth.warnings.push(`Stripe product init: Simulator Overage - ${getErrorMessage(err)}`);
-          })
-      );
+      const productInits: Array<{ name: string; fn: () => Promise<{ action: string }> }> = [
+        { name: 'Simulator Overage', fn: () => products.ensureSimulatorOverageProduct() },
+        { name: 'Guest Pass', fn: () => products.ensureGuestPassProduct() },
+        { name: 'Day Pass Coworking', fn: () => products.ensureDayPassCoworkingProduct() },
+        { name: 'Day Pass Golf Sim', fn: () => products.ensureDayPassGolfSimProduct() },
+        { name: 'Corporate Volume Pricing', fn: () => products.ensureCorporateVolumePricingProduct() },
+      ];
 
-      productInitPromises.push(
-        import('../core/stripe/products.js')
-          .then(({ ensureGuestPassProduct }) => retryWithBackoff(async () => {
-            const r = await ensureGuestPassProduct();
-            if (r.action === 'error') throw new Error(`Guest Pass product initialization failed (${r.action})`);
-            return r;
-          }, 'Guest Pass product'))
-          .then((result) => { logger.info(`[Stripe] Guest Pass product ${result.action}`, { extra: { action: result.action } }); })
-          .catch((err: unknown) => {
-            logger.error('[Stripe] Guest Pass setup failed', { error: err instanceof Error ? err : new Error(String(err)) });
-            startupHealth.warnings.push(`Stripe product init: Guest Pass - ${getErrorMessage(err)}`);
-          })
-      );
+      for (const { name, fn } of productInits) {
+        try {
+          const r = await retryWithBackoff(async () => {
+            const result = await fn();
+            if (result.action === 'error') throw new Error(`${name} product initialization failed (${result.action})`);
+            return result;
+          }, `${name} product`);
+          logger.info(`[Stripe] ${name} product ${r.action}`, { extra: { action: r.action } });
+        } catch (err: unknown) {
+          logger.error(`[Stripe] ${name} setup failed`, { error: err instanceof Error ? err : new Error(String(err)) });
+          startupHealth.warnings.push(`Stripe product init: ${name} - ${getErrorMessage(err)}`);
+        }
+      }
 
-      productInitPromises.push(
-        import('../core/stripe/products.js')
-          .then(({ ensureDayPassCoworkingProduct }) => retryWithBackoff(async () => {
-            const r = await ensureDayPassCoworkingProduct();
-            if (r.action === 'error') throw new Error(`Day Pass Coworking product initialization failed (${r.action})`);
-            return r;
-          }, 'Day Pass Coworking product'))
-          .then((result) => { logger.info(`[Stripe] Day Pass Coworking product ${result.action}`, { extra: { action: result.action } }); })
-          .catch((err: unknown) => {
-            logger.error('[Stripe] Day Pass Coworking setup failed', { error: err instanceof Error ? err : new Error(String(err)) });
-            startupHealth.warnings.push(`Stripe product init: Day Pass Coworking - ${getErrorMessage(err)}`);
-          })
-      );
+      try {
+        const pulled = await retryWithBackoff(() => products.pullCorporateVolumePricingFromStripe(), 'Corporate pricing pull');
+        logger.info(`[Stripe] Corporate pricing ${pulled ? 'pulled from Stripe' : 'using defaults'}`, { extra: { pulled } });
+      } catch (err: unknown) {
+        logger.error('[Stripe] Corporate pricing pull failed', { error: err instanceof Error ? err : new Error(String(err)) });
+      }
 
-      productInitPromises.push(
-        import('../core/stripe/products.js')
-          .then(({ ensureDayPassGolfSimProduct }) => retryWithBackoff(async () => {
-            const r = await ensureDayPassGolfSimProduct();
-            if (r.action === 'error') throw new Error(`Day Pass Golf Sim product initialization failed (${r.action})`);
-            return r;
-          }, 'Day Pass Golf Sim product'))
-          .then((result) => { logger.info(`[Stripe] Day Pass Golf Sim product ${result.action}`, { extra: { action: result.action } }); })
-          .catch((err: unknown) => {
-            logger.error('[Stripe] Day Pass Golf Sim setup failed', { error: err instanceof Error ? err : new Error(String(err)) });
-            startupHealth.warnings.push(`Stripe product init: Day Pass Golf Sim - ${getErrorMessage(err)}`);
-          })
-      );
-
-      productInitPromises.push(
-        import('../core/stripe/products.js')
-          .then(({ ensureCorporateVolumePricingProduct }) => retryWithBackoff(async () => {
-            const r = await ensureCorporateVolumePricingProduct();
-            if (r.action === 'error') throw new Error(`Corporate Volume Pricing product initialization failed (${r.action})`);
-            return r;
-          }, 'Corporate Volume Pricing product'))
-          .then((result) => { logger.info(`[Stripe] Corporate Volume Pricing product ${result.action}`, { extra: { action: result.action } }); })
-          .catch((err: unknown) => {
-            logger.error('[Stripe] Corporate Volume Pricing setup failed', { error: err instanceof Error ? err : new Error(String(err)) });
-            startupHealth.warnings.push(`Stripe product init: Corporate Volume Pricing - ${getErrorMessage(err)}`);
-          })
-      );
-      
-      import('../core/stripe/products.js')
-        .then(({ pullCorporateVolumePricingFromStripe }) => retryWithBackoff(() => pullCorporateVolumePricingFromStripe(), 'Corporate pricing pull'))
-        .then((pulled) => logger.info(`[Stripe] Corporate pricing ${pulled ? 'pulled from Stripe' : 'using defaults'}`, { extra: { pulled } }))
-        .catch((err: unknown) => logger.error('[Stripe] Corporate pricing pull failed', { error: err instanceof Error ? err : new Error(String(err)) }));
-      
-      import('../core/stripe/customerSync.js')
-        .then(({ syncStripeCustomersForMindBodyMembers }) => syncStripeCustomersForMindBodyMembers())
-        .then((result) => {
-          if (result.updated > 0 || result.staleFound > 0) {
-            logger.info('[Stripe] Customer sync complete', { extra: { updated: result.updated, staleDetected: result.staleFound } });
-          }
-        })
-        .catch((err: unknown) => logger.error('[Stripe] Customer sync failed', { error: err instanceof Error ? err : new Error(String(err)) }));
+      try {
+        const { syncStripeCustomersForMindBodyMembers } = await import('../core/stripe/customerSync.js');
+        const result = await syncStripeCustomersForMindBodyMembers();
+        if (result.updated > 0 || result.staleFound > 0) {
+          logger.info('[Stripe] Customer sync complete', { extra: { updated: result.updated, staleDetected: result.staleFound } });
+        }
+      } catch (err: unknown) {
+        logger.error('[Stripe] Customer sync failed', { error: err instanceof Error ? err : new Error(String(err)) });
+      }
     }
   } catch (err: unknown) {
     try { if (origStdoutWrite) process.stdout.write = origStdoutWrite; if (origStderrWrite) process.stderr.write = origStderrWrite; } catch { /* restore best-effort */ }

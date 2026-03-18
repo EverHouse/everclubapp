@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.82",
+    date: "2026-03-18",
+    title: "Fix: Audit Log Crash & Startup DB Connection Exhaustion",
+    changes: [
+      "Fixed: Staff actions (checking saved cards, viewing balances) no longer crash with 'Cannot read properties of undefined' — the audit logging function now properly returns a promise so error handling works correctly",
+      "Fixed: Server startup no longer exhausts the database connection pool — Stripe product initialization tasks (Overage, Guest Pass, Day Pass, Corporate Pricing) now run one at a time instead of all at once, preventing cascading connection timeouts",
+      "Fixed: Customer sync and corporate pricing pull now run sequentially after product setup, eliminating database connection starvation during deployment",
+    ]
+  },
+  {
     version: "8.87.81",
     date: "2026-03-18",
     title: "Fix: WebSocket Auth Loop & Stripe Overage Billing",

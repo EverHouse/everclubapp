@@ -600,11 +600,11 @@ export function logFromRequest(
   resourceId?: string | null, 
   resourceName?: string | null, 
   details?: Record<string, unknown>
-): void {
+): Promise<void> {
   const staffEmail = req.session?.user?.email;
   const staffName = req.session?.user?.name;
   
-  if (!staffEmail) return;
+  if (!staffEmail) return Promise.resolve();
   
   let finalAction: AuditAction;
   let finalResourceType: ResourceType;
@@ -626,7 +626,7 @@ export function logFromRequest(
     finalDetails = details;
   }
   
-  logAdminAction({
+  return logAdminAction({
     staffEmail,
     staffName,
     action: finalAction,
