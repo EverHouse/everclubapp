@@ -177,7 +177,17 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
 
         <div className="px-3 py-4 border-t border-white/10 flex-shrink-0 space-y-3" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
           <button
-            onClick={() => { window.open('/kiosk', '_blank', 'noopener,noreferrer'); handleClose(); }}
+            onClick={() => {
+              const isPwa = window.matchMedia('(display-mode: standalone)').matches
+                || (navigator as any).standalone === true;
+              if (isPwa) {
+                startNavigation();
+                navigate('/kiosk');
+              } else {
+                window.open('/kiosk', '_blank', 'noopener,noreferrer');
+              }
+              handleClose();
+            }}
             style={{ WebkitTapHighlightColor: 'transparent', fontFamily: 'var(--font-label)' }}
             className="tactile-row w-full flex items-center gap-3 px-3 py-3 text-left transition-all duration-fast text-white/50 hover:text-white/80 border-l-2 border-transparent"
           >
