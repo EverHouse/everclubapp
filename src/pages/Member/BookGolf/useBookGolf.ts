@@ -574,6 +574,12 @@ export function useBookGolf() {
         haptic.error();
         return;
       }
+      const guestMissingEmail = playerSlots.find(slot => slot.type === 'guest' && slot.selectedId && !(slot.email && slot.email.includes('@')));
+      if (guestMissingEmail) {
+        showToast('Guest slots require a valid email address. Please add an email for each guest.', 'error');
+        haptic.error();
+        return;
+      }
       const unfilledGuestSlots = playerSlots.filter(slot => slot.type === 'guest' && !slot.selectedId && !(slot.email && slot.email.includes('@')));
       if (unfilledGuestSlots.length > 0) { setShowUnfilledSlotsWarning(true); return; }
     }
