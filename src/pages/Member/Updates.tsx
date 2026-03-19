@@ -330,7 +330,7 @@ const MemberUpdates: React.FC = () => {
         </div>
       ) : sortedAnnouncements.length === 0 ? (
         <div className={`text-center py-16 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-          <Icon name="campaign" className="text-6xl mb-4 block opacity-30" />
+          <Icon name="campaign" className="text-6xl mb-4 block mx-auto opacity-30" />
           <p className="text-lg font-medium">No announcements right now</p>
           <p className="text-sm mt-1 opacity-70">Check back soon for the latest news.</p>
         </div>
@@ -470,7 +470,7 @@ const MemberUpdates: React.FC = () => {
         </div>
       ) : closures.length === 0 ? (
         <div className={`text-center py-16 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-          <Icon name="event_available" className="text-6xl mb-4 block opacity-30" />
+          <Icon name="event_available" className="text-6xl mb-4 block mx-auto opacity-30" />
           <p className="text-lg font-medium">No upcoming notices</p>
           <p className="text-sm mt-1 opacity-70">The club is open as usual.</p>
         </div>
@@ -650,7 +650,7 @@ const MemberUpdates: React.FC = () => {
         </div>
       ) : notifications.length === 0 ? (
         <div className={`text-center py-16 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-          <Icon name="notifications_none" className="text-6xl mb-4 block opacity-30" />
+          <Icon name="notifications_none" className="text-6xl mb-4 block mx-auto opacity-30" />
           <p className="text-lg font-medium">No activity yet</p>
           <p className="text-sm mt-1 opacity-70">Booking updates and alerts will appear here.</p>
         </div>
