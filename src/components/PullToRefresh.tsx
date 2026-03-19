@@ -407,6 +407,9 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
       {showPullBar && createPortal(
         <div 
           className="ptr-pull-bar"
+          style={{
+            height: `calc(env(safe-area-inset-top, 0px) + 80px + ${pullDistance}px)`,
+          }}
         >
           <div 
             className="ptr-pull-content"
@@ -424,118 +427,25 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
               <span className="ptr-release-text">Release to refresh</span>
             )}
           </div>
-
-          <style>{`
-            .ptr-pull-bar {
-              position: fixed;
-              top: 0;
-              left: 0;
-              right: 0;
-              height: calc(env(safe-area-inset-top, 0px) + 80px + ${pullDistance}px);
-              background-color: #293515;
-              z-index: 1500;
-              display: flex;
-              align-items: flex-end;
-              justify-content: center;
-              padding-bottom: 12px;
-              border-radius: 0 0 20px 20px;
-              box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-              will-change: height;
-              overflow: hidden;
-            }
-
-            .ptr-pull-content {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              gap: 4px;
-              will-change: opacity, transform;
-            }
-
-            .ptr-pull-mascot {
-              width: 48px;
-              height: 48px;
-              object-fit: contain;
-            }
-
-            .ptr-release-text {
-              font-family: 'Instrument Sans', sans-serif;
-              font-size: 11px;
-              font-weight: 500;
-              color: rgba(255,255,255,0.9);
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-            }
-          `}</style>
         </div>,
         document.body
       )}
 
       {isFillingScreen && createPortal(
-        <div className="ptr-fill-overlay">
-          <style>{`
-            .ptr-fill-overlay {
-              position: fixed;
-              top: 0;
-              left: 0;
-              right: 0;
-              bottom: 0;
-              background-color: #293515;
-              z-index: var(--z-modal);
-              animation: ptrFillScreen 0.35s var(--m3-standard) forwards;
-            }
-
-            @keyframes ptrFillScreen {
-              0% {
-                clip-path: inset(0 0 100% 0);
-              }
-              100% {
-                clip-path: inset(0 0 0 0);
-              }
-            }
-          `}</style>
-        </div>,
+        <div className="ptr-fill-overlay" />,
         document.body
       )}
 
       {(isRefreshing || isDismissing) && createPortal(
         <div
-          className="ptr-refresh-overlay"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 'var(--z-modal)',
-            backgroundColor: '#293515',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'column',
-            gap: '12px',
-            animation: isDismissing ? 'ptrSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards' : 'none',
-          }}
+          className={`ptr-refresh-overlay${isDismissing ? ' ptr-refresh-overlay--dismissing' : ''}`}
         >
           <img
             src="/assets/logos/walking-mascot-white.gif"
             alt=""
-            style={{ width: 64, height: 64, objectFit: 'contain' }}
+            className="ptr-refresh-mascot"
           />
-          <span style={{
-            fontFamily: "'Instrument Sans', sans-serif",
-            fontSize: 13,
-            fontWeight: 500,
-            color: 'rgba(255,255,255,0.8)',
-            letterSpacing: '0.5px',
-          }}>{isDismissing ? 'Done' : 'Refreshing...'}</span>
-          <style>{`
-            @keyframes ptrSlideUp {
-              0% {
-                transform: translateY(0);
-              }
-              100% {
-                transform: translateY(-100%);
-              }
-            }
-          `}</style>
+          <span className="ptr-refresh-text">{isDismissing ? 'Done' : 'Refreshing...'}</span>
         </div>,
         document.body
       )}

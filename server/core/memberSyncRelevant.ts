@@ -223,6 +223,23 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
             email = resolvedSync.primaryEmail.toLowerCase();
           }
 
+          const hubspotIdOwner = await db.execute(sql`SELECT email FROM users WHERE hubspot_id = ${contact.id} AND LOWER(email) != ${email} AND archived_at IS NULL LIMIT 1`);
+          if (hubspotIdOwner.rows.length > 0) {
+            const ownerEmail = (hubspotIdOwner.rows[0] as { email: string }).email;
+            logger.warn(`[MemberSync] Email mismatch: HubSpot contact ${contact.id} has email ${email} but DB has ${ownerEmail} — email was changed in the app. Pushing correct email to HubSpot.`);
+            try {
+              const { getHubSpotClient } = await import('./integrations');
+              const hubspotClient = await getHubSpotClient();
+              await hubspotClient.crm.contacts.basicApi.update(String(contact.id), {
+                properties: { email: ownerEmail },
+              });
+              logger.info(`[MemberSync] Successfully pushed corrected email ${ownerEmail} to HubSpot contact ${contact.id}`);
+            } catch (hubspotPushErr: unknown) {
+              logger.error(`[MemberSync] Failed to push email correction to HubSpot for contact ${contact.id}:`, { error: getErrorMessage(hubspotPushErr) });
+            }
+            email = ownerEmail.toLowerCase();
+          }
+
           const existingUser = await retryDbOperation(() => db.select({ 
             membershipStatus: users.membershipStatus,
             billingProvider: users.billingProvider,
