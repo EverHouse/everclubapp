@@ -275,15 +275,15 @@ Each sync uses `syncWithRetry()`: attempt once, if failed retry after 5 seconds.
 
 ## Pass Management
 
-### Guest Pass Reset (3 AM Pacific, 1st of Month)
+### Guest Pass Reset (3 AM Pacific, January 1st)
 
 **File:** `server/schedulers/guestPassResetScheduler.ts`
-**Interval:** 1 hr check | **Time Gate:** `getPacificHour() === 3` AND `getPacificDayOfMonth() === 1`
+**Interval:** 1 hr check | **Time Gate:** `month === 1` AND `dayOfMonth === 1` AND `hour 3–8` (catch-up window)
 
-1. Check if current hour is 3 AM AND day of month is 1
-2. Claim monthly slot via `tryClaimResetSlot(monthKey)` — key `last_guest_pass_reset`, value format `YYYY-MM`
+1. Check if current date is January 1st AND hour is in 3–8 AM range
+2. Claim yearly slot via `tryClaimResetSlot(yearKey)` — key `last_guest_pass_reset`, value format `YYYY`
 3. UPDATE `guest_passes` SET `passes_used = 0` WHERE `passes_used > 0`
-4. Log each member's reset status
+4. Log each member's reset status, push wallet pass updates
 
 ## Infrastructure Schedulers
 

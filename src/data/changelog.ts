@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.94",
+    date: "2026-03-19",
+    title: "Guest Passes Now Reset Annually & Critical Bug Fixes",
+    changes: [
+      "Changed: Guest passes now reload once per year (January 1st) instead of monthly — your pass count reflects your annual allowance",
+      "Fixed: Membership tiers page was failing to load due to a database column mismatch — now fully restored",
+      "Fixed: Removed leftover database security policies from a previous migration that could have caused issues",
+    ]
+  },
+  {
     version: "8.87.93",
     date: "2026-03-19",
     title: "Audit Fixes: Fee Snapshot Tracking & Integrity Check Improvements",

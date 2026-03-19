@@ -41,7 +41,7 @@ All schedulers registered in `server/schedulers/index.ts` via `initSchedulers()`
 | HubSpot Form Sync | hubspotFormSyncScheduler.ts | 30 min | None | Ingest HubSpot forms |
 | Member Sync | memberSyncScheduler.ts | 24 hr | 3 AM Pacific | Full HubSpot member sync |
 | Duplicate Cleanup | duplicateCleanupScheduler.ts | 24 hr | 4 AM Pacific | Remove duplicate Trackman bookings |
-| Guest Pass Reset | guestPassResetScheduler.ts | 1 hr | 3 AM, 1st of month | Monthly pass counter reset |
+| Guest Pass Reset | guestPassResetScheduler.ts | 1 hr | 3 AM, January 1st | Yearly pass counter reset |
 | Stuck Cancellation | stuckCancellationScheduler.ts | 2 hr | None | Alert for cancellation_pending >4h |
 | Pending User Cleanup | pendingUserCleanupScheduler.ts | 6 hr | None | Delete 48h+ pending users |
 | Webhook Event Cleanup | webhookEventCleanupScheduler.ts | 24 hr | None | Remove 7-day-old processed events |
@@ -71,7 +71,7 @@ All schedulers registered in `server/schedulers/index.ts` via `initSchedulers()`
 | Time Gate | Scheduler runs on a specific hour | `if (getPacificHour() !== TARGET) return` |
 | Claim Slot (DB) | Once per day/month, crash-safe | `INSERT INTO system_settings ON CONFLICT DO UPDATE WHERE value IS DISTINCT FROM <key>` |
 | Local Variable | Simple hour gate, non-critical | `lastCleanupDate` in memory vs `getTodayPacific()` |
-| Monthly Gate | Once per month | Day-of-month check + month key claim slot |
+| Yearly Gate | Once per year | Month + day-of-month check + year key claim slot |
 | Weekly Gate | Once per week | `getDay() === 0` + hour + week-number tracking |
 
 See [references/idempotency-patterns.md](references/idempotency-patterns.md) for code examples.

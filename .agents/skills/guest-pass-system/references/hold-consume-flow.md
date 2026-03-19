@@ -17,7 +17,7 @@ Detailed transactional steps for guest pass hold creation, consumption at check-
    SELECT id FROM guest_passes WHERE LOWER(member_email) = $1 FOR UPDATE
    ```
 5. **Calculate availability** via `getAvailableGuestPasses()`:
-   - Look up `guest_passes_per_month` from `users` JOIN `membership_tiers`
+   - Look up `guest_passes_per_year` from `users` JOIN `membership_tiers`
    - Query `guest_passes` for current `passes_used` and `passes_total`
    - Auto-update `passes_total` if tier grants more than current total
    - Sum active holds: `SELECT COALESCE(SUM(passes_held), 0) FROM guest_pass_holds WHERE expires_at > NOW()`
@@ -62,7 +62,7 @@ Detailed transactional steps for guest pass hold creation, consumption at check-
    ```
 6. **Look up tier allocation:**
    ```sql
-   SELECT mt.guest_passes_per_month
+   SELECT mt.guest_passes_per_year
    FROM users u JOIN membership_tiers mt ON LOWER(u.tier) = LOWER(mt.name)
    WHERE LOWER(u.email) = $1
    ```

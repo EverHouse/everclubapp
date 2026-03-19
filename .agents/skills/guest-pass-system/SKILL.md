@@ -1,6 +1,6 @@
 ---
 name: guest-pass-system
-description: "Guest pass lifecycle — allocation, holds, consumption, refunds, and monthly reset. Covers guest pass holds during booking, pass consumption at check-in, refund on cancellation, tier-based allocation, monthly reset scheduler, and the pending guest count system. Use when modifying guest pass logic, debugging pass counts, adding guest features, or working on check-in guest handling."
+description: "Guest pass lifecycle — allocation, holds, consumption, refunds, and yearly reset. Covers guest pass holds during booking, pass consumption at check-in, refund on cancellation, tier-based allocation, yearly reset scheduler, and the pending guest count system. Use when modifying guest pass logic, debugging pass counts, adding guest features, or working on check-in guest handling."
 ---
 
 # Guest Pass System
@@ -14,7 +14,7 @@ description: "Guest pass lifecycle — allocation, holds, consumption, refunds, 
 | REST endpoints + helpers | `server/routes/guestPasses.ts` | API, `useGuestPass`, `refundGuestPass`, `getGuestPassesRemaining` |
 | Consumption/refund logic | `server/core/billing/guestPassConsumer.ts` | `consumeGuestPassForParticipant`, `refundGuestPassForParticipant` |
 | Hold lifecycle | `server/core/billing/guestPassHoldService.ts` | `createGuestPassHold`, `releaseGuestPassHold`, `convertHoldToUsage` |
-| Monthly reset | `server/schedulers/guestPassResetScheduler.ts` | Reset scheduler (1st of month, 3 AM Pacific) |
+| Yearly reset | `server/schedulers/guestPassResetScheduler.ts` | Reset scheduler (January 1st, 3 AM Pacific) |
 
 ## Decision Trees
 
@@ -57,7 +57,7 @@ Booking cancelled
 7. **Use `SELECT FOR UPDATE`** on `guest_passes` for all atomic operations.
 8. **Broadcast after pass use/refund.** `broadcastMemberStatsUpdated(email, { guestPasses: remaining })`.
 9. **Auto-update allocation on tier change.** GET endpoint compares `passes_total` against tier config. On downgrade, clamp `passes_used` to new total.
-10. **Monthly reset is idempotent.** Uses `system_settings` key `'last_guest_pass_reset'` with month key `YYYY-MM`.
+10. **Yearly reset is idempotent.** Uses `system_settings` key `'last_guest_pass_reset'` with year key `YYYY`. Runs only on January 1st, 3am–8am Pacific catch-up window.
 
 ## Anti-Patterns (NEVER)
 
@@ -73,12 +73,12 @@ Booking cancelled
 - **Fee calculation (guest fee exemptions)** → `fee-calculation` skill
 - **Check-in consumption flow** → `checkin-flow` skill
 - **Booking creation (hold phase)** → `booking-flow` skill
-- **Monthly reset scheduler** → `scheduler-jobs` skill
+- **Yearly reset scheduler** → `scheduler-jobs` skill
 
 ## Detailed Reference
 
 - **[references/hold-consume-flow.md](references/hold-consume-flow.md)** — Step-by-step transactional flow for consumption and refund.
-- **[references/allocation-reset.md](references/allocation-reset.md)** — Monthly reset scheduler internals.
+- **[references/allocation-reset.md](references/allocation-reset.md)** — Yearly reset scheduler internals.
 
 ---
 
@@ -89,8 +89,8 @@ Booking cancelled
 | Column | Type | Description |
 |---|---|---|
 | member_email | text | Normalized (lowercase) |
-| passes_used | integer | Consumed this month |
-| passes_total | integer | Monthly allocation from tier |
+| passes_used | integer | Consumed this year |
+| passes_total | integer | Annual allocation from tier |
 
 ### guest_pass_holds
 

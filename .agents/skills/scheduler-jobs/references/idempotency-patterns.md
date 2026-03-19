@@ -86,22 +86,22 @@ async function checkAndRun(): Promise<void> {
 
 This is crash-safe: even if the server restarts mid-day, the database records whether the task already ran.
 
-## Monthly Claim Slot Pattern
+## Yearly Claim Slot Pattern
 
-Same as daily claim slot but use a month key (`YYYY-MM`) instead of a date string. Combine with a day-of-month check.
+Same as daily claim slot but use a year key (`YYYY`) instead of a date string. Combine with a month and day-of-month check (January 1st only, 3–8 AM Pacific catch-up window).
 
 ```typescript
 import { getPacificHour, getPacificDayOfMonth, getPacificDateParts } from '../utils/dateUtils';
 
 const RESET_HOUR = 3;
 
-async function tryClaimResetSlot(monthKey: string): Promise<boolean> {
+async function tryClaimResetSlot(yearKey: string): Promise<boolean> {
   try {
     const result = await db.execute(sql`
       INSERT INTO system_settings (key, value, updated_at)
-      VALUES ('last_guest_pass_reset', ${monthKey}, NOW())
-      ON CONFLICT (key) DO UPDATE SET value = ${monthKey}, updated_at = NOW()
-      WHERE system_settings.value IS DISTINCT FROM ${monthKey}
+      VALUES ('last_guest_pass_reset', ${yearKey}, NOW())
+      ON CONFLICT (key) DO UPDATE SET value = ${yearKey}, updated_at = NOW()
+      WHERE system_settings.value IS DISTINCT FROM ${yearKey}
       RETURNING key
     `);
     return (result.rowCount || 0) > 0;
@@ -113,23 +113,23 @@ async function tryClaimResetSlot(monthKey: string): Promise<boolean> {
 async function resetGuestPasses(): Promise<void> {
   const currentHour = getPacificHour();
   const dayOfMonth = getPacificDayOfMonth();
-
-  if (currentHour !== RESET_HOUR || dayOfMonth !== 1) {
-    return; // Only run at 3 AM on the 1st
-  }
-
   const parts = getPacificDateParts();
-  const monthKey = `${parts.year}-${String(parts.month).padStart(2, '0')}`;
 
-  if (!await tryClaimResetSlot(monthKey)) {
-    return; // Already ran this month
+  if (parts.month !== 1 || dayOfMonth !== 1 || currentHour < 3 || currentHour > 8) {
+    return; // Only run January 1st, 3-8 AM Pacific
   }
 
-  // Perform the monthly reset...
+  const yearKey = `${parts.year}`;
+
+  if (!await tryClaimResetSlot(yearKey)) {
+    return; // Already ran this year
+  }
+
+  // Perform the yearly reset...
 }
 ```
 
-**Used by:** Guest Pass Reset (`last_guest_pass_reset` with value `YYYY-MM`).
+**Used by:** Guest Pass Reset (`last_guest_pass_reset` with value `YYYY`).
 
 ## Local Variable Gate Pattern
 

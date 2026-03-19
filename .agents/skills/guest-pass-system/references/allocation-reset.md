@@ -1,28 +1,28 @@
 # Allocation, Reset, and Administrative Controls
 
-Details on tier-based allocation, monthly reset scheduler, record initialization, staff overrides, and availability calculation.
+Details on tier-based allocation, yearly reset scheduler, record initialization, staff overrides, and availability calculation.
 
 ## Tier-Based Allocation
 
 ### Source of passes_total
 
-The `guest_passes.passes_total` value derives from `membership_tiers.guest_passes_per_month`:
+The `guest_passes.passes_total` value derives from `membership_tiers.guest_passes_per_year`:
 
 ```sql
-SELECT mt.guest_passes_per_month
+SELECT mt.guest_passes_per_year
 FROM users u
 JOIN membership_tiers mt ON LOWER(u.tier) = LOWER(mt.name)
 WHERE LOWER(u.email) = $1
 ```
 
-Look up via `getTierLimits(tierName)` in `server/core/tierService.ts`, which returns an object containing `guest_passes_per_month`.
+Look up via `getTierLimits(tierName)` in `server/core/tierService.ts`, which returns an object containing `guest_passes_per_year`.
 
 ### Tier Change Handling
 
 Auto-update occurs on **GET /api/guest-passes/:email** in `server/routes/guestPasses.ts`:
 
 1. Look up member's current tier from `users` table
-2. Call `getTierLimits(actualTier)` to get `guest_passes_per_month`
+2. Call `getTierLimits(actualTier)` to get `guest_passes_per_year`
 3. Compare against existing `guest_passes.passes_total`
 4. If mismatched, update the record:
 
@@ -56,7 +56,7 @@ WHERE LOWER(member_email) = $1
 
 `getAvailableGuestPasses()` similarly upgrades `passes_total` if `tierGuestPasses > passesTotal`.
 
-## Monthly Reset Scheduler
+## Yearly Reset Scheduler
 
 **File:** `server/schedulers/guestPassResetScheduler.ts`
 
@@ -64,9 +64,10 @@ WHERE LOWER(member_email) = $1
 
 - Scheduler runs on a `setInterval` of 1 hour (3,600,000 ms)
 - Each tick checks:
-  - `getPacificHour() === 3` (3 AM Pacific)
-  - `getPacificDayOfMonth() === 1` (1st of the month)
-- Only proceeds if both conditions are true
+  - `month === 1` (January)
+  - `dayOfMonth === 1` (1st)
+  - `hour >= 3 && hour <= 8` (3–8 AM Pacific catch-up window)
+- Only proceeds if all conditions are true
 
 ### Idempotency Mechanism
 
@@ -74,15 +75,15 @@ Use `system_settings` table to prevent double runs:
 
 ```sql
 INSERT INTO system_settings (key, value, updated_at)
-VALUES ('last_guest_pass_reset', $monthKey, NOW())
-ON CONFLICT (key) DO UPDATE SET value = $monthKey, updated_at = NOW()
-WHERE system_settings.value IS DISTINCT FROM $monthKey
+VALUES ('last_guest_pass_reset', $yearKey, NOW())
+ON CONFLICT (key) DO UPDATE SET value = $yearKey, updated_at = NOW()
+WHERE system_settings.value IS DISTINCT FROM $yearKey
 RETURNING key
 ```
 
-- `monthKey` format: `YYYY-MM` (e.g., `2026-02`)
+- `yearKey` format: `YYYY` (e.g., `2026`)
 - The `IS DISTINCT FROM` clause ensures the UPDATE only happens if the value actually changes
-- If `RETURNING` yields 0 rows, the reset already ran this month — skip
+- If `RETURNING` yields 0 rows, the reset already ran this year — skip
 
 ### Reset SQL
 
@@ -112,7 +113,7 @@ Create a `guest_passes` record if one does not exist. Use during member creation
 ### Flow
 
 1. Normalize email to lowercase
-2. Look up `guest_passes_per_month` from tier via `getTierLimits(tier)`
+2. Look up `guest_passes_per_year` from tier via `getTierLimits(tier)`
 3. Query `guest_passes` by normalized email
 4. If no record exists, insert:
    ```typescript
@@ -145,7 +146,7 @@ db.update(guestPasses)
 - Log via `logFromRequest()` with action `'update_guest_passes'`
 - Return 404 if no matching record found
 
-**Note:** This override can be reverted by the auto-update logic on the next GET request if the tier config differs. To make a permanent override, the tier's `guest_passes_per_month` should be adjusted in the membership_tiers table.
+**Note:** This override can be reverted by the auto-update logic on the next GET request if the tier config differs. To make a permanent override, the tier's `guest_passes_per_year` should be adjusted in the membership_tiers table.
 
 ## Available Passes Calculation
 
@@ -157,7 +158,7 @@ available = passesTotal - passesUsed - activeHolds
 
 ### Steps
 
-1. Look up tier's `guest_passes_per_month` via `users` JOIN `membership_tiers`
+1. Look up tier's `guest_passes_per_year` via `users` JOIN `membership_tiers`
 2. Read `passes_used` and `passes_total` from `guest_passes`
 3. Auto-update `passes_total` if tier grants more
 4. Sum active holds:
