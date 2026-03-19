@@ -512,6 +512,8 @@ export function useBookGolf() {
       }
       const invalidGuestSlot = playerSlots.find(slot => slot.type === 'guest' && !slot.selectedId && slot.email && !slot.email.includes('@'));
       if (invalidGuestSlot) { setPlayerSlotError('Please enter a valid email address for each guest.'); haptic.error(); return; }
+      const guestMissingEmail = playerSlots.find(slot => slot.type === 'guest' && slot.selectedId && !(slot.email && slot.email.includes('@')));
+      if (guestMissingEmail) { setPlayerSlotError('Guest slots require a valid email address. Please add an email for each guest.'); haptic.error(); playerSlotScrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
       const freshAvailability = await postWithCredentials<Record<number, { slots: APISlot[] }>>('/api/availability/batch', {
         resource_ids: [selectedResource.dbId], date: selectedDateObj.date, duration, user_email: effectiveUser.email
       });
