@@ -102,16 +102,7 @@ export const StaffNavigationRail: React.FC<StaffNavigationRailProps> = ({
 
       <div className="px-1 py-3 border-t border-white/10 flex-shrink-0">
         <button
-          onClick={() => {
-            const isPwa = window.matchMedia('(display-mode: standalone)').matches
-              || (navigator as any).standalone === true;
-            if (isPwa) {
-              startNavigation();
-              navigate('/kiosk');
-            } else {
-              window.open('/kiosk', '_blank', 'noopener,noreferrer');
-            }
-          }}
+          onClick={() => { startNavigation(); navigate('/kiosk'); }}
           style={{ WebkitTapHighlightColor: 'transparent', fontFamily: 'var(--font-label)' }}
           aria-label="Kiosk Check-in"
           className="tactile-btn flex flex-col items-center gap-1 w-full min-h-[56px] py-2 px-1 transition-colors duration-normal ease-out"

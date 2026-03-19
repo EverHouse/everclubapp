@@ -46,6 +46,7 @@ interface SettingsState {
   trialCouponCode: string;
   notificationRetentionDays: string;
   hubspotTourSchedulerUrl: string;
+  kioskExitPasscode: string;
 }
 
 const HUBSPOT_FORM_ID_KEYS = [
@@ -192,6 +193,7 @@ const SettingsTab: React.FC = () => {
     gracePeriodDays: '3',
     trialCouponCode: 'ASTORIA7',
     notificationRetentionDays: '30',
+    kioskExitPasscode: '1234',
   };
 
   const [settings, setSettings] = useState<SettingsState>(defaultSettings);
@@ -256,6 +258,7 @@ const SettingsTab: React.FC = () => {
         gracePeriodDays: data['scheduling.grace_period_days']?.value || '3',
         trialCouponCode: data['scheduling.trial_coupon_code']?.value || 'ASTORIA7',
         notificationRetentionDays: data['cleanup.notification_retention_days']?.value || '30',
+        kioskExitPasscode: data['kiosk.exit_passcode']?.value || '1234',
       } as SettingsState;
     },
   });
@@ -306,6 +309,7 @@ const SettingsTab: React.FC = () => {
         'scheduling.grace_period_days': settingsToSave.gracePeriodDays,
         'scheduling.trial_coupon_code': settingsToSave.trialCouponCode,
         'cleanup.notification_retention_days': settingsToSave.notificationRetentionDays,
+        'kiosk.exit_passcode': settingsToSave.kioskExitPasscode,
       };
 
       for (const [key, val] of Object.entries(settingsToSave.hubspotFormIds ?? {})) {
@@ -837,6 +841,32 @@ const SettingsTab: React.FC = () => {
               <Icon name={copied ? 'check_circle' : 'content_copy'} className="text-base" />
               {copied ? 'Copied!' : 'Copy URL'}
             </button>
+          </div>
+        </div>
+      </div>
+
+      <div className={sectionClass}>
+        <SectionHeader icon="qr_code_scanner" title="Kiosk Check-In" subtitle="Configure the self-service kiosk check-in station" />
+        <div className="space-y-4">
+          <div>
+            <FieldLabel>Exit Passcode</FieldLabel>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+              4-digit code required to exit kiosk mode and return to the admin portal. Share only with staff.
+            </p>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={4}
+              pattern="[0-9]*"
+              value={settings.kioskExitPasscode}
+              onChange={e => {
+                const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                setSettings(prev => ({ ...prev, kioskExitPasscode: val }));
+                setHasChanges(true);
+              }}
+              placeholder="1234"
+              className={`${inputSmClass} max-w-[120px] text-center tracking-[0.3em] font-mono text-lg`}
+            />
           </div>
         </div>
       </div>

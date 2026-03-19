@@ -130,6 +130,8 @@ const DEFAULT_SETTINGS: Record<string, { value: string; category: string }> = {
   'scheduling.trial_coupon_code': { value: 'ASTORIA7', category: 'scheduling' },
 
   'cleanup.notification_retention_days': { value: '30', category: 'cleanup' },
+
+  'kiosk.exit_passcode': { value: '1234', category: 'kiosk' },
 };
 
 const PUBLIC_CATEGORIES = new Set(['contact', 'social', 'apple_messages', 'hours_display']);

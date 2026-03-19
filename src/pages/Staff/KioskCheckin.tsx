@@ -15,7 +15,7 @@ interface Html5QrcodeInstance {
   ): Promise<null | void>;
 }
 
-type KioskState = 'idle' | 'scanning' | 'processing' | 'success' | 'already_checked_in' | 'error' | 'exiting';
+type KioskState = 'idle' | 'scanning' | 'processing' | 'success' | 'already_checked_in' | 'error';
 
 interface CheckinResult {
   memberName: string;
@@ -25,7 +25,6 @@ interface CheckinResult {
 
 const RESET_DELAY_SUCCESS = 4000;
 const RESET_DELAY_ERROR = 3000;
-const EXIT_HOLD_DURATION = 3000;
 
 const KioskCheckin: React.FC = () => {
   const { actualUser, sessionChecked } = useAuthData();
@@ -34,14 +33,16 @@ const KioskCheckin: React.FC = () => {
   const [checkinResult, setCheckinResult] = useState<CheckinResult | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [exitProgress, setExitProgress] = useState(0);
-  const [authError, setAuthError] = useState(false);
+
+  const [showPasscodeModal, setShowPasscodeModal] = useState(false);
+  const [passcodeDigits, setPasscodeDigits] = useState<string[]>(['', '', '', '']);
+  const [passcodeError, setPasscodeError] = useState(false);
+  const [passcodeChecking, setPasscodeChecking] = useState(false);
+  const passcodeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const qrScannerRef = useRef<Html5QrcodeInstance | null>(null);
   const hasScannedRef = useRef(false);
-  const exitIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const verifyIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const elementId = useMemo(() => `kiosk-qr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, []);
 
@@ -136,11 +137,6 @@ const KioskCheckin: React.FC = () => {
           lifetimeVisits: 0
         });
         setState('already_checked_in');
-      } else if (res.status === 401 || res.status === 403) {
-        stopScanner();
-        setAuthError(true);
-        setState('idle');
-        return;
       } else {
         setErrorMessage(data.error || 'Check-in failed. Please ask staff for help.');
         setState('error');
@@ -149,7 +145,7 @@ const KioskCheckin: React.FC = () => {
       setErrorMessage('Connection error. Please try again.');
       setState('error');
     }
-  }, [stopScanner]);
+  }, []);
 
   const resetToScanning = useCallback(() => {
     setState('scanning');
@@ -172,106 +168,127 @@ const KioskCheckin: React.FC = () => {
     };
   }, [state, stopScanner, resetToScanning]);
 
-  const verifyStaffSession = useCallback(async () => {
-    try {
-      const res = await fetch('/api/kiosk/verify-staff', { credentials: 'include' });
-      if (!res.ok) {
-        stopScanner();
-        setAuthError(true);
-        setState('idle');
-      }
-    } catch {
-      stopScanner();
-      setAuthError(true);
-      setState('idle');
-    }
-  }, [stopScanner]);
-
-  useEffect(() => {
-    if (!sessionChecked) return;
-    if (!isStaff) {
-      setAuthError(true);
-      return;
-    }
-    verifyStaffSession();
-    verifyIntervalRef.current = setInterval(verifyStaffSession, 5 * 60 * 1000);
-    return () => {
-      if (verifyIntervalRef.current) clearInterval(verifyIntervalRef.current);
-    };
-  }, [sessionChecked, isStaff, verifyStaffSession]);
-
   useEffect(() => {
     return () => {
       stopScanner();
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
-      if (exitIntervalRef.current) clearInterval(exitIntervalRef.current);
-      if (verifyIntervalRef.current) clearInterval(verifyIntervalRef.current);
     };
   }, [stopScanner]);
 
   const handleStartCheckin = useCallback(() => {
-    setAuthError(false);
     setState('scanning');
     setTimeout(() => startScanner(), 500);
   }, [startScanner]);
 
-  const handleExitStart = useCallback(() => {
-    setExitProgress(0);
-    const startTime = Date.now();
-    exitIntervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / EXIT_HOLD_DURATION, 1);
-      setExitProgress(progress);
-      if (progress >= 1) {
-        if (exitIntervalRef.current) clearInterval(exitIntervalRef.current);
-        setState('exiting');
-        stopScanner().then(() => navigate('/admin', { replace: true }));
+  const handlePasscodeOpen = useCallback(() => {
+    setShowPasscodeModal(true);
+    setPasscodeDigits(['', '', '', '']);
+    setPasscodeError(false);
+    setPasscodeChecking(false);
+    setTimeout(() => passcodeInputRefs.current[0]?.focus(), 100);
+  }, []);
+
+  const handlePasscodeClose = useCallback(() => {
+    setShowPasscodeModal(false);
+    setPasscodeDigits(['', '', '', '']);
+    setPasscodeError(false);
+  }, []);
+
+  const handlePasscodeSubmit = useCallback(async (digits: string[]) => {
+    const code = digits.join('');
+    if (code.length !== 4) return;
+
+    setPasscodeChecking(true);
+    setPasscodeError(false);
+
+    try {
+      const res = await fetch('/api/kiosk/verify-passcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ passcode: code })
+      });
+
+      const data = await res.json();
+      if (data.valid) {
+        await stopScanner();
+        navigate('/admin', { replace: true });
+      } else {
+        setPasscodeError(true);
+        setPasscodeDigits(['', '', '', '']);
+        setTimeout(() => passcodeInputRefs.current[0]?.focus(), 100);
       }
-    }, 50);
+    } catch {
+      setPasscodeError(true);
+      setPasscodeDigits(['', '', '', '']);
+      setTimeout(() => passcodeInputRefs.current[0]?.focus(), 100);
+    } finally {
+      setPasscodeChecking(false);
+    }
   }, [navigate, stopScanner]);
 
-  const handleExitEnd = useCallback(() => {
-    if (exitIntervalRef.current) {
-      clearInterval(exitIntervalRef.current);
-      exitIntervalRef.current = null;
+  const handlePasscodeDigitChange = useCallback((index: number, value: string) => {
+    if (value.length > 1) value = value.slice(-1);
+    if (value && !/^\d$/.test(value)) return;
+
+    setPasscodeError(false);
+    const newDigits = [...passcodeDigits];
+    newDigits[index] = value;
+    setPasscodeDigits(newDigits);
+
+    if (value && index < 3) {
+      passcodeInputRefs.current[index + 1]?.focus();
     }
-    setExitProgress(0);
-  }, []);
+
+    if (value && index === 3) {
+      handlePasscodeSubmit(newDigits);
+    }
+  }, [passcodeDigits, handlePasscodeSubmit]);
+
+  const handlePasscodeKeyDown = useCallback((index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !passcodeDigits[index] && index > 0) {
+      const newDigits = [...passcodeDigits];
+      newDigits[index - 1] = '';
+      setPasscodeDigits(newDigits);
+      passcodeInputRefs.current[index - 1]?.focus();
+    }
+  }, [passcodeDigits]);
 
   if (!sessionChecked) {
     return (
-      <div className="fixed inset-0 bg-gray-950 flex items-center justify-center">
+      <div className="fixed inset-0 bg-gray-950 flex items-center justify-center" style={{ zIndex: 9999 }}>
         <div className="w-12 h-12 rounded-full border-4 border-white/20 border-t-white animate-spin" />
       </div>
     );
   }
 
+  if (!isStaff) {
+    return (
+      <div className="fixed inset-0 bg-gray-950 flex flex-col items-center justify-center px-6" style={{ zIndex: 9999 }}>
+        <div className="w-20 h-20 rounded-2xl bg-red-500/10 flex items-center justify-center mb-6">
+          <Icon name="lock" className="text-5xl text-red-400" />
+        </div>
+        <h1 className="text-2xl font-bold text-white mb-2">Staff Access Required</h1>
+        <p className="text-white/50 text-center mb-8">Sign in with a staff account to use kiosk mode.</p>
+        <button
+          onClick={() => navigate('/admin', { replace: true })}
+          className="px-6 py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/20 transition-colors"
+        >
+          Go to Admin Portal
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 bg-gray-950 flex flex-col select-none" style={{ touchAction: 'none' }}>
+    <div className="fixed inset-0 bg-gray-950 flex flex-col select-none" style={{ zIndex: 9999, touchAction: 'none' }}>
       <div className="absolute top-4 right-4 z-50">
         <button
-          onMouseDown={handleExitStart}
-          onMouseUp={handleExitEnd}
-          onMouseLeave={handleExitEnd}
-          onTouchStart={handleExitStart}
-          onTouchEnd={handleExitEnd}
-          onTouchCancel={handleExitEnd}
-          className="relative w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
-          aria-label="Hold to exit kiosk mode"
+          onClick={handlePasscodeOpen}
+          className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+          aria-label="Exit kiosk mode"
         >
-          <Icon name="close" className="text-white/30 text-lg" />
-          {exitProgress > 0 && (
-            <svg className="absolute inset-0 w-12 h-12 -rotate-90" viewBox="0 0 48 48">
-              <circle
-                cx="24" cy="24" r="20"
-                fill="none"
-                stroke="rgba(255,255,255,0.6)"
-                strokeWidth="3"
-                strokeDasharray={`${exitProgress * 125.6} 125.6`}
-                strokeLinecap="round"
-              />
-            </svg>
-          )}
+          <Icon name="lock_open" className="text-white/30 text-lg" />
         </button>
       </div>
 
@@ -284,16 +301,9 @@ const KioskCheckin: React.FC = () => {
             <h1 className="text-4xl font-bold text-white tracking-tight mb-2">Self Check-In</h1>
             <p className="text-white/50 text-lg mb-10 text-center">Tap the button below to scan your membership QR code</p>
 
-            {authError && (
-              <div className="mb-6 px-5 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                <p className="text-red-300 text-sm text-center">Staff session expired. Please log in again from the admin portal.</p>
-              </div>
-            )}
-
             <button
               onClick={handleStartCheckin}
-              disabled={authError}
-              className="group relative px-10 py-5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-white text-xl font-semibold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/25"
+              className="group relative px-10 py-5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-white text-xl font-semibold transition-all duration-200 shadow-lg shadow-emerald-500/25"
             >
               <span className="flex items-center gap-3">
                 <Icon name="photo_camera" className="text-2xl" />
@@ -388,20 +398,68 @@ const KioskCheckin: React.FC = () => {
             <p className="text-white/30 text-sm mt-4">Please ask staff for assistance</p>
           </div>
         )}
-
-        {state === 'exiting' && (
-          <div className="text-center animate-in fade-in duration-200">
-            <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
-              <div className="w-8 h-8 rounded-full border-3 border-white/20 border-t-white animate-spin" />
-            </div>
-            <p className="text-white/60">Exiting kiosk mode...</p>
-          </div>
-        )}
       </div>
 
       <div className="pb-6 text-center">
         <p className="text-white/20 text-xs">Kiosk Self-Service Check-In</p>
       </div>
+
+      {showPasscodeModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[10000] animate-in fade-in duration-200">
+          <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-sm mx-6 border border-white/10 animate-in zoom-in-95 duration-300">
+            <div className="text-center mb-8">
+              <div className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-4">
+                <Icon name="lock" className="text-3xl text-white/70" />
+              </div>
+              <h2 className="text-xl font-bold text-white mb-1">Enter Passcode</h2>
+              <p className="text-white/40 text-sm">Enter the staff passcode to exit kiosk mode</p>
+            </div>
+
+            <div className="flex justify-center gap-3 mb-6">
+              {passcodeDigits.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={el => { passcodeInputRefs.current[i] = el; }}
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={e => handlePasscodeDigitChange(i, e.target.value)}
+                  onKeyDown={e => handlePasscodeKeyDown(i, e)}
+                  disabled={passcodeChecking}
+                  className={`w-14 h-16 text-center text-2xl font-bold rounded-xl border-2 bg-black/30 text-white outline-none transition-all duration-200 ${
+                    passcodeError
+                      ? 'border-red-500 animate-shake'
+                      : digit
+                        ? 'border-emerald-500/50'
+                        : 'border-white/20 focus:border-white/50'
+                  } disabled:opacity-50`}
+                  autoComplete="off"
+                />
+              ))}
+            </div>
+
+            {passcodeError && (
+              <p className="text-red-400 text-sm text-center mb-4 animate-in fade-in duration-200">
+                Incorrect passcode. Try again.
+              </p>
+            )}
+
+            {passcodeChecking && (
+              <div className="flex justify-center mb-4">
+                <div className="w-6 h-6 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+              </div>
+            )}
+
+            <button
+              onClick={handlePasscodeClose}
+              className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

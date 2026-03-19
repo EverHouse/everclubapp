@@ -7,6 +7,7 @@ import { logFromRequest } from '../core/auditLog';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getErrorMessage } from '../utils/errorUtils';
+import { getSettingValue } from '../core/settingsHelper';
 
 const router = Router();
 
@@ -96,6 +97,23 @@ router.get('/api/kiosk/verify-staff', isStaffOrAdmin, async (req: Request, res: 
     res.json({ authenticated: true, staffName: sessionUser.name || sessionUser.email });
   } catch (error: unknown) {
     res.status(500).json({ authenticated: false, error: getErrorMessage(error) });
+  }
+});
+
+router.post('/api/kiosk/verify-passcode', async (req: Request, res: Response) => {
+  try {
+    const { passcode } = req.body;
+    if (!passcode || typeof passcode !== 'string') {
+      return res.status(400).json({ valid: false, error: 'Passcode is required' });
+    }
+
+    const storedPasscode = await getSettingValue('kiosk.exit_passcode', '1234');
+    if (passcode === storedPasscode) {
+      return res.json({ valid: true });
+    }
+    return res.status(401).json({ valid: false, error: 'Invalid passcode' });
+  } catch (error: unknown) {
+    logAndRespond(req, res, 500, 'Failed to verify kiosk passcode', error);
   }
 });
 
