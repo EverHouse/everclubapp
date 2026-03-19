@@ -166,7 +166,7 @@ const KioskCheckin: React.FC = () => {
     return () => {
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
     };
-  }, [state, stopScanner, resetToScanning]);
+  }, [state, stopScanner, resetToIdle]);
 
   useEffect(() => {
     return () => {
