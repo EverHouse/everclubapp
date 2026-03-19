@@ -307,7 +307,7 @@ export function PaymentStep({
                 <TerminalPayment
                   amount={totalPrice}
                   subscriptionId={form.joinExistingGroup ? null : subscriptionId}
-                  existingPaymentIntentId={paymentIntentId || undefined}
+                  existingPaymentIntentId={(!form.joinExistingGroup && subscriptionId) ? undefined : (paymentIntentId || undefined)}
                   userId={createdUserId}
                   description={form.joinExistingGroup ? `${selectedTier?.name || 'Membership'} (Group Add-on)` : undefined}
                   onSuccess={async (piId) => {
