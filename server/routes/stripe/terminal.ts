@@ -803,7 +803,6 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
       let readerLabel = readerId;
       try {
         const readerObj = await stripe.terminal.readers.retrieve(readerId);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         readerLabel = ('label' in readerObj ? (readerObj as Stripe.Terminal.Reader).label : null) || readerId;
       } catch (_) { /* use readerId as fallback label */ }
 
@@ -833,7 +832,7 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
           paymentType: 'subscription_terminal',
           source: 'terminal',
           readerId,
-          readerLabel: readerId,
+          readerLabel,
           fallback: 'true',
           requiresInvoiceReconciliation: 'true'
         }
@@ -1010,15 +1009,18 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
     const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id || '';
     
     if (piMetadata.requiresInvoiceReconciliation === 'true' && latestInvoice && latestInvoice.status !== 'paid') {
-      try {
-        if (latestInvoice.status === 'open') {
+      if (latestInvoice.status === 'open' || latestInvoice.status === 'draft') {
+        try {
+          if (latestInvoice.status === 'draft') {
+            await stripe.invoices.finalizeInvoice(actualInvoiceId);
+            logger.info('[Terminal] Finalized draft invoice before OOB reconciliation', { extra: { actualInvoiceId } });
+          }
           const latestInvExpanded = latestInvoice as StripeInvoiceExpanded;
           const invoicePiId = typeof latestInvExpanded.payment_intent === 'string'
             ? latestInvExpanded.payment_intent
             : (typeof latestInvExpanded.payment_intent === 'object' && latestInvExpanded.payment_intent !== null) ? (latestInvExpanded.payment_intent as Stripe.PaymentIntent).id : null;
           if (invoicePiId) {
             try {
-              // Intentional direct cancel — NOT cancelPaymentIntent() — because we need the invoice to stay open for OOB payment below
               await stripe.paymentIntents.cancel(invoicePiId);
               logger.info('[Terminal] Cancelled invoice-generated PI before paying with terminal PI', { extra: { invoicePiId, actualInvoiceId } });
             } catch (cancelErr: unknown) {
@@ -1029,35 +1031,42 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
             paid_out_of_band: true,
           });
           logger.info('[Terminal] Reconciled subscription invoice as paid out-of-band (terminal PI)', { extra: { actualInvoiceId, paymentIntentId } });
-        } else {
-          logger.info('[Terminal] Invoice not in open state, skipping reconciliation', { extra: { actualInvoiceId, status: latestInvoice.status } });
+        } catch (invoicePayErr: unknown) {
+          logger.error('[Terminal] CRITICAL: Failed to reconcile invoice — blocking activation to prevent billing mismatch', { extra: { actualInvoiceId, error: getErrorMessage(invoicePayErr) } });
+          return res.status(500).json({
+            error: 'Payment was captured but invoice reconciliation failed. The charge was collected but membership was NOT activated to prevent billing inconsistency. Please reconcile the invoice manually in Stripe, then retry confirmation.',
+            paymentIntentId,
+            invoiceId: actualInvoiceId,
+            reconciliationFailed: true
+          });
         }
-      } catch (invoicePayErr: unknown) {
-        logger.error('[Terminal] Failed to reconcile invoice after terminal payment', { extra: { actualInvoiceId, error: getErrorMessage(invoicePayErr) } });
+      } else {
+        logger.error('[Terminal] CRITICAL: Invoice in unexpected state for reconciliation — blocking activation', { extra: { actualInvoiceId, status: latestInvoice.status } });
+        return res.status(500).json({
+          error: `Invoice is in "${latestInvoice.status}" state and cannot be reconciled. Membership was NOT activated. Please resolve the invoice manually in Stripe.`,
+          paymentIntentId,
+          invoiceId: actualInvoiceId,
+          reconciliationFailed: true
+        });
       }
     }
     
-    const existingPaymentRecord = await db.select().from(terminalPayments)
-      .where(eq(terminalPayments.stripePaymentIntentId, paymentIntentId));
-    
-    if (existingPaymentRecord.length === 0) {
-      const staffEmail = getSessionUser(req)?.email || 'unknown';
-      await db.insert(terminalPayments).values({
-        userId,
-        userEmail: existingUser?.email || piMetadata.email || 'unknown',
-        stripePaymentIntentId: paymentIntentId,
-        stripeSubscriptionId: subscriptionId,
-        stripeInvoiceId: actualInvoiceId || null,
-        stripeCustomerId: customerId,
-        amountCents: paymentIntent.amount,
-        currency: paymentIntent.currency || 'usd',
-        readerId: piMetadata.readerId || null,
-        readerLabel: piMetadata.readerLabel || null,
-        status: 'succeeded',
-        processedBy: staffEmail,
-      });
-      logger.info('[Terminal] Payment record created for PI', { extra: { paymentIntentId } });
-    }
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
+    await db.insert(terminalPayments).values({
+      userId,
+      userEmail: existingUser?.email || piMetadata.email || 'unknown',
+      stripePaymentIntentId: paymentIntentId,
+      stripeSubscriptionId: subscriptionId,
+      stripeInvoiceId: actualInvoiceId || null,
+      stripeCustomerId: customerId,
+      amountCents: paymentIntent.amount,
+      currency: paymentIntent.currency || 'usd',
+      readerId: piMetadata.readerId || null,
+      readerLabel: piMetadata.readerLabel || null,
+      status: 'succeeded',
+      processedBy: staffEmail,
+    }).onConflictDoNothing({ target: terminalPayments.stripePaymentIntentId });
+    logger.info('[Terminal] Payment record ensured for PI', { extra: { paymentIntentId } });
     
     let cardSaved = false;
     let cardSaveWarning: string | null = null;

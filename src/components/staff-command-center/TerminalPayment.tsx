@@ -279,6 +279,8 @@ export function TerminalPayment({
       }
 
       if (data.freeActivation) {
+        setProcessing(false);
+        processingRef.current = false;
         setStatus('success');
         setStatusMessage('No payment needed — $0 subscription activated!');
         if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
@@ -327,15 +329,16 @@ export function TerminalPayment({
 
     if (selectedReader && processing) {
       try {
-        const data = await postWithCredentials<{ alreadySucceeded?: boolean }>('/api/stripe/terminal/cancel-payment', { readerId: selectedReader, paymentIntentId });
+        const currentPiId = paymentIntentIdRef.current;
+        const data = await postWithCredentials<{ alreadySucceeded?: boolean }>('/api/stripe/terminal/cancel-payment', { readerId: selectedReader, paymentIntentId: currentPiId });
 
-        if (data.alreadySucceeded) {
+        if (data.alreadySucceeded && currentPiId) {
           setStatus('success');
           setStatusMessage('Payment already processed successfully!');
           setCanceling(false);
           if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
           successTimeoutRef.current = setTimeout(() => {
-            onSuccess(paymentIntentId!);
+            onSuccess(currentPiId);
           }, 1500);
           return;
         }
