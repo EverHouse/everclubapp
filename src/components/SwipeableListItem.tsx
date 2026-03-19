@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, type ReactNode } from 'react';
 import { haptic } from '../utils/haptics';
+import Icon from './icons/Icon';
 
 interface SwipeAction {
   id: string;
@@ -190,7 +191,7 @@ export function SwipeableListItem({
                   }}
                   aria-label={action.label}
                 >
-                  <span className={`material-symbols-outlined transition-transform duration-fast ${isExpanded ? 'text-2xl scale-125' : 'text-xl'}`}>{action.icon}</span>
+                  <Icon name={action.icon} className={`transition-transform duration-fast ${isExpanded ? 'text-2xl scale-125' : 'text-xl'}`} />
                   <span className="text-xs font-medium">{action.label}</span>
                 </button>
               );
@@ -221,7 +222,7 @@ export function SwipeableListItem({
                   }}
                   aria-label={action.label}
                 >
-                  <span className={`material-symbols-outlined transition-transform duration-fast ${isExpanded ? 'text-2xl scale-125' : 'text-xl'}`}>{action.icon}</span>
+                  <Icon name={action.icon} className={`transition-transform duration-fast ${isExpanded ? 'text-2xl scale-125' : 'text-xl'}`} />
                   <span className="text-xs font-medium">{action.label}</span>
                 </button>
               );

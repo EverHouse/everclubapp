@@ -158,6 +158,7 @@ const EmailTemplatesTab = lazy(() => import('./pages/Admin/tabs/EmailTemplatesTa
 const AnalyticsTab = lazy(() => import('./pages/Admin/tabs/AnalyticsTab'));
 
 import { prefetchOnIdle, resetPrefetchState } from './lib/prefetch';
+import Icon from './components/icons/Icon';
 
 const useDebugLayout = () => {
   useEffect(() => {
@@ -240,9 +241,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       return (
         <div className="flex items-center justify-center h-screen bg-[#141414] text-white p-6">
           <div className="glass-card rounded-xl p-8 max-w-md text-center">
-            <span className="material-symbols-outlined text-6xl text-red-400 mb-4">
-              {isNetworkError ? 'wifi_off' : 'error'}
-            </span>
+            <Icon name={isNetworkError ? 'wifi_off' : 'error'} className="text-6xl text-red-400 mb-4" />
             <h2 className="text-2xl font-bold mb-2">
               {isNetworkError ? 'Connection Issue' : 'Something went wrong'}
             </h2>
@@ -747,7 +746,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             className={`w-10 h-10 flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg`}
             aria-label="Open menu"
           >
-            <span className="material-symbols-outlined text-[24px]">menu</span>
+            <Icon name="menu" className="text-[24px]" />
           </button>
         ) : (
           <button 
@@ -755,7 +754,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             className={`w-10 h-10 flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg`}
             aria-label="Open menu"
           >
-            <span className="material-symbols-outlined text-[24px]">menu</span>
+            <Icon name="menu" className="text-[24px]" />
           </button>
         )}
       </div>
@@ -789,7 +788,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             className={`w-10 h-10 flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg relative`}
             aria-label={isStaffOrAdmin && !isViewingAs ? "Updates" : "Notifications"}
           >
-            <span className="material-symbols-outlined text-[24px]">{isStaffOrAdmin && !isViewingAs ? 'campaign' : 'notifications'}</span>
+            <Icon name={isStaffOrAdmin && !isViewingAs ? 'campaign' : 'notifications'} className="text-[24px]" />
             {unreadCount > 0 && (
               <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-badge-pulse">
                 {unreadCount > 9 ? '9+' : unreadCount}

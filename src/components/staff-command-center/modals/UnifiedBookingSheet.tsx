@@ -10,6 +10,7 @@ import { isPlaceholderEmail } from './bookingSheetTypes';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { formatTime12Hour } from '../../../utils/dateUtils';
 import type { UnifiedBookingSheetProps } from './bookingSheetTypes';
+import Icon from '../../icons/Icon';
 
 export type { BookingType, SheetMode, UnifiedBookingSheetProps } from './bookingSheetTypes';
 
@@ -94,7 +95,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
             </div>
           ) : logic.rosterError ? (
             <div className="text-center py-8">
-              <span className="material-symbols-outlined text-4xl text-red-500 mb-2">error</span>
+              <Icon name="error" className="text-4xl text-red-500 mb-2" />
               <p className="text-red-600 dark:text-red-400">{logic.rosterError}</p>
               <button type="button" onClick={logic.fetchRosterData} className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-sm">
                 Retry
@@ -143,10 +144,10 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                       ))}
                     </select>
                     {logic.isUpdatingPlayerCount && (
-                      <span className="material-symbols-outlined animate-spin text-sm text-primary/50 dark:text-white/50">progress_activity</span>
+                      <Icon name="progress_activity" className="animate-spin text-sm text-primary/50 dark:text-white/50" />
                     )}
                     {rosterLocked && (
-                      <span className="material-symbols-outlined text-sm text-green-500" title="Locked — payment collected">lock</span>
+                      <Icon name="lock" className="text-sm text-green-500" />
                     )}
                   </div>
                 </div>
@@ -154,7 +155,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
 
               {!logic.isConferenceRoom && logic.rosterData?.tierLimits?.guest_passes_per_year && (
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="material-symbols-outlined text-emerald-500 text-sm">redeem</span>
+                  <Icon name="redeem" className="text-emerald-500 text-sm" />
                   <span className="text-primary/70 dark:text-white/70">
                     Guest Passes: <span className="font-semibold text-primary dark:text-white">
                       {logic.rosterData.ownerGuestPassesRemaining}/{logic.rosterData.tierLimits.guest_passes_per_year}

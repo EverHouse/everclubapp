@@ -2,6 +2,7 @@ import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { getTodayString } from '../utils/dateUtils';
 import AnimatedCounter from './AnimatedCounter';
+import Icon from './icons/Icon';
 
 interface NextItem {
   title: string;
@@ -40,12 +41,7 @@ const MetricCard: React.FC<MetricCardProps> = ({ icon, label, value, subtext, is
         : 'bg-white/30 border-white/20 hover:bg-white/40'
     }`}
   >
-    <span 
-      className={`material-symbols-outlined text-2xl mb-2 ${isDark ? 'text-accent' : 'text-brand-green'}`}
-      aria-hidden="true"
-    >
-      {icon}
-    </span>
+    <Icon name={icon} className={`text-2xl mb-2 ${isDark ? 'text-accent' : 'text-brand-green'}`} />
     <div className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${isDark ? 'text-white/60' : 'text-brand-green/60'}`} style={{ fontFamily: 'var(--font-label)' }}>
       {label}
     </div>

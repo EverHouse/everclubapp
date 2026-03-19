@@ -5,6 +5,7 @@ import Toggle from '../../../../components/Toggle';
 import type { MembershipTier, TierFeature, StripePrice } from './tiersTypes';
 import { BOOLEAN_FIELDS } from './tiersTypes';
 import CompareTableSection from './CompareTableSection';
+import Icon from '../../../../components/icons/Icon';
 
 interface TierEditorDrawerProps {
     isEditing: boolean;
@@ -89,7 +90,7 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                         disabled={saveTierMutation.isPending}
                         className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
                     >
-                        {saveTierMutation.isPending && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
+                        {saveTierMutation.isPending && <Icon name="progress_activity" className="animate-spin text-sm" />}
                         {saveTierMutation.isPending ? 'Saving...' : 'Save Changes'}
                     </button>
                 </div>
@@ -188,7 +189,7 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                                         Card Features
                                         {selectedTier?.stripe_product_id ? (
                                             <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] normal-case font-semibold">
-                                                <span aria-hidden="true" className="material-symbols-outlined text-xs">cloud</span>
+                                                <Icon name="cloud" className="text-xs" />
                                                 Managed by Stripe
                                             </span>
                                         ) : (
@@ -202,7 +203,7 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                                                 <div className="space-y-2">
                                                     {(selectedTier?.highlighted_features || []).map((feature, idx) => (
                                                         <div key={idx} className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/25">
-                                                            <span aria-hidden="true" className="material-symbols-outlined text-sm text-green-600 dark:text-green-400">check_circle</span>
+                                                            <Icon name="check_circle" className="text-sm text-green-600 dark:text-green-400" />
                                                             <span className="text-sm text-primary dark:text-white">{feature}</span>
                                                         </div>
                                                     ))}
@@ -255,7 +256,7 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                                 {selectedTier?.stripe_price_id ? (
                                     <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-500/30">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <span aria-hidden="true" className="material-symbols-outlined text-indigo-600 dark:text-indigo-400">link</span>
+                                            <Icon name="link" className="text-indigo-600 dark:text-indigo-400" />
                                             <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Linked to Stripe</span>
                                             <button
                                                 type="button"
@@ -327,7 +328,7 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                                         Booking Permissions
                                         {selectedTier?.stripe_product_id && (
                                             <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] normal-case font-semibold">
-                                                <span aria-hidden="true" className="material-symbols-outlined text-xs">cloud</span>
+                                                <Icon name="cloud" className="text-xs" />
                                                 From Stripe metadata
                                             </span>
                                         )}

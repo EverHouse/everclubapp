@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from '../../icons/Icon';
 
 interface AssignModeFooterProps {
   hasOwner: boolean;
@@ -38,7 +39,7 @@ export function AssignModeFooter({
         <div className="mb-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-lg">payments</span>
+              <Icon name="payments" className="text-amber-600 dark:text-amber-400 text-lg" />
               <span className="text-sm font-medium text-amber-700 dark:text-amber-300">Estimated Fees</span>
             </div>
             <span className="text-lg font-bold text-amber-700 dark:text-amber-300">
@@ -57,7 +58,7 @@ export function AssignModeFooter({
       )}
       {isCalculatingFees && (
         <div className="mb-3 p-3 rounded-lg bg-gray-50 dark:bg-white/5 flex items-center justify-center gap-2 text-sm text-primary/50 dark:text-white/50">
-          <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+          <Icon name="progress_activity" className="animate-spin text-sm" />
           Calculating fees...
         </div>
       )}
@@ -75,12 +76,12 @@ export function AssignModeFooter({
         >
           {linking ? (
             <>
-              <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+              <Icon name="progress_activity" className="animate-spin text-sm" />
               Assigning...
             </>
           ) : (
             <>
-              <span className="material-symbols-outlined text-sm">check_circle</span>
+              <Icon name="check_circle" className="text-sm" />
               Assign & Confirm
             </>
           )}
@@ -108,16 +109,16 @@ export function AssignModeSecondaryActions({
         disabled={assigningToStaff}
         className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-teal-500 text-teal-600 dark:text-teal-400 font-medium hover:bg-teal-50 dark:hover:bg-teal-500/10 transition-colors flex items-center justify-center gap-2"
       >
-        <span className="material-symbols-outlined text-sm">badge</span>
+        <Icon name="badge" className="text-sm" />
         Assign to Staff
-        <span className={`material-symbols-outlined text-sm transition-transform ${showStaffList ? 'rotate-180' : ''}`}>expand_more</span>
+        <Icon name="expand_more" className={`text-sm transition-transform ${showStaffList ? 'rotate-180' : ''}`} />
       </button>
 
       {showStaffList && (
         <div className="border border-teal-200 dark:border-teal-500/30 rounded-lg overflow-hidden">
           {isLoadingStaff ? (
             <div className="p-4 text-center">
-              <span className="material-symbols-outlined animate-spin text-teal-500">progress_activity</span>
+              <Icon name="progress_activity" className="animate-spin text-teal-500" />
               <p className="text-sm text-primary/60 dark:text-white/60 mt-1">Loading staff...</p>
             </div>
           ) : staffList.length === 0 ? (
@@ -157,12 +158,12 @@ export function AssignModeSecondaryActions({
         >
           {deleting ? (
             <>
-              <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+              <Icon name="progress_activity" className="animate-spin text-sm" />
               Deleting...
             </>
           ) : (
             <>
-              <span className="material-symbols-outlined text-sm">delete</span>
+              <Icon name="delete" className="text-sm" />
               Delete Booking
             </>
           )}

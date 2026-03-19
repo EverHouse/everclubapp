@@ -12,6 +12,7 @@ import { UnifiedBookingSheet } from '../../../components/staff-command-center/mo
 import { fetchWithCredentials, putWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
 import { TrackmanTabSkeleton } from '../../../components/skeletons';
 import TrackmanWebhookEventsSection from '../../../components/staff-command-center/sections/TrackmanWebhookEventsSection';
+import Icon from '../../../components/icons/Icon';
 
 interface OptimisticAction {
   type: 'linking' | 'unlinking';
@@ -441,7 +442,7 @@ const TrackmanTab: React.FC = () => {
     <div className="px-6 pb-4 space-y-6 animate-page-enter">
       <div className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25 animate-content-enter">
         <h2 className="text-2xl leading-tight text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
-          <span aria-hidden="true" className="material-symbols-outlined">upload_file</span>
+          <Icon name="upload_file" />
           Import Trackman Bookings
         </h2>
         <p className="text-sm text-primary/70 dark:text-white/70 mb-4">
@@ -475,7 +476,7 @@ const TrackmanTab: React.FC = () => {
               {uploadProgress && (
                 <div className="w-full max-w-sm">
                   <div className="flex items-center gap-2 mb-2 justify-center">
-                    <span className="material-symbols-outlined animate-spin text-[16px] text-accent-dark dark:text-accent">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-[16px] text-accent-dark dark:text-accent" />
                     <span className="text-xs font-medium text-primary/80 dark:text-white/80">
                       {uploadProgress.phase === 'uploading' && `Uploading file... ${uploadProgress.percent}%`}
                       {uploadProgress.phase === 'processing' && `Matching bookings to members... ${uploadProgress.percent}%`}
@@ -496,7 +497,7 @@ const TrackmanTab: React.FC = () => {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2">
-              <span aria-hidden="true" className="material-symbols-outlined text-4xl text-primary/70 dark:text-white/70">cloud_upload</span>
+              <Icon name="cloud_upload" className="text-4xl text-primary/70 dark:text-white/70" />
               <p className="text-sm font-medium text-primary dark:text-white">
                 Drop a CSV file here or click to browse
               </p>
@@ -531,7 +532,7 @@ const TrackmanTab: React.FC = () => {
       {importRuns.length > 0 && (
         <div className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25 animate-content-enter-delay-1">
           <h2 className="text-2xl leading-tight text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
-            <span aria-hidden="true" className="material-symbols-outlined">history</span>
+            <Icon name="history" />
             Import History
           </h2>
           <div className="space-y-2">
@@ -557,7 +558,7 @@ const TrackmanTab: React.FC = () => {
       <div ref={unmatchedSectionRef} className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25 animate-content-enter-delay-2">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl leading-tight text-primary dark:text-white flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
-            <span aria-hidden="true" className="material-symbols-outlined">warning</span>
+            <Icon name="warning" />
             Unmatched Bookings ({unmatchedTotalCount})
           </h2>
         </div>
@@ -567,7 +568,7 @@ const TrackmanTab: React.FC = () => {
         
         <div className="mb-4 flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40 text-lg">search</span>
+            <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40 text-lg" />
             <input
               type="text"
               placeholder="Search by name or email..."
@@ -580,7 +581,7 @@ const TrackmanTab: React.FC = () => {
                 onClick={() => setUnmatchedSearchQuery('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40 hover:text-primary dark:hover:text-white"
               >
-                <span className="material-symbols-outlined text-lg">close</span>
+                <Icon name="close" className="text-lg" />
               </button>
             )}
           </div>
@@ -631,7 +632,7 @@ const TrackmanTab: React.FC = () => {
                     >
                       {isLinking && (
                         <div className="flex items-center gap-2 mb-3 p-2 bg-green-100 dark:bg-green-500/20 rounded-lg">
-                          <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-sm animate-spin">progress_activity</span>
+                          <Icon name="progress_activity" className="text-green-600 dark:text-green-400 text-sm animate-spin" />
                           <span className="text-xs font-medium text-green-700 dark:text-green-300">
                             Linking to {linkingEmail}...
                           </span>
@@ -802,7 +803,7 @@ const TrackmanTab: React.FC = () => {
       {needsPlayersBookings.length > 0 && (
         <div ref={needsPlayersSectionRef} className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25">
           <h2 className="text-2xl leading-tight text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
-            <span aria-hidden="true" className="material-symbols-outlined">group_add</span>
+            <Icon name="group_add" />
             Needs Players ({needsPlayersTotalCount})
           </h2>
           <p className="text-sm text-primary/70 dark:text-white/70 mb-4">
@@ -811,7 +812,7 @@ const TrackmanTab: React.FC = () => {
           
           <div className="mb-4">
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40 text-lg">search</span>
+              <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40 text-lg" />
               <input
                 type="text"
                 placeholder="Search by name or email..."
@@ -824,7 +825,7 @@ const TrackmanTab: React.FC = () => {
                   onClick={() => setNeedsPlayersSearchQuery('')}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40 hover:text-primary dark:hover:text-white"
                 >
-                  <span className="material-symbols-outlined text-lg">close</span>
+                  <Icon name="close" className="text-lg" />
                 </button>
               )}
             </div>
@@ -873,7 +874,7 @@ const TrackmanTab: React.FC = () => {
                     })}
                     className="px-3 py-1.5 bg-accent text-primary rounded-lg text-xs font-bold hover:opacity-90 transition-opacity shrink-0 flex items-center gap-1"
                   >
-                    <span className="material-symbols-outlined text-sm">group</span>
+                    <Icon name="group" className="text-sm" />
                     Manage
                   </button>
                 </div>
@@ -933,7 +934,7 @@ const TrackmanTab: React.FC = () => {
           <div className="p-6 space-y-4">
             <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white text-lg">person</span>
+                <Icon name="person" className="text-primary dark:text-white text-lg" />
                 <div>
                   <p className="font-bold text-primary dark:text-white">
                     {viewDetailBooking.member?.fullName || viewDetailBooking.userName || viewDetailBooking.user_name || 'Unknown'}
@@ -972,14 +973,14 @@ const TrackmanTab: React.FC = () => {
                 <div className="p-3 bg-accent/10 dark:bg-accent/20 rounded-lg border border-accent/30">
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Players</p>
                   <p className="font-medium text-primary dark:text-white text-sm flex items-center gap-1">
-                    <span className="material-symbols-outlined text-accent-dark dark:text-accent text-base">group</span>
+                    <Icon name="group" className="text-accent-dark dark:text-accent text-base" />
                     {viewDetailBooking.slotInfo?.totalSlots || viewDetailBooking.trackmanPlayerCount || 1} {(viewDetailBooking.slotInfo?.totalSlots || viewDetailBooking.trackmanPlayerCount || 1) === 1 ? 'player' : 'players'}
                   </p>
                 </div>
                 <div className="p-3 bg-green-50 dark:bg-green-500/10 rounded-lg border border-green-200 dark:border-green-500/30">
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Assigned</p>
                   <p className="font-medium text-primary dark:text-white text-sm flex items-center gap-1">
-                    <span className="material-symbols-outlined text-green-600 text-base">check_circle</span>
+                    <Icon name="check_circle" className="text-green-600 text-base" />
                     {viewDetailBooking.slotInfo?.filledSlots || 0}/{viewDetailBooking.slotInfo?.totalSlots || 1} slots filled
                   </p>
                 </div>
@@ -989,7 +990,7 @@ const TrackmanTab: React.FC = () => {
             {viewDetailBooking.trackmanBookingId && (
               <div className="p-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg">
                 <p className="text-xs text-blue-600 dark:text-blue-400 mb-1 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm">link</span>
+                  <Icon name="link" className="text-sm" />
                   Trackman ID
                 </p>
                 <p className="font-medium text-primary dark:text-white text-sm">{viewDetailBooking.trackmanBookingId}</p>
@@ -1031,7 +1032,7 @@ const TrackmanTab: React.FC = () => {
         <div className="p-6">
           <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-500/30 mb-4">
             <div className="flex items-center gap-2 mb-2">
-              <span aria-hidden="true" className="material-symbols-outlined text-amber-600 dark:text-amber-400">person_search</span>
+              <Icon name="person_search" className="text-amber-600 dark:text-amber-400" />
               <p className="font-bold text-primary dark:text-white">
                 {fuzzyMatchModal?.booking?.userName || fuzzyMatchModal?.booking?.user_name || 'Unknown'}
               </p>
@@ -1046,7 +1047,7 @@ const TrackmanTab: React.FC = () => {
               Search for a member:
             </label>
             <div className="relative">
-              <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40 text-lg">search</span>
+              <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40 text-lg" />
               <input
                 type="text"
                 value={fuzzySearchQuery}

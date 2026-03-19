@@ -3,6 +3,7 @@ import { triggerHaptic } from '../utils/haptics';
 import WalkingGolferSpinner from './WalkingGolferSpinner';
 import SlideUpDrawer from './SlideUpDrawer';
 import { postWithCredentials } from '../hooks/queries/useFetch';
+import Icon from './icons/Icon';
 
 
 const getHubspotCookie = (): string | null => {
@@ -151,7 +152,7 @@ const HubSpotFormModal: React.FC<HubSpotFormModalProps> = ({
         {success ? (
           <div className="text-center py-8">
             <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="material-symbols-outlined text-3xl text-green-600 dark:text-green-400" aria-hidden="true">check_circle</span>
+              <Icon name="check_circle" className="text-3xl text-green-600 dark:text-green-400" />
             </div>
             <h3 className="text-xl font-bold text-primary dark:text-white mb-2">Thank You!</h3>
             <p className="text-primary/70 dark:text-white/80 mb-6">We've received your submission and will be in touch soon.</p>
@@ -203,7 +204,7 @@ const HubSpotFormModal: React.FC<HubSpotFormModalProps> = ({
 
             {error && (
               <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-700 flex items-start gap-2" role="alert">
-                <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-sm mt-0.5" aria-hidden="true">error</span>
+                <Icon name="error" className="text-red-600 dark:text-red-400 text-sm mt-0.5" />
                 <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
               </div>
             )}

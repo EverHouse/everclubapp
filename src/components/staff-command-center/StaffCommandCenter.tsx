@@ -35,6 +35,7 @@ import type { SelectedMember } from '../shared/MemberSearchInput';
 import { tabToPath } from '../../lib/nav-constants';
 import type { StaffCommandCenterProps, BookingRequest, RecentActivity, TabType } from './types';
 import { BOOKING_STATUS } from '../../../shared/constants/statuses';
+import Icon from '../icons/Icon';
 
 interface OptimisticUpdateRef {
   bookingId: number | string;
@@ -863,7 +864,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                 >
                   <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New Event</span>
                   <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-xl text-white">celebration</span>
+                    <Icon name="celebration" className="text-xl text-white" />
                   </div>
                 </button>
 
@@ -877,7 +878,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                 >
                   <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New Wellness</span>
                   <div className="w-10 h-10 rounded-full bg-teal-500 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-xl text-white">spa</span>
+                    <Icon name="spa" className="text-xl text-white" />
                   </div>
                 </button>
 
@@ -891,7 +892,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                 >
                   <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New Notice</span>
                   <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-xl text-white">notifications</span>
+                    <Icon name="notifications" className="text-xl text-white" />
                   </div>
                 </button>
 
@@ -905,7 +906,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                 >
                   <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">Announcement</span>
                   <div className="w-10 h-10 rounded-full bg-[#CCB8E4] flex items-center justify-center">
-                    <span className="material-symbols-outlined text-xl text-[#293515]">campaign</span>
+                    <Icon name="campaign" className="text-xl text-[#293515]" />
                   </div>
                 </button>
 
@@ -919,7 +920,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                 >
                   <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">QR Scanner</span>
                   <div className="w-10 h-10 rounded-full bg-primary dark:bg-white/90 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-xl text-white dark:text-primary">qr_code_scanner</span>
+                    <Icon name="qr_code_scanner" className="text-xl text-white dark:text-primary" />
                   </div>
                 </button>
 
@@ -934,7 +935,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                 >
                   <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New User</span>
                   <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-xl text-white">person_add</span>
+                    <Icon name="person_add" className="text-xl text-white" />
                   </div>
                 </button>
               </div>
@@ -952,7 +953,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
               } border border-white/30`}
               title="Quick Actions"
             >
-              <span className="material-symbols-outlined text-2xl" aria-hidden="true">add</span>
+              <Icon name="add" className="text-2xl" />
             </button>
           </div>
         </>,

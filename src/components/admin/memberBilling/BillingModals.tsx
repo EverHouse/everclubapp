@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ModalShell } from '../../ModalShell';
+import Icon from '../../icons/Icon';
 
 export function ApplyCreditModal({
   isOpen,
@@ -182,7 +183,7 @@ export function ConfirmCancelModal({
       <div className="p-4 space-y-4">
         <div className={`p-4 rounded-lg ${isDark ? 'bg-red-500/10 border border-red-500/30' : 'bg-red-50 border border-red-200'}`}>
           <div className="flex items-start gap-3">
-            <span className="material-symbols-outlined text-red-500 text-xl">warning</span>
+            <Icon name="warning" className="text-red-500 text-xl" />
             <div>
               <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>
                 Are you sure you want to cancel this subscription?
@@ -233,7 +234,7 @@ export function ConfirmResumeModal({
       <div className="p-4 space-y-4">
         <div className={`p-4 rounded-lg ${isDark ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
           <div className="flex items-start gap-3">
-            <span className="material-symbols-outlined text-green-500 text-xl">play_circle</span>
+            <Icon name="play_circle" className="text-green-500 text-xl" />
             <div>
               <p className={`text-sm font-medium ${isDark ? 'text-green-400' : 'text-green-700'}`}>
                 Resume this member's subscription?
@@ -288,7 +289,7 @@ export function ConfirmBillingSourceModal({
       <div className="p-4 space-y-4">
         <div className={`p-4 rounded-lg ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>
           <div className="flex items-start gap-3">
-            <span className="material-symbols-outlined text-amber-500 text-xl">swap_horiz</span>
+            <Icon name="swap_horiz" className="text-amber-500 text-xl" />
             <div>
               <p className={`text-sm font-medium ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
                 Change billing source from <strong>{currentSource || 'None'}</strong> to <strong>{newSource || 'None'}</strong>?
@@ -349,7 +350,7 @@ export function PauseDurationModal({
       <div className="p-4 space-y-4">
         <div className={`p-4 rounded-lg ${isDark ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-yellow-50 border border-yellow-200'}`}>
           <div className="flex items-start gap-3">
-            <span className="material-symbols-outlined text-yellow-500 text-xl">pause_circle</span>
+            <Icon name="pause_circle" className="text-yellow-500 text-xl" />
             <div>
               <p className={`text-sm font-medium ${isDark ? 'text-yellow-400' : 'text-yellow-700'}`}>
                 Choose pause duration
@@ -382,7 +383,7 @@ export function PauseDurationModal({
                 </p>
               </div>
               {selectedDuration === 30 && (
-                <span className="material-symbols-outlined text-accent-dark dark:text-accent">check_circle</span>
+                <Icon name="check_circle" className="text-accent-dark dark:text-accent" />
               )}
             </div>
           </button>
@@ -407,7 +408,7 @@ export function PauseDurationModal({
                 </p>
               </div>
               {selectedDuration === 60 && (
-                <span className="material-symbols-outlined text-accent-dark dark:text-accent">check_circle</span>
+                <Icon name="check_circle" className="text-accent-dark dark:text-accent" />
               )}
             </div>
           </button>

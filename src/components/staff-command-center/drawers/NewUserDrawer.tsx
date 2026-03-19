@@ -23,6 +23,7 @@ import {
   EMAIL_REGEX,
 } from './newUser/newUserTypes';
 import { fetchWithCredentials, deleteWithCredentials } from '../../../hooks/queries/useFetch';
+import Icon from '../../icons/Icon';
 
 export function NewUserDrawer({
   isOpen,
@@ -295,7 +296,7 @@ export function NewUserDrawer({
       <div className="px-4 pt-2 pb-4">
         {cooldownRemaining > 0 && (
           <div className={`mb-3 p-2.5 rounded-lg flex items-center gap-2 ${isDark ? 'bg-amber-900/20 border border-amber-700 text-amber-400' : 'bg-amber-50 border border-amber-200 text-amber-700'}`}>
-            <span className="material-symbols-outlined text-lg">timer</span>
+            <Icon name="timer" className="text-lg" />
             <span className="text-sm">Please wait {cooldownRemaining}s before adding another user</span>
           </div>
         )}
@@ -311,7 +312,7 @@ export function NewUserDrawer({
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}
           >
-            <span className="material-symbols-outlined text-sm align-middle mr-1">badge</span>
+            <Icon name="badge" className="text-sm align-middle mr-1" />
             New Member
           </button>
           <button
@@ -325,7 +326,7 @@ export function NewUserDrawer({
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}
           >
-            <span className="material-symbols-outlined text-sm align-middle mr-1">confirmation_number</span>
+            <Icon name="confirmation_number" className="text-sm align-middle mr-1" />
             Day Pass
           </button>
         </div>
@@ -342,7 +343,7 @@ export function NewUserDrawer({
                       : 'bg-gray-200 text-gray-400'
                 }`}>
                   {index < getStepIndex() ? (
-                    <span className="material-symbols-outlined text-sm">check</span>
+                    <Icon name="check" className="text-sm" />
                   ) : (
                     index + 1
                   )}
@@ -371,7 +372,7 @@ export function NewUserDrawer({
             isDark ? 'bg-red-900/20 border border-red-700 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
           }`}>
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-lg">error</span>
+              <Icon name="error" className="text-lg" />
               <span className="text-sm">{error}</span>
             </div>
             {pendingUserToCleanup && (

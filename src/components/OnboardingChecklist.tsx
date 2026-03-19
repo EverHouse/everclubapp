@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthData } from '../contexts/DataContext';
 import { fetchWithCredentials, postWithCredentials } from '../hooks/queries/useFetch';
+import Icon from './icons/Icon';
 
 interface OnboardingStep {
   key: string;
@@ -172,7 +173,7 @@ const OnboardingChecklist: React.FC = () => {
           className="p-1 rounded-[4px] hover:bg-primary/10 dark:hover:bg-white/10 transition-colors tactile-btn"
           aria-label="Dismiss checklist"
         >
-          <span className="material-symbols-outlined text-primary/40 dark:text-white/40 text-xl">close</span>
+          <Icon name="close" className="text-primary/40 dark:text-white/40 text-xl" />
         </button>
       </div>
 
@@ -200,9 +201,7 @@ const OnboardingChecklist: React.FC = () => {
                 ? 'bg-accent/20 text-accent-dark dark:text-accent'
                 : 'bg-primary/10 dark:bg-white/10 text-primary/50 dark:text-white/50'
             }`}>
-              <span className="material-symbols-outlined text-lg">
-                {step.completed ? 'check_circle' : stepIcons[step.key] || 'circle'}
-              </span>
+              <Icon name={step.completed ? 'check_circle' : stepIcons[step.key] || 'circle'} className="text-lg" />
             </div>
             <div className="flex-1 min-w-0">
               <p className={`text-sm font-medium ${
@@ -217,9 +216,7 @@ const OnboardingChecklist: React.FC = () => {
               </p>
             </div>
             {!step.completed && (
-              <span className="material-symbols-outlined text-primary/30 dark:text-white/30 text-lg">
-                chevron_right
-              </span>
+              <Icon name="chevron_right" className="text-primary/30 dark:text-white/30 text-lg" />
             )}
           </button>
         ))}

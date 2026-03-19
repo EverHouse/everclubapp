@@ -12,6 +12,7 @@ import { EventsTabSkeleton } from '../../../../components/skeletons';
 import { Participant, DBEvent, NeedsReviewEvent, CATEGORY_TABS } from './eventsTypes';
 import WalkingGolferSpinner from '../../../../components/WalkingGolferSpinner';
 import { ParticipantDetailsModal } from './ParticipantDetailsModal';
+import Icon from '../../../../components/icons/Icon';
 
 interface NeedsReviewSectionProps {
     events: NeedsReviewEvent[];
@@ -35,9 +36,7 @@ const NeedsReviewSection: React.FC<NeedsReviewSectionProps> = ({ events, isLoadi
                 className="w-full flex items-center justify-between p-4 hover:bg-amber-500/5 transition-colors"
             >
                 <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">
-                        rate_review
-                    </span>
+                    <Icon name="rate_review" className="text-amber-600 dark:text-amber-400" />
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300" style={{ fontFamily: 'var(--font-label)' }}>
                         Needs Review
                     </span>
@@ -47,9 +46,7 @@ const NeedsReviewSection: React.FC<NeedsReviewSectionProps> = ({ events, isLoadi
                         </span>
                     )}
                 </div>
-                <span className={`material-symbols-outlined text-amber-600 dark:text-amber-400 transition-transform duration-fast ${isExpanded ? 'rotate-180' : ''}`}>
-                    expand_more
-                </span>
+                <Icon name="expand_more" className={`text-amber-600 dark:text-amber-400 transition-transform duration-fast ${isExpanded ? 'rotate-180' : ''}`} />
             </button>
             
             {isExpanded && (
@@ -75,7 +72,7 @@ const NeedsReviewSection: React.FC<NeedsReviewSectionProps> = ({ events, isLoadi
                                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                                                 {event.conflict_detected && (
                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-orange-500 text-white text-[10px] font-bold uppercase tracking-widest">
-                                                        <span className="material-symbols-outlined text-[12px]">sync_problem</span>
+                                                        <Icon name="sync_problem" className="text-[12px]" />
                                                         Conflict Detected
                                                     </span>
                                                 )}
@@ -102,7 +99,7 @@ const NeedsReviewSection: React.FC<NeedsReviewSectionProps> = ({ events, isLoadi
                                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                                                 {event.source && (
                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-primary/10 dark:bg-white/10 text-primary/70 dark:text-white/70 text-xs">
-                                                        <span className="material-symbols-outlined text-xs">sync</span>
+                                                        <Icon name="sync" className="text-xs" />
                                                         {event.source}
                                                     </span>
                                                 )}
@@ -130,7 +127,7 @@ const NeedsReviewSection: React.FC<NeedsReviewSectionProps> = ({ events, isLoadi
                                             onClick={() => onEditEvent(event)}
                                             className="flex-1 px-3 py-2 rounded-[4px] bg-accent text-primary text-xs font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-1"
                                         >
-                                            <span className="material-symbols-outlined text-sm">edit</span>
+                                            <Icon name="edit" className="text-sm" />
                                             Edit Event
                                         </button>
                                     </div>
@@ -489,7 +486,7 @@ export const EventsAdminContent: React.FC = () => {
                                 : 'bg-white dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
                         }`}
                     >
-                        <span aria-hidden="true" className="material-symbols-outlined text-[14px] sm:text-[16px]">{tab.icon}</span>
+                        <Icon name={tab.icon} className="text-[14px] sm:text-[16px]" />
                         {tab.label}
                     </button>
                 ))}
@@ -528,12 +525,12 @@ export const EventsAdminContent: React.FC = () => {
                         >
                             {deleteEventMutation.isPending ? (
                                 <>
-                                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                                    <Icon name="progress_activity" className="animate-spin text-sm" />
                                     Archiving...
                                 </>
                             ) : (
                                 <>
-                                    <span aria-hidden="true" className="material-symbols-outlined text-sm">archive</span>
+                                    <Icon name="archive" className="text-sm" />
                                     Archive
                                 </>
                             )}
@@ -571,7 +568,7 @@ export const EventsAdminContent: React.FC = () => {
                             disabled={saveEventMutation.isPending || !isEventFormValid}
                             className="flex-1 py-3 rounded-xl bg-brand-green text-white font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                            {saveEventMutation.isPending && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
+                            {saveEventMutation.isPending && <Icon name="progress_activity" className="animate-spin text-sm" />}
                             {saveEventMutation.isPending ? 'Saving...' : editId ? 'Save Changes' : 'Add Event'}
                         </button>
                     </div>
@@ -688,7 +685,7 @@ export const EventsAdminContent: React.FC = () => {
                                         : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/70 border border-gray-200 dark:border-white/25'
                                 }`}
                             >
-                                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">public</span>
+                                <Icon name="public" className="text-[18px]" />
                                 Public
                             </button>
                             <button
@@ -700,7 +697,7 @@ export const EventsAdminContent: React.FC = () => {
                                         : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/70 border border-gray-200 dark:border-white/25'
                                 }`}
                             >
-                                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">lock</span>
+                                <Icon name="lock" className="text-[18px]" />
                                 Members Only
                             </button>
                         </div>
@@ -712,7 +709,7 @@ export const EventsAdminContent: React.FC = () => {
                         <div className="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700/50">
                             <div className="flex-1">
                                 <label className="font-bold text-sm text-gray-700 dark:text-white flex items-center gap-2">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-amber-600">sports_golf</span>
+                                    <Icon name="sports_golf" className="text-[18px] text-amber-600" />
                                     Block Simulators
                                 </label>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -736,7 +733,7 @@ export const EventsAdminContent: React.FC = () => {
                         <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700/50">
                             <div className="flex-1">
                                 <label className="font-bold text-sm text-gray-700 dark:text-white flex items-center gap-2">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-blue-600">meeting_room</span>
+                                    <Icon name="meeting_room" className="text-[18px] text-blue-600" />
                                     Block Conference Room
                                 </label>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -775,7 +772,7 @@ export const EventsAdminContent: React.FC = () => {
                     {upcomingEvents.length > 0 && (
                         <div className="animate-content-enter-delay-1">
                             <div className="flex items-center gap-2 mb-3">
-                                <span aria-hidden="true" className="material-symbols-outlined text-green-500">schedule</span>
+                                <Icon name="schedule" className="text-green-500" />
                                 <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Upcoming ({upcomingEvents.length})</h3>
                             </div>
                             <div className="grid grid-cols-1 gap-4">
@@ -790,7 +787,7 @@ export const EventsAdminContent: React.FC = () => {
                                     }`}>
                                         {(isPending || isOptimistic) && (
                                             <div className="absolute top-0 left-0 bg-brand-green text-white text-[8px] font-bold uppercase px-2 py-1 rounded-br-lg z-10 flex items-center gap-1">
-                                                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[10px]">progress_activity</span>
+                                                <Icon name="progress_activity" className="animate-spin text-[10px]" />
                                                 Saving...
                                             </div>
                                         )}
@@ -804,9 +801,7 @@ export const EventsAdminContent: React.FC = () => {
                                                 {event.image_url ? (
                                                     <img src={event.image_url} alt={event.title || 'Event image'} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-3xl text-gray-500 dark:text-white/20">
-                                                        {event.category === 'Golf' ? 'golf_course' : event.category === 'Tournaments' ? 'emoji_events' : event.category === 'Dining' ? 'restaurant' : event.category === 'Networking' ? 'handshake' : event.category === 'Workshops' ? 'school' : event.category === 'Family' ? 'family_restroom' : event.category === 'Entertainment' ? 'music_note' : event.category === 'Charity' ? 'volunteer_activism' : 'celebration'}
-                                                    </span>
+                                                    <Icon name={event.category === 'Golf' ? 'golf_course' : event.category === 'Tournaments' ? 'emoji_events' : event.category === 'Dining' ? 'restaurant' : event.category === 'Networking' ? 'handshake' : event.category === 'Workshops' ? 'school' : event.category === 'Family' ? 'family_restroom' : event.category === 'Entertainment' ? 'music_note' : event.category === 'Charity' ? 'volunteer_activism' : 'celebration'} className="text-3xl text-gray-500 dark:text-white/20" />
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0 flex flex-col justify-center">
@@ -816,14 +811,14 @@ export const EventsAdminContent: React.FC = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-white/20 mt-auto">
-                                            <span className="text-xs text-gray-600 dark:text-gray-500 flex items-center gap-1"><span aria-hidden="true" className="material-symbols-outlined text-[14px]">location_on</span> {event.location}</span>
+                                            <span className="text-xs text-gray-600 dark:text-gray-500 flex items-center gap-1"><Icon name="location_on" className="text-[14px]" /> {event.location}</span>
                                             {!isPending && !isOptimistic && (
                                             <div className="flex items-center gap-2">
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleViewRsvps(event); }} 
                                                     className="bg-primary/10 dark:bg-white/10 text-primary dark:text-white text-xs font-bold uppercase tracking-wider hover:bg-primary/20 dark:hover:bg-white/20 px-2 py-1 rounded flex items-center gap-1 transition-colors"
                                                 >
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-[14px]">group</span> RSVPs
+                                                    <Icon name="group" className="text-[14px]" /> RSVPs
                                                 </button>
                                                 {event.eventbrite_url && (
                                                     <a 
@@ -833,7 +828,7 @@ export const EventsAdminContent: React.FC = () => {
                                                         onClick={(e) => e.stopPropagation()}
                                                         className="text-[#F05537] text-xs font-bold uppercase tracking-wider hover:bg-orange-50 px-2 py-1 rounded flex items-center gap-1"
                                                     >
-                                                        <span aria-hidden="true" className="material-symbols-outlined text-[14px]">open_in_new</span> View
+                                                        <Icon name="open_in_new" className="text-[14px]" /> View
                                                     </a>
                                                 )}
                                                 <button 
@@ -841,7 +836,7 @@ export const EventsAdminContent: React.FC = () => {
                                                     disabled={deletingEventIds.has(event.id)}
                                                     className="text-primary/70 dark:text-white/70 text-xs font-bold uppercase tracking-wider hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-1 rounded transition-colors disabled:opacity-50 flex items-center gap-1"
                                                 >
-                                                    {deletingEventIds.has(event.id) && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                                                    {deletingEventIds.has(event.id) && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
                                                     Delete
                                                 </button>
                                             </div>
@@ -860,9 +855,9 @@ export const EventsAdminContent: React.FC = () => {
                                 onClick={() => setShowPastEvents(!showPastEvents)}
                                 className="flex items-center gap-2 mb-3 w-full text-left group"
                             >
-                                <span aria-hidden="true" className="material-symbols-outlined text-gray-600 dark:text-gray-500">history</span>
+                                <Icon name="history" className="text-gray-600 dark:text-gray-500" />
                                 <h3 className="text-2xl leading-tight font-bold text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-headline)' }}>Past ({pastEvents.length})</h3>
-                                <span aria-hidden="true" className={`material-symbols-outlined text-gray-400 dark:text-gray-500 text-[18px] transition-transform ${showPastEvents ? 'rotate-180' : ''}`}>expand_more</span>
+                                <Icon name="expand_more" className={`text-gray-400 dark:text-gray-500 text-[18px] transition-transform ${showPastEvents ? 'rotate-180' : ''}`} />
                             </button>
                             {showPastEvents && (
                             <>
@@ -875,7 +870,7 @@ export const EventsAdminContent: React.FC = () => {
                                     }`}>
                                         {isPending && (
                                             <div className="absolute top-0 left-0 bg-brand-green text-white text-[8px] font-bold uppercase px-2 py-1 rounded-br-lg z-10 flex items-center gap-1">
-                                                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[10px]">progress_activity</span>
+                                                <Icon name="progress_activity" className="animate-spin text-[10px]" />
                                                 Updating...
                                             </div>
                                         )}
@@ -889,9 +884,7 @@ export const EventsAdminContent: React.FC = () => {
                                                 {event.image_url ? (
                                                     <img src={event.image_url} alt={event.title || 'Event image'} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-3xl text-gray-500 dark:text-white/20">
-                                                        {event.category === 'Golf' ? 'golf_course' : event.category === 'Tournaments' ? 'emoji_events' : event.category === 'Dining' ? 'restaurant' : event.category === 'Networking' ? 'handshake' : event.category === 'Workshops' ? 'school' : event.category === 'Family' ? 'family_restroom' : event.category === 'Entertainment' ? 'music_note' : event.category === 'Charity' ? 'volunteer_activism' : 'celebration'}
-                                                    </span>
+                                                    <Icon name={event.category === 'Golf' ? 'golf_course' : event.category === 'Tournaments' ? 'emoji_events' : event.category === 'Dining' ? 'restaurant' : event.category === 'Networking' ? 'handshake' : event.category === 'Workshops' ? 'school' : event.category === 'Family' ? 'family_restroom' : event.category === 'Entertainment' ? 'music_note' : event.category === 'Charity' ? 'volunteer_activism' : 'celebration'} className="text-3xl text-gray-500 dark:text-white/20" />
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0 flex flex-col justify-center">
@@ -901,14 +894,14 @@ export const EventsAdminContent: React.FC = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-white/20 mt-auto">
-                                            <span className="text-xs text-gray-600 dark:text-gray-500 flex items-center gap-1"><span aria-hidden="true" className="material-symbols-outlined text-[14px]">location_on</span> {event.location}</span>
+                                            <span className="text-xs text-gray-600 dark:text-gray-500 flex items-center gap-1"><Icon name="location_on" className="text-[14px]" /> {event.location}</span>
                                             {!isPending && (
                                             <div className="flex items-center gap-2">
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleViewRsvps(event); }} 
                                                     className="bg-primary/10 dark:bg-white/10 text-primary dark:text-white text-xs font-bold uppercase tracking-wider hover:bg-primary/20 dark:hover:bg-white/20 px-2 py-1 rounded flex items-center gap-1 transition-colors"
                                                 >
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-[14px]">group</span> RSVPs
+                                                    <Icon name="group" className="text-[14px]" /> RSVPs
                                                 </button>
                                                 {event.eventbrite_url && (
                                                     <a 
@@ -918,7 +911,7 @@ export const EventsAdminContent: React.FC = () => {
                                                         onClick={(e) => e.stopPropagation()}
                                                         className="text-[#F05537] text-xs font-bold uppercase tracking-wider hover:bg-orange-50 px-2 py-1 rounded flex items-center gap-1"
                                                     >
-                                                        <span aria-hidden="true" className="material-symbols-outlined text-[14px]">open_in_new</span> View
+                                                        <Icon name="open_in_new" className="text-[14px]" /> View
                                                     </a>
                                                 )}
                                                 <button 
@@ -926,7 +919,7 @@ export const EventsAdminContent: React.FC = () => {
                                                     disabled={deletingEventIds.has(event.id)}
                                                     className="text-primary/70 dark:text-white/70 text-xs font-bold uppercase tracking-wider hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-1 rounded transition-colors disabled:opacity-50 flex items-center gap-1"
                                                 >
-                                                    {deletingEventIds.has(event.id) && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                                                    {deletingEventIds.has(event.id) && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
                                                     Delete
                                                 </button>
                                             </div>

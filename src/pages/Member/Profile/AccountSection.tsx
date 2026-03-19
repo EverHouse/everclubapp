@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatPhoneNumber } from '../../../utils/formatting';
 import { Section, Row } from './ProfileShared';
+import Icon from '../../../components/icons/Icon';
 
 interface AccountSectionProps {
   isDark: boolean;
@@ -123,7 +124,7 @@ const AccountSection: React.FC<AccountSectionProps> = ({
                     : 'bg-primary/10 text-primary hover:bg-primary/20'
                 }`}
               >
-                <span className="material-symbols-outlined text-base">edit</span>
+                <Icon name="edit" className="text-base" />
                 Edit Profile
               </button>
             </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useToast } from '../Toast';
 import { SlideUpDrawer } from '../SlideUpDrawer';
 import { postWithCredentials } from '../../hooks/queries/useFetch';
+import Icon from '../icons/Icon';
 
 interface EventFormDrawerProps {
   isOpen: boolean;
@@ -150,7 +151,7 @@ export const EventFormDrawer: React.FC<EventFormDrawerProps> = ({ isOpen, onClos
             disabled={saving || !isEventFormValid}
             className="flex-1 py-3 rounded-xl bg-brand-green text-white font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 tactile-btn"
           >
-            {saving && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
+            {saving && <Icon name="progress_activity" className="animate-spin text-sm" />}
             {saving ? 'Saving...' : 'Add Event'}
           </button>
         </div>
@@ -267,7 +268,7 @@ export const EventFormDrawer: React.FC<EventFormDrawerProps> = ({ isOpen, onClos
                   : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/70 border border-gray-200 dark:border-white/25'
               }`}
             >
-              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">public</span>
+              <Icon name="public" className="text-[18px]" />
               Public
             </button>
             <button
@@ -279,7 +280,7 @@ export const EventFormDrawer: React.FC<EventFormDrawerProps> = ({ isOpen, onClos
                   : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/70 border border-gray-200 dark:border-white/25'
               }`}
             >
-              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">lock</span>
+              <Icon name="lock" className="text-[18px]" />
               Members Only
             </button>
           </div>
@@ -291,7 +292,7 @@ export const EventFormDrawer: React.FC<EventFormDrawerProps> = ({ isOpen, onClos
           <div className="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700/50">
             <div className="flex-1">
               <label className="font-bold text-sm text-gray-700 dark:text-white flex items-center gap-2">
-                <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-amber-600">sports_golf</span>
+                <Icon name="sports_golf" className="text-[18px] text-amber-600" />
                 Block Simulators
               </label>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -315,7 +316,7 @@ export const EventFormDrawer: React.FC<EventFormDrawerProps> = ({ isOpen, onClos
           <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700/50">
             <div className="flex-1">
               <label className="font-bold text-sm text-gray-700 dark:text-white flex items-center gap-2">
-                <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-blue-600">meeting_room</span>
+                <Icon name="meeting_room" className="text-[18px] text-blue-600" />
                 Block Conference Room
               </label>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">

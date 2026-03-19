@@ -8,6 +8,7 @@ import { TabType, tabToPath } from '../lib/nav-constants';
 import { MAIN_NAV_ITEMS, ADMIN_NAV_ITEMS } from '../pages/Admin/layout/types';
 import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../lib/prefetch-actions';
 import BugReportModal from './BugReportModal';
+import Icon from './icons/Icon';
 
 interface StaffMobileSidebarProps {
   isOpen: boolean;
@@ -114,9 +115,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
           }
         `}
       >
-        <span className={`material-symbols-outlined text-[18px] transition-colors duration-normal ${isActive ? 'filled text-[#CCB8E4]' : ''}`}>
-          {item.icon}
-        </span>
+        <Icon name={item.icon} className={`text-[18px] transition-colors duration-normal ${isActive ? 'filled text-[#CCB8E4]' : ''}`} />
         <span className="text-[11px] uppercase tracking-[0.2em] translate-y-[1px]">{item.label}</span>
       </button>
     );
@@ -182,7 +181,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
             style={{ fontFamily: 'var(--font-label)' }}
             className="tactile-row w-full flex items-center gap-3 px-3 py-3 text-left transition-all duration-fast text-white/50 hover:text-white/80 border-l-2 border-transparent"
           >
-            <span className="material-symbols-outlined text-[18px]">bug_report</span>
+            <Icon name="bug_report" className="text-[18px]" />
             <span className="text-[11px] uppercase tracking-[0.2em] translate-y-[1px]">Report a Bug</span>
           </button>
           <p className="text-white/40 text-[10px] text-center">

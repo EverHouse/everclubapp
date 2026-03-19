@@ -4,6 +4,7 @@ import WalkingGolferSpinner from './WalkingGolferSpinner';
 import { useTheme } from '../contexts/ThemeContext';
 import ModalShell from './ModalShell';
 import { postWithCredentials } from '../hooks/queries/useFetch';
+import Icon from './icons/Icon';
 
 interface BugReportModalProps {
   isOpen: boolean;
@@ -124,7 +125,7 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
         {success ? (
           <div className="py-8 flex flex-col items-center text-center animate-pop-in">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-4">
-              <span className="material-symbols-outlined text-3xl" aria-hidden="true">check</span>
+              <Icon name="check" className="text-3xl" />
             </div>
             <h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>
               Report Submitted
@@ -183,7 +184,7 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
                     className="absolute top-2 right-2 min-w-[44px] min-h-[44px] bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors tactile-btn"
                     aria-label="Remove screenshot"
                   >
-                    <span className="material-symbols-outlined text-sm" aria-hidden="true">close</span>
+                    <Icon name="close" className="text-sm" />
                   </button>
                 </div>
               ) : (
@@ -196,7 +197,7 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
                       : 'border-black/20 hover:border-black/40 text-primary/70'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-2xl" aria-hidden="true">add_photo_alternate</span>
+                  <Icon name="add_photo_alternate" className="text-2xl" />
                   <span className="text-sm">Tap to add screenshot</span>
                 </button>
               )}
@@ -223,7 +224,7 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
                 <WalkingGolferSpinner size="sm" variant={isDark ? 'dark' : 'light'} />
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-lg" aria-hidden="true">send</span>
+                  <Icon name="send" className="text-lg" />
                   Submit Report
                 </>
               )}

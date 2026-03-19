@@ -5,6 +5,7 @@ import { getTodayPacific, formatTime12Hour } from '../../../../utils/dateUtils';
 import { MemberSearchInput, type SelectedMember } from '../../../../components/shared/MemberSearchInput';
 import type { Resource, ManualBookingResult } from './simulatorTypes';
 import { fetchWithCredentials, postWithCredentials } from '../../../../hooks/queries/useFetch';
+import Icon from '../../../../components/icons/Icon';
 
 const ManualBookingModal: React.FC<{
     resources: Resource[];
@@ -227,13 +228,13 @@ const ManualBookingModal: React.FC<{
                             />
                             {memberLookupStatus === 'checking' && (
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-xs animate-spin">progress_activity</span>
+                                    <Icon name="progress_activity" className="text-xs animate-spin" />
                                     Looking up member...
                                 </p>
                             )}
                             {memberLookupStatus === 'not_found' && (
                                 <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-xs">error</span>
+                                    <Icon name="error" className="text-xs" />
                                     Member not found
                                 </p>
                             )}
@@ -282,7 +283,7 @@ const ManualBookingModal: React.FC<{
                         {existingBookingWarning && (
                             <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
                                 <p className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-base">warning</span>
+                                    <Icon name="warning" className="text-base" />
                                     {existingBookingWarning}
                                 </p>
                             </div>
@@ -390,9 +391,9 @@ const ManualBookingModal: React.FC<{
                         className="flex-1 py-3 px-4 rounded-lg bg-primary text-white font-medium flex items-center justify-center gap-2 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isSubmitting ? (
-                            <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                            <Icon name="progress_activity" className="animate-spin text-sm" />
                         ) : (
-                            <span aria-hidden="true" className="material-symbols-outlined text-sm">add</span>
+                            <Icon name="add" className="text-sm" />
                         )}
                         Create Booking
                     </button>

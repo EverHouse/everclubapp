@@ -2,6 +2,7 @@ import React from 'react';
 import { type QueryClient } from '@tanstack/react-query';
 import Toggle from '../../../../components/Toggle';
 import type { MembershipTier, TierFeature } from './tiersTypes';
+import Icon from '../../../../components/icons/Icon';
 
 interface CompareTableSectionProps {
     selectedTier: MembershipTier;
@@ -79,7 +80,7 @@ const CompareTableSection: React.FC<CompareTableSectionProps> = ({
                                                     className="text-gray-400 hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-0.5"
                                                     aria-label="Move feature up"
                                                 >
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-base leading-none">keyboard_arrow_up</span>
+                                                    <Icon name="keyboard_arrow_up" className="text-base leading-none" />
                                                 </button>
                                                 <button
                                                     onClick={() => handleReorderFeature(feature.id, 'down')}
@@ -87,7 +88,7 @@ const CompareTableSection: React.FC<CompareTableSectionProps> = ({
                                                     className="text-gray-400 hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-0.5"
                                                     aria-label="Move feature down"
                                                 >
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-base leading-none">keyboard_arrow_down</span>
+                                                    <Icon name="keyboard_arrow_down" className="text-base leading-none" />
                                                 </button>
                                             </div>
                                             {editingLabelId === feature.id ? (
@@ -131,7 +132,7 @@ const CompareTableSection: React.FC<CompareTableSectionProps> = ({
                                                 onClick={() => deleteFeature(feature.id)}
                                                 className="text-gray-400 hover:text-red-500 transition-colors"
                                             >
-                                                <span aria-hidden="true" className="material-symbols-outlined text-sm">delete</span>
+                                                <Icon name="delete" className="text-sm" />
                                             </button>
                                         </div>
                                     </div>

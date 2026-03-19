@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { ErrorFallback } from './ui/ErrorFallback';
+import Icon from './icons/Icon';
 
 interface Props {
   children: ReactNode;
@@ -255,9 +256,7 @@ class PageErrorBoundary extends Component<Props, State> {
           <div className="flex items-center justify-center min-h-[50vh] p-6">
             <div className="text-center max-w-sm">
               <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <span className="material-symbols-outlined text-2xl text-amber-400">
-                  update
-                </span>
+                <Icon name="update" className="text-2xl text-amber-400" />
               </div>
               <h2 className="text-lg font-semibold mb-2 text-primary dark:text-white">
                 App Update Required
@@ -289,9 +288,7 @@ class PageErrorBoundary extends Component<Props, State> {
           <div className="flex items-center justify-center min-h-[50vh] p-6">
             <div className="text-center max-w-sm">
               <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <span className="material-symbols-outlined text-2xl text-amber-400">
-                  update
-                </span>
+                <Icon name="update" className="text-2xl text-amber-400" />
               </div>
               <h2 className="text-lg font-semibold mb-2 text-primary dark:text-white">
                 App Updated

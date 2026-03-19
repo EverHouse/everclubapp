@@ -8,6 +8,7 @@ import { useBlocksData } from './useBlocksData';
 import { NoticeList } from './NoticeList';
 import { ClosureFormDrawer } from './ClosureFormDrawer';
 import { ClosureReasonsSection, NoticeTypesSection, EditReasonDrawer, EditNoticeTypeDrawer } from './ConfigSections';
+import Icon from '../../../../components/icons/Icon';
 
 const BlocksTab: React.FC = () => {
     const data = useBlocksData();
@@ -41,7 +42,7 @@ const BlocksTab: React.FC = () => {
                                 : 'text-gray-500 dark:text-white/60'
                         }`}
                     >
-                        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">notifications</span>
+                        <Icon name="notifications" className="text-[18px]" />
                         Notices
                     </button>
                     <button
@@ -52,7 +53,7 @@ const BlocksTab: React.FC = () => {
                                 : 'text-gray-500 dark:text-white/60'
                         }`}
                     >
-                        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">event_busy</span>
+                        <Icon name="event_busy" className="text-[18px]" />
                         Blocks
                     </button>
                 </div>
@@ -67,7 +68,7 @@ const BlocksTab: React.FC = () => {
                                     : 'bg-white/60 dark:bg-white/10 border-gray-200/50 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/15 text-gray-600 dark:text-white/70'
                             }`}
                         >
-                            <span aria-hidden="true" className="material-symbols-outlined text-sm">settings</span>
+                            <Icon name="settings" className="text-sm" />
                             Closure Reasons
                             <span className="bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-1.5 py-0.5 rounded-[4px] text-[10px]">
                                 {data.closureReasons.filter(r => r.isActive).length}
@@ -81,7 +82,7 @@ const BlocksTab: React.FC = () => {
                                     : 'bg-white/60 dark:bg-white/10 border-gray-200/50 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/15 text-gray-600 dark:text-white/70'
                             }`}
                         >
-                            <span aria-hidden="true" className="material-symbols-outlined text-sm">category</span>
+                            <Icon name="category" className="text-sm" />
                             Notice Types
                             <span className="bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-1.5 py-0.5 rounded-[4px] text-[10px]">
                                 {data.noticeTypes.length}

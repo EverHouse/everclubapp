@@ -5,6 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
 import { useNavigationLoading } from '../stores/navigationLoadingStore';
 import { haptic } from '../utils/haptics';
+import Icon from './icons/Icon';
 
 interface MenuOverlayProps {
   isOpen: boolean;
@@ -120,7 +121,7 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
                   aria-label="Close menu"
                   className={`w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center hover:rotate-90 transition-transform duration-normal rounded-full active:scale-90 tactile-btn ${isDark ? 'text-[#F2F2EC] hover:bg-white/10' : 'text-[#293515] hover:bg-black/5'}`}
                 >
-                    <span className="material-symbols-outlined text-3xl">close</span>
+                    <Icon name="close" className="text-3xl" />
                 </button>
             </div>
             
@@ -164,7 +165,7 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
                 >
                     <span className={`text-sm uppercase tracking-[0.3em] font-semibold ${isDark ? 'text-[#F2F2EC]' : 'text-[#293515]'}`}>Contact Us</span>
                     <span className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full glass-button flex items-center justify-center group-hover:scale-110 transition-all duration-[400ms] ease-in-out">
-                        <span className={`material-symbols-outlined ${isDark ? 'text-[#F2F2EC]' : 'text-[#293515]'}`}>arrow_forward</span>
+                        <Icon name="arrow_forward" className={`${isDark ? 'text-[#F2F2EC]' : 'text-[#293515]'}`} />
                     </span>
                 </button>
             </div>

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type MouseEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
+import Icon from './icons/Icon';
 
 type StatusValue = 'attended' | 'no_show' | 'approved';
 
@@ -134,7 +135,7 @@ export function BookingStatusDropdown({
 
       return (
         <button type="button" disabled className={`${loadingClass} ${loadingColorClass}`} {...ariaProps}>
-          <span className={`material-symbols-outlined ${isSm ? 'text-sm' : 'text-sm'} animate-spin`}>progress_activity</span>
+          <Icon name="progress_activity" className={`${isSm ? 'text-sm' : 'text-sm'} animate-spin`} />
           Updating...
         </button>
       );
@@ -146,7 +147,7 @@ export function BookingStatusDropdown({
         : 'tactile-btn w-full py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors bg-orange-100 dark:bg-orange-900/30 border border-orange-400 dark:border-orange-600 text-orange-700 dark:text-orange-300';
       return (
         <button type="button" disabled className={btnClass} {...ariaProps}>
-          <span className={`material-symbols-outlined ${isSm ? 'text-sm' : 'text-sm'}`}>event_busy</span>
+          <Icon name="event_busy" className={`${isSm ? 'text-sm' : 'text-sm'}`} />
           Cancellation Pending
         </button>
       );
@@ -159,9 +160,9 @@ export function BookingStatusDropdown({
 
       return (
         <button type="button" onClick={handleButtonClick} onKeyDown={handleKeyDown} disabled={disabled} className={btnClass} {...ariaProps}>
-          <span className={`material-symbols-outlined ${isSm ? 'text-sm' : 'text-sm'}`}>check_circle</span>
+          <Icon name="check_circle" className={`${isSm ? 'text-sm' : 'text-sm'}`} />
           Checked In
-          <span className={`material-symbols-outlined ${isSm ? 'text-xs' : 'text-sm'} ml-0.5`}>expand_more</span>
+          <Icon name="expand_more" className={`${isSm ? 'text-xs' : 'text-sm'} ml-0.5`} />
         </button>
       );
     }
@@ -177,9 +178,9 @@ export function BookingStatusDropdown({
 
       return (
         <button type="button" onClick={handleButtonClick} onKeyDown={handleKeyDown} disabled={disabled} className={btnClass} {...ariaProps}>
-          <span className={`material-symbols-outlined ${isSm ? 'text-sm' : 'text-sm'}`}>{isSm ? 'login' : 'how_to_reg'}</span>
+          <Icon name={isSm ? 'login' : 'how_to_reg'} className={`${isSm ? 'text-sm' : 'text-sm'}`} />
           Check In
-          <span className={`material-symbols-outlined ${isSm ? 'text-xs' : 'text-sm'} ml-0.5`}>expand_more</span>
+          <Icon name="expand_more" className={`${isSm ? 'text-xs' : 'text-sm'} ml-0.5`} />
         </button>
       );
     }
@@ -191,9 +192,9 @@ export function BookingStatusDropdown({
 
       return (
         <button type="button" onClick={handleButtonClick} onKeyDown={handleKeyDown} disabled={disabled} className={btnClass} {...ariaProps}>
-          <span className={`material-symbols-outlined ${isSm ? 'text-sm' : 'text-sm'}`}>check_circle</span>
+          <Icon name="check_circle" className={`${isSm ? 'text-sm' : 'text-sm'}`} />
           Checked In
-          <span className={`material-symbols-outlined ${isSm ? 'text-xs' : 'text-sm'} ml-0.5`}>expand_more</span>
+          <Icon name="expand_more" className={`${isSm ? 'text-xs' : 'text-sm'} ml-0.5`} />
         </button>
       );
     }
@@ -204,9 +205,9 @@ export function BookingStatusDropdown({
 
     return (
       <button type="button" onClick={handleButtonClick} onKeyDown={handleKeyDown} disabled={disabled} className={btnClass} {...ariaProps}>
-        <span className={`material-symbols-outlined ${isSm ? 'text-sm' : 'text-sm'}`}>person_off</span>
+        <Icon name="person_off" className={`${isSm ? 'text-sm' : 'text-sm'}`} />
         No Show
-        <span className={`material-symbols-outlined ${isSm ? 'text-xs' : 'text-sm'} ml-0.5`}>expand_more</span>
+        <Icon name="expand_more" className={`${isSm ? 'text-xs' : 'text-sm'} ml-0.5`} />
       </button>
     );
   };
@@ -299,11 +300,11 @@ export function BookingStatusDropdown({
                 className={`w-full px-3 py-2 text-left ${itemTextSize} flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors ${currentStatus === option.value ? 'font-bold' : ''} ${activeIndex === index ? 'bg-primary/10 dark:bg-white/10' : ''} ${option.value === 'approved' && index > 0 ? 'border-t border-primary/10 dark:border-white/10' : ''}`}
               >
                 <span className={`inline-flex items-center justify-center ${iconSize} rounded-full ${getOptionColor(option.value)}`}>
-                  <span className={`material-symbols-outlined ${iconTextSize}`}>{getOptionIcon(option.value)}</span>
+                  <Icon name={getOptionIcon(option.value)} className={`${iconTextSize}`} />
                 </span>
                 {option.label}
                 {currentStatus === option.value && (
-                  <span className={`material-symbols-outlined text-sm ml-auto ${getCheckColor(option.value)}`}>check</span>
+                  <Icon name="check" className={`text-sm ml-auto ${getCheckColor(option.value)}`} />
                 )}
               </button>
             ))}

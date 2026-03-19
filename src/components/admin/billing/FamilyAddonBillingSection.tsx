@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from '../../icons/Icon';
 
 interface FamilyGroup {
   id: number;
@@ -31,7 +32,7 @@ export const FamilyAddonBillingSection: React.FC<FamilyAddonBillingSectionProps>
   return (
     <div className={`p-4 rounded-xl ${isDark ? 'bg-purple-500/10 border border-purple-500/30' : 'bg-purple-50 border border-purple-200'}`}>
       <div className="flex items-start gap-3">
-        <span className={`material-symbols-outlined ${isDark ? 'text-purple-400' : 'text-purple-600'} text-xl`}>family_restroom</span>
+        <Icon name="family_restroom" className={`${isDark ? 'text-purple-400' : 'text-purple-600'} text-xl`} />
         <div className="flex-1">
           <p className={`text-sm font-medium ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>
             Billed as family add-on

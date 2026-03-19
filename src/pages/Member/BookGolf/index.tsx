@@ -15,6 +15,7 @@ import ExistingBookings from './ExistingBookings';
 import BookingModals from './BookingModals';
 import BookingFooter from './BookingFooter';
 import ClosureAlerts from './ClosureAlerts';
+import Icon from '../../../components/icons/Icon';
 
 const BookGolf: React.FC = () => {
   const state = useBookGolf();
@@ -54,13 +55,13 @@ const BookGolf: React.FC = () => {
 
       {effectiveUser?.status && !['active', 'trialing', 'past_due'].includes(effectiveUser.status.toLowerCase()) ? (
         <section className={`rounded-xl p-6 border text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-          <span className="material-symbols-outlined text-4xl text-accent-dark dark:text-accent mb-4">lock</span>
+          <Icon name="lock" className="text-4xl text-accent-dark dark:text-accent mb-4" />
           <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>Membership Not Active</h3>
           <p className={`text-sm mb-4 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
             Your membership is currently {effectiveUser.status.toLowerCase()}. Please contact the front desk or update your membership to resume booking.
           </p>
           <a href="/membership" className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-brand-green rounded-xl font-bold text-sm">
-            <span className="material-symbols-outlined text-lg">upgrade</span>View Membership Options
+            <Icon name="upgrade" className="text-lg" />View Membership Options
           </a>
         </section>
       ) : (
@@ -79,24 +80,24 @@ const BookGolf: React.FC = () => {
 
         {activeTab === 'simulator' && isTierLoaded && !canBookSimulators ? (
           <section className={`rounded-xl p-6 border text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-            <span className="material-symbols-outlined text-4xl text-accent-dark dark:text-accent mb-4">lock</span>
+            <Icon name="lock" className="text-4xl text-accent-dark dark:text-accent mb-4" />
             <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>Upgrade to Book Simulators</h3>
             <p className={`text-sm mb-4 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
               Golf simulator access is available for Core, Premium, and Corporate members. Upgrade your membership to start booking.
             </p>
             <a href="/membership" className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-brand-green rounded-xl font-bold text-sm">
-              <span className="material-symbols-outlined text-lg">upgrade</span>View Membership Options
+              <Icon name="upgrade" className="text-lg" />View Membership Options
             </a>
           </section>
         ) : activeTab === 'conference' && isTierLoaded && !canBookConference ? (
           <section className={`rounded-xl p-6 border text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-            <span className="material-symbols-outlined text-4xl text-accent-dark dark:text-accent mb-4">lock</span>
+            <Icon name="lock" className="text-4xl text-accent-dark dark:text-accent mb-4" />
             <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>Upgrade for Conference Room Access</h3>
             <p className={`text-sm mb-4 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
               Conference room booking is available for Core, Premium, and Corporate members. Upgrade your membership to start booking.
             </p>
             <a href="/membership" className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-brand-green rounded-xl font-bold text-sm">
-              <span className="material-symbols-outlined text-lg">upgrade</span>View Membership Options
+              <Icon name="upgrade" className="text-lg" />View Membership Options
             </a>
           </section>
         ) : (
@@ -150,7 +151,7 @@ const BookGolf: React.FC = () => {
             <div ref={errorRef}>
               {error && (
                 <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm flex items-center gap-3">
-                  <span className="material-symbols-outlined">error</span>
+                  <Icon name="error" />
                   {error}
                 </div>
               )}
@@ -196,7 +197,7 @@ const BookGolf: React.FC = () => {
             {activeTab === 'conference' && memberBayBookingsForDay.length > 0 && (
               <div className={`rounded-xl p-3 border ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
                 <p className={`text-sm flex items-center gap-2 ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
-                  <span className="material-symbols-outlined text-lg">info</span>
+                  <Icon name="info" className="text-lg" />
                   Time slots during your {memberBayBookingsForDay.length > 1 ? 'bay bookings' : 'bay booking'} ({memberBayBookingsForDay.map(b => `${formatTime12Hour(b.start_time)} - ${formatTime12Hour(b.end_time)}`).join(', ')}) are unavailable
                 </p>
               </div>

@@ -5,6 +5,7 @@ import { UnifiedBookingSheet } from '../../staff-command-center/modals/UnifiedBo
 import { getTodayPacific } from '../../../utils/dateUtils';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
+import Icon from '../../icons/Icon';
 
 export interface SectionProps {
   onClose?: () => void;
@@ -69,7 +70,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
                 ${payment.totalOutstanding.toFixed(2)}
               </span>
             )}
-            <span className="material-symbols-outlined text-base text-primary/40 dark:text-white/40">chevron_right</span>
+            <Icon name="chevron_right" className="text-base text-primary/40 dark:text-white/40" />
           </div>
         </button>
       ))}
@@ -81,7 +82,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
       {variant === 'card' ? (
         <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-5 min-h-[300px]">
           <div className="flex items-center gap-2 mb-4">
-            <span className="material-symbols-outlined text-red-600 dark:text-red-400">warning</span>
+            <Icon name="warning" className="text-red-600 dark:text-red-400" />
             <h3 className="font-bold text-primary dark:text-white">Overdue Payments</h3>
             {overduePayments.length > 0 && (
               <span className="px-2 py-0.5 text-xs font-bold bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-full">
@@ -95,7 +96,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
         <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-red-600 dark:text-red-400">warning</span>
+              <Icon name="warning" className="text-red-600 dark:text-red-400" />
               <h3 className="font-bold text-primary dark:text-white">Overdue Payments</h3>
               {overduePayments.length > 0 && (
                 <span className="px-2 py-0.5 text-xs font-bold bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-full">
@@ -104,7 +105,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
               )}
             </div>
             <button onClick={onClose} className="tactile-btn p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
-              <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+              <Icon name="close" className="text-primary/60 dark:text-white/60" />
             </button>
           </div>
           {content}

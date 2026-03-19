@@ -8,6 +8,7 @@ import { AnimatedPage } from '../../components/motion';
 import { getNetworkErrorMessage } from '../../utils/errorHandling';
 import SEO from '../../components/SEO';
 import { useMapKitToken as useMapKitTokenQuery, usePublicSettings, useSubmitContactForm } from '../../hooks/queries';
+import Icon from '../../components/icons/Icon';
 
 declare global {
   interface Window {
@@ -259,7 +260,7 @@ const Contact: React.FC = () => {
         <div className="mt-4">
           <Link to="/tour" className="inline-flex items-center gap-2 text-sm font-semibold text-primary dark:text-white hover:opacity-80 transition-opacity">
             Want to see the club? Book a private tour
-            <span className="material-symbols-outlined text-lg">arrow_forward</span>
+            <Icon name="arrow_forward" className="text-lg" />
           </Link>
         </div>
       </div>
@@ -286,7 +287,7 @@ const Contact: React.FC = () => {
                          <p className="text-white font-bold truncate text-sm">Apple Messages</p>
                      </div>
                 </div>
-                <span className="material-symbols-outlined text-white/30 group-hover:text-white transition-colors">chevron_right</span>
+                <Icon name="chevron_right" className="text-white/30 group-hover:text-white transition-colors" />
              </a>
            )}
       </section>
@@ -294,7 +295,7 @@ const Contact: React.FC = () => {
       <section className="px-4 mb-8 max-w-2xl mx-auto w-full">
          <div className="bg-[#E8E8E0]/50 dark:bg-white/5 rounded-xl p-6">
             <h2 className="text-2xl text-primary dark:text-white mb-4 flex items-center gap-2 leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>
-               <span className="material-symbols-outlined text-xl translate-y-[1px]">schedule</span>
+               <Icon name="schedule" className="text-xl translate-y-[1px]" />
                Hours of Operation
             </h2>
             <div className="space-y-3 text-sm">
@@ -325,7 +326,7 @@ const Contact: React.FC = () => {
             {isSubmitted ? (
                 <div className="py-12 flex flex-col items-center text-center animate-in fade-in zoom-in duration-500">
                     <div className="w-16 h-16 bg-green-100 dark:bg-green-500/10 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 mb-4">
-                        <span className="material-symbols-outlined text-3xl">check</span>
+                        <Icon name="check" className="text-3xl" />
                     </div>
                     <h3 className="text-xl font-bold text-primary dark:text-white mb-2">Message Sent</h3>
                     <p className="text-primary/60 dark:text-white/60">Thank you for reaching out. Our team will respond to your inquiry shortly.</p>
@@ -346,7 +347,7 @@ const Contact: React.FC = () => {
                 <form className="space-y-5" onSubmit={handleSubmit}>
                 {error && (
                   <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
-                    <span className="material-symbols-outlined text-lg">error</span>
+                    <Icon name="error" className="text-lg" />
                     {error}
                   </div>
                 )}
@@ -398,7 +399,7 @@ const Contact: React.FC = () => {
                     {loading ? (
                         <>Sending...</>
                     ) : (
-                        <>Send Message <span className="material-symbols-outlined text-[18px]">send</span></>
+                        <>Send Message <Icon name="send" className="text-[18px]" /></>
                     )}
                 </button>
                 </form>
@@ -419,7 +420,7 @@ const Contact: React.FC = () => {
                    rel="noreferrer" 
                    className="bg-white dark:bg-[#1a1d15] text-primary dark:text-white px-4 py-2 rounded-lg shadow-md dark:shadow-black/20 font-bold text-xs flex items-center gap-2 hover:shadow-lg transition-shadow"
                  >
-                    <span className="material-symbols-outlined text-sm">map</span>
+                    <Icon name="map" className="text-sm" />
                     Open in Google Maps
                  </a>
                  <a 
@@ -462,14 +463,14 @@ const ContactCard: React.FC<{icon: string; title: string; value: string; href?: 
     <Wrapper href={href} className="tactile-card group flex items-center justify-between bg-white dark:bg-[#1a1d15] p-4 rounded-xl border border-black/5 dark:border-white/10 shadow-sm dark:shadow-black/20 hover:shadow-md transition-all duration-fast cursor-pointer">
        <div className="flex items-center gap-4">
             <div className="flex items-center justify-center size-12 rounded-full bg-bone dark:bg-white/5 text-primary dark:text-white shrink-0">
-                <span className="material-symbols-outlined text-[24px]">{icon}</span>
+                <Icon name={icon} className="text-[24px]" />
             </div>
             <div className="flex-1 min-w-0 text-left">
                 <p className="text-[10px] font-bold text-primary/50 dark:text-white/50 uppercase tracking-widest mb-0.5">{title}</p>
                 <p className="text-primary dark:text-white font-bold truncate text-sm">{value}</p>
             </div>
        </div>
-       <span className="material-symbols-outlined text-gray-300 dark:text-white/30 group-hover:text-primary dark:group-hover:text-white transition-colors">chevron_right</span>
+       <Icon name="chevron_right" className="text-gray-300 dark:text-white/30 group-hover:text-primary dark:group-hover:text-white transition-colors" />
     </Wrapper>
   );
 };

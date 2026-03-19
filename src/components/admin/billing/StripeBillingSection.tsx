@@ -1,5 +1,6 @@
 import React from 'react';
 import { getBillingStatusBadge } from '../../../utils/statusColors';
+import Icon from '../../icons/Icon';
 
 interface Subscription {
   id: string;
@@ -154,7 +155,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
       {isWalletOnly && (
         <div className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-purple-500/10 border border-purple-500/30' : 'bg-purple-50 border border-purple-200'}`}>
           <div className="flex items-center gap-2 mb-3">
-            <span className={`material-symbols-outlined ${isDark ? 'text-purple-400' : 'text-purple-600'} text-lg`}>account_balance_wallet</span>
+            <Icon name="account_balance_wallet" className={`${isDark ? 'text-purple-400' : 'text-purple-600'} text-lg`} />
             <span className={`text-sm font-medium ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>
               Stripe Wallet (Subscription managed elsewhere)
             </span>
@@ -181,7 +182,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                   ))}
                 </select>
                 {isUpdatingSource && (
-                  <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                  <Icon name="progress_activity" className="animate-spin text-base" />
                 )}
               </div>
               <p className={`text-xs mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
@@ -196,7 +197,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
       {!isWalletOnly && (
       <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
         <div className="flex items-center gap-2 mb-4">
-          <span className={`material-symbols-outlined ${isDark ? 'text-accent' : 'text-primary'}`}>subscriptions</span>
+          <Icon name="subscriptions" className={`${isDark ? 'text-accent' : 'text-primary'}`} />
           <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>Subscription</h3>
           {activeSubscription && (
             <>
@@ -250,7 +251,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
 
             {activeSubscription.status === 'active' && (!paymentMethods || paymentMethods.length === 0) && (
               <div className={`p-2 rounded-lg flex items-center gap-2 ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>
-                <span className={`material-symbols-outlined text-base ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>credit_card_off</span>
+                <Icon name="credit_card_off" className={`text-base ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                 <span className={`text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
                   No card on file for renewals
                 </span>
@@ -260,7 +261,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
             {activeSubscription.discount && (
               <div className={`p-2 rounded-lg ${isDark ? 'bg-purple-500/10' : 'bg-purple-50'}`}>
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-purple-500 text-base">sell</span>
+                  <Icon name="sell" className="text-purple-500 text-base" />
                   <span className={`text-sm ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>
                     {activeSubscription.discount.coupon.name || activeSubscription.discount.coupon.id}
                     {activeSubscription.discount.coupon.percentOff && ` (${activeSubscription.discount.coupon.percentOff}% off)`}
@@ -291,7 +292,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                     ))}
                   </select>
                   {isUpdatingSource && (
-                    <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-base" />
                   )}
                 </div>
               </div>
@@ -300,7 +301,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
             {activeSubscription.status === 'incomplete' && (onCollectPayment || onSendActivationEmail || onCopyActivationLink) && (
               <div className={`p-3 rounded-lg ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>
                 <div className="flex items-center gap-2 mb-3">
-                  <span className={`material-symbols-outlined ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>warning</span>
+                  <Icon name="warning" className={`${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                   <span className={`text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
                     Payment required to activate membership
                   </span>
@@ -313,7 +314,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                         isDark ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-base">point_of_sale</span>
+                      <Icon name="point_of_sale" className="text-base" />
                       Collect Payment
                     </button>
                   )}
@@ -326,9 +327,9 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                       }`}
                     >
                       {isSendingActivation ? (
-                        <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                        <Icon name="progress_activity" className="animate-spin text-base" />
                       ) : (
-                        <span className="material-symbols-outlined text-base">mail</span>
+                        <Icon name="mail" className="text-base" />
                       )}
                       Send Activation Email
                     </button>
@@ -340,7 +341,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                         isDark ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-base">content_copy</span>
+                      <Icon name="content_copy" className="text-base" />
                       Copy Activation Link
                     </button>
                   )}
@@ -354,7 +355,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                 disabled={activeSubscription.status !== 'active'}
                 className="tactile-btn flex items-center gap-1.5 px-3 py-2 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
-                <span className="material-symbols-outlined text-base">swap_vert</span>
+                <Icon name="swap_vert" className="text-base" />
                 Change Tier
               </button>
               {onSyncStripeData && (
@@ -367,9 +368,9 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                   } disabled:opacity-50`}
                 >
                   {isSyncingStripeData ? (
-                    <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-base" />
                   ) : (
-                    <span className="material-symbols-outlined text-base">sync</span>
+                    <Icon name="sync" className="text-base" />
                   )}
                   Sync
                 </button>
@@ -381,9 +382,9 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                   className="tactile-btn flex items-center gap-1.5 px-3 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 disabled:opacity-50 transition-colors"
                 >
                   {isResuming ? (
-                    <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-base" />
                   ) : (
-                    <span className="material-symbols-outlined text-base">play_arrow</span>
+                    <Icon name="play_arrow" className="text-base" />
                   )}
                   Resume
                 </button>
@@ -396,9 +397,9 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                   }`}
                 >
                   {isPausing ? (
-                    <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-base" />
                   ) : (
-                    <span className="material-symbols-outlined text-base">pause</span>
+                    <Icon name="pause" className="text-base" />
                   )}
                   Pause
                 </button>
@@ -408,7 +409,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                   onClick={onShowCancelModal}
                   className="tactile-btn flex items-center gap-1.5 px-3 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-base">cancel</span>
+                  <Icon name="cancel" className="text-base" />
                   Cancel
                 </button>
               )}
@@ -418,7 +419,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
           <div className={`p-4 rounded-lg ${isDark ? 'bg-black/20' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-gray-100'}`}>
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
-                <span className={`material-symbols-outlined ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>block</span>
+                <Icon name="block" className={`${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
               </div>
               <div>
                 <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-primary'}`}>No Active Subscription</p>
@@ -450,7 +451,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                 ))}
               </select>
               {isUpdatingSource && (
-                <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin text-base" />
               )}
             </div>
             <p className={`text-xs mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
@@ -463,7 +464,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
           <div className={`mt-4 p-4 rounded-lg ${isDark ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'}`}>
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? 'bg-green-500/20' : 'bg-green-100'}`}>
-                <span className={`material-symbols-outlined ${isDark ? 'text-green-400' : 'text-green-600'}`}>add_card</span>
+                <Icon name="add_card" className={`${isDark ? 'text-green-400' : 'text-green-600'}`} />
               </div>
               <div className="flex-1">
                 <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-primary'}`}>Create Subscription</p>
@@ -479,7 +480,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                   isDark ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30' : 'bg-green-100 text-green-700 hover:bg-green-200'
                 }`}
               >
-                <span className="material-symbols-outlined text-base">add</span>
+                <Icon name="add" className="text-base" />
                 Create
               </button>
             </div>
@@ -490,7 +491,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
 
       <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
         <div className="flex items-center gap-2 mb-4">
-          <span className={`material-symbols-outlined ${isDark ? 'text-accent' : 'text-primary'}`}>credit_card</span>
+          <Icon name="credit_card" className={`${isDark ? 'text-accent' : 'text-primary'}`} />
           <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>Payment Method</h3>
         </div>
 
@@ -500,7 +501,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
               <div key={pm.id} className={`p-3 rounded-lg ${isDark ? 'bg-black/20' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-gray-100'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className={`material-symbols-outlined ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>credit_card</span>
+                    <Icon name="credit_card" className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                     <div>
                       <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-primary'}`}>
                         {pm.brand?.toUpperCase()} •••• {pm.last4}
@@ -521,9 +522,9 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
               } disabled:opacity-50`}
             >
               {isGettingPaymentLink ? (
-                <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin text-base" />
               ) : (
-                <span className="material-symbols-outlined text-base">open_in_new</span>
+                <Icon name="open_in_new" className="text-base" />
               )}
               Update Payment Method
             </button>
@@ -534,7 +535,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                   isDark ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                 }`}
               >
-                <span className="material-symbols-outlined text-base">contactless</span>
+                <Icon name="contactless" className="text-base" />
                 Update Card via Reader
               </button>
             )}
@@ -549,7 +550,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                   isDark ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                 }`}
               >
-                <span className="material-symbols-outlined text-base">contactless</span>
+                <Icon name="contactless" className="text-base" />
                 Add Card via Reader
               </button>
             )}
@@ -565,9 +566,9 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
             } disabled:opacity-50`}
           >
             {isOpeningBillingPortal ? (
-              <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+              <Icon name="progress_activity" className="animate-spin text-base" />
             ) : (
-              <span className="material-symbols-outlined text-base">account_balance</span>
+              <Icon name="account_balance" className="text-base" />
             )}
             Manage Billing in Stripe
           </button>
@@ -577,14 +578,14 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
       <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className={`material-symbols-outlined ${isDark ? 'text-accent' : 'text-primary'}`}>account_balance_wallet</span>
+            <Icon name="account_balance_wallet" className={`${isDark ? 'text-accent' : 'text-primary'}`} />
             <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>Account Balance</h3>
           </div>
           <button
             onClick={onShowCreditModal}
             className="tactile-btn flex items-center gap-1.5 px-3 py-1.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
           >
-            <span className="material-symbols-outlined text-base">add</span>
+            <Icon name="add" className="text-base" />
             Apply Credit
           </button>
         </div>
@@ -607,7 +608,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
       <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className={`material-symbols-outlined ${isDark ? 'text-accent' : 'text-primary'}`}>sell</span>
+            <Icon name="sell" className={`${isDark ? 'text-accent' : 'text-primary'}`} />
             <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>Discounts</h3>
           </div>
           <button
@@ -615,14 +616,14 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
             disabled={!activeSubscription}
             className="tactile-btn flex items-center gap-1.5 px-3 py-1.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-base">add</span>
+            <Icon name="add" className="text-base" />
             Apply Discount
           </button>
         </div>
         {activeSubscription?.discount ? (
           <div className={`p-3 rounded-lg ${isDark ? 'bg-purple-500/10' : 'bg-purple-50'}`}>
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-purple-500 text-base">check_circle</span>
+              <Icon name="check_circle" className="text-purple-500 text-base" />
               <span className={`text-sm ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>
                 Active: {activeSubscription.discount.coupon.name || activeSubscription.discount.coupon.id}
                 {activeSubscription.discount.coupon.percentOff && ` (${activeSubscription.discount.coupon.percentOff}% off)`}
@@ -636,7 +637,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
 
       <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
         <div className="flex items-center gap-2 mb-4">
-          <span className={`material-symbols-outlined ${isDark ? 'text-accent' : 'text-primary'}`}>receipt_long</span>
+          <Icon name="receipt_long" className={`${isDark ? 'text-accent' : 'text-primary'}`} />
           <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>Invoice History</h3>
         </div>
         {recentInvoices && recentInvoices.length > 0 ? (
@@ -666,7 +667,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                       className={`flex items-center gap-1 text-xs font-medium ${isDark ? 'text-accent hover:text-accent/80' : 'text-primary hover:text-primary/80'}`}
                     >
                       View
-                      <span className="material-symbols-outlined text-base">open_in_new</span>
+                      <Icon name="open_in_new" className="text-base" />
                     </a>
                   )}
                 </div>

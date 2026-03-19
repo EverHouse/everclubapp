@@ -7,6 +7,7 @@ import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { usePublicFaqs } from '../../hooks/queries';
+import Icon from '../../components/icons/Icon';
 
 interface FaqItem {
   id: number;
@@ -152,7 +153,7 @@ const AccordionItem: React.FC<{ question: string; answer: string }> = ({ questio
         className="w-full flex items-center justify-between p-4 text-left font-bold text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/5 transition-colors"
       >
         <span>{question}</span>
-        <span className={`material-symbols-outlined transition-transform duration-normal ${isOpen ? 'rotate-180' : ''}`}>expand_more</span>
+        <Icon name="expand_more" className={`transition-transform duration-normal ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       <div className={`accordion-content ${isOpen ? 'is-open' : ''}`}>
         <div className="accordion-inner">

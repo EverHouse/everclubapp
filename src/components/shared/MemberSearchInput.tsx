@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback, useId } from 
 import { createPortal } from 'react-dom';
 import { useMemberData } from '../../contexts/DataContext';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
+import Icon from '../icons/Icon';
 
 export interface SelectedMember {
   id: string;
@@ -336,9 +337,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
               <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
                 isVisitor ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-primary/10 dark:bg-white/10'
               }`}>
-                <span className={`material-symbols-outlined text-base ${
-                  isVisitor ? 'text-amber-600 dark:text-amber-400' : 'text-primary dark:text-white'
-                }`}>{isVisitor ? 'person_outline' : 'person'}</span>
+                <Icon name={isVisitor ? 'person_outline' : 'person'} className={`text-base ${ isVisitor ? 'text-amber-600 dark:text-amber-400' : 'text-primary dark:text-white' }`} />
               </div>
               <div className="text-left flex-1 min-w-0">
                 <p className="font-medium text-primary dark:text-white truncate">
@@ -374,13 +373,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
         </label>
       )}
       <div className="relative">
-        <span className={`absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-lg ${
-          selectedMember 
-            ? 'text-green-600 dark:text-green-400' 
-            : 'text-primary/40 dark:text-white/40'
-        }`}>
-          {selectedMember ? 'check_circle' : 'search'}
-        </span>
+        <Icon name={selectedMember ? 'check_circle' : 'search'} className={`absolute left-3 top-1/2 -translate-y-1/2 text-lg ${ selectedMember ? 'text-green-600 dark:text-green-400' : 'text-primary/40 dark:text-white/40' }`} />
         <input
           id={`member-search-input-${instanceId}`}
           ref={inputRef}
@@ -413,7 +406,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
             className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40 hover:text-primary dark:hover:text-white"
             aria-label="Clear search"
           >
-            <span className="material-symbols-outlined text-lg" aria-hidden="true">close</span>
+            <Icon name="close" className="text-lg" />
           </button>
         )}
       </div>

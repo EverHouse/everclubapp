@@ -1,6 +1,7 @@
 import React from 'react';
 import type { DayPass, RedemptionLog } from './types';
 import { formatPassType } from './types';
+import Icon from '../../../icons/Icon';
 
 interface PassSearchResultsProps {
   passes: DayPass[];
@@ -40,7 +41,7 @@ const PassSearchResults: React.FC<PassSearchResultsProps> = ({
   if (!hasSearched) {
     return (
       <div className="text-center py-8">
-        <span className="material-symbols-outlined text-4xl text-primary/30 dark:text-white/30 mb-2">qr_code_scanner</span>
+        <Icon name="qr_code_scanner" className="text-4xl text-primary/30 dark:text-white/30 mb-2" />
         <p className="text-sm text-primary/60 dark:text-white/60">Search by email or scan QR to find passes</p>
       </div>
     );
@@ -50,7 +51,7 @@ const PassSearchResults: React.FC<PassSearchResultsProps> = ({
     return (
       <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 space-y-3">
         <div className="flex items-start gap-3">
-          <span className="material-symbols-outlined text-2xl text-amber-600 dark:text-amber-400">search_off</span>
+          <Icon name="search_off" className="text-2xl text-amber-600 dark:text-amber-400" />
           <div className="flex-1">
             <p className="font-semibold text-amber-900 dark:text-amber-100">No active passes found</p>
             <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
@@ -63,14 +64,14 @@ const PassSearchResults: React.FC<PassSearchResultsProps> = ({
             onClick={handleSellNewPass}
             className="flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-teal-500 text-white font-medium text-sm hover:bg-teal-600 transition-colors flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
+            <Icon name="add_shopping_cart" className="text-lg" />
             Sell new pass
           </button>
           <button
             onClick={onClearSearch}
             className="px-4 py-2.5 rounded-lg bg-amber-100 dark:bg-amber-800/40 text-amber-900 dark:text-amber-100 font-medium text-sm hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-lg">refresh</span>
+            <Icon name="refresh" className="text-lg" />
             Search again
           </button>
         </div>
@@ -113,9 +114,7 @@ const PassSearchResults: React.FC<PassSearchResultsProps> = ({
                 {loadingHistoryId === pass.id ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary dark:border-white border-t-transparent" />
                 ) : (
-                  <span className="material-symbols-outlined text-base">
-                    {expandedPassId === pass.id ? 'expand_less' : 'history'}
-                  </span>
+                  <Icon name={expandedPassId === pass.id ? 'expand_less' : 'history'} className="text-base" />
                 )}
                 History
               </button>
@@ -127,7 +126,7 @@ const PassSearchResults: React.FC<PassSearchResultsProps> = ({
                 {redeemingId === pass.id ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
                 ) : (
-                  <span className="material-symbols-outlined text-base">check</span>
+                  <Icon name="check" className="text-base" />
                 )}
                 Redeem
               </button>
@@ -148,7 +147,7 @@ const PassSearchResults: React.FC<PassSearchResultsProps> = ({
                       className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-primary/5 dark:bg-white/5"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-sm text-primary/60 dark:text-white/60">schedule</span>
+                        <Icon name="schedule" className="text-sm text-primary/60 dark:text-white/60" />
                         <span className="text-xs text-primary dark:text-white">
                           {formatDateTime(log.redeemedAt)}
                         </span>

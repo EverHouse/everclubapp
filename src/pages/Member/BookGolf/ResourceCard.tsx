@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Resource } from './bookGolfTypes';
+import Icon from '../../../components/icons/Icon';
 
 interface ResourceCardProps {
   resource: Resource;
@@ -20,7 +21,7 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, selected, onClick
         <div className={`w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center mr-4 overflow-hidden ${
           isDark ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-100 text-amber-600'
         }`}>
-          <span className="material-symbols-outlined text-2xl">pending</span>
+          <Icon name="pending" className="text-2xl" />
         </div>
         
         <div className="flex-1">
@@ -49,7 +50,7 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, selected, onClick
       }`}
     >
       <div className={`w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center mr-4 overflow-hidden ${selected ? (isDark ? 'bg-white/15 text-white' : 'bg-primary/10 text-primary') : (isDark ? 'bg-white/5 text-white/50' : 'bg-black/5 text-primary/50')}`}>
-        <span className="material-symbols-outlined text-2xl">{resource.icon || 'meeting_room'}</span>
+        <Icon name={resource.icon || 'meeting_room'} className="text-2xl" />
       </div>
       
       <div className="flex-1">
@@ -74,7 +75,7 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, selected, onClick
           : (isDark ? 'border-white/30' : 'border-black/20')
       }`}>
         {selected && (
-          <span className={`material-symbols-outlined text-sm ${isDark ? 'text-primary' : 'text-white'}`}>check</span>
+          <Icon name="check" className={`text-sm ${isDark ? 'text-primary' : 'text-white'}`} />
         )}
       </div>
     </button>

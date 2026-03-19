@@ -2,6 +2,7 @@ import React from 'react';
 import { haptic } from '../../../utils/haptics';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 import FeeBreakdownCard from '../../../components/shared/FeeBreakdownCard';
+import Icon from '../../../components/icons/Icon';
 
 interface BookingFooterProps {
   canBook: boolean;
@@ -41,7 +42,7 @@ const BookingFooter: React.FC<BookingFooterProps> = ({
           <div ref={feeRef} className="w-full flex flex-col gap-2">
             {activeTab === 'conference' && conferencePaymentRequired && conferenceOverageFee > 0 && (
               <div className={`w-full px-3 sm:px-4 py-3 rounded-xl backdrop-blur-md border flex items-start gap-3 ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
-                <span className={`material-symbols-outlined text-lg flex-shrink-0 mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>payments</span>
+                <Icon name="payments" className={`text-lg flex-shrink-0 mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`text-sm font-bold ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
@@ -79,11 +80,11 @@ const BookingFooter: React.FC<BookingFooterProps> = ({
             {isBooking ? (
               <><WalkingGolferSpinner size="sm" /><span>Booking...</span></>
             ) : activeTab === 'conference' && conferencePaymentRequired ? (
-              <><span className="material-symbols-outlined text-xl">payments</span><span>Book & Pay ${(conferenceOverageFee / 100).toFixed(2)}</span></>
+              <><Icon name="payments" className="text-xl" /><span>Book & Pay ${(conferenceOverageFee / 100).toFixed(2)}</span></>
             ) : activeTab === 'conference' ? (
-              <><span>Book Conference Room</span><span className="material-symbols-outlined text-xl">arrow_forward</span></>
+              <><span>Book Conference Room</span><Icon name="arrow_forward" className="text-xl" /></>
             ) : (
-              <><span>Request Booking</span><span className="material-symbols-outlined text-xl">arrow_forward</span></>
+              <><span>Request Booking</span><Icon name="arrow_forward" className="text-xl" /></>
             )}
           </button>
         </div>
@@ -92,7 +93,7 @@ const BookingFooter: React.FC<BookingFooterProps> = ({
       {showConfirmation && (
         <div className="fixed bottom-32 left-0 right-0 z-[60] flex justify-center pointer-events-none">
           <div className={`backdrop-blur-md px-6 py-3 rounded-full shadow-2xl text-sm font-bold flex items-center gap-3 animate-pop-in w-max max-w-[90%] border pointer-events-auto ${isDark ? 'bg-black/80 text-white border-white/25' : 'bg-white/95 text-primary border-black/10'}`}>
-            <span className="material-symbols-outlined text-xl text-green-500">{activeTab === 'conference' ? 'check_circle' : 'schedule_send'}</span>
+            <Icon name={activeTab === 'conference' ? 'check_circle' : 'schedule_send'} className="text-xl text-green-500" />
             <div>
               <p>{activeTab === 'conference' ? 'Booked!' : 'Request sent!'}</p>
               <p className="text-[10px] font-normal opacity-80 mt-0.5">{activeTab === 'conference' ? 'Conference room confirmed.' : 'Staff will review shortly.'}</p>

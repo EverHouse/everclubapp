@@ -15,6 +15,7 @@ import { playSound } from '../../utils/sounds';
 import { formatDateDisplayWithDay } from '../../utils/dateUtils';
 import { bookingEvents } from '../../lib/bookingEvents';
 import { WellnessCardSkeleton, SkeletonList } from '../../components/skeletons';
+import Icon from '../../components/icons/Icon';
 
 interface WellnessEnrollment {
   class_id: number;
@@ -195,7 +196,7 @@ const Wellness: React.FC = () => {
       {showConfirmation && (
          <div className="fixed bottom-32 left-0 right-0 z-[60] flex justify-center pointer-events-none">
              <div className={`backdrop-blur-md px-6 py-3 rounded-full shadow-2xl text-sm font-bold flex items-center gap-3 animate-pop-in w-max max-w-[90%] border pointer-events-auto ${isDark ? 'bg-black/80 text-white border-white/25' : 'bg-white/95 text-primary border-black/10'}`}>
-                <span className="material-symbols-outlined text-xl text-green-500">check_circle</span>
+                <Icon name="check_circle" className="text-xl text-green-500" />
                 <div>
                   <p>{confirmationMessage}</p>
                 </div>
@@ -473,7 +474,7 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
         {hasError && (
           <div className={`mb-6 p-4 rounded-xl border backdrop-blur-md ${isDark ? 'bg-red-500/10 border-red-500/30 text-white' : 'bg-red-50 border-red-200 text-primary'}`}>
             <div className="flex items-start gap-3">
-              <span className="material-symbols-outlined text-xl flex-shrink-0 mt-0.5">error</span>
+              <Icon name="error" className="text-xl flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm mb-1">Unable to load classes</p>
                 <p className={`text-xs ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
@@ -575,7 +576,7 @@ const MedSpaView: React.FC<{isDark?: boolean}> = ({ isDark = true }) => (
          rel="noopener noreferrer"
          className={`w-full py-3.5 rounded-xl font-bold tracking-wide active:scale-[0.98] transition-all duration-fast flex items-center justify-center gap-2 ${isDark ? 'bg-lavender text-primary hover:bg-lavender/90' : 'bg-primary text-white hover:bg-primary/90'}`}
        >
-         <span className="material-symbols-outlined text-[20px]">calendar_add_on</span>
+         <Icon name="calendar_add_on" className="text-[20px]" />
          Book with Amarie
        </a>
     </div>
@@ -779,14 +780,14 @@ const ClassCard: React.FC<ClassCardProps> = React.memo(({ title, date, time, ins
         </div>
       </div>
       <div className={`flex items-center justify-center mt-2 transition-transform duration-fast ${isExpanded ? 'rotate-180' : ''}`}>
-        <span className={`material-symbols-outlined text-base ${isDark ? 'text-white/30' : 'text-primary/30'}`}>expand_more</span>
+        <Icon name="expand_more" className={`text-base ${isDark ? 'text-white/30' : 'text-primary/30'}`} />
       </div>
     </button>
     <div className={`accordion-content ${isExpanded ? 'is-open' : ''}`}>
       <div className="accordion-inner">
       <div className="px-4 pb-4 pt-0 space-y-3">
         <div className={`flex items-center gap-1.5 text-sm ${isDark ? 'text-gray-400' : 'text-primary/70'}`}>
-          <span className="material-symbols-outlined text-[16px]">person</span>
+          <Icon name="person" className="text-[16px]" />
           <span>{instructor}</span>
         </div>
         <p className={`text-sm leading-relaxed ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
@@ -805,7 +806,7 @@ const ClassCard: React.FC<ClassCardProps> = React.memo(({ title, date, time, ins
             className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all duration-fast flex items-center justify-center gap-2 active:scale-[0.98] ${isDark ? 'bg-white text-brand-green hover:bg-white/90' : 'bg-brand-green text-white hover:opacity-90'}`}
           >
             <span>Learn More</span>
-            <span className="material-symbols-outlined text-sm">open_in_new</span>
+            <Icon name="open_in_new" className="text-sm" />
           </a>
         ) : isMembershipInactive ? (
           <div className={`w-full py-2.5 rounded-lg flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-bone'}`}>

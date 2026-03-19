@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useBottomNav } from '../stores/bottomNavStore';
 import { useScrollDirection } from '../hooks/useScrollDirection';
+import Icon from './icons/Icon';
 
 export type FABColor = 'brand' | 'amber' | 'green' | 'purple' | 'red';
 
@@ -98,11 +99,11 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
 
   const iconContent = secondaryIcon ? (
     <div className="relative flex items-center justify-center w-6 h-6 shrink-0">
-      <span className="material-symbols-outlined text-2xl">{secondaryIcon}</span>
-      <span className="material-symbols-outlined text-[10px] font-bold absolute -left-0.5 -top-0.5 text-inherit flex items-center justify-center">{icon}</span>
+      <Icon name={secondaryIcon} className="text-2xl" />
+      <Icon name={icon} className="text-[10px] font-bold absolute -left-0.5 -top-0.5 text-inherit flex items-center justify-center" />
     </div>
   ) : (
-    <span className="material-symbols-outlined text-2xl shrink-0">{icon}</span>
+    <Icon name={icon} className="text-2xl shrink-0" />
   );
 
   const fabContent = (

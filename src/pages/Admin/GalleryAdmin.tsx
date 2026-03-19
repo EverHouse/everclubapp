@@ -9,6 +9,7 @@ import { haptic } from '../../utils/haptics';
 import { useDragAutoScroll } from '../../hooks/useDragAutoScroll';
 import { useToast } from '../../components/Toast';
 import { useGalleryImages, useSaveGalleryImage, useDeleteGalleryImage, useUploadImage, useReorderGallery, adminTabKeys } from '../../hooks/queries';
+import Icon from '../../components/icons/Icon';
 
 interface GalleryImage {
     id: number;
@@ -357,11 +358,11 @@ const GalleryAdmin: React.FC = () => {
 
             {isLoading ? (
                 <div className="flex items-center justify-center py-12">
-                    <span className="material-symbols-outlined animate-spin text-3xl text-gray-500 dark:text-gray-400" aria-hidden="true">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-3xl text-gray-500 dark:text-gray-400" />
                 </div>
             ) : images.length === 0 ? (
                 <div className="bg-white dark:bg-surface-dark rounded-xl p-8 text-center shadow-sm border border-gray-200 dark:border-white/20">
-                    <span className="material-symbols-outlined text-5xl text-gray-500 dark:text-gray-500 mb-3 block" aria-hidden="true">photo_library</span>
+                    <Icon name="photo_library" className="text-5xl text-gray-500 dark:text-gray-500 mb-3 block" />
                     <h3 className="text-lg font-bold text-primary dark:text-white mb-2">No Images</h3>
                     <p className="text-gray-600 dark:text-gray-300">Add images to the gallery to get started.</p>
                 </div>
@@ -391,7 +392,7 @@ const GalleryAdmin: React.FC = () => {
                                         draggable={false}
                                     />
                                     <div className="absolute top-2 left-2 w-11 h-11 flex items-center justify-center bg-black/50 hover:bg-black/70 text-white rounded-lg touch-manipulation transition-colors" aria-label="Drag to reorder">
-                                        <span className="material-symbols-outlined text-xl" aria-hidden="true">drag_indicator</span>
+                                        <Icon name="drag_indicator" className="text-xl" />
                                     </div>
                                 </div>
                                 <div className="p-3">
@@ -421,14 +422,14 @@ const GalleryAdmin: React.FC = () => {
                                             className="tactile-btn min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
                                             aria-label="Edit image"
                                         >
-                                            <span className="material-symbols-outlined text-lg" aria-hidden="true">edit</span>
+                                            <Icon name="edit" className="text-lg" />
                                         </button>
                                         <button
                                             onClick={() => setDeleteConfirm(image.id)}
                                             className="tactile-btn min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                             aria-label="Delete image"
                                         >
-                                            <span className="material-symbols-outlined text-lg" aria-hidden="true">delete</span>
+                                            <Icon name="delete" className="text-lg" />
                                         </button>
                                     </div>
                                 </div>

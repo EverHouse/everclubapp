@@ -7,6 +7,7 @@ import { getTodayPacific } from '../../../utils/dateUtils';
 import { UnifiedBookingSheet } from '../modals/UnifiedBookingSheet';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
+import Icon from '../../icons/Icon';
 
 interface OverduePayment {
   bookingId: number;
@@ -67,7 +68,7 @@ export const OverduePaymentsSection: React.FC<OverduePaymentsSectionProps> = ({ 
             <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Overdue Payments</h3>
             {count > 0 && (
               <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 rounded-[4px] flex items-center gap-1">
-                <span className="material-symbols-outlined text-xs">warning</span>
+                <Icon name="warning" className="text-xs" />
                 {count}
               </span>
             )}
@@ -99,7 +100,7 @@ export const OverduePaymentsSection: React.FC<OverduePaymentsSectionProps> = ({ 
                         ${payment.totalOutstanding.toFixed(2)}
                       </span>
                     )}
-                    <span className="material-symbols-outlined text-base text-primary/70 dark:text-white/70">chevron_right</span>
+                    <Icon name="chevron_right" className="text-base text-primary/70 dark:text-white/70" />
                   </div>
                 </GlassListRow>
               ))}

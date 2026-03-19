@@ -4,6 +4,7 @@ import { ModalShell } from '../../ModalShell';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { getNetworkErrorMessage } from '../../../utils/errorHandling';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
+import Icon from '../../icons/Icon';
 
 interface Tier {
   id: number;
@@ -118,7 +119,7 @@ export function TierChangeWizard({ isOpen, onClose, memberEmail, subscriptionId,
       <div className="p-4 space-y-4">
         {error && (
           <div className={`p-3 rounded-lg flex items-center gap-2 ${isDark ? 'bg-red-500/10 border border-red-500/30' : 'bg-red-50 border border-red-200'}`}>
-            <span className="material-symbols-outlined text-red-500 text-base">error</span>
+            <Icon name="error" className="text-red-500 text-base" />
             <p className={`text-sm ${isDark ? 'text-red-400' : 'text-red-600'}`}>{error}</p>
           </div>
         )}
@@ -176,7 +177,7 @@ export function TierChangeWizard({ isOpen, onClose, memberEmail, subscriptionId,
         
         {previewLoading && (
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+            <Icon name="progress_activity" className="animate-spin text-base" />
             <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Loading preview...</span>
           </div>
         )}
@@ -187,7 +188,7 @@ export function TierChangeWizard({ isOpen, onClose, memberEmail, subscriptionId,
             <div className="text-sm space-y-1">
               <div className="flex items-center gap-2">
                 <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>{preview.currentTier}</span>
-                <span className="material-symbols-outlined text-base">arrow_forward</span>
+                <Icon name="arrow_forward" className="text-base" />
                 <span className={isDark ? 'text-white' : 'text-primary'}>{preview.newTier}</span>
               </div>
               {immediate && preview.prorationAmountCents !== 0 && (

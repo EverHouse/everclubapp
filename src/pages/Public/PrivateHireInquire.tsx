@@ -7,6 +7,7 @@ import { usePageReady } from '../../stores/pageReadyStore';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import SEO from '../../components/SEO';
 import { useSubmitPrivateHireInquiry } from '../../hooks/queries';
+import Icon from '../../components/icons/Icon';
 
 const getHubspotCookie = (): string | null => {
   const cookies = document.cookie.split(';');
@@ -176,7 +177,7 @@ const PrivateHireInquire: React.FC = () => {
           to="/private-hire" 
           className="tactile-btn inline-flex items-center gap-1 text-primary/70 dark:text-white/70 hover:text-primary dark:hover:text-white transition-colors py-2"
         >
-          <span className="material-symbols-outlined text-lg">arrow_back</span>
+          <Icon name="arrow_back" className="text-lg" />
           <span className="text-sm font-medium">Back to Private Hire</span>
         </Link>
       </div>
@@ -195,7 +196,7 @@ const PrivateHireInquire: React.FC = () => {
           {success ? (
             <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] p-8 text-center">
               <div className="w-20 h-20 bg-green-100 dark:bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="material-symbols-outlined text-4xl text-green-600 dark:text-green-400">check_circle</span>
+                <Icon name="check_circle" className="text-4xl text-green-600 dark:text-green-400" />
               </div>
               <h2 className="text-2xl text-primary dark:text-white mb-3 leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>Thank You!</h2>
               <p className="text-primary/70 dark:text-white/70 mb-8 max-w-sm mx-auto">
@@ -251,7 +252,7 @@ const PrivateHireInquire: React.FC = () => {
                         />
                         {fieldErrors.firstname && (
                           <p className="text-sm text-red-500 dark:text-red-400 mt-1 flex items-center gap-1">
-                            <span className="material-symbols-outlined text-sm">error</span>
+                            <Icon name="error" className="text-sm" />
                             {fieldErrors.firstname}
                           </p>
                         )}
@@ -273,7 +274,7 @@ const PrivateHireInquire: React.FC = () => {
                         />
                         {fieldErrors.lastname && (
                           <p className="text-sm text-red-500 dark:text-red-400 mt-1 flex items-center gap-1">
-                            <span className="material-symbols-outlined text-sm">error</span>
+                            <Icon name="error" className="text-sm" />
                             {fieldErrors.lastname}
                           </p>
                         )}
@@ -297,7 +298,7 @@ const PrivateHireInquire: React.FC = () => {
                       />
                       {fieldErrors.email && (
                         <p className="text-sm text-red-500 dark:text-red-400 mt-1 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-sm">error</span>
+                          <Icon name="error" className="text-sm" />
                           {fieldErrors.email}
                         </p>
                       )}
@@ -320,7 +321,7 @@ const PrivateHireInquire: React.FC = () => {
                       />
                       {fieldErrors.phone && (
                         <p className="text-sm text-red-500 dark:text-red-400 mt-1 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-sm">error</span>
+                          <Icon name="error" className="text-sm" />
                           {fieldErrors.phone}
                         </p>
                       )}
@@ -328,7 +329,7 @@ const PrivateHireInquire: React.FC = () => {
 
                     {error && (
                       <div className="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 flex items-start gap-2">
-                        <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-lg mt-0.5">error</span>
+                        <Icon name="error" className="text-red-600 dark:text-red-400 text-lg mt-0.5" />
                         <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
                       </div>
                     )}
@@ -461,7 +462,7 @@ const PrivateHireInquire: React.FC = () => {
                       </label>
                       {fieldErrors.consent && (
                         <p className="text-sm text-red-500 dark:text-red-400 mt-2 flex items-center gap-1 pl-1">
-                          <span className="material-symbols-outlined text-sm">error</span>
+                          <Icon name="error" className="text-sm" />
                           {fieldErrors.consent}
                         </p>
                       )}
@@ -475,7 +476,7 @@ const PrivateHireInquire: React.FC = () => {
 
                     {error && (
                       <div className="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 flex items-start gap-2">
-                        <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-lg mt-0.5">error</span>
+                        <Icon name="error" className="text-red-600 dark:text-red-400 text-lg mt-0.5" />
                         <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
                       </div>
                     )}

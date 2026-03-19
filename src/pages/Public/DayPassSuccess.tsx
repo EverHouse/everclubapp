@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import { usePageReady } from '../../stores/pageReadyStore';
 import { useNavigationLoading } from '../../stores/navigationLoadingStore';
+import Icon from '../../components/icons/Icon';
 
 const DayPassSuccess: React.FC = () => {
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ const DayPassSuccess: React.FC = () => {
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="bg-white dark:bg-[#1a1d15] rounded-xl p-8 shadow-sm dark:shadow-none border border-black/5 dark:border-white/10 max-w-md w-full text-center animate-pop-in">
           <div className="w-20 h-20 bg-green-100 dark:bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-            <span className="material-symbols-outlined text-5xl text-green-600 dark:text-green-400">check_circle</span>
+            <Icon name="check_circle" className="text-5xl text-green-600 dark:text-green-400" />
           </div>
           
           <h1 className="text-2xl text-primary dark:text-white mb-3 leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>Thank You!</h1>
@@ -30,7 +31,7 @@ const DayPassSuccess: React.FC = () => {
 
           <div className="bg-[#E8E8E0]/50 dark:bg-white/5 rounded-xl p-5 mb-6">
             <div className="flex items-center justify-center gap-3 mb-3">
-              <span className="material-symbols-outlined text-2xl text-primary dark:text-white">mail</span>
+              <Icon name="mail" className="text-2xl text-primary dark:text-white" />
               <span className="font-bold text-primary dark:text-white">Check Your Email</span>
             </div>
             <p className="text-sm text-primary/70 dark:text-white/70">
@@ -43,7 +44,7 @@ const DayPassSuccess: React.FC = () => {
               onClick={() => { startNavigation(); navigate('/'); }}
               className="tactile-btn w-full flex justify-center items-center gap-2 rounded-[4px] bg-primary px-4 py-3.5 text-sm font-bold text-white shadow-md hover:bg-primary/90 transition-all duration-fast"
             >
-              <span className="material-symbols-outlined text-[18px]">home</span>
+              <Icon name="home" className="text-[18px]" />
               Back to Home
             </button>
             
@@ -51,7 +52,7 @@ const DayPassSuccess: React.FC = () => {
               onClick={() => { startNavigation(); navigate('/day-pass'); }}
               className="tactile-btn w-full flex justify-center items-center gap-2 rounded-[4px] bg-white dark:bg-white/5 border border-primary/20 dark:border-white/10 px-4 py-3.5 text-sm font-bold text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/10 transition-all duration-fast"
             >
-              <span className="material-symbols-outlined text-[18px]">add</span>
+              <Icon name="add" className="text-[18px]" />
               Buy Another Pass
             </button>
           </div>

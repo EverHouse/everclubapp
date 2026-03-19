@@ -5,6 +5,7 @@ import VirtualTour from '../../components/VirtualTour';
 import { usePageReady } from '../../stores/pageReadyStore';
 import { useParallax } from '../../hooks/useParallax';
 import SEO from '../../components/SEO';
+import Icon from '../../components/icons/Icon';
 
 const HERO_ANIM_KEY = 'ever_hero_played_ph';
 
@@ -131,7 +132,7 @@ const PrivateHire: React.FC = () => {
                  key={feature.title}
                  className={`flex flex-col p-6 bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/60 dark:border-white/10 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] ${i < 10 ? `animate-list-item-delay-${i}` : 'animate-list-item'}`}
                >
-                 <span className="material-symbols-outlined text-3xl text-primary dark:text-white mb-3">{feature.icon}</span>
+                 <Icon name={feature.icon} className="text-3xl text-primary dark:text-white mb-3" />
                  <h4 className="text-lg font-bold text-primary dark:text-white mb-2">{feature.title}</h4>
                  <p className="text-sm text-primary/60 dark:text-white/60 leading-relaxed">{feature.desc}</p>
                </div>
@@ -186,7 +187,7 @@ const SpaceCard: React.FC<{ title: string; cap: string; img: string; tags: strin
      <div className="h-56 bg-cover bg-center relative" style={{backgroundImage: `url("${img}")`}}>
         <div className="absolute inset-0 bg-gradient-to-t from-white/40 dark:from-black/40 to-transparent"></div>
         <div className="absolute top-4 right-4 bg-black/30 backdrop-blur-md border border-white/30 px-2 py-1.5 rounded-[4px] flex items-center gap-1 shadow-[0_0_12px_rgba(0,0,0,0.2)]">
-           <span className="material-symbols-outlined text-sm text-white drop-shadow">groups</span>
+           <Icon name="groups" className="text-sm text-white drop-shadow" />
            <span className="text-[10px] font-bold text-white uppercase drop-shadow">{cap}</span>
         </div>
      </div>

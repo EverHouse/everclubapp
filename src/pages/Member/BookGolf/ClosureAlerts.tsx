@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatTime12Hour } from '../../../utils/dateUtils';
 import type { Closure } from './bookGolfTypes';
+import Icon from '../../../components/icons/Icon';
 
 interface ClosureAlertsProps {
   closures: Closure[];
@@ -21,7 +22,7 @@ const ClosureAlerts: React.FC<ClosureAlertsProps> = ({ closures, isDark }) => {
             className={`rounded-xl p-4 border ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}
           >
             <div className="flex items-start gap-3">
-              <span className={`material-symbols-outlined text-2xl ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>notifications</span>
+              <Icon name="notifications" className={`text-2xl ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
               <div className="flex-1">
                 <h4 className={`font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                   {closure.noticeType ? (closure.noticeType.includes('_') ? closure.noticeType.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : closure.noticeType) : 'Notice'}

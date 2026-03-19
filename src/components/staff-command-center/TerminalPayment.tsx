@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import WalkingGolferSpinner from '../WalkingGolferSpinner';
 import { fetchWithCredentials, postWithCredentials } from '../../hooks/queries/useFetch';
+import Icon from '../icons/Icon';
 
 interface TerminalReader {
   id: string;
@@ -369,7 +370,7 @@ export function TerminalPayment({
     return (
       <div className={`p-4 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
         <div className="flex items-center gap-3 mb-3">
-          <span className="material-symbols-outlined text-amber-500">warning</span>
+          <Icon name="warning" className="text-amber-500" />
           <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
             No card readers found
           </p>
@@ -388,12 +389,12 @@ export function TerminalPayment({
         >
           {creatingSimulated ? (
             <>
-              <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+              <Icon name="progress_activity" className="animate-spin text-lg" />
               Creating...
             </>
           ) : (
             <>
-              <span className="material-symbols-outlined text-lg">add</span>
+              <Icon name="add" className="text-lg" />
               Create Simulated Reader (Testing)
             </>
           )}
@@ -445,7 +446,7 @@ export function TerminalPayment({
             <div className={`p-3 rounded-lg flex items-start gap-2 ${
               isDark ? 'bg-amber-900/20 text-amber-400' : 'bg-amber-50 text-amber-700'
             }`}>
-              <span className="material-symbols-outlined text-lg mt-0.5">info</span>
+              <Icon name="info" className="text-lg mt-0.5" />
               <p className="text-sm">
                 All readers are offline. Make sure your reader is powered on and connected.
               </p>
@@ -472,7 +473,7 @@ export function TerminalPayment({
                 : 'bg-emerald-600 text-white hover:bg-emerald-700'
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            <span className="material-symbols-outlined">contactless</span>
+            <Icon name="contactless" />
             {isSaveCard ? 'Save Card on Reader' : 'Collect Payment on Reader'}
           </button>
         </>
@@ -483,9 +484,7 @@ export function TerminalPayment({
           <div className="flex justify-center mb-4">
             <div className="relative">
               <div className={`absolute inset-0 rounded-full animate-ping opacity-20 ${isDark ? 'bg-emerald-400' : 'bg-emerald-500'}`} style={{ width: 72, height: 72, top: -6, left: -6 }} />
-              <span className="material-symbols-outlined text-5xl text-emerald-500 animate-pulse">
-                contactless
-              </span>
+              <Icon name="contactless" className="text-5xl text-emerald-500 animate-pulse" />
             </div>
           </div>
           <h3 className={`text-lg font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -505,7 +504,7 @@ export function TerminalPayment({
           )}
           {isSaveCard && (
             <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg mb-5 ${isDark ? 'bg-white/5' : 'bg-white'}`}>
-              <span className="material-symbols-outlined text-sm text-emerald-500">lock</span>
+              <Icon name="lock" className="text-sm text-emerald-500" />
               <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>No charge — saving card only</span>
             </div>
           )}
@@ -527,7 +526,7 @@ export function TerminalPayment({
                   </>
                 ) : (
                   <>
-                    <span className="material-symbols-outlined text-base">close</span>
+                    <Icon name="close" className="text-base" />
                     Cancel
                   </>
                 )}
@@ -543,9 +542,7 @@ export function TerminalPayment({
       {status === 'success' && (
         <div className={`p-6 rounded-lg text-center ${isDark ? 'bg-emerald-900/20' : 'bg-emerald-50'}`}>
           <div className="flex justify-center mb-4">
-            <span className="material-symbols-outlined text-5xl text-emerald-500">
-              check_circle
-            </span>
+            <Icon name="check_circle" className="text-5xl text-emerald-500" />
           </div>
           <h3 className={`text-lg font-medium mb-2 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
             {isSaveCard ? 'Card Saved' : 'Payment Successful'}
@@ -562,9 +559,7 @@ export function TerminalPayment({
       {status === 'error' && (
         <div className={`p-6 rounded-lg text-center ${isDark ? 'bg-red-900/20' : 'bg-red-50'}`}>
           <div className="flex justify-center mb-4">
-            <span className="material-symbols-outlined text-5xl text-red-500">
-              error
-            </span>
+            <Icon name="error" className="text-5xl text-red-500" />
           </div>
           <h3 className={`text-lg font-medium mb-2 ${isDark ? 'text-red-400' : 'text-red-700'}`}>
             {isSaveCard ? 'Card Save Failed' : 'Payment Failed'}

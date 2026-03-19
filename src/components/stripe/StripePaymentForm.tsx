@@ -10,6 +10,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { getStripeAppearance } from './stripeAppearance';
 import WalkingGolferSpinner from '../WalkingGolferSpinner';
 import { fetchWithCredentials, postWithCredentials } from '../../hooks/queries/useFetch';
+import Icon from '../icons/Icon';
 
 let stripePromise: Promise<Stripe | null> | null = null;
 
@@ -178,7 +179,7 @@ export function SimpleCheckoutForm({
             </>
           ) : (
             <>
-              <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300">credit_card</span>
+              <Icon name="credit_card" className="text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300" />
               {submitLabel}
             </>
           )}
@@ -275,7 +276,7 @@ export function StripePaymentWithSecret({
   if (error || !stripeInstance) {
     return (
       <div className="text-center py-8">
-        <span className="material-symbols-outlined text-4xl text-red-500 mb-2">error</span>
+        <Icon name="error" className="text-4xl text-red-500 mb-2" />
         <p className="text-red-600 dark:text-red-400 mb-4">{error || 'Failed to load Stripe'}</p>
         <button
           onClick={onCancel}
@@ -432,7 +433,7 @@ export function StripePaymentForm({
   if (error) {
     return (
       <div className="text-center py-8">
-        <span className="material-symbols-outlined text-4xl text-red-500 mb-2">error</span>
+        <Icon name="error" className="text-4xl text-red-500 mb-2" />
         <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
         <button
           onClick={onCancel}

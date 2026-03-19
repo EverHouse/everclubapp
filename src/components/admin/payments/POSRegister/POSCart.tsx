@@ -1,5 +1,6 @@
 import React from 'react';
 import type { CartItem } from './posTypes';
+import Icon from '../../../icons/Icon';
 
 interface POSCartProps {
   cartItems: CartItem[];
@@ -11,7 +12,7 @@ const POSCart: React.FC<POSCartProps> = ({ cartItems, updateQuantity, clearCart 
   if (cartItems.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 gap-2">
-        <span className="material-symbols-outlined text-3xl text-primary/20 dark:text-white/20">shopping_cart</span>
+        <Icon name="shopping_cart" className="text-3xl text-primary/20 dark:text-white/20" />
         <p className="text-sm text-primary/40 dark:text-white/40">Cart is empty</p>
       </div>
     );
@@ -25,7 +26,7 @@ const POSCart: React.FC<POSCartProps> = ({ cartItems, updateQuantity, clearCart 
           onClick={clearCart}
           className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex items-center gap-1"
         >
-          <span className="material-symbols-outlined text-sm">delete</span>
+          <Icon name="delete" className="text-sm" />
           Clear Cart
         </button>
       </div>
@@ -37,7 +38,7 @@ const POSCart: React.FC<POSCartProps> = ({ cartItems, updateQuantity, clearCart 
               onClick={() => updateQuantity(item.productId, -1)}
               className="w-7 h-7 rounded-lg bg-primary/10 dark:bg-white/10 text-primary dark:text-white flex items-center justify-center hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
             >
-              <span className="material-symbols-outlined text-sm">remove</span>
+              <Icon name="remove" className="text-sm" />
             </button>
             <span className="w-6 text-center text-sm font-semibold text-primary dark:text-white">
               {item.quantity}
@@ -46,7 +47,7 @@ const POSCart: React.FC<POSCartProps> = ({ cartItems, updateQuantity, clearCart 
               onClick={() => updateQuantity(item.productId, 1)}
               className="w-7 h-7 rounded-lg bg-primary/10 dark:bg-white/10 text-primary dark:text-white flex items-center justify-center hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
             >
-              <span className="material-symbols-outlined text-sm">add</span>
+              <Icon name="add" className="text-sm" />
             </button>
           </div>
           <span className="text-sm font-semibold text-primary dark:text-white w-16 text-right">

@@ -9,6 +9,7 @@ import EditorialShowcase from '../../components/layout/EditorialShowcase';
 import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
+import Icon from '../../components/icons/Icon';
 
 interface MembershipTier {
   id: number;
@@ -461,7 +462,7 @@ const Landing: React.FC = () => {
               style={{ fontFamily: 'var(--font-label)', fontWeight: 400 }}
             >
               Compare all tiers
-              <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+              <Icon name="arrow_forward" className="text-[14px]" />
             </Link>
       </section>
 

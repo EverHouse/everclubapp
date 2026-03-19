@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ModalShell } from '../../ModalShell';
+import Icon from '../../icons/Icon';
 
 interface MigrationConfirmDialogProps {
   isOpen: boolean;
@@ -42,14 +43,14 @@ export const MigrationConfirmDialog: React.FC<MigrationConfirmDialogProps> = ({
         <div className={`p-4 rounded-lg ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className={`material-symbols-outlined text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>person</span>
+              <Icon name="person" className={`text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
               <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 {memberName || memberEmail}
               </span>
             </div>
             {currentTier && (
               <div className="flex items-center gap-2">
-                <span className={`material-symbols-outlined text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>badge</span>
+                <Icon name="badge" className={`text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                 <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {currentTier}
                 </span>
@@ -57,7 +58,7 @@ export const MigrationConfirmDialog: React.FC<MigrationConfirmDialogProps> = ({
             )}
             {cardOnFile && (
               <div className="flex items-center gap-2">
-                <span className={`material-symbols-outlined text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>credit_card</span>
+                <Icon name="credit_card" className={`text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                 <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {cardOnFile.brand?.toUpperCase()} •••• {cardOnFile.last4}
                 </span>
@@ -113,7 +114,7 @@ export const MigrationConfirmDialog: React.FC<MigrationConfirmDialogProps> = ({
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin text-base" />
                 Migrating...
               </span>
             ) : (

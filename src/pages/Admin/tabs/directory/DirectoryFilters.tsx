@@ -11,6 +11,7 @@ import {
     SORT_OPTIONS,
 } from './directoryTypes';
 import { MEMBERSHIP_STATUS } from '../../../../../shared/constants/statuses';
+import Icon from '../../../../components/icons/Icon';
 
 interface DirectoryFiltersProps {
     memberTab: MemberTab;
@@ -87,7 +88,7 @@ const DirectoryFilters: React.FC<DirectoryFiltersProps> = ({
             {memberTab !== 'visitors' && memberTab !== 'team' && (
                 <div className="flex gap-2 relative" ref={filterPopoverRef}>
                     <div className="relative flex-1">
-                        <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 text-[20px]">search</span>
+                        <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 text-[20px]" />
                         <input
                             type="text"
                             placeholder="Search members..."
@@ -107,7 +108,7 @@ const DirectoryFilters: React.FC<DirectoryFiltersProps> = ({
                             aria-label="Sort options"
                             title="Sort"
                         >
-                            <span className="material-symbols-outlined text-[20px]">swap_vert</span>
+                            <Icon name="swap_vert" className="text-[20px]" />
                         </button>
                         <div className={`absolute right-0 top-full mt-1 glass-panel rounded-xl p-2 z-30 min-w-[180px] !bg-[#f5f5f0] dark:!bg-[#1a1a1a] transition-[opacity,transform] duration-[250ms] ease-m3-emphasized-decel ${
                                 sortOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-1 scale-[0.97] pointer-events-none'
@@ -119,9 +120,7 @@ const DirectoryFilters: React.FC<DirectoryFiltersProps> = ({
                                         className="tactile-btn flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-gray-500 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
                                         title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
                                     >
-                                        <span className="material-symbols-outlined text-[14px]">
-                                            {sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
-                                        </span>
+                                        <Icon name={sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'} className="text-[14px]" />
                                         {sortDirection === 'asc' ? 'Asc' : 'Desc'}
                                     </button>
                                 </div>
@@ -149,7 +148,7 @@ const DirectoryFilters: React.FC<DirectoryFiltersProps> = ({
                         }`}
                         aria-label="Toggle filters"
                     >
-                        <span className="material-symbols-outlined text-[18px]">filter_list</span>
+                        <Icon name="filter_list" className="text-[18px]" />
                         <span className="hidden sm:inline">Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}</span>
                         {activeFilterCount > 0 && <span className="sm:hidden min-w-[18px] h-[18px] rounded-full bg-primary dark:bg-lavender text-white text-[10px] font-bold flex items-center justify-center">{activeFilterCount}</span>}
                     </button>
@@ -293,7 +292,7 @@ const DirectoryFilters: React.FC<DirectoryFiltersProps> = ({
                                                     : 'bg-gray-200 dark:bg-white/15 text-gray-400 dark:text-white/40 hover:bg-gray-300 dark:hover:bg-white/30'
                                             }`}
                                         >
-                                            <span className="material-symbols-outlined text-[12px]">schedule</span>
+                                            <Icon name="schedule" className="text-[12px]" />
                                             Recently Added (24h)
                                         </button>
                                     </div>
@@ -355,7 +354,7 @@ const DirectoryFilters: React.FC<DirectoryFiltersProps> = ({
 
             {memberTab === 'team' && (
                 <div className="relative">
-                    <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 text-[20px]">search</span>
+                    <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 text-[20px]" />
                     <input
                         type="text"
                         placeholder="Search team members..."
@@ -373,7 +372,7 @@ const DirectoryFilters: React.FC<DirectoryFiltersProps> = ({
                         <span key={filter.key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 dark:bg-lavender/10 text-primary dark:!text-lavender border border-primary/20 dark:border-lavender/20">
                             {filter.label}
                             <button onClick={filter.onRemove} className="hover:text-red-500 transition-colors ml-0.5 cursor-pointer" aria-label={`Remove ${filter.label} filter`}>
-                                <span className="material-symbols-outlined text-[12px]">close</span>
+                                <Icon name="close" className="text-[12px]" />
                             </button>
                         </span>
                     ))}

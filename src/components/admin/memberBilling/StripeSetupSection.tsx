@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from '../../icons/Icon';
 
 export function StripeSetupSection({
   onSyncToStripe,
@@ -12,7 +13,7 @@ export function StripeSetupSection({
   return (
     <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
       <div className="flex items-center gap-2 mb-3">
-        <span className={`material-symbols-outlined ${isDark ? 'text-accent' : 'text-primary'}`}>sync</span>
+        <Icon name="sync" className={`${isDark ? 'text-accent' : 'text-primary'}`} />
         <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>Stripe Setup</h3>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -24,9 +25,9 @@ export function StripeSetupSection({
           } disabled:opacity-50`}
         >
           {isSyncingToStripe ? (
-            <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+            <Icon name="progress_activity" className="animate-spin text-base" />
           ) : (
-            <span className="material-symbols-outlined text-base">person_add</span>
+            <Icon name="person_add" className="text-base" />
           )}
           Sync to Stripe
         </button>

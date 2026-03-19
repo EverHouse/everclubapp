@@ -3,6 +3,7 @@ import ModalShell from '../../../components/ModalShell';
 import { GuardianConsentForm, type GuardianConsentData } from '../../../components/booking';
 import { formatDateShort, formatTime12Hour } from '../../../utils/dateUtils';
 import type { BookingRequest } from './bookGolfTypes';
+import Icon from '../../../components/icons/Icon';
 
 interface BookingModalsProps {
   isDark: boolean;
@@ -45,9 +46,7 @@ const BookingModals: React.FC<BookingModalsProps> = ({
             return (
               <>
                 <div className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center ${hasTrackman ? (isDark ? 'bg-amber-500/20' : 'bg-amber-100') : (isDark ? 'bg-red-500/20' : 'bg-red-100')}`}>
-                  <span className={`material-symbols-outlined text-3xl ${hasTrackman ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-red-400' : 'text-red-600')}`}>
-                    {hasTrackman ? 'warning' : 'event_busy'}
-                  </span>
+                  <Icon name={hasTrackman ? 'warning' : 'event_busy'} className={`text-3xl ${hasTrackman ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-red-400' : 'text-red-600')}`} />
                 </div>
                 <h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>{cancelTargetBooking?.status === 'pending' ? 'Cancel Request?' : 'Cancel Booking?'}</h3>
                 <p className={`text-sm mb-4 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
@@ -56,7 +55,7 @@ const BookingModals: React.FC<BookingModalsProps> = ({
                 {hasTrackman && (
                   <div className={`rounded-lg p-4 mb-4 text-left ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>
                     <div className="flex gap-3">
-                      <span className={`material-symbols-outlined text-xl flex-shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>info</span>
+                      <Icon name="info" className={`text-xl flex-shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                       <div>
                         <p className={`text-sm font-medium ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>This booking is linked to Trackman</p>
                         <p className={`text-xs mt-1 ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>After cancelling, the staff will be notified to also cancel it in Trackman.</p>
@@ -88,9 +87,9 @@ const BookingModals: React.FC<BookingModalsProps> = ({
                     } ${isDark ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-red-600 text-white hover:bg-red-700'}`}
                   >
                     {cancelBookingIsPending ? (
-                      <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
+                      <Icon name="progress_activity" className="text-lg animate-spin" />
                     ) : (
-                      <><span className="material-symbols-outlined text-lg">check</span>Yes, Cancel</>
+                      <><Icon name="check" className="text-lg" />Yes, Cancel</>
                     )}
                   </button>
                 </div>
@@ -110,7 +109,7 @@ const BookingModals: React.FC<BookingModalsProps> = ({
           <div className="p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isDark ? 'bg-amber-500/20' : 'bg-amber-100'}`}>
-                <span className="material-symbols-outlined text-2xl text-amber-500">warning</span>
+                <Icon name="warning" className="text-2xl text-amber-500" />
               </div>
               <div>
                 <p className={`text-sm ${isDark ? 'text-white/80' : 'text-primary/80'}`}>View As Mode Active</p>
@@ -155,7 +154,7 @@ const BookingModals: React.FC<BookingModalsProps> = ({
         <div className="p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isDark ? 'bg-amber-500/20' : 'bg-amber-100'}`}>
-              <span className="material-symbols-outlined text-2xl text-amber-500">warning</span>
+              <Icon name="warning" className="text-2xl text-amber-500" />
             </div>
             <div>
               <p className={`font-bold ${isDark ? 'text-white' : 'text-primary'}`}>Unfilled Player Slots</p>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { postWithCredentials, fetchWithCredentials } from '../../../../hooks/queries/useFetch';
 import type { CalendarStatusResponse } from './dataIntegrityTypes';
+import Icon from '../../../../components/icons/Icon';
 
 interface MigrationResults {
   wellness: { total: number; cleaned: number; errors: number };
@@ -98,19 +99,17 @@ const CalendarStatusSection: React.FC<CalendarStatusSectionProps> = ({
         className="tactile-row flex items-center justify-between w-full text-left"
       >
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">calendar_month</span>
+          <Icon name="calendar_month" className="text-primary dark:text-white" />
           <span className="font-bold text-primary dark:text-white">Calendar Status</span>
         </div>
-        <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${showCalendars ? 'rotate-180' : ''}`}>
-          expand_more
-        </span>
+        <Icon name="expand_more" className={`text-gray-500 dark:text-gray-400 transition-transform ${showCalendars ? 'rotate-180' : ''}`} />
       </button>
       
       {showCalendars && (
         <div className="mt-4 space-y-3">
           {isLoadingCalendars ? (
             <div className="flex items-center justify-center py-4">
-              <span aria-hidden="true" className="material-symbols-outlined animate-spin text-gray-500">progress_activity</span>
+              <Icon name="progress_activity" className="animate-spin text-gray-500" />
             </div>
           ) : calendarStatus ? (
             <>
@@ -139,9 +138,9 @@ const CalendarStatusSection: React.FC<CalendarStatusSectionProps> = ({
                   className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-blue-500/10 dark:bg-blue-400/10 text-blue-700 dark:text-blue-400 hover:bg-blue-500/20 dark:hover:bg-blue-400/20 disabled:opacity-50 transition-colors"
                 >
                   {isSyncing ? (
-                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-sm" />
                   ) : (
-                    <span aria-hidden="true" className="material-symbols-outlined text-sm">sync</span>
+                    <Icon name="sync" className="text-sm" />
                   )}
                   {isSyncing ? 'Syncing all calendars...' : 'Sync Missing Calendar Events'}
                 </button>
@@ -185,9 +184,9 @@ const CalendarStatusSection: React.FC<CalendarStatusSectionProps> = ({
                   className="flex items-center gap-2 px-3 py-2 mt-3 text-sm font-medium rounded-lg bg-primary/10 dark:bg-white/10 text-primary dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 disabled:opacity-50 transition-colors"
                 >
                   {isMigrating ? (
-                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-sm" />
                   ) : (
-                    <span aria-hidden="true" className="material-symbols-outlined text-sm">cleaning_services</span>
+                    <Icon name="cleaning_services" className="text-sm" />
                   )}
                   {isMigrating ? 'Cleaning descriptions...' : 'Clean Calendar Descriptions'}
                 </button>

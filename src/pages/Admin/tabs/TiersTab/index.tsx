@@ -7,6 +7,7 @@ import TierCardList from './TierCardList';
 import TierEditorDrawer from './TierEditorDrawer';
 import FeesSubTab from './FeesSubTab';
 import type { SubTab } from './tiersTypes';
+import Icon from '../../../../components/icons/Icon';
 
 const SUB_TABS: { key: SubTab; label: string; icon: string }[] = [
     { key: 'tiers', label: 'Memberships', icon: 'layers' },
@@ -35,7 +36,7 @@ const TiersTab: React.FC = () => {
                                 : 'text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-white'
                         }`}
                     >
-                        <span aria-hidden="true" className="material-symbols-outlined text-base sm:text-lg">{t.icon}</span>
+                        <Icon name={t.icon} className="text-base sm:text-lg" />
                         {t.label}
                     </button>
                 ))}

@@ -3,6 +3,7 @@ import type { MemberProfile } from '../../types/data';
 import { formatDatePacific } from './memberProfileTypes';
 import { apiRequest } from '../../lib/apiRequest';
 import { copyToClipboard } from '../../lib/copyToClipboard';
+import Icon from '../icons/Icon';
 
 const CopyButton: React.FC<{ value: string; isDark: boolean }> = ({ value, isDark }) => {
   const [copied, setCopied] = useState(false);
@@ -25,9 +26,7 @@ const CopyButton: React.FC<{ value: string; isDark: boolean }> = ({ value, isDar
           : isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-white/10' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
       }`}
     >
-      <span className={`material-symbols-outlined text-[12px]`}>
-        {copied ? 'check' : 'content_copy'}
-      </span>
+      <Icon name={copied ? 'check' : 'content_copy'} className={`text-[12px]`} />
     </button>
   );
 };
@@ -196,28 +195,28 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
       >
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
           <div className="flex items-center gap-2 mb-1">
-            <span className="material-symbols-outlined text-lg text-brand-green">event_note</span>
+            <Icon name="event_note" className="text-lg text-brand-green" />
             <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{bookingsCount}</span>
           </div>
           <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Bookings</p>
         </div>
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
           <div className="flex items-center gap-2 mb-1">
-            <span className="material-symbols-outlined text-lg text-purple-500">celebration</span>
+            <Icon name="celebration" className="text-lg text-purple-500" />
             <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{eventsCount}</span>
           </div>
           <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Event RSVPs</p>
         </div>
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
           <div className="flex items-center gap-2 mb-1">
-            <span className="material-symbols-outlined text-lg text-pink-500">spa</span>
+            <Icon name="spa" className="text-lg text-pink-500" />
             <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{wellnessCount}</span>
           </div>
           <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Wellness Classes</p>
         </div>
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
           <div className="flex items-center gap-2 mb-1">
-            <span className="material-symbols-outlined text-lg text-emerald-500">check_circle</span>
+            <Icon name="check_circle" className="text-lg text-emerald-500" />
             <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{visitsCount}</span>
           </div>
           <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Attended Visits</p>
@@ -231,7 +230,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
         >
           <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
             <h4 className={`text-xs font-bold mb-2 flex items-center gap-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              <span className="material-symbols-outlined text-[14px]">key</span>
+              <Icon name="key" className="text-[14px]" />
               System IDs
             </h4>
             <div className="flex items-center gap-3 flex-wrap text-xs">
@@ -266,7 +265,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
             <div className="flex items-center justify-between mb-3">
               <h4 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
+                <Icon name="account_balance_wallet" className="text-[18px]" />
                 Account Balance
               </h4>
             <span className={`text-xl font-bold font-serif ${(accountBalance?.balanceDollars || 0) > 0 ? 'text-green-500' : (isDark ? 'text-gray-400' : 'text-gray-500')}`}>
@@ -334,7 +333,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               onClick={() => setShowApplyCreditModal(true)}
               className="w-full py-2.5 bg-brand-green text-white font-medium rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity tactile-btn"
             >
-              <span className="material-symbols-outlined text-lg">add</span>
+              <Icon name="add" className="text-lg" />
               Apply Credit
             </button>
           )}
@@ -350,7 +349,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className={`p-4 rounded-xl border ${isDark ? 'bg-amber-900/20 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
             <div className="flex items-center justify-between mb-1">
               <h4 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
-                <span className="material-symbols-outlined text-[18px]">receipt_long</span>
+                <Icon name="receipt_long" className="text-[18px]" />
                 Outstanding Fees
               </h4>
               <span className={`text-xl font-bold font-serif ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -367,9 +366,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
                   className={`w-full flex items-center justify-between text-xs font-medium py-1.5 transition-colors tactile-btn ${isDark ? 'text-amber-400 hover:text-amber-300' : 'text-amber-700 hover:text-amber-800'}`}
                 >
                   <span>View breakdown</span>
-                  <span className={`material-symbols-outlined text-base transition-transform ${outstandingExpanded ? 'rotate-180' : ''}`}>
-                    expand_more
-                  </span>
+                  <Icon name="expand_more" className={`text-base transition-transform ${outstandingExpanded ? 'rotate-180' : ''}`} />
                 </button>
                 {outstandingExpanded && (
                   <div className="space-y-1.5 mt-1">
@@ -411,7 +408,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
             <div className="flex items-center justify-between mb-3">
               <h4 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                <span className="material-symbols-outlined text-[18px]">badge</span>
+                <Icon name="badge" className="text-[18px]" />
                 ID on File
               </h4>
               <button
@@ -420,13 +417,13 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
                   isDark ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-emerald-600 hover:bg-emerald-50'
                 }`}
               >
-                <span className="material-symbols-outlined text-sm">photo_camera</span>
+                <Icon name="photo_camera" className="text-sm" />
                 {idImageUrl ? 'Re-scan' : 'Scan ID'}
               </button>
             </div>
             {isLoadingIdImage || isSavingIdImage ? (
               <div className="flex items-center justify-center py-6">
-                <span className="material-symbols-outlined text-2xl text-gray-400 animate-spin">progress_activity</span>
+                <Icon name="progress_activity" className="text-2xl text-gray-400 animate-spin" />
               </div>
             ) : idImageUrl ? (
               <div className="space-y-2">
@@ -449,14 +446,14 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
                     disabled={isDeletingIdImage}
                     className="text-xs text-red-500 hover:text-red-400 flex items-center gap-1 disabled:opacity-50 tactile-btn"
                   >
-                    <span className="material-symbols-outlined text-sm">delete</span>
+                    <Icon name="delete" className="text-sm" />
                     Remove
                   </button>
                 </div>
               </div>
             ) : (
               <div className={`text-center py-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                <span className="material-symbols-outlined text-3xl mb-1">badge</span>
+                <Icon name="badge" className="text-3xl mb-1" />
                 <p className="text-xs">No ID on file</p>
                 <button
                   onClick={() => setShowIdScanner(true)}
@@ -481,12 +478,12 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
           <div className="flex items-center justify-between">
             <h4 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              <span className="material-symbols-outlined text-[18px]">description</span>
+              <Icon name="description" className="text-[18px]" />
               Waiver
             </h4>
             {member?.waiverSignedAt ? (
               <div className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[14px] text-green-500">check_circle</span>
+                <Icon name="check_circle" className="text-[14px] text-green-500" />
                 <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   Signed {formatDatePacific(member.waiverSignedAt)}
                   {member.waiverVersion ? ` (v${member.waiverVersion})` : ''}
@@ -494,7 +491,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               </div>
             ) : (
               <div className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[14px] text-amber-500">warning</span>
+                <Icon name="warning" className="text-[14px] text-amber-500" />
                 <span className={`text-xs font-medium text-amber-500`}>Not signed</span>
               </div>
             )}
@@ -509,7 +506,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
           <div className="flex items-center justify-between mb-3">
             <h4 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              <span className="material-symbols-outlined text-[18px]">info</span>
+              <Icon name="info" className="text-[18px]" />
               Personal Information
             </h4>
             {isAdmin && !visitorMode && !editingPersonalInfo && (
@@ -519,7 +516,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
                   isDark ? 'text-gray-400 hover:text-gray-200 hover:bg-white/10' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                <span className="material-symbols-outlined text-sm">edit</span>
+                <Icon name="edit" className="text-sm" />
                 Edit
               </button>
             )}
@@ -612,7 +609,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
             <div className="space-y-2">
               {member?.dateOfBirth && (
                 <div className="flex items-center gap-2">
-                  <span className={`material-symbols-outlined text-[16px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>cake</span>
+                  <Icon name="cake" className={`text-[16px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
                   <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                     {formatDatePacific(member.dateOfBirth)}
                   </span>
@@ -620,7 +617,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               )}
               {member?.companyName && (
                 <div className="flex items-center gap-2">
-                  <span className={`material-symbols-outlined text-[16px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>business</span>
+                  <Icon name="business" className={`text-[16px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
                   <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                     {member.companyName}
                   </span>
@@ -628,7 +625,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               )}
               {formattedAddress && (
                 <div className="flex items-start gap-2">
-                  <span className={`material-symbols-outlined text-[16px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>location_on</span>
+                  <Icon name="location_on" className={`text-[16px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
                   <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                     {formattedAddress}
                   </span>
@@ -643,17 +640,13 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
                 <div className="flex items-center gap-4 pt-1">
                   {member?.emailOptIn !== null && (
                     <div className="flex items-center gap-1.5">
-                      <span className={`material-symbols-outlined text-[14px] ${member.emailOptIn ? 'text-green-500' : 'text-gray-400'}`}>
-                        {member.emailOptIn ? 'check_circle' : 'cancel'}
-                      </span>
+                      <Icon name={member.emailOptIn ? 'check_circle' : 'cancel'} className={`text-[14px] ${member.emailOptIn ? 'text-green-500' : 'text-gray-400'}`} />
                       <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Email</span>
                     </div>
                   )}
                   {member?.smsOptIn !== null && (
                     <div className="flex items-center gap-1.5">
-                      <span className={`material-symbols-outlined text-[14px] ${member.smsOptIn ? 'text-green-500' : 'text-gray-400'}`}>
-                        {member.smsOptIn ? 'check_circle' : 'cancel'}
-                      </span>
+                      <Icon name={member.smsOptIn ? 'check_circle' : 'cancel'} className={`text-[14px] ${member.smsOptIn ? 'text-green-500' : 'text-gray-400'}`} />
                       <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>SMS</span>
                     </div>
                   )}
@@ -671,7 +664,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
         >
           <div className={`mt-6 p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
             <h4 className={`text-sm font-bold mb-3 flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              <span className="material-symbols-outlined text-[18px]">link</span>
+              <Icon name="link" className="text-[18px]" />
               Trackman Linked Emails
             </h4>
           <div className="space-y-2">
@@ -685,9 +678,9 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
                   aria-label="Remove linked email"
                 >
                   {removingEmail === email ? (
-                    <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                    <Icon name="progress_activity" className="text-[18px] animate-spin" />
                   ) : (
-                    <span className="material-symbols-outlined text-[18px]">close</span>
+                    <Icon name="close" className="text-[18px]" />
                   )}
                 </button>
               </div>

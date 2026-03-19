@@ -1,6 +1,7 @@
 import React from 'react';
 import type { BillingInfo, OutstandingData } from './types';
 import { formatTime12Hour } from './types';
+import Icon from '../../icons/Icon';
 
 export function OutstandingFeesSection({
   billingInfo,
@@ -27,7 +28,7 @@ export function OutstandingFeesSection({
   return (
     <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
       <div className="flex items-center gap-2 mb-3">
-        <span className={`material-symbols-outlined ${isDark ? 'text-accent' : 'text-primary'}`}>receipt_long</span>
+        <Icon name="receipt_long" className={`${isDark ? 'text-accent' : 'text-primary'}`} />
         <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>Outstanding Booking Fees</h3>
       </div>
       
@@ -36,7 +37,7 @@ export function OutstandingFeesSection({
           return (
             <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>
               <div className="flex items-center gap-2">
-                <span className={`material-symbols-outlined text-base ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>pending</span>
+                <Icon name="pending" className={`text-base ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                 <span className={`text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
                   Subscription payment pending
                 </span>
@@ -51,7 +52,7 @@ export function OutstandingFeesSection({
         if (!hasBookingFees && !hasIncompleteSubscription) {
           return (
             <div className={`flex items-center gap-2 py-2 ${isDark ? 'text-green-400' : 'text-green-600'}`}>
-              <span className="material-symbols-outlined text-base">check_circle</span>
+              <Icon name="check_circle" className="text-base" />
               <span className="text-sm">No outstanding fees</span>
             </div>
           );
@@ -67,7 +68,7 @@ export function OutstandingFeesSection({
             return (
               <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>
                 <div className="flex items-center gap-2">
-                  <span className={`material-symbols-outlined text-base ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>pending</span>
+                  <Icon name="pending" className={`text-base ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                   <span className={`text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
                     Subscription payment pending
                   </span>

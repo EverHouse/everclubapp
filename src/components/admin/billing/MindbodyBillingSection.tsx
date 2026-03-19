@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from '../../icons/Icon';
 
 interface PaymentMethod {
   id: string;
@@ -98,7 +99,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
         <div className={`p-4 rounded-xl ${isDark ? 'bg-blue-500/10 border border-blue-500/30' : 'bg-blue-50 border border-blue-200'}`}>
           <div className="flex items-start gap-3">
             <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${isDark ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
-              <span className={`material-symbols-outlined ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>schedule</span>
+              <Icon name="schedule" className={`${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
             </div>
             <div className="flex-1">
               <p className={`text-sm font-medium ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
@@ -123,9 +124,9 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
                   } disabled:opacity-50`}
                 >
                   {isMigrationLoading ? (
-                    <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-base" />
                   ) : (
-                    <span className="material-symbols-outlined text-base">cancel</span>
+                    <Icon name="cancel" className="text-base" />
                   )}
                   Cancel Migration
                 </button>
@@ -141,7 +142,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
         <div className={`p-4 rounded-xl ${isDark ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${isDark ? 'bg-green-500/20' : 'bg-green-100'}`}>
-              <span className={`material-symbols-outlined ${isDark ? 'text-green-400' : 'text-green-600'}`}>check_circle</span>
+              <Icon name="check_circle" className={`${isDark ? 'text-green-400' : 'text-green-600'}`} />
             </div>
             <p className={`text-sm font-medium ${isDark ? 'text-green-300' : 'text-green-700'}`}>
               Migration completed
@@ -156,7 +157,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
         <div className={`p-4 rounded-xl ${isDark ? 'bg-red-500/10 border border-red-500/30' : 'bg-red-50 border border-red-200'}`}>
           <div className="flex items-start gap-3">
             <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${isDark ? 'bg-red-500/20' : 'bg-red-100'}`}>
-              <span className={`material-symbols-outlined ${isDark ? 'text-red-400' : 'text-red-600'}`}>error</span>
+              <Icon name="error" className={`${isDark ? 'text-red-400' : 'text-red-600'}`} />
             </div>
             <div className="flex-1">
               <p className={`text-sm font-medium ${isDark ? 'text-red-300' : 'text-red-700'}`}>
@@ -171,9 +172,9 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
                   } disabled:opacity-50`}
                 >
                   {isMigrationLoading ? (
-                    <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-base" />
                   ) : (
-                    <span className="material-symbols-outlined text-base">refresh</span>
+                    <Icon name="refresh" className="text-base" />
                   )}
                   Retry Migration
                 </button>
@@ -189,7 +190,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
           <div className="flex items-start gap-3">
             <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${isDark ? 'bg-gray-500/20' : 'bg-gray-100'}`}>
-              <span className={`material-symbols-outlined ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>swap_horiz</span>
+              <Icon name="swap_horiz" className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
             </div>
             <div className="flex-1">
               <p className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -205,7 +206,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
                   isDark ? 'bg-green-500/20 text-green-300' : 'bg-green-100 text-green-700'
                 }`}
               >
-                <span className="material-symbols-outlined text-base">swap_horiz</span>
+                <Icon name="swap_horiz" className="text-base" />
                 Migrate to Stripe
               </button>
             </div>
@@ -219,7 +220,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
           <div className="flex items-start gap-3">
             <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${isDark ? 'bg-gray-500/20' : 'bg-gray-100'}`}>
-              <span className={`material-symbols-outlined ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>swap_horiz</span>
+              <Icon name="swap_horiz" className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
             </div>
             <div className="flex-1">
               <p className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -235,7 +236,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
                   isDark ? 'bg-green-500/20 text-green-300' : 'bg-green-100 text-green-700'
                 }`}
               >
-                <span className="material-symbols-outlined text-base">swap_horiz</span>
+                <Icon name="swap_horiz" className="text-base" />
                 Migrate to Stripe
               </button>
             </div>
@@ -248,7 +249,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
       <div className={`p-4 rounded-xl ${isDark ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
         <div className="flex items-start gap-3">
           <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${isDark ? 'bg-green-500/20' : 'bg-green-100'}`}>
-            <span className={`material-symbols-outlined ${isDark ? 'text-green-400' : 'text-green-600'}`}>swap_horiz</span>
+            <Icon name="swap_horiz" className={`${isDark ? 'text-green-400' : 'text-green-600'}`} />
           </div>
           <div className="flex-1">
             <p className={`text-sm font-medium ${isDark ? 'text-green-300' : 'text-green-700'}`}>
@@ -268,9 +269,9 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
                 } disabled:opacity-50`}
               >
                 {isMigrationLoading ? (
-                  <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                  <Icon name="progress_activity" className="animate-spin text-base" />
                 ) : (
-                  <span className="material-symbols-outlined text-base">swap_horiz</span>
+                  <Icon name="swap_horiz" className="text-base" />
                 )}
                 Migrate to Stripe
               </button>
@@ -285,7 +286,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
     <div className="space-y-4">
       <div className={`p-4 rounded-xl ${isDark ? 'bg-blue-500/10 border border-blue-500/30' : 'bg-blue-50 border border-blue-200'}`}>
         <div className="flex items-start gap-3">
-          <span className={`material-symbols-outlined ${isDark ? 'text-blue-400' : 'text-blue-600'} text-xl`}>info</span>
+          <Icon name="info" className={`${isDark ? 'text-blue-400' : 'text-blue-600'} text-xl`} />
           <div className="flex-1">
             <p className={`text-sm font-medium ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
               This member is billed through Mindbody
@@ -306,7 +307,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
                 isDark ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
               }`}
             >
-              <span className="material-symbols-outlined text-base">open_in_new</span>
+              <Icon name="open_in_new" className="text-base" />
               Open Mindbody
             </a>
           </div>
@@ -318,7 +319,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
       {stripeCustomerId && (
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
           <div className="flex items-center gap-2 mb-3">
-            <span className={`material-symbols-outlined ${isDark ? 'text-purple-400' : 'text-purple-600'} text-xl`}>credit_card</span>
+            <Icon name="credit_card" className={`${isDark ? 'text-purple-400' : 'text-purple-600'} text-xl`} />
             <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>
               Stripe One-Off Purchases
             </h3>
@@ -330,9 +331,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
                 Payment Method on File
               </p>
               <div className="flex items-center gap-2">
-                <span className={`material-symbols-outlined text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  credit_card
-                </span>
+                <Icon name="credit_card" className={`text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                 <span className={`text-sm ${isDark ? 'text-white' : 'text-primary'}`}>
                   {paymentMethods[0].brand?.toUpperCase()} •••• {paymentMethods[0].last4}
                 </span>
@@ -392,7 +391,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
                           rel="noopener noreferrer"
                           className={`p-1 rounded hover:bg-white/10 ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-400 hover:text-gray-600'}`}
                         >
-                          <span className="material-symbols-outlined text-sm">open_in_new</span>
+                          <Icon name="open_in_new" className="text-sm" />
                         </a>
                       )}
                     </div>

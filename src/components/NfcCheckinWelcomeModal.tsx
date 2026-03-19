@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import ModalShell from './ModalShell';
 import { playSound } from '../utils/sounds';
+import Icon from './icons/Icon';
 
 interface NfcCheckinWelcomeModalProps {
   isOpen: boolean;
@@ -42,7 +43,7 @@ const NfcCheckinWelcomeModal: React.FC<NfcCheckinWelcomeModalProps> = ({ isOpen,
         {isSuccess ? (
           <>
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-accent/20 flex items-center justify-center">
-              <span className="material-symbols-outlined text-3xl text-accent-dark dark:text-accent">check_circle</span>
+              <Icon name="check_circle" className="text-3xl text-accent-dark dark:text-accent" />
             </div>
             <h2 className="text-2xl font-bold text-primary dark:text-white mb-1">
               Welcome, {checkinData.memberName}!
@@ -62,7 +63,7 @@ const NfcCheckinWelcomeModal: React.FC<NfcCheckinWelcomeModalProps> = ({ isOpen,
         ) : (
           <>
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-500/20 flex items-center justify-center">
-              <span className="material-symbols-outlined text-3xl text-blue-500">info</span>
+              <Icon name="info" className="text-3xl text-blue-500" />
             </div>
             <h2 className="text-2xl font-bold text-primary dark:text-white mb-1">
               Already Checked In

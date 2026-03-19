@@ -13,6 +13,7 @@ import MemberSearchInput, { SelectedMember } from './shared/MemberSearchInput';
 import { TIER_NAMES } from '../../shared/constants/tiers';
 import IdScannerModal from './staff-command-center/modals/IdScannerModal';
 import { formatDatePacific } from './memberProfile/memberProfileTypes';
+import Icon from './icons/Icon';
 import type { MemberHistory, GuestVisit, MemberNote, CommunicationLog, TabType, BookingHistoryItem } from './memberProfile/memberProfileTypes';
 import {
   useMemberDetails, useMemberHistory, useMemberNotes, useMemberCommunications,
@@ -54,6 +55,7 @@ import BillingTab from './memberProfile/BillingTab';
 import ActivityTab from './memberProfile/ActivityTab';
 import NotesTab from './memberProfile/NotesTab';
 import CommunicationsTab from './memberProfile/CommunicationsTab';
+import Icon from './icons/Icon';
 
 interface MemberProfileDrawerProps {
   isOpen: boolean;
@@ -99,9 +101,7 @@ const CopyButton: React.FC<{ value: string; isDark: boolean; size?: 'sm' | 'xs' 
           : isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-white/10' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
       }`}
     >
-      <span className={`material-symbols-outlined ${iconSize}`}>
-        {copied ? 'check' : 'content_copy'}
-      </span>
+      <Icon name={copied ? 'check' : 'content_copy'} className={`${iconSize}`} />
     </button>
   );
 };
@@ -457,7 +457,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
     if (isLoading) {
       return (
         <div className="flex items-center justify-center py-20">
-          <span className="material-symbols-outlined text-4xl text-gray-400 animate-spin">progress_activity</span>
+          <Icon name="progress_activity" className="text-4xl text-gray-400 animate-spin" />
         </div>
       );
     }
@@ -606,10 +606,10 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                       setNameEditError('');
                       setShowNameEdit(true);
                     }}
-                    className={`material-symbols-outlined text-xs opacity-60 hover:opacity-100 transition-opacity cursor-pointer tactile-btn ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                    className={`text-xs opacity-60 hover:opacity-100 transition-opacity cursor-pointer tactile-btn ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
                     title="Edit name"
                   >
-                    edit
+                    <Icon name="edit" className="text-xs" />
                   </button>
                 )}
               </div>
@@ -694,7 +694,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
               aria-label="Close drawer"
               className={`w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:rotate-90 transition-transform duration-normal active:scale-90 tactile-btn ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
             >
-              <span className="material-symbols-outlined text-2xl">close</span>
+              <Icon name="close" className="text-2xl" />
             </button>
           </div>
 
@@ -704,7 +704,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 href={`mailto:${member.email}`}
                 className={`flex items-center gap-2 text-sm hover:underline ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
               >
-                <span className="material-symbols-outlined text-lg">mail</span>
+                <Icon name="mail" className="text-lg" />
                 {member.email}
               </a>
               <CopyButton value={member.email} isDark={isDark} />
@@ -715,10 +715,10 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     setNewEmailValue('');
                     setEmailChangeError('');
                   }}
-                  className={`material-symbols-outlined text-xs opacity-60 hover:opacity-100 transition-opacity cursor-pointer tactile-btn ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                  className={`text-xs opacity-60 hover:opacity-100 transition-opacity cursor-pointer tactile-btn ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
                   title="Change email"
                 >
-                  edit
+                  <Icon name="edit" className="text-xs" />
                 </button>
               )}
             </div>
@@ -785,14 +785,14 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                       href={`tel:${enrichedMember.phone}`}
                       className={`flex items-center gap-2 text-sm hover:underline ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
                     >
-                      <span className="material-symbols-outlined text-lg">phone</span>
+                      <Icon name="phone" className="text-lg" />
                       {formatPhoneNumber(enrichedMember.phone)}
                     </a>
                     <CopyButton value={enrichedMember.phone} isDark={isDark} />
                   </>
                 ) : (
                   <span className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                    <span className="material-symbols-outlined text-lg">phone</span>
+                    <Icon name="phone" className="text-lg" />
                     No phone
                   </span>
                 )}
@@ -803,10 +803,10 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                       setPhoneEditError('');
                       setShowPhoneEdit(true);
                     }}
-                    className={`material-symbols-outlined text-xs opacity-60 hover:opacity-100 transition-opacity cursor-pointer tactile-btn ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                    className={`text-xs opacity-60 hover:opacity-100 transition-opacity cursor-pointer tactile-btn ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
                     title={enrichedMember.phone ? 'Edit phone' : 'Add phone'}
                   >
-                    edit
+                    <Icon name="edit" className="text-xs" />
                   </button>
                 )}
               </div>
@@ -888,7 +888,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 onClick={() => onViewAs(member)}
                 className="flex-1 py-2.5 px-4 rounded-[4px] bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity tactile-btn"
               >
-                <span className="material-symbols-outlined text-lg">visibility</span>
+                <Icon name="visibility" className="text-lg" />
                 View As
               </button>
               {enrichedMember.membershipStatus !== 'merged' && (
@@ -901,7 +901,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                   className="py-2.5 px-4 rounded-[4px] bg-indigo-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors tactile-btn"
                   title="Merge with another user"
                 >
-                  <span className="material-symbols-outlined text-lg">merge</span>
+                  <Icon name="merge" className="text-lg" />
                 </button>
               )}
               <button
@@ -909,7 +909,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 className="py-2.5 px-4 rounded-[4px] bg-red-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-red-700 transition-colors tactile-btn"
                 title="Permanently delete member (for testing)"
               >
-                <span className="material-symbols-outlined text-lg">delete_forever</span>
+                <Icon name="delete_forever" className="text-lg" />
               </button>
             </div>
           )}
@@ -917,7 +917,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
           {isAdmin && !visitorMode && !displayedTier && enrichedMember.membershipStatus === 'active' && (
             <div className={`mt-4 p-3 rounded-xl border ${isDark ? 'bg-yellow-900/20 border-yellow-500/30' : 'bg-yellow-50 border-yellow-200'}`}>
               <div className="flex items-center gap-2 mb-2">
-                <span className="material-symbols-outlined text-yellow-500">warning</span>
+                <Icon name="warning" className="text-yellow-500" />
                 <span className={`text-sm font-medium ${isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>
                   No tier assigned {enrichedMember.billingProvider === 'mindbody' && '(MindBody member)'}
                 </span>
@@ -1003,7 +1003,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     {sendingPaymentLink ? (
                       <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
                     ) : (
-                      <span className="material-symbols-outlined text-lg">send</span>
+                      <Icon name="send" className="text-lg" />
                     )}
                   </button>
                 </div>
@@ -1018,7 +1018,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                   className="flex-1 py-2.5 px-4 rounded-[4px] bg-indigo-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors tactile-btn"
                   title="Merge visitor records into a member account"
                 >
-                  <span className="material-symbols-outlined text-lg">merge</span>
+                  <Icon name="merge" className="text-lg" />
                   Merge to Member
                 </button>
                 <button
@@ -1026,7 +1026,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                   className="py-2.5 px-4 rounded-[4px] bg-red-600/10 text-red-600 dark:text-red-400 font-medium flex items-center justify-center gap-2 hover:bg-red-600/20 transition-colors tactile-btn"
                   title="Permanently delete visitor"
                 >
-                  <span className="material-symbols-outlined text-lg">delete_forever</span>
+                  <Icon name="delete_forever" className="text-lg" />
                 </button>
               </div>
             </div>
@@ -1050,7 +1050,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
                 }`}
               >
-                <span className="material-symbols-outlined text-lg">send</span>
+                <Icon name="send" className="text-lg" />
                 Send Reactivation Link
               </button>
             </div>
@@ -1061,7 +1061,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
             <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl p-6 max-w-md w-full shadow-xl`}>
               <div className="flex items-center gap-3 mb-4">
-                <span className="material-symbols-outlined text-3xl text-red-500">warning</span>
+                <Icon name="warning" className="text-3xl text-red-500" />
                 <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   Delete {visitorMode ? 'Visitor' : 'Member'} Permanently
                 </h3>
@@ -1113,12 +1113,12 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 >
                   {isDeleting ? (
                     <>
-                      <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                      <Icon name="progress_activity" className="animate-spin text-lg" />
                       Deleting...
                     </>
                   ) : (
                     <>
-                      <span className="material-symbols-outlined text-lg">delete_forever</span>
+                      <Icon name="delete_forever" className="text-lg" />
                       Delete Forever
                     </>
                   )}
@@ -1132,7 +1132,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
             <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl p-6 max-w-lg w-full shadow-xl max-h-[90vh] overflow-y-auto`}>
               <div className="flex items-center gap-3 mb-4">
-                <span className="material-symbols-outlined text-3xl text-indigo-500">merge</span>
+                <Icon name="merge" className="text-3xl text-indigo-500" />
                 <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   Merge {member.name}
                 </h3>
@@ -1144,7 +1144,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 </p>
                 <div className="flex items-center gap-2 mt-2">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-red-900/30' : 'bg-red-100'}`}>
-                    <span className="material-symbols-outlined text-red-500 text-sm">person_remove</span>
+                    <Icon name="person_remove" className="text-red-500 text-sm" />
                   </div>
                   <div>
                     <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{enrichedMember.name}</p>
@@ -1192,7 +1192,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                   </p>
                   <div className="flex items-center gap-2 mt-2">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-green-900/30' : 'bg-green-100'}`}>
-                      <span className="material-symbols-outlined text-green-500 text-sm">person</span>
+                      <Icon name="person" className="text-green-500 text-sm" />
                     </div>
                     <div>
                       <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{selectedMergeTarget.name}</p>
@@ -1204,7 +1204,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
 
               {isLoadingPreview && (
                 <div className="flex items-center justify-center py-6">
-                  <span className="material-symbols-outlined text-2xl text-indigo-500 animate-spin">progress_activity</span>
+                  <Icon name="progress_activity" className="text-2xl text-indigo-500 animate-spin" />
                   <span className={`ml-2 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Loading preview...</span>
                 </div>
               )}
@@ -1212,121 +1212,121 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
               {mergePreview && (
                 <div className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-indigo-900/20 border border-indigo-500/30' : 'bg-indigo-50 border border-indigo-200'}`}>
                   <h4 className={`font-medium mb-3 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    <span className="material-symbols-outlined text-lg text-indigo-500">preview</span>
+                    <Icon name="preview" className="text-lg text-indigo-500" />
                     Merge Preview
                   </h4>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     {mergePreview.recordsToMerge?.bookings !== undefined && (mergePreview.recordsToMerge.bookings?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">event_note</span>
+                        <Icon name="event_note" className="text-sm align-middle mr-1" />
                         Bookings: <strong>{mergePreview.recordsToMerge.bookings?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.visits !== undefined && (mergePreview.recordsToMerge.visits?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">check_circle</span>
+                        <Icon name="check_circle" className="text-sm align-middle mr-1" />
                         Visits: <strong>{mergePreview.recordsToMerge.visits?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.eventRsvps !== undefined && (mergePreview.recordsToMerge.eventRsvps?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">celebration</span>
+                        <Icon name="celebration" className="text-sm align-middle mr-1" />
                         Events: <strong>{mergePreview.recordsToMerge.eventRsvps?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.wellnessBookings !== undefined && (mergePreview.recordsToMerge.wellnessBookings?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">spa</span>
+                        <Icon name="spa" className="text-sm align-middle mr-1" />
                         Wellness: <strong>{mergePreview.recordsToMerge.wellnessBookings?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.memberNotes !== undefined && (mergePreview.recordsToMerge.memberNotes?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">sticky_note_2</span>
+                        <Icon name="sticky_note_2" className="text-sm align-middle mr-1" />
                         Notes: <strong>{mergePreview.recordsToMerge.memberNotes?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.notifications !== undefined && (mergePreview.recordsToMerge.notifications?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">notifications</span>
+                        <Icon name="notifications" className="text-sm align-middle mr-1" />
                         Notifications: <strong>{mergePreview.recordsToMerge.notifications?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.usageLedger !== undefined && (mergePreview.recordsToMerge.usageLedger?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">payments</span>
+                        <Icon name="payments" className="text-sm align-middle mr-1" />
                         Fees: <strong>{mergePreview.recordsToMerge.usageLedger?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.guestCheckIns !== undefined && (mergePreview.recordsToMerge.guestCheckIns?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">how_to_reg</span>
+                        <Icon name="how_to_reg" className="text-sm align-middle mr-1" />
                         Guest Check-ins: <strong>{mergePreview.recordsToMerge.guestCheckIns?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.bookingParticipants !== undefined && (mergePreview.recordsToMerge.bookingParticipants?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">group</span>
+                        <Icon name="group" className="text-sm align-middle mr-1" />
                         Booking Participants: <strong>{mergePreview.recordsToMerge.bookingParticipants?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.dayPassPurchases !== undefined && (mergePreview.recordsToMerge.dayPassPurchases?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">confirmation_number</span>
+                        <Icon name="confirmation_number" className="text-sm align-middle mr-1" />
                         Day Passes: <strong>{mergePreview.recordsToMerge.dayPassPurchases?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.legacyPurchases !== undefined && (mergePreview.recordsToMerge.legacyPurchases?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">receipt_long</span>
+                        <Icon name="receipt_long" className="text-sm align-middle mr-1" />
                         Legacy Purchases: <strong>{mergePreview.recordsToMerge.legacyPurchases?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.groupMembers !== undefined && (mergePreview.recordsToMerge.groupMembers?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">groups</span>
+                        <Icon name="groups" className="text-sm align-middle mr-1" />
                         Group Memberships: <strong>{mergePreview.recordsToMerge.groupMembers?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.pushSubscriptions !== undefined && (mergePreview.recordsToMerge.pushSubscriptions?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">notifications_active</span>
+                        <Icon name="notifications_active" className="text-sm align-middle mr-1" />
                         Push Subscriptions: <strong>{mergePreview.recordsToMerge.pushSubscriptions?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.dismissedNotices !== undefined && (mergePreview.recordsToMerge.dismissedNotices?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">visibility_off</span>
+                        <Icon name="visibility_off" className="text-sm align-middle mr-1" />
                         Dismissed Notices: <strong>{mergePreview.recordsToMerge.dismissedNotices?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.billingGroups !== undefined && (mergePreview.recordsToMerge.billingGroups?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">account_balance</span>
+                        <Icon name="account_balance" className="text-sm align-middle mr-1" />
                         Billing Groups: <strong>{mergePreview.recordsToMerge.billingGroups?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.bugReports !== undefined && (mergePreview.recordsToMerge.bugReports?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">bug_report</span>
+                        <Icon name="bug_report" className="text-sm align-middle mr-1" />
                         Bug Reports: <strong>{mergePreview.recordsToMerge.bugReports?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.dataExportRequests !== undefined && (mergePreview.recordsToMerge.dataExportRequests?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">download</span>
+                        <Icon name="download" className="text-sm align-middle mr-1" />
                         Data Exports: <strong>{mergePreview.recordsToMerge.dataExportRequests?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.hubspotDeals !== undefined && (mergePreview.recordsToMerge.hubspotDeals?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">handshake</span>
+                        <Icon name="handshake" className="text-sm align-middle mr-1" />
                         HubSpot Deals: <strong>{mergePreview.recordsToMerge.hubspotDeals?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.stripePaymentIntents !== undefined && (mergePreview.recordsToMerge.stripePaymentIntents?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">credit_card</span>
+                        <Icon name="credit_card" className="text-sm align-middle mr-1" />
                         Payment Intents: <strong>{mergePreview.recordsToMerge.stripePaymentIntents?.source ?? 0}</strong>
                       </div>
                     )}
@@ -1335,7 +1335,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                   {((mergePreview.conflicts && mergePreview.conflicts.length > 0) || (mergePreview.recommendations && mergePreview.recommendations.length > 0)) && (
                     <div className={`mt-3 p-2 rounded-lg ${isDark ? 'bg-amber-900/30' : 'bg-amber-50'}`}>
                       <p className={`text-xs font-medium ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">warning</span>
+                        <Icon name="warning" className="text-sm align-middle mr-1" />
                         Conflicts/Recommendations:
                       </p>
                       <ul className={`text-xs mt-1 space-y-1 ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>
@@ -1352,7 +1352,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
               )}
 
               <p className={`text-sm mb-4 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-                <span className="material-symbols-outlined text-sm align-middle mr-1">warning</span>
+                <Icon name="warning" className="text-sm align-middle mr-1" />
                 This action cannot be undone. {member.name}'s account will be deleted after merging.
               </p>
               
@@ -1394,12 +1394,12 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 >
                   {isMerging ? (
                     <>
-                      <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                      <Icon name="progress_activity" className="animate-spin text-lg" />
                       Merging...
                     </>
                   ) : (
                     <>
-                      <span className="material-symbols-outlined text-lg">merge</span>
+                      <Icon name="merge" className="text-lg" />
                       Confirm Merge
                     </>
                   )}
@@ -1421,7 +1421,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     : `border-transparent ${isDark ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'}`
                 }`}
               >
-                <span className="material-symbols-outlined text-lg">{tab.icon}</span>
+                <Icon name={tab.icon} className="text-lg" />
                 <span>{tab.label}</span>
               </button>
             ))}
@@ -1447,7 +1447,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
               onClick={() => setShowIdImageFull(false)}
               className="absolute -top-10 right-0 text-white/80 hover:text-white tactile-btn"
             >
-              <span className="material-symbols-outlined">close</span>
+              <Icon name="close" />
             </button>
             <img
               src={idImageUrl}

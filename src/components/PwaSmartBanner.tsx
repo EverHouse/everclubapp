@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Icon from './icons/Icon';
 
 interface PwaSmartBannerProps {
   appName?: string;
@@ -89,7 +90,7 @@ const PwaSmartBanner: React.FC<PwaSmartBannerProps> = ({
             className="text-gray-400 hover:text-gray-600 text-sm font-medium flex-shrink-0 p-1"
             aria-label="Close"
           >
-            <span className="material-symbols-outlined text-lg">close</span>
+            <Icon name="close" className="text-lg" />
           </button>
 
           <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 shadow-sm">

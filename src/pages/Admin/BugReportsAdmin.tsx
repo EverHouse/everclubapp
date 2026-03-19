@@ -10,6 +10,7 @@ import { useToast } from '../../components/Toast';
 import { useUndoAction } from '../../hooks/useUndoAction';
 import { haptic } from '../../utils/haptics';
 import { useBugReports, useUpdateBugReport, useDeleteBugReport } from '../../hooks/queries';
+import Icon from '../../components/icons/Icon';
 
 interface BugReport {
     id: number;
@@ -136,7 +137,7 @@ const BugReportsAdmin: React.FC = () => {
                         </p>
                     </div>
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? 'glass-button' : 'bg-white border border-black/10'}`}>
-                        <span className={`material-symbols-outlined ${isDark ? 'text-white' : 'text-primary'}`} aria-hidden="true">bug_report</span>
+                        <Icon name="bug_report" className={`${isDark ? 'text-white' : 'text-primary'}`} />
                     </div>
                 </div>
 
@@ -151,7 +152,7 @@ const BugReportsAdmin: React.FC = () => {
                                     : isDark ? 'glass-button text-white/80' : 'bg-white border border-black/10 text-primary/80'
                             }`}
                         >
-                            <span className="material-symbols-outlined text-sm" aria-hidden="true">{tab.icon}</span>
+                            <Icon name={tab.icon} className="text-sm" />
                             {tab.label}
                         </button>
                     ))}
@@ -199,11 +200,11 @@ const BugReportsAdmin: React.FC = () => {
                                                 {formatRelativeTime(report.createdAt)}
                                             </span>
                                             {report.screenshotUrl && (
-                                                <span className={`material-symbols-outlined text-sm ${isDark ? 'text-white/50' : 'text-primary/50'}`} aria-hidden="true">image</span>
+                                                <Icon name="image" className={`text-sm ${isDark ? 'text-white/50' : 'text-primary/50'}`} />
                                             )}
                                         </div>
                                     </div>
-                                    <span className={`material-symbols-outlined text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`} aria-hidden="true">chevron_right</span>
+                                    <Icon name="chevron_right" className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`} />
                                 </div>
                             </button>
                         ))}
@@ -221,7 +222,7 @@ const BugReportsAdmin: React.FC = () => {
                     <div className="p-4 space-y-4">
                         <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-black/5'}`}>
-                                <span className={`material-symbols-outlined ${isDark ? 'text-white/80' : 'text-primary/80'}`} aria-hidden="true">person</span>
+                                <Icon name="person" className={`${isDark ? 'text-white/80' : 'text-primary/80'}`} />
                             </div>
                             <div>
                                 <p className={`font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>

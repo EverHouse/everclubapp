@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatDatePacific, CATEGORY_LABELS, CATEGORY_ICONS, CATEGORY_ORDER, getCategoryColors } from './types';
 import type { PurchaseRecord } from './types';
+import Icon from '../../icons/Icon';
 
 export function PurchaseHistorySection({
   purchases,
@@ -30,7 +31,7 @@ export function PurchaseHistorySection({
   return (
     <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
       <div className="flex items-center gap-2 mb-4">
-        <span className={`material-symbols-outlined ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>receipt_long</span>
+        <Icon name="receipt_long" className={`${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
         <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>Purchase History</h3>
       </div>
       
@@ -43,7 +44,7 @@ export function PurchaseHistorySection({
             <div key={category}>
               <h4 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 <span className={`px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 ${categoryColors[category] || categoryColors.other}`}>
-                  <span className="material-symbols-outlined text-xs">{CATEGORY_ICONS[category] || 'receipt'}</span>
+                  <Icon name={CATEGORY_ICONS[category] || 'receipt'} className="text-xs" />
                   {CATEGORY_LABELS[category] || category}
                 </span>
                 <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>

@@ -1,5 +1,6 @@
 import React from 'react';
 import type { SystemHealth } from './dataIntegrityTypes';
+import Icon from '../../../../components/icons/Icon';
 
 interface HealthStatusGridProps {
   systemHealth: SystemHealth | null;
@@ -16,7 +17,7 @@ const HealthStatusGrid: React.FC<HealthStatusGridProps> = ({
     <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-6 animate-content-enter-delay-1">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white text-[24px]">monitoring</span>
+          <Icon name="monitoring" className="text-primary dark:text-white text-[24px]" />
           <h3 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>System Health</h3>
         </div>
         <button
@@ -26,12 +27,12 @@ const HealthStatusGrid: React.FC<HealthStatusGridProps> = ({
         >
           {isCheckingHealth ? (
             <>
-              <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+              <Icon name="progress_activity" className="animate-spin text-[16px]" />
               Checking...
             </>
           ) : (
             <>
-              <span aria-hidden="true" className="material-symbols-outlined text-[16px]">health_and_safety</span>
+              <Icon name="health_and_safety" className="text-[16px]" />
               Check Health
             </>
           )}
@@ -69,7 +70,7 @@ const HealthStatusGrid: React.FC<HealthStatusGridProps> = ({
               return (
                 <div key={key} className={`border rounded-lg p-3 ${statusBgColor}`}>
                   <div className="flex items-start gap-2 mb-2">
-                    <span aria-hidden="true" className={`material-symbols-outlined text-[20px] ${statusTextColor}`}>{statusIcon}</span>
+                    <Icon name={statusIcon} className={`text-[20px] ${statusTextColor}`} />
                     <div className="flex-1 min-w-0">
                       <p className={`text-xs font-bold ${statusTextColor}`}>{label}</p>
                       <p className={`text-[10px] ${statusTextColor} opacity-80`}>{service.status}</p>
@@ -77,7 +78,7 @@ const HealthStatusGrid: React.FC<HealthStatusGridProps> = ({
                   </div>
                   {service.latencyMs !== undefined && (
                     <p className={`text-[10px] ${statusTextColor} opacity-70`}>
-                      <span aria-hidden="true" className="material-symbols-outlined text-[12px] align-text-bottom mr-0.5">schedule</span>
+                      <Icon name="schedule" className="text-[12px] align-text-bottom mr-0.5" />
                       {service.latencyMs}ms
                     </p>
                   )}

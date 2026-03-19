@@ -10,6 +10,7 @@ import PassSearchResults from './redeemPass/PassSearchResults';
 import { formatPassType } from './redeemPass/types';
 import type { SectionProps, RedemptionSuccess, PassHolder, DayPass, RedemptionLog, ErrorState, UnredeemedPass, DayPassUpdateEvent } from './redeemPass/types';
 import { fetchWithCredentials, postWithCredentials, ApiError } from '../../../hooks/queries/useFetch';
+import Icon from '../../icons/Icon';
 
 export type { SectionProps, RedemptionLog };
 // eslint-disable-next-line react-refresh/only-export-components
@@ -314,7 +315,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
               onClick={() => { handleCloseScanner(); setShowPassIdInput(true); }}
               className="tactile-btn w-full mt-4 py-3 rounded-xl bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-medium hover:bg-primary/20 dark:hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined text-lg">keyboard</span>
+              <Icon name="keyboard" className="text-lg" />
               Enter Pass ID manually
             </button>
           </div>
@@ -340,7 +341,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
             {isSearching ? (
               <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
             ) : (
-              <span className="material-symbols-outlined text-lg">search</span>
+              <Icon name="search" className="text-lg" />
             )}
           </button>
           <button
@@ -349,7 +350,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
             title="Scan QR / Enter Pass ID"
             aria-label="Scan QR code"
           >
-            <span className="material-symbols-outlined text-lg">qr_code_scanner</span>
+            <Icon name="qr_code_scanner" className="text-lg" />
           </button>
         </div>
       )}
@@ -357,7 +358,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
       {showPassIdInput && (
         <div className="p-4 rounded-xl bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800/30 space-y-3">
           <div className="flex items-center gap-2 mb-2">
-            <span className="material-symbols-outlined text-teal-600 dark:text-teal-400">qr_code_scanner</span>
+            <Icon name="qr_code_scanner" className="text-teal-600 dark:text-teal-400" />
             <p className="font-medium text-teal-900 dark:text-teal-100">Enter Pass ID</p>
           </div>
           <div className="flex gap-2">
@@ -379,14 +380,14 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
               {redeemingId !== null ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
               ) : (
-                <span className="material-symbols-outlined text-lg">check</span>
+                <Icon name="check" className="text-lg" />
               )}
             </button>
             <button
               onClick={() => { setShowPassIdInput(false); setManualPassId(''); }}
               className="tactile-btn px-4 py-3 rounded-xl bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-semibold hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
             >
-              <span className="material-symbols-outlined text-lg">close</span>
+              <Icon name="close" className="text-lg" />
             </button>
           </div>
         </div>
@@ -411,7 +412,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
 
       {successMessage && !redemptionSuccess && (
         <div className="p-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30 flex items-center gap-2">
-          <span className="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
+          <Icon name="check_circle" className="text-green-600 dark:text-green-400" />
           <p className="text-sm text-green-700 dark:text-green-400">{successMessage}</p>
         </div>
       )}
@@ -462,7 +463,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
     return (
       <div className="bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-xl p-5 shadow-liquid dark:shadow-liquid-dark overflow-hidden">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-teal-600 dark:text-teal-400">qr_code_scanner</span>
+          <Icon name="qr_code_scanner" className="text-teal-600 dark:text-teal-400" />
           <h3 className="font-bold text-primary dark:text-white">Redeem Day Pass</h3>
         </div>
         {content}
@@ -474,11 +475,11 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
     <div className="bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-xl p-4 shadow-liquid dark:shadow-liquid-dark">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-teal-600 dark:text-teal-400">qr_code_scanner</span>
+          <Icon name="qr_code_scanner" className="text-teal-600 dark:text-teal-400" />
           <h3 className="font-bold text-primary dark:text-white">Redeem Day Pass</h3>
         </div>
         <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
-          <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+          <Icon name="close" className="text-primary/60 dark:text-white/60" />
         </button>
       </div>
       {content}

@@ -4,6 +4,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAnnouncementBadge } from '../stores/announcementBadgeStore';
 import { Announcement } from '../contexts/DataContext';
 import { haptic } from '../utils/haptics';
+import Icon from './icons/Icon';
 
 const EXIT_DURATION = 250;
 
@@ -119,9 +120,7 @@ const AnnouncementAlert: React.FC = () => {
     >
       <div className="flex items-start gap-3">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconBgColor}`}>
-          <span className={`material-symbols-outlined text-xl ${iconColor}`}>
-            campaign
-          </span>
+          <Icon name="campaign" className={`text-xl ${iconColor}`} />
         </div>
         
         <div className="flex-1 min-w-0">
@@ -145,7 +144,7 @@ const AnnouncementAlert: React.FC = () => {
               }`}
               aria-label="Dismiss announcement"
             >
-              <span className="material-symbols-outlined text-lg" aria-hidden="true">close</span>
+              <Icon name="close" className="text-lg" />
             </button>
           </div>
           
@@ -158,7 +157,7 @@ const AnnouncementAlert: React.FC = () => {
                latestAnnouncement.linkType === 'wellness' ? 'View Wellness' :
                latestAnnouncement.linkType === 'golf' ? 'Book Now' :
                latestAnnouncement.linkType === 'external' ? 'Learn More' : 'Tap to view'}
-              <span className="material-symbols-outlined text-sm" aria-hidden="true">arrow_forward</span>
+              <Icon name="arrow_forward" className="text-sm" />
             </span>
           </div>
         </div>

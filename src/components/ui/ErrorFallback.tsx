@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import { haptic } from '../../utils/haptics';
+import Icon from '../icons/Icon';
 
 interface ErrorFallbackProps {
   variant: 'page' | 'card' | 'inline';
@@ -32,9 +33,7 @@ function ErrorFallback({
   if (variant === 'inline') {
     return (
       <div className={`flex items-center gap-2 px-3 py-2 rounded-xl bg-red-500/5 dark:bg-red-500/10 border border-red-500/10 dark:border-red-500/15 ${className}`}>
-        <span className="material-symbols-outlined text-base text-red-400">
-          {icon || 'error_outline'}
-        </span>
+        <Icon name={icon || 'error_outline'} className="text-base text-red-400" />
         <span className="text-xs text-gray-700 dark:text-white/70 flex-1">
           {title || 'Something went wrong'}
         </span>
@@ -43,7 +42,7 @@ function ErrorFallback({
             onClick={handleRetry}
             className="flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80 transition-colors"
           >
-            <span className="material-symbols-outlined text-sm">refresh</span>
+            <Icon name="refresh" className="text-sm" />
             {retryLabel || 'Retry'}
           </button>
         )}
@@ -56,9 +55,7 @@ function ErrorFallback({
       <div className={`flex items-center justify-center p-6 min-h-[120px] rounded-2xl bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.12] ${className}`}>
         <div className="text-center max-w-xs">
           <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-red-500/10 dark:bg-red-500/20 flex items-center justify-center">
-            <span className="material-symbols-outlined text-lg text-red-400">
-              {icon || 'error_outline'}
-            </span>
+            <Icon name={icon || 'error_outline'} className="text-lg text-red-400" />
           </div>
           <h3 className="text-sm font-semibold mb-1 text-gray-800 dark:text-white">
             {title || 'Something went wrong'}
@@ -72,7 +69,7 @@ function ErrorFallback({
                 onClick={handleRetry}
                 className="px-4 py-2 text-xs font-medium rounded-xl bg-accent/10 dark:bg-accent/20 text-accent hover:bg-accent/20 dark:hover:bg-accent/30 transition-colors"
               >
-                <span className="material-symbols-outlined text-sm align-middle mr-1">refresh</span>
+                <Icon name="refresh" className="text-sm align-middle mr-1" />
                 {retryLabel || 'Try Again'}
               </button>
             )}
@@ -94,9 +91,7 @@ function ErrorFallback({
     <div className={`flex items-center justify-center min-h-screen bg-bone dark:bg-[#141414] text-primary dark:text-white p-6 ${className}`}>
       <div className="text-center max-w-sm">
         <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-red-500/10 dark:bg-red-500/20 backdrop-blur-xl border border-red-500/10 dark:border-red-500/15 flex items-center justify-center">
-          <span className="material-symbols-outlined text-3xl text-red-400">
-            {icon || 'error'}
-          </span>
+          <Icon name={icon || 'error'} className="text-3xl text-red-400" />
         </div>
         <h1 className="text-xl font-semibold mb-2">
           {title || 'Something went wrong'}

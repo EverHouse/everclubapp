@@ -3,6 +3,7 @@ import { useAutoAnimate } from '@formkit/auto-animate/react';
 import EmptyState from '../../../../components/EmptyState';
 import FloatingActionButton from '../../../../components/FloatingActionButton';
 import type { MembershipTier } from './tiersTypes';
+import Icon from '../../../../components/icons/Icon';
 
 interface TierCardListProps {
     tiers: MembershipTier[];
@@ -50,9 +51,7 @@ const TierCardList: React.FC<TierCardListProps> = ({
                         disabled={pullFromStripePending}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors disabled:opacity-50"
                     >
-                        <span aria-hidden="true" className={`material-symbols-outlined text-sm ${pullFromStripePending ? 'animate-spin' : ''}`}>
-                            {pullFromStripePending ? 'progress_activity' : 'cloud_download'}
-                        </span>
+                        <Icon name={pullFromStripePending ? 'progress_activity' : 'cloud_download'} className={`text-sm ${pullFromStripePending ? 'animate-spin' : ''}`} />
                         {pullFromStripePending ? 'Pulling...' : 'Pull from Stripe'}
                     </button>
                     <button
@@ -60,9 +59,7 @@ const TierCardList: React.FC<TierCardListProps> = ({
                         disabled={syncStripePending}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors disabled:opacity-50"
                     >
-                        <span aria-hidden="true" className={`material-symbols-outlined text-sm ${syncStripePending ? 'animate-spin' : ''}`}>
-                            {syncStripePending ? 'progress_activity' : 'sync'}
-                        </span>
+                        <Icon name={syncStripePending ? 'progress_activity' : 'sync'} className={`text-sm ${syncStripePending ? 'animate-spin' : ''}`} />
                         {syncStripePending ? 'Syncing...' : 'Sync to Stripe'}
                     </button>
                 </div>
@@ -96,7 +93,7 @@ const TierCardList: React.FC<TierCardListProps> = ({
                                     <p className="text-xl font-bold text-primary dark:text-white">{tier.price_string}</p>
                                 </div>
                                 <button aria-label="Edit tier" className="text-gray-600 hover:text-primary dark:hover:text-white transition-colors">
-                                    <span aria-hidden="true" className="material-symbols-outlined">edit</span>
+                                    <Icon name="edit" />
                                 </button>
                             </div>
                             
@@ -106,20 +103,20 @@ const TierCardList: React.FC<TierCardListProps> = ({
                             
                             <div className="flex flex-wrap gap-2 text-xs">
                                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-sm">sports_golf</span>
+                                    <Icon name="sports_golf" className="text-sm" />
                                     {tier.daily_sim_minutes > 0 ? `${tier.daily_sim_minutes}min sim` : 'No sim'}
                                 </span>
                                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-sm">person_add</span>
+                                    <Icon name="person_add" className="text-sm" />
                                     {tier.guest_passes_per_year > 0 ? `${tier.guest_passes_per_year} passes/yr` : 'No passes'}
                                 </span>
                                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-sm">calendar_today</span>
+                                    <Icon name="calendar_today" className="text-sm" />
                                     {tier.booking_window_days}d window
                                 </span>
                                 {tier.unlimited_access && (
                                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 dark:bg-primary/20 text-primary dark:text-white font-bold">
-                                        <span aria-hidden="true" className="material-symbols-outlined text-sm">all_inclusive</span>
+                                        <Icon name="all_inclusive" className="text-sm" />
                                         Unlimited
                                     </span>
                                 )}

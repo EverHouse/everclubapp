@@ -1,5 +1,6 @@
 import React from 'react';
 import type { BillingInfo } from './types';
+import Icon from '../../icons/Icon';
 
 export function MembershipLevelSection({
   billingInfo,
@@ -28,7 +29,7 @@ export function MembershipLevelSection({
     <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className={`material-symbols-outlined ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>badge</span>
+          <Icon name="badge" className={`${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
           <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>Membership Level</h3>
         </div>
         {!isEditingTier && (

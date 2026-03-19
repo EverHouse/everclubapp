@@ -1,6 +1,7 @@
 import React from 'react';
 import Toggle from '../../../components/Toggle';
 import ModalShell from '../../../components/ModalShell';
+import Icon from '../../../components/icons/Icon';
 
 interface PrivacyModalProps {
   isDark: boolean;
@@ -39,7 +40,7 @@ const PrivacyModal: React.FC<PrivacyModalProps> = ({
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
-              <span className={`material-symbols-outlined ${isDark ? 'text-white/70' : 'text-primary/70'}`}>security</span>
+              <Icon name="security" className={`${isDark ? 'text-white/70' : 'text-primary/70'}`} />
               <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Do Not Sell My Information</span>
             </div>
             <Toggle
@@ -56,7 +57,7 @@ const PrivacyModal: React.FC<PrivacyModalProps> = ({
 
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
           <div className="flex items-center gap-3 mb-2">
-            <span className={`material-symbols-outlined ${isDark ? 'text-white/70' : 'text-primary/70'}`}>download</span>
+            <Icon name="download" className={`${isDark ? 'text-white/70' : 'text-primary/70'}`} />
             <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Request Data Export</span>
           </div>
           <p className={`text-sm ml-9 mb-3 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
@@ -83,7 +84,7 @@ const PrivacyModal: React.FC<PrivacyModalProps> = ({
 
         <div className={`p-4 rounded-xl border ${isDark ? 'border-red-500/30 bg-red-500/10' : 'border-red-200 bg-red-50'}`}>
           <div className="flex items-center gap-3 mb-2">
-            <span className={`material-symbols-outlined ${isDark ? 'text-red-400' : 'text-red-600'}`}>delete_forever</span>
+            <Icon name="delete_forever" className={`${isDark ? 'text-red-400' : 'text-red-600'}`} />
             <span className={`font-medium ${isDark ? 'text-red-400' : 'text-red-700'}`}>Delete Account</span>
           </div>
           <p className={`text-sm ml-9 mb-3 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
@@ -100,7 +101,7 @@ const PrivacyModal: React.FC<PrivacyModalProps> = ({
         {showDeleteConfirm && (
           <div className={`p-4 rounded-xl border-2 ${isDark ? 'border-red-500 bg-red-500/20' : 'border-red-300 bg-red-100'}`}>
             <div className="flex items-start gap-3 mb-4">
-              <span className={`material-symbols-outlined text-2xl ${isDark ? 'text-red-400' : 'text-red-600'}`}>warning</span>
+              <Icon name="warning" className={`text-2xl ${isDark ? 'text-red-400' : 'text-red-600'}`} />
               <div>
                 <h4 className={`font-bold text-lg mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   Are you sure?
@@ -130,10 +131,10 @@ const PrivacyModal: React.FC<PrivacyModalProps> = ({
                 className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {deleteAccountPending ? (
-                  <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                  <Icon name="progress_activity" className="animate-spin text-lg" />
                 ) : (
                   <>
-                    <span className="material-symbols-outlined text-lg">delete_forever</span>
+                    <Icon name="delete_forever" className="text-lg" />
                     Confirm Delete
                   </>
                 )}

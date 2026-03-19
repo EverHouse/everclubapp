@@ -4,6 +4,7 @@ import { MemberSearchInput, type SelectedMember } from '../../shared/MemberSearc
 import { useToast } from '../../Toast';
 import { getTodayPacific, formatTime12Hour } from '../../../utils/dateUtils';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
+import Icon from '../../icons/Icon';
 
 interface FeeEstimate {
   dailyAllowance: number;
@@ -138,12 +139,12 @@ export function StaffManualBookingModal({
       >
         {confSubmitting ? (
           <>
-            <span className="material-symbols-outlined animate-spin">progress_activity</span>
+            <Icon name="progress_activity" className="animate-spin" />
             Creating Booking...
           </>
         ) : (
           <>
-            <span className="material-symbols-outlined">meeting_room</span>
+            <Icon name="meeting_room" />
             Create Booking
           </>
         )}
@@ -230,12 +231,12 @@ export function StaffManualBookingModal({
           {confHostMember && (
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-3">
-                <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">receipt_long</span>
+                <Icon name="receipt_long" className="text-blue-600 dark:text-blue-400" />
                 <h4 className="font-semibold text-blue-900 dark:text-blue-100">Fee Estimate</h4>
               </div>
               {confLoadingFee ? (
                 <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
-                  <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                  <Icon name="progress_activity" className="animate-spin text-base" />
                   Calculating...
                 </div>
               ) : confFeeEstimate ? (

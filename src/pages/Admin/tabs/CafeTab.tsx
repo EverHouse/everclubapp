@@ -7,6 +7,7 @@ import ModalShell from '../../../components/ModalShell';
 import { useCafeMenu, useUploadCafeImage, useSeedCafeMenu, useUpdateCafeItem, useDeleteCafeItem } from '../../../hooks/queries/useCafeQueries';
 import type { CafeItem } from '../../../types/data';
 import { postWithCredentials } from '../../../hooks/queries/useFetch';
+import Icon from '../../../components/icons/Icon';
 
 const CafeTab: React.FC = () => {
     const { setPageReady } = usePageReady();
@@ -118,7 +119,7 @@ const CafeTab: React.FC = () => {
                 <div>
                     <h2 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Menu Items</h2>
                     <p className="text-sm text-purple-600 dark:text-purple-400 flex items-center gap-1 mt-0.5" style={{ fontFamily: 'var(--font-body)' }}>
-                        <span aria-hidden="true" className="material-symbols-outlined text-xs">cloud</span>
+                        <Icon name="cloud" className="text-xs" />
                         Prices and items managed in Stripe Dashboard
                     </p>
                 </div>
@@ -127,9 +128,7 @@ const CafeTab: React.FC = () => {
                     disabled={pullMutation.isPending}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded-[4px] hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors disabled:opacity-50"
                 >
-                    <span aria-hidden="true" className={`material-symbols-outlined text-sm ${pullMutation.isPending ? 'animate-spin' : ''}`}>
-                        {pullMutation.isPending ? 'progress_activity' : 'cloud_download'}
-                    </span>
+                    <Icon name={pullMutation.isPending ? 'progress_activity' : 'cloud_download'} className={`text-sm ${pullMutation.isPending ? 'animate-spin' : ''}`} />
                     {pullMutation.isPending ? 'Pulling...' : 'Pull from Stripe'}
                 </button>
             </div>
@@ -149,7 +148,7 @@ const CafeTab: React.FC = () => {
                 <div className="p-6 space-y-4">
                     {editId && (
                         <div className="flex items-center gap-2 p-2.5 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 text-xs">
-                            <span aria-hidden="true" className="material-symbols-outlined text-sm">info</span>
+                            <Icon name="info" className="text-sm" />
                             Names, prices, and categories are managed in Stripe. Description and images can be edited here.
                         </div>
                     )}
@@ -185,7 +184,7 @@ const CafeTab: React.FC = () => {
                                 disabled={uploadImageMutation.isPending}
                                 className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-colors disabled:opacity-50"
                             >
-                                <span aria-hidden="true" className="material-symbols-outlined text-lg">{uploadImageMutation.isPending ? 'sync' : 'upload'}</span>
+                                <Icon name={uploadImageMutation.isPending ? 'sync' : 'upload'} className="text-lg" />
                                 {uploadImageMutation.isPending ? 'Uploading...' : 'Upload'}
                             </button>
                             <input
@@ -208,7 +207,7 @@ const CafeTab: React.FC = () => {
                                     onClick={() => { setNewItem({...newItem, image: ''}); setUploadResult(null); }}
                                     className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs"
                                 >
-                                    <span aria-hidden="true" className="material-symbols-outlined text-sm">close</span>
+                                    <Icon name="close" className="text-sm" />
                                 </button>
                             </div>
                         )}
@@ -220,13 +219,13 @@ const CafeTab: React.FC = () => {
                             onClick={() => setNewItem({...newItem, isActive: true})}
                             className="flex items-center gap-2 w-full p-3 rounded-xl border border-amber-200 dark:border-amber-700/40 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm font-medium hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
                         >
-                            <span aria-hidden="true" className="material-symbols-outlined text-lg">toggle_off</span>
+                            <Icon name="toggle_off" className="text-lg" />
                             This item is inactive — click to reactivate
                         </button>
                     )}
                     {editId && newItem.isActive !== false && (
                         <div className="flex items-center gap-2 p-3 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-sm font-medium">
-                            <span aria-hidden="true" className="material-symbols-outlined text-lg">toggle_on</span>
+                            <Icon name="toggle_on" className="text-lg" />
                             Active
                         </div>
                     )}
@@ -271,7 +270,7 @@ const CafeTab: React.FC = () => {
                 {filteredMenu.map((item, _index) => (
                     <div key={item.id} onClick={() => openEdit(item)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(item); } }} role="button" tabIndex={0} className={`bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 flex items-center gap-4 cursor-pointer hover:border-primary/30 transition-colors tactile-card ${item.isActive === false ? 'opacity-50' : ''}`}>
                         <div className="w-16 h-16 rounded-lg bg-gray-100 dark:bg-white/5 flex-shrink-0 overflow-hidden">
-                             {item.image ? <img src={item.image} className="w-full h-full object-cover" alt={item.name || 'Menu item image'} /> : <div className="w-full h-full flex items-center justify-center"><span aria-hidden="true" className="material-symbols-outlined text-gray-600">restaurant</span></div>}
+                             {item.image ? <img src={item.image} className="w-full h-full object-cover" alt={item.name || 'Menu item image'} /> : <div className="w-full h-full flex items-center justify-center"><Icon name="restaurant" className="text-gray-600" /></div>}
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">

@@ -5,6 +5,7 @@ import { MemberSearchInput, SelectedMember } from '../shared/MemberSearchInput';
 import { useToast } from '../Toast';
 import { getNetworkErrorMessage } from '../../utils/errorHandling';
 import { fetchWithCredentials, postWithCredentials, putWithCredentials, deleteWithCredentials, ApiError } from '../../hooks/queries/useFetch';
+import Icon from '../icons/Icon';
 
 interface FamilyMemberInfo {
   id: number;
@@ -292,7 +293,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
     return (
       <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
         <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
-          <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+          <Icon name="progress_activity" className="animate-spin text-base" />
           Loading group billing info...
         </div>
       </div>
@@ -303,20 +304,20 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
     <div className="space-y-4">
       <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-primary dark:text-white text-lg">groups</span>
+          <Icon name="groups" className="text-primary dark:text-white text-lg" />
           <p className="text-sm font-semibold text-primary dark:text-white">Group Billing</p>
         </div>
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg flex items-center gap-2">
-            <span className="material-symbols-outlined text-red-500 text-base">error</span>
+            <Icon name="error" className="text-red-500 text-base" />
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             <button
               onClick={() => setError(null)}
               aria-label="Dismiss error"
               className="ml-auto p-1 hover:bg-red-100 dark:hover:bg-red-500/20 rounded"
             >
-              <span className="material-symbols-outlined text-red-500 text-base">close</span>
+              <Icon name="close" className="text-red-500 text-base" />
             </button>
           </div>
         )}
@@ -326,7 +327,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
             <div className="p-4 bg-white dark:bg-black/20 rounded-lg border border-gray-100 dark:border-white/10">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-gray-400 dark:text-gray-500">group_off</span>
+                  <Icon name="group_off" className="text-gray-400 dark:text-gray-500" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-primary dark:text-white">Not part of a billing group</p>
@@ -342,13 +343,13 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                 onClick={() => setShowCreateForm(true)}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary dark:bg-accent text-white dark:text-primary font-medium rounded-[4px] hover:opacity-90 transition-opacity tactile-btn"
               >
-                <span className="material-symbols-outlined text-lg">add</span>
+                <Icon name="add" className="text-lg" />
                 Create Billing Group with This Member as Primary
               </button>
             ) : (
               <div className="p-4 bg-white dark:bg-black/20 rounded-lg border border-primary/20 dark:border-white/20 space-y-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="material-symbols-outlined text-primary dark:text-accent text-lg">group_add</span>
+                  <Icon name="group_add" className="text-primary dark:text-accent text-lg" />
                   <p className="text-sm font-semibold text-primary dark:text-white">Create Billing Group</p>
                 </div>
 
@@ -381,9 +382,9 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary font-medium rounded-[4px] hover:opacity-90 transition-opacity disabled:opacity-50 tactile-btn"
                   >
                     {isCreatingGroup ? (
-                      <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                      <Icon name="progress_activity" className="animate-spin text-base" />
                     ) : (
-                      <span className="material-symbols-outlined text-base">check</span>
+                      <Icon name="check" className="text-base" />
                     )}
                     Create Group
                   </button>
@@ -405,7 +406,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
             <div className="p-4 bg-white dark:bg-black/20 rounded-lg border border-gray-100 dark:border-white/10">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="material-symbols-outlined text-primary dark:text-accent text-lg shrink-0">groups</span>
+                  <Icon name="groups" className="text-primary dark:text-accent text-lg shrink-0" />
                   {isEditingGroupName ? (
                     <div className="flex items-center gap-2 flex-1">
                       <input
@@ -423,9 +424,9 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                         className="p-1 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-500/10 rounded"
                       >
                         {isSavingGroupName ? (
-                          <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                          <Icon name="progress_activity" className="text-sm animate-spin" />
                         ) : (
-                          <span className="material-symbols-outlined text-sm">check</span>
+                          <Icon name="check" className="text-sm" />
                         )}
                       </button>
                       <button
@@ -436,7 +437,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                         aria-label="Cancel editing group name"
                         className="p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 rounded"
                       >
-                        <span className="material-symbols-outlined text-sm">close</span>
+                        <Icon name="close" className="text-sm" />
                       </button>
                     </div>
                   ) : (
@@ -454,14 +455,14 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                             className="p-1 text-gray-400 hover:text-primary dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded"
                             title="Edit group name"
                           >
-                            <span className="material-symbols-outlined text-sm">edit</span>
+                            <Icon name="edit" className="text-sm" />
                           </button>
                           <button
                             onClick={() => setShowDeleteConfirm(true)}
                             className="p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded"
                             title="Delete billing group"
                           >
-                            <span className="material-symbols-outlined text-sm">delete</span>
+                            <Icon name="delete" className="text-sm" />
                           </button>
                         </div>
                       )}
@@ -487,9 +488,9 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                       className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700 disabled:opacity-50"
                     >
                       {isDeletingGroup ? (
-                        <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                        <Icon name="progress_activity" className="text-sm animate-spin" />
                       ) : (
-                        <span className="material-symbols-outlined text-sm">delete</span>
+                        <Icon name="delete" className="text-sm" />
                       )}
                       Delete Group
                     </button>
@@ -505,7 +506,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
 
               <div className="mb-4 p-3 bg-primary/5 dark:bg-white/5 rounded-lg">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="material-symbols-outlined text-primary dark:text-accent text-sm">credit_card</span>
+                  <Icon name="credit_card" className="text-primary dark:text-accent text-sm" />
                   <p className="text-xs font-semibold text-primary/60 dark:text-white/60 uppercase tracking-widest">
                     {isCorporateGroup ? 'Account Owner' : 'Primary Payer'}
                   </p>
@@ -518,7 +519,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
 
               {isAddOnMember && (
                 <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg flex items-center gap-2">
-                  <span className="material-symbols-outlined text-amber-500 text-base">info</span>
+                  <Icon name="info" className="text-amber-500 text-base" />
                   <p className="text-sm text-amber-700 dark:text-amber-400">
                     This member is an add-on under the primary payer's subscription
                   </p>
@@ -537,7 +538,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                       onClick={() => setShowAddMemberForm(true)}
                       className="flex items-center gap-1 text-xs font-medium text-primary dark:text-accent hover:opacity-80 transition-opacity"
                     >
-                      <span className="material-symbols-outlined text-sm">person_add</span>
+                      <Icon name="person_add" className="text-sm" />
                       {isCorporateGroup ? 'Add Team Member' : 'Add Member'}
                     </button>
                   )}
@@ -558,7 +559,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className="w-8 h-8 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
-                            <span className="material-symbols-outlined text-primary dark:text-white text-sm">person</span>
+                            <Icon name="person" className="text-primary dark:text-white text-sm" />
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -592,9 +593,9 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                               title="Remove from billing group"
                             >
                               {removingMemberId === member.id ? (
-                                <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                                <Icon name="progress_activity" className="text-base animate-spin" />
                               ) : (
-                                <span className="material-symbols-outlined text-base">person_remove</span>
+                                <Icon name="person_remove" className="text-base" />
                               )}
                             </button>
                           )}
@@ -622,7 +623,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
             {showAddMemberForm && isPrimaryPayer && (
               <div className="p-4 bg-white dark:bg-black/20 rounded-lg border border-primary/20 dark:border-white/20 space-y-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="material-symbols-outlined text-primary dark:text-accent text-lg">person_add</span>
+                  <Icon name="person_add" className="text-primary dark:text-accent text-lg" />
                   <p className="text-sm font-semibold text-primary dark:text-white">
                     {isCorporateGroup ? 'Add Team Member' : 'Add Group Member'}
                   </p>
@@ -703,9 +704,9 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                         className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary font-medium rounded-[4px] hover:opacity-90 transition-opacity disabled:opacity-50 tactile-btn"
                       >
                         {isAddingMember ? (
-                          <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                          <Icon name="progress_activity" className="animate-spin text-base" />
                         ) : (
-                          <span className="material-symbols-outlined text-base">person_add</span>
+                          <Icon name="person_add" className="text-base" />
                         )}
                         Add Team Member
                       </button>
@@ -786,9 +787,9 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                         className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary font-medium rounded-[4px] hover:opacity-90 transition-opacity disabled:opacity-50 tactile-btn"
                       >
                         {isAddingMember ? (
-                          <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                          <Icon name="progress_activity" className="animate-spin text-base" />
                         ) : (
-                          <span className="material-symbols-outlined text-base">person_add</span>
+                          <Icon name="person_add" className="text-base" />
                         )}
                         Add to Group
                       </button>

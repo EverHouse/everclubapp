@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from '../../icons/Icon';
 
 interface CompedBillingSectionProps {
   isDark: boolean;
@@ -8,7 +9,7 @@ export const CompedBillingSection: React.FC<CompedBillingSectionProps> = ({ isDa
   return (
     <div className={`p-4 rounded-xl ${isDark ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
       <div className="flex items-start gap-3">
-        <span className={`material-symbols-outlined ${isDark ? 'text-green-400' : 'text-green-600'} text-xl`}>card_giftcard</span>
+        <Icon name="card_giftcard" className={`${isDark ? 'text-green-400' : 'text-green-600'} text-xl`} />
         <div className="flex-1">
           <p className={`text-sm font-medium ${isDark ? 'text-green-300' : 'text-green-700'}`}>
             Complimentary membership - no billing
@@ -18,7 +19,7 @@ export const CompedBillingSection: React.FC<CompedBillingSectionProps> = ({ isDa
           </p>
           <div className={`mt-3 p-3 rounded-lg ${isDark ? 'bg-black/20' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-gray-100'}`}>
             <div className="flex items-start gap-2">
-              <span className={`material-symbols-outlined text-base ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>info</span>
+              <Icon name="info" className={`text-base ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
               <div>
                 <p className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   To convert to a paid plan:

@@ -2,6 +2,7 @@ import React from 'react';
 import { ModalShell } from '../../ModalShell';
 import { TerminalPayment } from '../../staff-command-center/TerminalPayment';
 import type { BillingInfo } from './types';
+import Icon from '../../icons/Icon';
 
 export function UpdateCardTerminalModal({
   isOpen,
@@ -32,7 +33,7 @@ export function UpdateCardTerminalModal({
       <div className="p-4 space-y-4">
         <div className={`p-3 rounded-lg ${isDark ? 'bg-blue-500/10 border border-blue-500/30' : 'bg-blue-50 border border-blue-200'}`}>
           <div className="flex items-center gap-2">
-            <span className={`material-symbols-outlined ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>info</span>
+            <Icon name="info" className={`${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
             <span className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
               Tap or insert a card on the reader to update this member's payment method on file. No charge will be made.
             </span>

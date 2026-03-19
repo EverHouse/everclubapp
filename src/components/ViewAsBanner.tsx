@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuthData } from '../contexts/DataContext';
 import { getBaseTier } from '../utils/permissions';
+import Icon from './icons/Icon';
 
 const ViewAsBanner: React.FC = () => {
   const { isViewingAs, viewAsUser, clearViewAsUser, actualUser } = useAuthData();
@@ -19,7 +20,7 @@ const ViewAsBanner: React.FC = () => {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-accent text-brand-green px-4 py-2 flex items-center justify-between shadow-lg safe-area-pb" style={{ zIndex: 'var(--z-nav)' }}>
       <div className="flex items-center gap-2 min-w-0 flex-1">
-        <span className="material-symbols-outlined text-lg flex-shrink-0" aria-hidden="true">visibility</span>
+        <Icon name="visibility" className="text-lg flex-shrink-0" />
         <span className="text-sm font-bold truncate">
           Viewing as: {viewAsUser.name}
         </span>
@@ -32,7 +33,7 @@ const ViewAsBanner: React.FC = () => {
         className="flex items-center gap-1 px-3 py-1.5 min-h-[44px] bg-brand-green text-white rounded-lg text-sm font-bold hover:bg-brand-green/90 transition-colors flex-shrink-0 ml-2 tactile-btn"
         aria-label="Exit view as member mode"
       >
-        <span className="material-symbols-outlined text-sm" aria-hidden="true">close</span>
+        <Icon name="close" className="text-sm" />
         Exit
       </button>
     </div>

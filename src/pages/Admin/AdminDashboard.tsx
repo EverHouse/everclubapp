@@ -29,6 +29,7 @@ import { usePendingCounts } from './layout/hooks/usePendingCounts';
 import { useUnreadNotifications } from './layout/hooks/useUnreadNotifications';
 import { useCommandCenter } from './layout/hooks/useCommandCenter';
 import { fetchWithCredentials, putWithCredentials, postWithCredentials, deleteWithCredentials, ApiError } from '../../hooks/queries/useFetch';
+import Icon from '../../components/icons/Icon';
 
 // Loading fallback for lazy-loaded tabs - matches app aesthetic
 const TabLoadingFallback = () => (
@@ -187,7 +188,7 @@ const AdminDashboard: React.FC = () => {
           className="tactile-btn flex items-center justify-center min-w-[44px] min-h-[44px] hover:opacity-70 transition-opacity md:hidden"
           aria-label="Open menu"
         >
-          <span className="material-symbols-outlined text-[24px]">menu</span>
+          <Icon name="menu" className="text-[24px]" />
         </button>
       </div>
       
@@ -204,7 +205,7 @@ const AdminDashboard: React.FC = () => {
           className="tactile-btn flex items-center justify-center min-w-[44px] min-h-[44px] hover:opacity-70 transition-opacity relative"
           aria-label="Updates"
         >
-          <span aria-hidden="true" className="material-symbols-outlined text-[24px]">campaign</span>
+          <Icon name="campaign" className="text-[24px]" />
           {unreadNotifCount > 0 && (
             <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-badge-pulse">
               {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
@@ -436,7 +437,7 @@ const TrainingSectionModal: React.FC<TrainingModalProps> = ({ isOpen, onClose, s
                             onClick={() => setShowIconPicker(!showIconPicker)}
                             className="tactile-btn flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary/20 dark:border-white/25 bg-white/60 dark:bg-white/5 text-primary dark:text-white"
                         >
-                            <span aria-hidden="true" className="material-symbols-outlined">{icon}</span>
+                            <Icon name={icon} />
                             <span className="text-sm">{icon}</span>
                         </button>
                         {showIconPicker && (
@@ -448,7 +449,7 @@ const TrainingSectionModal: React.FC<TrainingModalProps> = ({ isOpen, onClose, s
                                         onClick={() => { setIcon(ic); setShowIconPicker(false); }}
                                         className={`tactile-btn p-2 rounded-lg hover:bg-primary/10 dark:hover:bg-white/10 ${icon === ic ? 'bg-primary/20 dark:bg-white/20' : ''}`}
                                     >
-                                        <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">{ic}</span>
+                                        <Icon name={ic} className="text-primary dark:text-white" />
                                     </button>
                                 ))}
                             </div>
@@ -474,7 +475,7 @@ const TrainingSectionModal: React.FC<TrainingModalProps> = ({ isOpen, onClose, s
                                             onClick={() => handleRemoveStep(index)}
                                             className="tactile-btn p-1 text-red-500 hover:bg-red-500/10 rounded-full"
                                         >
-                                            <span aria-hidden="true" className="material-symbols-outlined text-sm">close</span>
+                                            <Icon name="close" className="text-sm" />
                                         </button>
                                     )}
                                 </div>
@@ -499,7 +500,7 @@ const TrainingSectionModal: React.FC<TrainingModalProps> = ({ isOpen, onClose, s
                             onClick={handleAddStep}
                             className="tactile-btn mt-4 flex items-center gap-2 px-4 py-2 rounded-full border border-dashed border-primary/30 dark:border-white/30 text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/5 transition-colors text-sm"
                         >
-                            <span aria-hidden="true" className="material-symbols-outlined text-lg">add</span>
+                            <Icon name="add" className="text-lg" />
                             Add Step
                         </button>
                     </div>
@@ -611,7 +612,7 @@ const StaffTrainingGuide: React.FC = () => {
     if (authError) {
         return (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-                <span aria-hidden="true" className="material-symbols-outlined text-5xl text-primary/70 dark:text-white/70 mb-4">lock</span>
+                <Icon name="lock" className="text-5xl text-primary/70 dark:text-white/70 mb-4" />
                 <h3 className="text-lg font-bold text-primary dark:text-white mb-2">Session Expired</h3>
                 <p className="text-sm text-primary/80 dark:text-white/80 mb-6 max-w-sm">
                     Your session has expired. Please refresh the page or log in again to view the training guide.
@@ -634,7 +635,7 @@ const StaffTrainingGuide: React.FC = () => {
                 </p>
                 {lastUpdated && (
                     <p className="flex items-center gap-1.5 text-xs text-primary/50 dark:text-white/50 mb-4">
-                        <span aria-hidden="true" className="material-symbols-outlined text-sm">schedule</span>
+                        <Icon name="schedule" className="text-sm" />
                         Last updated: {new Date(lastUpdated).toLocaleString('en-US', { timeZone: 'America/Los_Angeles', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                     </p>
                 )}
@@ -644,7 +645,7 @@ const StaffTrainingGuide: React.FC = () => {
                             onClick={openAddModal}
                             className="tactile-btn flex items-center gap-2 px-4 py-2.5 bg-accent text-primary rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
                         >
-                            <span aria-hidden="true" className="material-symbols-outlined text-lg">add</span>
+                            <Icon name="add" className="text-lg" />
                             Add Section
                         </button>
                     </div>
@@ -672,23 +673,21 @@ const StaffTrainingGuide: React.FC = () => {
                                 className="flex-1 flex items-center gap-4 p-5 text-left print:hover:bg-transparent"
                             >
                                 <div className="w-12 h-12 rounded-xl bg-primary/10 dark:bg-white/10 flex items-center justify-center flex-shrink-0 print:bg-gray-100">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-2xl text-primary dark:text-white print:text-gray-700">{section.icon}</span>
+                                    <Icon name={section.icon} className="text-2xl text-primary dark:text-white print:text-gray-700" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h3 className="font-bold text-primary dark:text-white print:text-gray-900">{section.title}</h3>
                                     <p className="text-sm text-primary/80 dark:text-white/80 print:text-gray-500">{section.description}</p>
                                 </div>
-                                <span className={`material-symbols-outlined text-primary/70 dark:text-white/70 transition-transform duration-normal print:hidden ${expandedSection === String(section.id) ? 'rotate-180' : ''}`}>
-                                    expand_more
-                                </span>
+                                <Icon name="expand_more" className={`text-primary/70 dark:text-white/70 transition-transform duration-normal print:hidden ${expandedSection === String(section.id) ? 'rotate-180' : ''}`} />
                             </div>
                             {isAdmin && (
                                 <div className="flex gap-1 pr-4 print:hidden" onClick={(e) => e.stopPropagation()}>
                                     <button onClick={() => openEditModal(section)} className="tactile-btn p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Edit section">
-                                        <span aria-hidden="true" className="material-symbols-outlined text-primary/80 dark:text-white/80">edit</span>
+                                        <Icon name="edit" className="text-primary/80 dark:text-white/80" />
                                     </button>
                                     <button onClick={() => handleDelete(section.id)} className="tactile-btn p-2 hover:bg-red-500/10 rounded-full" aria-label="Delete section">
-                                        <span aria-hidden="true" className="material-symbols-outlined text-red-500/60">delete</span>
+                                        <Icon name="delete" className="text-red-500/60" />
                                     </button>
                                 </div>
                             )}
@@ -706,7 +705,7 @@ const StaffTrainingGuide: React.FC = () => {
                                                 <h4 className="font-semibold text-primary dark:text-white text-sm print:text-gray-900">{step.title}</h4>
                                                 {step.pageIcon && (
                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/20 dark:bg-accent/30 text-xs text-primary dark:text-accent print:bg-gray-200 print:text-gray-700">
-                                                        <span aria-hidden="true" className="material-symbols-outlined text-xs">{step.pageIcon}</span>
+                                                        <Icon name={step.pageIcon} className="text-xs" />
                                                     </span>
                                                 )}
                                             </div>

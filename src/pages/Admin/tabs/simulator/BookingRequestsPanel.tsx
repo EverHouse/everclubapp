@@ -11,6 +11,7 @@ import { TrackmanIcon } from '../../../../components/icons/TrackmanIcon';
 import { useFeeEstimate } from '../../../../hooks/queries/useBookingsQueries';
 import { BookingStatusDropdown } from '../../../../components/BookingStatusDropdown';
 import { putWithCredentials } from '../../../../hooks/queries/useFetch';
+import Icon from '../../../../components/icons/Icon';
 
 function BookingFeeButton({ bookingId, dbOwed, hasUnpaidFees, setBookingSheet, fallback }: {
     bookingId: number;
@@ -35,7 +36,7 @@ function BookingFeeButton({ bookingId, dbOwed, hasUnpaidFees, setBookingSheet, f
             onClick={() => setBookingSheet({ isOpen: true, trackmanBookingId: null, bookingId, mode: 'manage' as const })}
             className="flex-1 py-2.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-amber-200 dark:hover:bg-amber-500/30 hover:shadow-md active:scale-95 transition-all duration-fast"
         >
-            <span aria-hidden="true" className="material-symbols-outlined text-lg">payments</span>
+            <Icon name="payments" className="text-lg" />
             ${Math.round(displayAmount)} Due
         </button>
     );
@@ -118,7 +119,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                     <div className="flex flex-col gap-2 mb-4">
                         <div className="flex items-center justify-between">
                             <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
-                                <span aria-hidden="true" className="material-symbols-outlined text-yellow-500">pending</span>
+                                <Icon name="pending" className="text-yellow-500" />
                                 Queue ({queueItems.length})
                             </h3>
                             <div className="flex items-center gap-2">
@@ -180,7 +181,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                             <div className="flex justify-between items-start mb-2">
                                                 <div className="flex items-center gap-2">
                                                     <span className="px-2.5 py-1 text-xs font-semibold bg-red-200 dark:bg-red-500/30 text-red-700 dark:text-red-400 rounded-lg flex items-center gap-1">
-                                                        <span className="material-symbols-outlined text-xs">cancel</span>
+                                                        <Icon name="cancel" className="text-xs" />
                                                         Cancellation Request
                                                     </span>
                                                     <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400">
@@ -250,7 +251,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                             }}
                                                             className="w-full mt-3 py-2 px-3 bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:pointer-events-none text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:shadow-md active:scale-95 transition-all duration-fast focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
                                                         >
-                                                            <span aria-hidden="true" className="material-symbols-outlined text-sm">check_circle</span>
+                                                            <Icon name="check_circle" className="text-sm" />
                                                             Complete Cancellation
                                                         </button>
                                                     </>
@@ -314,14 +315,14 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                 onClick={() => setTrackmanModal({ isOpen: true, booking: req })}
                                                 className="tactile-btn flex-1 py-2 px-3 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-amber-200 dark:hover:bg-amber-900/50 hover:shadow-md active:scale-95 transition-all duration-fast"
                                             >
-                                                <span aria-hidden="true" className="material-symbols-outlined text-sm">sports_golf</span>
+                                                <Icon name="sports_golf" className="text-sm" />
                                                 Book on Trackman
                                             </button>
                                             <button
                                                 onClick={() => { setSelectedRequest(req); setActionModal('decline'); }}
                                                 className="tactile-btn flex-1 py-2 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-red-200 dark:hover:bg-red-900/50 hover:shadow-md active:scale-95 transition-all duration-fast"
                                             >
-                                                <span aria-hidden="true" className="material-symbols-outlined text-sm">close</span>
+                                                <Icon name="close" className="text-sm" />
                                                 Deny
                                             </button>
                                         </div>
@@ -334,7 +335,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
 
                 <div className="animate-content-enter-delay-2">
                     <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
-                        <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-accent">calendar_today</span>
+                        <Icon name="calendar_today" className="text-primary dark:text-accent" />
                         Scheduled ({scheduledBookings.length})
                     </h3>
                     
@@ -509,7 +510,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                         {booking.status === 'cancellation_pending' && (
                                                             <div className="flex items-center gap-2 mt-2">
                                                                 <span className="px-2.5 py-1 text-xs font-semibold bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400 rounded-lg flex items-center gap-1">
-                                                                    <span className="material-symbols-outlined text-xs">hourglass_top</span>
+                                                                    <Icon name="hourglass_top" className="text-xs" />
                                                                     Cancellation Pending
                                                                 </span>
                                                             </div>
@@ -547,7 +548,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     }}
                                                                     className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:shadow-md active:scale-95 transition-all duration-fast"
                                                                 >
-                                                                    <span aria-hidden="true" className="material-symbols-outlined text-lg">check_circle</span>
+                                                                    <Icon name="check_circle" className="text-lg" />
                                                                     Complete Cancellation
                                                                 </button>
                                                             ) : isUnmatched ? (
@@ -565,7 +566,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     })}
                                                                     className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:shadow-md active:scale-95 transition-all duration-fast"
                                                                 >
-                                                                    <span aria-hidden="true" className="material-symbols-outlined text-lg">person_add</span>
+                                                                    <Icon name="person_add" className="text-lg" />
                                                                     Assign Member
                                                                 </button>
                                                             ) : isToday && booking.status === 'attended' ? (
@@ -627,7 +628,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     }}
                                                                     className="flex-1 py-2.5 bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-blue-200 dark:hover:bg-blue-500/30 hover:shadow-md active:scale-95 transition-all duration-fast"
                                                                 >
-                                                                    <span aria-hidden="true" className="material-symbols-outlined text-lg">group_add</span>
+                                                                    <Icon name="group_add" className="text-lg" />
                                                                     Roster {booking.filled_player_count || 0}/{booking.declared_player_count}
                                                                 </button>
                                                             ) : null}

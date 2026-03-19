@@ -1,5 +1,6 @@
 import React from 'react';
 import type { IgnoreModalState, BulkIgnoreModalState } from './dataIntegrityTypes';
+import Icon from '../../../../components/icons/Icon';
 
 interface IgnoreModalsProps {
   ignoreModal: IgnoreModalState;
@@ -80,7 +81,7 @@ const IgnoreModals: React.FC<IgnoreModalsProps> = ({
                 disabled={isIgnoring || !ignoreReason.trim()}
                 className="flex-1 py-2 px-4 bg-primary dark:bg-white text-white dark:text-primary rounded-lg text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isIgnoring && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                {isIgnoring && <Icon name="progress_activity" className="animate-spin text-[16px]" />}
                 Ignore Issue
               </button>
             </div>
@@ -138,7 +139,7 @@ const IgnoreModals: React.FC<IgnoreModalsProps> = ({
                 disabled={isBulkIgnoring || !ignoreReason.trim()}
                 className="flex-1 py-2 px-4 bg-primary dark:bg-white text-white dark:text-primary rounded-lg text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isBulkIgnoring && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                {isBulkIgnoring && <Icon name="progress_activity" className="animate-spin text-[16px]" />}
                 Exclude All
               </button>
             </div>

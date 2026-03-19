@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { MemberSearchInput, SelectedMember } from './MemberSearchInput';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
+import Icon from '../icons/Icon';
 
 export interface PlayerSlot {
   id: string;
@@ -193,14 +194,14 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
             </div>
 
             <div className={`mb-3 p-3 rounded-lg text-sm ${isDark ? 'bg-blue-500/10 border border-blue-500/30 text-blue-300' : 'bg-blue-50 border border-blue-200 text-blue-700'}`}>
-              <span className="material-symbols-outlined text-sm mr-1 align-middle">info</span>
+              <Icon name="info" className="text-sm mr-1 align-middle" />
               Provide guest first name, last name, and email to use your guest passes. Unfilled slots are charged the full guest fee.
             </div>
 
             {availablePartners.length > 0 && hasEmptySlot && (
               <div className="mb-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className={`material-symbols-outlined text-sm ${isDark ? 'text-white/60' : 'text-primary/60'}`}>group</span>
+                  <Icon name="group" className={`text-sm ${isDark ? 'text-white/60' : 'text-primary/60'}`} />
                   <span className={`text-[11px] font-bold uppercase tracking-[0.15em] ${isDark ? 'text-white/60' : 'text-primary/60'}`} style={{ fontFamily: 'var(--font-label)' }}>Recent Partners</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -215,9 +216,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                           : 'bg-primary/5 border-primary/10 text-primary/80 hover:bg-primary/10 hover:border-primary/20'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-sm" style={{ fontSize: '14px' }}>
-                        {partner.type === 'member' ? 'person' : 'person_add'}
-                      </span>
+                      <Icon name={partner.type === 'member' ? 'person' : 'person_add'} className="text-sm" />
                       {partner.name}
                     </button>
                   ))}
@@ -270,9 +269,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                           ? 'bg-white/10 border-white/20' 
                           : 'bg-primary/5 border-primary/20'
                       }`}>
-                        <span className={`material-symbols-outlined text-lg ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                          {slot.type === 'member' ? 'person' : 'person_add'}
-                        </span>
+                        <Icon name={slot.type === 'member' ? 'person' : 'person_add'} className={`text-lg ${isDark ? 'text-white/70' : 'text-primary/70'}`} />
                         <div className="flex-1 min-w-0">
                           <div className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-primary'}`}>
                             {slot.selectedName}
@@ -288,7 +285,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                             isDark ? 'hover:bg-white/10' : 'hover:bg-black/10'
                           }`}
                         >
-                          <span className="material-symbols-outlined text-lg opacity-60">close</span>
+                          <Icon name="close" className="text-lg opacity-60" />
                         </button>
                       </div>
                     ) : slot.type === 'member' ? (
@@ -344,9 +341,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                               ? (isDark ? 'text-green-400' : 'text-green-600')
                               : (isDark ? 'text-amber-400' : 'text-amber-600')
                           }`}>
-                            <span className="material-symbols-outlined text-sm">
-                              {isGuestComplete ? 'check_circle' : 'warning'}
-                            </span>
+                            <Icon name={isGuestComplete ? 'check_circle' : 'warning'} className="text-sm" />
                             {isGuestComplete ? 'Pass eligible' : 'Provide first name, last name & email to use pass'}
                           </div>
                         )}

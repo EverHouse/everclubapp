@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import Icon from './icons/Icon';
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -123,9 +124,7 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void; isDark: 
       aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
     >
       <div className="flex items-start gap-3 pl-4 pr-2 py-3">
-        <span className={`material-symbols-outlined text-xl mt-0.5 flex-shrink-0 ${getIconColor(toast.type)}`}>
-          {getIconForType(toast.type)}
-        </span>
+        <Icon name={getIconForType(toast.type)} className={`text-xl mt-0.5 flex-shrink-0 ${getIconColor(toast.type)}`} />
         <div className="flex-1 min-w-0">
           <p className={`text-xs font-bold tracking-wide uppercase ${isDark ? 'text-white/90' : 'text-gray-900'}`}>
             {getTitleForType(toast.type)}
@@ -151,7 +150,7 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void; isDark: 
           }`}
           aria-label="Dismiss notification"
         >
-          <span className="material-symbols-outlined text-[16px]" aria-hidden="true">close</span>
+          <Icon name="close" className="text-[16px]" />
         </button>
       </div>
       <ProgressBar duration={duration} isExiting={toast.isExiting || false} color={borderColor} />

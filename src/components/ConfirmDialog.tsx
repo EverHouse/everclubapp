@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
 import { useSafariThemeColor } from '../hooks/useSafariThemeColor';
+import Icon from './icons/Icon';
 
 const BASE_DIALOG_Z_INDEX = 10100;
 const Z_INDEX_INCREMENT = 10;
@@ -215,12 +216,7 @@ function ConfirmDialogComponent({
           >
             <div className="flex flex-col items-center text-center">
               <div className={`mb-4 p-3 rounded-full ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
-                <span 
-                  className={`material-symbols-outlined text-3xl ${variantConfig.iconColor}`}
-                  aria-hidden="true"
-                >
-                  {variantConfig.icon}
-                </span>
+                <Icon name={variantConfig.icon} className={`text-3xl ${variantConfig.iconColor}`} />
               </div>
 
               <h2

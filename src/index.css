@@ -814,12 +814,6 @@ input, select, textarea {
   transform: translateY(1px);
 }
 
-/* Consistent icon-text gap in flex rows */
-.material-symbols-outlined + span,
-.material-symbols-outlined + p,
-.material-symbols-outlined + div {
-  margin-left: 0.125rem;
-}
 
 /* Editorial Spacing — generous breathing room for luxury typography */
 /* Low specificity defaults — Tailwind utilities (p-*, px-*, py-*) override these */
@@ -1301,29 +1295,6 @@ body.keyboard-open .modal-keyboard-aware {
   z-index: var(--z-modal);
 }
 
-.material-symbols-outlined {
-  font-family: 'Material Symbols Outlined';
-  font-weight: normal;
-  font-style: normal;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  -webkit-font-feature-settings: 'liga';
-  -webkit-font-smoothing: antialiased;
-  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
-  opacity: 0;
-  transition: opacity 0.2s ease-out;
-}
-html.icons-loaded .material-symbols-outlined {
-  opacity: 1;
-}
-.material-symbols-outlined.filled {
-  font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24;
-}
 
 /* Accessibility: Focus visible styles */
 :focus-visible {
@@ -2930,10 +2901,6 @@ img[loading="lazy"] {
   }
   
   /* Hide the expand arrow icons in print */
-  .material-symbols-outlined[class~="text-primary/40"][class*="rotate"],
-  .material-symbols-outlined[class~="dark:text-white/40"][class*="transition-transform"] {
-    display: none !important;
-  }
   
   /* Show print-only elements */
   [class~="print:block"] {

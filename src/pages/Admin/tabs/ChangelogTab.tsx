@@ -6,6 +6,7 @@ import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 import { AnimatedPage } from '../../../components/motion';
 import { useAuthData } from '../../../contexts/DataContext';
 import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
+import Icon from '../../../components/icons/Icon';
 
 interface AuditLogDetails {
     member_email?: string;
@@ -818,7 +819,7 @@ const ChangelogTab: React.FC = () => {
                         <ul className="space-y-2">
                             {entry.changes.map((change, i) => (
                                 <li key={i} className="flex items-start gap-2 text-sm text-primary/80 dark:text-white/80">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-sm text-primary/70 dark:text-white/70 mt-0.5">check_circle</span>
+                                    <Icon name="check_circle" className="text-sm text-primary/70 dark:text-white/70 mt-0.5" />
                                     {change}
                                 </li>
                             ))}
@@ -833,7 +834,7 @@ const ChangelogTab: React.FC = () => {
                         onClick={() => setChangelogLimit(prev => prev + 25)}
                         className="px-6 py-3 rounded-xl bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-medium hover:bg-primary/20 dark:hover:bg-white/20 transition-colors flex items-center gap-2"
                     >
-                        <span className="material-symbols-outlined text-xl">expand_more</span>
+                        <Icon name="expand_more" className="text-xl" />
                         Load More Updates ({changelog.length - changelogLimit} remaining)
                     </button>
                 </div>
@@ -917,9 +918,7 @@ const ChangelogTab: React.FC = () => {
                                 >
                                     <div className="flex gap-3 p-4">
                                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${actionInfo.color}`}>
-                                            <span className="material-symbols-outlined text-[20px]">
-                                                {actionInfo.icon}
-                                            </span>
+                                            <Icon name={actionInfo.icon} className="text-[20px]" />
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-start">

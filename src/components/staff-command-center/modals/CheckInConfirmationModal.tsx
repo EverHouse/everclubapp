@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { playSound } from '../../../utils/sounds';
 import { RESOURCE_TYPE, MEMBERSHIP_STATUS, ACTIVE_MEMBERSHIP_STATUSES, INACTIVE_MEMBERSHIP_STATUSES } from '../../../../shared/constants/statuses';
+import Icon from '../../icons/Icon';
 
 interface PinnedNote {
   content: string;
@@ -127,17 +128,17 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
               className="tactile-btn w-7 h-7 rounded-full flex items-center justify-center bg-white/20 hover:bg-white/30 transition-colors text-white"
               aria-label="Close"
             >
-              <span className="material-symbols-outlined text-sm">close</span>
+              <Icon name="close" className="text-sm" />
             </button>
           </div>
 
           {showWarning ? (
             <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
-              <span className="material-symbols-outlined text-3xl text-yellow-300">warning</span>
+              <Icon name="warning" className="text-3xl text-yellow-300" />
             </div>
           ) : (
             <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
-              <span className="material-symbols-outlined text-3xl text-white">check_circle</span>
+              <Icon name="check_circle" className="text-3xl text-white" />
             </div>
           )}
 
@@ -152,7 +153,7 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
 
           {bookingDetails && (
             <div className="mt-3 flex items-center justify-center gap-1.5 text-white/85 text-sm">
-              <span className="material-symbols-outlined text-base">{bookingDetails.resourceType === RESOURCE_TYPE.CONFERENCE_ROOM ? 'meeting_room' : 'sports_golf'}</span>
+              <Icon name={bookingDetails.resourceType === RESOURCE_TYPE.CONFERENCE_ROOM ? 'meeting_room' : 'sports_golf'} className="text-base" />
               <span className="font-medium">
                 {bookingDetails.bayName} · {formatResourceType(bookingDetails.resourceType)} · {formatTime(bookingDetails.startTime)} – {formatTime(bookingDetails.endTime)}
               </span>
@@ -162,7 +163,7 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
           {showWarning && (
             <div className="mt-3 flex flex-col items-center gap-1">
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-yellow-400/20 border border-yellow-400/40 text-yellow-200 text-sm font-bold uppercase tracking-wider">
-                <span className="material-symbols-outlined text-base">error</span>
+                <Icon name="error" className="text-base" />
                 {membershipStatus} Membership
               </div>
               <p className="text-yellow-200/80 text-xs mt-1">Please verify membership before granting access</p>
@@ -173,7 +174,7 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
         {pinnedNotes.length > 0 && (
           <div className="bg-white p-4 space-y-2">
             <div className="flex items-center gap-2 mb-1">
-              <span className="material-symbols-outlined text-sm text-amber-500">push_pin</span>
+              <Icon name="push_pin" className="text-sm text-amber-500" />
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pinned Notes</span>
             </div>
             {pinnedNotes.map((note, i) => (

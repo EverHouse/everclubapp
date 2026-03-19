@@ -4,6 +4,7 @@ import { Footer } from '../../components/Footer';
 import { usePageReady } from '../../stores/pageReadyStore';
 import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
+import Icon from '../../components/icons/Icon';
 
 const OFFERINGS = [
   { icon: 'sports_golf', title: 'Indoor Golf', description: 'State-of-the-art Trackman 4 simulators for practice, play, and entertainment. All skill levels welcome.' },
@@ -79,7 +80,7 @@ const About: React.FC = () => {
                 >
                   <div className="flex items-center gap-3 mb-2">
                     <div className="flex items-center justify-center size-10 rounded-full bg-bone dark:bg-white/5 text-primary dark:text-white shrink-0">
-                      <span className="material-symbols-outlined text-xl">{item.icon}</span>
+                      <Icon name={item.icon} className="text-xl" />
                     </div>
                     <h3 className="font-bold text-primary dark:text-white text-sm">{item.title}</h3>
                   </div>
@@ -102,7 +103,7 @@ const About: React.FC = () => {
                   className="flex items-start gap-4 bg-[#E8E8E0]/50 dark:bg-white/5 rounded-xl p-5"
                 >
                   <div className="flex items-center justify-center size-10 rounded-full bg-primary/10 dark:bg-white/10 text-primary dark:text-white shrink-0 mt-0.5">
-                    <span className="material-symbols-outlined text-xl">{value.icon}</span>
+                    <Icon name={value.icon} className="text-xl" />
                   </div>
                   <div>
                     <h3 className="font-bold text-primary dark:text-white text-sm mb-1">{value.title}</h3>
@@ -128,7 +129,7 @@ const About: React.FC = () => {
                 className="inline-flex items-center justify-center gap-2 bg-[#F2F2EC] text-[#293515] px-6 py-3.5 rounded-[4px] font-bold text-sm hover:opacity-90 transition-opacity"
               >
                 Book a Tour
-                <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                <Icon name="arrow_forward" className="text-lg" />
               </Link>
               <Link
                 to="/membership"

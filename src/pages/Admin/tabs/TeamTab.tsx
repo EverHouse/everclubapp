@@ -9,6 +9,7 @@ import { formatPhoneNumber } from '../../../utils/formatting';
 import { AnimatedPage } from '../../../components/motion';
 import { useUndoAction } from '../../../hooks/useUndoAction';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from '../../../hooks/queries/useFetch';
+import Icon from '../../../components/icons/Icon';
 
 type StaffRole = 'staff' | 'admin' | 'golf_instructor';
 
@@ -318,7 +319,7 @@ const TeamTab: React.FC = () => {
     return (
       <AnimatedPage>
         <div className="bg-white dark:bg-surface-dark rounded-xl p-8 border border-gray-200 dark:border-white/25 text-center animate-content-enter-delay-1">
-          <span className="material-symbols-outlined text-6xl mb-4 text-gray-400 dark:text-white/40">lock</span>
+          <Icon name="lock" className="text-6xl mb-4 text-gray-400 dark:text-white/40" />
           <h3 className="text-lg font-bold text-primary dark:text-white mb-2">Admin Access Required</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Only administrators can access team management. Please contact an admin if you need access.
@@ -342,7 +343,7 @@ const TeamTab: React.FC = () => {
 
         <div className="mb-4">
           <div className="relative">
-            <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+            <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               value={searchQuery}
@@ -404,23 +405,23 @@ const TeamTab: React.FC = () => {
       <ModalShell isOpen={isViewingDetails && !!selectedMember} onClose={() => { setIsViewingDetails(false); setSelectedMember(null); }} title={selectedMember?.name || selectedMember?.email || 'Team Member Details'}>
         <div className="p-6 space-y-3">
           <div className="flex items-center gap-3">
-            <span aria-hidden="true" className="material-symbols-outlined text-gray-600">email</span>
+            <Icon name="email" className="text-gray-600" />
             <span className="text-gray-700 dark:text-gray-300">{selectedMember?.email}</span>
           </div>
           {selectedMember?.phone && (
             <div className="flex items-center gap-3">
-              <span aria-hidden="true" className="material-symbols-outlined text-gray-600">phone</span>
+              <Icon name="phone" className="text-gray-600" />
               <span className="text-gray-700 dark:text-gray-300">{formatPhoneNumber(selectedMember.phone)}</span>
             </div>
           )}
           {selectedMember?.job_title && (
             <div className="flex items-center gap-3">
-              <span aria-hidden="true" className="material-symbols-outlined text-gray-600">work</span>
+              <Icon name="work" className="text-gray-600" />
               <span className="text-gray-700 dark:text-gray-300">{selectedMember.job_title}</span>
             </div>
           )}
           <div className="flex items-center gap-3">
-            <span aria-hidden="true" className="material-symbols-outlined text-gray-600">badge</span>
+            <Icon name="badge" className="text-gray-600" />
             <span className={`px-2 py-1 rounded-full text-xs font-bold ${
               selectedMember?.role === 'admin' 
                 ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' 
@@ -432,7 +433,7 @@ const TeamTab: React.FC = () => {
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <span aria-hidden="true" className="material-symbols-outlined text-gray-600">toggle_on</span>
+            <Icon name="toggle_on" className="text-gray-600" />
             <span className={`px-2 py-1 rounded-full text-xs font-bold ${selectedMember?.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'}`}>
               {selectedMember?.is_active ? 'Active' : 'Inactive'}
             </span>
@@ -444,14 +445,14 @@ const TeamTab: React.FC = () => {
                 onClick={() => { setIsViewingDetails(false); openEditModal(selectedMember); }}
                 className="flex-1 py-3 px-4 rounded-lg bg-brand-green text-white font-medium hover:opacity-90 flex items-center justify-center gap-2"
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-lg">edit</span>
+                <Icon name="edit" className="text-lg" />
                 Edit
               </button>
               <button
                 onClick={() => { setIsViewingDetails(false); handleRemoveMember(selectedMember); }}
                 className="flex-1 py-3 px-4 rounded-lg bg-red-500 text-white font-medium hover:opacity-90 flex items-center justify-center gap-2"
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-lg">delete</span>
+                <Icon name="delete" className="text-lg" />
                 Delete
               </button>
             </div>

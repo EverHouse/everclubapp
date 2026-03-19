@@ -25,6 +25,7 @@ import IgnoreModals from './dataIntegrity/IgnoreModals';
 import MemberProfileDrawer from '../../../components/MemberProfileDrawer';
 import { UnifiedBookingSheet } from '../../../components/staff-command-center/modals/UnifiedBookingSheet';
 import { DataIntegritySkeleton } from '../../../components/skeletons';
+import Icon from '../../../components/icons/Icon';
 
 
 const DataIntegrityTab: React.FC = () => {
@@ -49,12 +50,12 @@ const DataIntegrityTab: React.FC = () => {
           >
             {actions.isRunning ? (
               <>
-                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin text-[20px]" />
                 Running Checks...
               </>
             ) : (
               <>
-                <span aria-hidden="true" className="material-symbols-outlined text-[20px]">{actions.isCached ? 'refresh' : 'fact_check'}</span>
+                <Icon name={actions.isCached ? 'refresh' : 'fact_check'} className="text-[20px]" />
                 {actions.isCached ? 'Refresh Checks' : 'Run Integrity Checks'}
               </>
             )}
@@ -65,14 +66,14 @@ const DataIntegrityTab: React.FC = () => {
               disabled={!actions.hasIssues}
               className="tactile-btn py-3 px-4 border-2 border-primary dark:border-white/40 text-primary dark:text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span aria-hidden="true" className="material-symbols-outlined text-[20px]">download</span>
+              <Icon name="download" className="text-[20px]" />
               Download CSV
             </button>
           )}
         </div>
         {actions.meta?.lastRun && actions.isCached && (
           <p className="text-sm text-primary/60 dark:text-white/60 text-center">
-            <span aria-hidden="true" className="material-symbols-outlined text-[14px] align-middle mr-1">schedule</span>
+            <Icon name="schedule" className="text-[14px] align-middle mr-1" />
             Last checked {formatTimeAgo(actions.meta.lastRun)}
           </p>
         )}

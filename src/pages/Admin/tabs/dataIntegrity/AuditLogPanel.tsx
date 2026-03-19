@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithCredentials } from '../../../../hooks/queries/useFetch';
+import Icon from '../../../../components/icons/Icon';
 
 interface AuditLogEntry {
   id: number;
@@ -95,12 +96,10 @@ const AuditLogPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
     <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
       <button onClick={onToggle} className="tactile-btn flex items-center justify-between w-full text-left">
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">history</span>
+          <Icon name="history" className="text-primary dark:text-white" />
           <span className="font-bold text-primary dark:text-white">Audit Log</span>
         </div>
-        <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
-          expand_more
-        </span>
+        <Icon name="expand_more" className={`text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
@@ -174,7 +173,7 @@ const AuditLogPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
                           <td className="py-2 pr-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatTimestamp(log.createdAt)}</td>
                           <td className="py-2 pr-3">
                             <div className="flex items-center gap-1">
-                              <span aria-hidden="true" className="material-symbols-outlined text-[14px] text-gray-400">{getActorIcon(log.actorType)}</span>
+                              <Icon name={getActorIcon(log.actorType)} className="text-[14px] text-gray-400" />
                               <span className="text-gray-900 dark:text-gray-100 truncate max-w-[120px]">{log.staffName || log.staffEmail}</span>
                             </div>
                           </td>

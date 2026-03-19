@@ -35,7 +35,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="dns-prefetch" href="https://fonts.googleapis.com">
     <link rel="dns-prefetch" href="https://fonts.gstatic.com">
-    <link rel="preload" href="/fonts/material-symbols-outlined.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="dns-prefetch" href="https://js.stripe.com">
     <link rel="dns-prefetch" href="https://api.stripe.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap" media="all" />
@@ -71,13 +70,6 @@
         background-color: #293515;
       }
       @font-face {
-        font-family: 'Material Symbols Outlined';
-        font-style: normal;
-        font-weight: 100 700;
-        font-display: swap;
-        src: url('/fonts/material-symbols-outlined.woff2') format('woff2');
-      }
-      @font-face {
         font-family: 'Instrument Sans';
         font-style: normal;
         font-weight: 400 700;
@@ -106,44 +98,6 @@
         var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         var isDark = themeMode === 'dark' || (themeMode === 'system' && prefersDark) || (!themeMode && prefersDark);
         if (isDark) document.documentElement.classList.add('dark');
-
-        var iconsDone = false;
-        function markIconsLoaded() {
-          if (iconsDone) return;
-          iconsDone = true;
-          document.documentElement.classList.add('icons-loaded');
-        }
-
-        function waitForIconFont() {
-          if (!document.fonts) {
-            markIconsLoaded();
-            return;
-          }
-
-          if (document.fonts.check('1em Material Symbols Outlined')) {
-            markIconsLoaded();
-            return;
-          }
-
-          document.fonts.ready.then(function() {
-            markIconsLoaded();
-          });
-
-          var pollingInterval = setInterval(function() {
-            if (iconsDone) { clearInterval(pollingInterval); return; }
-            if (document.fonts.check('1em Material Symbols Outlined')) {
-              clearInterval(pollingInterval);
-              markIconsLoaded();
-            }
-          }, 150);
-
-          setTimeout(function() {
-            clearInterval(pollingInterval);
-            markIconsLoaded();
-          }, 2000);
-        }
-
-        waitForIconFont();
       })();
     </script>
     <!-- Start of HubSpot Embed Code (deferred loader — production only) -->

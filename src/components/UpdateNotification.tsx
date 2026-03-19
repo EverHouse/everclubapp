@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useServiceWorkerUpdate } from '../hooks/useServiceWorkerUpdate';
+import Icon from './icons/Icon';
 
 const EXIT_DURATION = 250;
 
@@ -62,9 +63,7 @@ export const UpdateNotification: React.FC = () => {
     >
       <div className="glass-card p-4 shadow-lg border border-brand-green/20">
         <div className="flex items-start gap-3">
-          <span className="material-symbols-outlined text-2xl text-brand-green mt-0.5">
-            system_update
-          </span>
+          <Icon name="system_update" className="text-2xl text-brand-green mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm">Update Available</p>
             <p className="text-xs text-muted mt-1">
@@ -92,7 +91,7 @@ export const UpdateNotification: React.FC = () => {
             className="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors tactile-btn"
             aria-label="Dismiss"
           >
-            <span className="material-symbols-outlined text-lg text-muted">close</span>
+            <Icon name="close" className="text-lg text-muted" />
           </button>
         </div>
       </div>

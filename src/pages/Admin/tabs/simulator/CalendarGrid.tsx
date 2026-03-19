@@ -5,6 +5,7 @@ import type { BookingRequest, Resource, CalendarClosure, AvailabilityBlock } fro
 import { formatDateShortAdmin, getClosureForSlot, getBlockForSlot } from './simulatorUtils';
 import { prefetchBookingDetail } from '../../../../lib/prefetch-actions';
 import { postWithCredentials } from '../../../../hooks/queries/useFetch';
+import Icon from '../../../../components/icons/Icon';
 
 export interface CalendarGridProps {
     resources: Resource[];
@@ -319,14 +320,14 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                             onTouchStart={() => prefetchDate?.(getAdjacentDate(-1))}
                             className="p-1.5 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
                         >
-                            <span aria-hidden="true" className="material-symbols-outlined text-xl">chevron_left</span>
+                            <Icon name="chevron_left" className="text-xl" />
                         </button>
                         <button
                             onClick={() => setShowDatePicker(!showDatePicker)}
                             className="font-semibold text-primary dark:text-white min-w-[120px] text-center text-sm py-1 px-2 rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 transition-colors flex items-center justify-center gap-1"
                         >
                             {formatDateShortAdmin(calendarDate)}
-                            <span className="material-symbols-outlined text-sm opacity-60">calendar_month</span>
+                            <Icon name="calendar_month" className="text-sm opacity-60" />
                         </button>
                         <button
                             onClick={() => setCalendarDate(getAdjacentDate(1))}
@@ -334,7 +335,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                             onTouchStart={() => prefetchDate?.(getAdjacentDate(1))}
                             className="p-1.5 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
                         >
-                            <span aria-hidden="true" className="material-symbols-outlined text-xl">chevron_right</span>
+                            <Icon name="chevron_right" className="text-xl" />
                         </button>
                         
                         {showDatePicker && ReactDOM.createPortal(
@@ -372,7 +373,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                             }}
                                             className={`w-full py-3 px-4 rounded-lg text-base font-semibold hover:opacity-90 active:scale-95 transition-all duration-fast flex items-center justify-center gap-2 shadow-lg ${isDark ? 'bg-[#CCB8E4] text-[#1a1d15]' : 'bg-primary text-white'}`}
                                         >
-                                            <span className="material-symbols-outlined text-lg">today</span>
+                                            <Icon name="today" className="text-lg" />
                                             Today
                                         </button>
                                         <button
@@ -422,7 +423,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                             className="p-1.5 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
                             title={lastRefresh ? `Refresh calendar (Last: ${lastRefresh.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' })})` : 'Refresh calendar data'}
                         >
-                            <span className={`material-symbols-outlined text-lg ${isSyncing ? 'animate-spin' : ''}`}>sync</span>
+                            <Icon name="sync" className={`text-lg ${isSyncing ? 'animate-spin' : ''}`} />
                         </button>
                     </div>
                 </div>
@@ -576,7 +577,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                                     />
                                                     {booking.status === 'cancellation_pending' && (
                                                         <span className="absolute top-0 right-0 text-red-500 dark:text-red-400" title="Cancellation Pending">
-                                                            <span aria-hidden="true" className="material-symbols-outlined text-[10px]">cancel</span>
+                                                            <Icon name="cancel" className="text-[10px]" />
                                                         </span>
                                                     )}
                                                 </div>

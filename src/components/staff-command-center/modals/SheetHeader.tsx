@@ -2,6 +2,7 @@ import { BookingContextType, ManageModeRosterData, FetchedContext } from './book
 import TrackmanIcon from '../../icons/TrackmanIcon';
 import { formatTime12Hour } from '../../memberProfile/memberProfileTypes';
 import { BOOKING_STATUS, MEMBERSHIP_STATUS, ACTIVE_MEMBERSHIP_STATUSES } from '../../../../shared/constants/statuses';
+import Icon from '../../icons/Icon';
 
 const formatTimeSlot = (slot: string): string => {
   if (!slot) return slot;
@@ -80,7 +81,7 @@ export function SheetHeader({
       <>
         {ownerMembershipStatus && !isOwnerStaff && !ACTIVE_MEMBERSHIP_STATUSES.includes(ownerMembershipStatus.toLowerCase() as typeof ACTIVE_MEMBERSHIP_STATUSES[number]) && ownerMembershipStatus.toLowerCase() !== MEMBERSHIP_STATUS.UNKNOWN && (
           <div className="p-3 rounded-xl border border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-900/15 flex items-center gap-2">
-            <span className="material-symbols-outlined text-red-500 dark:text-red-400 text-lg">warning</span>
+            <Icon name="warning" className="text-red-500 dark:text-red-400 text-lg" />
             <div>
               <p className="text-sm font-medium text-red-700 dark:text-red-300">Inactive Member</p>
               <p className="text-xs text-red-600 dark:text-red-400">This booking owner's membership status is "{ownerMembershipStatus}" — they may not be eligible to book.</p>
@@ -91,30 +92,30 @@ export function SheetHeader({
           <div className="grid grid-cols-2 gap-2 text-sm">
             {(bookingContext?.resourceName || bayName || fetchedContext?.bayName) && (
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">sports_golf</span>
+                <Icon name="sports_golf" className="text-primary/60 dark:text-white/60 text-base" />
                 <span className="font-medium text-primary dark:text-white">{bookingContext?.resourceName || bayName || fetchedContext?.bayName}</span>
               </div>
             )}
             {(bookingContext?.requestDate || bookingDate || fetchedContext?.bookingDate) && (
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">calendar_today</span>
+                <Icon name="calendar_today" className="text-primary/60 dark:text-white/60 text-base" />
                 <span className="text-primary/80 dark:text-white/80">{formatDateForDisplay(bookingContext?.requestDate || bookingDate || fetchedContext?.bookingDate || '')}</span>
               </div>
             )}
             {(bookingContext?.startTime && bookingContext?.endTime) ? (
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">schedule</span>
+                <Icon name="schedule" className="text-primary/60 dark:text-white/60 text-base" />
                 <span className="text-primary/80 dark:text-white/80">{formatTime12Hour(bookingContext.startTime)} - {formatTime12Hour(bookingContext.endTime)}</span>
               </div>
             ) : (timeSlot || fetchedContext?.timeSlot) ? (
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">schedule</span>
+                <Icon name="schedule" className="text-primary/60 dark:text-white/60 text-base" />
                 <span className="text-primary/80 dark:text-white/80">{formatTimeSlot(timeSlot || fetchedContext?.timeSlot || '')}</span>
               </div>
             ) : null}
             {(bookingContext?.durationMinutes || fetchedContext?.durationMinutes) && (
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">timer</span>
+                <Icon name="timer" className="text-primary/60 dark:text-white/60 text-base" />
                 <span className="text-primary/80 dark:text-white/80">{bookingContext?.durationMinutes || fetchedContext?.durationMinutes} min</span>
               </div>
             )}
@@ -126,7 +127,7 @@ export function SheetHeader({
             )}
             {(bookingStatus || fetchedContext?.bookingStatus) && (
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">info</span>
+                <Icon name="info" className="text-primary/60 dark:text-white/60 text-base" />
                 <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
                   (bookingStatus || fetchedContext?.bookingStatus) === BOOKING_STATUS.ATTENDED ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
                   (bookingStatus || fetchedContext?.bookingStatus) === BOOKING_STATUS.CANCELLED ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
@@ -149,7 +150,7 @@ export function SheetHeader({
               {bookingNotesText && (
                 <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-900/10">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-base">description</span>
+                    <Icon name="description" className="text-amber-600 dark:text-amber-400 text-base" />
                     <span className="text-xs font-medium text-amber-700 dark:text-amber-300">Booking Notes</span>
                   </div>
                   <p className="text-sm text-amber-800 dark:text-amber-200 whitespace-pre-wrap">{bookingNotesText}</p>
@@ -158,7 +159,7 @@ export function SheetHeader({
               {showTrackman && (
                 <div className="p-3 rounded-xl border border-blue-200 dark:border-blue-500/20 bg-blue-50 dark:bg-blue-900/10">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-base">sell</span>
+                    <Icon name="sell" className="text-blue-600 dark:text-blue-400 text-base" />
                     <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Trackman Notes</span>
                   </div>
                   <p className="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-wrap">{trackmanNotesText}</p>
@@ -171,7 +172,7 @@ export function SheetHeader({
         {rosterData?.bookingNotes?.staffNotes && (
           <div className="p-3 rounded-xl border border-purple-200 dark:border-purple-500/20 bg-purple-50 dark:bg-purple-900/10">
             <div className="flex items-center gap-2 mb-1">
-              <span className="material-symbols-outlined text-purple-600 dark:text-purple-400 text-base">sticky_note_2</span>
+              <Icon name="sticky_note_2" className="text-purple-600 dark:text-purple-400 text-base" />
               <span className="text-xs font-medium text-purple-700 dark:text-purple-300">Staff Notes</span>
             </div>
             <p className="text-sm text-purple-800 dark:text-purple-200 whitespace-pre-wrap">{rosterData.bookingNotes.staffNotes}</p>
@@ -189,7 +190,7 @@ export function SheetHeader({
             Currently Linked To
           </p>
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">person</span>
+            <Icon name="person" className="text-blue-600 dark:text-blue-400" />
             <div>
               <p className="font-medium text-blue-800 dark:text-blue-200">{currentMemberName}</p>
               {currentMemberEmail && !(isPlaceholderEmail?.(currentMemberEmail)) && (
@@ -208,31 +209,31 @@ export function SheetHeader({
           <div className="grid grid-cols-2 gap-2 text-sm text-amber-700 dark:text-amber-400">
             {importedName && (
               <p className="flex items-center gap-1 col-span-2 font-semibold">
-                <span className="material-symbols-outlined text-sm">person</span>
+                <Icon name="person" className="text-sm" />
                 {importedName}
               </p>
             )}
             {bayName && (
               <p className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">sports_golf</span>
+                <Icon name="sports_golf" className="text-sm" />
                 {bayName}
               </p>
             )}
             {bookingDate && (
               <p className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">calendar_today</span>
+                <Icon name="calendar_today" className="text-sm" />
                 {formatDateForDisplay(bookingDate)}
               </p>
             )}
             {timeSlot && (
               <p className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">schedule</span>
+                <Icon name="schedule" className="text-sm" />
                 {formatTimeSlot(timeSlot)}
               </p>
             )}
             {trackmanBookingId && (
               <p className="flex items-center gap-1 text-xs opacity-70">
-                <span className="material-symbols-outlined text-xs">tag</span>
+                <Icon name="tag" className="text-xs" />
                 ID: #{trackmanBookingId}
               </p>
             )}
@@ -248,19 +249,19 @@ export function SheetHeader({
           <div className="grid grid-cols-2 gap-2 text-sm text-indigo-700 dark:text-indigo-400">
             {bayName && (
               <p className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">meeting_room</span>
+                <Icon name="meeting_room" className="text-sm" />
                 {bayName}
               </p>
             )}
             {bookingDate && (
               <p className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">calendar_today</span>
+                <Icon name="calendar_today" className="text-sm" />
                 {formatDateForDisplay(bookingDate)}
               </p>
             )}
             {timeSlot && (
               <p className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">schedule</span>
+                <Icon name="schedule" className="text-sm" />
                 {formatTimeSlot(timeSlot)}
               </p>
             )}
@@ -277,7 +278,7 @@ export function SheetHeader({
             {bNotes && (
               <div className="p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-500/20 rounded-lg">
                 <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-1 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm">description</span>
+                  <Icon name="description" className="text-sm" />
                   Booking Notes
                 </p>
                 <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">{bNotes}</p>
@@ -286,7 +287,7 @@ export function SheetHeader({
             {showTrackmanAssign && (
               <div className="p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-500/20 rounded-lg">
                 <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm">sell</span>
+                  <Icon name="sell" className="text-sm" />
                   Trackman Notes
                 </p>
                 <p className="text-sm text-blue-700 dark:text-blue-400 whitespace-pre-wrap">{tNotes}</p>

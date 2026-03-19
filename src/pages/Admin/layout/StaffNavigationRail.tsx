@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { TabType, NavItemData, tabToPath, MAIN_NAV_ITEMS, ADMIN_NAV_ITEMS } from './types';
 import { useNavigationLoading } from '../../../stores/navigationLoadingStore';
 import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../../../lib/prefetch-actions';
+import Icon from '../../../components/icons/Icon';
 
 interface StaffNavigationRailProps {
   activeTab: TabType;
@@ -53,12 +54,7 @@ export const StaffNavigationRail: React.FC<StaffNavigationRailProps> = ({
         className="tactile-btn flex flex-col items-center gap-1 w-full min-h-[56px] py-2 px-1 transition-colors duration-normal ease-out"
       >
         <div className={`flex items-center justify-center w-10 h-7 rounded-full transition-colors duration-normal ${isActive ? 'bg-accent/20' : 'hover:bg-white/10'}`}>
-          <span
-            className={`material-symbols-outlined text-[20px] transition-colors duration-normal ${isActive ? 'filled text-[#CCB8E4]' : 'text-white/50 group-hover:text-white/70'}`}
-            aria-hidden="true"
-          >
-            {item.icon}
-          </span>
+          <Icon name={item.icon} className={`text-[20px] transition-colors duration-normal ${isActive ? 'filled text-[#CCB8E4]' : 'text-white/50 group-hover:text-white/70'}`} />
         </div>
         <span className={`text-[9px] uppercase tracking-[0.1em] leading-tight text-center truncate w-full px-0.5 transition-colors duration-normal ${isActive ? 'text-white font-semibold' : 'text-white/50'}`}>
           {item.label}

@@ -8,13 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "8.88.6",
+    version: "8.89.0",
     date: "2026-03-19",
-    title: "PWA Icon Fix — Self-Hosted Material Symbols Font",
+    title: "Inline SVG Icons — No More Font Loading",
+    isMajor: true,
     changes: [
-      "Fixed: Icons now show reliably in the PWA (home screen) app — the Material Symbols icon font is now bundled with the app instead of loaded from Google's CDN, which was failing in offline/PWA mode",
-      "Improved: Icon font detection is more robust — icons appear faster and the fallback timeout always triggers even if font detection APIs behave unexpectedly",
-      "Performance: Icon font is preloaded from local files and cached by the service worker for instant offline availability",
+      "Fixed: All 207 icons across the entire app are now inline SVGs instead of a font — icons render instantly without any external loading, network requests, or font detection delays",
+      "Fixed: PWA icons now show immediately on home screen launch — no more invisible icons in offline mode or on iOS standalone PWA",
+      "Removed: Google Material Symbols font dependency completely eliminated — no CDN requests, no font preloading, no icon font CSS needed",
+      "Performance: Icons are now part of the DOM and render in the first paint — zero flash of invisible content",
     ]
   },
   {

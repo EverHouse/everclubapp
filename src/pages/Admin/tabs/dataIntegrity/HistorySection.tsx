@@ -2,6 +2,7 @@ import React from 'react';
 import EmptyState from '../../../../components/EmptyState';
 import { getTrendIcon, getTrendColor } from './dataIntegrityUtils';
 import type { HistoryData } from './dataIntegrityTypes';
+import Icon from '../../../../components/icons/Icon';
 
 interface HistorySectionProps {
   showHistory: boolean;
@@ -24,25 +25,23 @@ const HistorySection: React.FC<HistorySectionProps> = ({
           className="tactile-row flex items-center justify-between w-full text-left"
         >
           <div className="flex items-center gap-2">
-            <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">history</span>
+            <Icon name="history" className="text-primary dark:text-white" />
             <span className="font-bold text-primary dark:text-white">Issue History</span>
             {historyData && (
               <span className={`flex items-center gap-1 text-sm ${getTrendColor(historyData.trend)}`}>
-                <span aria-hidden="true" className="material-symbols-outlined text-[16px]">{getTrendIcon(historyData.trend)}</span>
+                <Icon name={getTrendIcon(historyData.trend)} className="text-[16px]" />
                 {historyData.trend === 'increasing' ? 'Issues increasing' : historyData.trend === 'decreasing' ? 'Issues decreasing' : 'Stable'}
               </span>
             )}
           </div>
-          <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${showHistory ? 'rotate-180' : ''}`}>
-            expand_more
-          </span>
+          <Icon name="expand_more" className={`text-gray-500 dark:text-gray-400 transition-transform ${showHistory ? 'rotate-180' : ''}`} />
         </button>
         
         {showHistory && (
           <div className="mt-4 space-y-4">
             {isLoadingHistory ? (
               <div className="flex items-center justify-center py-4">
-                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-gray-500">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin text-gray-500" />
               </div>
             ) : historyData ? (
               <>

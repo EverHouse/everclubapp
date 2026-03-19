@@ -14,6 +14,7 @@ import { useAutoAnimate } from '@formkit/auto-animate/react';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 import { FinancialsSubTabSkeleton } from '../../../components/skeletons';
 import { postWithCredentials } from '../../../hooks/queries/useFetch';
+import Icon from '../../../components/icons/Icon';
 
 
 interface _SubscriptionListItem {
@@ -243,7 +244,7 @@ const SubscriptionsSubTab: React.FC = () => {
     <div className="space-y-6">
       {successMessage && (
         <div className="bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-xl p-4 flex items-center gap-3">
-          <span className="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
+          <Icon name="check_circle" className="text-green-600 dark:text-green-400" />
           <p className="text-green-800 dark:text-green-300">{successMessage}</p>
         </div>
       )}
@@ -251,7 +252,7 @@ const SubscriptionsSubTab: React.FC = () => {
       {syncResult && (
         <div className="bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-xl p-4">
           <div className="flex items-center gap-3 mb-2">
-            <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">cloud_sync</span>
+            <Icon name="cloud_sync" className="text-blue-600 dark:text-blue-400" />
             <p className="font-medium text-blue-800 dark:text-blue-300">Stripe Sync Results</p>
           </div>
           <div className="flex gap-4 text-sm text-blue-700 dark:text-blue-300">
@@ -264,7 +265,7 @@ const SubscriptionsSubTab: React.FC = () => {
       
       {error && (
         <div className="bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-xl p-4 flex items-center gap-3">
-          <span className="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+          <Icon name="error" className="text-red-600 dark:text-red-400" />
           <p className="text-red-800 dark:text-red-300">{error}</p>
         </div>
       )}
@@ -272,7 +273,7 @@ const SubscriptionsSubTab: React.FC = () => {
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1">
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary/40 dark:text-white/40">search</span>
+            <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40" />
             <input
               type="text"
               placeholder="Search by name or email..."
@@ -307,9 +308,7 @@ const SubscriptionsSubTab: React.FC = () => {
           disabled={isSyncing}
           className="flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <span className={`material-symbols-outlined text-lg ${isSyncing ? 'animate-spin' : ''}`}>
-            {isSyncing ? 'sync' : 'cloud_sync'}
-          </span>
+          <Icon name={isSyncing ? 'sync' : 'cloud_sync'} className={`text-lg ${isSyncing ? 'animate-spin' : ''}`} />
           {isSyncing ? 'Syncing...' : 'Sync from Stripe'}
         </button>
       </div>
@@ -319,7 +318,7 @@ const SubscriptionsSubTab: React.FC = () => {
           <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-8 max-w-md w-full">
             <div className="flex flex-col items-center text-center gap-4">
               <div className="w-16 h-16 rounded-full bg-primary/10 dark:bg-lavender/20 flex items-center justify-center">
-                <span className="material-symbols-outlined text-4xl text-primary dark:text-lavender">subscriptions</span>
+                <Icon name="subscriptions" className="text-4xl text-primary dark:text-lavender" />
               </div>
               <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>No subscriptions found</h3>
               <p className="text-sm text-primary/60 dark:text-white/60">
@@ -376,7 +375,7 @@ const SubscriptionsSubTab: React.FC = () => {
                       disabled={sendingReminder === sub.id}
                       className="flex-1 px-3 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
                     >
-                      <span className="material-symbols-outlined text-sm">mail</span>
+                      <Icon name="mail" className="text-sm" />
                       {sendingReminder === sub.id ? 'Sending...' : 'Send Reminder'}
                     </button>
                   )}
@@ -386,7 +385,7 @@ const SubscriptionsSubTab: React.FC = () => {
                     rel="noopener noreferrer"
                     className="flex-1 px-3 py-2 bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/15 text-primary dark:text-white rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1"
                   >
-                    <span className="material-symbols-outlined text-sm">open_in_new</span>
+                    <Icon name="open_in_new" className="text-sm" />
                     View in Stripe
                   </a>
                 </div>
@@ -449,7 +448,7 @@ const SubscriptionsSubTab: React.FC = () => {
                               disabled={sendingReminder === sub.id}
                               className="px-3 py-1.5 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
                             >
-                              <span className="material-symbols-outlined text-sm">mail</span>
+                              <Icon name="mail" className="text-sm" />
                               {sendingReminder === sub.id ? 'Sending...' : 'Remind'}
                             </button>
                           )}
@@ -459,7 +458,7 @@ const SubscriptionsSubTab: React.FC = () => {
                             rel="noopener noreferrer"
                             className="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/15 text-primary dark:text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
                           >
-                            <span className="material-symbols-outlined text-sm">open_in_new</span>
+                            <Icon name="open_in_new" className="text-sm" />
                             Stripe
                           </a>
                         </div>
@@ -489,7 +488,7 @@ const SubscriptionsSubTab: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-sm">expand_more</span>
+                  <Icon name="expand_more" className="text-sm" />
                   Load More
                 </>
               )}
@@ -499,7 +498,7 @@ const SubscriptionsSubTab: React.FC = () => {
             onClick={() => refetch()}
             className="flex items-center gap-1 hover:text-primary dark:hover:text-white transition-colors"
           >
-            <span className="material-symbols-outlined text-sm">refresh</span>
+            <Icon name="refresh" className="text-sm" />
             Refresh
           </button>
         </div>
@@ -599,7 +598,7 @@ const InvoicesSubTab: React.FC = () => {
     <div className="space-y-6">
       {error && (
         <div className="bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-xl p-4 flex items-center gap-3">
-          <span className="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+          <Icon name="error" className="text-red-600 dark:text-red-400" />
           <p className="text-red-800 dark:text-red-300">{error}</p>
         </div>
       )}
@@ -608,7 +607,7 @@ const InvoicesSubTab: React.FC = () => {
         <div className="flex flex-col gap-4">
           <div className="flex-1">
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary/40 dark:text-white/40">search</span>
+              <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40" />
               <input
                 type="text"
                 placeholder="Search by name, email, or invoice number..."
@@ -676,7 +675,7 @@ const InvoicesSubTab: React.FC = () => {
           <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-8 max-w-md w-full">
             <div className="flex flex-col items-center text-center gap-4">
               <div className="w-16 h-16 rounded-full bg-primary/10 dark:bg-lavender/20 flex items-center justify-center">
-                <span className="material-symbols-outlined text-4xl text-primary dark:text-lavender">description</span>
+                <Icon name="description" className="text-4xl text-primary dark:text-lavender" />
               </div>
               <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>No invoices found</h3>
               <p className="text-sm text-primary/60 dark:text-white/60">
@@ -734,7 +733,7 @@ const InvoicesSubTab: React.FC = () => {
                       rel="noopener noreferrer"
                       className="flex-1 px-3 py-2 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-400 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1"
                     >
-                      <span className="material-symbols-outlined text-sm">picture_as_pdf</span>
+                      <Icon name="picture_as_pdf" className="text-sm" />
                       Download PDF
                     </a>
                   )}
@@ -744,7 +743,7 @@ const InvoicesSubTab: React.FC = () => {
                     rel="noopener noreferrer"
                     className="flex-1 px-3 py-2 bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/15 text-primary dark:text-white rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1"
                   >
-                    <span className="material-symbols-outlined text-sm">open_in_new</span>
+                    <Icon name="open_in_new" className="text-sm" />
                     View in Stripe
                   </a>
                 </div>
@@ -809,7 +808,7 @@ const InvoicesSubTab: React.FC = () => {
                               rel="noopener noreferrer"
                               className="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-400 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
                             >
-                              <span className="material-symbols-outlined text-sm">picture_as_pdf</span>
+                              <Icon name="picture_as_pdf" className="text-sm" />
                               PDF
                             </a>
                           )}
@@ -819,7 +818,7 @@ const InvoicesSubTab: React.FC = () => {
                             rel="noopener noreferrer"
                             className="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/15 text-primary dark:text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
                           >
-                            <span className="material-symbols-outlined text-sm">open_in_new</span>
+                            <Icon name="open_in_new" className="text-sm" />
                             Stripe
                           </a>
                         </div>
@@ -849,7 +848,7 @@ const InvoicesSubTab: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-sm">expand_more</span>
+                  <Icon name="expand_more" className="text-sm" />
                   Load More
                 </>
               )}
@@ -859,7 +858,7 @@ const InvoicesSubTab: React.FC = () => {
             onClick={() => refetch()}
             className="flex items-center gap-1 hover:text-primary dark:hover:text-white transition-colors"
           >
-            <span className="material-symbols-outlined text-sm">refresh</span>
+            <Icon name="refresh" className="text-sm" />
             Refresh
           </button>
         </div>

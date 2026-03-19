@@ -5,6 +5,7 @@ import { TerminalPayment } from '../TerminalPayment';
 import { useToast } from '../../Toast';
 import { BookingStatusDropdown } from '../../BookingStatusDropdown';
 import { postWithCredentials, patchWithCredentials } from '../../../hooks/queries/useFetch';
+import Icon from '../../icons/Icon';
 
 interface PaymentSummaryBodyProps {
   rosterData: ManageModeRosterData | null;
@@ -27,11 +28,11 @@ export function PaymentSummaryBody({
   return (
     <div className="p-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/5 dark:bg-white/5 space-y-2">
       <div className="flex items-center gap-2 mb-1">
-        <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-lg">payments</span>
+        <Icon name="payments" className="text-primary/60 dark:text-white/60 text-lg" />
         <h4 className="font-medium text-sm text-primary dark:text-white">Financial Summary</h4>
         {fs.allPaid && (
           <span className="ml-auto flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
-            <span className="material-symbols-outlined text-sm">check_circle</span>
+            <Icon name="check_circle" className="text-sm" />
             Paid
           </span>
         )}
@@ -81,7 +82,7 @@ export function PaymentSummaryBody({
 
       {paymentSuccess && fs.allPaid && (
         <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-500/30 rounded-lg flex items-center gap-2">
-          <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-base">check_circle</span>
+          <Icon name="check_circle" className="text-green-600 dark:text-green-400 text-base" />
           <span className="text-sm font-medium text-green-700 dark:text-green-300">Payment collected — ready for check-in</span>
         </div>
       )}
@@ -173,7 +174,7 @@ export function PaymentActionFooter({
           onClick={() => bookingId && onCancelBooking(bookingId)}
           className="text-xs text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 font-medium flex items-center gap-1"
         >
-          <span className="material-symbols-outlined text-sm">cancel</span>
+          <Icon name="cancel" className="text-sm" />
           Cancel Booking
         </button>
       )}
@@ -184,7 +185,7 @@ export function PaymentActionFooter({
     <div className="px-4 py-3 backdrop-blur-xl bg-white/80 dark:bg-[#1a1d15]/80">
       {processingPayment ? (
         <div className="flex items-center justify-center gap-2 py-3">
-          <span className="material-symbols-outlined animate-spin text-lg text-green-600 dark:text-green-400">progress_activity</span>
+          <Icon name="progress_activity" className="animate-spin text-lg text-green-600 dark:text-green-400" />
           <span className="text-sm font-medium text-primary/70 dark:text-white/70">Confirming payment...</span>
         </div>
       ) : (
@@ -195,7 +196,7 @@ export function PaymentActionFooter({
               onClick={() => setShowInlinePayment(true)}
               className="tactile-btn w-full py-2.5 px-4 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined text-sm">payments</span>
+              <Icon name="payments" className="text-sm" />
               Collect ${fs.grandTotal.toFixed(2)}
             </button>
           ) : localStatus || bookingStatus === 'attended' || bookingStatus === 'no_show' ? (
@@ -229,7 +230,7 @@ export function PaymentActionFooter({
               onClick={closePaymentOptions}
               className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/20 text-primary dark:text-white text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined text-sm">arrow_back</span>
+              <Icon name="arrow_back" className="text-sm" />
               Back
             </button>
           )}
@@ -328,10 +329,10 @@ export function InlinePaymentBody({
       if (!resolvedUserEmail) {
         return (
           <div className="text-center py-4 space-y-2">
-            <span className="material-symbols-outlined text-3xl text-red-500">error</span>
+            <Icon name="error" className="text-3xl text-red-500" />
             <p className="text-sm text-red-600 dark:text-red-400">Unable to load member payment info. Try closing and reopening this booking.</p>
             <button type="button" onClick={() => setInlinePaymentAction(null)} className="tactile-btn py-2 px-4 rounded-lg text-sm font-medium text-primary/70 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
-              <span className="material-symbols-outlined text-sm align-middle mr-1">arrow_back</span>Go Back
+              <Icon name="arrow_back" className="text-sm align-middle mr-1" />Go Back
             </button>
           </div>
         );
@@ -461,9 +462,9 @@ export function InlinePaymentBody({
             className="tactile-btn w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             {inlinePaymentAction === 'apply-balance' ? (
-              <><span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> Applying...</>
+              <><Icon name="progress_activity" className="animate-spin text-sm" /> Applying...</>
             ) : (
-              <><span className="material-symbols-outlined text-sm">account_balance_wallet</span> Apply Account Balance (${memberBalance.availableCreditDollars.toFixed(2)}){memberBalance.availableCreditCents >= Math.round(fs.grandTotal * 100) ? '' : ' — Partial'}</>
+              <><Icon name="account_balance_wallet" className="text-sm" /> Apply Account Balance (${memberBalance.availableCreditDollars.toFixed(2)}){memberBalance.availableCreditCents >= Math.round(fs.grandTotal * 100) ? '' : ' — Partial'}</>
             )}
           </button>
         )}
@@ -476,9 +477,9 @@ export function InlinePaymentBody({
             className="tactile-btn w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             {inlinePaymentAction === 'charge-card' ? (
-              <><span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> Charging...</>
+              <><Icon name="progress_activity" className="animate-spin text-sm" /> Charging...</>
             ) : (
-              <><span className="material-symbols-outlined text-sm">credit_card</span> Charge Card on File ({savedCardInfo.cardBrand} •••• {savedCardInfo.cardLast4})</>
+              <><Icon name="credit_card" className="text-sm" /> Charge Card on File ({savedCardInfo.cardBrand} •••• {savedCardInfo.cardLast4})</>
             )}
           </button>
         )}
@@ -489,7 +490,7 @@ export function InlinePaymentBody({
           disabled={!!inlinePaymentAction}
           className="tactile-btn w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
         >
-          <span className="material-symbols-outlined text-sm">credit_card</span>
+          <Icon name="credit_card" className="text-sm" />
           Pay with Card (${fs.grandTotal.toFixed(2)})
         </button>
 
@@ -499,7 +500,7 @@ export function InlinePaymentBody({
           disabled={!!inlinePaymentAction}
           className="tactile-btn w-full py-2 px-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
         >
-          <span className="material-symbols-outlined text-sm">contactless</span>
+          <Icon name="contactless" className="text-sm" />
           Card Reader (${fs.grandTotal.toFixed(2)})
         </button>
 
@@ -520,9 +521,9 @@ export function InlinePaymentBody({
           className="tactile-btn w-full py-2 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
         >
           {inlinePaymentAction === 'mark-paid' ? (
-            <><span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> Confirming...</>
+            <><Icon name="progress_activity" className="animate-spin text-sm" /> Confirming...</>
           ) : (
-            <><span className="material-symbols-outlined text-sm">payments</span> Mark Paid (Cash/External)</>
+            <><Icon name="payments" className="text-sm" /> Mark Paid (Cash/External)</>
           )}
         </button>
 
@@ -533,7 +534,7 @@ export function InlinePaymentBody({
             disabled={!!inlinePaymentAction}
             className="tactile-btn w-full py-2 px-3 rounded-lg border border-gray-300 dark:border-white/20 text-primary/70 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-sm">money_off</span>
+            <Icon name="money_off" className="text-sm" />
             Waive All Fees
           </button>
         ) : (
@@ -571,7 +572,7 @@ export function InlinePaymentBody({
           disabled={!!inlinePaymentAction}
           className="tactile-btn w-full py-2 px-3 rounded-lg border border-red-300 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
         >
-          <span className="material-symbols-outlined text-sm">block</span>
+          <Icon name="block" className="text-sm" />
           Void All Payments
         </button>
       </div>
@@ -628,7 +629,7 @@ export function InlinePaymentBody({
     <div ref={scrollRef} className="p-3 rounded-xl border border-blue-200 dark:border-blue-500/20 bg-blue-50/50 dark:bg-blue-900/10 space-y-2">
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm font-medium text-primary dark:text-white flex items-center gap-1.5">
-          <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-lg">payments</span>
+          <Icon name="payments" className="text-blue-600 dark:text-blue-400 text-lg" />
           Collect ${fs?.grandTotal?.toFixed(2)}
         </span>
         <button
@@ -637,7 +638,7 @@ export function InlinePaymentBody({
           className="tactile-btn p-1 rounded-full text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
           aria-label="Close payment options"
         >
-          <span className="material-symbols-outlined text-sm">close</span>
+          <Icon name="close" className="text-sm" />
         </button>
       </div>
       {renderPaymentOptions()}
@@ -683,7 +684,7 @@ export function PaymentSection(props: PaymentSectionProps) {
 
     return (
       <div className="flex items-center gap-2 text-xs">
-        <span className="material-symbols-outlined text-emerald-500 text-sm">redeem</span>
+        <Icon name="redeem" className="text-emerald-500 text-sm" />
         <span className="text-primary/70 dark:text-white/70">
           Guest Passes: <span className="font-semibold text-primary dark:text-white">{remaining}/{total}</span> remaining
         </span>

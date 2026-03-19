@@ -3,6 +3,7 @@ import { haptic } from '../../../utils/haptics';
 import { apiRequestBlob } from '../../../lib/apiRequest';
 import { formatDateShort, formatTime12Hour } from '../../../utils/dateUtils';
 import type { BookingRequest } from './bookGolfTypes';
+import Icon from '../../../components/icons/Icon';
 
 interface ExistingBookingsProps {
   bookings: BookingRequest[];
@@ -52,11 +53,7 @@ const ExistingBookings: React.FC<ExistingBookingsProps> = ({
             : (isDark ? 'bg-accent/10 border-accent/30' : 'bg-accent/5 border-accent/30')
         }`}>
           <div className="flex items-start gap-3">
-            <span className={`material-symbols-outlined text-2xl ${
-              booking.status === 'cancellation_pending' ? (isDark ? 'text-orange-400' : 'text-orange-600') : (isDark ? 'text-accent' : 'text-accent-dark')
-            }`}>
-              {booking.status === 'cancellation_pending' ? 'hourglass_top' : booking.status === 'pending' ? 'schedule' : 'event_available'}
-            </span>
+            <Icon name={booking.status === 'cancellation_pending' ? 'hourglass_top' : booking.status === 'pending' ? 'schedule' : 'event_available'} className={`text-2xl ${ booking.status === 'cancellation_pending' ? (isDark ? 'text-orange-400' : 'text-orange-600') : (isDark ? 'text-accent' : 'text-accent-dark') }`} />
             <div className="flex-1">
               <h4 className={`font-bold ${isDark ? 'text-white' : 'text-primary'}`}>
                 {booking.status === 'cancellation_pending'
@@ -87,7 +84,7 @@ const ExistingBookings: React.FC<ExistingBookingsProps> = ({
                   aria-label="Add to Apple Wallet"
                 >
                   {walletPassDownloading === booking.id ? (
-                    <span className="animate-spin material-symbols-outlined text-lg">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-lg" />
                   ) : (
                     <>
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="white">
@@ -106,7 +103,7 @@ const ExistingBookings: React.FC<ExistingBookingsProps> = ({
                     : 'border-red-300 text-red-600 hover:bg-red-50'
                 }`}
               >
-                <span className="material-symbols-outlined text-lg">event_busy</span>
+                <Icon name="event_busy" className="text-lg" />
                 {booking.status === 'pending' ? 'Cancel Request' : 'Cancel Booking'}
               </button>
             </div>

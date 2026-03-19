@@ -7,6 +7,7 @@ import FloatingActionButton from '../../../components/FloatingActionButton';
 import PageErrorBoundary from '../../../components/PageErrorBoundary';
 import { EventsAdminContent } from './events/EventsAdminContent';
 import { WellnessAdminContent } from './events/WellnessAdminContent';
+import Icon from '../../../components/icons/Icon';
 
 const EventsTab: React.FC = () => {
     const { showToast: _showToast } = useToast();
@@ -93,7 +94,7 @@ const EventsTab: React.FC = () => {
                                 : 'bg-white/60 dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
                         }`}
                     >
-                        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">event</span>
+                        <Icon name="event" className="text-[18px]" />
                         Events
                     </button>
                     <button
@@ -106,7 +107,7 @@ const EventsTab: React.FC = () => {
                                 : 'bg-white/60 dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
                         }`}
                     >
-                        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">spa</span>
+                        <Icon name="spa" className="text-[18px]" />
                         Wellness
                     </button>
                 </div>

@@ -6,6 +6,7 @@ import EmptyState from '../components/EmptyState';
 import { usePricing } from '../hooks/usePricing';
 import WalkingGolferSpinner from '../components/WalkingGolferSpinner';
 import { fetchWithCredentials, postWithCredentials, isAbortError } from '../hooks/queries/useFetch';
+import Icon from '../components/icons/Icon';
 
 interface DayPassProduct {
   id: string;
@@ -90,7 +91,7 @@ function CheckoutForm({ tier, email, quantity = 1, companyName, jobTitle, isCorp
   if (error) {
     return (
       <div className="text-center py-16 animate-content-enter">
-        <span className="material-symbols-outlined text-5xl text-amber-500 mb-4 block">info</span>
+        <Icon name="info" className="text-5xl text-amber-500 mb-4 block" />
         <p className="text-amber-700 dark:text-amber-300 text-base mb-4">{error}</p>
         <a
           href="/membership"
@@ -222,7 +223,7 @@ function CorporateCheckoutForm({ tier, email: _email, initialQuantity }: Corpora
     <div className="space-y-6">
       <div className="text-center mb-8">
         <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-accent/20 flex items-center justify-center">
-          <span className="material-symbols-outlined text-3xl text-accent-dark dark:text-accent">corporate_fare</span>
+          <Icon name="corporate_fare" className="text-3xl text-accent-dark dark:text-accent" />
         </div>
         <h2 className="text-2xl font-bold text-primary dark:text-white mb-2">Corporate Membership</h2>
         <p className="text-primary/70 dark:text-white/70">Team memberships with volume discounts</p>
@@ -318,7 +319,7 @@ function CorporateCheckoutForm({ tier, email: _email, initialQuantity }: Corpora
               disabled={quantity <= 5}
               className="w-12 h-12 rounded-xl flex items-center justify-center bg-primary/10 dark:bg-white/10 text-primary dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              <span className="material-symbols-outlined">remove</span>
+              <Icon name="remove" />
             </button>
             <div className="flex-1 text-center">
               <input
@@ -342,7 +343,7 @@ function CorporateCheckoutForm({ tier, email: _email, initialQuantity }: Corpora
               disabled={quantity >= 100}
               className="w-12 h-12 rounded-xl flex items-center justify-center bg-primary/10 dark:bg-white/10 text-primary dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              <span className="material-symbols-outlined">add</span>
+              <Icon name="add" />
             </button>
           </div>
         </div>
@@ -350,7 +351,7 @@ function CorporateCheckoutForm({ tier, email: _email, initialQuantity }: Corpora
 
       <div className="glass-card rounded-xl p-5 backdrop-blur-xl bg-white/40 dark:bg-white/5 border border-white/30 dark:border-white/10">
         <h3 className="font-semibold text-primary dark:text-white mb-4 flex items-center gap-2">
-          <span className="material-symbols-outlined text-accent-dark dark:text-accent">receipt_long</span>
+          <Icon name="receipt_long" className="text-accent-dark dark:text-accent" />
           Price Summary
         </h3>
         <div className="space-y-3">
@@ -394,7 +395,7 @@ function CorporateCheckoutForm({ tier, email: _email, initialQuantity }: Corpora
 
       {error && (
         <div className="flex items-center justify-center gap-2 text-sm animate-content-enter">
-          <span className="material-symbols-outlined text-amber-500 text-base">info</span>
+          <Icon name="info" className="text-amber-500 text-base" />
           <p className="text-amber-600 dark:text-amber-400">{error}</p>
         </div>
       )}
@@ -403,7 +404,7 @@ function CorporateCheckoutForm({ tier, email: _email, initialQuantity }: Corpora
         onClick={handleContinue}
         className="w-full py-4 px-6 rounded-xl font-semibold bg-accent text-brand-green hover:opacity-90 transition-opacity flex items-center justify-center gap-2 text-lg tactile-btn"
       >
-        <span className="material-symbols-outlined">arrow_forward</span>
+        <Icon name="arrow_forward" />
         Continue to Payment
       </button>
 
@@ -522,7 +523,7 @@ function DayPassesSection() {
   if (error && !selectedProduct) {
     return (
       <div className="text-center py-8 animate-content-enter">
-        <span className="material-symbols-outlined text-4xl text-amber-500 mb-2 block">info</span>
+        <Icon name="info" className="text-4xl text-amber-500 mb-2 block" />
         <p className="text-amber-700 dark:text-amber-300 text-sm">{error}</p>
       </div>
     );
@@ -605,7 +606,7 @@ function DayPassesSection() {
 
             {error && (
               <div className="flex items-center gap-2 text-sm animate-content-enter">
-                <span className="material-symbols-outlined text-amber-500 text-base">info</span>
+                <Icon name="info" className="text-amber-500 text-base" />
                 <p className="text-amber-600 dark:text-amber-400">{error}</p>
               </div>
             )}
@@ -626,7 +627,7 @@ function DayPassesSection() {
                   <WalkingGolferSpinner size="sm" variant="auto" />
                 ) : (
                   <>
-                    <span className="material-symbols-outlined text-lg">shopping_cart</span>
+                    <Icon name="shopping_cart" className="text-lg" />
                     Pay {formatPrice(selectedProduct.priceCents)}
                   </>
                 )}
@@ -643,9 +644,7 @@ function DayPassesSection() {
             >
               <div className="flex items-start gap-3 mb-4">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-white/10 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-primary dark:text-white">
-                    {product.id.includes('golf') ? 'sports_golf' : product.id.includes('cowork') ? 'work' : 'confirmation_number'}
-                  </span>
+                  <Icon name={product.id.includes('golf') ? 'sports_golf' : product.id.includes('cowork') ? 'work' : 'confirmation_number'} className="text-primary dark:text-white" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-primary dark:text-white">{product.name}</h3>
@@ -662,7 +661,7 @@ function DayPassesSection() {
                   onClick={() => handleCheckout(product)}
                   className="w-full py-3 px-4 rounded-xl font-semibold bg-accent text-brand-green hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
                 >
-                  <span className="material-symbols-outlined text-lg">shopping_cart</span>
+                  <Icon name="shopping_cart" className="text-lg" />
                   Buy Now
                 </button>
               ) : (
@@ -692,7 +691,7 @@ function DayPassesSection() {
           href="/membership"
           className="inline-flex items-center gap-2 py-3 px-6 rounded-xl font-medium bg-primary/10 dark:bg-white/10 text-primary dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
         >
-          <span className="material-symbols-outlined">card_membership</span>
+          <Icon name="card_membership" />
           View Membership Options
         </a>
       </div>
@@ -781,7 +780,7 @@ function CheckoutSuccess() {
   if (status === 'error') {
     return (
       <div className="text-center py-16">
-        <span className="material-symbols-outlined text-5xl text-amber-500 mb-4 block">info</span>
+        <Icon name="info" className="text-5xl text-amber-500 mb-4 block" />
         <h2 className="text-2xl font-semibold text-primary dark:text-white mb-2">Something went wrong</h2>
         <p className="text-primary/70 dark:text-white/70 mb-6">We couldn't verify your payment. Please contact support.</p>
         <a
@@ -798,7 +797,7 @@ function CheckoutSuccess() {
     return (
       <div className="text-center py-16">
         <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-          <span className="material-symbols-outlined text-5xl text-emerald-600 dark:text-emerald-400">check_circle</span>
+          <Icon name="check_circle" className="text-5xl text-emerald-600 dark:text-emerald-400" />
         </div>
         <h2 className="text-3xl font-bold text-primary dark:text-white mb-2">Purchase Complete!</h2>
         <p className="text-primary/70 dark:text-white/70 text-lg mb-2">Your day pass has been confirmed.</p>
@@ -809,15 +808,15 @@ function CheckoutSuccess() {
           <h3 className="font-bold text-primary dark:text-white mb-3">What's Next?</h3>
           <ul className="space-y-2 text-primary/70 dark:text-white/70 text-sm">
             <li className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-accent-dark dark:text-accent text-lg">mail</span>
+              <Icon name="mail" className="text-accent-dark dark:text-accent text-lg" />
               Check your email for your day pass details
             </li>
             <li className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-accent-dark dark:text-accent text-lg">location_on</span>
+              <Icon name="location_on" className="text-accent-dark dark:text-accent text-lg" />
               Visit us at 123 Ever Club Lane
             </li>
             <li className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-accent-dark dark:text-accent text-lg">schedule</span>
+              <Icon name="schedule" className="text-accent-dark dark:text-accent text-lg" />
               Present your confirmation at the front desk
             </li>
           </ul>
@@ -826,7 +825,7 @@ function CheckoutSuccess() {
           href="/"
           className="inline-flex items-center justify-center gap-2 py-3 px-8 rounded-xl font-semibold bg-accent text-brand-green hover:opacity-90 transition-opacity"
         >
-          <span className="material-symbols-outlined">home</span>
+          <Icon name="home" />
           Return Home
         </a>
       </div>
@@ -836,7 +835,7 @@ function CheckoutSuccess() {
   return (
     <div className="text-center py-16">
       <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-        <span className="material-symbols-outlined text-5xl text-emerald-600 dark:text-emerald-400">check_circle</span>
+        <Icon name="check_circle" className="text-5xl text-emerald-600 dark:text-emerald-400" />
       </div>
       <h2 className="text-3xl font-bold text-primary dark:text-white mb-2">Welcome to Ever Club!</h2>
       <p className="text-primary/70 dark:text-white/70 text-lg mb-2">
@@ -855,13 +854,13 @@ function CheckoutSuccess() {
 
       <div className="glass-card rounded-xl p-6 max-w-md mx-auto mb-8 text-left backdrop-blur-xl bg-white/40 dark:bg-white/5 border border-white/30 dark:border-white/10">
         <h3 className="font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
-          <span className="material-symbols-outlined text-accent-dark dark:text-accent">rocket_launch</span>
+          <Icon name="rocket_launch" className="text-accent-dark dark:text-accent" />
           What's Next
         </h3>
         <ul className="space-y-4">
           <li className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="material-symbols-outlined text-accent-dark dark:text-accent text-lg">login</span>
+              <Icon name="login" className="text-accent-dark dark:text-accent text-lg" />
             </div>
             <div>
               <p className="font-medium text-primary dark:text-white text-sm">Sign in to your account</p>
@@ -870,7 +869,7 @@ function CheckoutSuccess() {
           </li>
           <li className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="material-symbols-outlined text-accent-dark dark:text-accent text-lg">sports_golf</span>
+              <Icon name="sports_golf" className="text-accent-dark dark:text-accent text-lg" />
             </div>
             <div>
               <p className="font-medium text-primary dark:text-white text-sm">Book your first simulator session</p>
@@ -879,7 +878,7 @@ function CheckoutSuccess() {
           </li>
           <li className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="material-symbols-outlined text-accent-dark dark:text-accent text-lg">person</span>
+              <Icon name="person" className="text-accent-dark dark:text-accent text-lg" />
             </div>
             <div>
               <p className="font-medium text-primary dark:text-white text-sm">Complete your profile</p>
@@ -888,7 +887,7 @@ function CheckoutSuccess() {
           </li>
           <li className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="material-symbols-outlined text-accent-dark dark:text-accent text-lg">install_mobile</span>
+              <Icon name="install_mobile" className="text-accent-dark dark:text-accent text-lg" />
             </div>
             <div>
               <p className="font-medium text-primary dark:text-white text-sm">Install the app</p>
@@ -902,7 +901,7 @@ function CheckoutSuccess() {
         href="/login"
         className="inline-flex items-center justify-center gap-2 py-3 px-8 rounded-xl font-semibold bg-accent text-brand-green hover:opacity-90 transition-opacity"
       >
-        <span className="material-symbols-outlined">login</span>
+        <Icon name="login" />
         Sign In to Your Account
       </a>
 
@@ -930,7 +929,7 @@ export default function Checkout() {
       <header className="sticky top-0 z-50 bg-transparent">
         <div className="max-w-4xl mx-auto px-6 py-4">
           <a href="/" className="inline-flex items-center gap-2 text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white transition-colors text-sm">
-            <span className="material-symbols-outlined text-lg">arrow_back</span>
+            <Icon name="arrow_back" className="text-lg" />
             Back to EverClub
           </a>
         </div>

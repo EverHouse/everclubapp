@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import ModalShell from './ModalShell';
 import { postWithCredentials } from '../hooks/queries/useFetch';
+import Icon from './icons/Icon';
 
 interface FirstLoginWelcomeModalProps {
   isOpen: boolean;
@@ -35,7 +36,7 @@ const FirstLoginWelcomeModal: React.FC<FirstLoginWelcomeModalProps> = ({ isOpen,
       <div className="px-2 pb-4">
         <div className="text-center mb-6">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 dark:bg-accent/20 flex items-center justify-center">
-            <span className="material-symbols-outlined text-3xl text-green-700 dark:text-accent">waving_hand</span>
+            <Icon name="waving_hand" className="text-3xl text-green-700 dark:text-accent" />
           </div>
           <h2 className="text-2xl font-bold text-primary dark:text-white mb-2">
             Welcome{firstName ? `, ${firstName}` : ''}!
@@ -51,13 +52,13 @@ const FirstLoginWelcomeModal: React.FC<FirstLoginWelcomeModalProps> = ({ isOpen,
             className="w-full flex items-center gap-4 p-4 rounded-xl bg-primary/5 dark:bg-white/5 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors tactile-btn text-left"
           >
             <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-accent/20 flex items-center justify-center flex-shrink-0">
-              <span className="material-symbols-outlined text-green-700 dark:text-accent text-xl">person</span>
+              <Icon name="person" className="text-green-700 dark:text-accent text-xl" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-primary dark:text-white text-sm">Complete your profile</p>
               <p className="text-xs text-primary/50 dark:text-white/50">Add your phone number and preferences</p>
             </div>
-            <span className="material-symbols-outlined text-primary/30 dark:text-white/30 text-xl flex-shrink-0">chevron_right</span>
+            <Icon name="chevron_right" className="text-primary/30 dark:text-white/30 text-xl flex-shrink-0" />
           </button>
 
           <button
@@ -65,13 +66,13 @@ const FirstLoginWelcomeModal: React.FC<FirstLoginWelcomeModalProps> = ({ isOpen,
             className="w-full flex items-center gap-4 p-4 rounded-xl bg-primary/5 dark:bg-white/5 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors tactile-btn text-left"
           >
             <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-accent/20 flex items-center justify-center flex-shrink-0">
-              <span className="material-symbols-outlined text-green-700 dark:text-accent text-xl">contact_phone</span>
+              <Icon name="contact_phone" className="text-green-700 dark:text-accent text-xl" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-primary dark:text-white text-sm">Save concierge contact</p>
               <p className="text-xs text-primary/50 dark:text-white/50">Add Ever Club to your phone contacts</p>
             </div>
-            <span className="material-symbols-outlined text-primary/30 dark:text-white/30 text-xl flex-shrink-0">download</span>
+            <Icon name="download" className="text-primary/30 dark:text-white/30 text-xl flex-shrink-0" />
           </button>
 
           <button
@@ -79,13 +80,13 @@ const FirstLoginWelcomeModal: React.FC<FirstLoginWelcomeModalProps> = ({ isOpen,
             className="w-full flex items-center gap-4 p-4 rounded-xl bg-primary/5 dark:bg-white/5 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors tactile-btn text-left"
           >
             <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-accent/20 flex items-center justify-center flex-shrink-0">
-              <span className="material-symbols-outlined text-green-700 dark:text-accent text-xl">description</span>
+              <Icon name="description" className="text-green-700 dark:text-accent text-xl" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-primary dark:text-white text-sm">Sign the club waiver</p>
               <p className="text-xs text-primary/50 dark:text-white/50">Required before your first visit</p>
             </div>
-            <span className="material-symbols-outlined text-primary/30 dark:text-white/30 text-xl flex-shrink-0">chevron_right</span>
+            <Icon name="chevron_right" className="text-primary/30 dark:text-white/30 text-xl flex-shrink-0" />
           </button>
 
           <button
@@ -93,13 +94,13 @@ const FirstLoginWelcomeModal: React.FC<FirstLoginWelcomeModalProps> = ({ isOpen,
             className="w-full flex items-center gap-4 p-4 rounded-xl bg-primary/5 dark:bg-white/5 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors tactile-btn text-left"
           >
             <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-accent/20 flex items-center justify-center flex-shrink-0">
-              <span className="material-symbols-outlined text-green-700 dark:text-accent text-xl">sports_golf</span>
+              <Icon name="sports_golf" className="text-green-700 dark:text-accent text-xl" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-primary dark:text-white text-sm">Book your first session</p>
               <p className="text-xs text-primary/50 dark:text-white/50">Reserve a golf simulator</p>
             </div>
-            <span className="material-symbols-outlined text-primary/30 dark:text-white/30 text-xl flex-shrink-0">chevron_right</span>
+            <Icon name="chevron_right" className="text-primary/30 dark:text-white/30 text-xl flex-shrink-0" />
           </button>
         </div>
 

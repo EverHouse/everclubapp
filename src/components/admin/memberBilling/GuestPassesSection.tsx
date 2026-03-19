@@ -1,6 +1,7 @@
 import React from 'react';
 import type { GuestHistoryItem, GuestCheckInItem } from './types';
 import { formatDatePacific, formatTime12Hour } from './types';
+import Icon from '../../icons/Icon';
 
 export function GuestPassesSection({
   guestPassInfo,
@@ -16,7 +17,7 @@ export function GuestPassesSection({
   return (
     <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
       <div className="flex items-center gap-2 mb-4">
-        <span className={`material-symbols-outlined ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>badge</span>
+        <Icon name="badge" className={`${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
         <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>Guest Passes</h3>
       </div>
       
@@ -24,7 +25,7 @@ export function GuestPassesSection({
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className={`p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-white'}`}>
             <div className="flex items-center gap-2 mb-1">
-              <span className="material-symbols-outlined text-lg text-green-500">confirmation_number</span>
+              <Icon name="confirmation_number" className="text-lg text-green-500" />
               <span className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 {guestPassInfo.remainingPasses}
               </span>
@@ -33,7 +34,7 @@ export function GuestPassesSection({
           </div>
           <div className={`p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-white'}`}>
             <div className="flex items-center gap-2 mb-1">
-              <span className="material-symbols-outlined text-lg text-blue-500">history</span>
+              <Icon name="history" className="text-lg text-blue-500" />
               <span className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 {guestPassInfo.totalUsed}
               </span>
@@ -93,7 +94,7 @@ export function GuestPassesSection({
 
       {guestHistory.length === 0 && guestCheckInsHistory.length === 0 && !guestPassInfo && (
         <div className={`text-center py-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-          <span className="material-symbols-outlined text-3xl mb-2">group_off</span>
+          <Icon name="group_off" className="text-3xl mb-2" />
           <p className="text-sm">No guest activity recorded</p>
         </div>
       )}

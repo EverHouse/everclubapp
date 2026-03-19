@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from '../icons/Icon';
 
 export interface FeeBreakdownCardProps {
   overageFee: number;
@@ -41,7 +42,7 @@ const FeeBreakdownCard: React.FC<FeeBreakdownCardProps> = ({
   return (
     <div className={`w-full ${compact ? 'px-2 py-2' : 'px-3 sm:px-4 py-3'} rounded-xl backdrop-blur-md border ${isDark ? 'bg-black/70 border-white/20' : 'bg-white/90 border-black/10 shadow-lg'}`}>
       <div className={`flex items-center gap-2 ${compact ? 'mb-1' : 'mb-2'}`}>
-        <span className={`material-symbols-outlined ${compact ? 'text-base' : 'text-lg'} ${totalFee > 0 ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-green-400' : 'text-green-600')}`}>receipt_long</span>
+        <Icon name="receipt_long" className={`${compact ? 'text-base' : 'text-lg'} ${totalFee > 0 ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-green-400' : 'text-green-600')}`} />
         <span className={`${compact ? 'text-[10px]' : 'text-[11px]'} font-semibold uppercase tracking-[0.2em] ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>Estimated Fees</span>
       </div>
       <div className="space-y-1">
@@ -83,7 +84,7 @@ const FeeBreakdownCard: React.FC<FeeBreakdownCardProps> = ({
         )}
         {isSimulator && guestCount > 0 && guestsWithoutInfo !== undefined && guestsWithoutInfo > 0 && (
           <div className={`flex items-center gap-1.5 text-xs mt-1 ${isDark ? 'text-amber-400/70' : 'text-amber-600/80'}`}>
-            <span className="material-symbols-outlined text-xs">info</span>
+            <Icon name="info" className="text-xs" />
             Enter guest details above to use passes
           </div>
         )}

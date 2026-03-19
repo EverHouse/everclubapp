@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { BookingHistoryItem as BaseBookingHistoryItem, EventRsvpItem as BaseEventRsvpItem, WellnessHistoryItem as BaseWellnessHistoryItem, VisitHistoryItem } from '../memberProfile/memberProfileTypes';
+import Icon from '../icons/Icon';
 
 type BookingHistoryItem = BaseBookingHistoryItem & { bookingDate?: string; requestDate?: string; bayName?: string; resourceName?: string; resourceType?: string; guestCount?: number; startTime?: string; endTime?: string };
 type EventRsvpItem = BaseEventRsvpItem & { eventDate?: string; eventTitle?: string; checkedIn?: boolean; eventLocation?: string; ticketClass?: string };
@@ -114,7 +115,7 @@ const getTypeColor = (type: 'booking' | 'event' | 'wellness' | 'visit'): string 
 
 const EmptyState: React.FC<{ icon: string; message: string; isDark: boolean }> = ({ icon, message, isDark }) => (
   <div className="flex flex-col items-center justify-center py-12">
-    <span className={`material-symbols-outlined text-4xl mb-3 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{icon}</span>
+    <Icon name={icon} className={`text-4xl mb-3 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
     <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{message}</p>
   </div>
 );
@@ -334,7 +335,7 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
     <div className="flex-1 min-w-0">
       <div className="flex items-center gap-2 mb-1">
         <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{rsvp.eventTitle}</span>
-        {rsvp.checkedIn && <span className="material-symbols-outlined text-green-500 text-sm">check_circle</span>}
+        {rsvp.checkedIn && <Icon name="check_circle" className="text-green-500 text-sm" />}
       </div>
       <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
         {formatDatePacific(rsvp.eventDate)} · {rsvp.eventLocation}
@@ -361,7 +362,7 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
   const renderVisitItem = (visit: VisitHistoryItem & { isWalkIn?: boolean; resource_name?: string; check_in_time?: string; role?: string; resourceName?: string; date?: string; bookingDate?: string; startTime?: string; endTime?: string; checkedInBy?: string; hostName?: string; instructor?: string; location?: string }) => (
     <div className="flex-1 min-w-0">
       <div className="flex items-center gap-2 mb-1">
-        <span className="material-symbols-outlined text-green-500 text-lg">{visit.isWalkIn ? 'qr_code_scanner' : getRoleIcon(visit.role || '')}</span>
+        <Icon name={visit.isWalkIn ? 'qr_code_scanner' : getRoleIcon(visit.role || '')} className="text-green-500 text-lg" />
         <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{visit.resourceName || 'Visit'}</span>
         {visit.role && (
           <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${visit.isWalkIn ? 'bg-emerald-500 text-white' : getRoleBadgeColor(visit.role)}`}>
@@ -403,9 +404,7 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
       <div key={activity.id} className={`p-4 rounded-xl tactile-row ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
         <div className="flex items-start gap-3">
           <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
-            <span className={`material-symbols-outlined text-lg ${getTypeColor(type)}`}>
-              {getTypeIcon(type)}
-            </span>
+            <Icon name={getTypeIcon(type)} className={`text-lg ${getTypeColor(type)}`} />
           </div>
           {type === 'booking' && renderBookingItem(data as BookingHistoryItem)}
           {type === 'event' && renderEventItem(data as EventRsvpItem)}
@@ -458,7 +457,7 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
             }`}
             title={tab.label}
           >
-            <span className="material-symbols-outlined text-sm">{tab.icon}</span>
+            <Icon name={tab.icon} className="text-sm" />
             <span className="hidden sm:inline">{tab.label}</span>
             <span className={`text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full ${
               activeFilter === tab.id

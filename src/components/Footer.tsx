@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Logo from './Logo';
 import { APP_VERSION, formatLastUpdated } from '../config/version';
 import { fetchWithCredentials } from '../hooks/queries/useFetch';
+import Icon from './icons/Icon';
 
 const FALLBACK: Record<string, string> = {
   'contact.address_line1': '15771 Red Hill Ave, Ste 500',
@@ -45,13 +46,13 @@ export const Footer: React.FC<FooterProps> = ({ hideCta = false }) => {
      
      <div className="space-y-6 text-sm font-medium mb-10 flex flex-col items-center">
         <div className="relative flex flex-col items-center">
-            <span className="material-symbols-outlined text-lg absolute -left-8 top-0.5 text-[#E7E7DC]/70">location_on</span>
+            <Icon name="location_on" className="text-lg absolute -left-8 top-0.5 text-[#E7E7DC]/70" />
             <p className="text-[#E7E7DC]">{s['contact.address_line1']}</p>
             <p className="text-[#E7E7DC]/70 text-xs">{s['contact.city_state_zip']}</p>
         </div>
 
         <div className="relative flex items-center">
-            <span className="material-symbols-outlined text-lg absolute -left-8 text-[#E7E7DC]/70">call</span>
+            <Icon name="call" className="text-lg absolute -left-8 text-[#E7E7DC]/70" />
             <a href={`tel:${phoneDigits}`} className="hover:underline">{s['contact.phone']}</a>
         </div>
 
@@ -78,7 +79,7 @@ export const Footer: React.FC<FooterProps> = ({ hideCta = false }) => {
          className="w-full max-w-sm mx-auto mb-10 py-4 px-6 rounded-[4px] bg-[#F2F2EC] text-[#293515] font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity border border-[#F2F2EC]/80 shadow-[0_4px_16px_rgba(0,0,0,0.1)] tactile-btn"
        >
          Apply for Membership
-         <span className="material-symbols-outlined text-lg">arrow_forward</span>
+         <Icon name="arrow_forward" className="text-lg" />
        </a>
      )}
      

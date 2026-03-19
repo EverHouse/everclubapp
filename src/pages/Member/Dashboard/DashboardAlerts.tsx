@@ -1,5 +1,6 @@
 import React from 'react';
 import type { BannerAnnouncement } from './dashboardTypes';
+import Icon from '../../../components/icons/Icon';
 
 interface PasskeyNudgeProps {
   isDark: boolean;
@@ -17,7 +18,7 @@ export const PasskeyNudge: React.FC<PasskeyNudgeProps> = ({
   return (
     <div className={`mb-4 py-3 px-4 rounded-xl flex items-start justify-between gap-3 animate-pop-in ${isDark ? 'bg-emerald-500/15 border border-emerald-500/30' : 'bg-emerald-50 border border-emerald-200'}`}>
       <div className="flex items-start gap-3 min-w-0 flex-1">
-        <span className={`material-symbols-outlined text-xl flex-shrink-0 mt-0.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>fingerprint</span>
+        <Icon name="fingerprint" className={`text-xl flex-shrink-0 mt-0.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
         <div className="min-w-0 flex-1">
           <h4 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>Skip the code next time</h4>
           <p className={`text-xs mt-0.5 ${isDark ? 'text-white/70' : 'text-gray-600'}`}>Set up Face ID or Touch ID for instant sign-in.</p>
@@ -34,7 +35,7 @@ export const PasskeyNudge: React.FC<PasskeyNudgeProps> = ({
           onClick={() => { setShowPasskeyNudge(false); localStorage.setItem('eh_passkey_nudge_dismissed', '1'); }}
           className={`p-1 rounded-lg transition-colors ${isDark ? 'text-white/50 hover:text-white/80 hover:bg-white/10' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
         >
-          <span className="material-symbols-outlined text-lg">close</span>
+          <Icon name="close" className="text-lg" />
         </button>
       </div>
     </div>
@@ -65,7 +66,7 @@ export const BannerAlert: React.FC<BannerAlertProps> = ({
   return (
     <div className={`mb-4 py-3 px-4 rounded-xl flex items-start justify-between gap-3 transition-all duration-normal ease-spring-smooth ${bannerExiting ? 'opacity-0 scale-95 max-h-0 mb-0 py-0 overflow-hidden' : 'animate-pop-in max-h-[200px]'} ${isDark ? 'bg-lavender/20 border border-lavender/30' : 'bg-lavender/30 border border-lavender/40'}`}>
       <div className="flex items-start gap-3 min-w-0 flex-1">
-        <span className={`material-symbols-outlined text-xl flex-shrink-0 mt-0.5 ${isDark ? 'text-lavender' : 'text-primary'}`}>campaign</span>
+        <Icon name="campaign" className={`text-xl flex-shrink-0 mt-0.5 ${isDark ? 'text-lavender' : 'text-primary'}`} />
         <div className="min-w-0 flex-1">
           <h4 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-primary'}`}>{bannerAnnouncement.title}</h4>
           {bannerAnnouncement.desc && (
@@ -88,7 +89,7 @@ export const BannerAlert: React.FC<BannerAlertProps> = ({
             className={`text-xs font-semibold mt-2 flex items-center gap-1 ${isDark ? 'text-lavender' : 'text-primary'}`}
           >
             Learn more
-            <span className="material-symbols-outlined text-sm">arrow_forward</span>
+            <Icon name="arrow_forward" className="text-sm" />
           </button>
         </div>
       </div>
@@ -106,7 +107,7 @@ export const BannerAlert: React.FC<BannerAlertProps> = ({
         className={`p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-full transition-colors flex-shrink-0 ${isDark ? 'hover:bg-white/10 text-white/60 hover:text-white' : 'hover:bg-black/10 text-primary/60 hover:text-primary'}`}
         aria-label="Dismiss banner"
       >
-        <span className="material-symbols-outlined text-[18px]">close</span>
+        <Icon name="close" className="text-[18px]" />
       </button>
     </div>
   );
@@ -123,7 +124,7 @@ export const MembershipStatusAlert: React.FC<MembershipStatusAlertProps> = ({ us
   return (
     <div className="mb-4 p-4 rounded-xl bg-red-500/90 border border-red-600 animate-pop-in">
       <div className="flex items-center gap-3">
-        <span className="material-symbols-outlined text-2xl text-white">warning</span>
+        <Icon name="warning" className="text-2xl text-white" />
         <div className="flex-1">
           <h4 className="font-bold text-white text-sm">Membership Not Active</h4>
           <p className="text-white/90 text-xs mt-0.5">

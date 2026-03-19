@@ -7,6 +7,7 @@ import TierBadge from '../../../components/TierBadge';
 import ModalShell from '../../../components/ModalShell';
 import MetricsGrid from '../../../components/MetricsGrid';
 import type { GuestPasses, DashboardWellnessClass, DashboardEvent } from './dashboardTypes';
+import Icon from '../../../components/icons/Icon';
 
 interface UserLike {
   id?: string | number;
@@ -175,7 +176,7 @@ const MembershipDetailsModal: React.FC<MembershipDetailsModalProps> = ({
         <div className={`w-full rounded-xl relative overflow-hidden shadow-2xl flex flex-col ${isExpiredModal ? 'grayscale-[30%]' : ''}`} style={{ backgroundColor: cardBgColor }}>
           
           <button onClick={() => setIsCardOpen(false)} className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center z-10" style={{ backgroundColor: `${cardTextColor}33`, color: cardTextColor }} aria-label="Close card">
-            <span className="material-symbols-outlined text-sm">close</span>
+            <Icon name="close" className="text-sm" />
           </button>
 
           <div className="pt-6 px-6 pb-4 text-center" style={{ backgroundColor: cardBgColor }}>
@@ -222,7 +223,7 @@ const MembershipDetailsModal: React.FC<MembershipDetailsModalProps> = ({
               {user.joinDate && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-lg opacity-60" style={{ color: cardTextColor }}>badge</span>
+                    <Icon name="badge" className="text-lg opacity-60" />
                     <span className="text-sm opacity-80" style={{ color: cardTextColor }}>Member Since</span>
                   </div>
                   <span className="font-semibold text-sm" style={{ color: cardTextColor }}>{formatMemberSince(user.joinDate)}</span>
@@ -232,7 +233,7 @@ const MembershipDetailsModal: React.FC<MembershipDetailsModalProps> = ({
               {tierPermissions.dailySimulatorMinutes > 0 && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-lg opacity-60" style={{ color: cardTextColor }}>sports_golf</span>
+                    <Icon name="sports_golf" className="text-lg opacity-60" />
                     <span className="text-sm opacity-80" style={{ color: cardTextColor }}>Daily Simulator</span>
                   </div>
                   <span className="font-semibold text-sm" style={{ color: cardTextColor }}>
@@ -244,7 +245,7 @@ const MembershipDetailsModal: React.FC<MembershipDetailsModalProps> = ({
               {tierPermissions.dailyConfRoomMinutes > 0 && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-lg opacity-60" style={{ color: cardTextColor }}>meeting_room</span>
+                    <Icon name="meeting_room" className="text-lg opacity-60" />
                     <span className="text-sm opacity-80" style={{ color: cardTextColor }}>Daily Conference</span>
                   </div>
                   <span className="font-semibold text-sm" style={{ color: cardTextColor }}>
@@ -256,7 +257,7 @@ const MembershipDetailsModal: React.FC<MembershipDetailsModalProps> = ({
               {guestPasses && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-lg opacity-60" style={{ color: cardTextColor }}>group_add</span>
+                    <Icon name="group_add" className="text-lg opacity-60" />
                     <span className="text-sm opacity-80" style={{ color: cardTextColor }}>Guest Passes</span>
                   </div>
                   <span className="font-semibold text-sm" style={{ color: cardTextColor }}>
@@ -305,7 +306,7 @@ const MembershipDetailsModal: React.FC<MembershipDetailsModalProps> = ({
                 aria-label="Add to Apple Wallet"
               >
                 {walletLoading ? (
-                  <span className="animate-spin material-symbols-outlined text-[24px]">progress_activity</span>
+                  <Icon name="progress_activity" className="animate-spin text-[24px]" />
                 ) : (
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
                     <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>

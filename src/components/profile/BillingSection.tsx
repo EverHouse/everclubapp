@@ -4,6 +4,7 @@ import { useToast } from '../Toast';
 import { useAuthData } from '../../contexts/DataContext';
 import { fetchWithCredentials, postWithCredentials } from '../../hooks/queries/useFetch';
 import { billingKeys } from '../../hooks/queries/adminKeys';
+import Icon from '../icons/Icon';
 
 interface BillingInfo {
   billingProvider: 'stripe' | 'mindbody' | 'family_addon' | 'comped' | null;
@@ -209,9 +210,7 @@ export default function BillingSection({ isDark }: Props) {
         <div className={`rounded-xl overflow-hidden ${isDark ? 'bg-white/5' : 'bg-white'}`}>
           <div className="p-4">
             <div className="flex items-center gap-3">
-              <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
-                credit_card
-              </span>
+              <Icon name="credit_card" className={`${isDark ? 'opacity-70' : 'text-primary/70'}`} />
               <div>
                 <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Billing</span>
                 <p className={`text-xs mt-0.5 ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
@@ -229,9 +228,7 @@ export default function BillingSection({ isDark }: Props) {
         <div className={`p-4 ${isDark ? '' : ''}`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
-                credit_card
-              </span>
+              <Icon name="credit_card" className={`${isDark ? 'opacity-70' : 'text-primary/70'}`} />
               <div>
                 <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Membership</span>
                 {sub && (
@@ -263,9 +260,9 @@ export default function BillingSection({ isDark }: Props) {
             }`}
           >
             {openingPortal ? (
-              <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
+              <Icon name="progress_activity" className="text-lg animate-spin" />
             ) : (
-              <span className="material-symbols-outlined text-lg">manage_accounts</span>
+              <Icon name="manage_accounts" className="text-lg" />
             )}
             {openingPortal ? 'Opening...' : 'Manage Subscription'}
           </button>
@@ -273,9 +270,7 @@ export default function BillingSection({ isDark }: Props) {
           {card && (
             <div className={`flex items-center justify-between py-3 border-t ${isDark ? 'border-white/10' : 'border-black/5'}`}>
               <div className="flex items-center gap-3">
-                <span className={`material-symbols-outlined text-sm ${isDark ? 'opacity-50' : 'text-primary/50'}`}>
-                  payment
-                </span>
+                <Icon name="payment" className={`text-sm ${isDark ? 'opacity-50' : 'text-primary/50'}`} />
                 <span className={`text-sm ${isDark ? 'opacity-80' : 'text-primary/80'}`}>
                   {card.brand?.charAt(0).toUpperCase()}{card.brand?.slice(1)} ending in {card.last4}
                 </span>
@@ -302,7 +297,7 @@ export default function BillingSection({ isDark }: Props) {
           {billingInfo.upcomingChanges && (
             <div className={`mt-3 p-3 rounded-lg ${isDark ? 'bg-yellow-900/20 border border-yellow-500/30' : 'bg-yellow-50 border border-yellow-200'}`}>
               <div className="flex items-center gap-2 mb-1">
-                <span className="material-symbols-outlined text-yellow-500 text-lg">schedule</span>
+                <Icon name="schedule" className="text-yellow-500 text-lg" />
                 <span className={`text-sm font-medium ${isDark ? 'text-yellow-400' : 'text-yellow-700'}`}>Upcoming Changes</span>
               </div>
               <div className={`text-sm ${isDark ? 'text-yellow-300/80' : 'text-yellow-700'}`}>
@@ -324,14 +319,10 @@ export default function BillingSection({ isDark }: Props) {
             className={`w-full flex items-center justify-between py-3 border-t tactile-btn ${isDark ? 'border-white/10' : 'border-black/5'}`}
           >
             <div className="flex items-center gap-3">
-              <span className={`material-symbols-outlined text-sm ${isDark ? 'opacity-50' : 'text-primary/50'}`}>
-                receipt_long
-              </span>
+              <Icon name="receipt_long" className={`text-sm ${isDark ? 'opacity-50' : 'text-primary/50'}`} />
               <span className={`text-sm ${isDark ? 'opacity-80' : 'text-primary/80'}`}>Invoices</span>
             </div>
-            <span className={`material-symbols-outlined text-sm ${isDark ? 'opacity-50' : 'text-primary/50'}`}>
-              {showInvoices ? 'expand_less' : 'expand_more'}
-            </span>
+            <Icon name={showInvoices ? 'expand_less' : 'expand_more'} className={`text-sm ${isDark ? 'opacity-50' : 'text-primary/50'}`} />
           </button>
           
           {showInvoices && invoices.length > 0 && (
@@ -391,9 +382,7 @@ export default function BillingSection({ isDark }: Props) {
       <div className={`rounded-xl overflow-hidden ${isDark ? 'bg-white/5' : 'bg-white'}`}>
         <div className="p-4">
           <div className="flex items-center gap-3 mb-3">
-            <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
-              credit_card
-            </span>
+            <Icon name="credit_card" className={`${isDark ? 'opacity-70' : 'text-primary/70'}`} />
             <div>
               <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Billing</span>
               <p className={`text-xs mt-0.5 ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
@@ -405,7 +394,7 @@ export default function BillingSection({ isDark }: Props) {
           {hasPaymentMethod ? (
             <div className={`p-3 rounded-lg mb-4 ${isDark ? 'bg-green-900/20 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-green-500 text-lg">check_circle</span>
+                <Icon name="check_circle" className="text-green-500 text-lg" />
                 <span className={`text-sm font-medium ${isDark ? 'text-green-400' : 'text-green-700'}`}>
                   Payment method on file
                 </span>
@@ -430,9 +419,9 @@ export default function BillingSection({ isDark }: Props) {
             }`}
           >
             {migratingPayment ? (
-              <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
+              <Icon name="progress_activity" className="text-lg animate-spin" />
             ) : (
-              <span className="material-symbols-outlined text-lg">credit_card</span>
+              <Icon name="credit_card" className="text-lg" />
             )}
             {migratingPayment ? 'Opening...' : hasPaymentMethod ? 'Update Payment Method' : 'Add Payment Method'}
           </button>
@@ -445,12 +434,10 @@ export default function BillingSection({ isDark }: Props) {
                 onClick={() => setShowInvoices(!showInvoices)}
               >
                 <span className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-lg">receipt_long</span>
+                  <Icon name="receipt_long" className="text-lg" />
                   Club Purchases
                 </span>
-                <span className="material-symbols-outlined text-sm">
-                  {showInvoices ? 'expand_less' : 'expand_more'}
-                </span>
+                <Icon name={showInvoices ? 'expand_less' : 'expand_more'} className="text-sm" />
               </button>
               
               {showInvoices && (
@@ -479,7 +466,7 @@ export default function BillingSection({ isDark }: Props) {
                         <span className={`text-sm font-medium ${isDark ? '' : 'text-primary'}`}>
                           ${(inv.amountPaid / 100).toFixed(2)}
                         </span>
-                        <span className={`material-symbols-outlined text-sm ${isDark ? 'opacity-50' : 'text-primary/50'}`}>open_in_new</span>
+                        <Icon name="open_in_new" className={`text-sm ${isDark ? 'opacity-50' : 'text-primary/50'}`} />
                       </div>
                     </a>
                   ))}
@@ -497,9 +484,7 @@ export default function BillingSection({ isDark }: Props) {
       <div className={`rounded-xl overflow-hidden ${isDark ? 'bg-white/5' : 'bg-white'}`}>
         <div className="p-4">
           <div className="flex items-center gap-3 mb-3">
-            <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
-              groups
-            </span>
+            <Icon name="groups" className={`${isDark ? 'opacity-70' : 'text-primary/70'}`} />
             <div>
               <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Group Membership</span>
               <p className={`text-xs mt-0.5 ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
@@ -522,9 +507,7 @@ export default function BillingSection({ isDark }: Props) {
       <div className={`rounded-xl overflow-hidden ${isDark ? 'bg-white/5' : 'bg-white'}`}>
         <div className="p-4">
           <div className="flex items-center gap-3">
-            <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
-              verified
-            </span>
+            <Icon name="verified" className={`${isDark ? 'opacity-70' : 'text-primary/70'}`} />
             <div>
               <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Complimentary Access</span>
               <p className={`text-xs mt-0.5 ${isDark ? 'opacity-60' : 'text-primary/60'}`}>

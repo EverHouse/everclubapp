@@ -6,6 +6,7 @@ import { useToast } from '../../../components/Toast';
 import ModalShell from '../../../components/ModalShell';
 import FloatingActionButton from '../../../components/FloatingActionButton';
 import { fetchWithCredentials, postWithCredentials, putWithCredentials, deleteWithCredentials, ApiError } from '../../../hooks/queries/useFetch';
+import Icon from '../../../components/icons/Icon';
 
 interface Resource {
   id: number;
@@ -378,7 +379,7 @@ const AvailabilityBlocksContent: React.FC = () => {
             {error && (
                 <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg">
                     <div className="flex items-start gap-3">
-                        <span aria-hidden="true" className="material-symbols-outlined text-red-500 dark:text-red-400 text-xl flex-shrink-0">error</span>
+                        <Icon name="error" className="text-red-500 dark:text-red-400 text-xl flex-shrink-0" />
                         <div className="flex-1">
                             <p className="text-red-700 dark:text-red-400 text-sm font-medium">{error}</p>
                             <div className="flex gap-2 mt-3">
@@ -409,7 +410,7 @@ const AvailabilityBlocksContent: React.FC = () => {
 
             {isLoading ? (
                 <div className="flex items-center justify-center py-12">
-                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-2xl text-gray-600 dark:text-gray-500">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-2xl text-gray-600 dark:text-gray-500" />
                 </div>
             ) : upcomingBlocks.length === 0 ? (
                 <EmptyState
@@ -433,7 +434,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                                            <span aria-hidden="true" className="material-symbols-outlined text-orange-600 dark:text-orange-400">calendar_today</span>
+                                            <Icon name="calendar_today" className="text-orange-600 dark:text-orange-400" />
                                         </div>
                                         <div className="min-w-0 flex-1">
                                             <h3 className="font-bold text-primary dark:text-white">{formatDate(date)}</h3>
@@ -450,9 +451,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                                             </p>
                                         </div>
                                     </div>
-                                    <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform duration-fast ${isExpanded ? 'rotate-180' : ''}`}>
-                                        expand_more
-                                    </span>
+                                    <Icon name="expand_more" className={`text-gray-500 dark:text-gray-400 transition-transform duration-fast ${isExpanded ? 'rotate-180' : ''}`} />
                                 </button>
                                 
                                 {isExpanded && (
@@ -468,7 +467,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                                             >
                                                 <div className="flex gap-3">
                                                     <div className={`w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center ${getBlockTypeColor(block.block_type)}`}>
-                                                        <span aria-hidden="true" className="material-symbols-outlined text-lg">event_busy</span>
+                                                        <Icon name="event_busy" className="text-lg" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 mb-1">
@@ -488,7 +487,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                                                         onClick={(e) => { e.stopPropagation(); handleDelete(block); }} 
                                                         className="tactile-btn self-start text-gray-400 hover:text-red-500 transition-colors p-1"
                                                     >
-                                                        <span aria-hidden="true" className="material-symbols-outlined text-lg">delete</span>
+                                                        <Icon name="delete" className="text-lg" />
                                                     </button>
                                                 </div>
                                             </div>
@@ -503,7 +502,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                             onClick={() => setVisibleDayCount(prev => prev + 10)}
                             className="tactile-btn w-full py-3 px-4 rounded-xl border border-gray-200 dark:border-white/20 text-primary dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
                         >
-                            <span aria-hidden="true" className="material-symbols-outlined text-sm">expand_more</span>
+                            <Icon name="expand_more" className="text-sm" />
                             Load {Math.min(10, groupedUpcoming.length - visibleDayCount)} more ({groupedUpcoming.length - visibleDayCount} remaining)
                         </button>
                     )}
@@ -522,7 +521,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                         className="tactile-row w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                     >
                         <div className="flex items-center gap-2">
-                            <span aria-hidden="true" className="material-symbols-outlined text-gray-500 dark:text-white/60">history</span>
+                            <Icon name="history" className="text-gray-500 dark:text-white/60" />
                             <span className="font-semibold text-gray-600 dark:text-white/80">Past Blocks</span>
                             {pastLoaded && (
                                 <span className="text-xs bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-2 py-0.5 rounded-full">
@@ -530,16 +529,14 @@ const AvailabilityBlocksContent: React.FC = () => {
                                 </span>
                             )}
                         </div>
-                        <span aria-hidden="true" className={`material-symbols-outlined text-gray-400 transition-transform ${showPastAccordion ? 'rotate-180' : ''}`}>
-                            expand_more
-                        </span>
+                        <Icon name="expand_more" className={`text-gray-400 transition-transform ${showPastAccordion ? 'rotate-180' : ''}`} />
                     </button>
                     
                     {showPastAccordion && (
                         <div className="p-4 space-y-3 bg-gray-50/50 dark:bg-black/20">
                             {isPastLoading && (
                                 <div className="flex items-center justify-center py-8">
-                                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-xl text-gray-500 dark:text-gray-400">progress_activity</span>
+                                    <Icon name="progress_activity" className="animate-spin text-xl text-gray-500 dark:text-gray-400" />
                                 </div>
                             )}
                             {!isPastLoading && pastLoaded && pastBlocks.length === 0 && (
@@ -568,16 +565,14 @@ const AvailabilityBlocksContent: React.FC = () => {
                                         >
                                             <div className="flex items-center gap-2">
                                                 <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center">
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-sm text-gray-500 dark:text-gray-400">calendar_today</span>
+                                                    <Icon name="calendar_today" className="text-sm text-gray-500 dark:text-gray-400" />
                                                 </div>
                                                 <div>
                                                     <p className="font-medium text-sm text-gray-600 dark:text-white/70">{formatDateDisplayWithDay(date)}</p>
                                                     <p className="text-xs text-gray-500 dark:text-gray-400">{dayBlocks.length} block{dayBlocks.length !== 1 ? 's' : ''}</p>
                                                 </div>
                                             </div>
-                                            <span aria-hidden="true" className={`material-symbols-outlined text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                                                expand_more
-                                            </span>
+                                            <Icon name="expand_more" className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                         </button>
                                         
                                         {isExpanded && (
@@ -597,7 +592,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                                                             onClick={(e) => { e.stopPropagation(); handleDelete(block); }} 
                                                             className="tactile-btn text-gray-400 hover:text-red-500 transition-colors p-1"
                                                         >
-                                                            <span aria-hidden="true" className="material-symbols-outlined text-base">delete</span>
+                                                            <Icon name="delete" className="text-base" />
                                                         </button>
                                                     </div>
                                                 ))}
@@ -697,7 +692,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                             disabled={isSaving}
                             className="tactile-btn flex-1 py-3 px-4 rounded-lg bg-brand-green text-white font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                            {isSaving && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
+                            {isSaving && <Icon name="progress_activity" className="animate-spin text-sm" />}
                             {isSaving ? 'Saving...' : editId ? 'Save Changes' : 'Add Block'}
                         </button>
                     </div>
@@ -729,12 +724,12 @@ const AvailabilityBlocksContent: React.FC = () => {
                         >
                             {isDeleting ? (
                                 <>
-                                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                                    <Icon name="progress_activity" className="animate-spin text-sm" />
                                     Deleting...
                                 </>
                             ) : (
                                 <>
-                                    <span aria-hidden="true" className="material-symbols-outlined text-sm">delete</span>
+                                    <Icon name="delete" className="text-sm" />
                                     Delete
                                 </>
                             )}

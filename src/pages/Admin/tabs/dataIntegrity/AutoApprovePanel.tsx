@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithCredentials, putWithCredentials } from '../../../../hooks/queries/useFetch';
 import Toggle from '../../../../components/Toggle';
+import Icon from '../../../../components/icons/Icon';
 
 interface AutoApproveConfig {
   conferenceRooms: boolean;
@@ -38,7 +39,7 @@ const AutoApprovePanel: React.FC<Props> = ({ isOpen, onToggle }) => {
     <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
       <button onClick={onToggle} className="tactile-btn flex items-center justify-between w-full text-left">
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">check_circle</span>
+          <Icon name="check_circle" className="text-primary dark:text-white" />
           <span className="font-bold text-primary dark:text-white">Auto-Approve Rules</span>
           {disabledCount > 0 && (
             <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 ml-2">
@@ -46,9 +47,7 @@ const AutoApprovePanel: React.FC<Props> = ({ isOpen, onToggle }) => {
             </span>
           )}
         </div>
-        <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
-          expand_more
-        </span>
+        <Icon name="expand_more" className={`text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (

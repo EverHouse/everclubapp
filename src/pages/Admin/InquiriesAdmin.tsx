@@ -7,6 +7,7 @@ import { formatRelativeTime } from '../../utils/dateUtils';
 import { useToast } from '../../components/Toast';
 import { haptic } from '../../utils/haptics';
 import { useInquiries, useUpdateInquiry, useArchiveInquiry, useSyncHubSpotSubmissions } from '../../hooks/queries';
+import Icon from '../../components/icons/Icon';
 
 const formatDate = (dateStr: string): string => {
     try {
@@ -175,9 +176,7 @@ const InquiriesAdmin: React.FC = () => {
                     disabled={isSyncing}
                     className="relative flex items-center gap-1.5 px-3 py-2 min-h-[36px] rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/15 transition-all duration-fast active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                    <span className={`material-symbols-outlined text-[16px] ${isSyncing ? 'animate-spin' : ''}`} aria-hidden="true">
-                        {isSyncing ? 'progress_activity' : 'sync'}
-                    </span>
+                    <Icon name={isSyncing ? 'progress_activity' : 'sync'} className={`text-[16px] ${isSyncing ? 'animate-spin' : ''}`} />
                     <span className={isSyncing ? 'opacity-0' : 'opacity-100'}>{isSyncing ? 'Syncing…' : 'Sync from HubSpot'}</span>
                     {isSyncing && (
                         <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold">Syncing…</span>
@@ -196,7 +195,7 @@ const InquiriesAdmin: React.FC = () => {
                                 : 'bg-white dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
                         }`}
                     >
-                        <span className="material-symbols-outlined text-[14px] sm:text-[16px]" aria-hidden="true">{tab.icon}</span>
+                        <Icon name={tab.icon} className="text-[14px] sm:text-[16px]" />
                         {tab.label}
                     </button>
                 ))}
@@ -323,7 +322,7 @@ const InquiriesAdmin: React.FC = () => {
                                 disabled={isSaving || selectedInquiry.status === 'archived'}
                                 className="px-4 py-2 min-h-[44px] text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-sm disabled:opacity-50"
                             >
-                                <span className="material-symbols-outlined text-sm align-middle mr-1" aria-hidden="true">archive</span>
+                                <Icon name="archive" className="text-sm align-middle mr-1" />
                                 Archive
                             </button>
                             <button onClick={() => setIsDetailOpen(false)} className="px-5 py-2 min-h-[44px] bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white font-bold rounded-lg hover:bg-gray-200 dark:hover:bg-white/20 transition-colors text-sm">
@@ -336,11 +335,11 @@ const InquiriesAdmin: React.FC = () => {
 
             {isLoading ? (
                 <div className="flex items-center justify-center py-12">
-                    <span className="material-symbols-outlined animate-spin text-3xl text-gray-500 dark:text-gray-400" aria-hidden="true">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-3xl text-gray-500 dark:text-gray-400" />
                 </div>
             ) : inquiries.length === 0 ? (
                 <div className="bg-white dark:bg-surface-dark rounded-xl p-8 text-center shadow-sm border border-gray-200 dark:border-white/20">
-                    <span className="material-symbols-outlined text-5xl text-gray-500 dark:text-gray-500 mb-3 block" aria-hidden="true">mail</span>
+                    <Icon name="mail" className="text-5xl text-gray-500 dark:text-gray-500 mb-3 block" />
                     <h3 className="text-lg font-bold text-primary dark:text-white mb-2">No Inquiries</h3>
                     <p className="text-gray-600 dark:text-gray-300">No form submissions match your current filters.</p>
                 </div>
@@ -364,9 +363,7 @@ const InquiriesAdmin: React.FC = () => {
                                         ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                                         : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400'
                                 }`}>
-                                    <span className="material-symbols-outlined text-lg" aria-hidden="true">
-                                        {inquiry.status === 'new' ? 'mark_email_unread' : inquiry.status === 'replied' ? 'reply' : 'mail'}
-                                    </span>
+                                    <Icon name={inquiry.status === 'new' ? 'mark_email_unread' : inquiry.status === 'replied' ? 'reply' : 'mail'} className="text-lg" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">

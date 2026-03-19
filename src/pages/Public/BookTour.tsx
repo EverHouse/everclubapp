@@ -6,6 +6,7 @@ import { formatPhoneNumber } from '../../utils/phoneFormat';
 import { usePageReady } from '../../stores/pageReadyStore';
 import SEO from '../../components/SEO';
 import { fetchWithCredentials, postWithCredentials } from '../../hooks/queries/useFetch';
+import Icon from '../../components/icons/Icon';
 
 const ADDRESS_FALLBACK: Record<string, string> = {
   'contact.address_line1': '15771 Red Hill Ave, Ste 500',
@@ -183,7 +184,7 @@ const BookTour: React.FC = () => {
           to="/"
           className="inline-flex items-center gap-1 text-primary/70 dark:text-white/70 hover:text-primary dark:hover:text-white transition-colors py-2"
         >
-          <span className="material-symbols-outlined text-lg">arrow_back</span>
+          <Icon name="arrow_back" className="text-lg" />
           <span className="text-sm font-medium">Back</span>
         </Link>
       </div>
@@ -200,15 +201,15 @@ const BookTour: React.FC = () => {
             
             <div className="flex items-center justify-center gap-6 text-primary/50 dark:text-white/50 text-xs mt-4 mb-2">
               <span className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-sm">schedule</span>
+                <Icon name="schedule" className="text-sm" />
                 30 minutes
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-sm">person</span>
+                <Icon name="person" className="text-sm" />
                 Private & guided
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-sm">check_circle</span>
+                <Icon name="check_circle" className="text-sm" />
                 No commitment
               </span>
             </div>
@@ -217,7 +218,7 @@ const BookTour: React.FC = () => {
           {step === 3 && bookingResult ? (
             <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] p-8 text-center">
               <div className="w-20 h-20 bg-green-100 dark:bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="material-symbols-outlined text-4xl text-green-600 dark:text-green-400">check_circle</span>
+                <Icon name="check_circle" className="text-4xl text-green-600 dark:text-green-400" />
               </div>
               <h2 className="text-2xl text-primary dark:text-white mb-3 leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>You're All Set!</h2>
               <p className="text-primary/70 dark:text-white/70 mb-6 max-w-sm mx-auto">
@@ -226,17 +227,17 @@ const BookTour: React.FC = () => {
 
               <div className="bg-primary/5 dark:bg-white/5 rounded-xl p-6 mb-8 text-left space-y-3">
                 <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary/60 dark:text-white/60">calendar_today</span>
+                  <Icon name="calendar_today" className="text-primary/60 dark:text-white/60" />
                   <span className="text-primary dark:text-white font-medium">{formatDateNice(bookingResult.date)}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary/60 dark:text-white/60">schedule</span>
+                  <Icon name="schedule" className="text-primary/60 dark:text-white/60" />
                   <span className="text-primary dark:text-white font-medium">
                     {formatTime12h(bookingResult.startTime)} – {formatTime12h(bookingResult.endTime)}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary/60 dark:text-white/60">location_on</span>
+                  <Icon name="location_on" className="text-primary/60 dark:text-white/60" />
                   <span className="text-primary dark:text-white font-medium">{s['contact.address_line1']}, {s['contact.city_state_zip']}</span>
                 </div>
               </div>
@@ -250,7 +251,7 @@ const BookTour: React.FC = () => {
                   className="text-sm font-semibold text-primary dark:text-white hover:opacity-80 transition-opacity flex items-center justify-center gap-1"
                 >
                   Explore Membership
-                  <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                  <Icon name="arrow_forward" className="text-lg" />
                 </Link>
               </div>
 
@@ -266,7 +267,7 @@ const BookTour: React.FC = () => {
               <div className="flex items-center justify-center gap-3 py-6 border-b border-primary/10 dark:border-white/10">
                 <div className="flex flex-col items-center gap-1">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-fast ${step === 1 ? 'bg-primary text-white' : step > 1 ? 'bg-green-500 text-white' : 'bg-primary/10 dark:bg-white/10 text-primary dark:text-white'}`}>
-                    {step > 1 ? <span className="material-symbols-outlined text-lg">check</span> : '1'}
+                    {step > 1 ? <Icon name="check" className="text-lg" /> : '1'}
                   </div>
                   <span className={`text-[10px] font-medium ${step === 1 ? 'text-primary dark:text-white' : 'text-primary/40 dark:text-white/40'}`}>Your Info</span>
                 </div>
@@ -298,7 +299,7 @@ const BookTour: React.FC = () => {
                       />
                       {fieldErrors.firstName && (
                         <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-sm">error</span>
+                          <Icon name="error" className="text-sm" />
                           {fieldErrors.firstName}
                         </p>
                       )}
@@ -321,7 +322,7 @@ const BookTour: React.FC = () => {
                       />
                       {fieldErrors.lastName && (
                         <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-sm">error</span>
+                          <Icon name="error" className="text-sm" />
                           {fieldErrors.lastName}
                         </p>
                       )}
@@ -346,7 +347,7 @@ const BookTour: React.FC = () => {
                     />
                     {fieldErrors.email && (
                       <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-sm">error</span>
+                        <Icon name="error" className="text-sm" />
                         {fieldErrors.email}
                       </p>
                     )}
@@ -370,7 +371,7 @@ const BookTour: React.FC = () => {
                     />
                     {fieldErrors.phone && (
                       <p className="text-sm text-red-500 dark:text-red-400 mt-1 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-sm">error</span>
+                        <Icon name="error" className="text-sm" />
                         {fieldErrors.phone}
                       </p>
                     )}
@@ -382,7 +383,7 @@ const BookTour: React.FC = () => {
                     className="tactile-btn w-full py-4 rounded-[4px] bg-primary text-white font-bold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
                   >
                     Continue to Select Time
-                    <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                    <Icon name="arrow_forward" className="text-lg" />
                   </button>
                 </div>
               )}
@@ -425,7 +426,7 @@ const BookTour: React.FC = () => {
                         </div>
                       ) : slots.length === 0 ? (
                         <div className="text-center py-8">
-                          <span className="material-symbols-outlined text-3xl text-primary/30 dark:text-white/30 mb-2 block">event_busy</span>
+                          <Icon name="event_busy" className="text-3xl text-primary/30 dark:text-white/30 mb-2 block" />
                           <p className="text-primary/60 dark:text-white/60 text-sm">No available times on this date. Please try another day.</p>
                         </div>
                       ) : (
@@ -481,7 +482,7 @@ const BookTour: React.FC = () => {
                       ) : (
                         <>
                           Confirm Tour
-                          <span className="material-symbols-outlined text-lg">check</span>
+                          <Icon name="check" className="text-lg" />
                         </>
                       )}
                     </button>

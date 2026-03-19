@@ -16,6 +16,7 @@ import {
   EmailCheckResult,
 } from './newUserTypes';
 import WalkingGolferSpinner from '../../../WalkingGolferSpinner';
+import Icon from '../../../icons/Icon';
 
 export function VisitorFlow({
   step,
@@ -174,7 +175,7 @@ export function VisitorFlow({
         <div className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center ${
           isDark ? 'bg-emerald-600/20' : 'bg-emerald-100'
         }`}>
-          <span className="material-symbols-outlined text-3xl text-emerald-600">check_circle</span>
+          <Icon name="check_circle" className="text-3xl text-emerald-600" />
         </div>
         <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
           Day Pass Purchased!
@@ -197,7 +198,7 @@ export function VisitorFlow({
             onClick={onBookNow}
             className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors tactile-btn"
           >
-            <span className="material-symbols-outlined text-sm mr-1 align-middle">calendar_add_on</span>
+            <Icon name="calendar_add_on" className="text-sm mr-1 align-middle" />
             Book Now
           </button>
         </div>
@@ -308,14 +309,14 @@ export function VisitorFlow({
             : 'border-emerald-500/50 text-emerald-600 hover:bg-emerald-50'
         }`}
       >
-        <span className="material-symbols-outlined text-xl">photo_camera</span>
+        <Icon name="photo_camera" className="text-xl" />
         <span className="text-sm font-medium">Scan Driver's License / ID</span>
       </button>
       {scannedIdImage && (
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${
           isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
         }`}>
-          <span className="material-symbols-outlined text-sm">check_circle</span>
+          <Icon name="check_circle" className="text-sm" />
           ID scanned — fields auto-filled
         </div>
       )}
@@ -338,7 +339,7 @@ export function VisitorFlow({
         </select>
         {fieldErrors.productId && (
           <p className={errorMsgClass}>
-            <span className="material-symbols-outlined text-xs">error</span>
+            <Icon name="error" className="text-xs" />
             {fieldErrors.productId}
           </p>
         )}
@@ -372,7 +373,7 @@ export function VisitorFlow({
           />
           {fieldErrors.firstName && (
             <p className={errorMsgClass}>
-              <span className="material-symbols-outlined text-xs">error</span>
+              <Icon name="error" className="text-xs" />
               {fieldErrors.firstName}
             </p>
           )}
@@ -391,7 +392,7 @@ export function VisitorFlow({
           />
           {fieldErrors.lastName && (
             <p className={errorMsgClass}>
-              <span className="material-symbols-outlined text-xs">error</span>
+              <Icon name="error" className="text-xs" />
               {fieldErrors.lastName}
             </p>
           )}
@@ -413,13 +414,13 @@ export function VisitorFlow({
         />
         {fieldErrors.email && (
           <p className={errorMsgClass}>
-            <span className="material-symbols-outlined text-xs">error</span>
+            <Icon name="error" className="text-xs" />
             {fieldErrors.email}
           </p>
         )}
         {emailCheckResult?.exists && (
           <div className={`mt-1.5 p-2 rounded-lg flex items-start gap-2 text-xs ${isDark ? 'bg-amber-900/20 border border-amber-700 text-amber-400' : 'bg-amber-50 border border-amber-200 text-amber-700'}`}>
-            <span className="material-symbols-outlined text-sm mt-0.5 shrink-0">warning</span>
+            <Icon name="warning" className="text-sm mt-0.5 shrink-0" />
             <span>A {emailCheckResult.role || 'user'} named <strong>{emailCheckResult.userName}</strong> already exists with this email ({emailCheckResult.membershipStatus || 'active'}). Are you sure this is correct?</span>
           </div>
         )}
@@ -431,7 +432,7 @@ export function VisitorFlow({
             const minsAgo = Math.round((Date.now() - recentMatch.timestamp) / 60000);
             return (
               <div className={`mt-1.5 p-2 rounded-lg flex items-start gap-2 text-xs ${isDark ? 'bg-orange-900/20 border border-orange-700 text-orange-400' : 'bg-orange-50 border border-orange-200 text-orange-700'}`}>
-                <span className="material-symbols-outlined text-sm mt-0.5 shrink-0">history</span>
+                <Icon name="history" className="text-sm mt-0.5 shrink-0" />
                 <span>You created a record for <strong>{recentMatch.name}</strong> {minsAgo < 1 ? 'just now' : `${minsAgo} min ago`}. Is this a different person?</span>
               </div>
             );
@@ -455,7 +456,7 @@ export function VisitorFlow({
         />
         {fieldErrors.phone && (
           <p className={errorMsgClass}>
-            <span className="material-symbols-outlined text-xs">error</span>
+            <Icon name="error" className="text-xs" />
             {fieldErrors.phone}
           </p>
         )}

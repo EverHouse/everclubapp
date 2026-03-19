@@ -1,5 +1,6 @@
 import React from 'react';
 import { Section } from './ProfileShared';
+import Icon from '../../../components/icons/Icon';
 
 interface PasskeysSectionProps {
   isDark: boolean;
@@ -26,7 +27,7 @@ const PasskeysSection: React.FC<PasskeysSectionProps> = ({
             <div key={pk.id} className="py-3 px-6 w-full transition-colors">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>fingerprint</span>
+                  <Icon name="fingerprint" className={`${isDark ? 'opacity-70' : 'text-primary/70'}`} />
                   <div>
                     <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>
                       {pk.deviceName || 'Passkey'}
@@ -59,7 +60,7 @@ const PasskeysSection: React.FC<PasskeysSectionProps> = ({
                 isDark ? 'text-accent hover:text-accent/80' : 'text-primary hover:text-primary/80'
               } disabled:opacity-50`}
             >
-              <span className="material-symbols-outlined text-lg">add</span>
+              <Icon name="add" className="text-lg" />
               {passkeyRegistering ? 'Registering...' : 'Add another passkey'}
             </button>
           </div>
@@ -67,7 +68,7 @@ const PasskeysSection: React.FC<PasskeysSectionProps> = ({
       ) : (
         <div className="py-4 px-6">
           <div className="flex items-start gap-4">
-            <span className={`material-symbols-outlined text-2xl mt-0.5 ${isDark ? 'opacity-70' : 'text-primary/70'}`}>fingerprint</span>
+            <Icon name="fingerprint" className={`text-2xl mt-0.5 ${isDark ? 'opacity-70' : 'text-primary/70'}`} />
             <div className="flex-1">
               <p className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>
                 Sign in with Face ID / Touch ID

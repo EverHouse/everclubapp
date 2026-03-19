@@ -9,6 +9,7 @@ import { prefetchMemberProfile } from '../../../../lib/prefetch-actions';
 import { formatJoinDate } from './directoryTypes';
 import SortableHeader from './DirectoryListHeader';
 import type { SortField } from './directoryTypes';
+import Icon from '../../../../components/icons/Icon';
 
 interface ActiveMembersListProps {
     members: MemberProfile[];
@@ -76,7 +77,7 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                         : 'bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30'
                 }`}>
                     <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-xl">warning</span>
+                        <Icon name="warning" className="text-amber-600 dark:text-amber-400 text-xl" />
                         <div>
                             <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
                                 Needs Attention
@@ -153,7 +154,7 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                                                 <div className="flex items-center gap-1">
                                                     <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} role={m.role} />
                                                     {isMemberPendingUpdate(m.email) && (
-                                                        <span className="material-symbols-outlined text-[14px] text-primary dark:!text-lavender animate-spin">progress_activity</span>
+                                                        <Icon name="progress_activity" className="text-[14px] text-primary dark:!text-lavender animate-spin" />
                                                     )}
                                                 </div>
                                                 {m.membershipStatus && (
@@ -178,7 +179,7 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                                                         onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
                                                         className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-fast active:scale-95"
                                                     >
-                                                        <span aria-hidden="true" className="material-symbols-outlined text-[14px]">add_circle</span>
+                                                        <Icon name="add_circle" className="text-[14px]" />
                                                         Assign Tier
                                                     </button>
                                                 )}
@@ -188,7 +189,7 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                                                     onClick={(e) => { e.stopPropagation(); handleViewAs(m); }} 
                                                     className="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/20 text-brand-green dark:bg-accent/30 dark:text-accent text-xs font-bold hover:bg-accent/30 transition-all duration-fast active:scale-95"
                                                 >
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-[14px]">visibility</span>
+                                                    <Icon name="visibility" className="text-[14px]" />
                                                     View As
                                                 </button>
                                             )}
@@ -227,7 +228,7 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                                             <div className="flex items-center gap-1">
                                                 <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} role={m.role} />
                                                 {isMemberPendingUpdate(m.email) && (
-                                                    <span className="material-symbols-outlined text-[12px] text-primary dark:!text-lavender animate-spin">progress_activity</span>
+                                                    <Icon name="progress_activity" className="text-[12px] text-primary dark:!text-lavender animate-spin" />
                                                 )}
                                             </div>
                                             {isAdmin && !getDisplayTier(m) && !isMemberPendingUpdate(m.email) && (
@@ -235,7 +236,7 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                                                     onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
                                                     className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-fast active:scale-95"
                                                 >
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-[12px]">add_circle</span>
+                                                    <Icon name="add_circle" className="text-[12px]" />
                                                     Assign
                                                 </button>
                                             )}
@@ -281,7 +282,7 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
 
                     {hasMore && (
                         <div ref={loadMoreRef} className="py-4 flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                            <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
+                            <Icon name="progress_activity" className="text-lg animate-spin" />
                             <span>Loading more... ({visibleCount} of {totalCount})</span>
                         </div>
                     )}

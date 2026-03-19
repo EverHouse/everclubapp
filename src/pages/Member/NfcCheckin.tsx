@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthData } from '../../contexts/DataContext';
 import PwaSmartBanner from '../../components/PwaSmartBanner';
+import Icon from '../../components/icons/Icon';
 
 type CheckinResult = 'checking_in' | 'error';
 
@@ -72,7 +73,7 @@ const NfcCheckin: React.FC = () => {
         {displayState === 'loading' && (
           <div className="text-center">
             <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4 animate-pulse">
-              <span className="material-symbols-outlined text-4xl text-white/60">nfc</span>
+              <Icon name="nfc" className="text-4xl text-white/60" />
             </div>
             <p className="text-white/60 text-sm">Loading...</p>
           </div>
@@ -81,7 +82,7 @@ const NfcCheckin: React.FC = () => {
         {displayState === 'checking_in' && (
           <div className="text-center">
             <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4 animate-pulse">
-              <span className="material-symbols-outlined text-4xl text-white/60">nfc</span>
+              <Icon name="nfc" className="text-4xl text-white/60" />
             </div>
             <p className="text-white/80 text-lg font-medium">Checking you in...</p>
             <p className="text-white/40 text-sm mt-1">Just a moment</p>
@@ -92,7 +93,7 @@ const NfcCheckin: React.FC = () => {
           <div className="rounded-xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-300">
             <div className="bg-gradient-to-br from-gray-700 via-gray-600 to-gray-800 p-8 text-center">
               <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4">
-                <span className="material-symbols-outlined text-4xl text-white">login</span>
+                <Icon name="login" className="text-4xl text-white" />
               </div>
               <h1 className="text-xl font-bold text-white mb-2">Sign In to Check In</h1>
               <p className="text-white/70 text-sm mb-6">
@@ -112,7 +113,7 @@ const NfcCheckin: React.FC = () => {
           <div className="rounded-xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-300">
             <div className="bg-gradient-to-br from-red-700 via-red-600 to-red-800 p-8 text-center">
               <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4">
-                <span className="material-symbols-outlined text-4xl text-yellow-300">warning</span>
+                <Icon name="warning" className="text-4xl text-yellow-300" />
               </div>
               <h1 className="text-xl font-bold text-white mb-2">Check-In Issue</h1>
               <p className="text-white/80 text-sm">{errorMessage}</p>

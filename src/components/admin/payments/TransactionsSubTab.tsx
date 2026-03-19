@@ -9,6 +9,7 @@ import RecentTransactionsSection from './TransactionList';
 import OverduePaymentsPanel from './OverduePaymentsPanel';
 import { UnifiedBookingSheet } from '../../staff-command-center/modals/UnifiedBookingSheet';
 import {
+import Icon from '../../icons/Icon';
   useDailySummary,
   useOverduePayments,
   useFailedPayments,
@@ -162,9 +163,7 @@ const DailySummaryCard: React.FC<SectionProps> = ({ onClose, variant = 'modal' }
                 return (
                   <div key={key} className="flex items-center justify-between py-1.5">
                     <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined text-xl text-primary/60 dark:text-white/60">
-                        {cat.icon}
-                      </span>
+                      <Icon name={cat.icon} className="text-xl text-primary/60 dark:text-white/60" />
                       <span className="text-base text-primary dark:text-white">{cat.label}</span>
                     </div>
                     <span className="text-base font-semibold text-primary dark:text-white">
@@ -195,7 +194,7 @@ const DailySummaryCard: React.FC<SectionProps> = ({ onClose, variant = 'modal' }
     return (
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-5">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400">summarize</span>
+          <Icon name="summarize" className="text-emerald-600 dark:text-emerald-400" />
           <h3 className="font-bold text-primary dark:text-white">Daily Summary</h3>
         </div>
         {content}
@@ -207,11 +206,11 @@ const DailySummaryCard: React.FC<SectionProps> = ({ onClose, variant = 'modal' }
     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400">summarize</span>
+          <Icon name="summarize" className="text-emerald-600 dark:text-emerald-400" />
           <h3 className="font-bold text-primary dark:text-white">Daily Summary</h3>
         </div>
         <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
-          <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+          <Icon name="close" className="text-primary/60 dark:text-white/60" />
         </button>
       </div>
       {content}
@@ -331,7 +330,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
           <div key={auth.id} className="p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-blue-100 dark:border-blue-900/20">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">hourglass_top</span>
+                <Icon name="hourglass_top" className="text-blue-600 dark:text-blue-400" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -394,7 +393,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
             {success ? (
               <div className="flex flex-col items-center justify-center py-8 gap-3">
                 <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-4xl text-green-600">check_circle</span>
+                  <Icon name="check_circle" className="text-4xl text-green-600" />
                 </div>
                 <p className="text-lg font-semibold text-primary dark:text-white">
                   {actionType === 'capture' ? 'Payment Captured!' : 'Authorization Voided!'}
@@ -411,7 +410,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
                     className="tactile-btn p-2 rounded-full hover:bg-primary/10 dark:hover:bg-white/10"
                     aria-label="Close"
                   >
-                    <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+                    <Icon name="close" className="text-primary/60 dark:text-white/60" />
                   </button>
                 </div>
 
@@ -525,9 +524,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
                       </>
                     ) : (
                       <>
-                        <span className="material-symbols-outlined text-lg">
-                          {actionType === 'capture' ? 'check_circle' : 'cancel'}
-                        </span>
+                        <Icon name={actionType === 'capture' ? 'check_circle' : 'cancel'} className="text-lg" />
                         {actionType === 'capture' ? 'Capture' : 'Void'}
                       </>
                     )}
@@ -545,7 +542,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
     return (
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-5">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">hourglass_top</span>
+          <Icon name="hourglass_top" className="text-blue-600 dark:text-blue-400" />
           <h3 className="font-bold text-primary dark:text-white">Pending Authorizations</h3>
           {authorizations.length > 0 && (
             <span className="px-2 py-0.5 text-xs font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-full">
@@ -562,7 +559,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">hourglass_top</span>
+          <Icon name="hourglass_top" className="text-blue-600 dark:text-blue-400" />
           <h3 className="font-bold text-primary dark:text-white">Pending Authorizations</h3>
           {authorizations.length > 0 && (
             <span className="px-2 py-0.5 text-xs font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-full">
@@ -571,7 +568,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
           )}
         </div>
         <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
-          <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+          <Icon name="close" className="text-primary/60 dark:text-white/60" />
         </button>
       </div>
       {content}
@@ -650,7 +647,7 @@ const FutureBookingsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
             <span className="font-bold text-green-600 dark:text-green-400">
               ${(booking.estimatedFeeCents / 100).toFixed(2)}
             </span>
-            <span className="material-symbols-outlined text-primary/30 dark:text-white/30 text-lg">chevron_right</span>
+            <Icon name="chevron_right" className="text-primary/30 dark:text-white/30 text-lg" />
           </div>
         </button>
       ))}
@@ -662,7 +659,7 @@ const FutureBookingsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
       {variant === 'card' ? (
         <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-4">
-            <span className="material-symbols-outlined text-green-600 dark:text-green-400">event_upcoming</span>
+            <Icon name="event_upcoming" className="text-green-600 dark:text-green-400" />
             <h3 className="font-bold text-primary dark:text-white">Future Bookings</h3>
             {futureBookings.length > 0 && (
               <span className="px-2 py-0.5 text-xs font-bold bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-full">
@@ -676,7 +673,7 @@ const FutureBookingsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
         <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-green-600 dark:text-green-400">event_upcoming</span>
+              <Icon name="event_upcoming" className="text-green-600 dark:text-green-400" />
               <h3 className="font-bold text-primary dark:text-white">Future Bookings</h3>
               {futureBookings.length > 0 && (
                 <span className="px-2 py-0.5 text-xs font-bold bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-full">
@@ -685,7 +682,7 @@ const FutureBookingsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
               )}
             </div>
             <button type="button" onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
-              <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+              <Icon name="close" className="text-primary/60 dark:text-white/60" />
             </button>
           </div>
           {content}
@@ -793,13 +790,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
                   ? 'bg-purple-100 dark:bg-purple-900/30' 
                   : 'bg-red-100 dark:bg-red-900/30'
               }`}>
-                <span className={`material-symbols-outlined ${
-                  payment.requiresCardUpdate 
-                    ? 'text-purple-600 dark:text-purple-400' 
-                    : 'text-red-600 dark:text-red-400'
-                }`}>
-                  {payment.requiresCardUpdate ? 'credit_card_off' : 'error'}
-                </span>
+                <Icon name={payment.requiresCardUpdate ? 'credit_card_off' : 'error'} className={`${ payment.requiresCardUpdate ? 'text-purple-600 dark:text-purple-400' : 'text-red-600 dark:text-red-400' }`} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -843,7 +834,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
                       {isRetrying ? (
                         <span className="animate-spin w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full" />
                       ) : (
-                        <span className="material-symbols-outlined text-sm">refresh</span>
+                        <Icon name="refresh" className="text-sm" />
                       )}
                       Retry
                     </button>
@@ -856,7 +847,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
                     {cancelingPaymentId === payment.paymentIntentId ? (
                       <span className="animate-spin w-3 h-3 border-2 border-red-600 border-t-transparent rounded-full" />
                     ) : (
-                      <span className="material-symbols-outlined text-sm">close</span>
+                      <Icon name="close" className="text-sm" />
                     )}
                     Cancel
                   </button>
@@ -864,7 +855,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
                     onClick={() => handleContactMember(payment.memberEmail)}
                     className="tactile-btn px-2 py-1 text-xs font-medium text-primary dark:text-lavender hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg transition-colors flex items-center gap-1"
                   >
-                    <span className="material-symbols-outlined text-sm">mail</span>
+                    <Icon name="mail" className="text-sm" />
                     Contact
                   </button>
                 </div>
@@ -886,7 +877,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
                 onClick={() => setSelectedEmail(null)}
                 className="tactile-btn p-2 rounded-full hover:bg-primary/10 dark:hover:bg-white/10"
               >
-                <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+                <Icon name="close" className="text-primary/60 dark:text-white/60" />
               </button>
             </div>
             <p className="text-sm text-primary/70 dark:text-white/70 mb-4">
@@ -899,7 +890,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
               href={`mailto:${selectedEmail}?subject=Regarding Your Payment&body=Hi, we noticed an issue with a recent payment attempt. Please contact us to resolve this.`}
               className="w-full py-3 rounded-full bg-primary dark:bg-lavender text-white dark:text-primary font-semibold flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined">mail</span>
+              <Icon name="mail" />
               Open Email
             </a>
           </div>
@@ -913,7 +904,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
       <>
         <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-4">
-            <span className="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+            <Icon name="error" className="text-red-600 dark:text-red-400" />
             <h3 className="font-bold text-primary dark:text-white">Failed Payments</h3>
             {failedPayments.length > 0 && (
               <span className="px-2 py-0.5 text-xs font-bold bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-full">
@@ -933,7 +924,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+            <Icon name="error" className="text-red-600 dark:text-red-400" />
             <h3 className="font-bold text-primary dark:text-white">Failed Payments</h3>
             {failedPayments.length > 0 && (
               <span className="px-2 py-0.5 text-xs font-bold bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-full">
@@ -942,7 +933,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
             )}
           </div>
           <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
-            <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+            <Icon name="close" className="text-primary/60 dark:text-white/60" />
           </button>
         </div>
         {content}
@@ -966,7 +957,7 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
       {payments.map((payment: RefundablePayment) => (
         <div key={payment.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/5 dark:border-white/10">
           <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-            <span className="material-symbols-outlined text-purple-600 dark:text-purple-400 text-lg">undo</span>
+            <Icon name="undo" className="text-purple-600 dark:text-purple-400 text-lg" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm text-primary dark:text-white truncate">{payment.memberName || 'Unknown'}</p>
@@ -990,7 +981,7 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
     return (
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-5">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-purple-600 dark:text-purple-400">undo</span>
+          <Icon name="undo" className="text-purple-600 dark:text-purple-400" />
           <h3 className="font-bold text-primary dark:text-white">Refund History</h3>
           {payments.length > 0 && (
             <span className="px-2 py-0.5 text-xs font-bold bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 rounded-full">
@@ -1007,11 +998,11 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-purple-600 dark:text-purple-400">undo</span>
+          <Icon name="undo" className="text-purple-600 dark:text-purple-400" />
           <h3 className="font-bold text-primary dark:text-white">Refund History</h3>
         </div>
         <button type="button" onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
-          <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+          <Icon name="close" className="text-primary/60 dark:text-white/60" />
         </button>
       </div>
       {content}
@@ -1023,7 +1014,7 @@ const _QuickInvoiceCard: React.FC = () => {
   return (
     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-5">
       <div className="flex items-center gap-2 mb-4">
-        <span className="material-symbols-outlined text-primary dark:text-lavender">description</span>
+        <Icon name="description" className="text-primary dark:text-lavender" />
         <h3 className="font-bold text-primary dark:text-white">Quick Invoice</h3>
       </div>
       <p className="text-sm text-primary/60 dark:text-white/60 mb-4">
@@ -1150,7 +1141,7 @@ const MobileTransactionsView: React.FC = () => {
             onClick={() => setActiveSection(action.id)}
             className={`${action.bgClass} ${action.textClass} ${action.borderClass} ${action.hoverClass} border backdrop-blur-md rounded-xl p-4 flex flex-col items-center gap-2 min-h-[100px] shadow-lg active:scale-95 transition-all duration-normal relative animate-list-item-delay-${Math.min(index, 10)}`}
           >
-            <span className={`material-symbols-outlined text-3xl ${action.iconClass}`}>{action.icon}</span>
+            <Icon name={action.icon} className={`text-3xl ${action.iconClass}`} />
             <span className="font-semibold text-sm">{action.label}</span>
             {action.badge !== undefined && action.badge > 0 && (
               <span className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 flex items-center justify-center bg-red-500 text-white text-sm font-bold rounded-full">

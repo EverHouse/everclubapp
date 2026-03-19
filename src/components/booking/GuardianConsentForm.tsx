@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
+import Icon from '../icons/Icon';
 
 interface GuardianConsentFormProps {
   onSubmit: (data: GuardianConsentData) => void;
@@ -91,9 +92,7 @@ export function GuardianConsentForm({ onSubmit, onCancel, memberName }: Guardian
     <form onSubmit={handleSubmit} className="p-6 space-y-5">
       <div className={`p-4 rounded-xl border ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
         <div className="flex items-start gap-3">
-          <span className={`material-symbols-outlined text-xl ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-            family_restroom
-          </span>
+          <Icon name="family_restroom" className={`text-xl ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
           <div>
             <h4 className={`font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
               Guardian Consent Required
@@ -116,7 +115,7 @@ export function GuardianConsentForm({ onSubmit, onCancel, memberName }: Guardian
         />
         {errors.guardianName && (
           <p className={errorClass}>
-            <span className="material-symbols-outlined text-xs">error</span>
+            <Icon name="error" className="text-xs" />
             {errors.guardianName}
           </p>
         )}
@@ -135,13 +134,11 @@ export function GuardianConsentForm({ onSubmit, onCancel, memberName }: Guardian
               <option key={option} value={option}>{option}</option>
             ))}
           </select>
-          <span className={`material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-white/60' : 'text-primary/60'}`}>
-            expand_more
-          </span>
+          <Icon name="expand_more" className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-white/60' : 'text-primary/60'}`} />
         </div>
         {errors.guardianRelationship && (
           <p className={errorClass}>
-            <span className="material-symbols-outlined text-xs">error</span>
+            <Icon name="error" className="text-xs" />
             {errors.guardianRelationship}
           </p>
         )}
@@ -158,7 +155,7 @@ export function GuardianConsentForm({ onSubmit, onCancel, memberName }: Guardian
         />
         {errors.guardianPhone && (
           <p className={errorClass}>
-            <span className="material-symbols-outlined text-xs">error</span>
+            <Icon name="error" className="text-xs" />
             {errors.guardianPhone}
           </p>
         )}
@@ -179,7 +176,7 @@ export function GuardianConsentForm({ onSubmit, onCancel, memberName }: Guardian
                 : isDark ? 'border-white/30' : 'border-gray-300'
             } ${errors.acknowledged ? 'border-red-500' : ''}`}>
               {acknowledged && (
-                <span className="material-symbols-outlined text-sm text-[#293515]">check</span>
+                <Icon name="check" className="text-sm text-[#293515]" />
               )}
             </div>
           </div>
@@ -189,7 +186,7 @@ export function GuardianConsentForm({ onSubmit, onCancel, memberName }: Guardian
         </label>
         {errors.acknowledged && (
           <p className={`${errorClass} mt-2`}>
-            <span className="material-symbols-outlined text-xs">error</span>
+            <Icon name="error" className="text-xs" />
             {errors.acknowledged}
           </p>
         )}
@@ -211,7 +208,7 @@ export function GuardianConsentForm({ onSubmit, onCancel, memberName }: Guardian
           type="submit"
           className="flex-1 py-3 rounded-xl font-bold text-sm bg-accent text-[#293515] hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
         >
-          <span className="material-symbols-outlined text-lg">verified</span>
+          <Icon name="verified" className="text-lg" />
           Confirm & Book
         </button>
       </div>

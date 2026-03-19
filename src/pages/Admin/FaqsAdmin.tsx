@@ -10,6 +10,7 @@ import { useDragAutoScroll } from '../../hooks/useDragAutoScroll';
 import { useToast } from '../../components/Toast';
 import { useFaqs, useSaveFaq, useDeleteFaq, adminTabKeys } from '../../hooks/queries';
 import { postWithCredentials } from '../../hooks/queries/useFetch';
+import Icon from '../../components/icons/Icon';
 
 interface FAQ {
     id: number;
@@ -210,7 +211,7 @@ const FaqsAdmin: React.FC = () => {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <span className="material-symbols-outlined animate-spin text-4xl text-primary/70" aria-hidden="true">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin text-4xl text-primary/70" />
             </div>
         );
     }
@@ -225,7 +226,7 @@ const FaqsAdmin: React.FC = () => {
                         disabled={isSeeding}
                         className="tactile-btn bg-accent text-primary px-3 py-2 min-h-[44px] rounded-lg font-bold flex items-center gap-1 shadow-md text-xs whitespace-nowrap disabled:opacity-50"
                     >
-                        <span className="material-symbols-outlined text-sm" aria-hidden="true">{isSeeding ? 'sync' : 'database'}</span>
+                        <Icon name={isSeeding ? 'sync' : 'database'} className="text-sm" />
                         {isSeeding ? 'Seeding...' : 'Seed FAQs'}
                     </button>
                 )}
@@ -300,7 +301,7 @@ const FaqsAdmin: React.FC = () => {
                             disabled={isSaving}
                             className="tactile-btn px-6 py-2.5 min-h-[44px] bg-primary text-white rounded-xl font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
                         >
-                            {isSaving && <span className="material-symbols-outlined animate-spin text-sm" aria-hidden="true">progress_activity</span>}
+                            {isSaving && <Icon name="progress_activity" className="animate-spin text-sm" />}
                             Save
                         </button>
                     </div>
@@ -331,7 +332,7 @@ const FaqsAdmin: React.FC = () => {
 
             {faqs.length === 0 ? (
                 <div className="bg-white dark:bg-surface-dark rounded-xl p-8 text-center shadow-sm border border-gray-200 dark:border-white/20">
-                    <span className="material-symbols-outlined text-5xl text-gray-500 dark:text-gray-500 mb-3 block" aria-hidden="true">help_outline</span>
+                    <Icon name="help_outline" className="text-5xl text-gray-500 dark:text-gray-500 mb-3 block" />
                     <h3 className="text-lg font-bold text-primary dark:text-white mb-2">No FAQs Yet</h3>
                     <p className="text-gray-600 dark:text-gray-300 mb-4">Get started by seeding default FAQs or adding your own.</p>
                     <button
@@ -362,7 +363,7 @@ const FaqsAdmin: React.FC = () => {
                             >
                                 <div className="flex items-start gap-3">
                                     <div className="w-11 h-11 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 touch-manipulation" role="img" aria-label="Drag to reorder">
-                                        <span className="material-symbols-outlined text-xl" aria-hidden="true">drag_indicator</span>
+                                        <Icon name="drag_indicator" className="text-xl" />
                                     </div>
                                     <button 
                                         type="button"
@@ -390,14 +391,14 @@ const FaqsAdmin: React.FC = () => {
                                             className="tactile-btn min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
                                             aria-label="Edit FAQ"
                                         >
-                                            <span className="material-symbols-outlined text-lg" aria-hidden="true">edit</span>
+                                            <Icon name="edit" className="text-lg" />
                                         </button>
                                         <button
                                             onClick={() => setDeleteConfirm(faq.id)}
                                             className="tactile-btn min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
                                             aria-label="Delete FAQ"
                                         >
-                                            <span className="material-symbols-outlined text-lg" aria-hidden="true">delete</span>
+                                            <Icon name="delete" className="text-lg" />
                                         </button>
                                     </div>
                                 </div>

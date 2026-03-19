@@ -10,6 +10,7 @@ import { AnimatedPage } from '../../../components/motion';
 import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
 import type { Announcement } from '../../../types/data';
 import {
+import Icon from '../../../components/icons/Icon';
     useStaffNotifications,
     useMarkNotificationRead,
     useMarkAllNotificationsRead,
@@ -235,7 +236,7 @@ const UpdatesTab: React.FC = () => {
                 ))
             ) : notifications.length === 0 ? (
                 <div className="text-center py-16 text-primary/70 dark:text-white/70">
-                    <span aria-hidden="true" className="material-symbols-outlined text-6xl mb-4 block opacity-30">notifications_off</span>
+                    <Icon name="notifications_off" className="text-6xl mb-4 block opacity-30" />
                     <p className="text-lg font-medium">No new alerts</p>
                     <p className="text-sm mt-1 opacity-70">New tours, booking requests, and system alerts will appear here.</p>
                 </div>
@@ -257,15 +258,9 @@ const UpdatesTab: React.FC = () => {
                                     notif.type === 'system_alert' ? 'bg-amber-500/20' :
                                     'bg-accent/20'
                                 }`}>
-                                    <span className={`material-symbols-outlined text-[20px] ${
-                                        notif.type === 'booking_request' ? 'text-blue-500' :
-                                        notif.type === 'system_alert' ? 'text-amber-500' :
-                                        'text-primary dark:text-white'
-                                    }`}>
-                                        {notif.type === 'booking_request' ? 'event_note' :
+                                    <Icon name={notif.type === 'booking_request' ? 'event_note' :
                                          notif.type === 'system_alert' ? 'warning' :
-                                         'notifications'}
-                                    </span>
+                                         'notifications'} className={`text-[20px] ${ notif.type === 'booking_request' ? 'text-blue-500' : notif.type === 'system_alert' ? 'text-amber-500' : 'text-primary dark:text-white' }`} />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-start">
@@ -312,7 +307,7 @@ const UpdatesTab: React.FC = () => {
                     ))
                 ) : announcements.length === 0 ? (
                     <div className="text-center py-16 text-primary/70 dark:text-white/70">
-                        <span aria-hidden="true" className="material-symbols-outlined text-6xl mb-4 block opacity-30">campaign</span>
+                        <Icon name="campaign" className="text-6xl mb-4 block opacity-30" />
                         <p className="text-lg font-medium">No announcements</p>
                         <p className="text-sm mt-1 opacity-70">Published announcements will appear here.</p>
                     </div>

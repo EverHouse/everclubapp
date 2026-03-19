@@ -7,6 +7,7 @@ import { TerminalPayment } from '../../../staff-command-center/TerminalPayment';
 import AnimatedCheckmark from '../../../AnimatedCheckmark';
 import WalkingGolferSpinner from '../../../WalkingGolferSpinner';
 import type { CartItem, PaymentMethodType, SavedCardInfo } from './posTypes';
+import Icon from '../../../icons/Icon';
 
 interface POSCheckoutDrawerProps {
   isDark: boolean;
@@ -108,7 +109,7 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
                   disabled={!guestReceiptEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestReceiptEmail.trim()) || attachingEmail || receiptSending}
                   className="w-full py-3 px-6 rounded-xl font-semibold bg-primary dark:bg-lavender text-white transition-colors hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  <span className="material-symbols-outlined text-lg">email</span>
+                  <Icon name="email" className="text-lg" />
                   {attachingEmail || receiptSending ? 'Sending...' : 'Send Receipt'}
                 </button>
               </div>
@@ -116,14 +117,14 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
                 onClick={resetForm}
                 className="w-full py-3 px-6 rounded-xl font-semibold bg-white/60 dark:bg-white/5 border border-primary/20 dark:border-white/20 text-primary dark:text-white transition-colors hover:bg-white/80 dark:hover:bg-white/10 flex items-center justify-center gap-2"
               >
-                <span className="material-symbols-outlined text-lg">close</span>
+                <Icon name="close" className="text-lg" />
                 No Thanks
               </button>
             </div>
           ) : (
             <div className="flex flex-col gap-3 w-full max-w-xs mt-4">
               <div className="flex items-center justify-center gap-2 py-3 text-emerald-600 dark:text-emerald-400">
-                <span className="material-symbols-outlined">check_circle</span>
+                <Icon name="check_circle" />
                 <span className="font-semibold text-sm">Receipt sent to {guestReceiptEmail}</span>
               </div>
               <button
@@ -159,9 +160,7 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
                 : 'bg-white/60 dark:bg-white/5 border border-primary/20 dark:border-white/20 text-primary dark:text-white hover:bg-white/80 dark:hover:bg-white/10'
             }`}
           >
-            <span className="material-symbols-outlined text-lg">
-              {receiptSent ? 'check' : 'email'}
-            </span>
+            <Icon name={receiptSent ? 'check' : 'email'} className="text-lg" />
             {receiptSending ? 'Sending...' : receiptSent ? 'Receipt Sent' : 'Email Receipt'}
           </button>
           <button
@@ -217,7 +216,7 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
             Customer
           </h4>
           <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-primary/5'}`}>
-            <span className="material-symbols-outlined text-primary/60 dark:text-white/60">person</span>
+            <Icon name="person" className="text-primary/60 dark:text-white/60" />
             <div>
               <p className="text-sm font-medium text-primary dark:text-white">{getCustomerInfo()?.name}</p>
               <p className="text-xs text-primary/60 dark:text-white/60">{getCustomerInfo()?.email}</p>
@@ -228,7 +227,7 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
 
       {useGuestCheckout && (
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30">
-          <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">bolt</span>
+          <Icon name="bolt" className="text-amber-600 dark:text-amber-400" />
           <div>
             <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Guest Checkout</p>
             <p className="text-xs text-amber-600 dark:text-amber-400">Terminal payment only</p>
@@ -249,7 +248,7 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
                 : 'bg-white/60 dark:bg-white/5 text-primary dark:text-white border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10'
             }`}
           >
-            <span className="material-symbols-outlined text-xl">contactless</span>
+            <Icon name="contactless" className="text-xl" />
             Card Reader
           </button>
         ) : (
@@ -262,7 +261,7 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
                 : 'bg-white/60 dark:bg-white/5 text-primary dark:text-white border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10'
             }`}
           >
-            <span className="material-symbols-outlined text-xl">credit_card</span>
+            <Icon name="credit_card" className="text-xl" />
             Online Card
           </button>
           <button
@@ -273,7 +272,7 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
                 : 'bg-white/60 dark:bg-white/5 text-primary dark:text-white border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10'
             }`}
           >
-            <span className="material-symbols-outlined text-xl">contactless</span>
+            <Icon name="contactless" className="text-xl" />
             Card Reader
           </button>
           {savedCard?.hasSavedCard && !useNewCustomer && (
@@ -285,7 +284,7 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
                   : 'bg-white/60 dark:bg-white/5 text-primary dark:text-white border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10'
               }`}
             >
-              <span className="material-symbols-outlined text-xl">wallet</span>
+              <Icon name="wallet" className="text-xl" />
               <span className="leading-tight text-center">Card on File{savedCard.cardLast4 ? ` ••${savedCard.cardLast4}` : ''}</span>
             </button>
           )}
@@ -357,7 +356,7 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
       {selectedPaymentMethod === 'saved_card' && (
         <div className="space-y-4">
           <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-primary/5'}`}>
-            <span className="material-symbols-outlined text-primary/60 dark:text-white/60">credit_card</span>
+            <Icon name="credit_card" className="text-primary/60 dark:text-white/60" />
             <div>
               <p className="text-sm font-medium text-primary dark:text-white capitalize">
                 {savedCard?.cardBrand || 'Card'} ending in {savedCard?.cardLast4 || '****'}
@@ -377,7 +376,7 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined">bolt</span>
+                <Icon name="bolt" />
                 Charge {totalFormatted}
               </>
             )}

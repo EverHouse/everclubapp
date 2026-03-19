@@ -5,6 +5,7 @@ import { formatTime12Hour, formatDateShort } from '../../../utils/dateUtils';
 import type { BookingRequest } from '../types';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
 import { copyToClipboard } from '../../../lib/copyToClipboard';
+import Icon from '../../icons/Icon';
 
 const TRACKMAN_PORTAL_URL = 'https://portal.trackmangolf.com/facility/RmFjaWxpdHkKZGI4YWMyN2FhLTM2YWQtNDM4ZC04MjUzLWVmOWU5NzMwMjkxZg==';
 
@@ -350,7 +351,7 @@ export function TrackmanBookingModal({
         >
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
             <div className="flex items-center gap-2 mb-3">
-              <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">info</span>
+              <Icon name="info" className="text-blue-600 dark:text-blue-400" />
               <h4 className="font-semibold text-blue-900 dark:text-blue-100">Booking Details</h4>
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -420,9 +421,7 @@ export function TrackmanBookingModal({
                 onClick={handleCopy}
                 className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-primary dark:text-[#CCB8E4] bg-primary/10 dark:bg-[#CCB8E4]/20 rounded-lg hover:bg-primary/20 dark:hover:bg-[#CCB8E4]/30 transition-colors"
               >
-                <span className="material-symbols-outlined text-sm">
-                  {copied ? 'check' : 'content_copy'}
-                </span>
+                <Icon name={copied ? 'check' : 'content_copy'} className="text-sm" />
                 {copied ? 'Copied!' : 'Copy'}
               </button>
             </div>
@@ -438,7 +437,7 @@ export function TrackmanBookingModal({
             onClick={handleOpenTrackman}
             className="tactile-btn w-full py-3 px-4 bg-[#E55A22] hover:bg-[#D04D18] text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined">open_in_new</span>
+            <Icon name="open_in_new" />
             Open Trackman Portal
           </button>
 
@@ -461,7 +460,7 @@ export function TrackmanBookingModal({
 
           {!autoApproved && error && (
             <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <span className="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+              <Icon name="error" className="text-red-600 dark:text-red-400" />
               <span className="text-sm text-red-700 dark:text-red-300">{error}</span>
             </div>
           )}
@@ -473,12 +472,12 @@ export function TrackmanBookingModal({
           >
             {isSubmitting ? (
               <>
-                <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin" />
                 Confirming...
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined">check_circle</span>
+                <Icon name="check_circle" />
                 Confirm Booking
               </>
             )}
@@ -492,12 +491,12 @@ export function TrackmanBookingModal({
             >
               {isDevConfirming ? (
                 <>
-                  <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                  <Icon name="progress_activity" className="animate-spin text-sm" />
                   Confirming...
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-sm">developer_mode</span>
+                  <Icon name="developer_mode" className="text-sm" />
                   Skip Trackman (Dev Confirm)
                 </>
               )}
@@ -518,15 +517,7 @@ export function TrackmanBookingModal({
                   animation: showSuccessOverlay ? 'trackmanCheckScale 0.5s var(--spring-bounce) forwards' : 'none'
                 }}
               >
-                <span
-                  className="material-symbols-outlined text-green-600 dark:text-green-400"
-                  style={{
-                    fontSize: '40px',
-                    animation: showSuccessOverlay ? 'trackmanCheckDraw 0.4s ease-out 0.3s both' : 'none'
-                  }}
-                >
-                  check_circle
-                </span>
+                <Icon name="check_circle" className="text-green-600 dark:text-green-400" />
               </div>
               <div
                 className="absolute inset-0 rounded-full"
@@ -588,7 +579,7 @@ export function TrackmanBookingModal({
                 animation: showSuccessOverlay ? 'trackmanFadeUp 0.4s ease-out 0.8s both' : 'none'
               }}
             >
-              <span className="material-symbols-outlined text-sm">schedule</span>
+              <Icon name="schedule" className="text-sm" />
               Closing automatically...
             </div>
           </div>

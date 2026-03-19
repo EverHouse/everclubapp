@@ -2,6 +2,7 @@ import React from 'react';
 import ProfileEmptyState from './ProfileEmptyState';
 import { stripHtml, formatDateTimePacific } from './memberProfileTypes';
 import type { CommunicationLog } from './memberProfileTypes';
+import Icon from '../icons/Icon';
 
 interface CommunicationsTabProps {
   isDark: boolean;
@@ -47,7 +48,7 @@ const CommunicationsTab: React.FC<CommunicationsTabProps> = ({
           onClick={() => setShowAddComm(!showAddComm)}
           className="w-full py-2 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity tactile-btn"
         >
-          <span className="material-symbols-outlined text-lg">add</span>
+          <Icon name="add" className="text-lg" />
           Log Communication
         </button>
       </div>
@@ -128,17 +129,10 @@ const CommunicationsTab: React.FC<CommunicationsTabProps> = ({
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className={`material-symbols-outlined text-lg ${
-                      comm.type === 'email' ? 'text-blue-500' :
-                      comm.type === 'call' ? 'text-green-500' :
-                      comm.type === 'meeting' ? 'text-purple-500' :
-                      comm.type === 'sms' ? 'text-orange-500' : 'text-gray-500'
-                    }`}>
-                      {comm.type === 'email' ? 'mail' :
+                    <Icon name={comm.type === 'email' ? 'mail' :
                        comm.type === 'call' ? 'call' :
                        comm.type === 'meeting' ? 'groups' :
-                       comm.type === 'sms' ? 'sms' : 'note'}
-                    </span>
+                       comm.type === 'sms' ? 'sms' : 'note'} className={`text-lg ${ comm.type === 'email' ? 'text-blue-500' : comm.type === 'call' ? 'text-green-500' : comm.type === 'meeting' ? 'text-purple-500' : comm.type === 'sms' ? 'text-orange-500' : 'text-gray-500' }`} />
                     <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{comm.subject}</span>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded ${isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'}`}>
                       {comm.direction}
@@ -154,7 +148,7 @@ const CommunicationsTab: React.FC<CommunicationsTabProps> = ({
                   className="text-red-500 hover:text-red-600 p-1 tactile-btn"
                   aria-label="Delete communication"
                 >
-                  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
+                  <Icon name="delete" className="text-[18px]" />
                 </button>
               </div>
             </div>

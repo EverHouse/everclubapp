@@ -2,6 +2,7 @@ import React from 'react';
 import { formatTitleForDisplay } from '../../../../utils/closureUtils';
 import type { BlocksClosure } from './blocksTabTypes';
 import { stripHtml } from './blocksTabTypes';
+import Icon from '../../../../components/icons/Icon';
 
 interface NoticeListProps {
     configuredClosures: BlocksClosure[];
@@ -51,7 +52,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
     if (configuredClosures.length === 0) {
         return (
             <div className="text-center py-12 text-gray-600 dark:text-white/70">
-                <span aria-hidden="true" className="material-symbols-outlined text-4xl mb-2">event_available</span>
+                <Icon name="event_available" className="text-4xl mb-2" />
                 <p>{closuresCount === 0 ? 'No notices' : 'No notices match filters'}</p>
             </div>
         );
@@ -126,7 +127,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                             ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
                                                             : 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
                                                 }`}>
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-[12px]">calendar_today</span>
+                                                    <Icon name="calendar_today" className="text-[12px]" />
                                                     <span>
                                                         {formatDate(closure.startDate)}
                                                         {closure.endDate && closure.endDate !== closure.startDate ? ` - ${formatDate(closure.endDate)}` : ''}
@@ -134,7 +135,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                 </div>
                                                 {isIncomplete && (
                                                     <div className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                                                        <span aria-hidden="true" className="material-symbols-outlined text-[12px]">warning</span>
+                                                        <Icon name="warning" className="text-[12px]" />
                                                         <span>Missing: {missingFields.join(', ')}</span>
                                                     </div>
                                                 )}
@@ -146,7 +147,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                                 ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
                                                                 : 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
                                                     }`}>
-                                                        <span aria-hidden="true" className="material-symbols-outlined text-[12px]">schedule</span>
+                                                        <Icon name="schedule" className="text-[12px]" />
                                                         <span>
                                                             {closure.startTime ? formatTime(closure.startTime) : 'All day'}
                                                             {closure.endTime ? ` - ${formatTime(closure.endTime)}` : ''}
@@ -160,7 +161,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                             ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
                                                             : 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
                                                 }`}>
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-[12px]">location_on</span>
+                                                    <Icon name="location_on" className="text-[12px]" />
                                                     <span>{formatAffectedAreas(closure.affectedAreas)}</span>
                                                 </div>
                                             </div>
@@ -176,15 +177,13 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                             : 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-500/30'
                                                 }`}
                                             >
-                                                <span aria-hidden="true" className="material-symbols-outlined text-base">edit</span>
+                                                <Icon name="edit" className="text-base" />
                                             </button>
                                             <button
                                                 onClick={() => toggleNoticeExpand(closure.id)}
                                                 className="p-1"
                                             >
-                                                <span aria-hidden="true" className={`material-symbols-outlined text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                                                    expand_more
-                                                </span>
+                                                <Icon name="expand_more" className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                             </button>
                                         </div>
                                     </div>
@@ -209,9 +208,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                                 ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
                                                                 : 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
                                                         }`}>
-                                                            <span aria-hidden="true" className="material-symbols-outlined text-[12px]">
-                                                                {area.toLowerCase().includes('conference') ? 'meeting_room' : 'sports_golf'}
-                                                            </span>
+                                                            <Icon name={area.toLowerCase().includes('conference') ? 'meeting_room' : 'sports_golf'} className="text-[12px]" />
                                                             <span>{area}</span>
                                                         </div>
                                                     ))}
@@ -252,15 +249,13 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                         className="w-full flex items-center justify-between p-4 hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors"
                     >
                         <div className="flex items-center gap-2">
-                            <span aria-hidden="true" className="material-symbols-outlined text-gray-500 dark:text-white/60">history</span>
+                            <Icon name="history" className="text-gray-500 dark:text-white/60" />
                             <span className="font-semibold text-gray-600 dark:text-white/80">Past Notices</span>
                             <span className="text-xs bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-2 py-0.5 rounded-[4px]">
                                 {pastClosures.length}
                             </span>
                         </div>
-                        <span aria-hidden="true" className={`material-symbols-outlined text-gray-400 transition-transform ${showPastAccordion ? 'rotate-180' : ''}`}>
-                            expand_more
-                        </span>
+                        <Icon name="expand_more" className={`text-gray-400 transition-transform ${showPastAccordion ? 'rotate-180' : ''}`} />
                     </button>
 
                     <div className={`accordion-content ${showPastAccordion ? 'is-open' : ''}`}>
@@ -308,7 +303,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                                 ? 'bg-red-100/60 dark:bg-red-500/15 text-red-500 dark:text-red-400'
                                                                 : 'bg-amber-100/60 dark:bg-amber-500/15 text-amber-500 dark:text-amber-400'
                                                         }`}>
-                                                            <span aria-hidden="true" className="material-symbols-outlined text-[11px]">calendar_today</span>
+                                                            <Icon name="calendar_today" className="text-[11px]" />
                                                             <span>
                                                                 {formatDate(closure.startDate)}
                                                                 {closure.endDate && closure.endDate !== closure.startDate ? ` - ${formatDate(closure.endDate)}` : ''}
@@ -321,15 +316,13 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                         onClick={(e) => handleEditClosure(closure, e)}
                                                         className="p-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/20 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-fast"
                                                     >
-                                                        <span aria-hidden="true" className="material-symbols-outlined text-base">edit</span>
+                                                        <Icon name="edit" className="text-base" />
                                                     </button>
                                                     <button
                                                         onClick={() => toggleNoticeExpand(closure.id)}
                                                         className="p-1"
                                                     >
-                                                        <span aria-hidden="true" className={`material-symbols-outlined text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                                                            expand_more
-                                                        </span>
+                                                        <Icon name="expand_more" className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                                     </button>
                                                 </div>
                                             </div>

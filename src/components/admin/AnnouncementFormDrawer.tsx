@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAnnouncementData, Announcement } from '../../contexts/DataContext';
 import { useToast } from '../Toast';
 import { SlideUpDrawer } from '../SlideUpDrawer';
+import Icon from '../icons/Icon';
 
 interface AnnouncementFormDrawerProps {
   isOpen: boolean;
@@ -92,7 +93,7 @@ export const AnnouncementFormDrawer: React.FC<AnnouncementFormDrawerProps> = ({
           >
             {saving ? (
               <>
-                <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin text-lg" />
                 Saving...
               </>
             ) : (

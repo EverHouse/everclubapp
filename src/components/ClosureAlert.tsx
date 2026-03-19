@@ -5,6 +5,7 @@ import { useAuthData } from '../contexts/DataContext';
 import { getTodayPacific } from '../utils/dateUtils';
 import { isBlockingClosure, getAffectedAreasList, getNoticeLabel as getNoticeLabelUtil } from '../utils/closureUtils';
 import { fetchWithCredentials, isAbortError } from '../hooks/queries/useFetch';
+import Icon from './icons/Icon';
 
 const EXIT_DURATION = 250;
 
@@ -209,13 +210,7 @@ const ClosureAlert: React.FC = () => {
       aria-label={`View notice: ${noticeLabel}`}
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
-        <span className={`material-symbols-outlined text-lg flex-shrink-0 ${
-          blocking
-            ? (isDark ? 'text-red-400' : 'text-red-600')
-            : (isDark ? 'text-amber-400' : 'text-amber-600')
-        }`} aria-hidden="true">
-          {blocking ? 'event_busy' : 'notifications'}
-        </span>
+        <Icon name={blocking ? 'event_busy' : 'notifications'} className={`text-lg flex-shrink-0 ${ blocking ? (isDark ? 'text-red-400' : 'text-red-600') : (isDark ? 'text-amber-400' : 'text-amber-600') }`} />
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className={`text-[10px] font-bold uppercase ${
@@ -293,7 +288,7 @@ const ClosureAlert: React.FC = () => {
         }`}
         aria-label="Dismiss notice"
       >
-        <span className="material-symbols-outlined text-lg" aria-hidden="true">close</span>
+        <Icon name="close" className="text-lg" />
       </button>
     </div>
   );

@@ -9,6 +9,7 @@ import { formatDateDisplayWithDay } from '../../utils/dateUtils';
 import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
+import Icon from '../../components/icons/Icon';
 
 interface Event {
   id: number;
@@ -189,7 +190,7 @@ const WhatsOn: React.FC = () => {
           <SkeletonList count={5} Component={BookingCardSkeleton} />
         ) : combinedItems.length === 0 ? (
           <div className="text-center py-20">
-            <span className="material-symbols-outlined text-5xl text-primary/30 dark:text-white/30 mb-4">calendar_month</span>
+            <Icon name="calendar_month" className="text-5xl text-primary/30 dark:text-white/30 mb-4" />
             <p className="text-primary/60 dark:text-white/60">No upcoming {filter === 'all' ? 'events or classes' : filter} scheduled.</p>
             <p className="text-primary/40 dark:text-white/40 text-sm mt-2">Check back soon for new experiences.</p>
           </div>
@@ -239,9 +240,7 @@ const WhatsOn: React.FC = () => {
                         {isEvent && item.eventbrite_url && (
                           <span className="px-1.5 py-0.5 rounded bg-[#F05537] text-white text-[8px] font-bold uppercase">Tickets</span>
                         )}
-                        <span className={`material-symbols-outlined text-[20px] text-primary/40 dark:text-white/40 transition-transform duration-normal ${isExpanded ? 'rotate-180' : ''}`}>
-                          expand_more
-                        </span>
+                        <Icon name="expand_more" className={`text-[20px] text-primary/40 dark:text-white/40 transition-transform duration-normal ${isExpanded ? 'rotate-180' : ''}`} />
                       </div>
                     </div>
                   </div>
@@ -279,7 +278,7 @@ const WhatsOn: React.FC = () => {
                           className="w-full bg-[#F05537] hover:bg-[#d94a2f] text-white py-3 rounded-[4px] flex items-center justify-center gap-2 font-bold text-sm transition-colors"
                         >
                           <span>Get Tickets</span>
-                          <span className="material-symbols-outlined text-sm">open_in_new</span>
+                          <Icon name="open_in_new" className="text-sm" />
                         </a>
                       ) : item.external_url ? (
                         <a 
@@ -290,7 +289,7 @@ const WhatsOn: React.FC = () => {
                           className="w-full bg-primary hover:bg-[#1e2810] text-white py-3 rounded-[4px] flex items-center justify-center gap-2 font-bold text-sm transition-colors"
                         >
                           <span>Learn More</span>
-                          <span className="material-symbols-outlined text-sm">open_in_new</span>
+                          <Icon name="open_in_new" className="text-sm" />
                         </a>
                       ) : (
                         <div className="w-full bg-bone dark:bg-white/5 py-3 rounded-[4px] flex items-center justify-center px-4">
@@ -307,7 +306,7 @@ const WhatsOn: React.FC = () => {
                           className="w-full bg-primary hover:bg-[#1e2810] text-white py-3 rounded-[4px] flex items-center justify-center gap-2 font-bold text-sm transition-colors"
                         >
                           <span>Learn More</span>
-                          <span className="material-symbols-outlined text-sm">open_in_new</span>
+                          <Icon name="open_in_new" className="text-sm" />
                         </a>
                       ) : (
                         <div className="w-full bg-bone dark:bg-white/5 py-3 rounded-[4px] flex items-center justify-center px-4">

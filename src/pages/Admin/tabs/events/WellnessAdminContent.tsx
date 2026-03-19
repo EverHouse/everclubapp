@@ -10,6 +10,7 @@ import { EventsTabSkeleton } from '../../../../components/skeletons';
 import { getTodayPacific } from '../../../../utils/dateUtils';
 import { Participant, WellnessClass, WellnessFormData, WELLNESS_CATEGORY_TABS, INITIAL_DISPLAY_COUNT } from './eventsTypes';
 import { ParticipantDetailsModal } from './ParticipantDetailsModal';
+import Icon from '../../../../components/icons/Icon';
 
 export const WellnessAdminContent: React.FC = () => {
     const queryClient = useQueryClient();
@@ -373,7 +374,7 @@ export const WellnessAdminContent: React.FC = () => {
                                 : 'bg-white dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
                         }`}
                     >
-                        <span aria-hidden="true" className="material-symbols-outlined text-[14px] sm:text-[16px]">{tab.icon}</span>
+                        <Icon name={tab.icon} className="text-[14px] sm:text-[16px]" />
                         {tab.label}
                     </button>
                 ))}
@@ -393,7 +394,7 @@ export const WellnessAdminContent: React.FC = () => {
 
             {isError && (
                 <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl text-center">
-                    <span className="material-symbols-outlined text-red-400 text-2xl mb-2 block">error_outline</span>
+                    <Icon name="error_outline" className="text-red-400 text-2xl mb-2 block" />
                     <p className="text-sm text-red-600 dark:text-red-400 mb-2">Unable to load wellness classes</p>
                     <button onClick={() => refetch()} className="text-xs font-medium text-primary dark:text-white underline">Try Again</button>
                 </div>
@@ -403,7 +404,7 @@ export const WellnessAdminContent: React.FC = () => {
                 <div className="mb-6 animate-content-enter-delay-2">
                     <div className="bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-sm border border-amber-200 dark:border-amber-700/50 rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-3">
-                            <span aria-hidden="true" className="material-symbols-outlined text-amber-500">rate_review</span>
+                            <Icon name="rate_review" className="text-amber-500" />
                             <h3 className="text-2xl leading-tight font-bold text-amber-700 dark:text-amber-400" style={{ fontFamily: 'var(--font-headline)' }}>Needs Review</h3>
                             <span className="ml-auto bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-[4px]">{needsReviewClasses.length}</span>
                         </div>
@@ -417,7 +418,7 @@ export const WellnessAdminContent: React.FC = () => {
                                         <div className="flex items-center gap-2 mb-1">
                                             {cls.conflict_detected && (
                                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-orange-500 text-white text-[10px] font-bold uppercase tracking-widest">
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-[12px]">sync_problem</span>
+                                                    <Icon name="sync_problem" className="text-[12px]" />
                                                     Conflict
                                                 </span>
                                             )}
@@ -431,7 +432,7 @@ export const WellnessAdminContent: React.FC = () => {
                                                 <>
                                                     <span>•</span>
                                                     <span className="flex items-center gap-1">
-                                                        <span aria-hidden="true" className="material-symbols-outlined text-[12px]">person</span>
+                                                        <Icon name="person" className="text-[12px]" />
                                                         {cls.instructor}
                                                     </span>
                                                 </>
@@ -447,7 +448,7 @@ export const WellnessAdminContent: React.FC = () => {
                                         onClick={() => openEdit(cls)}
                                         className="bg-primary hover:bg-primary/90 text-white text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-colors flex items-center gap-1 flex-shrink-0"
                                     >
-                                        <span aria-hidden="true" className="material-symbols-outlined text-[14px]">edit</span>
+                                        <Icon name="edit" className="text-[14px]" />
                                         Edit
                                     </button>
                                 </div>
@@ -471,7 +472,7 @@ export const WellnessAdminContent: React.FC = () => {
                     {upcomingClasses.length > 0 && (
                         <div className="animate-content-enter-delay-2">
                             <div className="flex items-center gap-2 mb-3">
-                                <span aria-hidden="true" className="material-symbols-outlined text-green-500">schedule</span>
+                                <Icon name="schedule" className="text-green-500" />
                                 <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Upcoming ({upcomingClasses.length})</h3>
                             </div>
                             <div className="grid grid-cols-1 gap-4">
@@ -482,9 +483,7 @@ export const WellnessAdminContent: React.FC = () => {
                                                 {cls.image_url ? (
                                                     <img src={cls.image_url} alt={cls.title || 'Wellness class image'} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-3xl text-[#8B6FA8] dark:text-[#CCB8E4]">
-                                                        {getCategoryIcon(cls.category)}
-                                                    </span>
+                                                    <Icon name={getCategoryIcon(cls.category)} className="text-3xl text-[#8B6FA8] dark:text-[#CCB8E4]" />
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0 flex flex-col justify-center">
@@ -494,13 +493,13 @@ export const WellnessAdminContent: React.FC = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-white/20 mt-auto">
-                                            <span className="text-xs text-gray-600 dark:text-gray-500 flex items-center gap-1"><span aria-hidden="true" className="material-symbols-outlined text-[14px]">person</span> {cls.instructor}</span>
+                                            <span className="text-xs text-gray-600 dark:text-gray-500 flex items-center gap-1"><Icon name="person" className="text-[14px]" /> {cls.instructor}</span>
                                             <div className="flex items-center gap-2">
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleViewEnrollments(cls); }} 
                                                     className="bg-primary/10 dark:bg-[rgba(204,184,228,0.2)] text-primary dark:text-[#CCB8E4] text-xs font-bold uppercase tracking-wider hover:bg-primary/20 dark:hover:bg-[rgba(204,184,228,0.3)] px-2 py-1 rounded flex items-center gap-1 transition-colors"
                                                 >
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-[14px]">group</span> 
+                                                    <Icon name="group" className="text-[14px]" /> 
                                                     {cls.capacity ? `${cls.enrolled_count || 0}/${cls.capacity}` : 'Enrolled'}
                                                     {cls.waitlist_count && cls.waitlist_count > 0 ? ` (+${cls.waitlist_count})` : ''}
                                                 </button>
@@ -524,9 +523,9 @@ export const WellnessAdminContent: React.FC = () => {
                                 onClick={() => setShowPastClasses(!showPastClasses)}
                                 className="flex items-center gap-2 mb-3 w-full text-left group"
                             >
-                                <span aria-hidden="true" className="material-symbols-outlined text-gray-600 dark:text-gray-500">history</span>
+                                <Icon name="history" className="text-gray-600 dark:text-gray-500" />
                                 <h3 className="text-2xl leading-tight font-bold text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-headline)' }}>Past ({pastClasses.length})</h3>
-                                <span aria-hidden="true" className={`material-symbols-outlined text-gray-400 dark:text-gray-500 text-[18px] transition-transform ${showPastClasses ? 'rotate-180' : ''}`}>expand_more</span>
+                                <Icon name="expand_more" className={`text-gray-400 dark:text-gray-500 text-[18px] transition-transform ${showPastClasses ? 'rotate-180' : ''}`} />
                             </button>
                             {showPastClasses && (
                             <>
@@ -538,9 +537,7 @@ export const WellnessAdminContent: React.FC = () => {
                                                 {cls.image_url ? (
                                                     <img src={cls.image_url} alt={cls.title || 'Wellness class image'} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-3xl text-[#8B6FA8] dark:text-[#CCB8E4]">
-                                                        {getCategoryIcon(cls.category)}
-                                                    </span>
+                                                    <Icon name={getCategoryIcon(cls.category)} className="text-3xl text-[#8B6FA8] dark:text-[#CCB8E4]" />
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0 flex flex-col justify-center">
@@ -550,13 +547,13 @@ export const WellnessAdminContent: React.FC = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-white/20 mt-auto">
-                                            <span className="text-xs text-gray-600 dark:text-gray-500 flex items-center gap-1"><span aria-hidden="true" className="material-symbols-outlined text-[14px]">person</span> {cls.instructor}</span>
+                                            <span className="text-xs text-gray-600 dark:text-gray-500 flex items-center gap-1"><Icon name="person" className="text-[14px]" /> {cls.instructor}</span>
                                             <div className="flex items-center gap-2">
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleViewEnrollments(cls); }} 
                                                     className="bg-primary/10 dark:bg-[rgba(204,184,228,0.2)] text-primary dark:text-[#CCB8E4] text-xs font-bold uppercase tracking-wider hover:bg-primary/20 dark:hover:bg-[rgba(204,184,228,0.3)] px-2 py-1 rounded flex items-center gap-1 transition-colors"
                                                 >
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-[14px]">group</span> Enrolled
+                                                    <Icon name="group" className="text-[14px]" /> Enrolled
                                                 </button>
                                                 <button onClick={(e) => { e.stopPropagation(); handleDelete(cls); }} className="text-primary/70 dark:text-white/70 text-xs font-bold uppercase tracking-wider hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-1 rounded transition-colors">Delete</button>
                                             </div>
@@ -606,7 +603,7 @@ export const WellnessAdminContent: React.FC = () => {
                             disabled={isUploading || saveClassMutation.isPending || !isWellnessFormValid}
                             className="flex-1 py-3 rounded-xl bg-brand-green text-white font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                            {(isUploading || saveClassMutation.isPending) && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
+                            {(isUploading || saveClassMutation.isPending) && <Icon name="progress_activity" className="animate-spin text-sm" />}
                             {isUploading || saveClassMutation.isPending ? 'Saving...' : editId ? 'Save Changes' : 'Add Wellness'}
                         </button>
                     </div>
@@ -715,7 +712,7 @@ export const WellnessAdminContent: React.FC = () => {
                     <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-700/50">
                         <div className="flex-1">
                             <label className="font-bold text-sm text-gray-700 dark:text-white flex items-center gap-2">
-                                <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-purple-600">format_list_numbered</span>
+                                <Icon name="format_list_numbered" className="text-[18px] text-purple-600" />
                                 Enable Waitlist
                             </label>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -771,7 +768,7 @@ export const WellnessAdminContent: React.FC = () => {
                                         : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/70 border border-gray-200 dark:border-white/25'
                                 }`}
                             >
-                                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">public</span>
+                                <Icon name="public" className="text-[18px]" />
                                 Public
                             </button>
                             <button
@@ -783,7 +780,7 @@ export const WellnessAdminContent: React.FC = () => {
                                         : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/70 border border-gray-200 dark:border-white/25'
                                 }`}
                             >
-                                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">lock</span>
+                                <Icon name="lock" className="text-[18px]" />
                                 Members Only
                             </button>
                         </div>
@@ -793,7 +790,7 @@ export const WellnessAdminContent: React.FC = () => {
                         <div className="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700/50">
                             <div className="flex-1">
                                 <label className="font-bold text-sm text-gray-700 dark:text-white flex items-center gap-2">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-amber-600">sports_golf</span>
+                                    <Icon name="sports_golf" className="text-[18px] text-amber-600" />
                                     Block Simulators
                                 </label>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -817,7 +814,7 @@ export const WellnessAdminContent: React.FC = () => {
                         <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700/50">
                             <div className="flex-1">
                                 <label className="font-bold text-sm text-gray-700 dark:text-white flex items-center gap-2">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-blue-600">meeting_room</span>
+                                    <Icon name="meeting_room" className="text-[18px] text-blue-600" />
                                     Block Conference Room
                                 </label>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -863,12 +860,12 @@ export const WellnessAdminContent: React.FC = () => {
                         >
                             {deleteClassMutation.isPending ? (
                                 <>
-                                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                                    <Icon name="progress_activity" className="animate-spin text-sm" />
                                     Deleting...
                                 </>
                             ) : (
                                 <>
-                                    <span aria-hidden="true" className="material-symbols-outlined text-sm">delete</span>
+                                    <Icon name="delete" className="text-sm" />
                                     Delete
                                 </>
                             )}

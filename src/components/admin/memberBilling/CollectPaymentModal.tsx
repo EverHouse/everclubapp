@@ -2,6 +2,7 @@ import React from 'react';
 import { ModalShell } from '../../ModalShell';
 import { TerminalPayment } from '../../staff-command-center/TerminalPayment';
 import type { BillingInfo } from './types';
+import Icon from '../../icons/Icon';
 
 export function CollectPaymentModal({
   isOpen,
@@ -44,7 +45,7 @@ export function CollectPaymentModal({
       <div className="p-4 space-y-4">
         <div className={`p-3 rounded-lg ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>
           <div className="flex items-center gap-2">
-            <span className={`material-symbols-outlined ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>info</span>
+            <Icon name="info" className={`${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
             <span className={`text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
               Collecting payment of ${(collectPaymentAmount / 100).toFixed(2)} for {billingInfo.activeSubscription.planName || 'membership subscription'}
             </span>
@@ -64,7 +65,7 @@ export function CollectPaymentModal({
                   : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
             }`}
           >
-            <span className="material-symbols-outlined text-lg">point_of_sale</span>
+            <Icon name="point_of_sale" className="text-lg" />
             Card Reader
           </button>
           <button
@@ -79,7 +80,7 @@ export function CollectPaymentModal({
                   : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
             }`}
           >
-            <span className="material-symbols-outlined text-lg">credit_card</span>
+            <Icon name="credit_card" className="text-lg" />
             Charge Saved Card
           </button>
         </div>
@@ -105,7 +106,7 @@ export function CollectPaymentModal({
 
             {billingInfo.paymentMethods && billingInfo.paymentMethods.length > 0 ? (
               <div className={`p-3 rounded-lg flex items-center gap-3 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
-                <span className={`material-symbols-outlined text-xl ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>credit_card</span>
+                <Icon name="credit_card" className={`text-xl ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                 <div>
                   <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     {(billingInfo.paymentMethods[0].brand || 'Card').charAt(0).toUpperCase() + (billingInfo.paymentMethods[0].brand || 'Card').slice(1)} •••• {billingInfo.paymentMethods[0].last4}
@@ -118,7 +119,7 @@ export function CollectPaymentModal({
             ) : (
               <div className={`p-3 rounded-lg ${isDark ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-yellow-50 border border-yellow-200'}`}>
                 <div className="flex items-center gap-2">
-                  <span className={`material-symbols-outlined ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>warning</span>
+                  <Icon name="warning" className={`${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
                   <span className={`text-sm ${isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>
                     No saved card on file. Use the card reader or ask the member to update their payment method.
                   </span>
@@ -142,7 +143,7 @@ export function CollectPaymentModal({
               >
                 {isChargingCard ? (
                   <span className="flex items-center justify-center gap-2">
-                    <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-base" />
                     Charging...
                   </span>
                 ) : (

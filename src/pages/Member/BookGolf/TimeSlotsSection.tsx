@@ -2,6 +2,7 @@ import React from 'react';
 import { haptic } from '../../../utils/haptics';
 import { EmptySlots } from '../../../components/EmptyState';
 import type { TimeSlot } from './bookGolfTypes';
+import Icon from '../../../components/icons/Icon';
 
 interface HourGroup {
   hourLabel: string;
@@ -62,9 +63,7 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className={`material-symbols-outlined text-xl transition-transform duration-fast ${isExpanded ? 'rotate-90' : ''} ${
-                      hasSelectedSlot ? (isDark ? 'text-accent' : 'text-accent-dark') : (isDark ? 'text-white/80' : 'text-primary/80')
-                    }`}>chevron_right</span>
+                    <Icon name="chevron_right" className={`text-xl transition-transform duration-fast ${isExpanded ? 'rotate-90' : ''} ${ hasSelectedSlot ? (isDark ? 'text-accent' : 'text-accent-dark') : (isDark ? 'text-white/80' : 'text-primary/80') }`} />
                     <div>
                       <div className={`font-bold text-base ${hasSelectedSlot ? (isDark ? 'text-accent' : 'text-primary') : (isDark ? 'text-white' : 'text-primary')}`}>
                         {hourGroup.hourLabel}
@@ -75,7 +74,7 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
                     </div>
                   </div>
                   {hasSelectedSlot && (
-                    <span className="material-symbols-outlined text-accent-dark dark:text-accent">check_circle</span>
+                    <Icon name="check_circle" className="text-accent-dark dark:text-accent" />
                   )}
                 </button>
 

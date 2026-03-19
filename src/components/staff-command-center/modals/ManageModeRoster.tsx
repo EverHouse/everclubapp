@@ -1,6 +1,7 @@
 import React from 'react';
 import { MemberSearchInput } from '../../shared/MemberSearchInput';
 import type { BookingMember, ManageModeRosterData, MemberMatchWarning } from './bookingSheetTypes';
+import Icon from '../../icons/Icon';
 
 interface ManageModeRosterProps {
   rosterData: ManageModeRosterData | null;
@@ -98,7 +99,7 @@ export function ManageModeRoster({
       >
         {(isUnlinking || isRemoving) && (
           <div className="absolute inset-0 bg-white/60 dark:bg-black/40 rounded-xl flex items-center justify-center z-10">
-            <span className="material-symbols-outlined animate-spin text-red-500">progress_activity</span>
+            <Icon name="progress_activity" className="animate-spin text-red-500" />
             <span className="ml-2 text-sm text-red-600 dark:text-red-400">Removing...</span>
           </div>
         )}
@@ -129,7 +130,7 @@ export function ManageModeRoster({
                 )}
                 {showGuestPassBadge && (
                   <span className="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 rounded flex items-center gap-0.5">
-                    <span className="material-symbols-outlined text-[10px]">redeem</span>
+                    <Icon name="redeem" className="text-[10px]" />
                     Guest Pass Used
                   </span>
                 )}
@@ -154,7 +155,7 @@ export function ManageModeRoster({
               className="p-2.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 active:bg-blue-200 dark:active:bg-blue-900/50 text-blue-500 transition-colors flex-shrink-0"
               title="Reassign Owner"
             >
-              <span className="material-symbols-outlined text-base">swap_horiz</span>
+              <Icon name="swap_horiz" className="text-base" />
             </button>
           ) : (
             <button
@@ -169,7 +170,7 @@ export function ManageModeRoster({
               className="p-2.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 active:bg-red-200 dark:active:bg-red-900/50 text-red-500 transition-colors flex-shrink-0 disabled:opacity-50"
               title="Remove"
             >
-              <span className="material-symbols-outlined text-base">close</span>
+              <Icon name="close" className="text-base" />
             </button>
           )}
         </div>
@@ -178,7 +179,7 @@ export function ManageModeRoster({
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-medium text-primary/60 dark:text-white/60">Search new owner</span>
               <button onClick={() => setReassignSearchOpen(false)} className="text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white" aria-label="Close search">
-                <span className="material-symbols-outlined text-sm">close</span>
+                <Icon name="close" className="text-sm" />
               </button>
             </div>
             <MemberSearchInput
@@ -191,7 +192,7 @@ export function ManageModeRoster({
             />
             {isReassigningOwner && (
               <div className="flex items-center justify-center gap-2 mt-2 text-sm text-primary/50 dark:text-white/50">
-                <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin text-sm" />
                 Reassigning...
               </div>
             )}
@@ -240,7 +241,7 @@ export function ManageModeRoster({
               }}
               className="text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white"
             >
-              <span className="material-symbols-outlined text-sm">close</span>
+              <Icon name="close" className="text-sm" />
             </button>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -277,7 +278,7 @@ export function ManageModeRoster({
           {memberMatchWarning && memberMatchWarning.slotNumber === slotNumber && (
             <div className="p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-500/30 rounded-lg space-y-2">
               <p className="text-xs font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">warning</span>
+                <Icon name="warning" className="text-sm" />
                 This email matches an existing member
               </p>
               <p className="text-xs text-primary/70 dark:text-white/70">
@@ -307,12 +308,12 @@ export function ManageModeRoster({
           >
             {isAddingManageGuest ? (
               <>
-                <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin text-sm" />
                 Adding...
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined text-sm">person_add</span>
+                <Icon name="person_add" className="text-sm" />
                 Add Guest
               </>
             )}
@@ -335,7 +336,7 @@ export function ManageModeRoster({
               onClick={() => setManageModeSearchSlot(null)}
               className="text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white"
             >
-              <span className="material-symbols-outlined text-sm">close</span>
+              <Icon name="close" className="text-sm" />
             </button>
           </div>
           <MemberSearchInput
@@ -352,7 +353,7 @@ export function ManageModeRoster({
           />
           {isLinkingMember && (
             <div className="flex items-center justify-center gap-2 text-sm text-primary/50 dark:text-white/50">
-              <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+              <Icon name="progress_activity" className="animate-spin text-sm" />
               Linking...
             </div>
           )}
@@ -382,7 +383,7 @@ export function ManageModeRoster({
               }}
               className="tactile-btn py-1 px-2 rounded-lg border border-blue-500 text-blue-600 dark:text-blue-400 text-xs font-medium hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors flex items-center gap-1"
             >
-              <span className="material-symbols-outlined text-xs">search</span>
+              <Icon name="search" className="text-xs" />
               Search
             </button>
             <button
@@ -393,7 +394,7 @@ export function ManageModeRoster({
               }}
               className="tactile-btn py-1 px-2 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors flex items-center gap-1"
             >
-              <span className="material-symbols-outlined text-xs">person_add</span>
+              <Icon name="person_add" className="text-xs" />
               New Guest
             </button>
           </div>
@@ -408,7 +409,7 @@ export function ManageModeRoster({
             <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
           ) : (
             <>
-              <span className="material-symbols-outlined text-lg">person_add</span>
+              <Icon name="person_add" className="text-lg" />
               Quick Add Guest (+${guestFeeDollars})
             </>
           )}

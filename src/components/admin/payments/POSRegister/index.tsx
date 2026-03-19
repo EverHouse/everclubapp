@@ -8,6 +8,7 @@ import POSCustomerSection from './POSCustomerSection';
 import POSCheckoutDrawer from './POSCheckoutDrawer';
 import { usePOSRegister } from './usePOSRegister';
 import { CATEGORY_TABS } from './posTypes';
+import Icon from '../../../icons/Icon';
 
 const POSRegister: React.FC = () => {
   const pos = usePOSRegister();
@@ -47,7 +48,7 @@ const POSRegister: React.FC = () => {
             disabled={!pos.canReview}
             className="w-full py-4 rounded-xl font-semibold bg-primary dark:bg-lavender text-white transition-all duration-fast flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <span className="material-symbols-outlined">shopping_cart_checkout</span>
+            <Icon name="shopping_cart_checkout" />
             Review & Charge
           </button>
         </>
@@ -140,7 +141,7 @@ const POSRegister: React.FC = () => {
               : 'bg-white/60 dark:bg-white/10 text-primary/60 dark:text-white/60 hover:bg-white/80 dark:hover:bg-white/15'
           }`}
         >
-          <span className="material-symbols-outlined text-base">{tab.icon}</span>
+          <Icon name={tab.icon} className="text-base" />
           {tab.label}
         </button>
       ))}
@@ -157,7 +158,7 @@ const POSRegister: React.FC = () => {
 
           <div className="bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-xl p-4 shadow-liquid dark:shadow-liquid-dark">
             <div className="flex items-center gap-2 mb-3">
-              <span className="material-symbols-outlined text-primary dark:text-accent">grid_view</span>
+              <Icon name="grid_view" className="text-primary dark:text-accent" />
               <h3 className="font-bold text-primary dark:text-white">Products</h3>
             </div>
             {categoryTabs}
@@ -174,7 +175,7 @@ const POSRegister: React.FC = () => {
                 onClick={() => pos.setMobileCartOpen(true)}
                 className="relative p-2"
               >
-                <span className="material-symbols-outlined text-2xl text-primary dark:text-white">shopping_cart</span>
+                <Icon name="shopping_cart" className="text-2xl text-primary dark:text-white" />
                 {pos.totalItems > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
                     {pos.totalItems}
@@ -197,7 +198,7 @@ const POSRegister: React.FC = () => {
                 disabled={pos.cartItems.length === 0}
                 className="px-6 py-3 rounded-xl font-semibold bg-primary dark:bg-lavender text-white transition-all duration-fast flex items-center gap-2 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <span className="material-symbols-outlined text-lg">shopping_cart_checkout</span>
+                <Icon name="shopping_cart_checkout" className="text-lg" />
                 Review
               </button>
             </div>
@@ -239,7 +240,7 @@ const POSRegister: React.FC = () => {
       <div className="flex-[2] min-w-0">
         <div className="bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-xl p-5 shadow-liquid dark:shadow-liquid-dark">
           <div className="flex items-center gap-2 mb-4">
-            <span className="material-symbols-outlined text-primary dark:text-accent">grid_view</span>
+            <Icon name="grid_view" className="text-primary dark:text-accent" />
             <h3 className="font-bold text-primary dark:text-white text-lg">Products</h3>
           </div>
           {categoryTabs}
@@ -250,7 +251,7 @@ const POSRegister: React.FC = () => {
       <div className="flex-1 min-w-[320px] max-w-[400px] sticky top-4">
         <div className="bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-xl p-5 shadow-liquid dark:shadow-liquid-dark space-y-4">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary dark:text-accent">point_of_sale</span>
+            <Icon name="point_of_sale" className="text-primary dark:text-accent" />
             <h3 className="font-bold text-primary dark:text-white">Checkout</h3>
           </div>
 
@@ -290,7 +291,7 @@ const POSRegister: React.FC = () => {
             disabled={!pos.canReview}
             className="w-full py-4 rounded-xl font-semibold bg-primary dark:bg-lavender text-white transition-all duration-fast flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <span className="material-symbols-outlined">shopping_cart_checkout</span>
+            <Icon name="shopping_cart_checkout" />
             Review & Charge
           </button>
         </div>

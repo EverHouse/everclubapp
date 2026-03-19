@@ -17,6 +17,7 @@ import { useDashboardData } from './useDashboardData';
 import { MembershipCard } from './MembershipCard';
 import { ScheduleSection } from './ScheduleSection';
 import { PasskeyNudge, BannerAlert, MembershipStatusAlert } from './DashboardAlerts';
+import Icon from '../../../components/icons/Icon';
 
 const getGreeting = () => {
   const hour = getPacificHour();
@@ -163,7 +164,7 @@ const Dashboard: React.FC = () => {
         <SmoothReveal isLoaded={!coreScheduleLoading} delay={200}>
         {error ? (
         <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm flex items-center gap-3 mb-6">
-          <span className="material-symbols-outlined">error</span>
+          <Icon name="error" />
           {error}
         </div>
       ) : (

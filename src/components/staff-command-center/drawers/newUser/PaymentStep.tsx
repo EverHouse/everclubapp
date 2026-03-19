@@ -12,6 +12,7 @@ import { deleteWithCredentials, postWithCredentials } from '../../../../hooks/qu
 import { apiRequest } from '../../../../lib/apiRequest';
 import WalkingGolferSpinner from '../../../WalkingGolferSpinner';
 import { createGroupAndAddMembers, getGroupResultToast } from './groupMemberHelper';
+import Icon from '../../../icons/Icon';
 
 interface PaymentStepProps {
   form: MemberFormData;
@@ -145,7 +146,7 @@ export function PaymentStep({
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   isDark ? 'bg-emerald-600/20' : 'bg-emerald-100'
                 }`}>
-                  <span className="material-symbols-outlined text-emerald-600">credit_card</span>
+                  <Icon name="credit_card" className="text-emerald-600" />
                 </div>
                 <div>
                   <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -171,7 +172,7 @@ export function PaymentStep({
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     isDark ? 'bg-blue-600/20' : 'bg-blue-100'
                   }`}>
-                    <span className="material-symbols-outlined text-blue-600">link</span>
+                    <Icon name="link" className="text-blue-600" />
                   </div>
                   <div>
                     <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -187,7 +188,7 @@ export function PaymentStep({
 
             {(form.joinExistingGroup || (form.addGroupMembers && form.groupMembers.length > 0)) && (
               <div className={`p-3 rounded-lg text-sm text-center ${isDark ? 'bg-white/5 text-gray-400' : 'bg-emerald-50/50 text-gray-600 border border-gray-200'}`}>
-                <span className="material-symbols-outlined text-sm align-middle mr-1">info</span>
+                <Icon name="info" className="text-sm align-middle mr-1" />
                 Payment links are for individual memberships. To process a group membership, please use "Collect Payment Now".
               </div>
             )}
@@ -217,7 +218,7 @@ export function PaymentStep({
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
-              <span className="material-symbols-outlined text-lg">credit_card</span>
+              <Icon name="credit_card" className="text-lg" />
               Enter Card
             </button>
             <button
@@ -228,7 +229,7 @@ export function PaymentStep({
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
-              <span className="material-symbols-outlined text-lg">contactless</span>
+              <Icon name="contactless" className="text-lg" />
               Card Reader
             </button>
           </div>
@@ -428,12 +429,12 @@ export function PaymentStep({
             >
               {linkSending && !activationUrl ? (
                 <>
-                  <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                  <Icon name="progress_activity" className="animate-spin text-lg" />
                   Sending...
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-sm">mail</span>
+                  <Icon name="mail" className="text-sm" />
                   Send Link
                 </>
               )}
@@ -449,9 +450,9 @@ export function PaymentStep({
               title="Copy activation link to clipboard"
             >
               {linkSending && !activationUrl ? (
-                <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin text-lg" />
               ) : (
-                <span className="material-symbols-outlined text-sm">content_copy</span>
+                <Icon name="content_copy" className="text-sm" />
               )}
               Copy Link
             </button>
@@ -463,7 +464,7 @@ export function PaymentStep({
           {activationUrl && (
             <div className={`p-3 rounded-lg ${isDark ? 'bg-emerald-900/20 border border-emerald-700' : 'bg-emerald-50 border border-emerald-200'}`}>
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-600">check_circle</span>
+                <Icon name="check_circle" className="text-emerald-600" />
                 <p className={`text-sm font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                   Payment link generated
                 </p>

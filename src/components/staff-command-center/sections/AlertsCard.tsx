@@ -3,6 +3,7 @@ import { useAutoAnimate } from '@formkit/auto-animate/react';
 import EmptyState from '../../EmptyState';
 import type { StaffNotification } from '../types';
 import { getPacificDateParts } from '../../../utils/dateUtils';
+import Icon from '../../icons/Icon';
 
 interface AlertsCardProps {
   notifications: StaffNotification[];
@@ -135,7 +136,7 @@ export const AlertsCard: React.FC<AlertsCardProps> = ({ notifications, onAlertCl
               className={`flex items-start gap-3 p-3 rounded-lg hover:bg-primary/5 dark:hover:bg-white/5 transition-colors cursor-pointer tactile-row ${!notif.is_read ? 'bg-primary/5 dark:bg-white/5' : ''} ${isCancellation && !notif.is_read ? 'ring-1 ring-red-300 dark:ring-red-500/50 bg-red-50/50 dark:bg-red-900/10' : ''}`}
             >
               <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${getNotificationColor(notif.type)}`}>
-                <span className="material-symbols-outlined text-base">{getNotificationIcon(notif.type)}</span>
+                <Icon name={getNotificationIcon(notif.type)} className="text-base" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-medium truncate ${!notif.is_read ? 'text-primary dark:text-white' : 'text-primary/85 dark:text-white/85'}`}>

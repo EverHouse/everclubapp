@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithCredentials } from '../../../../hooks/queries/useFetch';
+import Icon from '../../../../components/icons/Icon';
 
 interface WebhookEvent {
   id: number;
@@ -86,15 +87,13 @@ const WebhookEventsPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
     <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
       <button onClick={onToggle} className="tactile-btn flex items-center justify-between w-full text-left">
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">webhook</span>
+          <Icon name="webhook" className="text-primary dark:text-white" />
           <span className="font-bold text-primary dark:text-white">Webhook Events</span>
           {data && (
             <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({data.total} total)</span>
           )}
         </div>
-        <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
-          expand_more
-        </span>
+        <Icon name="expand_more" className={`text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (

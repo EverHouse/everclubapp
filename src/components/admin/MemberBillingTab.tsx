@@ -21,6 +21,7 @@ import { StripeSetupSection } from './memberBilling/StripeSetupSection';
 import { GuestPassesSection } from './memberBilling/GuestPassesSection';
 import { PurchaseHistorySection } from './memberBilling/PurchaseHistorySection';
 import { postWithCredentials } from '../../hooks/queries/useFetch';
+import Icon from '../icons/Icon';
 
 const MemberBillingTab: React.FC<MemberBillingTabProps> = ({ 
   memberEmail, 
@@ -74,7 +75,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
     return (
       <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
         <div className="flex items-center gap-2 text-sm">
-          <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+          <Icon name="progress_activity" className="animate-spin text-base" />
           <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Loading billing info...</span>
         </div>
       </div>
@@ -156,7 +157,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
                 : '';
               return (
                 <div className={`p-3 rounded-xl flex items-center gap-2 ${isDark ? 'bg-blue-500/10 border border-blue-500/30' : 'bg-blue-50 border border-blue-200'}`}>
-                  <span className={`material-symbols-outlined text-base ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>schedule</span>
+                  <Icon name="schedule" className={`text-base ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
                   <span className={`text-sm font-medium ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
                     Migration Pending — Stripe billing starts {startDateStr}
                   </span>
@@ -166,7 +167,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
             if (effectiveStatus === 'failed') {
               return (
                 <div className={`p-3 rounded-xl flex items-center gap-2 ${isDark ? 'bg-red-500/10 border border-red-500/30' : 'bg-red-50 border border-red-200'}`}>
-                  <span className={`material-symbols-outlined text-base ${isDark ? 'text-red-400' : 'text-red-600'}`}>error</span>
+                  <Icon name="error" className={`text-base ${isDark ? 'text-red-400' : 'text-red-600'}`} />
                   <span className={`text-sm font-medium ${isDark ? 'text-red-300' : 'text-red-700'}`}>
                     Migration Failed
                   </span>
@@ -178,7 +179,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
               if (hasCard) {
                 return (
                   <div className={`p-3 rounded-xl flex items-center gap-2 ${isDark ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
-                    <span className={`material-symbols-outlined text-base ${isDark ? 'text-green-400' : 'text-green-600'}`}>check_circle</span>
+                    <Icon name="check_circle" className={`text-base ${isDark ? 'text-green-400' : 'text-green-600'}`} />
                     <span className={`text-sm font-medium ${isDark ? 'text-green-300' : 'text-green-700'}`}>
                       Ready for Migration
                     </span>
@@ -187,7 +188,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
               }
               return (
                 <div className={`p-3 rounded-xl flex items-center gap-2 ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>
-                  <span className={`material-symbols-outlined text-base ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>credit_card_off</span>
+                  <Icon name="credit_card_off" className={`text-base ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                   <span className={`text-sm font-medium ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
                     Needs Card for Migration
                   </span>
@@ -243,7 +244,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
-              <span className={`material-symbols-outlined ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>help_outline</span>
+              <Icon name="help_outline" className={`${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
             </div>
             <div>
               <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-primary'}`}>No Billing Source Set</p>
@@ -283,12 +284,12 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           >
             {syncPaymentsMutation.isPending ? (
               <>
-                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin text-sm" />
                 Syncing...
               </>
             ) : (
               <>
-                <span aria-hidden="true" className="material-symbols-outlined text-sm">sync</span>
+                <Icon name="sync" className="text-sm" />
                 Sync Payments
               </>
             )}

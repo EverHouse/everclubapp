@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from '../../../icons/Icon';
 
 interface SuccessStepProps {
   isDark: boolean;
@@ -12,7 +13,7 @@ export function SuccessStep({ isDark, createdUser, onClose }: SuccessStepProps) 
       <div className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center ${
         isDark ? 'bg-emerald-600/20' : 'bg-emerald-100'
       }`}>
-        <span className="material-symbols-outlined text-3xl text-emerald-600">check_circle</span>
+        <Icon name="check_circle" className="text-3xl text-emerald-600" />
       </div>
       <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
         Member Created!

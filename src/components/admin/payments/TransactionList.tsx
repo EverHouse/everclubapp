@@ -5,6 +5,7 @@ import EmptyState from '../../EmptyState';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { useRefundPayment } from '../../../hooks/queries/useFinancialsQueries';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
+import Icon from '../../icons/Icon';
 
 export interface Transaction {
   id: string;
@@ -171,13 +172,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
             tx.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/30' : 
             'bg-red-100 dark:bg-red-900/30'
           }`}>
-            <span className={`material-symbols-outlined ${
-              tx.status === 'succeeded' ? 'text-green-600' : 
-              tx.status === 'pending' ? 'text-amber-600' : 
-              'text-red-600'
-            }`}>
-              {tx.status === 'succeeded' ? 'check_circle' : tx.status === 'pending' ? 'schedule' : 'error'}
-            </span>
+            <Icon name={tx.status === 'succeeded' ? 'check_circle' : tx.status === 'pending' ? 'schedule' : 'error'} className={`${ tx.status === 'succeeded' ? 'text-green-600' : tx.status === 'pending' ? 'text-amber-600' : 'text-red-600' }`} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm text-primary dark:text-white truncate">{tx.memberName}</p>
@@ -189,7 +184,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
             className="tactile-btn p-1.5 rounded-full hover:bg-primary/10 dark:hover:bg-white/10 transition-colors flex-shrink-0"
             title="View/Add Notes"
           >
-            <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-lg">sticky_note_2</span>
+            <Icon name="sticky_note_2" className="text-primary/60 dark:text-white/60 text-lg" />
           </button>
           {tx.status === 'succeeded' && tx.id.startsWith('pi_') && (
             <button
@@ -230,7 +225,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
             className="tactile-btn p-2 rounded-full hover:bg-primary/10 dark:hover:bg-white/10"
             aria-label="Close notes"
           >
-            <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+            <Icon name="close" className="text-primary/60 dark:text-white/60" />
           </button>
         </div>
         
@@ -271,7 +266,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-lg">add</span>
+                  <Icon name="add" className="text-lg" />
                   Add Note
                 </>
               )}
@@ -295,7 +290,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
             onClick={() => { setRefundTarget(null); setRefundError(null); }}
             className="tactile-btn p-2 rounded-full hover:bg-primary/10 dark:hover:bg-white/10"
           >
-            <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+            <Icon name="close" className="text-primary/60 dark:text-white/60" />
           </button>
         </div>
 
@@ -303,7 +298,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
           {refundSuccess ? (
             <div className="flex flex-col items-center justify-center py-8 gap-3">
               <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
-                <span className="material-symbols-outlined text-4xl text-green-600">check_circle</span>
+                <Icon name="check_circle" className="text-4xl text-green-600" />
               </div>
               <p className="text-lg font-semibold text-primary dark:text-white">Refund Processed!</p>
             </div>
@@ -396,7 +391,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
                     </>
                   ) : (
                     <>
-                      <span className="material-symbols-outlined text-lg">undo</span>
+                      <Icon name="undo" className="text-lg" />
                       Confirm Refund
                     </>
                   )}
@@ -414,7 +409,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
       <>
         <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-4">
-            <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">receipt_long</span>
+            <Icon name="receipt_long" className="text-blue-600 dark:text-blue-400" />
             <h3 className="font-bold text-primary dark:text-white">Today's Transactions</h3>
             {transactions.length > 0 && (
               <span className="px-2 py-0.5 text-xs font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-full">
@@ -435,11 +430,11 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">receipt_long</span>
+            <Icon name="receipt_long" className="text-blue-600 dark:text-blue-400" />
             <h3 className="font-bold text-primary dark:text-white">Today's Transactions</h3>
           </div>
           <button type="button" onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
-            <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+            <Icon name="close" className="text-primary/60 dark:text-white/60" />
           </button>
         </div>
         {content}

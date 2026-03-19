@@ -4,6 +4,7 @@ import EmptyState from '../../../../components/EmptyState';
 import { formatPhoneNumber } from '../../../../utils/formatting';
 import { formatJoinDate } from './directoryTypes';
 import type {
+import Icon from '../../../../components/icons/Icon';
     Visitor,
     VisitorType,
     VisitorSource,
@@ -159,7 +160,7 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
             <div className="space-y-3 mb-4">
                 <div className="flex gap-2 relative" ref={filterPopoverRef}>
                     <div className="relative flex-1">
-                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/40 text-[20px]">search</span>
+                        <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/40 text-[20px]" />
                         <input
                             type="text"
                             value={visitorSearchQuery}
@@ -174,7 +175,7 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-white/40 dark:hover:text-white/70 cursor-pointer"
                                 aria-label="Clear search"
                             >
-                                <span className="material-symbols-outlined text-[18px]">close</span>
+                                <Icon name="close" className="text-[18px]" />
                             </button>
                         )}
                     </div>
@@ -187,7 +188,7 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                         }`}
                         aria-label="Toggle filters"
                     >
-                        <span className="material-symbols-outlined text-[18px]">filter_list</span>
+                        <Icon name="filter_list" className="text-[18px]" />
                         <span className="hidden sm:inline">Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}</span>
                         {activeFilterCount > 0 && <span className="sm:hidden min-w-[18px] h-[18px] rounded-full bg-primary dark:bg-lavender text-white text-[10px] font-bold flex items-center justify-center">{activeFilterCount}</span>}
                     </button>
@@ -292,7 +293,7 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                             <span key={filter.key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 dark:bg-lavender/10 text-primary dark:!text-lavender border border-primary/20 dark:border-lavender/20">
                                 {filter.label}
                                 <button onClick={filter.onRemove} className="hover:text-red-500 transition-colors ml-0.5 cursor-pointer" aria-label={`Remove ${filter.label} filter`}>
-                                    <span className="material-symbols-outlined text-[12px]">close</span>
+                                    <Icon name="close" className="text-[12px]" />
                                 </button>
                             </span>
                         ))}
@@ -310,7 +311,7 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
 
             {!visitorsLoading && visitorsError && (
                 <div className="flex flex-col items-center justify-center py-16 px-6 rounded-xl border-2 border-dashed border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/5">
-                    <span aria-hidden="true" className="material-symbols-outlined text-6xl mb-4 text-red-400 dark:text-red-400/70">cloud_off</span>
+                    <Icon name="cloud_off" className="text-6xl mb-4 text-red-400 dark:text-red-400/70" />
                     <h3 className="text-2xl leading-tight font-bold mb-2 text-red-600 dark:text-red-400" style={{ fontFamily: 'var(--font-headline)' }}>
                         Failed to load visitors
                     </h3>
@@ -321,7 +322,7 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                         onClick={() => refetchVisitors()}
                         className="tactile-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-bold transition-colors"
                     >
-                        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">refresh</span>
+                        <Icon name="refresh" className="text-[18px]" />
                         Retry
                     </button>
                 </div>
@@ -400,7 +401,7 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                                                 </span>
                                             )}
                                         </div>
-                                        <span className="material-symbols-outlined text-gray-400 text-[16px]">chevron_right</span>
+                                        <Icon name="chevron_right" className="text-gray-400 text-[16px]" />
                                     </div>
                                 </div>
                             ))}
@@ -473,9 +474,7 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                                                     <div className="flex items-center gap-1 whitespace-nowrap">
                                                         {label}
                                                         {visitorSortField === field && (
-                                                            <span className="material-symbols-outlined text-[14px] text-[#293515] dark:!text-[#CCB8E4]">
-                                                                {visitorSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
-                                                            </span>
+                                                            <Icon name={visitorSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'} className="text-[14px] text-[#293515] dark:!text-[#CCB8E4]" />
                                                         )}
                                                     </div>
                                                 </div>

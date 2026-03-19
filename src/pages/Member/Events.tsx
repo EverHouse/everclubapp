@@ -16,6 +16,7 @@ import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import ModalShell from '../../components/ModalShell';
 import { bookingEvents } from '../../lib/bookingEvents';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
+import Icon from '../../components/icons/Icon';
 
 interface UserRsvp {
   event_id: number;
@@ -356,7 +357,7 @@ const MemberEvents: React.FC = () => {
                         </div>
                       </div>
                       <div className={`flex items-center justify-center mt-2 transition-transform duration-fast ${isExpanded ? 'rotate-180' : ''}`}>
-                        <span className={`material-symbols-outlined text-base ${isDark ? 'text-white/30' : 'text-primary/30'}`}>expand_more</span>
+                        <Icon name="expand_more" className={`text-base ${isDark ? 'text-white/30' : 'text-primary/30'}`} />
                       </div>
                     </button>
 
@@ -369,7 +370,7 @@ const MemberEvents: React.FC = () => {
 
                         {(event.ticketsSold || event.capacity) && (
                           <div className={`flex items-center gap-2 mb-4 text-xs ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                            <span className="material-symbols-outlined text-sm">group</span>
+                            <Icon name="group" className="text-sm" />
                             <span>
                               {event.ticketsSold || 0} / {event.capacity || '∞'} spots filled
                             </span>
@@ -381,7 +382,7 @@ const MemberEvents: React.FC = () => {
                             onClick={(e) => { e.stopPropagation(); handleAddToCalendar(event); }}
                             className={`tactile-btn flex-1 py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${isDark ? 'bg-white/10 text-white hover:bg-white/15' : 'bg-black/5 text-primary hover:bg-black/10'}`}
                           >
-                            <span className="material-symbols-outlined text-lg">calendar_add_on</span>
+                            <Icon name="calendar_add_on" className="text-lg" />
                             Add to Cal
                           </button>
                           
@@ -394,7 +395,7 @@ const MemberEvents: React.FC = () => {
                               className={`tactile-btn flex-1 py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${isDark ? 'bg-white text-brand-green hover:bg-white/90' : 'bg-brand-green text-white hover:opacity-90'}`}
                             >
                               <span>Learn More</span>
-                              <span className="material-symbols-outlined text-sm">open_in_new</span>
+                              <Icon name="open_in_new" className="text-sm" />
                             </a>
                           ) : user?.status && !['active', 'trialing', 'past_due'].includes(user.status.toLowerCase()) ? (
                             <div className={`flex-1 py-3 rounded-xl flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-bone'}`}>
@@ -462,7 +463,7 @@ const MemberEvents: React.FC = () => {
           <div className="p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isDark ? 'bg-amber-500/20' : 'bg-amber-100'}`}>
-                <span className="material-symbols-outlined text-2xl text-amber-500">warning</span>
+                <Icon name="warning" className="text-2xl text-amber-500" />
               </div>
               <div>
                 <p className={`text-sm ${isDark ? 'text-white/80' : 'text-primary/80'}`}>View As Mode Active</p>

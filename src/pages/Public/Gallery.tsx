@@ -7,6 +7,7 @@ import { usePageReady } from '../../stores/pageReadyStore';
 import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
 import { usePublicGallery } from '../../hooks/queries';
+import Icon from '../../components/icons/Icon';
 
 interface GalleryImage {
   id: number;
@@ -212,7 +213,7 @@ const GalleryItem: React.FC<GalleryItemProps> = React.memo(({ img, title, catego
       />
       {error && (
         <div className={`w-full ${skeletonHeight} bg-gray-200 dark:bg-white/5 flex items-center justify-center rounded-xl`}>
-          <span className="material-symbols-outlined text-gray-400 dark:text-white/50 text-3xl">broken_image</span>
+          <Icon name="broken_image" className="text-gray-400 dark:text-white/50 text-3xl" />
         </div>
       )}
       {loaded && <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-normal"></div>}
@@ -269,7 +270,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, currentIndex, onClose
           className="w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-sm"
           onClick={(e) => { e.stopPropagation(); onClose(); }}
         >
-          <span className="material-symbols-outlined text-white text-2xl">close</span>
+          <Icon name="close" className="text-white text-2xl" />
         </button>
       </div>
 
@@ -278,7 +279,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, currentIndex, onClose
           className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
           onClick={(e) => { e.stopPropagation(); onPrev(); }}
         >
-          <span className="material-symbols-outlined text-white text-3xl">chevron_left</span>
+          <Icon name="chevron_left" className="text-white text-3xl" />
         </button>
       )}
 
@@ -287,7 +288,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, currentIndex, onClose
           className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
           onClick={(e) => { e.stopPropagation(); onNext(); }}
         >
-          <span className="material-symbols-outlined text-white text-3xl">chevron_right</span>
+          <Icon name="chevron_right" className="text-white text-3xl" />
         </button>
       )}
 

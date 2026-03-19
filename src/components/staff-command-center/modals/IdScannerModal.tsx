@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { postWithCredentials } from '../../../hooks/queries/useFetch';
+import Icon from '../../icons/Icon';
 
 interface IdScannerModalProps {
   isOpen: boolean;
@@ -264,7 +265,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
           >
             <div className={`flex items-center justify-between p-4 border-b ${borderClass}`}>
               <h3 className={`text-xl font-bold ${textClass}`}>
-                <span className="material-symbols-outlined text-emerald-600 mr-2 align-middle">badge</span>
+                <Icon name="badge" className="text-emerald-600 mr-2 align-middle" />
                 Scan ID
               </h3>
               <button
@@ -274,7 +275,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                 }`}
                 aria-label="Close modal"
               >
-                <span className="material-symbols-outlined text-xl">close</span>
+                <Icon name="close" className="text-xl" />
               </button>
             </div>
 
@@ -293,13 +294,13 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                     }`}
                   >
                     <div className="w-12 h-12 rounded-full bg-emerald-600/10 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-emerald-600 text-2xl">photo_camera</span>
+                      <Icon name="photo_camera" className="text-emerald-600 text-2xl" />
                     </div>
                     <div className="text-left">
                       <div className={`font-medium ${textClass}`}>Use Camera</div>
                       <div className={`text-sm ${subtextClass}`}>Take a photo of the ID</div>
                     </div>
-                    <span className={`material-symbols-outlined ml-auto ${subtextClass}`}>chevron_right</span>
+                    <Icon name="chevron_right" className={`ml-auto ${subtextClass}`} />
                   </button>
 
                   <button
@@ -311,13 +312,13 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                     }`}
                   >
                     <div className="w-12 h-12 rounded-full bg-emerald-600/10 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-emerald-600 text-2xl">upload_file</span>
+                      <Icon name="upload_file" className="text-emerald-600 text-2xl" />
                     </div>
                     <div className="text-left">
                       <div className={`font-medium ${textClass}`}>Upload Photo</div>
                       <div className={`text-sm ${subtextClass}`}>Select an image from your device</div>
                     </div>
-                    <span className={`material-symbols-outlined ml-auto ${subtextClass}`}>chevron_right</span>
+                    <Icon name="chevron_right" className={`ml-auto ${subtextClass}`} />
                   </button>
 
                   <input
@@ -335,7 +336,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                   {cameraError ? (
                     <div className={`p-4 rounded-xl border ${isDark ? 'bg-red-900/20 border-red-700 text-red-400' : 'bg-red-50 border-red-200 text-red-700'}`}>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="material-symbols-outlined">videocam_off</span>
+                        <Icon name="videocam_off" />
                         <span className="font-medium">Camera Unavailable</span>
                       </div>
                       <p className="text-sm">{cameraError}</p>
@@ -406,7 +407,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                   {error && (
                     <div className={`p-3 rounded-lg ${isDark ? 'bg-red-900/20 border border-red-700 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'}`}>
                       <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-lg">error</span>
+                        <Icon name="error" className="text-lg" />
                         <span className="text-sm">{error}</span>
                       </div>
                     </div>
@@ -421,14 +422,14 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                           : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-sm mr-1 align-middle">refresh</span>
+                      <Icon name="refresh" className="text-sm mr-1 align-middle" />
                       Retake
                     </button>
                     <button
                       onClick={handleScanId}
                       className="tactile-btn flex-1 py-2.5 px-4 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
                     >
-                      <span className="material-symbols-outlined text-sm mr-1 align-middle">document_scanner</span>
+                      <Icon name="document_scanner" className="text-sm mr-1 align-middle" />
                       Scan ID
                     </button>
                   </div>
@@ -448,7 +449,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                   {!scanResult.quality.isReadable && (
                     <div className={`p-4 rounded-xl border ${isDark ? 'bg-amber-900/20 border-amber-700' : 'bg-amber-50 border-amber-200'}`}>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className={`material-symbols-outlined ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>warning</span>
+                        <Icon name="warning" className={`${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                         <span className={`font-medium text-sm ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>Quality Issues Detected</span>
                       </div>
                       <ul className={`text-sm space-y-1 ml-7 ${isDark ? 'text-amber-300/80' : 'text-amber-600'}`}>
@@ -464,7 +465,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                             : 'bg-amber-500 hover:bg-amber-600 text-white'
                         }`}
                       >
-                        <span className="material-symbols-outlined text-sm mr-1 align-middle">refresh</span>
+                        <Icon name="refresh" className="text-sm mr-1 align-middle" />
                         Retake Photo
                       </button>
                     </div>
@@ -472,7 +473,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
 
                   <div className={`rounded-xl border p-4 space-y-4 ${cardClass}`}>
                     <h4 className={`font-medium text-sm ${textClass} flex items-center gap-2`}>
-                      <span className="material-symbols-outlined text-emerald-600 text-lg">person</span>
+                      <Icon name="person" className="text-emerald-600 text-lg" />
                       Extracted Information
                     </h4>
                     <div className="space-y-4">
@@ -566,7 +567,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                       onClick={handleUseInfo}
                       className="tactile-btn flex-1 py-2.5 px-4 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
                     >
-                      <span className="material-symbols-outlined text-sm mr-1 align-middle">check</span>
+                      <Icon name="check" className="text-sm mr-1 align-middle" />
                       Use This Info
                     </button>
                   </div>

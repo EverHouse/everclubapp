@@ -1,5 +1,6 @@
 import React from 'react';
 import { Section, Row } from './ProfileShared';
+import Icon from '../../../components/icons/Icon';
 
 interface StaffSectionProps {
   isDark: boolean;
@@ -43,7 +44,7 @@ const StaffSection: React.FC<StaffSectionProps> = ({
       {showPasswordSetupBanner && (
         <div className={`rounded-xl p-4 mb-4 ${isDark ? 'bg-accent/20 border border-accent/30' : 'bg-amber-50 border border-amber-200'}`}>
           <div className="flex items-start gap-3">
-            <span className={`material-symbols-outlined text-xl ${isDark ? 'text-accent' : 'text-amber-600'}`}>key</span>
+            <Icon name="key" className={`text-xl ${isDark ? 'text-accent' : 'text-amber-600'}`} />
             <div className="flex-1">
               <p className={`font-semibold text-sm ${isDark ? 'text-accent' : 'text-amber-800'}`}>
                 Set Up Password Login (Optional)
@@ -84,14 +85,12 @@ const StaffSection: React.FC<StaffSectionProps> = ({
           onClick={() => setShowPasswordSection(!showPasswordSection)}
         >
           <div className="flex items-center gap-4">
-            <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>key</span>
+            <Icon name="key" className={`${isDark ? 'opacity-70' : 'text-primary/70'}`} />
             <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>
               {hasPassword ? 'Change Password' : 'Set Up Password'}
             </span>
           </div>
-          <span className={`material-symbols-outlined text-sm ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
-            {showPasswordSection ? 'expand_less' : 'expand_more'}
-          </span>
+          <Icon name={showPasswordSection ? 'expand_less' : 'expand_more'} className={`text-sm ${isDark ? 'opacity-70' : 'text-primary/70'}`} />
         </div>
         
         {showPasswordSection && (
@@ -160,12 +159,12 @@ const StaffSection: React.FC<StaffSectionProps> = ({
             >
               {setPasswordPending ? (
                 <>
-                  <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
+                  <Icon name="progress_activity" className="text-lg animate-spin" />
                   Saving...
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-lg">check</span>
+                  <Icon name="check" className="text-lg" />
                   {hasPassword ? 'Update Password' : 'Set Password'}
                 </>
               )}

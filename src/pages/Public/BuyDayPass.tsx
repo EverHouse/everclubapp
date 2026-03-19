@@ -8,6 +8,7 @@ import { useNavigationLoading } from '../../stores/navigationLoadingStore';
 import SEO from '../../components/SEO';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import { usePublicMembershipTiers, useDayPassCheckout } from '../../hooks/queries';
+import Icon from '../../components/icons/Icon';
 
 interface DayPassTier {
   id: number;
@@ -126,15 +127,15 @@ const BuyDayPass: React.FC = () => {
         </p>
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-primary/60 dark:text-white/60 mt-3">
           <span className="flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-sm">wifi</span>
+            <Icon name="wifi" className="text-sm" />
             High-speed wifi
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-sm">local_cafe</span>
+            <Icon name="local_cafe" className="text-sm" />
             Cafe access
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-sm">weekend</span>
+            <Icon name="weekend" className="text-sm" />
             Lounge access
           </span>
         </div>
@@ -142,7 +143,7 @@ const BuyDayPass: React.FC = () => {
 
       <section className="px-4 mb-6">
         <h2 className="text-2xl text-primary dark:text-white mb-4 flex items-center gap-2 px-2 leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>
-          <span className="material-symbols-outlined text-xl translate-y-[1px]">confirmation_number</span>
+          <Icon name="confirmation_number" className="text-xl translate-y-[1px]" />
           Available Passes
         </h2>
 
@@ -191,7 +192,7 @@ const BuyDayPass: React.FC = () => {
                   ) : (
                     <>
                       Buy Now
-                      <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                      <Icon name="arrow_forward" className="text-[18px]" />
                     </>
                   )}
                 </button>
@@ -212,7 +213,7 @@ const BuyDayPass: React.FC = () => {
       <section className="px-4 mb-8">
         <div className="bg-white dark:bg-[#1a1d15] rounded-xl p-6 shadow-sm dark:shadow-none border border-black/5 dark:border-white/10">
           <h2 className="text-2xl text-primary dark:text-white mb-4 flex items-center gap-2 leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>
-            <span className="material-symbols-outlined text-xl translate-y-[1px]">person</span>
+            <Icon name="person" className="text-xl translate-y-[1px]" />
             Your Information
           </h2>
           
@@ -252,20 +253,20 @@ const BuyDayPass: React.FC = () => {
       <section className="px-4 mb-8">
         <div className="bg-[#E8E8E0]/50 dark:bg-white/5 rounded-xl p-5">
           <h3 className="text-base font-bold text-primary dark:text-white mb-3 flex items-center gap-2">
-            <span className="material-symbols-outlined text-lg">info</span>
+            <Icon name="info" className="text-lg" />
             How It Works
           </h3>
           <ul className="space-y-2 text-sm text-primary/70 dark:text-white/70">
             <li className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-base text-primary/50 dark:text-white/50 mt-0.5">check_circle</span>
+              <Icon name="check_circle" className="text-base text-primary/50 dark:text-white/50 mt-0.5" />
               <span>Complete your purchase securely with Stripe</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-base text-primary/50 dark:text-white/50 mt-0.5">check_circle</span>
+              <Icon name="check_circle" className="text-base text-primary/50 dark:text-white/50 mt-0.5" />
               <span>Receive a QR code via email</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-base text-primary/50 dark:text-white/50 mt-0.5">check_circle</span>
+              <Icon name="check_circle" className="text-base text-primary/50 dark:text-white/50 mt-0.5" />
               <span>Show your QR code at the front desk when you arrive</span>
             </li>
           </ul>

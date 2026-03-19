@@ -42,6 +42,7 @@ import BookingRequestsPanel from '../simulator/BookingRequestsPanel';
 import GuideBookings from '../../../../components/guides/GuideBookings';
 import { TrackmanIcon } from '../../../../components/icons/TrackmanIcon';
 import { BOOKING_STATUS } from '../../../../../shared/constants/statuses';
+import Icon from '../../../../components/icons/Icon';
 
 const SimulatorTab: React.FC = () => {
     const navigate = useNavigate();
@@ -1136,7 +1137,7 @@ const SimulatorTab: React.FC = () => {
                         </p>
                         {selectedRequest?.declared_player_count && (
                             <div className="flex items-center gap-1 mt-2 text-sm text-accent-dark dark:text-accent">
-                                <span className="material-symbols-outlined text-base">group</span>
+                                <Icon name="group" className="text-base" />
                                 <span>{selectedRequest?.declared_player_count} {selectedRequest?.declared_player_count === 1 ? 'player' : 'players'}</span>
                             </div>
                         )}
@@ -1145,12 +1146,12 @@ const SimulatorTab: React.FC = () => {
                     {actionModal === 'approve' && (
                         <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
                             <div className="flex items-center gap-2 mb-2">
-                                <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-base">payments</span>
+                                <Icon name="payments" className="text-amber-600 dark:text-amber-400 text-base" />
                                 <p className="text-xs text-amber-700 dark:text-amber-300 font-medium uppercase tracking-wide">Fee Estimate</p>
                             </div>
                             {isFetchingFeeEstimate ? (
                                 <div className="flex items-center gap-2 text-sm text-gray-500">
-                                    <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                                    <Icon name="progress_activity" className="animate-spin text-base" />
                                     Calculating fees...
                                 </div>
                             ) : feeEstimate ? (
@@ -1206,7 +1207,7 @@ const SimulatorTab: React.FC = () => {
                     {selectedRequest?.member_notes && (
                         <div className="p-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg">
                             <p className="text-xs text-blue-600 dark:text-blue-400 mb-1 flex items-center gap-1">
-                                <span className="material-symbols-outlined text-sm">chat</span>
+                                <Icon name="chat" className="text-sm" />
                                 Member Notes
                             </p>
                             <p className="text-sm text-primary dark:text-white">{selectedRequest?.member_notes}</p>
@@ -1243,9 +1244,7 @@ const SimulatorTab: React.FC = () => {
                                             ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400'
                                             : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400'
                                 }`}>
-                                    <span className={`material-symbols-outlined text-base ${availabilityStatus === 'checking' ? 'animate-spin' : ''}`}>
-                                        {availabilityStatus === 'checking' ? 'progress_activity' : availabilityStatus === 'available' ? 'check_circle' : 'warning'}
-                                    </span>
+                                    <Icon name={availabilityStatus === 'checking' ? 'progress_activity' : availabilityStatus === 'available' ? 'check_circle' : 'warning'} className={`text-base ${availabilityStatus === 'checking' ? 'animate-spin' : ''}`} />
                                     <span>
                                         {availabilityStatus === 'checking' && 'Checking availability...'}
                                         {availabilityStatus === 'available' && 'This time slot is available'}
@@ -1303,11 +1302,9 @@ const SimulatorTab: React.FC = () => {
                             } disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
                             {isProcessing ? (
-                                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                                <Icon name="progress_activity" className="animate-spin text-sm" />
                             ) : (
-                                <span aria-hidden="true" className="material-symbols-outlined text-sm">
-                                    {actionModal === 'approve' ? 'check' : 'close'}
-                                </span>
+                                <Icon name={actionModal === 'approve' ? 'check' : 'close'} className="text-sm" />
                             )}
                             {actionModal === 'approve' ? 'Approve' : (selectedRequest?.status === BOOKING_STATUS.APPROVED ? 'Cancel Booking' : 'Decline')}
                         </button>
@@ -1319,7 +1316,7 @@ const SimulatorTab: React.FC = () => {
                 <div className="p-6 space-y-4">
                     <div className="text-center">
                         <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center mx-auto mb-3">
-                            <span aria-hidden="true" className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-2xl">sports_golf</span>
+                            <Icon name="sports_golf" className="text-amber-600 dark:text-amber-400 text-2xl" />
                         </div>
                         <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white mb-2" style={{ fontFamily: 'var(--font-headline)' }}>Trackman Confirmation</h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -1359,9 +1356,9 @@ const SimulatorTab: React.FC = () => {
                             className="flex-1 py-3 px-4 rounded-lg bg-green-500 hover:bg-green-600 text-white font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isProcessing ? (
-                                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                                <Icon name="progress_activity" className="animate-spin text-sm" />
                             ) : (
-                                <span aria-hidden="true" className="material-symbols-outlined text-sm">check</span>
+                                <Icon name="check" className="text-sm" />
                             )}
                             Yes, Approve
                         </button>
@@ -1504,9 +1501,7 @@ const SimulatorTab: React.FC = () => {
                   <>
                     <div className="flex items-center justify-center mb-4">
                       <div className={`w-16 h-16 rounded-full flex items-center justify-center ${cancelConfirmModal.hasTrackman ? 'bg-amber-100 dark:bg-amber-500/20' : 'bg-red-100 dark:bg-red-500/20'}`}>
-                        <span className={`material-symbols-outlined text-3xl ${cancelConfirmModal.hasTrackman ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
-                          {cancelConfirmModal.hasTrackman ? 'warning' : 'event_busy'}
-                        </span>
+                        <Icon name={cancelConfirmModal.hasTrackman ? 'warning' : 'event_busy'} className={`text-3xl ${cancelConfirmModal.hasTrackman ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`} />
                       </div>
                     </div>
                     <h3 className="text-2xl leading-tight font-bold text-center text-primary dark:text-white mb-2" style={{ fontFamily: 'var(--font-headline)' }}>
@@ -1519,7 +1514,7 @@ const SimulatorTab: React.FC = () => {
                     {cancelConfirmModal.hasTrackman && (
                       <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg p-4 mb-4">
                         <div className="flex gap-3">
-                          <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-xl flex-shrink-0">info</span>
+                          <Icon name="info" className="text-amber-600 dark:text-amber-400 text-xl flex-shrink-0" />
                           <div>
                             <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
                               This booking is linked to Trackman
@@ -1546,9 +1541,9 @@ const SimulatorTab: React.FC = () => {
                         className="flex-1 py-3 px-4 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                         {cancelConfirmModal.isCancelling ? (
-                          <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                          <Icon name="progress_activity" className="text-sm animate-spin" />
                         ) : (
-                          <span className="material-symbols-outlined text-sm">check</span>
+                          <Icon name="check" className="text-sm" />
                         )}
                         {cancelConfirmModal.isCancelling ? 'Cancelling...' : 'Yes, Cancel'}
                       </button>
@@ -1558,7 +1553,7 @@ const SimulatorTab: React.FC = () => {
                   <>
                     <div className="flex items-center justify-center mb-4">
                       <div className="w-16 h-16 rounded-full flex items-center justify-center bg-green-100 dark:bg-green-500/20">
-                        <span className="material-symbols-outlined text-3xl text-green-600 dark:text-green-400">check_circle</span>
+                        <Icon name="check_circle" className="text-3xl text-green-600 dark:text-green-400" />
                       </div>
                     </div>
                     <h3 className="text-2xl leading-tight font-bold text-center text-primary dark:text-white mb-2" style={{ fontFamily: 'var(--font-headline)' }}>
@@ -1570,7 +1565,7 @@ const SimulatorTab: React.FC = () => {
                     
                     <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg p-4 mb-4">
                       <div className="flex gap-3">
-                        <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-xl flex-shrink-0">task_alt</span>
+                        <Icon name="task_alt" className="text-amber-600 dark:text-amber-400 text-xl flex-shrink-0" />
                         <div>
                           <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
                             Action Required: Cancel in Trackman
@@ -1596,7 +1591,7 @@ const SimulatorTab: React.FC = () => {
                         }}
                         className="flex-1 py-3 px-4 rounded-lg bg-primary hover:bg-primary/90 text-white font-medium flex items-center justify-center gap-2"
                       >
-                        <span className="material-symbols-outlined text-sm">open_in_new</span>
+                        <Icon name="open_in_new" className="text-sm" />
                         Open Trackman
                       </button>
                     </div>

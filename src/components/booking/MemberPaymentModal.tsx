@@ -4,6 +4,7 @@ import { apiRequest, fireAndForgetRequest } from '../../lib/apiRequest';
 import { StripePaymentWithSecret } from '../stripe/StripePaymentForm';
 import { SlideUpDrawer } from '../SlideUpDrawer';
 import WalkingGolferSpinner from '../WalkingGolferSpinner';
+import Icon from '../icons/Icon';
 
 interface ParticipantFee {
   id: number;
@@ -249,7 +250,7 @@ export function MemberPaymentModal({
 
         {error && (
           <div className="text-center py-8 animate-content-enter">
-            <span className={`material-symbols-outlined text-4xl mb-2 ${isDark ? 'text-amber-400' : 'text-amber-500'}`}>info</span>
+            <Icon name="info" className={`text-4xl mb-2 ${isDark ? 'text-amber-400' : 'text-amber-500'}`} />
             <p className={`mb-4 text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>{error}</p>
             <button
               onClick={onClose}
@@ -320,7 +321,7 @@ export function MemberPaymentModal({
                 <div className={`mt-3 pt-3 border-t ${isDark ? 'border-white/10' : 'border-primary/10'}`}>
                   <div className="flex items-center justify-between">
                     <span className={`text-sm ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                      <span className="material-symbols-outlined text-sm align-middle mr-1">account_balance_wallet</span>
+                      <Icon name="account_balance_wallet" className="text-sm align-middle mr-1" />
                       Account Credit Applied
                     </span>
                     <span className={`text-sm font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
@@ -343,7 +344,7 @@ export function MemberPaymentModal({
 
             {paymentData.paidInFull ? (
               <div className={`rounded-xl p-4 text-center ${isDark ? 'bg-emerald-500/20' : 'bg-emerald-100'}`}>
-                <span className="material-symbols-outlined text-4xl text-emerald-500 mb-2">check_circle</span>
+                <Icon name="check_circle" className="text-4xl text-emerald-500 mb-2" />
                 <p className={`text-lg font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                   Paid with Account Credit
                 </p>
@@ -356,7 +357,7 @@ export function MemberPaymentModal({
                 {accountCredit && accountCredit.balanceCents > 0 && !paymentData.balanceApplied && (
                   <div className={`rounded-xl p-4 ${isDark ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-emerald-50 border border-emerald-200'}`}>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="material-symbols-outlined text-emerald-500">account_balance_wallet</span>
+                      <Icon name="account_balance_wallet" className="text-emerald-500" />
                       <span className={`text-sm font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                         Account Credit Available
                       </span>
@@ -388,11 +389,11 @@ export function MemberPaymentModal({
                       className="w-full py-2.5 rounded-lg text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       {applyingCredit ? (
-                        <><span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> Applying Credit...</>
+                        <><Icon name="progress_activity" className="animate-spin text-sm" /> Applying Credit...</>
                       ) : accountCredit.balanceCents >= Math.round(paymentData.totalAmount * 100) ? (
-                        <><span className="material-symbols-outlined text-sm">account_balance_wallet</span> Pay with Account Credit</>
+                        <><Icon name="account_balance_wallet" className="text-sm" /> Pay with Account Credit</>
                       ) : (
-                        <><span className="material-symbols-outlined text-sm">account_balance_wallet</span> Apply ${accountCredit.balanceDollars.toFixed(2)} Credit &amp; Pay Rest by Card</>
+                        <><Icon name="account_balance_wallet" className="text-sm" /> Apply ${accountCredit.balanceDollars.toFixed(2)} Credit &amp; Pay Rest by Card</>
                       )}
                     </button>
                   </div>
@@ -417,7 +418,7 @@ export function MemberPaymentModal({
                   />
                 ) : paymentData.error ? (
                   <div className={`rounded-xl p-4 text-center animate-content-enter ${isDark ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-amber-50 border border-amber-200/60'}`}>
-                    <span className={`material-symbols-outlined text-4xl mb-2 ${isDark ? 'text-amber-400' : 'text-amber-500'}`}>info</span>
+                    <Icon name="info" className={`text-4xl mb-2 ${isDark ? 'text-amber-400' : 'text-amber-500'}`} />
                     <p className={`text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
                       {paymentData.error}
                     </p>

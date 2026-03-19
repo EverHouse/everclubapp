@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { SlideUpDrawer } from './SlideUpDrawer';
 import WalkingGolferSpinner from './WalkingGolferSpinner';
 import { fetchWithCredentials } from '../hooks/queries/useFetch';
+import Icon from './icons/Icon';
 
 interface TrainingSectionDB {
   id: number;
@@ -52,7 +53,7 @@ export default function ContextualHelp({ guideIds, title = 'Page Guide' }: Conte
         aria-expanded={isOpen}
         className="p-2 rounded-xl bg-white/60 dark:bg-white/10 backdrop-blur-sm border border-primary/10 dark:border-white/20 hover:bg-white/80 dark:hover:bg-white/15 transition-colors tactile-btn"
       >
-        <span className="material-symbols-outlined text-xl text-primary/70 dark:text-white/70">school</span>
+        <Icon name="school" className="text-xl text-primary/70 dark:text-white/70" />
       </button>
 
       <SlideUpDrawer isOpen={isOpen} onClose={() => setIsOpen(false)} title={title}>
@@ -63,7 +64,7 @@ export default function ContextualHelp({ guideIds, title = 'Page Guide' }: Conte
             </div>
           ) : sections.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <span className="material-symbols-outlined text-4xl text-primary/30 dark:text-white/30 mb-3">menu_book</span>
+              <Icon name="menu_book" className="text-4xl text-primary/30 dark:text-white/30 mb-3" />
               <p className="text-sm text-primary/60 dark:text-white/60">No guide sections available.</p>
             </div>
           ) : (
@@ -80,15 +81,13 @@ export default function ContextualHelp({ guideIds, title = 'Page Guide' }: Conte
                 <div className="flex items-center">
                   <div className="flex-1 flex items-center gap-4 p-5 text-left">
                     <div className="w-12 h-12 rounded-xl bg-primary/10 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
-                      <span className="material-symbols-outlined text-2xl text-primary dark:text-white">{section.icon}</span>
+                      <Icon name={section.icon} className="text-2xl text-primary dark:text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-primary dark:text-white">{section.title}</h3>
                       <p className="text-sm text-primary/80 dark:text-white/80">{section.description}</p>
                     </div>
-                    <span className={`material-symbols-outlined text-primary/70 dark:text-white/70 transition-transform duration-normal ${expandedSection === String(section.id) ? 'rotate-180' : ''}`}>
-                      expand_more
-                    </span>
+                    <Icon name="expand_more" className={`text-primary/70 dark:text-white/70 transition-transform duration-normal ${expandedSection === String(section.id) ? 'rotate-180' : ''}`} />
                   </div>
                 </div>
 
@@ -104,7 +103,7 @@ export default function ContextualHelp({ guideIds, title = 'Page Guide' }: Conte
                             <h4 className="font-semibold text-primary dark:text-white text-sm">{step.title}</h4>
                             {step.pageIcon && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/20 dark:bg-accent/30 text-xs text-primary dark:text-accent">
-                                <span className="material-symbols-outlined text-xs">{step.pageIcon}</span>
+                                <Icon name={step.pageIcon} className="text-xs" />
                               </span>
                             )}
                           </div>

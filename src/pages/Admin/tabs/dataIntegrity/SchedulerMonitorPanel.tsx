@@ -3,6 +3,7 @@ import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithCredentials, putWithCredentials } from '../../../../hooks/queries/useFetch';
 import Toggle from '../../../../components/Toggle';
+import Icon from '../../../../components/icons/Icon';
 
 interface SchedulerStatus {
   taskName: string;
@@ -103,7 +104,7 @@ const SchedulerMonitorPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
     <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
       <button onClick={onToggle} className="tactile-btn flex items-center justify-between w-full text-left">
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">schedule</span>
+          <Icon name="schedule" className="text-primary dark:text-white" />
           <span className="font-bold text-primary dark:text-white">Scheduled Tasks</span>
           {(errorCount > 0 || warningCount > 0 || disabledCount > 0) && (
             <div className="flex items-center gap-1 ml-2">
@@ -125,9 +126,7 @@ const SchedulerMonitorPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
             </div>
           )}
         </div>
-        <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
-          expand_more
-        </span>
+        <Icon name="expand_more" className={`text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (

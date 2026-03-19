@@ -5,6 +5,7 @@ import { formatTime12Hour } from '../../../utils/dateUtils';
 import { DateBlock, GlassListRow, getWellnessIcon, getEventIcon, formatTimeLeft } from '../helpers';
 import type { Tour, DBEvent, WellnessClass, TabType, NextActivityItem } from '../types';
 import { tabToPath } from '../../../lib/nav-constants';
+import Icon from '../../icons/Icon';
 
 interface NextTourWidgetProps {
   nextTour: Tour | null;
@@ -171,14 +172,14 @@ const WellnessCard: React.FC<WellnessCardProps> = ({ isDesktopGrid, isDesktop, u
           return (
             <GlassListRow key={wellness.id} onClick={onNavigateToWellness} className="animate-slide-up-stagger tactile-row" style={{ '--stagger-index': index } as React.CSSProperties}>
               <DateBlock dateStr={dateStr} today={today} />
-              <span className="material-symbols-outlined text-lg text-primary dark:text-[#CCB8E4]">{getWellnessIcon(wellness.title)}</span>
+              <Icon name={getWellnessIcon(wellness.title)} className="text-lg text-primary dark:text-[#CCB8E4]" />
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm text-primary dark:text-white truncate">{wellness.title}</p>
                 <p className="text-xs text-primary/80 dark:text-white/80">
                   {formatTime12Hour(wellness.time)} - {formatTime12Hour(wellness.end_time)}
                 </p>
               </div>
-              <span className="material-symbols-outlined text-base text-primary/70 dark:text-white/70 flex-shrink-0">chevron_right</span>
+              <Icon name="chevron_right" className="text-base text-primary/70 dark:text-white/70 flex-shrink-0" />
             </GlassListRow>
           );
         })}
@@ -219,12 +220,12 @@ const EventsCard: React.FC<EventsCardProps> = ({ isDesktopGrid, isDesktop, upcom
           return (
             <GlassListRow key={event.id} onClick={onNavigateToEvents} className="animate-slide-up-stagger tactile-row" style={{ '--stagger-index': index } as React.CSSProperties}>
               <DateBlock dateStr={dateStr} today={today} />
-              <span className="material-symbols-outlined text-lg text-primary dark:text-[#CCB8E4]">{getEventIcon(event.category || '')}</span>
+              <Icon name={getEventIcon(event.category || '')} className="text-lg text-primary dark:text-[#CCB8E4]" />
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm text-primary dark:text-white truncate">{event.title}</p>
                 <p className="text-xs text-primary/80 dark:text-white/80">{timeDisplay}</p>
               </div>
-              <span className="material-symbols-outlined text-base text-primary/70 dark:text-white/70 flex-shrink-0">chevron_right</span>
+              <Icon name="chevron_right" className="text-base text-primary/70 dark:text-white/70 flex-shrink-0" />
             </GlassListRow>
           );
         })}

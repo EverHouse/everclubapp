@@ -5,6 +5,7 @@ import { usePageReady } from '../../stores/pageReadyStore';
 import { useToast } from '../Toast';
 import { SlideUpDrawer } from '../SlideUpDrawer';
 import { fetchWithCredentials, postWithCredentials } from '../../hooks/queries/useFetch';
+import Icon from '../icons/Icon';
 
 interface AnnouncementManagerProps {
     triggerCreate?: number;
@@ -296,7 +297,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                 <div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-white/20 p-4 space-y-4">
                     <div className="flex items-center justify-between">
                         <h3 className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                            <span aria-hidden="true" className="material-symbols-outlined text-[16px]">build</span>
+                            <Icon name="build" className="text-[16px]" />
                             Tools
                         </h3>
                         <button
@@ -305,7 +306,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors disabled:opacity-50"
                             aria-label="Export announcements as CSV"
                         >
-                            <span aria-hidden="true" className="material-symbols-outlined text-[14px]">download</span>
+                            <Icon name="download" className="text-[14px]" />
                             {exporting ? 'Exporting...' : 'Export CSV'}
                         </button>
                     </div>
@@ -336,7 +337,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                                     disabled={sheetLoading}
                                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
                                 >
-                                    <span aria-hidden="true" className="material-symbols-outlined text-[16px]">add_link</span>
+                                    <Icon name="add_link" className="text-[16px]" />
                                     {sheetLoading ? 'Creating Sheet...' : 'Create & Connect Sheet'}
                                 </button>
                             </div>
@@ -348,7 +349,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline"
                                 >
-                                    <span aria-hidden="true" className="material-symbols-outlined text-[14px]">open_in_new</span>
+                                    <Icon name="open_in_new" className="text-[14px]" />
                                     Open Google Sheet
                                 </a>
 
@@ -359,7 +360,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors disabled:opacity-50"
                                         aria-label="Pull changes from Google Sheet"
                                     >
-                                        <span aria-hidden="true" className="material-symbols-outlined text-[14px]">cloud_download</span>
+                                        <Icon name="cloud_download" className="text-[14px]" />
                                         {syncingFrom ? 'Syncing...' : 'Pull from Sheet'}
                                     </button>
                                     <button
@@ -368,7 +369,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors disabled:opacity-50"
                                         aria-label="Push announcements to Google Sheet"
                                     >
-                                        <span aria-hidden="true" className="material-symbols-outlined text-[14px]">cloud_upload</span>
+                                        <Icon name="cloud_upload" className="text-[14px]" />
                                         {syncingTo ? 'Pushing...' : 'Push to Sheet'}
                                     </button>
                                     <button
@@ -377,7 +378,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
                                         aria-label="Disconnect Google Sheet"
                                     >
-                                        <span aria-hidden="true" className="material-symbols-outlined text-[14px]">link_off</span>
+                                        <Icon name="link_off" className="text-[14px]" />
                                         Disconnect
                                     </button>
                                 </div>
@@ -392,7 +393,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
 
                 {announcements.length > 0 && (
                     <h3 className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
-                        <span aria-hidden="true" className="material-symbols-outlined text-amber-500 text-[18px]">campaign</span>
+                        <Icon name="campaign" className="text-amber-500 text-[18px]" />
                         Announcements ({announcements.length})
                     </h3>
                 )}
@@ -414,13 +415,13 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                             <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-2">{item.desc}</p>
                             {(item.startDate || item.endDate) && (
                                 <div className="inline-flex items-center gap-1 bg-gray-100 dark:bg-white/5 px-2 py-1 rounded text-xs text-gray-500 dark:text-gray-400">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-[12px]">calendar_today</span>
+                                    <Icon name="calendar_today" className="text-[12px]" />
                                     <span>{item.startDate} {item.endDate ? `- ${item.endDate}` : ''}</span>
                                 </div>
                             )}
                         </div>
                         <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }} className="text-gray-500 hover:text-red-500 p-2 min-w-[44px] min-h-[44px]" aria-label="Delete announcement">
-                            <span aria-hidden="true" className="material-symbols-outlined">delete</span>
+                            <Icon name="delete" />
                         </button>
                     </div>
                 ))}

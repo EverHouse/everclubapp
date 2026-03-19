@@ -1,5 +1,6 @@
 import React from 'react';
 import type { SortField } from './directoryTypes';
+import Icon from '../../../../components/icons/Icon';
 
 interface SortableHeaderProps {
     field: SortField;
@@ -22,9 +23,7 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ field, label, className
     >
         <div className="flex items-center gap-1 truncate">
             <span className="truncate">{label}</span>
-            <span className={`material-symbols-outlined text-[16px] shrink-0 ${currentSortField === field ? 'text-[#293515] dark:!text-[#CCB8E4]' : 'text-gray-400'}`}>
-                {getSortIcon(field)}
-            </span>
+            <Icon name={getSortIcon(field)} className={`text-[16px] shrink-0 ${currentSortField === field ? 'text-[#293515] dark:!text-[#CCB8E4]' : 'text-gray-400'}`} />
         </div>
     </div>
 );

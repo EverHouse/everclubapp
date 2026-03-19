@@ -2,6 +2,7 @@ import React from 'react';
 import WalkingGolferSpinner from '../../../WalkingGolferSpinner';
 import type { UnredeemedPass } from './types';
 import { formatPassType } from './types';
+import Icon from '../../../icons/Icon';
 
 interface UnredeemedPassesListProps {
   unredeemedPasses: UnredeemedPass[];
@@ -36,7 +37,7 @@ const UnredeemedPassesList: React.FC<UnredeemedPassesListProps> = ({
     <div className="mt-6 pt-4 border-t border-primary/10 dark:border-white/10">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">local_activity</span>
+          <Icon name="local_activity" className="text-amber-600 dark:text-amber-400" />
           <h4 className="font-semibold text-primary dark:text-white">Recent Unredeemed Passes</h4>
           {unredeemedPasses.length > 0 && (
             <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 rounded-full">
@@ -49,7 +50,7 @@ const UnredeemedPassesList: React.FC<UnredeemedPassesListProps> = ({
           className="p-1.5 hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg transition-colors"
           title="Hide section"
         >
-          <span className="material-symbols-outlined text-sm text-primary/40 dark:text-white/40">close</span>
+          <Icon name="close" className="text-sm text-primary/40 dark:text-white/40" />
         </button>
       </div>
       
@@ -59,7 +60,7 @@ const UnredeemedPassesList: React.FC<UnredeemedPassesListProps> = ({
         </div>
       ) : unredeemedPasses.length === 0 ? (
         <div className="text-center py-6">
-          <span className="material-symbols-outlined text-3xl text-primary/20 dark:text-white/20 mb-2">local_activity</span>
+          <Icon name="local_activity" className="text-3xl text-primary/20 dark:text-white/20 mb-2" />
           <p className="text-sm text-primary/50 dark:text-white/50">No unredeemed passes</p>
         </div>
       ) : (
@@ -104,7 +105,7 @@ const UnredeemedPassesList: React.FC<UnredeemedPassesListProps> = ({
                         {refundingId === pass.id ? (
                           <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
                         ) : (
-                          <span className="material-symbols-outlined text-sm">check</span>
+                          <Icon name="check" className="text-sm" />
                         )}
                         Confirm
                       </button>
@@ -123,7 +124,7 @@ const UnredeemedPassesList: React.FC<UnredeemedPassesListProps> = ({
                         className="px-2 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                         title="Refund this pass"
                       >
-                        <span className="material-symbols-outlined text-sm">undo</span>
+                        <Icon name="undo" className="text-sm" />
                         Refund
                       </button>
                       <button
@@ -134,7 +135,7 @@ const UnredeemedPassesList: React.FC<UnredeemedPassesListProps> = ({
                         {redeemingId === pass.id ? (
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
                         ) : (
-                          <span className="material-symbols-outlined text-base">check</span>
+                          <Icon name="check" className="text-base" />
                         )}
                         Redeem
                       </button>

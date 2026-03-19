@@ -1,6 +1,7 @@
 import React from 'react';
 import { MemberSearchInput, SelectedMember } from '../../shared/MemberSearchInput';
 import type { SlotState, SlotsArray, VisitorSearchResult } from './bookingSheetTypes';
+import Icon from '../../icons/Icon';
 
 interface AssignModeSlotsProps {
   slots: SlotsArray;
@@ -77,11 +78,7 @@ export function AssignModeSlots({
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                 slot.type === 'guest_placeholder' ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-green-100 dark:bg-green-900/40'
               }`}>
-                <span className={`material-symbols-outlined text-sm ${
-                  slot.type === 'guest_placeholder' ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'
-                }`}>
-                  {slot.type === 'guest_placeholder' ? 'person_add' : 'person'}
-                </span>
+                <Icon name={slot.type === 'guest_placeholder' ? 'person_add' : 'person'} className={`text-sm ${ slot.type === 'guest_placeholder' ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400' }`} />
               </div>
               <div>
                 <p className="font-medium text-sm text-primary dark:text-white">
@@ -102,7 +99,7 @@ export function AssignModeSlots({
               className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 transition-colors"
               title="Remove"
             >
-              <span className="material-symbols-outlined text-sm">close</span>
+              <Icon name="close" className="text-sm" />
             </button>
           </div>
         </div>
@@ -123,7 +120,7 @@ export function AssignModeSlots({
                 }}
                 className="text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white"
               >
-                <span className="material-symbols-outlined text-sm">close</span>
+                <Icon name="close" className="text-sm" />
               </button>
             </div>
 
@@ -154,7 +151,7 @@ export function AssignModeSlots({
                 />
                 <div className="px-1 py-1 rounded-lg bg-primary/5 dark:bg-white/5">
                   <p className="text-xs text-primary/60 dark:text-white/60">
-                    <span className="material-symbols-outlined text-xs align-middle mr-0.5">info</span>
+                    <Icon name="info" className="text-xs align-middle mr-0.5" />
                     {activeSlotIndex === 0
                       ? 'Will be created as Day Pass (Slot 1 owner)'
                       : 'Will be created as Member Guest'}
@@ -166,7 +163,7 @@ export function AssignModeSlots({
             {potentialDuplicates.length > 0 && (
               <div className="p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-500/30 rounded-lg">
                 <p className="text-xs font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1 mb-1">
-                  <span className="material-symbols-outlined text-sm">warning</span>
+                  <Icon name="warning" className="text-sm" />
                   Possible duplicate found
                 </p>
                 <div className="space-y-1">
@@ -202,12 +199,12 @@ export function AssignModeSlots({
             >
               {isCreatingVisitor ? (
                 <>
-                  <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                  <Icon name="progress_activity" className="animate-spin text-sm" />
                   Creating...
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-sm">add_circle</span>
+                  <Icon name="add_circle" className="text-sm" />
                   Create & Add
                 </>
               )}
@@ -226,7 +223,7 @@ export function AssignModeSlots({
               onClick={() => setActiveSlotIndex(null)}
               className="text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white"
             >
-              <span className="material-symbols-outlined text-sm">close</span>
+              <Icon name="close" className="text-sm" />
             </button>
           </div>
           
@@ -244,7 +241,7 @@ export function AssignModeSlots({
                 onClick={() => handleAddGuestPlaceholder(slotIndex)}
                 className="tactile-btn flex-1 py-1.5 px-2 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors flex items-center justify-center gap-1"
               >
-                <span className="material-symbols-outlined text-sm">person_add</span>
+                <Icon name="person_add" className="text-sm" />
                 Add Guest
               </button>
             )}
@@ -252,7 +249,7 @@ export function AssignModeSlots({
               onClick={() => setShowAddVisitor(true)}
               className="tactile-btn flex-1 py-1.5 px-2 rounded-lg border border-green-500 text-green-600 dark:text-green-400 text-xs font-medium hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors flex items-center justify-center gap-1"
             >
-              <span className="material-symbols-outlined text-sm">person_add</span>
+              <Icon name="person_add" className="text-sm" />
               New Visitor
             </button>
           </div>
@@ -273,9 +270,7 @@ export function AssignModeSlots({
           <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
             isOwnerSlot ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-primary/10 dark:bg-white/10'
           }`}>
-            <span className={`material-symbols-outlined text-sm ${
-              isOwnerSlot ? 'text-amber-600 dark:text-amber-400' : 'text-primary/40 dark:text-white/40'
-            }`}>add</span>
+            <Icon name="add" className={`text-sm ${ isOwnerSlot ? 'text-amber-600 dark:text-amber-400' : 'text-primary/40 dark:text-white/40' }`} />
           </div>
           <div>
             <p className={`font-medium text-sm ${isOwnerSlot ? 'text-amber-700 dark:text-amber-400' : 'text-primary/60 dark:text-white/60'}`}>
@@ -342,7 +337,7 @@ export function AssignModeSlots({
           }}
           className="tactile-btn w-full py-2 px-3 rounded-lg border-2 border-dashed border-amber-300 dark:border-amber-600 text-amber-600 dark:text-amber-400 font-medium text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center justify-center gap-2"
         >
-          <span className="material-symbols-outlined text-sm">person_add</span>
+          <Icon name="person_add" className="text-sm" />
           {`Quick Add Guest (+$${guestFeeDollars})`}
         </button>
       )}

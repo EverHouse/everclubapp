@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from './icons/Icon';
 
 interface ErrorStateProps {
   title?: string;
@@ -18,7 +19,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({
   if (variant === 'inline') {
     return (
       <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl">
-        <span className="material-symbols-outlined text-red-500 dark:text-red-400">error</span>
+        <Icon name="error" className="text-red-500 dark:text-red-400" />
         <span className="text-sm text-red-700 dark:text-red-300 flex-1">{message}</span>
         {onRetry && (
           <button
@@ -38,9 +39,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({
     <div className={`flex flex-col items-center justify-center text-center ${isCompact ? 'py-8 px-4' : 'py-16 px-6'} animate-pop-in`}>
       <div className={`relative ${isCompact ? 'mb-3' : 'mb-6'}`}>
         <div className={`${isCompact ? 'w-16 h-16' : 'w-24 h-24'} rounded-full bg-gradient-to-br from-red-100 to-red-50 dark:from-red-500/20 dark:to-red-500/10 flex items-center justify-center`}>
-          <span className={`material-symbols-outlined ${isCompact ? 'text-3xl' : 'text-5xl'} text-red-500 dark:text-red-400`}>
-            error_outline
-          </span>
+          <Icon name="error_outline" className={`${isCompact ? 'text-3xl' : 'text-5xl'} text-red-500 dark:text-red-400`} />
         </div>
       </div>
 
@@ -67,7 +66,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({
               shadow-lg hover:shadow-xl
             `}
           >
-            <span className="material-symbols-outlined text-lg">refresh</span>
+            <Icon name="refresh" className="text-lg" />
             Try Again
           </button>
         )}
@@ -81,7 +80,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({
               transition-colors
             `}
           >
-            <span className="material-symbols-outlined text-sm">sms</span>
+            <Icon name="sms" className="text-sm" />
             Text Us — (949) 545-5855
           </a>
         )}

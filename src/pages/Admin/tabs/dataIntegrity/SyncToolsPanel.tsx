@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
+import Icon from '../../../../components/icons/Icon';
 
 
 interface StripeCacheStats { cached?: number; total?: number; failed?: number; }
@@ -115,12 +116,10 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
         className="flex items-center justify-between w-full text-left"
       >
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">build</span>
+          <Icon name="build" className="text-primary dark:text-white" />
           <span className="font-bold text-primary dark:text-white">Data Tools</span>
         </div>
-        <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${showDataTools ? 'rotate-180' : ''}`}>
-          expand_more
-        </span>
+        <Icon name="expand_more" className={`text-gray-500 dark:text-gray-400 transition-transform ${showDataTools ? 'rotate-180' : ''}`} />
       </button>
       
       {showDataTools && (
@@ -141,7 +140,7 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
                 disabled={isResyncing || !resyncEmail.trim()}
                 className="tactile-btn px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
-                {isResyncing && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                {isResyncing && <Icon name="progress_activity" className="animate-spin text-[16px]" />}
                 Resync
               </button>
             </div>
@@ -160,7 +159,7 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
               disabled={isReconciling}
               className="tactile-btn px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
             >
-              {isReconciling && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+              {isReconciling && <Icon name="progress_activity" className="animate-spin text-[16px]" />}
               Run Reconciliation
             </button>
             {reconcileResult && (
@@ -189,7 +188,7 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
               disabled={isBackfillingStripeCache}
               className="tactile-btn px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
             >
-              {isBackfillingStripeCache && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+              {isBackfillingStripeCache && <Icon name="progress_activity" className="animate-spin text-[16px]" />}
               Backfill Cache
             </button>
             {stripeCacheResult && (
@@ -207,7 +206,7 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
               disabled={isRunningDuplicateDetection}
               className="tactile-btn px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
             >
-              {isRunningDuplicateDetection && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+              {isRunningDuplicateDetection && <Icon name="progress_activity" className="animate-spin text-[16px]" />}
               Detect Duplicates
             </button>
             {duplicateDetectionResult && (
@@ -222,7 +221,7 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
                       aria-expanded={expandedDuplicates.app}
                       className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1"
                     >
-                      <span className="material-symbols-outlined text-[14px]">{expandedDuplicates.app ? 'expand_less' : 'expand_more'}</span>
+                      <Icon name={expandedDuplicates.app ? 'expand_less' : 'expand_more'} className="text-[14px]" />
                       App Duplicates ({duplicateDetectionResult.appDuplicates.length})
                     </button>
                     {expandedDuplicates.app && (
@@ -243,7 +242,7 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
                       aria-expanded={expandedDuplicates.hubspot}
                       className="text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1"
                     >
-                      <span className="material-symbols-outlined text-[14px]">{expandedDuplicates.hubspot ? 'expand_less' : 'expand_more'}</span>
+                      <Icon name={expandedDuplicates.hubspot ? 'expand_less' : 'expand_more'} className="text-[14px]" />
                       HubSpot Duplicates ({duplicateDetectionResult.hubspotDuplicates.length})
                     </button>
                     {expandedDuplicates.hubspot && (
@@ -263,7 +262,7 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
 
           <div className="border-t border-gray-200 dark:border-white/10 pt-4 space-y-3">
             <h4 className="text-sm font-medium text-primary dark:text-white flex items-center gap-2">
-              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">person_remove</span>
+              <Icon name="person_remove" className="text-[18px]" />
               Stripe Customer Cleanup
             </h4>
             <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -275,7 +274,7 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
                 disabled={isRunningStripeCustomerCleanup}
                 className="tactile-btn px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
-                {isRunningStripeCustomerCleanup && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                {isRunningStripeCustomerCleanup && <Icon name="progress_activity" className="animate-spin text-[16px]" />}
                 Scan & Preview
               </button>
               <button
@@ -283,14 +282,14 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
                 disabled={isRunningStripeCustomerCleanup || !stripeCleanupResult?.dryRun}
                 className="tactile-btn px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
-                {isRunningStripeCustomerCleanup && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                {isRunningStripeCustomerCleanup && <Icon name="progress_activity" className="animate-spin text-[16px]" />}
                 Delete Empty Customers
               </button>
             </div>
             {isRunningStripeCustomerCleanup && stripeCleanupProgress && (
               <div className="mt-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="material-symbols-outlined animate-spin text-[16px] text-blue-600">progress_activity</span>
+                  <Icon name="progress_activity" className="animate-spin text-[16px] text-blue-600" />
                   <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
                     {stripeCleanupProgress.phase === 'fetching' && 'Fetching customers from Stripe...'}
                     {stripeCleanupProgress.phase === 'checking' && `Checking customers: ${stripeCleanupProgress.checked} / ${stripeCleanupProgress.totalCustomers}`}
@@ -357,7 +356,7 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
 
           <div className="border-t border-gray-200 dark:border-white/10 pt-4 space-y-3">
             <h4 className="text-sm font-medium text-primary dark:text-white flex items-center gap-2">
-              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">delete_sweep</span>
+              <Icon name="delete_sweep" className="text-[18px]" />
               Delete Stale Visitors
             </h4>
             <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -369,7 +368,7 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
                 disabled={isRunningVisitorArchive}
                 className="tactile-btn px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
-                {isRunningVisitorArchive && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                {isRunningVisitorArchive && <Icon name="progress_activity" className="animate-spin text-[16px]" />}
                 Scan & Preview
               </button>
               <button
@@ -377,14 +376,14 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
                 disabled={isRunningVisitorArchive || !visitorArchiveResult?.dryRun}
                 className="tactile-btn px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
-                {isRunningVisitorArchive && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                {isRunningVisitorArchive && <Icon name="progress_activity" className="animate-spin text-[16px]" />}
                 Delete Stale Visitors
               </button>
             </div>
             {isRunningVisitorArchive && visitorArchiveProgress && (
               <div className="mt-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="material-symbols-outlined animate-spin text-[16px] text-blue-600">progress_activity</span>
+                  <Icon name="progress_activity" className="animate-spin text-[16px] text-blue-600" />
                   <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
                     {visitorArchiveProgress.phase === 'scanning' && 'Scanning visitors for activity...'}
                     {visitorArchiveProgress.phase === 'checking_stripe' && `Checking Stripe transactions: ${visitorArchiveProgress.checked} / ${visitorArchiveProgress.totalVisitors}`}

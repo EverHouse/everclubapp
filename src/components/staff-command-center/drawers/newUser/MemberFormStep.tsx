@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatPhoneInput } from '../../../../utils/formatting';
 import {
+import Icon from '../../../icons/Icon';
   MemberFormData,
   MembershipTier,
   ExistingBillingGroup,
@@ -73,14 +74,14 @@ export function MemberFormStep({
             : 'border-emerald-500/50 text-emerald-600 hover:bg-emerald-50'
         }`}
       >
-        <span className="material-symbols-outlined text-xl">photo_camera</span>
+        <Icon name="photo_camera" className="text-xl" />
         <span className="text-sm font-medium">Scan Driver's License / ID</span>
       </button>
       {scannedIdImage && (
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${
           isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
         }`}>
-          <span className="material-symbols-outlined text-sm">check_circle</span>
+          <Icon name="check_circle" className="text-sm" />
           ID scanned — fields auto-filled
         </div>
       )}
@@ -103,7 +104,7 @@ export function MemberFormStep({
         </select>
         {fieldErrors.tierId && (
           <p className={errorMsgClass}>
-            <span className="material-symbols-outlined text-xs">error</span>
+            <Icon name="error" className="text-xs" />
             {fieldErrors.tierId}
           </p>
         )}
@@ -124,7 +125,7 @@ export function MemberFormStep({
           />
           {fieldErrors.firstName && (
             <p className={errorMsgClass}>
-              <span className="material-symbols-outlined text-xs">error</span>
+              <Icon name="error" className="text-xs" />
               {fieldErrors.firstName}
             </p>
           )}
@@ -143,7 +144,7 @@ export function MemberFormStep({
           />
           {fieldErrors.lastName && (
             <p className={errorMsgClass}>
-              <span className="material-symbols-outlined text-xs">error</span>
+              <Icon name="error" className="text-xs" />
               {fieldErrors.lastName}
             </p>
           )}
@@ -165,13 +166,13 @@ export function MemberFormStep({
         />
         {fieldErrors.email && (
           <p className={errorMsgClass}>
-            <span className="material-symbols-outlined text-xs">error</span>
+            <Icon name="error" className="text-xs" />
             {fieldErrors.email}
           </p>
         )}
         {emailCheckResult?.exists && (
           <div className={`mt-1.5 p-2 rounded-lg flex items-start gap-2 text-xs ${isDark ? 'bg-amber-900/20 border border-amber-700 text-amber-400' : 'bg-amber-50 border border-amber-200 text-amber-700'}`}>
-            <span className="material-symbols-outlined text-sm mt-0.5 shrink-0">warning</span>
+            <Icon name="warning" className="text-sm mt-0.5 shrink-0" />
             <span>A {emailCheckResult.role || 'user'} named <strong>{emailCheckResult.userName}</strong> already exists with this email ({emailCheckResult.membershipStatus || 'active'}). Are you sure this is correct?</span>
           </div>
         )}
@@ -185,7 +186,7 @@ export function MemberFormStep({
             const minsAgo = Math.round((Date.now() - recentMatch.timestamp) / 60000);
             return (
               <div className={`mt-1.5 p-2 rounded-lg flex items-start gap-2 text-xs ${isDark ? 'bg-orange-900/20 border border-orange-700 text-orange-400' : 'bg-orange-50 border border-orange-200 text-orange-700'}`}>
-                <span className="material-symbols-outlined text-sm mt-0.5 shrink-0">history</span>
+                <Icon name="history" className="text-sm mt-0.5 shrink-0" />
                 <span>You created a record for <strong>{recentMatch.name}</strong> {minsAgo < 1 ? 'just now' : `${minsAgo} min ago`}. Is this a different person?</span>
               </div>
             );
@@ -209,7 +210,7 @@ export function MemberFormStep({
         />
         {fieldErrors.phone && (
           <p className={errorMsgClass}>
-            <span className="material-symbols-outlined text-xs">error</span>
+            <Icon name="error" className="text-xs" />
             {fieldErrors.phone}
           </p>
         )}
@@ -294,7 +295,7 @@ export function MemberFormStep({
               </select>
               {form.existingGroupId && (
                 <p className={`mt-2 text-sm ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
-                  <span className="material-symbols-outlined text-sm align-middle mr-1">info</span>
+                  <Icon name="info" className="text-sm align-middle mr-1" />
                   Member will be billed through the group's primary account with 20% family discount
                 </p>
               )}
@@ -345,14 +346,14 @@ export function MemberFormStep({
                         }}
                         className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center gap-1"
                       >
-                        <span className="material-symbols-outlined text-sm">badge</span>
+                        <Icon name="badge" className="text-sm" />
                         Scan ID
                       </button>
                       <button
                         onClick={() => removeGroupMember(index)}
                         className="text-red-500 hover:text-red-600"
                       >
-                        <span className="material-symbols-outlined text-sm">close</span>
+                        <Icon name="close" className="text-sm" />
                       </button>
                     </div>
                   </div>
@@ -456,7 +457,7 @@ export function MemberFormStep({
                     <div className={`flex items-center gap-2 mt-2 text-xs ${
                       isDark ? 'text-emerald-400' : 'text-emerald-600'
                     }`}>
-                      <span className="material-symbols-outlined text-sm">check_circle</span>
+                      <Icon name="check_circle" className="text-sm" />
                       ID scanned
                     </div>
                   )}
@@ -470,7 +471,7 @@ export function MemberFormStep({
                     : 'border-gray-300 text-gray-600 hover:border-gray-400'
                 }`}
               >
-                <span className="material-symbols-outlined text-sm mr-1 align-middle">add</span>
+                <Icon name="add" className="text-sm mr-1 align-middle" />
                 Add Another Member
               </button>
             </div>

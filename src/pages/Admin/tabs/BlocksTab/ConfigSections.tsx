@@ -1,6 +1,7 @@
 import React from 'react';
 import { SlideUpDrawer } from '../../../../components/SlideUpDrawer';
 import type { NoticeType, ClosureReason } from './blocksTabTypes';
+import Icon from '../../../../components/icons/Icon';
 
 interface ClosureReasonsSectionProps {
     closureReasons: ClosureReason[];
@@ -43,7 +44,7 @@ export const ClosureReasonsSection: React.FC<ClosureReasonsSectionProps> = ({
                     disabled={!newReasonLabel.trim() || addClosureReasonMutation.isPending}
                     className="tactile-btn px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-fast flex items-center justify-center gap-1.5"
                 >
-                    <span aria-hidden="true" className="material-symbols-outlined text-base">add</span>
+                    <Icon name="add" className="text-base" />
                     Add
                 </button>
             </div>
@@ -62,14 +63,14 @@ export const ClosureReasonsSection: React.FC<ClosureReasonsSectionProps> = ({
                                 className="tactile-btn p-1.5 rounded-lg bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 hover:bg-gray-300 dark:hover:bg-white/30 transition-colors"
                                 title="Edit"
                             >
-                                <span aria-hidden="true" className="material-symbols-outlined text-base">edit</span>
+                                <Icon name="edit" className="text-base" />
                             </button>
                             <button
                                 onClick={() => handleDeleteClosureReason(reason.id)}
                                 className="tactile-btn p-1.5 rounded-lg bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30 transition-colors"
                                 title="Delete"
                             >
-                                <span aria-hidden="true" className="material-symbols-outlined text-base">delete</span>
+                                <Icon name="delete" className="text-base" />
                             </button>
                         </div>
                     </div>
@@ -140,7 +141,7 @@ export const NoticeTypesSection: React.FC<NoticeTypesSectionProps> = ({
                     disabled={!newNoticeTypeName.trim() || addNoticeTypeMutation.isPending}
                     className="tactile-btn px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-fast flex items-center justify-center gap-1.5"
                 >
-                    <span aria-hidden="true" className="material-symbols-outlined text-base">add</span>
+                    <Icon name="add" className="text-base" />
                     Add
                 </button>
             </div>
@@ -165,14 +166,14 @@ export const NoticeTypesSection: React.FC<NoticeTypesSectionProps> = ({
                                     className="tactile-btn p-1.5 rounded-lg bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 hover:bg-gray-300 dark:hover:bg-white/30 transition-colors"
                                     title="Edit"
                                 >
-                                    <span aria-hidden="true" className="material-symbols-outlined text-base">edit</span>
+                                    <Icon name="edit" className="text-base" />
                                 </button>
                                 <button
                                     onClick={() => handleDeleteNoticeType(noticeType.id)}
                                     className="tactile-btn p-1.5 rounded-lg bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30 transition-colors"
                                     title="Delete"
                                 >
-                                    <span aria-hidden="true" className="material-symbols-outlined text-base">delete</span>
+                                    <Icon name="delete" className="text-base" />
                                 </button>
                             </div>
                         )}

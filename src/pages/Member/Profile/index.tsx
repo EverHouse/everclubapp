@@ -14,6 +14,7 @@ import ConnectedAccountsSection from './ConnectedAccountsSection';
 import PasskeysSection from './PasskeysSection';
 import StaffSection from './StaffSection';
 import PrivacyModal from './PrivacyModal';
+import Icon from '../../../components/icons/Icon';
 
 const Profile: React.FC = () => {
   const { showToast } = useToast();
@@ -37,7 +38,7 @@ const Profile: React.FC = () => {
                   : 'bg-primary/10 hover:bg-primary/15 text-primary'
               }`}
             >
-              <span className="material-symbols-outlined text-lg">arrow_back</span>
+              <Icon name="arrow_back" className="text-lg" />
               <span className="font-medium text-sm">Return to Staff Portal</span>
             </button>
           </div>
@@ -154,14 +155,14 @@ const Profile: React.FC = () => {
               : 'bg-red-50 text-red-600 hover:bg-red-100'
           }`}
         >
-          <span className="material-symbols-outlined text-lg">logout</span>
+          <Icon name="logout" className="text-lg" />
           Sign Out
         </button>
 
         {data.isAdminViewingAs && (
           <div className={`rounded-xl p-4 ${data.isDark ? 'bg-accent/20 border border-accent/30' : 'bg-amber-50 border border-amber-200'}`}>
             <div className="flex items-center gap-3">
-              <span className={`material-symbols-outlined text-xl ${data.isDark ? 'text-accent' : 'text-amber-600'}`}>visibility</span>
+              <Icon name="visibility" className={`text-xl ${data.isDark ? 'text-accent' : 'text-amber-600'}`} />
               <div className="flex-1">
                 <p className={`font-semibold text-sm ${data.isDark ? 'text-accent' : 'text-amber-800'}`}>
                   Viewing as {(data.user.name || '').includes('@') ? data.user.email?.split('@')[0] : data.user.name}

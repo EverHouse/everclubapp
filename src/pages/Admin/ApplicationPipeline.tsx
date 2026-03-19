@@ -7,6 +7,7 @@ import { ApplicationPipelineSkeleton } from '../../components/skeletons';
 import { useToast } from '../../components/Toast';
 import { haptic } from '../../utils/haptics';
 import { useApplications, useUpdateApplicationStatus, useSaveApplicationNotes, useSendApplicationInvite, useSyncHubSpotApplications, useMembershipTiers } from '../../hooks/queries';
+import Icon from '../../components/icons/Icon';
 
 interface MembershipTier {
   id: number;
@@ -213,9 +214,7 @@ const ApplicationPipeline: React.FC = () => {
           disabled={isSyncing}
           className="relative flex items-center gap-1.5 px-3 py-2 min-h-[36px] rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/15 transition-all duration-fast active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <span className={`material-symbols-outlined text-[16px] ${isSyncing ? 'animate-spin' : ''}`} aria-hidden="true">
-            {isSyncing ? 'progress_activity' : 'sync'}
-          </span>
+          <Icon name={isSyncing ? 'progress_activity' : 'sync'} className={`text-[16px] ${isSyncing ? 'animate-spin' : ''}`} />
           <span className={isSyncing ? 'opacity-0' : 'opacity-100'}>{isSyncing ? 'Syncing…' : 'Sync from HubSpot'}</span>
           {isSyncing && (
             <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold">Syncing…</span>
@@ -234,7 +233,7 @@ const ApplicationPipeline: React.FC = () => {
                 : 'bg-white dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
             }`}
           >
-            <span className="material-symbols-outlined text-[14px] sm:text-[16px]" aria-hidden="true">{tab.icon}</span>
+            <Icon name={tab.icon} className="text-[14px] sm:text-[16px]" />
             {tab.label}
             {tab.id !== 'all' && statusCounts[tab.id] ? (
               <span className="ml-1 bg-white/20 dark:bg-black/20 px-1.5 py-0.5 rounded-full text-[9px]">
@@ -259,7 +258,7 @@ const ApplicationPipeline: React.FC = () => {
           <div className="p-6">
             <div className="mb-4">
               <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${getStatusColor(selectedApp.status)}`}>
-                <span className="material-symbols-outlined text-[12px]" aria-hidden="true">{getStatusIcon(selectedApp.status)}</span>
+                <Icon name={getStatusIcon(selectedApp.status)} className="text-[12px]" />
                 {selectedApp.status}
               </span>
             </div>
@@ -338,7 +337,7 @@ const ApplicationPipeline: React.FC = () => {
               {selectedApp.status === 'approved' && (
                 <div className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30 rounded-xl p-4">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-green-700 dark:text-green-400 block mb-2">
-                    <span className="material-symbols-outlined text-[12px] align-middle mr-1" aria-hidden="true">send</span>
+                    <Icon name="send" className="text-[12px] align-middle mr-1" />
                     Send Checkout Invite
                   </label>
                   <div className="flex gap-2">
@@ -360,7 +359,7 @@ const ApplicationPipeline: React.FC = () => {
                       disabled={isSendingInvite || !selectedTierId}
                       className="px-4 py-2 min-h-[44px] bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
                     >
-                      <span className="material-symbols-outlined text-[16px]" aria-hidden="true">send</span>
+                      <Icon name="send" className="text-[16px]" />
                       {isSendingInvite ? 'Sending...' : 'Send'}
                     </button>
                   </div>
@@ -399,7 +398,7 @@ const ApplicationPipeline: React.FC = () => {
         <ApplicationPipelineSkeleton />
       ) : filteredApplications.length === 0 ? (
         <div className="bg-white dark:bg-surface-dark rounded-xl p-8 text-center shadow-sm border border-gray-200 dark:border-white/20">
-          <span className="material-symbols-outlined text-5xl text-gray-500 dark:text-gray-500 mb-3 block" aria-hidden="true">how_to_reg</span>
+          <Icon name="how_to_reg" className="text-5xl text-gray-500 dark:text-gray-500 mb-3 block" />
           <h3 className="text-lg font-bold text-primary dark:text-white mb-2">No Applications</h3>
           <p className="text-gray-600 dark:text-gray-300">No membership applications match your current filter.</p>
         </div>
@@ -430,9 +429,7 @@ const ApplicationPipeline: React.FC = () => {
                           ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400'
                           : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400'
                 }`}>
-                  <span className="material-symbols-outlined text-lg" aria-hidden="true">
-                    {getStatusIcon(app.status)}
-                  </span>
+                  <Icon name={getStatusIcon(app.status)} className="text-lg" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -453,7 +450,7 @@ const ApplicationPipeline: React.FC = () => {
                   </div>
                   {app.user_id && (
                     <div className="flex items-center gap-1.5 mb-1">
-                      <span className="material-symbols-outlined text-[12px] text-teal-500" aria-hidden="true">verified</span>
+                      <Icon name="verified" className="text-[12px] text-teal-500" />
                       <span className="text-[10px] font-semibold text-teal-600 dark:text-teal-400 uppercase tracking-wide">
                         {app.membership_status || 'User'}
                         {app.tier && ` · ${app.tier}`}

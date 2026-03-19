@@ -11,6 +11,7 @@ import { startAuthentication, WebAuthnAbortService } from '@simplewebauthn/brows
 import type { PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/types';
 import { fetchWithCredentials, postWithCredentials, isAbortError } from '../../hooks/queries/useFetch';
 import type { MemberProfile } from '../../types/data';
+import Icon from '../../components/icons/Icon';
 
 const Spinner = () => (
   <WalkingGolferSpinner size="sm" variant="light" />
@@ -384,7 +385,7 @@ const Login: React.FC = () => {
           <div className="w-full max-w-sm mx-auto space-y-8">
             <div className="text-center">
               <div className="w-16 h-16 bg-primary text-bone dark:text-[#141414] rounded-full flex items-center justify-center mx-auto text-2xl mb-6 shadow-xl dark:shadow-black/20">
-                <span className="material-symbols-outlined text-3xl">dialpad</span>
+                <Icon name="dialpad" className="text-3xl" />
               </div>
               <h2 className="text-2xl text-primary dark:text-white leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>
                 Enter Your Code
@@ -397,7 +398,7 @@ const Login: React.FC = () => {
 
             {error && (
               <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
-                <span className="material-symbols-outlined text-lg">error</span>
+                <Icon name="error" className="text-lg" />
                 {error}
               </div>
             )}
@@ -429,7 +430,7 @@ const Login: React.FC = () => {
               )}
               
               <div className="flex items-center gap-2 text-center justify-center text-sm text-primary/60 dark:text-white/60">
-                <span className="material-symbols-outlined text-sm">schedule</span>
+                <Icon name="schedule" className="text-sm" />
                 Code expires in 15 minutes
               </div>
               
@@ -479,7 +480,7 @@ const Login: React.FC = () => {
 
             {error && (
               <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
-                <span className="material-symbols-outlined text-lg">error</span>
+                <Icon name="error" className="text-lg" />
                 {error}
               </div>
             )}
@@ -525,7 +526,7 @@ const Login: React.FC = () => {
                       disabled={loading || !password}
                       className="tactile-btn flex w-full justify-center items-center gap-3 rounded-[4px] bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
                     >
-                      {loading ? <Spinner /> : <span className="material-symbols-outlined">login</span>}
+                      {loading ? <Spinner /> : <Icon name="login" />}
                       {loading ? 'Signing in...' : 'Sign In'}
                     </button>
                   ) : (
@@ -534,7 +535,7 @@ const Login: React.FC = () => {
                       disabled={loading || !email.includes('@')}
                       className="tactile-btn flex w-full justify-center items-center gap-3 rounded-[4px] bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
                     >
-                      {loading ? <Spinner /> : <span className="material-symbols-outlined">dialpad</span>}
+                      {loading ? <Spinner /> : <Icon name="dialpad" />}
                       {loading ? 'Sending...' : 'Send Verification Code'}
                     </button>
                   )}
@@ -579,7 +580,7 @@ const Login: React.FC = () => {
                     className="tactile-btn flex w-full items-center justify-center gap-3 rounded-full border border-black/10 dark:border-white/20 bg-white dark:bg-black px-4 py-3 text-sm font-medium text-black dark:text-white hover:bg-gray-50 dark:hover:bg-white/10 transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
                     style={{ minHeight: 44 }}
                   >
-                    <span className="material-symbols-outlined text-lg">fingerprint</span>
+                    <Icon name="fingerprint" className="text-lg" />
                     {passkeyLoading ? 'Authenticating...' : 'Sign in with Face ID / Touch ID'}
                   </button>
                 )}
@@ -593,7 +594,7 @@ const Login: React.FC = () => {
                       disabled={loading}
                       className="tactile-btn flex w-full justify-center items-center gap-2 rounded-[4px] bg-gray-100 dark:bg-white/5 px-3 py-3 text-sm font-bold leading-6 text-primary dark:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-all duration-fast active:scale-[0.98] disabled:opacity-50 mt-4"
                     >
-                      <span className="material-symbols-outlined text-lg">dialpad</span>
+                      <Icon name="dialpad" className="text-lg" />
                       Use Verification Code Instead
                     </button>
                   </div>
@@ -608,7 +609,7 @@ const Login: React.FC = () => {
                       disabled={devLoading || devMemberLoading}
                       className="tactile-btn flex w-full justify-center items-center gap-2 rounded-[4px] bg-amber-500 px-3 py-3 text-sm font-bold leading-6 text-white hover:bg-amber-600 transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
                     >
-                      <span className="material-symbols-outlined text-lg">developer_mode</span>
+                      <Icon name="developer_mode" className="text-lg" />
                       {devLoading ? 'Logging in...' : 'Dev Login (Admin)'}
                     </button>
                     <p className="text-center text-xs text-amber-600 dark:text-amber-400">
@@ -620,7 +621,7 @@ const Login: React.FC = () => {
                       disabled={devLoading || devMemberLoading}
                       className="tactile-btn flex w-full justify-center items-center gap-2 rounded-[4px] bg-purple-500 px-3 py-3 text-sm font-bold leading-6 text-white hover:bg-purple-600 transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
                     >
-                      <span className="material-symbols-outlined text-lg">person</span>
+                      <Icon name="person" className="text-lg" />
                       {devMemberLoading ? 'Logging in...' : 'Dev Login (Member)'}
                     </button>
                     <p className="text-center text-xs text-purple-600 dark:text-purple-400">

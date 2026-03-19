@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
 import { useSafariThemeColor } from '../hooks/useSafariThemeColor';
+import Icon from './icons/Icon';
 
 const BASE_DRAWER_Z_INDEX = 10000;
 const STANDARD_DRAWER_Z_INDEX = 5000;
@@ -265,11 +266,7 @@ export function SlideUpDrawer({
                 className="mt-1.5 flex items-center gap-1 select-none"
                 style={{ opacity: Math.min(1, dragOffset / DRAG_THRESHOLD) }}
               >
-                <span 
-                  className={`material-symbols-outlined text-sm transition-colors duration-150 ${dragOffset >= DRAG_THRESHOLD ? (isDark ? 'text-white' : 'text-primary') : (isDark ? 'text-white/40' : 'text-gray-400')}`}
-                >
-                  keyboard_arrow_down
-                </span>
+                <Icon name="keyboard_arrow_down" className={`text-sm transition-colors duration-150 ${dragOffset >= DRAG_THRESHOLD ? (isDark ? 'text-white' : 'text-primary') : (isDark ? 'text-white/40' : 'text-gray-400')}`} />
                 <span 
                   className={`text-xs font-medium tracking-wide uppercase transition-colors duration-150 ${dragOffset >= DRAG_THRESHOLD ? (isDark ? 'text-white' : 'text-primary') : (isDark ? 'text-white/40' : 'text-gray-400')}`}
                 >
@@ -296,7 +293,7 @@ export function SlideUpDrawer({
                 className={`p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
                 aria-label="Close drawer"
               >
-                <span className="material-symbols-outlined text-xl" aria-hidden="true">close</span>
+                <Icon name="close" className="text-xl" />
               </button>
             )}
           </div>

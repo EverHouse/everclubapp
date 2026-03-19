@@ -1,6 +1,7 @@
 import React from 'react';
 import type { CafeItem } from '../../../../types/data';
 import {
+import Icon from '../../../icons/Icon';
   type CategoryTab,
   CAFE_CATEGORY_ICONS,
   cafeItemToCartProduct,
@@ -31,7 +32,7 @@ const ProductCard: React.FC<{
       isAdded ? 'scale-95 ring-2 ring-emerald-400/50' : ''
     }`}
   >
-    <span className="material-symbols-outlined text-3xl text-primary dark:text-white">{product.icon}</span>
+    <Icon name={product.icon} className="text-3xl text-primary dark:text-white" />
     <span className="text-sm font-medium text-primary dark:text-white leading-tight">{product.name}</span>
     <span className="text-lg font-bold text-primary dark:text-white">
       ${(product.priceCents / 100).toFixed(2)}
@@ -80,7 +81,7 @@ const POSProductGrid: React.FC<POSProductGridProps> = ({
   if (activeTab === 'merch') {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-3">
-        <span className="material-symbols-outlined text-4xl text-primary/30 dark:text-white/30">storefront</span>
+        <Icon name="storefront" className="text-4xl text-primary/30 dark:text-white/30" />
         <p className="text-primary/60 dark:text-white/60 font-medium">Merchandise coming soon</p>
       </div>
     );
@@ -96,7 +97,7 @@ const POSProductGrid: React.FC<POSProductGridProps> = ({
           <div>
             {activeTab === 'all' && (
               <h4 className="text-xs font-semibold text-primary/50 dark:text-white/50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-sm">confirmation_number</span>
+                <Icon name="confirmation_number" className="text-sm" />
                 Passes
               </h4>
             )}
@@ -114,7 +115,7 @@ const POSProductGrid: React.FC<POSProductGridProps> = ({
         {showCafe && (
           <div>
             <h4 className="text-xs font-semibold text-primary/50 dark:text-white/50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-sm">coffee</span>
+              <Icon name="coffee" className="text-sm" />
               Cafe
             </h4>
             {cafeLoading ? (
@@ -126,7 +127,7 @@ const POSProductGrid: React.FC<POSProductGridProps> = ({
                 {sortedCafeCategories.map(cat => (
                   <div key={cat}>
                     <p className="text-xs font-medium text-primary/40 dark:text-white/40 mb-1.5 flex items-center gap-1">
-                      <span className="material-symbols-outlined text-xs">{CAFE_CATEGORY_ICONS[cat] || 'restaurant'}</span>
+                      <Icon name={CAFE_CATEGORY_ICONS[cat] || 'restaurant'} className="text-xs" />
                       {cat}
                     </p>
                     <div className={`grid ${gridCols} gap-2`}>
@@ -158,7 +159,7 @@ const POSProductGrid: React.FC<POSProductGridProps> = ({
     if (sortedCafeCategories.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-12 gap-3">
-          <span className="material-symbols-outlined text-4xl text-primary/30 dark:text-white/30">coffee</span>
+          <Icon name="coffee" className="text-4xl text-primary/30 dark:text-white/30" />
           <p className="text-primary/60 dark:text-white/60 font-medium">No cafe items available</p>
         </div>
       );
@@ -169,7 +170,7 @@ const POSProductGrid: React.FC<POSProductGridProps> = ({
         {sortedCafeCategories.map(cat => (
           <div key={cat}>
             <p className="text-xs font-medium text-primary/40 dark:text-white/40 mb-1.5 flex items-center gap-1">
-              <span className="material-symbols-outlined text-xs">{CAFE_CATEGORY_ICONS[cat] || 'restaurant'}</span>
+              <Icon name={CAFE_CATEGORY_ICONS[cat] || 'restaurant'} className="text-xs" />
               {cat}
             </p>
             <div className={`grid ${gridCols} gap-2`}>

@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ErrorState } from './types';
+import Icon from '../../../icons/Icon';
 
 interface PassErrorStateProps {
   errorState: ErrorState;
@@ -36,7 +37,7 @@ const PassErrorState: React.FC<PassErrorStateProps> = ({
     return (
       <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 space-y-3">
         <div className="flex items-start gap-3">
-          <span className="material-symbols-outlined text-2xl text-amber-600 dark:text-amber-400">search_off</span>
+          <Icon name="search_off" className="text-2xl text-amber-600 dark:text-amber-400" />
           <div className="flex-1">
             <p className="font-semibold text-amber-900 dark:text-amber-100">Pass not found or invalid</p>
             <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
@@ -49,14 +50,14 @@ const PassErrorState: React.FC<PassErrorStateProps> = ({
             onClick={handleSearchByEmail}
             className="tactile-btn flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-amber-100 dark:bg-amber-800/40 text-amber-900 dark:text-amber-100 font-medium text-sm hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-lg">mail</span>
+            <Icon name="mail" className="text-lg" />
             Search by email
           </button>
           <button
             onClick={handleSellNewPass}
             className="tactile-btn flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-teal-500 text-white font-medium text-sm hover:bg-teal-600 transition-colors flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
+            <Icon name="add_shopping_cart" className="text-lg" />
             Sell new pass
           </button>
         </div>
@@ -68,7 +69,7 @@ const PassErrorState: React.FC<PassErrorStateProps> = ({
     return (
       <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 space-y-3">
         <div className="flex items-start gap-3">
-          <span className="material-symbols-outlined text-2xl text-amber-600 dark:text-amber-400">check_circle</span>
+          <Icon name="check_circle" className="text-2xl text-amber-600 dark:text-amber-400" />
           <div className="flex-1">
             <p className="font-semibold text-amber-900 dark:text-amber-100">This pass has been fully redeemed</p>
             {passDetails && (
@@ -93,14 +94,14 @@ const PassErrorState: React.FC<PassErrorStateProps> = ({
             onClick={handleSellNewPass}
             className="tactile-btn flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-teal-500 text-white font-medium text-sm hover:bg-teal-600 transition-colors flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
+            <Icon name="add_shopping_cart" className="text-lg" />
             Charge for new pass
           </button>
           <button
             onClick={clearErrorAndReset}
             className="tactile-btn px-4 py-2.5 rounded-lg bg-amber-100 dark:bg-amber-800/40 text-amber-900 dark:text-amber-100 font-medium text-sm hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-lg">refresh</span>
+            <Icon name="refresh" className="text-lg" />
             Start over
           </button>
         </div>
@@ -113,7 +114,7 @@ const PassErrorState: React.FC<PassErrorStateProps> = ({
     return (
       <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 space-y-3">
         <div className="flex items-start gap-3">
-          <span className="material-symbols-outlined text-2xl text-amber-600 dark:text-amber-400">schedule</span>
+          <Icon name="schedule" className="text-2xl text-amber-600 dark:text-amber-400" />
           <div className="flex-1">
             <p className="font-semibold text-amber-900 dark:text-amber-100">Already checked in today</p>
             {passDetails && (
@@ -142,14 +143,14 @@ const PassErrorState: React.FC<PassErrorStateProps> = ({
               onClick={() => handleProceedAnyway('current')}
               className="tactile-btn flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-amber-100 dark:bg-amber-800/40 text-amber-900 dark:text-amber-100 font-medium text-sm hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined text-lg">warning</span>
+              <Icon name="warning" className="text-lg" />
               Redeem anyway
             </button>
             <button
               onClick={clearErrorAndReset}
               className="tactile-btn px-4 py-2.5 rounded-lg bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-medium text-sm hover:bg-primary/20 dark:hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined text-lg">close</span>
+              <Icon name="close" className="text-lg" />
               Cancel
             </button>
           </div>
@@ -171,7 +172,7 @@ const PassErrorState: React.FC<PassErrorStateProps> = ({
                 {forceRedeeming ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
                 ) : (
-                  <span className="material-symbols-outlined text-lg">check</span>
+                  <Icon name="check" className="text-lg" />
                 )}
                 Yes, redeem again
               </button>
@@ -192,7 +193,7 @@ const PassErrorState: React.FC<PassErrorStateProps> = ({
     return (
       <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 space-y-3">
         <div className="flex items-start gap-3">
-          <span className="material-symbols-outlined text-2xl text-red-600 dark:text-red-400">block</span>
+          <Icon name="block" className="text-2xl text-red-600 dark:text-red-400" />
           <div className="flex-1">
             <p className="font-semibold text-red-900 dark:text-red-100">Pass is no longer active</p>
             {passDetails && (
@@ -207,14 +208,14 @@ const PassErrorState: React.FC<PassErrorStateProps> = ({
             onClick={handleSellNewPass}
             className="tactile-btn flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-teal-500 text-white font-medium text-sm hover:bg-teal-600 transition-colors flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
+            <Icon name="add_shopping_cart" className="text-lg" />
             Sell new pass
           </button>
           <button
             onClick={clearErrorAndReset}
             className="tactile-btn px-4 py-2.5 rounded-lg bg-red-100 dark:bg-red-800/40 text-red-900 dark:text-red-100 font-medium text-sm hover:bg-red-200 dark:hover:bg-red-800/60 transition-colors flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-lg">refresh</span>
+            <Icon name="refresh" className="text-lg" />
             Start over
           </button>
         </div>
@@ -225,14 +226,14 @@ const PassErrorState: React.FC<PassErrorStateProps> = ({
   return (
     <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 space-y-3">
       <div className="flex items-start gap-2">
-        <span className="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+        <Icon name="error" className="text-red-600 dark:text-red-400" />
         <p className="text-sm text-red-700 dark:text-red-400">{errorState.message}</p>
       </div>
       <button
         onClick={clearErrorAndReset}
         className="tactile-btn w-full px-4 py-2 rounded-lg bg-red-100 dark:bg-red-800/40 text-red-900 dark:text-red-100 font-medium text-sm hover:bg-red-200 dark:hover:bg-red-800/60 transition-colors flex items-center justify-center gap-2"
       >
-        <span className="material-symbols-outlined text-lg">refresh</span>
+        <Icon name="refresh" className="text-lg" />
         Try again
       </button>
     </div>

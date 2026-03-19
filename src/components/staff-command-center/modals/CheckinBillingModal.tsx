@@ -8,6 +8,7 @@ import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { BOOKING_STATUS, PAYMENT_STATUS, PARTICIPANT_TYPE } from '../../../../shared/constants/statuses';
 import { fetchWithCredentials, postWithCredentials, patchWithCredentials, putWithCredentials } from '../../../hooks/queries/useFetch';
 import type { PaymentStatus, ParticipantType } from '../../../../shared/constants/statuses';
+import Icon from '../../icons/Icon';
 
 function formatTime12Hour(time: string | undefined): string {
   if (!time) return '';
@@ -425,7 +426,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                   disabled={actionInProgress !== null}
                   className="tactile-btn w-full py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  <span className="material-symbols-outlined">account_balance_wallet</span>
+                  <Icon name="account_balance_wallet" />
                   {actionInProgress === 'apply-balance'
                     ? 'Applying...'
                     : `Apply Account Balance ($${context.memberAccountBalance.availableCreditDollars.toFixed(2)})${context.memberAccountBalance.availableCreditCents >= Math.round(context.totalOutstanding * 100) ? '' : ' — Partial'}`}
@@ -437,7 +438,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                   disabled={actionInProgress !== null}
                   className="tactile-btn w-full py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  <span className="material-symbols-outlined">credit_score</span>
+                  <Icon name="credit_score" />
                   {actionInProgress === 'charge-saved-card' 
                     ? 'Charging...' 
                     : `Charge Card on File (${savedCardInfo.cardBrand} ****${savedCardInfo.cardLast4}) - $${context.totalOutstanding.toFixed(2)}`}
@@ -449,7 +450,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                   disabled={actionInProgress !== null}
                   className="tactile-btn w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  <span className="material-symbols-outlined">credit_card</span>
+                  <Icon name="credit_card" />
                   {savedCardInfo?.hasSavedCard ? 'Pay with Different Card' : `Pay with Card ($${context.totalOutstanding.toFixed(2)})`}
                 </button>
               )}
@@ -458,7 +459,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                 disabled={actionInProgress !== null}
                 className="tactile-btn w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                <span className="material-symbols-outlined">payments</span>
+                <Icon name="payments" />
                 {actionInProgress === 'confirm-all' ? 'Processing...' : 'Mark Paid (Cash/External)'}
               </button>
               <button
@@ -497,7 +498,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
             </>
           ) : context?.hasUnpaidBalance ? (
             <div className="w-full p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-center flex items-center justify-center gap-2">
-              <span className="material-symbols-outlined text-red-500">warning</span>
+              <Icon name="warning" className="text-red-500" />
               <span className="text-red-600 dark:text-red-400 font-medium">
                 Collect all payments before check-in
               </span>
@@ -508,7 +509,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
               disabled={actionInProgress !== null}
               className="tactile-btn w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined">how_to_reg</span>
+              <Icon name="how_to_reg" />
               {actionInProgress === 'checkin-skip' ? 'Processing...' : 'Complete Check-In'}
             </button>
           )}
@@ -549,7 +550,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                     : 'bg-white dark:bg-white/5 text-primary/70 dark:text-white/70 hover:bg-primary/5 dark:hover:bg-white/10'
                 }`}
               >
-                <span className="material-symbols-outlined text-base">credit_card</span>
+                <Icon name="credit_card" className="text-base" />
                 Online Card
               </button>
               <button
@@ -560,7 +561,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                     : 'bg-white dark:bg-white/5 text-primary/70 dark:text-white/70 hover:bg-primary/5 dark:hover:bg-white/10'
                 }`}
               >
-                <span className="material-symbols-outlined text-base">contactless</span>
+                <Icon name="contactless" className="text-base" />
                 Card Reader
               </button>
             </div>
@@ -597,7 +598,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
           </div>
         ) : error ? (
           <div className="text-center py-8">
-            <span className="material-symbols-outlined text-4xl text-red-500 mb-2">error</span>
+            <Icon name="error" className="text-4xl text-red-500 mb-2" />
             <p className="text-red-600 dark:text-red-400">{error}</p>
             <button onClick={fetchContext} className="mt-4 px-4 py-2 bg-primary text-white rounded-lg">
               Retry
@@ -613,7 +614,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
               {context.memberNotes && (
                 <div className="mt-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-lg">
                   <p className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1.5">
-                    <span className="material-symbols-outlined text-sm flex-shrink-0">edit_note</span>
+                    <Icon name="edit_note" className="text-sm flex-shrink-0" />
                     <span>"{context.memberNotes}"</span>
                   </p>
                 </div>
@@ -623,7 +624,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
             {context.participants.length > 0 && (
               <div>
                 <h4 className="font-semibold text-primary dark:text-white mb-3 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-lg">group</span>
+                  <Icon name="group" className="text-lg" />
                   Player Fees
                 </h4>
                 <div className="space-y-2">
@@ -652,7 +653,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                       <div className="text-xs text-primary/60 dark:text-white/60 mb-2 space-y-0.5">
                         {p.tierAtBooking && (
                           <div className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-xs">workspace_premium</span>
+                            <Icon name="workspace_premium" className="text-xs" />
                             <span>{p.tierAtBooking}</span>
                             {p.dailyAllowance !== undefined && p.dailyAllowance < 999 && (
                               <span className="opacity-60">({p.dailyAllowance} min/day)</span>
@@ -676,7 +677,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                             )}
                             {p.guestPassUsed && p.totalFee === 0 && (
                               <span className="inline-flex items-center px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded">
-                                <span className="material-symbols-outlined text-xs mr-0.5">confirmation_number</span>
+                                <Icon name="confirmation_number" className="text-xs mr-0.5" />
                                 Pass Used
                               </span>
                             )}
@@ -740,7 +741,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                                 disabled={actionInProgress !== null}
                                 className="tactile-btn py-1.5 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1 px-3"
                               >
-                                <span className="material-symbols-outlined text-sm">loyalty</span>
+                                <Icon name="loyalty" className="text-sm" />
                                 Guest Pass
                               </button>
                             )}
@@ -756,13 +757,8 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                       ) : (
                         <div className="flex items-center gap-2 text-xs flex-wrap">
                           <div className="flex items-center gap-1">
-                            <span className={`material-symbols-outlined text-sm ${
-                              p.paymentStatus === PAYMENT_STATUS.PAID ? 'text-green-500' : 
-                              p.paymentStatus === PAYMENT_STATUS.WAIVED ? 'text-gray-500' : 'text-yellow-500'
-                            }`}>
-                              {p.paymentStatus === PAYMENT_STATUS.PAID ? 'check_circle' : 
-                               p.paymentStatus === PAYMENT_STATUS.WAIVED ? 'remove_circle' : 'pending'}
-                            </span>
+                            <Icon name={p.paymentStatus === PAYMENT_STATUS.PAID ? 'check_circle' : 
+                               p.paymentStatus === PAYMENT_STATUS.WAIVED ? 'remove_circle' : 'pending'} className={`text-sm ${ p.paymentStatus === PAYMENT_STATUS.PAID ? 'text-green-500' : p.paymentStatus === PAYMENT_STATUS.WAIVED ? 'text-gray-500' : 'text-yellow-500' }`} />
                             <span className={`capitalize ${
                               p.paymentStatus === PAYMENT_STATUS.PAID ? 'text-green-600 dark:text-green-400' : 
                               p.paymentStatus === PAYMENT_STATUS.WAIVED ? 'text-gray-500' : ''
@@ -772,7 +768,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                           </div>
                           {p.paymentStatus === PAYMENT_STATUS.PAID && p.prepaidOnline && (
                             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium bg-lavender/20 dark:bg-lavender/20 text-primary dark:text-lavender rounded-full">
-                              <span className="material-symbols-outlined text-xs">credit_card</span>
+                              <Icon name="credit_card" className="text-xs" />
                               Prepaid online
                             </span>
                           )}

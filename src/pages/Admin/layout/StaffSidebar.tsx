@@ -5,6 +5,7 @@ import { TabType, NavItemData, tabToPath, MAIN_NAV_ITEMS, ADMIN_NAV_ITEMS } from
 import { useNavigationLoading } from '../../../stores/navigationLoadingStore';
 import { getLatestVersion } from '../../../data/changelog-version';
 import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../../../lib/prefetch-actions';
+import Icon from '../../../components/icons/Icon';
 
 interface StaffSidebarProps {
   activeTab: TabType;
@@ -57,9 +58,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
           }
         `}
       >
-        <span className={`material-symbols-outlined text-[18px] transition-colors duration-normal ${isActive ? 'filled text-[#CCB8E4]' : 'group-hover/nav:text-white/70'}`}>
-          {item.icon}
-        </span>
+        <Icon name={item.icon} className={`text-[18px] transition-colors duration-normal ${isActive ? 'filled text-[#CCB8E4]' : 'group-hover/nav:text-white/70'}`} />
         <span className="text-[11px] uppercase tracking-[0.2em] translate-y-[1px]">{item.label}</span>
       </button>
     );

@@ -7,6 +7,7 @@ import { useNavigationLoading } from '../stores/navigationLoadingStore';
 import { useBottomNav } from '../stores/bottomNavStore';
 import { haptic } from '../utils/haptics';
 import BugReportModal from './BugReportModal';
+import Icon from './icons/Icon';
 
 interface MemberMenuOverlayProps {
   isOpen: boolean;
@@ -182,7 +183,7 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
                   aria-label="Close menu"
                   className={`w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center hover:rotate-90 transition-transform duration-normal rounded-full active:scale-90 ${isDark ? 'text-[#F2F2EC] hover:bg-white/10' : 'text-[#293515] hover:bg-black/5'}`}
                 >
-                    <span className="material-symbols-outlined text-3xl">close</span>
+                    <Icon name="close" className="text-3xl" />
                 </button>
             </div>
             
@@ -236,7 +237,7 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
                     : 'text-[#293515]/50 hover:text-[#293515]/80'
                 }`}
               >
-                <span className="material-symbols-outlined text-[18px]">bug_report</span>
+                <Icon name="bug_report" className="text-[18px]" />
                 <span className="text-[11px] uppercase tracking-[0.2em] translate-y-[1px]">Report a Bug</span>
               </button>
             </div>
@@ -288,13 +289,7 @@ const MemberMenuLink: React.FC<MemberMenuLinkProps> = ({ item, isActive, onClick
             : 'text-[#293515]/50 hover:text-[#293515]/80 border-l-2 border-transparent'
       }`}
     >
-      <span className={`material-symbols-outlined text-[18px] ${
-        isActive 
-          ? isDark ? 'filled text-[#CCB8E4]' : 'filled text-[#293515]'
-          : ''
-      }`}>
-        {item.icon}
-      </span>
+      <Icon name={item.icon} className={`text-[18px] ${ isActive ? isDark ? 'filled text-[#CCB8E4]' : 'filled text-[#293515]' : '' }`} />
       <span className="text-[11px] uppercase tracking-[0.2em] translate-y-[1px] flex-1">{item.label}</span>
     </button>
   );

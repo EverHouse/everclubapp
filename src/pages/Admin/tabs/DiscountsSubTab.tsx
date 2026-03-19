@@ -5,6 +5,7 @@ import EmptyState from '../../../components/EmptyState';
 import { useToast } from '../../../components/Toast';
 import { haptic } from '../../../utils/haptics';
 import { useStripeCoupons, useCreateCoupon, useUpdateCoupon, useDeleteCoupon } from '../../../hooks/queries';
+import Icon from '../../../components/icons/Icon';
 
 interface StripeCoupon {
   id: string;
@@ -170,7 +171,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <span aria-hidden="true" className="material-symbols-outlined animate-spin text-4xl text-primary/70">progress_activity</span>
+        <Icon name="progress_activity" className="animate-spin text-4xl text-primary/70" />
       </div>
     );
   }
@@ -178,7 +179,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
   if (error && coupons.length === 0) {
     return (
       <div className="text-center py-12 px-6 rounded-xl border-2 border-dashed border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-900/10">
-        <span aria-hidden="true" className="material-symbols-outlined text-5xl mb-4 text-red-500">error</span>
+        <Icon name="error" className="text-5xl mb-4 text-red-500" />
         <h3 className="text-lg font-bold mb-2 text-red-700 dark:text-red-400">Error Loading Coupons</h3>
         <p className="text-sm text-red-600 dark:text-red-300">{error}</p>
         <button 
@@ -210,14 +211,14 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
             title="Refresh coupons"
             aria-label="Refresh coupons"
           >
-            <span className={`material-symbols-outlined text-xl ${isLoading ? 'animate-spin' : ''}`}>refresh</span>
+            <Icon name="refresh" className={`text-xl ${isLoading ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={openCreateModal}
             data-create-coupon-btn
             className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
           >
-          <span aria-hidden="true" className="material-symbols-outlined text-lg">add</span>
+          <Icon name="add" className="text-lg" />
             Create Coupon
           </button>
         </div>
@@ -271,7 +272,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
                     <span className="font-mono text-xs bg-gray-100 dark:bg-black/30 px-2 py-1 rounded">{coupon.id}</span>
                     {coupon.timesRedeemed > 0 && (
                       <span className="flex items-center gap-1">
-                        <span aria-hidden="true" className="material-symbols-outlined text-sm">redeem</span>
+                        <Icon name="redeem" className="text-sm" />
                         {coupon.timesRedeemed} redeemed
                       </span>
                     )}
@@ -302,14 +303,14 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
                         className="p-2 text-gray-500 hover:text-primary dark:hover:text-lavender transition-colors"
                         title="Edit coupon name"
                       >
-                        <span aria-hidden="true" className="material-symbols-outlined text-lg">edit</span>
+                        <Icon name="edit" className="text-lg" />
                       </button>
                       <button
                         onClick={() => setDeleteConfirmId(coupon.id)}
                         className="p-2 text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                         title="Delete coupon"
                       >
-                        <span aria-hidden="true" className="material-symbols-outlined text-lg">delete</span>
+                        <Icon name="delete" className="text-lg" />
                       </button>
                     </>
                   )}
@@ -367,7 +368,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
                     : 'border-gray-200 dark:border-white/20 text-gray-600 dark:text-gray-400'
                 }`}
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-xl mb-1">percent</span>
+                <Icon name="percent" className="text-xl mb-1" />
                 <p className="font-medium">Percent Off</p>
               </button>
               <button
@@ -379,7 +380,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
                     : 'border-gray-200 dark:border-white/20 text-gray-600 dark:text-gray-400'
                 }`}
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-xl mb-1">payments</span>
+                <Icon name="payments" className="text-xl mb-1" />
                 <p className="font-medium">Fixed Amount</p>
               </button>
             </div>
@@ -457,7 +458,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
               disabled={createCouponMutation.isPending}
               className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
             >
-              {createCouponMutation.isPending && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
+              {createCouponMutation.isPending && <Icon name="progress_activity" className="animate-spin text-sm" />}
               {createCouponMutation.isPending ? 'Creating...' : 'Create Coupon'}
             </button>
           </div>
@@ -517,7 +518,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
                 disabled={updateCouponMutation.isPending}
                 className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
-                {updateCouponMutation.isPending && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
+                {updateCouponMutation.isPending && <Icon name="progress_activity" className="animate-spin text-sm" />}
                 {updateCouponMutation.isPending ? 'Saving...' : 'Save Changes'}
               </button>
             </div>

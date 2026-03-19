@@ -5,6 +5,7 @@ import { AnimatedPage } from '../../../components/motion';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 import { ChartCardSkeleton, Skeleton, SkeletonCrossfade } from '../../../components/skeletons';
 import type { BookingStats, ExtendedStats, MembershipInsights, ActiveMembers, AtRiskMember } from './analyticsTypes';
+import Icon from '../../../components/icons/Icon';
 
 function formatDuration(minutes: number): string {
   const hrs = Math.floor(minutes / 60);
@@ -17,7 +18,7 @@ function formatDuration(minutes: number): string {
 const SectionCard: React.FC<{ icon: string; title: string; subtitle?: string; children: React.ReactNode }> = ({ icon, title, subtitle, children }) => (
   <div className="glass-card rounded-xl p-4 sm:p-5 border border-primary/10 dark:border-white/10">
     <div className="flex items-center gap-2 mb-1">
-      <span className="material-symbols-outlined text-lg text-primary/60 dark:text-white/60">{icon}</span>
+      <Icon name={icon} className="text-lg text-primary/60 dark:text-white/60" />
       <h2 className="text-base sm:text-lg font-semibold text-primary dark:text-white" style={{ fontFamily: 'var(--font-heading)' }}>{title}</h2>
     </div>
     {subtitle && <p className="text-xs text-primary/40 dark:text-white/40 mb-3 ml-7">{subtitle}</p>}
@@ -35,7 +36,7 @@ const StatCard: React.FC<{
 }> = ({ label, value, subtitle, icon, accentColor = '#6366f1' }) => (
   <div className="glass-card rounded-xl p-4 flex items-start gap-3 border border-primary/10 dark:border-white/10">
     <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentColor}20` }}>
-      <span className="material-symbols-outlined text-xl" style={{ color: accentColor }}>{icon}</span>
+      <Icon name={icon} className="text-xl" />
     </div>
     <div className="min-w-0">
       <div className="text-[11px] text-primary/50 dark:text-white/50 uppercase tracking-wider mb-0.5">{label}</div>
@@ -190,7 +191,7 @@ const AnalyticsTab: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-[400px] text-primary/50 dark:text-white/50">
         <div className="text-center">
-          <span className="material-symbols-outlined text-4xl mb-2 block">error_outline</span>
+          <Icon name="error_outline" className="text-4xl mb-2 block" />
           <p>Failed to load analytics data.</p>
         </div>
       </div>

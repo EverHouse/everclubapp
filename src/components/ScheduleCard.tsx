@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import Icon from './icons/Icon';
 
 interface MetadataChip {
   icon: string;
@@ -65,7 +66,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
           </div>
         )}
         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ml-auto shrink-0 ${isDark ? 'bg-white/[0.08] ring-1 ring-white/[0.06]' : 'bg-primary/[0.05] ring-1 ring-primary/[0.04]'}`}>
-          <span className={`material-symbols-outlined text-[24px] ${isDark ? 'text-white/60' : 'text-primary/60'}`}>{icon}</span>
+          <Icon name={icon} className={`text-[24px] ${isDark ? 'text-white/60' : 'text-primary/60'}`} />
         </div>
       </div>
 
@@ -79,7 +80,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
 
       {linkedInfo && (
         <p className={`text-xs font-medium mb-1.5 flex items-center gap-1 ${isDark ? 'text-purple-300' : 'text-purple-600'}`}>
-          <span className="material-symbols-outlined text-[13px]">link</span>
+          <Icon name="link" className="text-[13px]" />
           {linkedInfo}
         </p>
       )}
@@ -92,7 +93,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
                 <React.Fragment key={idx}>
                   {idx > 0 && <span className={`mx-2.5 ${isDark ? 'text-white/15' : 'text-primary/15'}`}>|</span>}
                   <span className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[15px]">{chip.icon}</span>
+                    <Icon name={chip.icon} className="text-[15px]" />
                     {chip.label}
                   </span>
                 </React.Fragment>
@@ -109,7 +110,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
                   className={`w-10 h-10 rounded-[4px] flex items-center justify-center transition-all duration-150 ${action.disabled ? 'opacity-40 cursor-not-allowed' : 'active:scale-90'} ${isDark ? 'bg-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.14]' : 'bg-primary/[0.05] text-primary/50 hover:text-primary hover:bg-primary/[0.1]'}`}
                   aria-label={action.label}
                 >
-                  <span className={`material-symbols-outlined text-[18px] ${action.disabled && action.icon === 'progress_activity' ? 'animate-spin' : ''}`}>{action.icon}</span>
+                  <Icon name={action.icon} className={`text-[18px] ${action.disabled && action.icon === 'progress_activity' ? 'animate-spin' : ''}`} />
                 </button>
               ))}
             </div>

@@ -8,6 +8,7 @@ import { AnimatedPage } from '../../../components/motion';
 import { useTourData, useSyncTours, useCheckInTour, useUpdateTourStatus } from '../../../hooks/queries';
 import { ToursTabSkeleton } from '../../../components/skeletons';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
+import Icon from '../../../components/icons/Icon';
 
 interface Tour {
   id: number;
@@ -126,7 +127,7 @@ const TourCard: React.FC<TourCardProps> = ({ tour, isToday = false, isPast = fal
               {isCheckingIn ? (
                 <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
               ) : (
-                <span aria-hidden="true" className="material-symbols-outlined text-sm">how_to_reg</span>
+                <Icon name="how_to_reg" className="text-sm" />
               )}
               Check In
             </button>
@@ -139,10 +140,10 @@ const TourCard: React.FC<TourCardProps> = ({ tour, isToday = false, isPast = fal
               {isUpdating ? (
                 <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin"></div>
               ) : (
-                <span aria-hidden="true" className="material-symbols-outlined text-sm">{config.icon}</span>
+                <Icon name={config.icon} className="text-sm" />
               )}
               {config.label}
-              <span aria-hidden="true" className="material-symbols-outlined text-sm ml-0.5">expand_more</span>
+              <Icon name="expand_more" className="text-sm ml-0.5" />
             </button>
           )}
           
@@ -160,11 +161,11 @@ const TourCard: React.FC<TourCardProps> = ({ tour, isToday = false, isPast = fal
                     className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors ${tour.status === key ? 'font-bold' : ''}`}
                   >
                     <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${colors}`}>
-                      <span aria-hidden="true" className="material-symbols-outlined text-xs">{icon}</span>
+                      <Icon name={icon} className="text-xs" />
                     </span>
                     {label}
                     {tour.status === key && (
-                      <span aria-hidden="true" className="material-symbols-outlined text-sm ml-auto text-green-600">check</span>
+                      <Icon name="check" className="text-sm ml-auto text-green-600" />
                     )}
                   </button>
                 ))}
@@ -269,7 +270,7 @@ const ToursTab: React.FC = () => {
         className="tactile-btn flex items-center justify-between w-full p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 text-left"
       >
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-lg">warning</span>
+          <Icon name="warning" className="text-amber-600 dark:text-amber-400 text-lg" />
           <span className="font-semibold text-sm text-amber-800 dark:text-amber-300">HubSpot Meetings Needing Review</span>
           {!needsReviewLoading && unmatchedMeetings.length > 0 && (
             <span className="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
@@ -284,12 +285,10 @@ const ToursTab: React.FC = () => {
               className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 transition-colors"
               aria-label="Refresh"
             >
-              <span aria-hidden="true" className="material-symbols-outlined text-base">refresh</span>
+              <Icon name="refresh" className="text-base" />
             </button>
           )}
-          <span aria-hidden="true" className={`material-symbols-outlined text-amber-600 dark:text-amber-400 transition-transform ${showNeedsReview ? 'rotate-180' : ''}`}>
-            expand_more
-          </span>
+          <Icon name="expand_more" className={`text-amber-600 dark:text-amber-400 transition-transform ${showNeedsReview ? 'rotate-180' : ''}`} />
         </div>
       </button>
 
@@ -297,12 +296,12 @@ const ToursTab: React.FC = () => {
         <div className="mt-2 space-y-3">
           {needsReviewLoading ? (
             <div className="flex items-center gap-2 p-3 text-sm text-amber-700 dark:text-amber-400">
-              <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+              <Icon name="progress_activity" className="animate-spin text-base" />
               Loading HubSpot meetings...
             </div>
           ) : unmatchedMeetings.length === 0 ? (
             <div className="p-4 text-center text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-700/30">
-              <span aria-hidden="true" className="material-symbols-outlined text-2xl block mb-1">check_circle</span>
+              <Icon name="check_circle" className="text-2xl block mb-1" />
               All HubSpot meetings are linked
             </div>
           ) : (
@@ -358,9 +357,9 @@ const ToursTab: React.FC = () => {
                               className="px-2 py-1 text-[10px] font-semibold rounded-lg bg-primary/10 dark:bg-white/10 text-primary dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                             >
                               {isLinking ? (
-                                <span className="material-symbols-outlined animate-spin text-xs">progress_activity</span>
+                                <Icon name="progress_activity" className="animate-spin text-xs" />
                               ) : (
-                                <span className="material-symbols-outlined text-xs">link</span>
+                                <Icon name="link" className="text-xs" />
                               )}
                               Link
                             </button>
@@ -380,9 +379,9 @@ const ToursTab: React.FC = () => {
                       className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 dark:bg-white/10 text-primary dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isCreating ? (
-                        <span className="material-symbols-outlined animate-spin text-xs">progress_activity</span>
+                        <Icon name="progress_activity" className="animate-spin text-xs" />
                       ) : (
-                        <span className="material-symbols-outlined text-xs">add</span>
+                        <Icon name="add" className="text-xs" />
                       )}
                       Create Tour
                     </button>
@@ -395,9 +394,9 @@ const ToursTab: React.FC = () => {
                       className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isDismissing ? (
-                        <span className="material-symbols-outlined animate-spin text-xs">progress_activity</span>
+                        <Icon name="progress_activity" className="animate-spin text-xs" />
                       ) : (
-                        <span className="material-symbols-outlined text-xs">do_not_disturb</span>
+                        <Icon name="do_not_disturb" className="text-xs" />
                       )}
                       Dismiss
                     </button>
@@ -428,7 +427,7 @@ const ToursTab: React.FC = () => {
       {toursData.todayTours.length > 0 && (
         <div className="animate-content-enter-delay-2">
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/70 dark:text-white/70 mb-3 flex items-center gap-2" style={{ fontFamily: 'var(--font-label)' }}>
-            <span aria-hidden="true" className="material-symbols-outlined text-lg">today</span>
+            <Icon name="today" className="text-lg" />
             Today's Tours ({toursData.todayTours.length})
           </h3>
           <div className="space-y-3">
@@ -441,7 +440,7 @@ const ToursTab: React.FC = () => {
 
       {toursData.todayTours.length === 0 && (
         <div className="text-center py-8 bg-white/40 dark:bg-white/5 rounded-xl animate-content-enter-delay-2">
-          <span aria-hidden="true" className="material-symbols-outlined text-4xl text-primary/30 dark:text-white/70 mb-2">event_available</span>
+          <Icon name="event_available" className="text-4xl text-primary/30 dark:text-white/70 mb-2" />
           <p className="text-primary/80 dark:text-white/80 text-sm">No tours scheduled for today</p>
         </div>
       )}
@@ -449,7 +448,7 @@ const ToursTab: React.FC = () => {
       {toursData.upcomingTours.length > 0 && (
         <div className="animate-content-enter-delay-3">
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/70 dark:text-white/70 mb-3 flex items-center gap-2" style={{ fontFamily: 'var(--font-label)' }}>
-            <span aria-hidden="true" className="material-symbols-outlined text-lg">upcoming</span>
+            <Icon name="upcoming" className="text-lg" />
             Upcoming Tours ({toursData.upcomingTours.length})
           </h3>
           <div className="space-y-3">
@@ -472,7 +471,7 @@ const ToursTab: React.FC = () => {
       {toursData.pastTours.length > 0 && (
         <div className="animate-content-enter-delay-4">
           <h3 className="text-sm font-bold uppercase tracking-wider text-primary/70 dark:text-white/70 mb-3 flex items-center gap-2">
-            <span aria-hidden="true" className="material-symbols-outlined text-lg">history</span>
+            <Icon name="history" className="text-lg" />
             Past Tours ({toursData.pastTours.length})
           </h3>
           <div className="space-y-3">

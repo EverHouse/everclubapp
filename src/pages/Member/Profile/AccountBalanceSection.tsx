@@ -1,6 +1,7 @@
 import React from 'react';
 import { Section } from './ProfileShared';
 import type { AccountBalanceData } from './profileTypes';
+import Icon from '../../../components/icons/Icon';
 
 interface AccountBalanceSectionProps {
   isDark: boolean;
@@ -24,7 +25,7 @@ const AccountBalanceSection: React.FC<AccountBalanceSectionProps> = ({
       <div className="py-3 px-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
-            <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>account_balance_wallet</span>
+            <Icon name="account_balance_wallet" className={`${isDark ? 'opacity-70' : 'text-primary/70'}`} />
             <div>
               <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Available Credit</span>
               <p className={`text-xs mt-0.5 ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
@@ -74,7 +75,7 @@ const AccountBalanceSection: React.FC<AccountBalanceSectionProps> = ({
                 : 'bg-primary/10 text-primary hover:bg-primary/20'
             }`}
           >
-            <span className="material-symbols-outlined text-lg">add</span>
+            <Icon name="add" className="text-lg" />
             Add Funds
           </button>
         )}

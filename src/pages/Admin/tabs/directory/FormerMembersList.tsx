@@ -9,6 +9,7 @@ import { prefetchMemberProfile } from '../../../../lib/prefetch-actions';
 import { formatJoinDate } from './directoryTypes';
 import SortableHeader from './DirectoryListHeader';
 import type { SortField } from './directoryTypes';
+import Icon from '../../../../components/icons/Icon';
 
 interface FormerMembersListProps {
     formerMembers: MemberProfile[];
@@ -58,7 +59,7 @@ const FormerMembersList: React.FC<FormerMembersListProps> = ({
     if (formerError) {
         return (
             <div className="flex flex-col items-center justify-center py-16 px-6 rounded-xl border-2 border-dashed border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/5">
-                <span aria-hidden="true" className="material-symbols-outlined text-6xl mb-4 text-red-400 dark:text-red-400/70">cloud_off</span>
+                <Icon name="cloud_off" className="text-6xl mb-4 text-red-400 dark:text-red-400/70" />
                 <h3 className="text-2xl leading-tight font-bold mb-2 text-red-600 dark:text-red-400" style={{ fontFamily: 'var(--font-headline)' }}>
                     Failed to load former members
                 </h3>
@@ -69,7 +70,7 @@ const FormerMembersList: React.FC<FormerMembersListProps> = ({
                     onClick={handleRetryFormer}
                     className="tactile-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-bold transition-colors"
                 >
-                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">refresh</span>
+                    <Icon name="refresh" className="text-[18px]" />
                     Retry
                 </button>
             </div>
@@ -239,7 +240,7 @@ const FormerMembersList: React.FC<FormerMembersListProps> = ({
 
             {hasMore && (
                 <div ref={loadMoreRef} className="py-4 flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                    <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
+                    <Icon name="progress_activity" className="text-lg animate-spin" />
                     <span>Loading more... ({visibleCount} of {totalCount})</span>
                 </div>
             )}

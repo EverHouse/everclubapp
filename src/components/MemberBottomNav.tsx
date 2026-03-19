@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { SafeAreaBottomOverlay } from './layout/SafeAreaBottomOverlay';
 import { prefetchRoute, prefetchAdjacentRoutes } from '../lib/prefetch-actions';
 import { haptic } from '../utils/haptics';
+import Icon from './icons/Icon';
 
 interface MemberNavItem {
   path: string;
@@ -75,9 +76,7 @@ const MemberBottomNav: React.FC<MemberBottomNavProps> = ({ currentPath, isDarkTh
                 aria-label={item.label}
                 aria-current={isActive ? 'page' : undefined}
               >
-                <span className={`material-symbols-outlined text-[20px] transition-all duration-normal pointer-events-none ${shouldFill ? 'filled' : ''}`}>
-                  {item.icon}
-                </span>
+                <Icon name={item.icon} className={`text-[20px] transition-all duration-normal pointer-events-none ${shouldFill ? 'filled' : ''}`} />
                 <span className={`text-[9px] uppercase tracking-[0.2em] transition-colors duration-normal pointer-events-none translate-y-[1px] ${isActive ? 'font-semibold text-white' : 'font-medium'}`}>
                   {item.label}
                 </span>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useBottomNav } from '../stores/bottomNavStore';
 import { useScrollDirection } from '../hooks/useScrollDirection';
+import Icon from './icons/Icon';
 
 interface BackToTopProps {
   threshold?: number;
@@ -114,7 +115,7 @@ const BackToTop: React.FC<BackToTopProps> = ({
         tabIndex={isVisible ? 0 : -1}
         aria-hidden={!isVisible}
       >
-        <span className="material-symbols-outlined text-xl text-[#293515] dark:text-white">keyboard_arrow_up</span>
+        <Icon name="keyboard_arrow_up" className="text-xl text-[#293515] dark:text-white" />
       </button>
     </div>
   );

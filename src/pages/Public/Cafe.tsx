@@ -7,6 +7,7 @@ import { usePageReady } from '../../stores/pageReadyStore';
 import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
+import Icon from '../../components/icons/Icon';
 
 interface CafeItem {
   id: string;
@@ -128,7 +129,7 @@ const PublicCafe: React.FC = () => {
           <SkeletonList count={5} Component={MenuItemSkeleton} isDark={isDark} />
         ) : cafeMenu.length === 0 ? (
           <div className="text-center py-20">
-            <span className="material-symbols-outlined text-5xl text-primary/30 dark:text-white/30 mb-4">restaurant_menu</span>
+            <Icon name="restaurant_menu" className="text-5xl text-primary/30 dark:text-white/30 mb-4" />
             <p className="text-primary/60 dark:text-white/60">Menu items are being updated.</p>
             <p className="text-primary/40 dark:text-white/40 text-sm mt-2">Check back soon for our latest offerings.</p>
           </div>
@@ -157,7 +158,7 @@ const PublicCafe: React.FC = () => {
                           {item.image ? (
                             <img src={item.image} alt={item.name} loading="lazy" className="w-full h-full object-cover absolute inset-0 opacity-80" />
                           ) : (
-                            <span className="material-symbols-outlined text-2xl">{item.icon || 'restaurant'}</span>
+                            <Icon name={item.icon || 'restaurant'} className="text-2xl" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -169,9 +170,7 @@ const PublicCafe: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                      <span className={`material-symbols-outlined text-[20px] transition-transform duration-normal ml-2 text-primary/40 dark:text-white/40 ${isExpanded ? 'rotate-180' : ''}`}>
-                        expand_more
-                      </span>
+                      <Icon name="expand_more" className={`text-[20px] transition-transform duration-normal ml-2 text-primary/40 dark:text-white/40 ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
                     <div className={`accordion-content ${isExpanded ? 'expanded' : ''}`}>
                       <div className="px-3 pb-3 pt-0">

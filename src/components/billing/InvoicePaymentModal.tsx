@@ -12,6 +12,7 @@ import { loadStripe, Stripe, StripeElementsOptions } from '@stripe/stripe-js';
 import { SlideUpDrawer } from '../SlideUpDrawer';
 import { getStripeAppearance } from '../stripe/stripeAppearance';
 import WalkingGolferSpinner from '../WalkingGolferSpinner';
+import Icon from '../icons/Icon';
 
 interface SavedPaymentMethod {
   id: string;
@@ -306,7 +307,7 @@ export function InvoicePaymentModal({
           </>
         ) : (
           <>
-            <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300">credit_card</span>
+            <Icon name="credit_card" className="text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300" />
             Pay Now
           </>
         )}
@@ -339,7 +340,7 @@ export function InvoicePaymentModal({
 
         {error && (
           <div className="text-center py-8">
-            <span className="material-symbols-outlined text-4xl text-red-500 mb-2">error</span>
+            <Icon name="error" className="text-4xl text-red-500 mb-2" />
             <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
             <button
               onClick={onClose}
@@ -388,7 +389,7 @@ export function InvoicePaymentModal({
 
             {savedCardSuccess ? (
               <div className={`rounded-xl p-4 text-center ${isDark ? 'bg-emerald-500/20' : 'bg-emerald-100'}`}>
-                <span className="material-symbols-outlined text-4xl text-emerald-500 mb-2">check_circle</span>
+                <Icon name="check_circle" className="text-4xl text-emerald-500 mb-2" />
                 <p className={`text-lg font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                   Payment Successful
                 </p>
@@ -408,7 +409,7 @@ export function InvoicePaymentModal({
                           : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200/60'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-lg">credit_card</span>
+                      <Icon name="credit_card" className="text-lg" />
                       Pay {formatAmount(invoice.amountDue)} with {formatCardBrand(savedCard.brand)} •••• {savedCard.last4}
                     </button>
                     <div className="flex items-center gap-3">

@@ -9,6 +9,7 @@ import SEO from '../../components/SEO';
 import { usePricing } from '../../hooks/usePricing';
 import { usePublicMembershipTiers } from '../../hooks/queries';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
+import Icon from '../../components/icons/Icon';
 
 interface MembershipTier {
   id: number;
@@ -122,7 +123,7 @@ const MembershipOverview: React.FC = () => {
 
       <Link to="compare" className="tactile-btn w-full flex items-center justify-center gap-1 text-xs font-bold uppercase tracking-widest text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white transition-colors py-2 animate-content-enter-delay-1">
         Compare full feature table
-        <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+        <Icon name="arrow_forward" className="text-[16px]" />
       </Link>
 
 
@@ -160,7 +161,7 @@ const MembershipOverview: React.FC = () => {
                 <ul className="flex flex-col gap-3 mb-8 relative z-10">
                   {tier.highlighted_features.map((f, i) => (
                     <li key={i} className="flex gap-3 text-sm text-white/90 font-light">
-                      <span className="material-symbols-outlined text-[18px] text-accent shrink-0 font-light">check_circle</span>
+                      <Icon name="check_circle" className="text-[18px] text-accent shrink-0 font-light" />
                       <span>{f}</span>
                     </li>
                   ))}
@@ -214,7 +215,7 @@ const MembershipOverview: React.FC = () => {
               1
             </div>
             <div className="p-3 bg-white/50 dark:bg-white/5 rounded-xl mb-2">
-              <span className="material-symbols-outlined text-primary dark:text-white text-2xl">edit_note</span>
+              <Icon name="edit_note" className="text-primary dark:text-white text-2xl" />
             </div>
             <h4 className="font-semibold text-primary dark:text-white text-sm mb-1">Apply Online</h4>
             <p className="text-xs text-primary/60 dark:text-white/60 font-light leading-relaxed max-w-[180px] mx-auto">Fill out a brief application form. Takes about 2 minutes.</p>
@@ -227,7 +228,7 @@ const MembershipOverview: React.FC = () => {
               2
             </div>
             <div className="p-3 bg-white/50 dark:bg-white/5 rounded-xl mb-2">
-              <span className="material-symbols-outlined text-primary dark:text-white text-2xl">calendar_month</span>
+              <Icon name="calendar_month" className="text-primary dark:text-white text-2xl" />
             </div>
             <h4 className="font-semibold text-primary dark:text-white text-sm mb-1">Book a Tour</h4>
             <p className="text-xs text-primary/60 dark:text-white/60 font-light leading-relaxed max-w-[180px] mx-auto">Visit the club and meet our team. We'll show you around.</p>
@@ -240,7 +241,7 @@ const MembershipOverview: React.FC = () => {
               3
             </div>
             <div className="p-3 bg-white/50 dark:bg-white/5 rounded-xl mb-2">
-              <span className="material-symbols-outlined text-primary dark:text-white text-2xl">celebration</span>
+              <Icon name="celebration" className="text-primary dark:text-white text-2xl" />
             </div>
             <h4 className="font-semibold text-primary dark:text-white text-sm mb-1">Welcome Home</h4>
             <p className="text-xs text-primary/60 dark:text-white/60 font-light leading-relaxed max-w-[180px] mx-auto">Get your membership card and start enjoying all the benefits.</p>
@@ -263,7 +264,7 @@ const MembershipOverview: React.FC = () => {
       <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl rounded-xl p-5 border border-white/60 dark:border-white/10 shadow-sm dark:shadow-black/20 animate-content-enter-delay-4">
         <div className="flex items-center gap-3 mb-4">
            <div className="p-2 bg-primary/5 dark:bg-white/5 rounded-xl text-primary dark:text-white">
-              <span className="material-symbols-outlined font-light">id_card</span>
+              <Icon name="id_card" className="font-light" />
            </div>
            <div>
               <h3 className="font-semibold text-lg text-primary dark:text-white">Day Passes</h3>
@@ -275,7 +276,7 @@ const MembershipOverview: React.FC = () => {
              onClick={() => setSelectedPass('workspace')}
              className={`flex flex-col gap-2 p-3 rounded-xl border transition-all duration-fast text-left ${selectedPass === 'workspace' ? 'bg-primary text-white border-primary shadow-md dark:shadow-black/20' : 'bg-white/40 dark:bg-white/5 border-white/50 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.02] text-primary dark:text-white'}`}
            >
-              <span className={`material-symbols-outlined font-light ${selectedPass === 'workspace' ? 'text-white' : 'text-primary dark:text-white'}`}>work</span>
+              <Icon name="work" className={`font-light ${selectedPass === 'workspace' ? 'text-white' : 'text-primary dark:text-white'}`} />
               <div>
                  <p className="font-semibold text-sm">Workspace</p>
                  <p className={`text-xs font-medium ${selectedPass === 'workspace' ? 'text-white/80' : 'text-primary/60 dark:text-white/60'}`}>${dayPassPrices['day-pass-coworking'] ?? 35} / day</p>
@@ -285,7 +286,7 @@ const MembershipOverview: React.FC = () => {
              onClick={() => setSelectedPass('sim')}
              className={`flex flex-col gap-2 p-3 rounded-xl border transition-all duration-fast text-left ${selectedPass === 'sim' ? 'bg-primary text-white border-primary shadow-md dark:shadow-black/20' : 'bg-white/40 dark:bg-white/5 border-white/50 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.02] text-primary dark:text-white'}`}
            >
-              <span className={`material-symbols-outlined font-light ${selectedPass === 'sim' ? 'text-white' : 'text-primary dark:text-white'}`}>sports_golf</span>
+              <Icon name="sports_golf" className={`font-light ${selectedPass === 'sim' ? 'text-white' : 'text-primary dark:text-white'}`} />
               <div>
                  <p className="font-semibold text-sm">Golf Sim</p>
                  <p className={`text-xs font-medium ${selectedPass === 'sim' ? 'text-white/80' : 'text-primary/60 dark:text-white/60'}`}>${dayPassPrices['day-pass-golf-sim'] ?? 50} / 60min</p>
@@ -323,7 +324,7 @@ const MembershipCard: React.FC<{ title: string; price: string; suffix?: string; 
     <ul className="flex flex-col gap-3 mb-8">
       {features.map((f: string, i: number) => (
         <li key={i} className="flex gap-3 text-sm text-primary/80 dark:text-white/80 font-light">
-          <span className="material-symbols-outlined text-[18px] text-primary/60 dark:text-white/60 shrink-0 font-light">check_circle</span>
+          <Icon name="check_circle" className="text-[18px] text-primary/60 dark:text-white/60 shrink-0 font-light" />
           <span className={i===0 && f.includes("Caf") ? "font-medium" : ""}>{f}</span>
         </li>
       ))}
@@ -376,7 +377,7 @@ const Corporate: React.FC = () => {
             <ul className="space-y-8">
                 <li className="flex gap-4 items-center">
                     <div className="w-10 h-10 rounded-full bg-[#E8E8E0] dark:bg-white/5 flex items-center justify-center shrink-0">
-                         <span className="material-symbols-outlined text-lg text-primary dark:text-white font-light">verified</span>
+                         <Icon name="verified" className="text-lg text-primary dark:text-white font-light" />
                     </div>
                     <div>
                         <h3 className="font-semibold text-primary dark:text-white text-lg leading-tight">Baseline Features</h3>
@@ -384,7 +385,7 @@ const Corporate: React.FC = () => {
                 </li>
                 <li className="flex gap-4 items-start">
                     <div className="w-10 h-10 rounded-full bg-white dark:bg-[#1a1d15] border border-black/5 dark:border-white/10 flex items-center justify-center shrink-0 shadow-sm dark:shadow-black/20">
-                         <span className="material-symbols-outlined text-lg text-primary dark:text-white font-light">diamond</span>
+                         <Icon name="diamond" className="text-lg text-primary dark:text-white font-light" />
                     </div>
                     <div>
                         <h3 className="font-semibold text-primary dark:text-white text-lg leading-tight mb-2">Full Premium Experience</h3>
@@ -394,7 +395,7 @@ const Corporate: React.FC = () => {
                 </li>
                  <li className="flex gap-4 items-start">
                     <div className="w-10 h-10 rounded-full bg-white dark:bg-[#1a1d15] border border-black/5 dark:border-white/10 flex items-center justify-center shrink-0 shadow-sm dark:shadow-black/20">
-                         <span className="material-symbols-outlined text-lg text-primary dark:text-white font-light">confirmation_number</span>
+                         <Icon name="confirmation_number" className="text-lg text-primary dark:text-white font-light" />
                     </div>
                     <div>
                         <h3 className="font-semibold text-primary dark:text-white text-lg leading-tight mb-2">15 Annual Guest Passes</h3>
@@ -468,7 +469,7 @@ const Corporate: React.FC = () => {
 
         <Link to="/membership/apply" className="w-full py-5 px-6 rounded-[4px] bg-primary text-white font-bold text-sm uppercase tracking-widest hover:bg-primary/90 shadow-xl shadow-primary/20 flex items-center justify-center gap-3 mt-4 mb-8 group animate-content-enter-delay-3">
             Apply for Corporate Membership
-            <span className="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+            <Icon name="arrow_forward" className="text-[20px] group-hover:translate-x-1 transition-transform" />
         </Link>
       </div>
       </AnimatedPage>
@@ -587,7 +588,7 @@ const CompareFeatures: React.FC = () => {
                     disabled={!isSelected && selectedTiers.length >= 3}
                     className={`px-4 py-2 rounded-[4px] text-xs font-bold border flex items-center gap-1 transition-all duration-fast ${isSelected ? 'bg-primary text-white border-primary shadow-sm dark:shadow-black/20' : 'bg-white/30 dark:bg-white/5 text-primary/60 dark:text-white/60 border-primary/10 dark:border-white/10 hover:border-primary/20 dark:hover:border-white/20'} ${!isSelected && selectedTiers.length >= 3 ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                    {isSelected && <span className="material-symbols-outlined text-[14px]">check</span>} {t}
+                    {isSelected && <Icon name="check" className="text-[14px]" />} {t}
                 </button>
             )
           })}
@@ -620,7 +621,7 @@ const CompareFeatures: React.FC = () => {
 
                 if (feature.valueType === 'boolean') {
                   if (value === true) {
-                    return <span className="material-symbols-outlined text-[18px] text-primary/80 dark:text-white/80">check_circle</span>;
+                    return <Icon name="check_circle" className="text-[18px] text-primary/80 dark:text-white/80" />;
                   }
                   return <span className="text-[10px] font-bold text-primary/20 dark:text-white/20">—</span>;
                 }

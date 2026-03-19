@@ -13,6 +13,7 @@ import { MemberPaymentModal } from '../../components/booking/MemberPaymentModal'
 import { AnimatedPage, MotionListItem } from '../../components/motion';
 import { EmptyVisits, EmptyPayments } from '../../components/EmptyState';
 import { TabTransition } from '../../components/motion/TabTransition';
+import Icon from '../../components/icons/Icon';
 
 interface UnifiedVisit {
   id: number;
@@ -188,7 +189,7 @@ const History: React.FC = () => {
                         <div>
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className={`w-fit px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 ${getRoleBadgeStyle(visit.role)}`}>
-                              <span className="material-symbols-outlined text-xs">{getRoleIcon(visit.role, visit.type)}</span>
+                              <Icon name={getRoleIcon(visit.role, visit.type)} className="text-xs" />
                               {visit.role}
                             </span>
                             {visit.category && visit.type === 'booking' && (
@@ -213,38 +214,36 @@ const History: React.FC = () => {
                         </div>
                       </div>
                       <p className={`text-sm flex items-center gap-1 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                        <span className="material-symbols-outlined text-sm">
-                          {visit.type === 'walk_in' ? 'qr_code_scanner' : visit.type === 'wellness' ? 'spa' : visit.type === 'event' ? 'location_on' : isConferenceRoom ? 'meeting_room' : 'golf_course'}
-                        </span>
+                        <Icon name={visit.type === 'walk_in' ? 'qr_code_scanner' : visit.type === 'wellness' ? 'spa' : visit.type === 'event' ? 'location_on' : isConferenceRoom ? 'meeting_room' : 'golf_course'} className="text-sm" />
                         {visit.resourceName}
                       </p>
                       {visit.location && visit.type === 'event' && (
                         <p className={`text-xs mt-1 flex items-center gap-1 ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
-                          <span className="material-symbols-outlined text-xs">pin_drop</span>
+                          <Icon name="pin_drop" className="text-xs" />
                           {visit.location}
                         </p>
                       )}
                       {visit.role === 'Guest' && visit.invitedBy && (
                         <p className={`text-xs mt-2 flex items-center gap-1 ${isDark ? 'text-orange-300/80' : 'text-orange-600'}`}>
-                          <span className="material-symbols-outlined text-xs">person</span>
+                          <Icon name="person" className="text-xs" />
                           Invited by {visit.invitedBy}
                         </p>
                       )}
                       {visit.role === 'Player' && visit.invitedBy && (
                         <p className={`text-xs mt-2 flex items-center gap-1 ${isDark ? 'text-blue-300/80' : 'text-blue-600'}`}>
-                          <span className="material-symbols-outlined text-xs">person</span>
+                          <Icon name="person" className="text-xs" />
                           Played with {visit.invitedBy}
                         </p>
                       )}
                       {visit.role === 'Walk-in' && visit.invitedBy && (
                         <p className={`text-xs mt-1 flex items-center gap-1 ${isDark ? 'text-emerald-300/80' : 'text-emerald-600'}`}>
-                          <span className="material-symbols-outlined text-xs">badge</span>
+                          <Icon name="badge" className="text-xs" />
                           Checked in by {visit.invitedBy}
                         </p>
                       )}
                       {visit.role === 'Wellness' && visit.invitedBy && (
                         <p className={`text-xs mt-1 flex items-center gap-1 ${isDark ? 'text-purple-300/80' : 'text-purple-600'}`}>
-                          <span className="material-symbols-outlined text-xs">person</span>
+                          <Icon name="person" className="text-xs" />
                           Instructor: {visit.invitedBy}
                         </p>
                       )}
@@ -380,7 +379,7 @@ const History: React.FC = () => {
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                                       <span className={`w-fit px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 ${getCategoryStyle(purchase.itemCategory || '')}`}>
-                                        <span className="material-symbols-outlined text-xs">{getCategoryIcon(purchase.itemCategory || '')}</span>
+                                        <Icon name={getCategoryIcon(purchase.itemCategory || '')} className="text-xs" />
                                         {formatCategoryLabel(purchase.itemCategory)}
                                       </span>
                                       <span className={`w-fit px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-widest ${getSourceStyle(purchase.source)}`}>
@@ -408,7 +407,7 @@ const History: React.FC = () => {
                                         onClick={() => setPayingInvoice(purchase)}
                                         className="tactile-btn bg-primary text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors flex items-center gap-1.5 mt-2 ml-auto"
                                       >
-                                        <span className="material-symbols-outlined text-sm">credit_card</span>
+                                        <Icon name="credit_card" className="text-sm" />
                                         Pay Now
                                       </button>
                                     )}
@@ -420,7 +419,7 @@ const History: React.FC = () => {
                                         className={`tactile-btn text-xs flex items-center gap-0.5 justify-end mt-1 ${isDark ? 'text-accent hover:text-accent/80' : 'text-brand-green hover:text-brand-green/80'}`}
                                       >
                                         View
-                                        <span className="material-symbols-outlined text-xs">open_in_new</span>
+                                        <Icon name="open_in_new" className="text-xs" />
                                       </a>
                                     )}
                                     {!purchase.hostedInvoiceUrl && purchase.stripePaymentIntentId && purchase.status === 'succeeded' && (
@@ -441,7 +440,7 @@ const History: React.FC = () => {
                                         className={`tactile-btn text-xs flex items-center gap-0.5 justify-end mt-1 ${isDark ? 'text-accent hover:text-accent/80' : 'text-brand-green hover:text-brand-green/80'}`}
                                       >
                                         View
-                                        <span className="material-symbols-outlined text-xs">open_in_new</span>
+                                        <Icon name="open_in_new" className="text-xs" />
                                       </button>
                                     )}
                                   </div>

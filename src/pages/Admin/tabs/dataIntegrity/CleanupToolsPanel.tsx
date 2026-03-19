@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from '../../../../components/icons/Icon';
 
 interface CleanupToolsPanelProps {
   showPlaceholderCleanup: boolean;
@@ -44,12 +45,10 @@ const CleanupToolsPanel: React.FC<CleanupToolsPanelProps> = ({
         className="flex items-center justify-between w-full text-left"
       >
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">cleaning_services</span>
+          <Icon name="cleaning_services" className="text-primary dark:text-white" />
           <span className="font-bold text-primary dark:text-white">Placeholder Cleanup</span>
         </div>
-        <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${showPlaceholderCleanup ? 'rotate-180' : ''}`}>
-          expand_more
-        </span>
+        <Icon name="expand_more" className={`text-gray-500 dark:text-gray-400 transition-transform ${showPlaceholderCleanup ? 'rotate-180' : ''}`} />
       </button>
       
       {showPlaceholderCleanup && (
@@ -63,7 +62,7 @@ const CleanupToolsPanel: React.FC<CleanupToolsPanelProps> = ({
             disabled={isLoadingPlaceholders}
             className="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2 tactile-btn"
           >
-            {isLoadingPlaceholders && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+            {isLoadingPlaceholders && <Icon name="progress_activity" className="animate-spin text-[16px]" />}
             Scan for Placeholders
           </button>
           
@@ -95,7 +94,7 @@ const CleanupToolsPanel: React.FC<CleanupToolsPanelProps> = ({
                       onClick={() => setShowDeleteConfirm(true)}
                       className="w-full px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:opacity-90 flex items-center justify-center gap-2 tactile-btn"
                     >
-                      <span className="material-symbols-outlined text-[16px]">delete_forever</span>
+                      <Icon name="delete_forever" className="text-[16px]" />
                       Delete All Placeholders
                     </button>
                   ) : (
@@ -115,7 +114,7 @@ const CleanupToolsPanel: React.FC<CleanupToolsPanelProps> = ({
                           disabled={isDeletingPlaceholders}
                           className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                          {isDeletingPlaceholders && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                          {isDeletingPlaceholders && <Icon name="progress_activity" className="animate-spin text-[16px]" />}
                           Confirm Delete
                         </button>
                       </div>

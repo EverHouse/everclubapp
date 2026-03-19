@@ -19,6 +19,7 @@ import VisitorsList from './directory/VisitorsList';
 import TeamList from './directory/TeamList';
 import type { MemberTab, Visitor, TeamMember } from './directory/directoryTypes';
 import { ASSIGNABLE_TIERS } from './directory/directoryTypes';
+import Icon from '../../../components/icons/Icon';
 
 const DirectoryTab: React.FC = () => {
     const { setPageReady } = usePageReady();
@@ -168,7 +169,7 @@ const DirectoryTab: React.FC = () => {
                                         : 'text-gray-500 dark:text-white/60'
                                 }`}
                             >
-                                <span aria-hidden="true" className="material-symbols-outlined text-[16px] sm:text-[18px]">{tab.icon}</span>
+                                <Icon name={tab.icon} className="text-[16px] sm:text-[18px]" />
                                 <span className="hidden xs:inline">{tab.label}</span>
                             </button>
                         ))}
@@ -186,9 +187,7 @@ const DirectoryTab: React.FC = () => {
                     title={data.isSyncRunning ? 'Syncing...' : data.lastSyncTime ? `Last sync: ${new Date(data.lastSyncTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' })}` : 'Sync All'}
                     aria-label={data.isSyncRunning ? 'Syncing members' : 'Sync all members'}
                 >
-                    <span className={`material-symbols-outlined text-[16px] ${data.isSyncRunning ? 'animate-spin' : ''}`}>
-                        sync
-                    </span>
+                    <Icon name="sync" className={`text-[16px] ${data.isSyncRunning ? 'animate-spin' : ''}`} />
                     <span className="hidden sm:inline">
                         {data.isSyncRunning ? 'Syncing...' : data.lastSyncTime ? `Sync (${new Date(data.lastSyncTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' })})` : 'Sync All'}
                     </span>
@@ -400,7 +399,7 @@ const DirectoryTab: React.FC = () => {
                                                 {tier}
                                             </span>
                                             {isSelected && (
-                                                <span className="material-symbols-outlined text-primary dark:!text-lavender">check_circle</span>
+                                                <Icon name="check_circle" className="text-primary dark:!text-lavender" />
                                             )}
                                         </div>
                                     </button>
@@ -428,7 +427,7 @@ const DirectoryTab: React.FC = () => {
                             >
                                 {data.assignTierMutation.isPending ? (
                                     <>
-                                        <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
+                                        <Icon name="progress_activity" className="text-lg animate-spin" />
                                         Saving...
                                     </>
                                 ) : (

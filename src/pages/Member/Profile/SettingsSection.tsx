@@ -1,6 +1,7 @@
 import React from 'react';
 import Toggle from '../../../components/Toggle';
 import { Section, Row } from './ProfileShared';
+import Icon from '../../../components/icons/Icon';
 
 interface SettingsSectionProps {
   isDark: boolean;
@@ -47,7 +48,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
     <Section title="Settings" isDark={isDark} staggerIndex={4}>
       <div className={`py-3 px-6 w-full flex items-center justify-between transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
         <div className="flex items-center gap-4">
-          <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>notifications</span>
+          <Icon name="notifications" className={`${isDark ? 'opacity-70' : 'text-primary/70'}`} />
           <div>
             <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Push Notifications</span>
             <p className={`text-xs mt-0.5 ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
@@ -74,7 +75,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
         <>
           <div className={`py-3 px-6 w-full flex items-center justify-between transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
             <div className="flex items-center gap-4">
-              <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>mail</span>
+              <Icon name="mail" className={`${isDark ? 'opacity-70' : 'text-primary/70'}`} />
               <div>
                 <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Email Updates</span>
                 <p className={`text-xs mt-0.5 ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
@@ -91,7 +92,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           </div>
           <div className={`py-3 px-6 w-full flex items-center justify-between transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
             <div className="flex items-center gap-4">
-              <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>sms</span>
+              <Icon name="sms" className={`${isDark ? 'opacity-70' : 'text-primary/70'}`} />
               <div>
                 <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>SMS Updates</span>
                 <p className={`text-xs mt-0.5 ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
@@ -105,9 +106,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
                 className={`p-1 rounded-lg transition-colors ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
                 title="SMS Preferences"
               >
-                <span className={`material-symbols-outlined text-lg ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
-                  {showSmsDetails ? 'expand_less' : 'tune'}
-                </span>
+                <Icon name={showSmsDetails ? 'expand_less' : 'tune'} className={`text-lg ${isDark ? 'opacity-60' : 'text-primary/60'}`} />
               </button>
               <Toggle
                 checked={smsOptIn ?? false}

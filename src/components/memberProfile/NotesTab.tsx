@@ -2,6 +2,7 @@ import React from 'react';
 import ProfileEmptyState from './ProfileEmptyState';
 import { formatDateTimePacific } from './memberProfileTypes';
 import type { MemberNote } from './memberProfileTypes';
+import Icon from '../icons/Icon';
 
 interface NotesTabProps {
   isDark: boolean;
@@ -110,7 +111,7 @@ const NotesTab: React.FC<NotesTabProps> = ({
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       {note.isPinned && (
-                        <span className="material-symbols-outlined text-yellow-500 text-sm mb-1">push_pin</span>
+                        <Icon name="push_pin" className="text-yellow-500 text-sm mb-1" />
                       )}
                       <p className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{note.content}</p>
                       <p className={`text-[10px] mt-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
@@ -123,21 +124,21 @@ const NotesTab: React.FC<NotesTabProps> = ({
                         className={`p-1 tactile-btn ${note.isPinned ? 'text-yellow-500' : isDark ? 'text-gray-400' : 'text-gray-500'}`}
                         aria-label={note.isPinned ? 'Unpin note' : 'Pin note'}
                       >
-                        <span className="material-symbols-outlined text-[18px]" aria-hidden="true">push_pin</span>
+                        <Icon name="push_pin" className="text-[18px]" />
                       </button>
                       <button
                         onClick={() => { setEditingNoteId(note.id); setEditingNoteContent(note.content); }}
                         className={`p-1 tactile-btn ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
                         aria-label="Edit note"
                       >
-                        <span className="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
+                        <Icon name="edit" className="text-[18px]" />
                       </button>
                       <button
                         onClick={() => handleDeleteNote(note.id)}
                         className="text-red-500 hover:text-red-600 p-1 tactile-btn"
                         aria-label="Delete note"
                       >
-                        <span className="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
+                        <Icon name="delete" className="text-[18px]" />
                       </button>
                     </div>
                   </div>

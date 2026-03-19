@@ -1,6 +1,7 @@
 import React from 'react';
 import type { RedemptionSuccess } from './types';
 import { formatPassType } from './types';
+import Icon from '../../../icons/Icon';
 
 interface RedemptionSuccessCardProps {
   redemptionSuccess: RedemptionSuccess;
@@ -19,7 +20,7 @@ const RedemptionSuccessCard: React.FC<RedemptionSuccessCardProps> = ({
     <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30 space-y-4 animate-modal-slide-up">
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 w-12 h-12 rounded-full bg-green-100 dark:bg-green-800/40 flex items-center justify-center">
-          <span className="material-symbols-outlined text-2xl text-green-600 dark:text-green-400">check_circle</span>
+          <Icon name="check_circle" className="text-2xl text-green-600 dark:text-green-400" />
         </div>
         <div className="flex-1">
           <h3 className="font-semibold text-green-900 dark:text-green-100 text-lg">Guest Checked In!</h3>
@@ -32,7 +33,7 @@ const RedemptionSuccessCard: React.FC<RedemptionSuccessCardProps> = ({
       <div className="bg-white dark:bg-black/20 rounded-xl p-4 border border-green-200 dark:border-green-700/30">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center">
-            <span className="material-symbols-outlined text-primary dark:text-white">person</span>
+            <Icon name="person" className="text-primary dark:text-white" />
           </div>
           <div>
             <p className="font-medium text-primary dark:text-white">{redemptionSuccess.passHolder.name || 'Guest'}</p>
@@ -61,7 +62,7 @@ const RedemptionSuccessCard: React.FC<RedemptionSuccessCardProps> = ({
             }}
             className="flex-1 py-3 px-4 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-lg">golf_course</span>
+            <Icon name="golf_course" className="text-lg" />
             Book Golf for Guest
           </button>
         )}
@@ -69,7 +70,7 @@ const RedemptionSuccessCard: React.FC<RedemptionSuccessCardProps> = ({
           onClick={onReset}
           className={`${onBookGuest ? 'px-4' : 'flex-1'} py-3 rounded-xl bg-green-100 dark:bg-green-800/40 text-green-900 dark:text-green-100 font-medium hover:bg-green-200 dark:hover:bg-green-800/60 transition-colors flex items-center justify-center gap-2`}
         >
-          <span className="material-symbols-outlined text-lg">done</span>
+          <Icon name="done" className="text-lg" />
           Done
         </button>
       </div>

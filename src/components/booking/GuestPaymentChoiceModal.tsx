@@ -5,6 +5,7 @@ import { apiRequest } from '../../lib/apiRequest';
 import SlideUpDrawer from '../SlideUpDrawer';
 import Input from '../Input';
 import { usePricing } from '../../hooks/usePricing';
+import Icon from '../icons/Icon';
 
 interface GuestPaymentChoiceModalProps {
   bookingId: number;
@@ -156,7 +157,7 @@ export function GuestPaymentChoiceModal({
           <div className={`mb-4 p-3 rounded-xl flex items-start gap-2.5 animate-content-enter ${
             isDark ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-amber-50 border border-amber-200/60'
           }`}>
-            <span className={`material-symbols-outlined text-base mt-0.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>info</span>
+            <Icon name="info" className={`text-base mt-0.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
             <p className={`text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>{error}</p>
           </div>
         )}
@@ -199,7 +200,7 @@ export function GuestPaymentChoiceModal({
                     ? isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-600'
                     : isDark ? 'bg-white/10 text-white/40' : 'bg-gray-100 text-gray-400'
                 }`}>
-                  <span className="material-symbols-outlined text-xl">confirmation_number</span>
+                  <Icon name="confirmation_number" className="text-xl" />
                 </div>
                 <div className="flex-1 text-left">
                   <p className={`font-semibold ${
@@ -241,7 +242,7 @@ export function GuestPaymentChoiceModal({
                 <div className={`w-11 h-11 rounded-full flex items-center justify-center ${
                   isDark ? 'bg-[#CCB8E4]/20 text-[#CCB8E4]' : 'bg-[#CCB8E4]/25 text-[#5a4a6d]'
                 }`}>
-                  <span className="material-symbols-outlined text-xl">credit_card</span>
+                  <Icon name="credit_card" className="text-xl" />
                 </div>
                 <div className={`flex-1 text-left transition-opacity ${loading && selectedMethod === 'pay_fee' ? 'opacity-40' : ''}`}>
                   <p className={`font-semibold ${isDark ? 'text-[#CCB8E4]' : 'text-[#5a4a6d]'}`}>
@@ -276,15 +277,13 @@ export function GuestPaymentChoiceModal({
                 isDark ? 'text-white/60 hover:text-white' : 'text-primary/60 hover:text-primary'
               }`}
             >
-              <span className="material-symbols-outlined text-lg">arrow_back</span>
+              <Icon name="arrow_back" className="text-lg" />
               Back
             </button>
 
             <div className={`p-3 rounded-xl ${isDark ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-emerald-50 border border-emerald-200/60'}`}>
               <div className="flex items-center gap-2">
-                <span className={`material-symbols-outlined text-lg ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                  confirmation_number
-                </span>
+                <Icon name="confirmation_number" className={`text-lg ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
                 <p className={`text-sm font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                   Using Guest Pass ({guestPassesRemaining} remaining)
                 </p>
@@ -335,7 +334,7 @@ export function GuestPaymentChoiceModal({
               }`}
             >
               <span className={`flex items-center gap-2 transition-opacity ${loading ? 'opacity-0' : 'opacity-100'}`}>
-                <span className="material-symbols-outlined text-lg">confirmation_number</span>
+                <Icon name="confirmation_number" className="text-lg" />
                 Use Guest Pass
               </span>
               {loading && (

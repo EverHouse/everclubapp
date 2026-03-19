@@ -5,6 +5,7 @@ import { downloadICalFile } from '../../../utils/icalUtils';
 import { createPacificDate } from '../../../utils/dateUtils';
 import { getStatusBadge as getStatusBadgeColor, formatStatusLabel } from '../../../utils/statusColors';
 import { getIconForType, type ScheduleItem, type DashboardBookingItem, type DBBookingRequest, type DBBooking, type DBRSVP, type DBWellnessEnrollment } from './dashboardTypes';
+import Icon from '../../../components/icons/Icon';
 
 interface ScheduleSectionProps {
   isDark: boolean;
@@ -42,7 +43,7 @@ export const ScheduleSection: React.FC<ScheduleSectionProps> = ({
           className={`tactile-btn text-xs font-semibold flex items-center gap-1 ${isDark ? 'text-accent' : 'text-brand-green'}`}
           aria-label="Book new"
         >
-          <span className="material-symbols-outlined text-base">add</span>
+          <Icon name="add" className="text-base" />
           Book
         </button>
       </div>
@@ -70,13 +71,13 @@ export const ScheduleSection: React.FC<ScheduleSectionProps> = ({
       </div>
       {rsvpSectionError && (
         <div className={`mt-3 p-3 rounded-xl text-xs flex items-center gap-2 ${isDark ? 'bg-red-500/10 border border-red-500/20 text-red-300' : 'bg-red-50 border border-red-200 text-red-600'}`}>
-          <span className="material-symbols-outlined text-sm">error</span>
+          <Icon name="error" className="text-sm" />
           Unable to load RSVPs. Other sections are up to date.
         </div>
       )}
       {wellnessSectionError && (
         <div className={`mt-3 p-3 rounded-xl text-xs flex items-center gap-2 ${isDark ? 'bg-red-500/10 border border-red-500/20 text-red-300' : 'bg-red-50 border border-red-200 text-red-600'}`}>
-          <span className="material-symbols-outlined text-sm">error</span>
+          <Icon name="error" className="text-sm" />
           Unable to load wellness classes. Other sections are up to date.
         </div>
       )}
@@ -309,7 +310,7 @@ const EmptySchedule: React.FC<EmptyScheduleProps> = ({ isDark, startNavigation, 
     <div className={`flex flex-col items-center justify-center text-center py-6 px-6 rounded-xl ${isDark ? 'bg-white/5' : 'bg-primary/[0.03]'}`}>
       <div className="relative mb-3">
         <div className={`w-14 h-14 rounded-full flex items-center justify-center ${isDark ? 'bg-accent/20' : 'bg-accent/10'}`}>
-          <span className={`material-symbols-outlined text-2xl ${isDark ? 'text-accent' : 'text-brand-green'}`}>sports_golf</span>
+          <Icon name="sports_golf" className={`text-2xl ${isDark ? 'text-accent' : 'text-brand-green'}`} />
         </div>
       </div>
       <h4 className={`text-base font-semibold mb-1 ${isDark ? 'text-white' : 'text-primary'}`}>No upcoming bookings</h4>
@@ -326,7 +327,7 @@ const EmptySchedule: React.FC<EmptyScheduleProps> = ({ isDark, startNavigation, 
 
     <div className={`flex items-center gap-3 py-4 px-5 rounded-xl ${isDark ? 'bg-white/5' : 'bg-primary/[0.03]'}`}>
       <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-lavender/20' : 'bg-lavender/10'}`}>
-        <span className={`material-symbols-outlined text-xl ${isDark ? 'text-lavender' : 'text-primary/70'}`}>event</span>
+        <Icon name="event" className={`text-xl ${isDark ? 'text-lavender' : 'text-primary/70'}`} />
       </div>
       <div>
         <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-primary'}`}>No upcoming events</p>
@@ -336,7 +337,7 @@ const EmptySchedule: React.FC<EmptyScheduleProps> = ({ isDark, startNavigation, 
 
     <div className={`flex items-center gap-3 py-4 px-5 rounded-xl ${isDark ? 'bg-white/5' : 'bg-primary/[0.03]'}`}>
       <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-amber-500/20' : 'bg-amber-100'}`}>
-        <span className={`material-symbols-outlined text-xl ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>how_to_reg</span>
+        <Icon name="how_to_reg" className={`text-xl ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
       </div>
       <div>
         <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-primary'}`}>No RSVPs yet</p>

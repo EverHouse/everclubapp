@@ -11,6 +11,7 @@ import GuestPaymentChoiceModal from './GuestPaymentChoiceModal';
 import { usePricing } from '../../hooks/usePricing';
 import WalkingGolferSpinner from '../WalkingGolferSpinner';
 import { MemberSearchInput, type SelectedMember } from '../shared/MemberSearchInput';
+import Icon from '../icons/Icon';
 
 export interface RosterParticipant {
   id: number;
@@ -467,7 +468,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                   {removingId === participant.id ? (
                     <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <span className="material-symbols-outlined text-xl">close</span>
+                    <Icon name="close" className="text-xl" />
                   )}
                 </button>
               )}
@@ -486,14 +487,14 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                   onClick={() => setShowAddMemberModal(true)}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-[4px] bg-[#293515] text-white font-semibold text-sm transition-all duration-fast hover:bg-[#3a4a20] active:scale-[0.98] tactile-btn"
                 >
-                  <span className="material-symbols-outlined text-lg">person_add</span>
+                  <Icon name="person_add" className="text-lg" />
                   Add Member
                 </button>
                 <button
                   onClick={() => setShowGuestPaymentChoiceModal(true)}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-[4px] font-semibold text-sm transition-all duration-fast active:scale-[0.98] bg-[#CCB8E4] text-[#293515] hover:bg-[#baa6d6] tactile-btn"
                 >
-                  <span className="material-symbols-outlined text-lg">group_add</span>
+                  <Icon name="group_add" className="text-lg" />
                   Add Guest
                 </button>
               </div>
@@ -533,7 +534,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                   <div key={idx} className="flex items-center justify-between">
                     <span className={`text-sm flex items-center gap-1.5 ${isDark ? 'text-white/60' : 'text-[#293515]/60'}`}>
                       {isGuestWithPass && (
-                        <span className={`material-symbols-outlined text-sm ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>confirmation_number</span>
+                        <Icon name="confirmation_number" className={`text-sm ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
                       )}
                       {alloc.displayName}
                       {isEmptySlot && (
@@ -656,7 +657,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                       }}
                       className="w-full py-3 px-4 rounded-xl bg-primary text-white font-semibold text-sm transition-colors hover:bg-primary/90 active:scale-[0.98] flex items-center justify-center gap-2"
                     >
-                      <span className="material-symbols-outlined text-lg">credit_card</span>
+                      <Icon name="credit_card" className="text-lg" />
                       Pay Now
                     </button>
                   ) : (
@@ -689,7 +690,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                 <div className={`mt-4 pt-4 border-t ${isDark ? 'border-white/10' : 'border-black/5'}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className={`material-symbols-outlined text-lg ${isDark ? 'text-green-400' : 'text-green-600'}`}>check_circle</span>
+                      <Icon name="check_circle" className={`text-lg ${isDark ? 'text-green-400' : 'text-green-600'}`} />
                       <span className={`text-sm font-semibold ${isDark ? 'text-green-400' : 'text-green-600'}`}>
                         Fees Paid
                       </span>
@@ -739,9 +740,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
           <div className={`flex items-center gap-3 p-4 rounded-xl ${
             isDark ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-amber-50 border border-amber-200'
           }`}>
-            <span className={`material-symbols-outlined text-3xl ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-              warning
-            </span>
+            <Icon name="warning" className={`text-3xl ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
             <div className="flex-1">
               <p className={`font-semibold ${isDark ? 'text-white' : 'text-[#293515]'}`}>
                 {conflictDetails?.memberName || 'This member'} already has a booking
@@ -759,26 +758,20 @@ const RosterManager: React.FC<RosterManagerProps> = ({
               </h4>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className={`material-symbols-outlined text-lg ${isDark ? 'text-white/40' : 'text-[#293515]/40'}`}>
-                    calendar_today
-                  </span>
+                  <Icon name="calendar_today" className={`text-lg ${isDark ? 'text-white/40' : 'text-[#293515]/40'}`} />
                   <span className={`text-sm ${isDark ? 'text-white/80' : 'text-[#293515]/80'}`}>
                     {conflictDetails.conflictingBooking.date}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`material-symbols-outlined text-lg ${isDark ? 'text-white/40' : 'text-[#293515]/40'}`}>
-                    schedule
-                  </span>
+                  <Icon name="schedule" className={`text-lg ${isDark ? 'text-white/40' : 'text-[#293515]/40'}`} />
                   <span className={`text-sm ${isDark ? 'text-white/80' : 'text-[#293515]/80'}`}>
                     {conflictDetails.conflictingBooking.startTime} - {conflictDetails.conflictingBooking.endTime}
                   </span>
                 </div>
                 {conflictDetails.conflictingBooking.resourceName && (
                   <div className="flex items-center gap-2">
-                    <span className={`material-symbols-outlined text-lg ${isDark ? 'text-white/40' : 'text-[#293515]/40'}`}>
-                      sports_golf
-                    </span>
+                    <Icon name="sports_golf" className={`text-lg ${isDark ? 'text-white/40' : 'text-[#293515]/40'}`} />
                     <span className={`text-sm ${isDark ? 'text-white/80' : 'text-[#293515]/80'}`}>
                       {conflictDetails.conflictingBooking.resourceName}
                     </span>

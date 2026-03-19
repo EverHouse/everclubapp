@@ -11,6 +11,7 @@ import { useNotificationStore } from '../../stores/notificationStore';
 import { useToast } from '../../components/Toast';
 import { haptic } from '../../utils/haptics';
 import { fetchWithCredentials, putWithCredentials } from '../../hooks/queries/useFetch';
+import Icon from '../../components/icons/Icon';
 
 const NOTICE_PREVIEW_DAYS = 7; // Show notices this many days before they start
 
@@ -329,7 +330,7 @@ const MemberUpdates: React.FC = () => {
         </div>
       ) : sortedAnnouncements.length === 0 ? (
         <div className={`text-center py-16 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-          <span className="material-symbols-outlined text-6xl mb-4 block opacity-30">campaign</span>
+          <Icon name="campaign" className="text-6xl mb-4 block opacity-30" />
           <p className="text-lg font-medium">No announcements right now</p>
           <p className="text-sm mt-1 opacity-70">Check back soon for the latest news.</p>
         </div>
@@ -409,13 +410,13 @@ const MemberUpdates: React.FC = () => {
                   {hasLongDesc && !hasLink && (
                     <button className={`mt-3 text-xs font-bold uppercase tracking-wider flex items-center gap-1 ${isDark ? 'text-white/70 hover:text-white/70' : 'text-primary/70 hover:text-primary/70'}`}>
                       <span>{isExpanded ? 'Show less' : 'Read more'}</span>
-                      <span className={`material-symbols-outlined text-sm transition-transform ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
+                      <Icon name="expand_more" className={`text-sm transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                     </button>
                   )}
                   
                   {item.endDate && (
                     <div className={`mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs ${isDark ? 'bg-white/5 text-white/70' : 'bg-primary/5 text-primary/70'}`}>
-                      <span className="material-symbols-outlined text-[14px]">schedule</span>
+                      <Icon name="schedule" className="text-[14px]" />
                       <span>Until {formatDate(item.endDate)}</span>
                     </div>
                   )}
@@ -433,7 +434,7 @@ const MemberUpdates: React.FC = () => {
                       }`}
                     >
                       <span>{linkLabel}</span>
-                      <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                      <Icon name="arrow_forward" className="text-sm" />
                     </button>
                   )}
                 </div>
@@ -469,7 +470,7 @@ const MemberUpdates: React.FC = () => {
         </div>
       ) : closures.length === 0 ? (
         <div className={`text-center py-16 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-          <span className="material-symbols-outlined text-6xl mb-4 block opacity-30">event_available</span>
+          <Icon name="event_available" className="text-6xl mb-4 block opacity-30" />
           <p className="text-lg font-medium">No upcoming notices</p>
           <p className="text-sm mt-1 opacity-70">The club is open as usual.</p>
         </div>
@@ -494,7 +495,7 @@ const MemberUpdates: React.FC = () => {
           {upcomingNotices.length > 0 && (
             <div>
               <h3 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 flex items-center gap-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`} style={{ fontFamily: 'var(--font-label)' }}>
-                <span className="material-symbols-outlined text-sm">schedule</span>
+                <Icon name="schedule" className="text-sm" />
                 Coming Up
               </h3>
               <MotionList className="space-y-4">
@@ -535,13 +536,7 @@ const MemberUpdates: React.FC = () => {
                   ? isDark ? 'bg-red-500/20' : 'bg-red-100'
                   : isDark ? 'bg-amber-500/20' : 'bg-amber-100'
             }`}>
-              <span className={`material-symbols-outlined text-xl ${
-                isUpcoming
-                  ? isDark ? 'text-blue-400' : 'text-blue-600'
-                  : isClosure
-                    ? isDark ? 'text-red-400' : 'text-red-600'
-                    : isDark ? 'text-amber-400' : 'text-amber-600'
-              }`}>{isUpcoming ? 'event_upcoming' : isClosure ? 'block' : 'notifications'}</span>
+              <Icon name={isUpcoming ? 'event_upcoming' : isClosure ? 'block' : 'notifications'} className={`text-xl ${ isUpcoming ? isDark ? 'text-blue-400' : 'text-blue-600' : isClosure ? isDark ? 'text-red-400' : 'text-red-600' : isDark ? 'text-amber-400' : 'text-amber-600' }`} />
             </span>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
@@ -655,7 +650,7 @@ const MemberUpdates: React.FC = () => {
         </div>
       ) : notifications.length === 0 ? (
         <div className={`text-center py-16 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-          <span className="material-symbols-outlined text-6xl mb-4 block opacity-30">notifications_none</span>
+          <Icon name="notifications_none" className="text-6xl mb-4 block opacity-30" />
           <p className="text-lg font-medium">No activity yet</p>
           <p className="text-sm mt-1 opacity-70">Booking updates and alerts will appear here.</p>
         </div>
@@ -701,9 +696,7 @@ const MemberUpdates: React.FC = () => {
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
                     isDark ? 'bg-white/10' : 'bg-primary/5'
                   }`}>
-                    <span className={`material-symbols-outlined text-xl ${getNotificationColor(notification.type, isDark)}`}>
-                      {getNotificationIcon(notification.type)}
-                    </span>
+                    <Icon name={getNotificationIcon(notification.type)} className={`text-xl ${getNotificationColor(notification.type, isDark)}`} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">

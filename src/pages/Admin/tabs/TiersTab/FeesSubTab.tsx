@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithCredentials } from '../../../../hooks/queries/useFetch';
 import type { MembershipTier } from './tiersTypes';
+import Icon from '../../../../components/icons/Icon';
 
 interface FeesSubTabProps {
     tiers: MembershipTier[];
@@ -42,7 +43,7 @@ const FeesSubTab: React.FC<FeesSubTabProps> = ({ tiers, openEdit }) => {
                     <div className="grid grid-cols-2 gap-3">
                         <div className="p-4 rounded-xl bg-white dark:bg-surface-dark border border-gray-200 dark:border-white/20 shadow-sm">
                             <div className="flex items-center gap-2 mb-1">
-                                <span aria-hidden="true" className="material-symbols-outlined text-base text-primary/60 dark:text-white/60">person_add</span>
+                                <Icon name="person_add" className="text-base text-primary/60 dark:text-white/60" />
                                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Guest Fee</p>
                             </div>
                             <p className="text-2xl font-bold text-primary dark:text-white">
@@ -52,7 +53,7 @@ const FeesSubTab: React.FC<FeesSubTabProps> = ({ tiers, openEdit }) => {
                         </div>
                         <div className="p-4 rounded-xl bg-white dark:bg-surface-dark border border-gray-200 dark:border-white/20 shadow-sm">
                             <div className="flex items-center gap-2 mb-1">
-                                <span aria-hidden="true" className="material-symbols-outlined text-base text-primary/60 dark:text-white/60">timer</span>
+                                <Icon name="timer" className="text-base text-primary/60 dark:text-white/60" />
                                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Overage Rate</p>
                             </div>
                             <p className="text-2xl font-bold text-primary dark:text-white">
@@ -106,7 +107,7 @@ const FeesSubTab: React.FC<FeesSubTabProps> = ({ tiers, openEdit }) => {
                                         )}
                                     </div>
                                     <button aria-label="Edit pass" className="text-gray-600 hover:text-primary dark:hover:text-white transition-colors">
-                                        <span aria-hidden="true" className="material-symbols-outlined">edit</span>
+                                        <Icon name="edit" />
                                     </button>
                                 </div>
                             </div>

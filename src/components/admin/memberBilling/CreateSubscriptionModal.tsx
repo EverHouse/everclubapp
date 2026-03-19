@@ -1,6 +1,7 @@
 import React from 'react';
 import { ModalShell } from '../../ModalShell';
 import type { CouponOption } from './types';
+import Icon from '../../icons/Icon';
 
 export function CreateSubscriptionModal({
   isOpen,
@@ -39,7 +40,7 @@ export function CreateSubscriptionModal({
       <div className="p-4 space-y-4">
         <div className={`p-4 rounded-lg ${isDark ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
           <div className="flex items-start gap-3">
-            <span className={`material-symbols-outlined ${isDark ? 'text-green-400' : 'text-green-600'} text-xl`}>add_card</span>
+            <Icon name="add_card" className={`${isDark ? 'text-green-400' : 'text-green-600'} text-xl`} />
             <div>
               <p className={`text-sm font-medium ${isDark ? 'text-green-300' : 'text-green-700'}`}>
                 Start a new membership subscription
@@ -113,7 +114,7 @@ export function CreateSubscriptionModal({
           >
             {isCreating ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin text-base" />
                 Creating...
               </span>
             ) : (

@@ -4,6 +4,7 @@ import { useToast } from '../Toast';
 import { SlideUpDrawer } from '../SlideUpDrawer';
 import { isBlockingClosure, formatAffectedAreas as formatAreasShared } from '../../utils/closureUtils';
 import { fetchWithCredentials, postWithCredentials, putWithCredentials } from '../../hooks/queries/useFetch';
+import Icon from '../icons/Icon';
 
 function stripHtml(html: string | null | undefined): string {
   if (!html) return '';
@@ -212,7 +213,7 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
           >
             {saving ? (
               <>
-                <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin text-lg" />
                 Saving...
               </>
             ) : (

@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from './icons/Icon';
 
 interface EmptyStateProps {
   icon?: string;
@@ -25,9 +26,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
       <div className={`relative ${isCompact ? 'mb-3' : 'mb-6'}`}>
         <div className={`${isCompact ? 'w-16 h-16' : 'w-24 h-24'} rounded-full bg-gradient-to-br from-brand-bone to-secondary flex items-center justify-center relative`}>
           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/5 to-accent/10 animate-pulse" style={{ animationDuration: '3s' }} />
-          <span className={`material-symbols-outlined ${isCompact ? 'text-3xl' : 'text-5xl'} text-primary/70 dark:text-primary`} aria-hidden="true">
-            {icon}
-          </span>
+          <Icon name={icon} className={`${isCompact ? 'text-3xl' : 'text-5xl'} text-primary/70 dark:text-primary`} />
         </div>
         <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-accent/30 animate-bounce" style={{ animationDelay: '0.5s', animationDuration: '2s' }} />
         <div className="absolute -bottom-2 -left-2 w-3 h-3 rounded-full bg-primary/20 animate-bounce" style={{ animationDelay: '1s', animationDuration: '2.5s' }} />
@@ -57,7 +56,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
             shadow-lg hover:shadow-xl
           `}
         >
-          <span className="material-symbols-outlined text-lg" aria-hidden="true">add</span>
+          <Icon name="add" className="text-lg" />
           {action.label}
         </button>
       )}

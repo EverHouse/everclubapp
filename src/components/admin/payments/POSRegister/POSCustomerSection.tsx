@@ -1,6 +1,7 @@
 import React from 'react';
 import { MemberSearchInput, type SelectedMember } from '../../../shared/MemberSearchInput';
 import type { SavedCardInfo } from './posTypes';
+import Icon from '../../../icons/Icon';
 
 interface POSCustomerSectionProps {
   useGuestCheckout: boolean;
@@ -47,7 +48,7 @@ const POSCustomerSection: React.FC<POSCustomerSectionProps> = ({
     return (
       <div className="space-y-2">
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30">
-          <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">bolt</span>
+          <Icon name="bolt" className="text-amber-600 dark:text-amber-400" />
           <div className="flex-1">
             <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Quick Guest Checkout</p>
             <p className="text-xs text-amber-600 dark:text-amber-400">No customer info needed — terminal only</p>
@@ -61,7 +62,7 @@ const POSCustomerSection: React.FC<POSCustomerSectionProps> = ({
           }}
           className="text-sm text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white flex items-center gap-1"
         >
-          <span className="material-symbols-outlined text-base">search</span>
+          <Icon name="search" className="text-base" />
           Search existing
         </button>
       </div>
@@ -89,7 +90,7 @@ const POSCustomerSection: React.FC<POSCustomerSectionProps> = ({
             }}
             className="text-sm text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white flex items-center gap-1"
           >
-            <span className="material-symbols-outlined text-base">person_add</span>
+            <Icon name="person_add" className="text-base" />
             New Customer
           </button>
           <button
@@ -102,7 +103,7 @@ const POSCustomerSection: React.FC<POSCustomerSectionProps> = ({
             }}
             className="text-sm text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 flex items-center gap-1 font-medium"
           >
-            <span className="material-symbols-outlined text-base">bolt</span>
+            <Icon name="bolt" className="text-base" />
             Quick Guest
           </button>
         </div>
@@ -120,7 +121,7 @@ const POSCustomerSection: React.FC<POSCustomerSectionProps> = ({
             onClick={() => setShowIdScanner(true)}
             className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center gap-1"
           >
-            <span className="material-symbols-outlined text-base">badge</span>
+            <Icon name="badge" className="text-base" />
             Scan ID
           </button>
           <button
@@ -135,7 +136,7 @@ const POSCustomerSection: React.FC<POSCustomerSectionProps> = ({
             }}
             className="text-sm text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white flex items-center gap-1"
           >
-            <span className="material-symbols-outlined text-base">search</span>
+            <Icon name="search" className="text-base" />
             Search existing
           </button>
           <button
@@ -153,7 +154,7 @@ const POSCustomerSection: React.FC<POSCustomerSectionProps> = ({
             }}
             className="text-sm text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 flex items-center gap-1 font-medium"
           >
-            <span className="material-symbols-outlined text-base">bolt</span>
+            <Icon name="bolt" className="text-base" />
             Quick Guest
           </button>
         </div>
@@ -210,7 +211,7 @@ const POSCustomerSection: React.FC<POSCustomerSectionProps> = ({
       </div>
       {scannedIdImage && (
         <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs mt-1">
-          <span className="material-symbols-outlined text-sm">check_circle</span>
+          <Icon name="check_circle" className="text-sm" />
           ID scanned — image will be saved with this customer
         </div>
       )}

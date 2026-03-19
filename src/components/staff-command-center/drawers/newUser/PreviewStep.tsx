@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+import Icon from '../../../icons/Icon';
   MemberFormData,
   MembershipTier,
   MemberStep,
@@ -61,7 +62,7 @@ export function PreviewStep({
       {form.joinExistingGroup && selectedGroup && (
         <div className={`p-3 rounded-lg ${isDark ? 'bg-blue-900/20 border border-blue-700' : 'bg-blue-50 border border-blue-200'}`}>
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-blue-500">group</span>
+            <Icon name="group" className="text-blue-500" />
             <div>
               <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 Adding to: {selectedGroup.groupName || selectedGroup.primaryName}

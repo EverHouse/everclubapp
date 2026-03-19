@@ -4,6 +4,7 @@ import { fetchWithCredentials, postWithCredentials } from '../../../hooks/querie
 import { copyToClipboard } from '../../../lib/copyToClipboard';
 import Toggle from '../../../components/Toggle';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
+import Icon from '../../../components/icons/Icon';
 
 interface SettingsState {
   dataIntegrityAlerts: boolean;
@@ -109,7 +110,7 @@ const sectionClass = "bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-xl p-
 const SectionHeader: React.FC<{ icon: string; title: string; subtitle: string }> = ({ icon, title, subtitle }) => (
   <div className="flex items-center gap-3 mb-6">
     <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-white/10 flex items-center justify-center">
-      <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">{icon}</span>
+      <Icon name={icon} className="text-primary dark:text-white" />
     </div>
     <div>
       <h3 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>{title}</h3>
@@ -368,14 +369,14 @@ const SettingsTab: React.FC = () => {
     <div className="animate-page-enter space-y-6 pb-32 backdrop-blur-sm">
       {success && (
         <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg text-green-700 dark:text-green-400 text-sm flex items-center gap-2 animate-content-enter">
-          <span aria-hidden="true" className="material-symbols-outlined text-lg">check_circle</span>
+          <Icon name="check_circle" className="text-lg" />
           {success}
         </div>
       )}
 
       {errorMessage && (
         <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 text-sm flex items-center gap-2 animate-content-enter">
-          <span aria-hidden="true" className="material-symbols-outlined text-lg">error</span>
+          <Icon name="error" className="text-lg" />
           {errorMessage}
         </div>
       )}
@@ -667,7 +668,7 @@ const SettingsTab: React.FC = () => {
         <div className="space-y-4">
           <div>
             <button onClick={() => toggleSection('hubspotTiers')} aria-expanded={expandedSections.hubspotTiers} className="flex items-center gap-2 w-full text-left py-2">
-              <span className="material-symbols-outlined text-sm text-primary/50 dark:text-white/50 transition-transform" style={{ transform: expandedSections.hubspotTiers ? 'rotate(90deg)' : 'rotate(0deg)' }}>chevron_right</span>
+              <Icon name="chevron_right" className="text-sm text-primary/50 dark:text-white/50 transition-transform" />
               <span className="text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-widest">Tier Name Mappings</span>
             </button>
             {expandedSections.hubspotTiers && (
@@ -698,7 +699,7 @@ const SettingsTab: React.FC = () => {
 
           <div>
             <button onClick={() => toggleSection('hubspotStatuses')} aria-expanded={expandedSections.hubspotStatuses} className="flex items-center gap-2 w-full text-left py-2">
-              <span className="material-symbols-outlined text-sm text-primary/50 dark:text-white/50 transition-transform" style={{ transform: expandedSections.hubspotStatuses ? 'rotate(90deg)' : 'rotate(0deg)' }}>chevron_right</span>
+              <Icon name="chevron_right" className="text-sm text-primary/50 dark:text-white/50 transition-transform" />
               <span className="text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-widest">Status Mappings</span>
             </button>
             {expandedSections.hubspotStatuses && (
@@ -833,7 +834,7 @@ const SettingsTab: React.FC = () => {
               }}
               className="tactile-btn px-4 py-3 rounded-lg bg-primary dark:bg-accent text-white dark:text-primary font-medium text-sm hover:opacity-90 transition-opacity whitespace-nowrap flex items-center gap-2"
             >
-              <span aria-hidden="true" className="material-symbols-outlined text-base">{copied ? 'check_circle' : 'content_copy'}</span>
+              <Icon name={copied ? 'check_circle' : 'content_copy'} className="text-base" />
               {copied ? 'Copied!' : 'Copy URL'}
             </button>
           </div>
@@ -847,9 +848,9 @@ const SettingsTab: React.FC = () => {
             <button onClick={handleReset} disabled={saveMutation.isPending} className="tactile-btn px-4 py-2 rounded-full text-primary dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-sm font-medium">Reset</button>
             <button onClick={handleSave} disabled={saveMutation.isPending} className="tactile-btn px-6 py-2 rounded-full bg-primary dark:bg-accent text-white dark:text-primary font-medium text-sm disabled:opacity-50 flex items-center gap-2">
               {saveMutation.isPending ? (
-                <><span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>Saving...</>
+                <><Icon name="progress_activity" className="animate-spin text-sm" />Saving...</>
               ) : (
-                <><span aria-hidden="true" className="material-symbols-outlined text-sm">save</span>Save Changes</>
+                <><Icon name="save" className="text-sm" />Save Changes</>
               )}
             </button>
           </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithCredentials } from '../../../../hooks/queries/useFetch';
+import Icon from '../../../../components/icons/Icon';
 
 interface FailedJob {
   id: number;
@@ -55,7 +56,7 @@ const JobQueuePanel: React.FC<Props> = ({ isOpen, onToggle }) => {
     <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
       <button onClick={onToggle} className="tactile-btn flex items-center justify-between w-full text-left">
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">work</span>
+          <Icon name="work" className="text-primary dark:text-white" />
           <span className="font-bold text-primary dark:text-white">Job Queue</span>
           {stats.failed > 0 && (
             <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
@@ -63,9 +64,7 @@ const JobQueuePanel: React.FC<Props> = ({ isOpen, onToggle }) => {
             </span>
           )}
         </div>
-        <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
-          expand_more
-        </span>
+        <Icon name="expand_more" className={`text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (

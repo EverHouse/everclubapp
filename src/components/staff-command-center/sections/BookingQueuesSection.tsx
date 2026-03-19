@@ -9,6 +9,7 @@ import type { BookingRequest, TabType } from '../types';
 import { tabToPath } from '../../../lib/nav-constants';
 import { BookingStatusDropdown } from '../../../components/BookingStatusDropdown';
 import { BOOKING_STATUS, RESOURCE_TYPE } from '../../../../shared/constants/statuses';
+import Icon from '../../icons/Icon';
 
 interface PendingRequestsCardProps {
   pendingRequests: BookingRequest[];
@@ -53,7 +54,7 @@ const PendingRequestsCard = memo<PendingRequestsCardProps>(({
               className="tactile-btn flex items-center gap-1 px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
               title={`${pendingRequests.length} pending request${pendingRequests.length !== 1 ? 's' : ''}`}
             >
-              <span className="material-symbols-outlined text-sm">assignment</span>
+              <Icon name="assignment" className="text-sm" />
               {pendingRequests.length}
             </button>
           ) : (
@@ -80,7 +81,7 @@ const PendingRequestsCard = memo<PendingRequestsCardProps>(({
                   <>
                     <div className="flex items-center gap-3">
                       <DateBlock dateStr={request.request_date} today={today} />
-                      <span className="material-symbols-outlined text-lg text-red-500 dark:text-red-400">event_busy</span>
+                      <Icon name="event_busy" className="text-lg text-red-500 dark:text-red-400" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
@@ -102,7 +103,7 @@ const PendingRequestsCard = memo<PendingRequestsCardProps>(({
                     </div>
                     {request.trackman_booking_id && (
                       <div className="flex items-center gap-1.5 ml-[56px] px-2 py-1 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                        <span className="material-symbols-outlined text-sm text-orange-600 dark:text-orange-400">sports_golf</span>
+                        <Icon name="sports_golf" className="text-sm text-orange-600 dark:text-orange-400" />
                         <span className="text-[10px] font-medium text-orange-700 dark:text-orange-400">
                           Cancel in Trackman (TM: {request.trackman_booking_id})
                         </span>
@@ -114,7 +115,7 @@ const PendingRequestsCard = memo<PendingRequestsCardProps>(({
                           onClick={(e) => { e.stopPropagation(); onCompleteCancellation(request); }}
                           className="tactile-btn flex-1 py-1.5 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center justify-center gap-1.5"
                         >
-                          <span className="material-symbols-outlined text-sm">check_circle</span>
+                          <Icon name="check_circle" className="text-sm" />
                           Complete Cancellation
                         </button>
                       )}
@@ -124,7 +125,7 @@ const PendingRequestsCard = memo<PendingRequestsCardProps>(({
                   <>
                     <div className="flex items-center gap-3">
                       <DateBlock dateStr={request.request_date} today={today} />
-                      <span className="material-symbols-outlined text-lg text-primary dark:text-[#CCB8E4]">pending_actions</span>
+                      <Icon name="pending_actions" className="text-lg text-primary dark:text-[#CCB8E4]" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <p className="font-semibold text-sm text-primary dark:text-white truncate">{request.user_name}</p>
@@ -139,7 +140,7 @@ const PendingRequestsCard = memo<PendingRequestsCardProps>(({
                         </p>
                         {((request.declared_player_count && request.declared_player_count > 1) || (request.request_participants && request.request_participants.length > 0)) && (
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="material-symbols-outlined text-xs text-primary/50 dark:text-white/50">group</span>
+                            <Icon name="group" className="text-xs text-primary/50 dark:text-white/50" />
                             <span className="text-[11px] text-primary/60 dark:text-white/60">
                               {request.declared_player_count ?? 1} players
                               {request.request_participants && request.request_participants.length > 0 && (
@@ -155,7 +156,7 @@ const PendingRequestsCard = memo<PendingRequestsCardProps>(({
                     </div>
                     {request.has_conflict && (
                       <div className="flex items-center gap-1.5 ml-[56px] px-2 py-1 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                        <span className="material-symbols-outlined text-sm text-orange-600 dark:text-orange-400">warning</span>
+                        <Icon name="warning" className="text-sm text-orange-600 dark:text-orange-400" />
                         <span className="text-[10px] font-medium text-orange-700 dark:text-orange-400">
                           Conflicts with existing booking{request.conflicting_booking_name ? ` (${request.conflicting_booking_name})` : ''}
                         </span>
@@ -166,7 +167,7 @@ const PendingRequestsCard = memo<PendingRequestsCardProps>(({
                         onClick={(e) => { e.stopPropagation(); onOpenTrackman(request); }}
                         className="tactile-btn flex-1 py-1.5 px-3 bg-[#E55A22]/10 text-[#E55A22] dark:bg-[#E55A22]/20 dark:text-[#FF7A44] text-xs font-medium rounded-lg hover:bg-[#E55A22]/20 dark:hover:bg-[#E55A22]/30 transition-colors flex items-center justify-center gap-1.5"
                       >
-                        <span className="material-symbols-outlined text-sm">sports_golf</span>
+                        <Icon name="sports_golf" className="text-sm" />
                         Book on Trackman
                       </button>
                       <button
@@ -176,12 +177,12 @@ const PendingRequestsCard = memo<PendingRequestsCardProps>(({
                       >
                         {isDenying ? (
                           <>
-                            <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                            <Icon name="progress_activity" className="text-sm animate-spin" />
                             Denying...
                           </>
                         ) : (
                           <>
-                            <span className="material-symbols-outlined text-sm">close</span>
+                            <Icon name="close" className="text-sm" />
                             Deny
                           </>
                         )}
@@ -231,7 +232,7 @@ const UpcomingBookingsCard = memo<UpcomingBookingsCardProps>(({
             className="tactile-btn flex items-center gap-1 px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-full text-xs font-medium hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors"
             title={`${unmatchedCount} booking${unmatchedCount !== 1 ? 's' : ''} need${unmatchedCount !== 1 ? '' : 's'} assignment`}
           >
-            <span className="material-symbols-outlined text-sm">link_off</span>
+            <Icon name="link_off" className="text-sm" />
             {unmatchedCount}
           </button>
         ) : (
@@ -311,7 +312,7 @@ const UpcomingBookingsCard = memo<UpcomingBookingsCardProps>(({
                       className="tactile-btn p-1.5 text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg transition-colors"
                       aria-label="Edit booking"
                     >
-                      <span className="material-symbols-outlined text-base">edit</span>
+                      <Icon name="edit" className="text-base" />
                     </button>
                   )}
                 </div>
@@ -500,7 +501,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
           }}
           className="tactile-btn text-xs px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1"
         >
-          <span className="material-symbols-outlined text-sm">payments</span>
+          <Icon name="payments" className="text-sm" />
           Charge ${(booking.total_owed || 0).toFixed(0)}
         </button>
       );
@@ -536,7 +537,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
           onClick={(e) => { e.stopPropagation(); onAssignMember?.(booking); }}
           className="tactile-btn text-xs px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-1"
         >
-          <span className="material-symbols-outlined text-sm">link</span>
+          <Icon name="link" className="text-sm" />
           Assign Member
         </button>
       );
@@ -554,7 +555,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
           }}
           className="tactile-btn text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors flex items-center gap-1"
         >
-          <span className="material-symbols-outlined text-sm">group</span>
+          <Icon name="group" className="text-sm" />
           {filledPlayers}/{declaredPlayers} Players
         </button>
       );
@@ -569,7 +570,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
           }}
           className="tactile-btn text-xs px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1"
         >
-          <span className="material-symbols-outlined text-sm">payments</span>
+          <Icon name="payments" className="text-sm" />
           Charge ${(booking.total_owed || 0).toFixed(0)}
         </button>
       );

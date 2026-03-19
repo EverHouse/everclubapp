@@ -7,6 +7,7 @@ import { useUndoAction } from '../../../../hooks/useUndoAction';
 import { useToast } from '../../../../components/Toast';
 import { postWithCredentials } from '../../../../hooks/queries/useFetch';
 import type { IntegrityCheckResult, IntegrityIssue, IssueContext, ActiveIssue } from './dataIntegrityTypes';
+import Icon from '../../../../components/icons/Icon';
 
 
 const formatTimeForSheet = (t: string | undefined): string => {
@@ -430,8 +431,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 disabled={isSyncingToHubspot}
                 className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
               >
-                {isSyncingToHubspot && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                {isSyncingToHubspot && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                <Icon name="visibility" className="text-[14px]" />
                 Preview
               </button>
               <button
@@ -439,8 +440,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 disabled={isSyncingToHubspot}
                 className="tactile-btn px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
               >
-                {isSyncingToHubspot && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">sync</span>
+                {isSyncingToHubspot && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                <Icon name="sync" className="text-[14px]" />
                 Push All to HubSpot
               </button>
             </div>
@@ -469,8 +470,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                   disabled={isRunningSubscriptionSync}
                   className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                 >
-                  {isRunningSubscriptionSync && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                  <span className="material-symbols-outlined text-[14px]">visibility</span>
+                  {isRunningSubscriptionSync && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                  <Icon name="visibility" className="text-[14px]" />
                   Preview
                 </button>
                 <button
@@ -478,8 +479,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                   disabled={isRunningSubscriptionSync}
                   className="tactile-btn px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                 >
-                  {isRunningSubscriptionSync && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                  <span className="material-symbols-outlined text-[14px]">sync</span>
+                  {isRunningSubscriptionSync && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                  <Icon name="sync" className="text-[14px]" />
                   Sync from Stripe
                 </button>
               </div>
@@ -502,8 +503,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                   disabled={isRunningOrphanedStripeCleanup}
                   className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                 >
-                  {isRunningOrphanedStripeCleanup && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                  <span className="material-symbols-outlined text-[14px]">visibility</span>
+                  {isRunningOrphanedStripeCleanup && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                  <Icon name="visibility" className="text-[14px]" />
                   Preview
                 </button>
                 <button
@@ -511,8 +512,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                   disabled={isRunningOrphanedStripeCleanup}
                   className="tactile-btn px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                 >
-                  {isRunningOrphanedStripeCleanup && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                  <span className="material-symbols-outlined text-[14px]">delete_sweep</span>
+                  {isRunningOrphanedStripeCleanup && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                  <Icon name="delete_sweep" className="text-[14px]" />
                   Clear Orphaned IDs
                 </button>
               </div>
@@ -544,8 +545,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                   disabled={isRunningStripeCustomerCleanup}
                   className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                 >
-                  {isRunningStripeCustomerCleanup && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                  <span className="material-symbols-outlined text-[14px]">visibility</span>
+                  {isRunningStripeCustomerCleanup && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                  <Icon name="visibility" className="text-[14px]" />
                   Scan & Preview
                 </button>
                 <button
@@ -553,15 +554,15 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                   disabled={isRunningStripeCustomerCleanup || !stripeCleanupResult?.dryRun}
                   className="tactile-btn px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                 >
-                  {isRunningStripeCustomerCleanup && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                  <span className="material-symbols-outlined text-[14px]">delete_sweep</span>
+                  {isRunningStripeCustomerCleanup && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                  <Icon name="delete_sweep" className="text-[14px]" />
                   Delete Empty Customers
                 </button>
               </div>
               {isRunningStripeCustomerCleanup && stripeCleanupProgress && (
                 <div className="mt-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="material-symbols-outlined animate-spin text-[16px] text-blue-600">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-[16px] text-blue-600" />
                     <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
                       {stripeCleanupProgress.phase === 'fetching' && 'Fetching customers from Stripe...'}
                       {stripeCleanupProgress.phase === 'checking' && `Checking customers: ${stripeCleanupProgress.checked} / ${stripeCleanupProgress.totalCustomers}`}
@@ -619,7 +620,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
               )}
               <div className="mt-3 pt-3 border-t border-gray-200 dark:border-white/10">
                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">delete_sweep</span>
+                  <Icon name="delete_sweep" className="text-[14px]" />
                   Delete Stale Visitors
                 </p>
                 <div className="flex flex-wrap gap-2 mb-2">
@@ -628,7 +629,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                     disabled={isRunningVisitorArchive}
                     className="px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                   >
-                    {isRunningVisitorArchive && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                    {isRunningVisitorArchive && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
                     Scan & Preview
                   </button>
                   <button
@@ -642,7 +643,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 {isRunningVisitorArchive && visitorArchiveProgress && (
                   <div className="p-2 rounded bg-blue-50 dark:bg-blue-900/20 mb-2">
                     <div className="flex items-center gap-1 mb-1">
-                      <span className="material-symbols-outlined animate-spin text-[14px] text-blue-600">progress_activity</span>
+                      <Icon name="progress_activity" className="animate-spin text-[14px] text-blue-600" />
                       <span className="text-[11px] font-medium text-blue-700 dark:text-blue-300">
                         {visitorArchiveProgress.phase === 'scanning' && 'Scanning...'}
                         {visitorArchiveProgress.phase === 'checking_stripe' && `Stripe: ${visitorArchiveProgress.checked}/${visitorArchiveProgress.totalVisitors}`}
@@ -703,8 +704,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 disabled={isRunningGhostBookingFix}
                 className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
               >
-                {isRunningGhostBookingFix && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                {isRunningGhostBookingFix && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                <Icon name="visibility" className="text-[14px]" />
                 Preview
               </button>
               <button
@@ -712,8 +713,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 disabled={isRunningGhostBookingFix}
                 className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
               >
-                {isRunningGhostBookingFix && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">build</span>
+                {isRunningGhostBookingFix && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                <Icon name="build" className="text-[14px]" />
                 Create Sessions
               </button>
             </div>
@@ -750,8 +751,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 disabled={isCleaningMindbodyIds}
                 className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
               >
-                {isCleaningMindbodyIds && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                {isCleaningMindbodyIds && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                <Icon name="visibility" className="text-[14px]" />
                 Preview
               </button>
               <button
@@ -759,8 +760,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 disabled={isCleaningMindbodyIds}
                 className="tactile-btn px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
               >
-                {isCleaningMindbodyIds && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">cleaning_services</span>
+                {isCleaningMindbodyIds && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                <Icon name="cleaning_services" className="text-[14px]" />
                 Clean Up
               </button>
             </div>
@@ -787,8 +788,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 disabled={isRunningOrphanedParticipantFix}
                 className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
               >
-                {isRunningOrphanedParticipantFix && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                {isRunningOrphanedParticipantFix && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                <Icon name="visibility" className="text-[14px]" />
                 Preview
               </button>
               <button
@@ -796,8 +797,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 disabled={isRunningOrphanedParticipantFix}
                 className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
               >
-                {isRunningOrphanedParticipantFix && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">build</span>
+                {isRunningOrphanedParticipantFix && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                <Icon name="build" className="text-[14px]" />
                 Fix All
               </button>
             </div>
@@ -840,8 +841,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 disabled={isRunningReviewItemsApproval}
                 className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
               >
-                {isRunningReviewItemsApproval && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                {isRunningReviewItemsApproval && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                <Icon name="visibility" className="text-[14px]" />
                 Preview
               </button>
               <button
@@ -849,8 +850,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 disabled={isRunningReviewItemsApproval}
                 className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
               >
-                {isRunningReviewItemsApproval && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                {isRunningReviewItemsApproval && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                <Icon name="check_circle" className="text-[14px]" />
                 Approve All
               </button>
             </div>
@@ -882,8 +883,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 disabled={fixIssueMutation.isPending}
                 className="tactile-btn px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
               >
-                {fixIssueMutation.isPending && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">cancel</span>
+                {fixIssueMutation.isPending && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                <Icon name="cancel" className="text-[14px]" />
                 Cancel All Stale Bookings
               </button>
               <button
@@ -896,8 +897,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 disabled={fixIssueMutation.isPending}
                 className="tactile-btn px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
               >
-                {fixIssueMutation.isPending && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                {fixIssueMutation.isPending && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                <Icon name="check_circle" className="text-[14px]" />
                 Mark All as Attended
               </button>
             </div>
@@ -1005,13 +1006,13 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 )}
                 {isBulkActionRunning && batchProgress && (
                   <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium animate-pulse">
-                    <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-[14px]" />
                     {batchProgress.label}: batch {batchProgress.current} of {batchProgress.total}
                   </span>
                 )}
                 {isBulkActionRunning && !batchProgress && (
                   <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium animate-pulse">
-                    <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
+                    <Icon name="progress_activity" className="animate-spin text-[14px]" />
                     Processing...
                   </span>
                 )}
@@ -1028,7 +1029,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                     disabled={fixIssueMutation.isPending || isBulkActionRunning}
                     className="tactile-btn px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                   >
-                    <span className="material-symbols-outlined text-[14px]">link</span>
+                    <Icon name="link" className="text-[14px]" />
                     Reconnect Selected to Stripe ({selectedCount})
                   </button>
                   <button
@@ -1041,7 +1042,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                     disabled={fixIssueMutation.isPending || isBulkActionRunning}
                     className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                   >
-                    <span className="material-symbols-outlined text-[14px]">volunteer_activism</span>
+                    <Icon name="volunteer_activism" className="text-[14px]" />
                     Mark Selected as Comped
                   </button>
                   <button
@@ -1054,14 +1055,14 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                     disabled={fixIssueMutation.isPending || isBulkActionRunning}
                     className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                   >
-                    <span className="material-symbols-outlined text-[14px]">edit_note</span>
+                    <Icon name="edit_note" className="text-[14px]" />
                     Mark Selected as Manual
                   </button>
                   <button
                     onClick={() => setSelectedOrphans(new Set())}
                     className="px-3 py-1.5 text-gray-600 dark:text-gray-400 rounded-lg text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-1"
                   >
-                    <span className="material-symbols-outlined text-[14px]">close</span>
+                    <Icon name="close" className="text-[14px]" />
                     Clear
                   </button>
                 </div>
@@ -1084,18 +1085,18 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                     disabled={fixIssueMutation.isPending || isBulkActionRunning}
                     className="tactile-btn px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                   >
-                    <span className="material-symbols-outlined text-[14px]">link</span>
+                    <Icon name="link" className="text-[14px]" />
                     Reconnect All Stripe Orphans
                   </button>
                   {isBulkActionRunning && batchProgress && (
                     <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium animate-pulse">
-                      <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
+                      <Icon name="progress_activity" className="animate-spin text-[14px]" />
                       {batchProgress.label}: batch {batchProgress.current} of {batchProgress.total}
                     </span>
                   )}
                   {isBulkActionRunning && !batchProgress && (
                     <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium animate-pulse">
-                      <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
+                      <Icon name="progress_activity" className="animate-spin text-[14px]" />
                       Processing...
                     </span>
                   )}
@@ -1130,7 +1131,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 {orphanedSubIssues.map((issue, idx) => (
                   <div key={idx} className="bg-white dark:bg-gray-800/50 border border-red-200 dark:border-red-800 rounded-lg p-3">
                     <div className="flex items-start gap-2">
-                      <span className="material-symbols-outlined text-red-500 text-[16px] mt-0.5 shrink-0">warning</span>
+                      <Icon name="warning" className="text-red-500 text-[16px] mt-0.5 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mb-2">
                           <div>
@@ -1182,7 +1183,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
       <div ref={resultsRef} className="space-y-3">
         {isRefreshing && (
           <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2 animate-pulse">
-            <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+            <Icon name="progress_activity" className="animate-spin text-[16px]" />
             Refreshing data integrity results...
           </div>
         )}
@@ -1228,9 +1229,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                       </span>
                     )}
                   </div>
-                  <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ml-2 ${isExpanded ? 'rotate-180' : ''}`}>
-                    expand_more
-                  </span>
+                  <Icon name="expand_more" className={`text-gray-500 dark:text-gray-400 transition-transform ml-2 ${isExpanded ? 'rotate-180' : ''}`} />
                 </button>
                 
                 {isExpanded && (
@@ -1239,7 +1238,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
 
                     {result.issues.length === 0 && (
                       <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
-                        <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                        <Icon name="check_circle" className="text-[16px]" />
                         No issues found for this check.
                       </div>
                     )}
@@ -1250,7 +1249,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                           onClick={() => openBulkIgnoreModal(result.checkName, result.issues)}
                           className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1"
                         >
-                          <span className="material-symbols-outlined text-[14px]">visibility_off</span>
+                          <Icon name="visibility_off" className="text-[14px]" />
                           Exclude All ({result.issues.filter(i => !i.ignored).length})
                         </button>
                       </div>
@@ -1284,9 +1283,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                                       />
                                     )}
-                                    <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                                      {getSeverityIcon(issue.severity)}
-                                    </span>
+                                    <Icon name={getSeverityIcon(issue.severity)} className="text-[16px]" />
                                     <span className="font-medium text-sm">{issue.description}</span>
                                     {issue.ignored && issue.ignoreInfo && (
                                       <span className="text-[10px] bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded">
@@ -1334,9 +1331,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Push app data to external system"
                                       >
                                         {isSyncing ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                                          <Icon name="arrow_forward" className="text-[16px]" />
                                         )}
                                       </button>
                                       <button
@@ -1346,9 +1343,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Pull external data to app"
                                       >
                                         {isSyncing ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+                                          <Icon name="arrow_back" className="text-[16px]" />
                                         )}
                                       </button>
                                     </>
@@ -1361,9 +1358,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       title="View member profile"
                                     >
                                       {loadingMemberEmail === issue.context.memberEmail ? (
-                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                       ) : (
-                                        <span className="material-symbols-outlined text-[16px]">person</span>
+                                        <Icon name="person" className="text-[16px]" />
                                       )}
                                     </button>
                                   )}
@@ -1387,7 +1384,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           className="p-1.5 text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30 rounded transition-colors"
                                           title="Review Unmatched Booking"
                                         >
-                                          <span className="material-symbols-outlined text-[16px]">calendar_month</span>
+                                          <Icon name="calendar_month" className="text-[16px]" />
                                         </button>
                                       )}
                                       {!issue.context?.trackmanBookingId && (
@@ -1404,7 +1401,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors"
                                           title="Open booking details"
                                         >
-                                          <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                                          <Icon name="open_in_new" className="text-[16px]" />
                                         </button>
                                       )}
                                       <button
@@ -1414,9 +1411,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Cancel this booking"
                                       >
                                         {cancellingBookings.has(issue.recordId as number) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">cancel</span>
+                                          <Icon name="cancel" className="text-[16px]" />
                                         )}
                                       </button>
                                       <button
@@ -1433,9 +1430,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Mark as attended"
                                       >
                                         {fixingIssues.has(String(issue.recordId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                                          <Icon name="check_circle" className="text-[16px]" />
                                         )}
                                       </button>
                                     </>
@@ -1460,7 +1457,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         className="p-1.5 text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30 rounded transition-colors"
                                         title="Assign to a member"
                                       >
-                                        <span className="material-symbols-outlined text-[16px]">person_add</span>
+                                        <Icon name="person_add" className="text-[16px]" />
                                       </button>
                                       <button
                                         onClick={() => {
@@ -1476,9 +1473,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Dismiss this unmatched booking"
                                       >
                                         {fixingIssues.has(String(issue.recordId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">visibility_off</span>
+                                          <Icon name="visibility_off" className="text-[16px]" />
                                         )}
                                       </button>
                                     </>
@@ -1494,9 +1491,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Approve this item"
                                       >
                                         {fixingIssues.has(String(issue.recordId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                                          <Icon name="check_circle" className="text-[16px]" />
                                         )}
                                       </button>
                                       <button
@@ -1510,9 +1507,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Remove this item"
                                       >
                                         {fixingIssues.has(String(issue.recordId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">delete</span>
+                                          <Icon name="delete" className="text-[16px]" />
                                         )}
                                       </button>
                                     </>
@@ -1532,9 +1529,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       title="Convert to guest (keeps booking record)"
                                     >
                                       {fixingIssues.has(String(issue.recordId)) ? (
-                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                       ) : (
-                                        <span className="material-symbols-outlined text-[16px]">person_off</span>
+                                        <Icon name="person_off" className="text-[16px]" />
                                       )}
                                     </button>
                                   )}
@@ -1550,9 +1547,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       title="Cancel payment intent in Stripe"
                                     >
                                       {fixingIssues.has(String(issue.context?.stripePaymentIntentId)) ? (
-                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                       ) : (
-                                        <span className="material-symbols-outlined text-[16px]">money_off</span>
+                                        <Icon name="money_off" className="text-[16px]" />
                                       )}
                                     </button>
                                   )}
@@ -1573,9 +1570,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       title="Delete this orphaned record"
                                     >
                                       {fixingIssues.has(String(issue.recordId)) ? (
-                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                       ) : (
-                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                        <Icon name="delete" className="text-[16px]" />
                                       )}
                                     </button>
                                   )}
@@ -1596,9 +1593,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title={`Unlink HubSpot from ${user.email}`}
                                       >
                                         {fixingIssues.has(String(user.userId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">link_off</span>
+                                          <Icon name="link_off" className="text-[16px]" />
                                         )}
                                       </button>
                                     ))
@@ -1625,9 +1622,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       title={`Merge ${issue.context.duplicateUsers[1]?.email} into ${issue.context.duplicateUsers[0]?.email}`}
                                     >
                                       {fixingIssues.has(String(issue.context.duplicateUsers[0]?.userId)) ? (
-                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                       ) : (
-                                        <span className="material-symbols-outlined text-[16px]">merge</span>
+                                        <Icon name="merge" className="text-[16px]" />
                                       )}
                                     </button>
                                   )}
@@ -1647,7 +1644,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors"
                                         title="Assign member to this session"
                                       >
-                                        <span className="material-symbols-outlined text-[16px]">person_add</span>
+                                        <Icon name="person_add" className="text-[16px]" />
                                       </button>
                                       <button
                                         onClick={() => {
@@ -1659,7 +1656,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         className="p-1.5 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 rounded transition-colors disabled:opacity-50"
                                         title="Delete empty session"
                                       >
-                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                        <Icon name="delete" className="text-[16px]" />
                                       </button>
                                     </>
                                   )}
@@ -1675,9 +1672,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       title="Delete this member (no email)"
                                     >
                                       {fixingIssues.has(String(issue.recordId)) ? (
-                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                       ) : (
-                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                        <Icon name="delete" className="text-[16px]" />
                                       )}
                                     </button>
                                   )}
@@ -1688,7 +1685,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
                                       title="View member profile"
                                     >
-                                      <span className="material-symbols-outlined text-[16px]">person</span>
+                                      <Icon name="person" className="text-[16px]" />
                                     </button>
                                   )}
                                   {!issue.ignored && issue.context?.userId && issue.category === 'sync_mismatch' && issue.context?.memberEmail && (
@@ -1699,7 +1696,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
                                         title="View member profile"
                                       >
-                                        <span className="material-symbols-outlined text-[16px]">person</span>
+                                        <Icon name="person" className="text-[16px]" />
                                       </button>
                                       <button
                                         onClick={() => {
@@ -1711,7 +1708,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         className="p-1.5 text-orange-600 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/30 rounded transition-colors disabled:opacity-50"
                                         title="Deactivate member"
                                       >
-                                        <span className="material-symbols-outlined text-[16px]">person_off</span>
+                                        <Icon name="person_off" className="text-[16px]" />
                                       </button>
                                     </>
                                   )}
@@ -1723,7 +1720,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
                                         title="View member profile"
                                       >
-                                        <span className="material-symbols-outlined text-[16px]">person</span>
+                                        <Icon name="person" className="text-[16px]" />
                                       </button>
                                       <button
                                         onClick={() => {
@@ -1735,7 +1732,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         className="p-1.5 text-purple-600 hover:bg-purple-100 dark:text-purple-400 dark:hover:bg-purple-900/30 rounded transition-colors disabled:opacity-50"
                                         title="Switch to manual billing"
                                       >
-                                        <span className="material-symbols-outlined text-[16px]">swap_horiz</span>
+                                        <Icon name="swap_horiz" className="text-[16px]" />
                                       </button>
                                     </>
                                   )}
@@ -1754,7 +1751,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors"
                                           title={`Open booking #${issue.context.booking1Id}${issue.context?.member1Name ? ` (${issue.context.member1Name})` : ''}`}
                                         >
-                                          <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                                          <Icon name="open_in_new" className="text-[16px]" />
                                         </button>
                                       )}
                                       {issue.context?.booking1Id && (
@@ -1766,9 +1763,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           title={`Cancel booking #${issue.context.booking1Id}`}
                                         >
                                           {cancellingBookings.has(issue.context!.booking1Id as number) ? (
-                                            <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                            <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                           ) : (
-                                            <span className="material-symbols-outlined text-[16px]">cancel</span>
+                                            <Icon name="cancel" className="text-[16px]" />
                                           )}
                                         </button>
                                       )}
@@ -1785,7 +1782,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           className="p-1.5 text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30 rounded transition-colors"
                                           title={`Open booking #${issue.context.booking2Id}${issue.context?.member2Name ? ` (${issue.context.member2Name})` : ''}`}
                                         >
-                                          <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                                          <Icon name="open_in_new" className="text-[16px]" />
                                         </button>
                                       )}
                                       {issue.context?.booking2Id && (
@@ -1797,9 +1794,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           title={`Cancel booking #${issue.context.booking2Id}`}
                                         >
                                           {cancellingBookings.has(issue.context!.booking2Id as number) ? (
-                                            <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                            <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                           ) : (
-                                            <span className="material-symbols-outlined text-[16px]">cancel</span>
+                                            <Icon name="cancel" className="text-[16px]" />
                                           )}
                                         </button>
                                       )}
@@ -1818,7 +1815,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors"
                                       title="Open booking to review and create invoice"
                                     >
-                                      <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                                      <Icon name="open_in_new" className="text-[16px]" />
                                     </button>
                                   )}
                                   {!issue.ignored && issue.table === 'booking_requests' && issue.category === 'billing_issue' && typeof issue.recordId === 'string' && (
@@ -1831,7 +1828,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
                                           title="View member profile to review billing"
                                         >
-                                          <span className="material-symbols-outlined text-[16px]">person</span>
+                                          <Icon name="person" className="text-[16px]" />
                                         </button>
                                       )}
                                       {issue.context?.bookingIds && issue.context.bookingIds.length > 0 && (
@@ -1845,7 +1842,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors"
                                           title={`Open first booking (#${issue.context.bookingIds[0]}) sharing this invoice`}
                                         >
-                                          <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                                          <Icon name="open_in_new" className="text-[16px]" />
                                         </button>
                                       )}
                                     </>
@@ -1861,7 +1858,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
                                         title="View member profile"
                                       >
-                                        <span className="material-symbols-outlined text-[16px]">person</span>
+                                        <Icon name="person" className="text-[16px]" />
                                       </button>
                                       <button
                                         type="button"
@@ -1875,9 +1872,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Activate this member"
                                       >
                                         {fixingIssues.has(String(issue.context?.userId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                                          <Icon name="check_circle" className="text-[16px]" />
                                         )}
                                       </button>
                                     </>
@@ -1895,9 +1892,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       title="Recalculate guest pass usage"
                                     >
                                       {fixingIssues.has(String(issue.context?.userId)) ? (
-                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                       ) : (
-                                        <span className="material-symbols-outlined text-[16px]">calculate</span>
+                                        <Icon name="calculate" className="text-[16px]" />
                                       )}
                                     </button>
                                   )}
@@ -1914,9 +1911,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       title="Release expired hold"
                                     >
                                       {fixingIssues.has(String(issue.recordId)) ? (
-                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                       ) : (
-                                        <span className="material-symbols-outlined text-[16px]">lock_open</span>
+                                        <Icon name="lock_open" className="text-[16px]" />
                                       )}
                                     </button>
                                   )}
@@ -1933,9 +1930,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       title="Cancel orphaned payment intent"
                                     >
                                       {fixingIssues.has(String(issue.recordId)) ? (
-                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                       ) : (
-                                        <span className="material-symbols-outlined text-[16px]">money_off</span>
+                                        <Icon name="money_off" className="text-[16px]" />
                                       )}
                                     </button>
                                   )}
@@ -1952,9 +1949,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       title="Delete orphaned enrollment"
                                     >
                                       {fixingIssues.has(String(issue.recordId)) ? (
-                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                       ) : (
-                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                        <Icon name="delete" className="text-[16px]" />
                                       )}
                                     </button>
                                   )}
@@ -1971,9 +1968,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       title="Delete orphaned RSVP"
                                     >
                                       {fixingIssues.has(String(issue.recordId)) ? (
-                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                       ) : (
-                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                        <Icon name="delete" className="text-[16px]" />
                                       )}
                                     </button>
                                   )}
@@ -1991,9 +1988,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       title={`Delete orphaned ${issue.table?.replace(/_/g, ' ')} records`}
                                     >
                                       {fixingIssues.has(String(issue.recordId)) ? (
-                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                       ) : (
-                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                        <Icon name="delete" className="text-[16px]" />
                                       )}
                                     </button>
                                   )}
@@ -2008,7 +2005,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
                                         title="View member profile"
                                       >
-                                        <span className="material-symbols-outlined text-[16px]">person</span>
+                                        <Icon name="person" className="text-[16px]" />
                                       </button>
                                       {(() => {
                                         const tierComparison = issue.context?.syncComparison?.find(c => c.field === 'Membership Tier' || c.field === 'App Tier vs Stripe Product');
@@ -2026,9 +2023,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                             title="Accept tier from Stripe"
                                           >
                                             {fixingIssues.has(String(issue.context?.userId)) ? (
-                                              <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                              <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                             ) : (
-                                              <span className="material-symbols-outlined text-[16px]">sync</span>
+                                              <Icon name="sync" className="text-[16px]" />
                                             )}
                                           </button>
                                         ) : null;
@@ -2045,7 +2042,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
                                           title="View member profile"
                                         >
-                                          <span className="material-symbols-outlined text-[16px]">person</span>
+                                          <Icon name="person" className="text-[16px]" />
                                         </button>
                                       )}
                                       <button
@@ -2060,9 +2057,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Clear orphaned Stripe customer ID"
                                       >
                                         {fixingIssues.has(String(issue.context?.userId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">link_off</span>
+                                          <Icon name="link_off" className="text-[16px]" />
                                         )}
                                       </button>
                                     </>
@@ -2075,7 +2072,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
                                       title="View member profile"
                                     >
-                                      <span className="material-symbols-outlined text-[16px]">person</span>
+                                      <Icon name="person" className="text-[16px]" />
                                     </button>
                                   )}
                                   {!issue.ignored && issue.table === 'tours' && issue.category === 'data_quality' && (
@@ -2095,9 +2092,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Mark tour as completed"
                                       >
                                         {fixingIssues.has(String(issue.recordId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                                          <Icon name="check_circle" className="text-[16px]" />
                                         )}
                                       </button>
                                       <button
@@ -2115,9 +2112,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Mark tour as no-show"
                                       >
                                         {fixingIssues.has(String(issue.recordId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">person_off</span>
+                                          <Icon name="person_off" className="text-[16px]" />
                                         )}
                                       </button>
                                       <button
@@ -2135,9 +2132,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Cancel tour"
                                       >
                                         {fixingIssues.has(String(issue.recordId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">cancel</span>
+                                          <Icon name="cancel" className="text-[16px]" />
                                         )}
                                       </button>
                                     </>
@@ -2155,9 +2152,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       title="Delete invalid session"
                                     >
                                       {fixingIssues.has(String(issue.recordId)) ? (
-                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                       ) : (
-                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                        <Icon name="delete" className="text-[16px]" />
                                       )}
                                     </button>
                                   )}
@@ -2171,7 +2168,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
                                           title="View member profile"
                                         >
-                                          <span className="material-symbols-outlined text-[16px]">person</span>
+                                          <Icon name="person" className="text-[16px]" />
                                         </button>
                                       )}
                                       <button
@@ -2186,9 +2183,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Switch billing to Stripe"
                                       >
                                         {fixingIssues.has(String(issue.context?.userId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">swap_horiz</span>
+                                          <Icon name="swap_horiz" className="text-[16px]" />
                                         )}
                                       </button>
                                     </>
@@ -2203,7 +2200,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
                                           title="View member profile"
                                         >
-                                          <span className="material-symbols-outlined text-[16px]">person</span>
+                                          <Icon name="person" className="text-[16px]" />
                                         </button>
                                       )}
                                       <button
@@ -2218,9 +2215,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Set billing to Stripe"
                                       >
                                         {fixingIssues.has(String(issue.context?.userId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">credit_card</span>
+                                          <Icon name="credit_card" className="text-[16px]" />
                                         )}
                                       </button>
                                       <button
@@ -2235,9 +2232,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Set billing to manual"
                                       >
                                         {fixingIssues.has(String(issue.context?.userId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">edit_note</span>
+                                          <Icon name="edit_note" className="text-[16px]" />
                                         )}
                                       </button>
                                     </>
@@ -2252,7 +2249,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
                                           title="View member profile"
                                         >
-                                          <span className="material-symbols-outlined text-[16px]">person</span>
+                                          <Icon name="person" className="text-[16px]" />
                                         </button>
                                       )}
                                       <button
@@ -2267,9 +2264,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Reconnect to Stripe — find existing customer & subscription by email"
                                       >
                                         {fixingIssues.has(String(issue.context?.userId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">link</span>
+                                          <Icon name="link" className="text-[16px]" />
                                         )}
                                       </button>
                                       <button
@@ -2284,9 +2281,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Mark as Comped — keep tier, no billing"
                                       >
                                         {fixingIssues.has(String(issue.context?.userId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">volunteer_activism</span>
+                                          <Icon name="volunteer_activism" className="text-[16px]" />
                                         )}
                                       </button>
                                       <button
@@ -2301,9 +2298,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Mark as Manual — billed outside the system"
                                       >
                                         {fixingIssues.has(String(issue.context?.userId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">edit_note</span>
+                                          <Icon name="edit_note" className="text-[16px]" />
                                         )}
                                       </button>
                                       {issue.context?.stripeCustomerId === 'none' && (
@@ -2319,9 +2316,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           title="Link Stripe Customer (no subscription)"
                                         >
                                           {fixingIssues.has(String(issue.context?.userId)) ? (
-                                            <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                            <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                           ) : (
-                                            <span className="material-symbols-outlined text-[16px]">link</span>
+                                            <Icon name="link" className="text-[16px]" />
                                           )}
                                         </button>
                                       )}
@@ -2337,7 +2334,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
                                           title="View member profile"
                                         >
-                                          <span className="material-symbols-outlined text-[16px]">person</span>
+                                          <Icon name="person" className="text-[16px]" />
                                         </button>
                                       )}
                                       <button
@@ -2352,9 +2349,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         title="Mark waiver as signed"
                                       >
                                         {fixingIssues.has(String(issue.recordId)) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
-                                          <span className="material-symbols-outlined text-[16px]">verified</span>
+                                          <Icon name="verified" className="text-[16px]" />
                                         )}
                                       </button>
                                     </>
@@ -2365,7 +2362,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       className="p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 rounded transition-colors"
                                       title="Ignore this issue"
                                     >
-                                      <span className="material-symbols-outlined text-[16px]">visibility_off</span>
+                                      <Icon name="visibility_off" className="text-[16px]" />
                                     </button>
                                   )}
                                 </div>

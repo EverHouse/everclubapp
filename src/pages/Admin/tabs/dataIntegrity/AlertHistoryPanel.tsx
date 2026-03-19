@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { fetchWithCredentials } from '../../../../hooks/queries/useFetch';
+import Icon from '../../../../components/icons/Icon';
 
 interface AlertEntry {
   id: number;
@@ -69,15 +70,13 @@ const AlertHistoryPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
     <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
       <button onClick={onToggle} className="flex items-center justify-between w-full text-left">
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">notification_important</span>
+          <Icon name="notification_important" className="text-primary dark:text-white" />
           <span className="font-bold text-primary dark:text-white">System Alerts</span>
           {alerts.length > 0 && (
             <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({alerts.length})</span>
           )}
         </div>
-        <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
-          expand_more
-        </span>
+        <Icon name="expand_more" className={`text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
@@ -117,7 +116,7 @@ const AlertHistoryPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
                   className={`border-l-4 ${styles.border} pl-3 py-2 bg-gray-50/50 dark:bg-white/[0.02] rounded-r-lg tactile-row`}
                 >
                   <div className="flex items-start gap-2">
-                    <span className={`material-symbols-outlined text-[16px] mt-0.5 ${styles.iconColor}`}>{styles.icon}</span>
+                    <Icon name={styles.icon} className={`text-[16px] mt-0.5 ${styles.iconColor}`} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">{alert.title}</p>

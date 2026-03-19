@@ -4,6 +4,7 @@ import SlideUpDrawer from './SlideUpDrawer';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from './Toast';
 import { postWithCredentials } from '../hooks/queries/useFetch';
+import Icon from './icons/Icon';
 
 interface WaiverModalProps {
   isOpen: boolean;
@@ -142,7 +143,7 @@ export function WaiverModal({ isOpen, onComplete, currentVersion }: WaiverModalP
       >
         {isSubmitting ? (
           <span className="flex items-center justify-center gap-2">
-            <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+            <Icon name="progress_activity" className="animate-spin text-lg" />
             Signing...
           </span>
         ) : (
@@ -169,17 +170,17 @@ export function WaiverModal({ isOpen, onComplete, currentVersion }: WaiverModalP
       >
         {isEmailing ? (
           <>
-            <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+            <Icon name="progress_activity" className="animate-spin text-base" />
             Sending...
           </>
         ) : emailSent ? (
           <>
-            <span className="material-symbols-outlined text-base">check_circle</span>
+            <Icon name="check_circle" className="text-base" />
             Agreement Emailed
           </>
         ) : (
           <>
-            <span className="material-symbols-outlined text-base">mail</span>
+            <Icon name="mail" className="text-base" />
             Email Me a Copy
           </>
         )}

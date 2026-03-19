@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithCredentials, putWithCredentials } from '../../../hooks/queries/useFetch';
 import Toggle from '../../../components/Toggle';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
+import Icon from '../../../components/icons/Icon';
 
 interface EmailTemplate {
   id: string;
@@ -176,7 +177,7 @@ const EmailTemplatesTab: React.FC = () => {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <span className="material-symbols-outlined text-5xl text-primary/50 dark:text-white/50 mb-4">error_outline</span>
+        <Icon name="error_outline" className="text-5xl text-primary/50 dark:text-white/50 mb-4" />
         <h3 className="text-lg font-bold text-primary dark:text-white mb-2">Something went wrong</h3>
         <p className="text-sm text-primary/70 dark:text-white/70 mb-6">{error}</p>
         <button onClick={fetchTemplates} className="tactile-btn px-5 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-full font-medium">
@@ -191,7 +192,7 @@ const EmailTemplatesTab: React.FC = () => {
       {savedToast && (
         <div className="fixed top-4 right-4 z-50 animate-pop-in">
           <div className="px-4 py-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-xl text-green-700 dark:text-green-400 text-sm font-medium flex items-center gap-2 shadow-lg backdrop-blur-lg">
-            <span className="material-symbols-outlined text-lg">check_circle</span>
+            <Icon name="check_circle" className="text-lg" />
             Saved
           </div>
         </div>
@@ -204,16 +205,14 @@ const EmailTemplatesTab: React.FC = () => {
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-white/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-primary dark:text-white">mail</span>
+              <Icon name="mail" className="text-primary dark:text-white" />
             </div>
             <div className="text-left">
               <h3 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Email Controls</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">Enable or disable email categories</p>
             </div>
           </div>
-          <span className={`material-symbols-outlined text-primary/50 dark:text-white/50 transition-transform duration-200 ${controlsOpen ? 'rotate-180' : ''}`}>
-            expand_more
-          </span>
+          <Icon name="expand_more" className={`text-primary/50 dark:text-white/50 transition-transform duration-200 ${controlsOpen ? 'rotate-180' : ''}`} />
         </button>
 
         {controlsOpen && (
@@ -228,7 +227,7 @@ const EmailTemplatesTab: React.FC = () => {
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="w-9 h-9 rounded-lg bg-primary/10 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
-                      <span className="material-symbols-outlined text-lg text-primary dark:text-white">{cat.icon}</span>
+                      <Icon name={cat.icon} className="text-lg text-primary dark:text-white" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -244,13 +243,13 @@ const EmailTemplatesTab: React.FC = () => {
                           </span>
                         )}
                         {isSaving && (
-                          <span className="material-symbols-outlined animate-spin text-sm text-primary/40 dark:text-white/40">progress_activity</span>
+                          <Icon name="progress_activity" className="animate-spin text-sm text-primary/40 dark:text-white/40" />
                         )}
                       </div>
                       <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{cat.description}</p>
                       {cat.stripeNote && (
                         <p className="text-xs text-primary/40 dark:text-white/30 mt-1 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-xs">info</span>
+                          <Icon name="info" className="text-xs" />
                           Using Stripe emails instead
                         </p>
                       )}
@@ -310,9 +309,7 @@ const EmailTemplatesTab: React.FC = () => {
                 <div key={category}>
                   <div className="px-4 py-3 border-b border-primary/5 dark:border-white/5">
                     <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-base text-primary/40 dark:text-white/40">
-                        {CATEGORY_ICONS[category] || 'folder'}
-                      </span>
+                      <Icon name={CATEGORY_ICONS[category] || 'folder'} className="text-base text-primary/40 dark:text-white/40" />
                       <h3 className="text-xs font-semibold text-primary/50 dark:text-white/40 uppercase tracking-widest">
                         {category}
                       </h3>

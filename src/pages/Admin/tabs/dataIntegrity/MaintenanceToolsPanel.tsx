@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { postWithCredentials, fetchWithCredentials } from '../../../../hooks/queries/useFetch';
+import Icon from '../../../../components/icons/Icon';
 
 interface ToolResult {
   success: boolean;
@@ -180,13 +181,11 @@ const MaintenanceToolsPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
     <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
       <button onClick={onToggle} className="tactile-btn flex items-center justify-between w-full text-left">
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">build</span>
+          <Icon name="build" className="text-primary dark:text-white" />
           <span className="font-bold text-primary dark:text-white">Maintenance Tools</span>
           <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({TOOLS.length} tools)</span>
         </div>
-        <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
-          expand_more
-        </span>
+        <Icon name="expand_more" className={`text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
@@ -206,9 +205,7 @@ const MaintenanceToolsPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-2 flex-1 min-w-0">
-                    <span aria-hidden="true" className="material-symbols-outlined text-primary/60 dark:text-white/60 text-lg mt-0.5 flex-shrink-0">
-                      {tool.icon}
-                    </span>
+                    <Icon name={tool.icon} className="text-primary/60 dark:text-white/60 text-lg mt-0.5 flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="font-medium text-sm text-primary dark:text-white">{tool.label}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{tool.description}</p>
@@ -243,12 +240,12 @@ const MaintenanceToolsPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
                       >
                         {toolRunning ? (
                           <>
-                            <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                            <Icon name="progress_activity" className="animate-spin text-sm" />
                             Running...
                           </>
                         ) : (
                           <>
-                            <span className="material-symbols-outlined text-sm">play_arrow</span>
+                            <Icon name="play_arrow" className="text-sm" />
                             Run
                           </>
                         )}

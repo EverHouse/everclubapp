@@ -7,6 +7,7 @@ import { SlideUpDrawer } from '../../../../components/SlideUpDrawer';
 import TierBadge from '../../../../components/TierBadge';
 import { postWithCredentials, deleteWithCredentials } from '../../../../hooks/queries/useFetch';
 import { Participant, ParticipantDetailsModalProps } from './eventsTypes';
+import Icon from '../../../../components/icons/Icon';
 
 export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
     isOpen,
@@ -248,7 +249,7 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
 
                 {isLoading ? (
                     <div className="flex items-center justify-center py-12">
-                        <span aria-hidden="true" className="material-symbols-outlined animate-spin text-2xl text-gray-600 dark:text-gray-500">progress_activity</span>
+                        <Icon name="progress_activity" className="animate-spin text-2xl text-gray-600 dark:text-gray-500" />
                     </div>
                 ) : (
                     <>
@@ -305,7 +306,7 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
                                         disabled={addParticipantMutation.isPending}
                                         className="flex-1 py-2 px-3 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1"
                                     >
-                                        {addParticipantMutation.isPending && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
+                                        {addParticipantMutation.isPending && <Icon name="progress_activity" className="animate-spin text-sm" />}
                                         Add
                                     </button>
                                 </div>
@@ -316,7 +317,7 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
                                     onClick={() => setIsAdding(true)}
                                     className="flex-1 py-2.5 px-4 rounded-lg border-2 border-dashed border-gray-200 dark:border-white/25 text-gray-500 dark:text-gray-400 text-sm font-medium flex items-center justify-center gap-2 hover:border-primary/30 hover:text-primary dark:hover:border-white/30 dark:hover:text-white transition-colors"
                                 >
-                                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">person_add</span>
+                                    <Icon name="person_add" className="text-[18px]" />
                                     Add Manually
                                 </button>
                                 {type === 'rsvp' && eventbriteId && (
@@ -326,9 +327,9 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
                                         className="py-2.5 px-4 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-600 dark:text-orange-400 text-sm font-medium flex items-center justify-center gap-2 hover:bg-orange-500/20 transition-colors disabled:opacity-50"
                                     >
                                         {syncEventbriteMutation.isPending ? (
-                                            <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+                                            <Icon name="progress_activity" className="animate-spin text-[18px]" />
                                         ) : (
-                                            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">sync</span>
+                                            <Icon name="sync" className="text-[18px]" />
                                         )}
                                         Sync Eventbrite
                                     </button>
@@ -344,9 +345,7 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
 
                         {allParticipants.length === 0 ? (
                             <div className="text-center py-12 text-gray-600 dark:text-gray-500">
-                                <span aria-hidden="true" className="material-symbols-outlined text-4xl mb-2 block">
-                                    {type === 'rsvp' ? 'event_busy' : 'person_off'}
-                                </span>
+                                <Icon name={type === 'rsvp' ? 'event_busy' : 'person_off'} className="text-4xl mb-2 block" />
                                 <p>No {type === 'rsvp' ? 'RSVPs' : 'enrollments'} yet</p>
                             </div>
                         ) : (() => {
@@ -406,7 +405,7 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
                                                                         : 'bg-gray-100 dark:bg-white/10 text-gray-500'
                                                         }`}>
                                                             {isOptimistic ? (
-                                                                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                                                                <Icon name="progress_activity" className="animate-spin text-sm" />
                                                             ) : (
                                                                 (primary.firstName?.[0] || primary.attendeeName?.[0] || primary.userEmail[0]).toUpperCase()
                                                             )}
@@ -433,7 +432,7 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
                                                     <div className="flex items-center gap-2">
                                                         {isOptimistic ? (
                                                             <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded shrink-0 bg-brand-green/20 text-brand-green flex items-center gap-1">
-                                                                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[10px]">progress_activity</span>
+                                                                <Icon name="progress_activity" className="animate-spin text-[10px]" />
                                                                 Adding...
                                                             </span>
                                                         ) : (
@@ -468,7 +467,7 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
                                                                 className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center"
                                                                 aria-label={type === 'rsvp' ? 'Remove RSVP' : 'Remove enrollment'}
                                                             >
-                                                                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">close</span>
+                                                                <Icon name="close" className="text-[18px]" />
                                                             </button>
                                                         )}
                                                     </div>

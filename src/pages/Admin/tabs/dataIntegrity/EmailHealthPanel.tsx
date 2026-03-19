@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithCredentials } from '../../../../hooks/queries/useFetch';
+import Icon from '../../../../components/icons/Icon';
 
 interface EmailStats {
   period: string;
@@ -97,7 +98,7 @@ const EmailHealthPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
     <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
       <button onClick={onToggle} className="tactile-btn flex items-center justify-between w-full text-left">
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">mail</span>
+          <Icon name="mail" className="text-primary dark:text-white" />
           <span className="font-bold text-primary dark:text-white">Email Delivery Health</span>
           {latest && (
             <div className="flex items-center gap-1 ml-2">
@@ -119,9 +120,7 @@ const EmailHealthPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
             </div>
           )}
         </div>
-        <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
-          expand_more
-        </span>
+        <Icon name="expand_more" className={`text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
@@ -133,7 +132,7 @@ const EmailHealthPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
               {isWebhookStale && (
                 <div className="mb-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50">
                   <div className="flex items-start gap-2">
-                    <span aria-hidden="true" className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-[18px] mt-0.5">warning</span>
+                    <Icon name="warning" className="text-amber-600 dark:text-amber-400 text-[18px] mt-0.5" />
                     <div className="text-xs">
                       <p className="font-medium text-amber-800 dark:text-amber-300">
                         Webhook data may be stale
@@ -210,7 +209,7 @@ const EmailHealthPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
                     onClick={() => setShowWebhookUrl(!showWebhookUrl)}
                     className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                   >
-                    <span aria-hidden="true" className="material-symbols-outlined text-[14px]">link</span>
+                    <Icon name="link" className="text-[14px]" />
                     Webhook Configuration
                   </button>
                   {showWebhookUrl && (
@@ -230,7 +229,7 @@ const EmailHealthPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
                     onClick={() => setShowEvents(!showEvents)}
                     className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                   >
-                    <span aria-hidden="true" className={`material-symbols-outlined text-[14px] transition-transform ${showEvents ? 'rotate-180' : ''}`}>expand_more</span>
+                    <Icon name="expand_more" className={`text-[14px] transition-transform ${showEvents ? 'rotate-180' : ''}`} />
                     Recent Events ({recentEvents.length})
                   </button>
 
@@ -241,9 +240,7 @@ const EmailHealthPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
                           key={event.id}
                           className="flex items-center gap-2 text-xs py-1.5 px-2 rounded-lg bg-gray-50/80 dark:bg-white/[0.03]"
                         >
-                          <span aria-hidden="true" className={`material-symbols-outlined text-[14px] ${getEventTypeColor(event.eventType)}`}>
-                            {getEventIcon(event.eventType)}
-                          </span>
+                          <Icon name={getEventIcon(event.eventType)} className={`text-[14px] ${getEventTypeColor(event.eventType)}`} />
                           <span className={`font-medium ${getEventTypeColor(event.eventType)}`}>
                             {event.eventType.replace('email.', '')}
                           </span>

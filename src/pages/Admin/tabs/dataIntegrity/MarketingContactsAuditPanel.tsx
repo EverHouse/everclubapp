@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { fetchWithCredentials, postWithCredentials } from '../../../../hooks/queries/useFetch';
 import { useToast } from '../../../../components/Toast';
+import Icon from '../../../../components/icons/Icon';
 
 interface AuditContact {
   hubspotId: string;
@@ -224,15 +225,13 @@ const MarketingContactsAuditPanel: React.FC<MarketingContactsAuditPanelProps> = 
         className="w-full flex items-center justify-between p-4 text-left hover:bg-white/40 dark:hover:bg-white/10 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">marketing</span>
+          <Icon name="marketing" className="text-amber-600 dark:text-amber-400" />
           <div>
             <h3 className="font-semibold text-gray-900 dark:text-white">Marketing Contacts Audit</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">Identify HubSpot marketing contacts you can safely remove to free up space</p>
           </div>
         </div>
-        <span className="material-symbols-outlined text-gray-400 transition-transform" style={{ transform: isOpen ? 'rotate(180deg)' : 'none' }}>
-          expand_more
-        </span>
+        <Icon name="expand_more" className="text-gray-400 transition-transform" />
       </button>
 
       <div ref={parent}>
@@ -240,7 +239,7 @@ const MarketingContactsAuditPanel: React.FC<MarketingContactsAuditPanelProps> = 
           <div className="p-4 pt-0 space-y-4">
             {auditQuery.isLoading && (
               <div className="flex items-center justify-center py-12 gap-3 text-gray-500 dark:text-gray-400">
-                <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                <Icon name="progress_activity" className="animate-spin" />
                 <span>Analyzing all HubSpot contacts... This may take a minute.</span>
               </div>
             )}
@@ -320,7 +319,7 @@ const MarketingContactsAuditPanel: React.FC<MarketingContactsAuditPanelProps> = 
 
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="relative flex-1 min-w-[200px]">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+                    <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
                     <input
                       type="text"
                       value={searchTerm}
@@ -334,7 +333,7 @@ const MarketingContactsAuditPanel: React.FC<MarketingContactsAuditPanelProps> = 
                     disabled={currentList.length === 0}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 disabled:opacity-50 transition-colors"
                   >
-                    <span className="material-symbols-outlined text-base">download</span>
+                    <Icon name="download" className="text-base" />
                     Export CSV
                   </button>
                   {activeTab !== 'keep' && selectedContacts.size > 0 && (
@@ -344,9 +343,9 @@ const MarketingContactsAuditPanel: React.FC<MarketingContactsAuditPanelProps> = 
                       className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors"
                     >
                       {removeMutation.isPending ? (
-                        <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                        <Icon name="progress_activity" className="text-base animate-spin" />
                       ) : (
-                        <span className="material-symbols-outlined text-base">person_remove</span>
+                        <Icon name="person_remove" className="text-base" />
                       )}
                       Remove {selectedContacts.size} from Marketing
                     </button>

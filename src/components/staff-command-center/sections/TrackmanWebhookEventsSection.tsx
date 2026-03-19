@@ -4,6 +4,7 @@ import { useAutoAnimate } from '@formkit/auto-animate/react';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import TrackmanIcon from '../../icons/TrackmanIcon';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
+import Icon from '../../icons/Icon';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -358,9 +359,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
             </span>
           )}
         </h2>
-        <span aria-hidden="true" className={`material-symbols-outlined text-primary/60 dark:text-white/60 transition-transform ${showSection ? 'rotate-180' : ''}`}>
-          expand_more
-        </span>
+        <Icon name="expand_more" className={`text-primary/60 dark:text-white/60 transition-transform ${showSection ? 'rotate-180' : ''}`} />
       </button>
 
       {showSection && (
@@ -410,7 +409,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
             </div>
           ) : webhookEvents.length === 0 ? (
             <div className="py-6 md:py-8 text-center border-2 border-dashed border-primary/10 dark:border-white/25 rounded-xl">
-              <span aria-hidden="true" className="material-symbols-outlined text-3xl md:text-4xl text-primary/20 dark:text-white/20 mb-2">inbox</span>
+              <Icon name="inbox" className="text-3xl md:text-4xl text-primary/20 dark:text-white/20 mb-2" />
               <p className="text-sm md:text-base text-primary/70 dark:text-white/70">No webhook events received yet</p>
               <p className="text-xs text-primary/50 dark:text-white/50 mt-1">
                 Events will appear here once Trackman sends booking updates
@@ -456,25 +455,25 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                             </span>
                             {isUserUpdate && (
                               <span className="flex items-center gap-1 text-xs font-medium text-primary/80 dark:text-white/80">
-                                <span className="material-symbols-outlined text-sm">person</span>
+                                <Icon name="person" className="text-sm" />
                                 {userDisplayName || userEmail || 'User'}
                               </span>
                             )}
                             {isPurchaseUpdate && (
                               <span className="flex items-center gap-1 text-xs font-medium text-primary/80 dark:text-white/80">
-                                <span className="material-symbols-outlined text-sm">receipt_long</span>
+                                <Icon name="receipt_long" className="text-sm" />
                                 Purchase
                               </span>
                             )}
                             {!isUserUpdate && !isPurchaseUpdate && bayName && (
                               <span className="flex items-center gap-1 text-xs font-medium text-primary/80 dark:text-white/80">
-                                <span className="material-symbols-outlined text-sm">sports_golf</span>
+                                <Icon name="sports_golf" className="text-sm" />
                                 {bayName}
                               </span>
                             )}
                             {hasError && (
                               <span className="px-1.5 md:px-2 py-0.5 rounded-[4px] text-xs font-medium bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400 flex items-center gap-0.5 md:gap-1">
-                                <span className="material-symbols-outlined text-xs">error</span>
+                                <Icon name="error" className="text-xs" />
                                 Error
                               </span>
                             )}
@@ -484,7 +483,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                                   ? 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400'
                                   : 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400'
                               }`}>
-                                <span className="material-symbols-outlined text-xs">{event.was_auto_linked ? 'auto_awesome' : 'link'}</span>
+                                <Icon name={event.was_auto_linked ? 'auto_awesome' : 'link'} className="text-xs" />
                                 {event.was_auto_linked ? 'Automated' : 'Linked'}
                               </span>
                             )}
@@ -494,13 +493,13 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                             <div className="mt-2 flex items-center gap-2 md:gap-3 flex-wrap">
                               {userEmail && (
                                 <span className="flex items-center gap-1 text-sm font-semibold text-primary dark:text-white">
-                                  <span className="material-symbols-outlined text-base">mail</span>
+                                  <Icon name="mail" className="text-base" />
                                   {userEmail}
                                 </span>
                               )}
                               {userPhone && (
                                 <span className="flex items-center gap-1 text-sm font-semibold text-primary dark:text-white">
-                                  <span className="material-symbols-outlined text-base">phone</span>
+                                  <Icon name="phone" className="text-base" />
                                   {userPhone}
                                 </span>
                               )}
@@ -511,13 +510,13 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                             <div className="mt-2 flex items-center gap-2 md:gap-3 flex-wrap">
                               {bookingDate && (
                                 <span className="flex items-center gap-1 text-sm font-semibold text-primary dark:text-white">
-                                  <span className="material-symbols-outlined text-base">calendar_today</span>
+                                  <Icon name="calendar_today" className="text-base" />
                                   {bookingDate}
                                 </span>
                               )}
                               {timeSlot && (
                                 <span className="flex items-center gap-1 text-sm font-semibold text-primary dark:text-white">
-                                  <span className="material-symbols-outlined text-base">schedule</span>
+                                  <Icon name="schedule" className="text-base" />
                                   {timeSlot}
                                 </span>
                               )}
@@ -527,18 +526,18 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                           <div className="mt-1.5 flex items-center gap-2 md:gap-3 text-xs text-primary/60 dark:text-white/60 flex-wrap">
                             {!isUserUpdate && !isPurchaseUpdate && duration && (
                               <span className="flex items-center gap-0.5">
-                                <span className="material-symbols-outlined text-sm">timer</span>
+                                <Icon name="timer" className="text-sm" />
                                 {duration}
                               </span>
                             )}
                             {!isUserUpdate && !isPurchaseUpdate && playerCount !== null && (
                               <span className="flex items-center gap-0.5">
-                                <span className="material-symbols-outlined text-sm">group</span>
+                                <Icon name="group" className="text-sm" />
                                 {playerCount} player{playerCount !== 1 ? 's' : ''}
                               </span>
                             )}
                             <span className="flex items-center gap-0.5" title="Synced at">
-                              <span className="material-symbols-outlined text-sm">sync</span>
+                              <Icon name="sync" className="text-sm" />
                               {event.created_at ? formatDateTimePacific(event.created_at) : 'Unknown'}
                             </span>
                             {isUserUpdate && trackmanUserId && (
@@ -590,7 +589,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                                     }`}
                                     title={isAutoLinked ? "Auto-linked from existing request (click to change)" : "Manually linked (click to change)"}
                                   >
-                                    <span className="material-symbols-outlined text-sm">person</span>
+                                    <Icon name="person" className="text-sm" />
                                     <span className="hidden sm:inline truncate max-w-[100px]">{memberDisplayName}</span>
                                   </button>
                                 );
@@ -610,7 +609,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                                       className="px-2 py-1.5 rounded-lg text-xs font-medium bg-blue-100 hover:bg-blue-200 text-blue-800 dark:bg-blue-500/20 dark:hover:bg-blue-500/30 dark:text-blue-400 transition-colors flex items-center gap-1 disabled:opacity-50"
                                       title="Try to auto-match this booking to an existing request by bay, date, and time"
                                     >
-                                      <span className="material-symbols-outlined text-sm">{isAutoMatching ? 'sync' : 'auto_awesome'}</span>
+                                      <Icon name={isAutoMatching ? 'sync' : 'auto_awesome'} className="text-sm" />
                                       <span className="hidden sm:inline">{isAutoMatching ? 'Matching...' : 'Auto Match'}</span>
                                     </button>
                                     <button
@@ -626,7 +625,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                                       className="px-2 py-1.5 rounded-lg text-xs font-medium bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:text-amber-400 transition-colors flex items-center gap-1"
                                       title="Manually link this Trackman booking to a member"
                                     >
-                                      <span className="material-symbols-outlined text-sm">person_add</span>
+                                      <Icon name="person_add" className="text-sm" />
                                       <span className="hidden sm:inline">Link</span>
                                     </button>
                                   </div>
@@ -647,7 +646,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                                       className="px-2 py-1.5 rounded-lg text-xs font-medium bg-blue-100 hover:bg-blue-200 text-blue-800 dark:bg-blue-500/20 dark:hover:bg-blue-500/30 dark:text-blue-400 transition-colors flex items-center gap-1 disabled:opacity-50"
                                       title="Try to auto-match this booking to an existing request by bay, date, and time"
                                     >
-                                      <span className="material-symbols-outlined text-sm">{isAutoMatching ? 'sync' : 'auto_awesome'}</span>
+                                      <Icon name={isAutoMatching ? 'sync' : 'auto_awesome'} className="text-sm" />
                                       <span className="hidden sm:inline">{isAutoMatching ? 'Matching...' : 'Auto Match'}</span>
                                     </button>
                                     <button
@@ -661,7 +660,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                                       className="px-2 py-1.5 rounded-lg text-xs font-medium bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:text-amber-400 transition-colors flex items-center gap-1"
                                       title="Manually link this Trackman booking to a member"
                                     >
-                                      <span className="material-symbols-outlined text-sm">person_add</span>
+                                      <Icon name="person_add" className="text-sm" />
                                       <span className="hidden sm:inline">Link</span>
                                     </button>
                                   </div>
@@ -676,9 +675,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                             className="p-1.5 md:p-2 rounded-lg hover:bg-primary/10 dark:hover:bg-white/10 transition-colors shrink-0"
                             title={isExpanded ? 'Hide payload' : 'Show payload'}
                           >
-                            <span className={`material-symbols-outlined text-primary/60 dark:text-white/60 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                              expand_more
-                            </span>
+                            <Icon name="expand_more" className={`text-primary/60 dark:text-white/60 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                           </button>
                         </div>
                       </div>
@@ -920,7 +917,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-primary dark:text-white">Replay Webhooks to Dev</h3>
               <button onClick={() => setShowReplayModal(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full" aria-label="Close">
-                <span className="material-symbols-outlined text-gray-500">close</span>
+                <Icon name="close" className="text-gray-500" />
               </button>
             </div>
             
@@ -980,12 +977,12 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
               >
                 {isReplaying ? (
                   <>
-                    <span className="animate-spin material-symbols-outlined text-sm">refresh</span>
+                    <Icon name="refresh" className="animate-spin text-sm" />
                     Sending...
                   </>
                 ) : (
                   <>
-                    <span className="material-symbols-outlined text-sm">send</span>
+                    <Icon name="send" className="text-sm" />
                     Replay All
                   </>
                 )}
