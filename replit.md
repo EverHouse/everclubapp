@@ -79,7 +79,7 @@ The Ever Club Members App is a private members club application designed for gol
 - **Typography Hierarchy**: Defined hierarchy for titles, headers, and body text.
 - **Edge-to-Edge Hover Pattern**: Consistent styling for cards and interactive rows.
 - **Geometry Standards**: Standardized `rounded-xl` for cards/panels, `rounded-[4px]` for buttons/tags.
-- **Icons**: All icons are inline SVGs via `<Icon name="..." />` component (`src/components/icons/Icon.tsx`). SVG path data for 207 icons in `src/components/icons/iconPaths.ts`. No font loading — icons render instantly. Supports `className`, `size`, and `filled` props.
+- **Icons**: All icons are inline SVGs via `<Icon name="..." />` component (`src/components/icons/Icon.tsx`). SVG path data for 241 icons in `src/components/icons/iconPaths.ts`. No font loading — icons render instantly. Supports `className`, `size`, and `filled` props.
 - **Splash Screen**: Walking golfer GIF with random tagline, 2-second minimum display.
 - **Hero Image**: Preloaded in `index.html` with `fetchpriority="high"`.
 - **Meta Pixel**: Facebook/Meta Pixel tracking code in `index.html` for conversion tracking and retargeting on all public pages.
