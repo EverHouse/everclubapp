@@ -50,7 +50,7 @@ export async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> 
     WHERE hubspot_id IS NOT NULL
       AND archived_at IS NULL
       AND membership_status != 'merged'
-    ORDER BY RANDOM()
+    ORDER BY email
     LIMIT 100
   `);
   const appMembers = appMembersResult.rows as unknown as MemberRow[];
