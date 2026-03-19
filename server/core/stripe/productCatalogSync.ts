@@ -555,6 +555,12 @@ export async function pullCafeItemsFromStripe(): Promise<{
           if (!existingRow.is_active) {
             logger.info(`[Reverse Sync] Skipped reactivation of locally-deleted cafe item "${product.name}" (id: ${existingId})`);
           } else {
+            const dupeCheck = await db.execute(sql`SELECT id FROM cafe_items WHERE LOWER(name) = LOWER(${product.name}) AND LOWER(category) = LOWER(${category}) AND id != ${existingId} LIMIT 1`);
+            if (dupeCheck.rows.length > 0) {
+              const dupeId = (dupeCheck.rows[0] as any).id;
+              await db.execute(sql`DELETE FROM cafe_items WHERE id = ${dupeId}`);
+              logger.info(`[Reverse Sync] Removed duplicate cafe item id=${dupeId} (same name/category as id=${existingId})`);
+            }
             await db.execute(sql`UPDATE cafe_items SET
                 name = ${product.name}, description = ${product.description || null}, price = ${priceDecimal}, category = ${category},
                 image_url = COALESCE(${imageUrl}, image_url), stripe_product_id = ${product.id}, stripe_price_id = ${stripePriceId}
@@ -564,9 +570,13 @@ export async function pullCafeItemsFromStripe(): Promise<{
           }
         } else {
           await db.execute(sql`INSERT INTO cafe_items (name, description, price, category, image_url, icon, sort_order, is_active, stripe_product_id, stripe_price_id, created_at)
-             VALUES (${product.name}, ${product.description || null}, ${priceDecimal}, ${category}, ${imageUrl}, ${'restaurant'}, ${0}, ${true}, ${product.id}, ${stripePriceId}, NOW())`);
-          created++;
-          logger.info(`[Reverse Sync] Created cafe item "${product.name}" from Stripe`);
+             VALUES (${product.name}, ${product.description || null}, ${priceDecimal}, ${category}, ${imageUrl}, ${'restaurant'}, ${0}, ${true}, ${product.id}, ${stripePriceId}, NOW())
+             ON CONFLICT (name, category) DO UPDATE SET
+               description = EXCLUDED.description, price = EXCLUDED.price,
+               image_url = COALESCE(EXCLUDED.image_url, cafe_items.image_url),
+               stripe_product_id = EXCLUDED.stripe_product_id, stripe_price_id = EXCLUDED.stripe_price_id`);
+          synced++;
+          logger.info(`[Reverse Sync] Upserted cafe item "${product.name}" from Stripe`);
         }
       } catch (err: unknown) {
         const msg = `Error syncing cafe product "${product.name}": ${getErrorMessage(err)}`;
