@@ -126,7 +126,7 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
         'incomplete': 'pending',
         'incomplete_expired': 'inactive',
         'canceled': 'cancelled',
-        'unpaid': 'past_due',
+        'unpaid': 'suspended',
         'paused': 'frozen'
       };
       const actualStatus = statusMap[subscription.status] || 'pending';
@@ -307,7 +307,7 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
         'incomplete': 'pending',
         'incomplete_expired': 'inactive',
         'canceled': 'cancelled',
-        'unpaid': 'past_due',
+        'unpaid': 'suspended',
         'paused': 'frozen'
       };
       const mappedStatus = statusMap[subscription.status] || 'pending';

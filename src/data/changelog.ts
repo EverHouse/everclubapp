@@ -19,6 +19,7 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: HubSpot member sync (syncMemberToHubSpot) now restores lifecycle stage if the contact update fails after clearing it — prevents contacts from being left with a blank lifecycle",
       "Fixed: HubSpot day pass sync now restores the previous lifecycle stage if the update fails after clearing it",
       "Improved: WebSocket token endpoint now rate-limited to prevent abuse",
+      "Fixed: Stripe 'unpaid' subscription status now consistently maps to 'suspended' across all sync paths — previously the admin sync tool and webhook handler could produce different results for the same Stripe state",
     ]
   },
   {
