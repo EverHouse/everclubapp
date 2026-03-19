@@ -256,15 +256,15 @@ const KioskCheckin: React.FC = () => {
 
   if (!sessionChecked) {
     return (
-      <div className="fixed inset-0 bg-gray-950 flex items-center justify-center" style={{ zIndex: 9999 }}>
-        <div className="w-12 h-12 rounded-full border-4 border-white/20 border-t-white animate-spin" />
+      <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999, background: '#293515' }}>
+        <div className="w-12 h-12 rounded-full border-4 border-white/20 border-t-[#CCB8E4] animate-spin" />
       </div>
     );
   }
 
   if (!isStaff) {
     return (
-      <div className="fixed inset-0 bg-gray-950 flex flex-col items-center justify-center px-6" style={{ zIndex: 9999 }}>
+      <div className="fixed inset-0 flex flex-col items-center justify-center px-6" style={{ zIndex: 9999, background: 'linear-gradient(180deg, #293515 0%, #1f2a0f 100%)' }}>
         <div className="w-20 h-20 rounded-2xl bg-red-500/10 flex items-center justify-center mb-6">
           <Icon name="lock" className="text-5xl text-red-400" />
         </div>
@@ -281,29 +281,37 @@ const KioskCheckin: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-gray-950 flex flex-col select-none" style={{ zIndex: 9999, touchAction: 'none' }}>
-      <div className="absolute top-4 right-4 z-50">
+    <div className="fixed inset-0 flex flex-col select-none" style={{ zIndex: 9999, touchAction: 'none', background: 'linear-gradient(180deg, #293515 0%, #1f2a0f 50%, #1a220c 100%)' }}>
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")` }} />
+
+      <div className="relative flex items-center justify-between px-6 pt-6 pb-4 flex-shrink-0">
+        <img
+          src="/assets/logos/mascot-white.webp"
+          alt="Ever Club"
+          className="h-10 w-auto object-contain opacity-80"
+        />
         <button
           onClick={handlePasscodeOpen}
-          className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+          className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
           aria-label="Exit kiosk mode"
         >
-          <Icon name="lock_open" className="text-white/30 text-lg" />
+          <Icon name="lock_open" className="text-white/20 text-base" />
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
+      <div className="relative flex-1 flex flex-col items-center justify-center px-6">
         {state === 'idle' && (
           <div className="w-full max-w-md flex flex-col items-center animate-in fade-in duration-500">
-            <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 flex items-center justify-center mx-auto mb-6">
-              <Icon name="qr_code_scanner" className="text-6xl text-emerald-400" />
+            <div className="w-24 h-24 rounded-3xl bg-[#CCB8E4]/10 flex items-center justify-center mx-auto mb-6 border border-[#CCB8E4]/20">
+              <Icon name="qr_code_scanner" className="text-6xl text-[#CCB8E4]" />
             </div>
-            <h1 className="text-4xl font-bold text-white tracking-tight mb-2">Self Check-In</h1>
+            <h1 className="text-4xl font-bold text-white tracking-tight mb-2" style={{ fontFamily: 'var(--font-headline)' }}>Self Check-In</h1>
             <p className="text-white/50 text-lg mb-10 text-center">Tap the button below to scan your membership QR code</p>
 
             <button
               onClick={handleStartCheckin}
-              className="group relative px-10 py-5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-white text-xl font-semibold transition-all duration-200 shadow-lg shadow-emerald-500/25"
+              className="group relative px-10 py-5 rounded-2xl text-[#293515] text-xl font-semibold transition-all duration-200 shadow-lg"
+              style={{ background: '#CCB8E4', boxShadow: '0 8px 32px rgba(204, 184, 228, 0.3)' }}
             >
               <span className="flex items-center gap-3">
                 <Icon name="photo_camera" className="text-2xl" />
@@ -316,14 +324,11 @@ const KioskCheckin: React.FC = () => {
         {state === 'scanning' && (
           <div className="w-full max-w-md flex flex-col items-center animate-in fade-in duration-300">
             <div className="mb-8 text-center">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 flex items-center justify-center mx-auto mb-4">
-                <Icon name="qr_code_scanner" className="text-5xl text-emerald-400" />
-              </div>
-              <h1 className="text-3xl font-bold text-white tracking-tight">Welcome</h1>
+              <h1 className="text-3xl font-bold text-white tracking-tight" style={{ fontFamily: 'var(--font-headline)' }}>Welcome</h1>
               <p className="text-white/50 mt-2 text-lg">Scan your membership QR code to check in</p>
             </div>
 
-            <div className="w-full max-w-sm relative rounded-2xl overflow-hidden bg-black/50 border border-white/10">
+            <div className="w-full max-w-sm relative rounded-2xl overflow-hidden bg-black/30 border border-white/10">
               <div id={elementId} className="w-full" style={{ minHeight: 350 }} />
               {cameraError && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-6">
@@ -341,16 +346,16 @@ const KioskCheckin: React.FC = () => {
               )}
             </div>
 
-            <p className="text-white/30 text-xs mt-6">Open your membership card and hold the QR code up to the camera</p>
+            <p className="text-white/30 text-xs mt-6">Hold your QR code up to the camera</p>
           </div>
         )}
 
         {state === 'processing' && (
           <div className="text-center animate-in fade-in duration-200">
             <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-6">
-              <div className="w-10 h-10 rounded-full border-4 border-white/20 border-t-emerald-400 animate-spin" />
+              <div className="w-10 h-10 rounded-full border-4 border-white/20 border-t-[#CCB8E4] animate-spin" />
             </div>
-            <h2 className="text-2xl font-bold text-white">Checking you in...</h2>
+            <h2 className="text-2xl font-bold text-white" style={{ fontFamily: 'var(--font-headline)' }}>Checking you in...</h2>
             <p className="text-white/40 mt-2">Just a moment</p>
           </div>
         )}
@@ -360,8 +365,8 @@ const KioskCheckin: React.FC = () => {
             <div className="w-24 h-24 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
               <Icon name="check_circle" className="text-6xl text-emerald-400" />
             </div>
-            <h2 className="text-3xl font-bold text-white mb-2">Welcome back!</h2>
-            <p className="text-emerald-400 text-2xl font-semibold">{checkinResult.memberName}</p>
+            <h2 className="text-3xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-headline)' }}>Welcome back!</h2>
+            <p className="text-[#CCB8E4] text-2xl font-semibold">{checkinResult.memberName}</p>
             {checkinResult.tier && (
               <span className="inline-block mt-3 px-4 py-1.5 rounded-full bg-white/10 text-white/70 text-sm font-medium">
                 {checkinResult.tier}
@@ -380,7 +385,7 @@ const KioskCheckin: React.FC = () => {
             <div className="w-24 h-24 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-6">
               <Icon name="check_circle" className="text-6xl text-amber-400" />
             </div>
-            <h2 className="text-3xl font-bold text-white mb-2">Already Checked In</h2>
+            <h2 className="text-3xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-headline)' }}>Already Checked In</h2>
             {checkinResult.memberName && (
               <p className="text-amber-400 text-2xl font-semibold">{checkinResult.memberName}</p>
             )}
@@ -393,26 +398,26 @@ const KioskCheckin: React.FC = () => {
             <div className="w-24 h-24 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-6">
               <Icon name="warning" className="text-6xl text-red-400" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Check-In Issue</h2>
+            <h2 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-headline)' }}>Check-In Issue</h2>
             <p className="text-red-300 text-lg">{errorMessage}</p>
             <p className="text-white/30 text-sm mt-4">Please ask staff for assistance</p>
           </div>
         )}
       </div>
 
-      <div className="pb-6 text-center">
-        <p className="text-white/20 text-xs">Kiosk Self-Service Check-In</p>
+      <div className="relative pb-6 text-center">
+        <p className="text-white/15 text-xs tracking-wider uppercase" style={{ fontFamily: 'var(--font-label)' }}>Ever Club</p>
       </div>
 
       {showPasscodeModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[10000] animate-in fade-in duration-200">
-          <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-sm mx-6 border border-white/10 animate-in zoom-in-95 duration-300">
+          <div className="rounded-2xl p-8 w-full max-w-sm mx-6 border border-white/10 animate-in zoom-in-95 duration-300" style={{ background: 'linear-gradient(180deg, #293515 0%, #1f2a0f 100%)' }}>
             <div className="text-center mb-8">
-              <div className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-4">
-                <Icon name="lock" className="text-3xl text-white/70" />
+              <div className="w-14 h-14 rounded-xl bg-[#CCB8E4]/10 border border-[#CCB8E4]/20 flex items-center justify-center mx-auto mb-4">
+                <Icon name="lock" className="text-3xl text-[#CCB8E4]/70" />
               </div>
-              <h2 className="text-xl font-bold text-white mb-1">Enter Passcode</h2>
-              <p className="text-white/40 text-sm">Enter the staff passcode to exit kiosk mode</p>
+              <h2 className="text-xl font-bold text-white mb-1" style={{ fontFamily: 'var(--font-headline)' }}>Enter Passcode</h2>
+              <p className="text-white/40 text-sm">Staff passcode to exit kiosk mode</p>
             </div>
 
             <div className="flex justify-center gap-3 mb-6">
@@ -431,8 +436,8 @@ const KioskCheckin: React.FC = () => {
                     passcodeError
                       ? 'border-red-500 animate-shake'
                       : digit
-                        ? 'border-emerald-500/50'
-                        : 'border-white/20 focus:border-white/50'
+                        ? 'border-[#CCB8E4]/50'
+                        : 'border-white/20 focus:border-[#CCB8E4]/40'
                   } disabled:opacity-50`}
                   autoComplete="off"
                 />
@@ -447,7 +452,7 @@ const KioskCheckin: React.FC = () => {
 
             {passcodeChecking && (
               <div className="flex justify-center mb-4">
-                <div className="w-6 h-6 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                <div className="w-6 h-6 rounded-full border-2 border-white/20 border-t-[#CCB8E4] animate-spin" />
               </div>
             )}
 
