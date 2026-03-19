@@ -572,64 +572,72 @@ export async function ensureDatabaseConstraints() {
     try {
       const backfillResult = await db.execute(sql`
         UPDATE users
-        SET membership_status_changed_at = COALESCE(cancellation_effective_date::timestamp, updated_at)
+        SET membership_status_changed_at = cancellation_effective_date::timestamp
         WHERE membership_status IN ('terminated', 'expired', 'suspended', 'inactive', 'cancelled', 'canceled', 'frozen', 'froze', 'declined', 'churned', 'former_member', 'deleted')
           AND membership_status_changed_at IS NULL
-          AND COALESCE(cancellation_effective_date::timestamp, updated_at) IS NOT NULL
+          AND cancellation_effective_date IS NOT NULL
       `);
       const backfilled = backfillResult.rowCount || 0;
       if (backfilled > 0) {
-        logger.info(`[DB Init] Backfilled membership_status_changed_at for ${backfilled} former members from cancellation_effective_date/updated_at`);
+        logger.info(`[DB Init] Backfilled membership_status_changed_at for ${backfilled} former members from cancellation_effective_date`);
       }
     } catch (err: unknown) { logger.debug('[DB Init] membership_status_changed_at backfill failed: ' + getErrorMessage(err)); }
 
     try {
-      const jan2026Check = await db.execute(sql`
-        SELECT COUNT(*)::int AS cnt FROM users
+      const spikeCheck = await db.execute(sql`
+        SELECT TO_CHAR(DATE_TRUNC('month', membership_status_changed_at), 'YYYY-MM') AS month, COUNT(*)::int AS cnt
+        FROM users
         WHERE role = 'member'
           AND membership_status IN ('terminated', 'expired', 'suspended', 'inactive')
+          AND membership_status_changed_at IS NOT NULL
           AND membership_status_changed_at >= '2026-01-01'::timestamp
-          AND membership_status_changed_at < '2026-02-01'::timestamp
+        GROUP BY DATE_TRUNC('month', membership_status_changed_at)
+        HAVING COUNT(*) > 30
       `);
-      const jan2026Count = (jan2026Check.rows[0] as { cnt: number }).cnt;
-      if (jan2026Count > 100) {
-        const auditRepair = await db.execute(sql`
-          UPDATE users u
-          SET membership_status_changed_at = sub.audit_date
-          FROM (
-            SELECT DISTINCT ON (LOWER(a.resource_name)) 
-              LOWER(a.resource_name) AS email,
-              a.created_at AS audit_date
-            FROM admin_audit_log a
-            WHERE a.action = 'contact_status_changed'
-            ORDER BY LOWER(a.resource_name), a.created_at DESC
-          ) sub
-          WHERE LOWER(u.email) = sub.email
-            AND u.role = 'member'
-            AND u.membership_status IN ('terminated', 'expired', 'suspended', 'inactive')
-            AND u.membership_status_changed_at >= '2026-01-01'::timestamp
-            AND u.membership_status_changed_at < '2026-02-01'::timestamp
-        `);
-        const auditRepaired = auditRepair.rowCount || 0;
-
-        const nullRepair = await db.execute(sql`
-          UPDATE users u
-          SET membership_status_changed_at = NULL
-          WHERE u.role = 'member'
-            AND u.membership_status IN ('terminated', 'expired', 'suspended', 'inactive')
-            AND u.membership_status_changed_at >= '2026-01-01'::timestamp
-            AND u.membership_status_changed_at < '2026-02-01'::timestamp
-            AND NOT EXISTS (
-              SELECT 1 FROM admin_audit_log a
+      const spikeMonths = spikeCheck.rows as Array<{ month: string; cnt: number }>;
+      if (spikeMonths.length > 0) {
+        let totalAuditRepaired = 0;
+        let totalNulled = 0;
+        for (const { month } of spikeMonths) {
+          const monthStart = `${month}-01`;
+          const auditRepair = await db.execute(sql`
+            UPDATE users u
+            SET membership_status_changed_at = sub.audit_date
+            FROM (
+              SELECT DISTINCT ON (LOWER(a.resource_name))
+                LOWER(a.resource_name) AS email,
+                a.created_at AS audit_date
+              FROM admin_audit_log a
               WHERE a.action = 'contact_status_changed'
-                AND LOWER(a.resource_name) = LOWER(u.email)
-            )
-        `);
-        const nullRepaired = nullRepair.rowCount || 0;
+              ORDER BY LOWER(a.resource_name), a.created_at DESC
+            ) sub
+            WHERE LOWER(u.email) = sub.email
+              AND u.role = 'member'
+              AND u.membership_status IN ('terminated', 'expired', 'suspended', 'inactive')
+              AND u.membership_status_changed_at >= ${monthStart}::timestamp
+              AND u.membership_status_changed_at < (${monthStart}::timestamp + INTERVAL '1 month')
+          `);
+          totalAuditRepaired += auditRepair.rowCount || 0;
 
-        logger.info(`[DB Init] Jan 2026 status date repair: ${auditRepaired} corrected from audit log, ${nullRepaired} cleared (no traceable date)`);
+          const nullRepair = await db.execute(sql`
+            UPDATE users u
+            SET membership_status_changed_at = NULL
+            WHERE u.role = 'member'
+              AND u.membership_status IN ('terminated', 'expired', 'suspended', 'inactive')
+              AND u.membership_status_changed_at >= ${monthStart}::timestamp
+              AND u.membership_status_changed_at < (${monthStart}::timestamp + INTERVAL '1 month')
+              AND cancellation_effective_date IS NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM admin_audit_log a
+                WHERE a.action = 'contact_status_changed'
+                  AND LOWER(a.resource_name) = LOWER(u.email)
+              )
+          `);
+          totalNulled += nullRepair.rowCount || 0;
+        }
+        logger.info(`[DB Init] Status date spike repair (${spikeMonths.map(s => s.month).join(', ')}): ${totalAuditRepaired} corrected from audit log, ${totalNulled} cleared (no traceable date)`);
       }
-    } catch (err: unknown) { logger.debug('[DB Init] Jan 2026 status date repair failed: ' + getErrorMessage(err)); }
+    } catch (err: unknown) { logger.debug('[DB Init] Status date spike repair failed: ' + getErrorMessage(err)); }
 
     try {
       const hasOldCol = await db.execute(sql`SELECT 1 FROM information_schema.columns WHERE table_name = 'membership_tiers' AND column_name = 'guest_passes_per_month' LIMIT 1`);
