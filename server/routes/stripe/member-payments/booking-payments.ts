@@ -256,7 +256,7 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
 
       if (balanceResult.balanceApplied === 0) {
         if (balanceResult.paymentIntentId) {
-          try { await cancelPaymentIntent(balanceResult.paymentIntentId); } catch (_e: unknown) { /* best effort */ }
+          try { await cancelPaymentIntent(balanceResult.paymentIntentId); } catch (_e: unknown) { /* best-effort: cleanup PI before returning error to client */ }
         }
         return res.status(400).json({ error: 'No account credit available to apply' });
       }
@@ -487,14 +487,14 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       customerSessionClientSecret: customerSessionSecret,
     });
   } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error);
+    const errMsg = getErrorMessage(error);
     const stripeCode = (error as { code?: string })?.code;
     const stripeType = (error as { type?: string })?.type;
     const stripeDeclineCode = (error as { decline_code?: string })?.decline_code;
     const bookingIdForLog = parseInt(req.params.id as string, 10);
     if (isNaN(bookingIdForLog)) return res.status(400).json({ error: 'Invalid booking IDForLog' });
     logger.error('[Stripe] Error creating member payment intent', { 
-      error: error instanceof Error ? error : new Error(String(error)),
+      error: errMsg,
       extra: {
         stripeCode,
         stripeType,
@@ -666,14 +666,14 @@ router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, async (
 
     res.json({ success: true });
   } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error);
+    const errMsg = getErrorMessage(error);
     const stripeCode = (error as { code?: string })?.code;
     const stripeType = (error as { type?: string })?.type;
     const stripeDeclineCode = (error as { decline_code?: string })?.decline_code;
     const bookingIdForLog = parseInt(req.params.id as string, 10);
     if (isNaN(bookingIdForLog)) return res.status(400).json({ error: 'Invalid booking IDForLog' });
     logger.error('[Stripe] Error confirming member payment', {
-      error: error instanceof Error ? error : new Error(String(error)),
+      error: errMsg,
       extra: {
         stripeCode,
         stripeType,
@@ -765,7 +765,7 @@ router.post('/api/member/bookings/:bookingId/cancel-payment', isAuthenticated, a
 
     res.json({ success: result.success });
   } catch (error: unknown) {
-    logger.error('[Member Payment] Error cancelling payment', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Member Payment] Error cancelling payment', { error: getErrorMessage(error) });
     res.status(500).json({ success: false, error: 'Failed to cancel payment' });
   }
 });

@@ -331,7 +331,7 @@ export async function ensureSessionForBooking(params: {
       if (endMinutes <= startMinutes) endMinutes += 1440;
       slotDuration = endMinutes - startMinutes;
       if (slotDuration <= 0) slotDuration = 60;
-    } catch (err) { logger.warn('[Booking] Non-critical slot duration calculation failed:', { error: err }); }
+    } catch (err) { logger.warn('[Booking] Non-critical slot duration calculation failed:', { error: getErrorMessage(err) }); }
 
     if (existingOwner.rows.length === 0) {
       await lockClient.query(

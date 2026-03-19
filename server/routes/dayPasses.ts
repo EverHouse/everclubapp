@@ -41,7 +41,7 @@ router.get('/api/day-passes/products', async (req: Request, res: Response) => {
 
     res.json({ products: formattedProducts });
   } catch (error: unknown) {
-    logger.error('[DayPasses] Error getting products', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DayPasses] Error getting products', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to get day pass products' });
   }
 });
@@ -126,14 +126,14 @@ router.post('/api/day-passes/checkout', checkoutRateLimiter, async (req: Request
 
     logger.info('[DayPasses] Created Checkout Session for : $', { extra: { sessionId: session.id, productSlug, productPriceCents_0_100_ToFixed_2: ((product.priceCents || 0) / 100).toFixed(2) } });
 
-    try { logFromRequest(req, { action: 'create_day_pass', resourceType: 'day_pass', resourceId: session.id, details: { email, productSlug, amountCents: product.priceCents, sessionId: session.id } }); } catch (auditErr) { logger.warn('[Audit] Failed to log create_day_pass:', { error: auditErr }); }
+    try { logFromRequest(req, { action: 'create_day_pass', resourceType: 'day_pass', resourceId: session.id, details: { email, productSlug, amountCents: product.priceCents, sessionId: session.id } }); } catch (auditErr) { logger.warn('[Audit] Failed to log create_day_pass:', { error: getErrorMessage(auditErr) }); }
 
     res.json({
       sessionId: session.id,
       sessionUrl: session.url,
     });
   } catch (error: unknown) {
-    logger.error('[DayPasses] Error creating checkout session', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DayPasses] Error creating checkout session', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to create checkout session' });
   }
 });
@@ -279,12 +279,12 @@ router.post('/api/day-passes/confirm', checkoutRateLimiter, async (req: Request,
     }
 
     findOrCreateHubSpotContact(email, firstName || '', lastName || '', phone || undefined, undefined, { role: 'day-pass' }).catch((err) => {
-      logger.error('[DayPasses] Background HubSpot sync for day-pass buyer failed', { error: err instanceof Error ? err : new Error(String(err)) });
+      logger.error('[DayPasses] Background HubSpot sync for day-pass buyer failed', { error: getErrorMessage(err) });
     });
 
     logger.info('[DayPasses] Recorded purchase for : $ from', { extra: { purchaseId: purchase.id, productSlug, amountPaid_100_ToFixed_2: (amountPaid / 100).toFixed(2), email } });
 
-    try { logFromRequest(req, { action: 'confirm_day_pass_payment', resourceType: 'day_pass', resourceId: String(purchase.id), details: { email, productSlug, amountCents: amountPaid, paymentIntentId: resolvedPaymentIntentId } }); } catch (auditErr) { logger.warn('[Audit] Failed to log confirm_day_pass_payment:', { error: auditErr }); }
+    try { logFromRequest(req, { action: 'confirm_day_pass_payment', resourceType: 'day_pass', resourceId: String(purchase.id), details: { email, productSlug, amountCents: amountPaid, paymentIntentId: resolvedPaymentIntentId } }); } catch (auditErr) { logger.warn('[Audit] Failed to log confirm_day_pass_payment:', { error: getErrorMessage(auditErr) }); }
 
     res.json({
       success: true,
@@ -292,7 +292,7 @@ router.post('/api/day-passes/confirm', checkoutRateLimiter, async (req: Request,
       userId: user.id
     });
   } catch (error: unknown) {
-    logger.error('[DayPasses] Error confirming payment', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DayPasses] Error confirming payment', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to confirm payment' });
   }
 });
@@ -368,7 +368,7 @@ router.post('/api/day-passes/staff-checkout', isStaffOrAdmin, async (req: Reques
 
     logger.info('[DayPasses] Staff checkout initiated for : $ by', { extra: { productSlug, productPriceCents_100_ToFixed_2: (product.priceCents / 100).toFixed(2), staffEmail } });
 
-    try { logFromRequest(req, { action: 'create_day_pass', resourceType: 'day_pass', resourceId: result.paymentIntentId, details: { email, productSlug, amountCents: product.priceCents, staffEmail, staffInitiated: true, paymentIntentId: result.paymentIntentId } }); } catch (auditErr) { logger.warn('[Audit] Failed to log create_day_pass:', { error: auditErr }); }
+    try { logFromRequest(req, { action: 'create_day_pass', resourceType: 'day_pass', resourceId: result.paymentIntentId, details: { email, productSlug, amountCents: product.priceCents, staffEmail, staffInitiated: true, paymentIntentId: result.paymentIntentId } }); } catch (auditErr) { logger.warn('[Audit] Failed to log create_day_pass:', { error: getErrorMessage(auditErr) }); }
 
     res.json({
       clientSecret: result.clientSecret,
@@ -378,7 +378,7 @@ router.post('/api/day-passes/staff-checkout', isStaffOrAdmin, async (req: Reques
       productName: product.name
     });
   } catch (error: unknown) {
-    logger.error('[DayPasses] Error creating staff checkout', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DayPasses] Error creating staff checkout', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to create payment' });
   }
 });
@@ -493,7 +493,7 @@ router.post('/api/day-passes/staff-checkout/confirm', isStaffOrAdmin, async (req
 
     logger.info('[DayPasses] Staff checkout confirmed: for : $ by', { extra: { purchaseId: purchase.id, productSlug, paymentIntentAmount_100_ToFixed_2: (paymentIntent.amount / 100).toFixed(2), staffEmail } });
 
-    try { logFromRequest(req, { action: 'confirm_day_pass_payment', resourceType: 'day_pass', resourceId: String(purchase.id), details: { email, productSlug, amountCents: paymentIntent.amount, staffEmail, staffInitiated: true, paymentIntentId } }); } catch (auditErr) { logger.warn('[Audit] Failed to log confirm_day_pass_payment:', { error: auditErr }); }
+    try { logFromRequest(req, { action: 'confirm_day_pass_payment', resourceType: 'day_pass', resourceId: String(purchase.id), details: { email, productSlug, amountCents: paymentIntent.amount, staffEmail, staffInitiated: true, paymentIntentId } }); } catch (auditErr) { logger.warn('[Audit] Failed to log confirm_day_pass_payment:', { error: getErrorMessage(auditErr) }); }
 
     res.json({
       success: true,
@@ -503,7 +503,7 @@ router.post('/api/day-passes/staff-checkout/confirm', isStaffOrAdmin, async (req
       userEmail: email
     });
   } catch (error: unknown) {
-    logger.error('[DayPasses] Error confirming staff checkout', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DayPasses] Error confirming staff checkout', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to confirm payment' });
   }
 });
@@ -590,7 +590,7 @@ export async function recordDayPassPurchaseFromWebhook(data: {
     }
 
     findOrCreateHubSpotContact(data.email, data.firstName || '', data.lastName || '', data.phone || undefined, undefined, { role: 'day-pass' }).catch((err) => {
-      logger.error('[DayPasses] Background HubSpot sync for day-pass buyer failed', { error: err instanceof Error ? err : new Error(String(err)) });
+      logger.error('[DayPasses] Background HubSpot sync for day-pass buyer failed', { error: getErrorMessage(err) });
     });
 
     logger.info('[DayPasses Webhook] Recorded purchase for : $ from', { extra: { purchaseId: purchase.id, dataProductSlug: data.productSlug, dataAmountCents_100_ToFixed_2: (data.amountCents / 100).toFixed(2), dataEmail: data.email } });
@@ -603,7 +603,7 @@ export async function recordDayPassPurchaseFromWebhook(data: {
       remainingUses: purchase.remainingUses ?? 1
     };
   } catch (error: unknown) {
-    logger.error('[DayPasses Webhook] Error recording purchase', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DayPasses Webhook] Error recording purchase', { error: getErrorMessage(error) });
     return { success: false, error: getErrorMessage(error) };
   }
 }

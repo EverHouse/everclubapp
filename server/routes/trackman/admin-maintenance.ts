@@ -101,7 +101,7 @@ router.get('/api/admin/trackman/needs-players', isStaffOrAdmin, async (req, res)
 
     res.json({ data, totalCount });
   } catch (error: unknown) {
-    logger.error('Error fetching needs-players bookings', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Error fetching needs-players bookings', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to fetch needs-players bookings' });
   }
 });
@@ -177,7 +177,7 @@ router.delete('/api/admin/trackman/reset-data', isStaffOrAdmin, async (req, res)
     });
   } catch (error: unknown) {
     await client.query('ROLLBACK');
-    logger.error('Trackman reset error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Trackman reset error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to reset Trackman data', details: safeErrorDetail(error) });
   } finally {
     safeRelease(client);
@@ -240,7 +240,7 @@ router.get('/api/admin/backfill-sessions/preview', isStaffOrAdmin, async (req, r
       message: `Found ${totalCount} booking(s) without sessions that can be backfilled`
     });
   } catch (error: unknown) {
-    logger.error('[Backfill Preview] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Backfill Preview] Error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to preview backfill candidates' });
   }
 });
@@ -432,7 +432,7 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
     if (!clientReleased) {
       try { await client.query('ROLLBACK'); } catch (_) { /* rollback best-effort */ }
     }
-    logger.error('[Backfill Sessions] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Backfill Sessions] Error', { error: getErrorMessage(error) });
     
     logFromRequest(req, 'bulk_action', 'booking', undefined, 'Session Backfill Failed', {
       action: 'backfill_sessions',
@@ -474,7 +474,7 @@ router.get('/api/admin/trackman/duplicate-bookings', isStaffOrAdmin, async (req,
       }))
     });
   } catch (error: unknown) {
-    logger.error('[Trackman Duplicates] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Trackman Duplicates] Error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to check for duplicates' });
   }
 });
@@ -548,7 +548,7 @@ router.post('/api/admin/trackman/cleanup-duplicates', isStaffOrAdmin, async (req
     });
   } catch (error: unknown) {
     await client.query('ROLLBACK');
-    logger.error('[Trackman Cleanup Duplicates] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Trackman Cleanup Duplicates] Error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to cleanup duplicates', details: safeErrorDetail(error) });
   } finally {
     safeRelease(client);
@@ -602,7 +602,7 @@ router.post('/api/admin/repair-linked-email-bookings', isStaffOrAdmin, async (re
       details: result.rows || []
     });
   } catch (error: unknown) {
-    logger.error('[Admin] Failed to repair linked email bookings', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Admin] Failed to repair linked email bookings', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to repair linked email bookings', details: safeErrorDetail(error) });
   }
 });

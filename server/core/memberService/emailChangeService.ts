@@ -75,8 +75,7 @@ export async function cascadeEmailChange(
 
       const updateTable = async (
         tableName: string,
-        emailColumn: string,
-        additionalCondition?: string
+        emailColumn: string
       ): Promise<number> => {
         if (!ALLOWED_EMAIL_CHANGE_TABLES.has(tableName)) {
           throw new Error(`Invalid table for email change: ${tableName}`);
@@ -85,7 +84,7 @@ export async function cascadeEmailChange(
           throw new Error(`Invalid column for email change: ${emailColumn}`);
         }
         const result = await tx.execute(
-          sql`UPDATE ${sql.raw(tableName)} SET ${sql.raw(emailColumn)} = ${normalizedNewEmail} WHERE LOWER(${sql.raw(emailColumn)}) = LOWER(${normalizedOldEmail}) ${additionalCondition ? sql.raw(additionalCondition) : sql``}`
+          sql`UPDATE ${sql.raw(tableName)} SET ${sql.raw(emailColumn)} = ${normalizedNewEmail} WHERE LOWER(${sql.raw(emailColumn)}) = LOWER(${normalizedOldEmail})`
         );
         return result.rowCount || 0;
       };
@@ -208,7 +207,7 @@ export async function cascadeEmailChange(
           } catch (stripeErr: unknown) {
             const msg = `Stripe sync failed: ${getErrorMessage(stripeErr)}`;
             logger.error(`[EmailChangeService] ${msg}`, {
-              error: stripeErr,
+              error: getErrorMessage(stripeErr),
               extra: { stripeCustomerId: user.stripe_customer_id, oldEmail: normalizedOldEmailForSync, newEmail: normalizedNewEmailForSync },
             });
             warnings.push(msg);
@@ -226,7 +225,7 @@ export async function cascadeEmailChange(
           } catch (hubspotErr: unknown) {
             const errMsg = getErrorMessage(hubspotErr);
             logger.warn(`[EmailChangeService] HubSpot immediate sync failed, enqueuing for retry`, {
-              error: hubspotErr,
+              error: getErrorMessage(hubspotErr),
               extra: { hubspotId: user.hubspot_id, oldEmail: normalizedOldEmailForSync, newEmail: normalizedNewEmailForSync },
             });
             try {
@@ -247,7 +246,7 @@ export async function cascadeEmailChange(
               }
             } catch (queueErr: unknown) {
               const queueMsg = `HubSpot sync failed and queue fallback also failed: ${errMsg}; queue error: ${getErrorMessage(queueErr)}`;
-              logger.error(`[EmailChangeService] ${queueMsg}`, { error: queueErr });
+              logger.error(`[EmailChangeService] ${queueMsg}`, { error: getErrorMessage(queueErr) });
               warnings.push(queueMsg);
             }
           }
@@ -255,7 +254,7 @@ export async function cascadeEmailChange(
       }
     } catch (syncErr: unknown) {
       const msg = `External sync lookup failed: ${getErrorMessage(syncErr)}`;
-      logger.error(`[EmailChangeService] ${msg}`, { error: syncErr });
+      logger.error(`[EmailChangeService] ${msg}`, { error: getErrorMessage(syncErr) });
       warnings.push(msg);
     }
 
@@ -267,7 +266,7 @@ export async function cascadeEmailChange(
       ...(warnings.length > 0 ? { warnings } : {}),
     };
   } catch (error: unknown) {
-    logger.error('[EmailChangeService] Error cascading email change:', { error: error });
+    logger.error('[EmailChangeService] Error cascading email change:', { error: getErrorMessage(error) });
     return {
       success: false,
       oldEmail,
@@ -318,7 +317,7 @@ export async function previewEmailChangeImpact(
         tables.push({ tableName: table, columnName: column, rowCount: count });
       }
     } catch (error: unknown) {
-      logger.warn(`[EmailChangeService] Could not check table ${table}:`, { error: error });
+      logger.warn(`[EmailChangeService] Could not check table ${table}:`, { error: getErrorMessage(error) });
     }
   }
 

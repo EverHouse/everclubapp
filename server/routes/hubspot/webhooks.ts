@@ -286,7 +286,7 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
       }
     }
   } catch (error: unknown) {
-    logger.error('[HubSpot Webhook] Error processing event', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[HubSpot Webhook] Error processing event', { error: getErrorMessage(error) });
     if (!res.headersSent) {
       return res.status(500).json({ error: 'Webhook processing failed' });
     }
@@ -295,7 +295,7 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
 
   res.status(200).send('OK');
   } catch (error: unknown) {
-    logger.error('[HubSpot Webhook] Unhandled error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[HubSpot Webhook] Unhandled error', { error: getErrorMessage(error) });
     if (!res.headersSent) {
       return res.status(500).json({ error: 'Internal server error' });
     }

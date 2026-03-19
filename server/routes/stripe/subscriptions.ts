@@ -53,7 +53,7 @@ router.get('/api/stripe/subscriptions/:customerId', isStaffOrAdmin, async (req: 
       count: result.subscriptions?.length || 0
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error listing subscriptions', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error listing subscriptions', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to list subscriptions' });
   }
 });
@@ -119,7 +119,7 @@ router.post('/api/stripe/subscriptions', isStaffOrAdmin, validateBody(createSubs
       subscription: result.subscription
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error creating subscription', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error creating subscription', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to create subscription' });
   }
 });
@@ -153,7 +153,7 @@ router.delete('/api/stripe/subscriptions/:subscriptionId', isStaffOrAdmin, async
     
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error canceling subscription', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error canceling subscription', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to cancel subscription' });
   }
 });
@@ -178,7 +178,7 @@ router.post('/api/stripe/sync-subscriptions', isStaffOrAdmin, sensitiveActionRat
       errors: result.errors
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error syncing subscriptions', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error syncing subscriptions', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to sync subscriptions' });
   }
 });
@@ -221,7 +221,7 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subsc
           logger.info('[Stripe] Clearing orphaned subscription ID for member — subscription not found in Stripe', { extra: { memberEmail, subscriptionId: member.stripeSubscriptionId } });
           await db.update(users).set({ stripeSubscriptionId: null, updatedAt: new Date() }).where(eq(users.id, member.id));
         } else {
-          logger.error('[Stripe] Failed to verify existing subscription status', { error: subCheckErr instanceof Error ? subCheckErr : new Error(String(subCheckErr)) });
+          logger.error('[Stripe] Failed to verify existing subscription status', { error: getErrorMessage(subCheckErr) });
           return res.status(400).json({ error: 'Could not verify existing subscription status. Please try again.' });
         }
       }
@@ -415,7 +415,7 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subsc
       message: statusMessage
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error creating subscription for member', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error creating subscription for member', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to create subscription', details: safeErrorDetail(error) });
   } finally {
     const emailToRelease = req.body?.memberEmail?.trim()?.toLowerCase();
@@ -709,7 +709,7 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, subsc
       logger.error('[Subscriptions] Background HubSpot contact sync failed:', { extra: { error: getErrorMessage(err), email } });
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error creating new member subscription', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error creating new member subscription', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to create subscription', details: safeErrorDetail(error) });
   } finally {
     const emailToRelease = req.body?.email?.trim()?.toLowerCase();
@@ -769,7 +769,7 @@ router.get('/api/stripe/subscriptions/invoice-link/:subscriptionId', isStaffOrAd
 
     res.json({ url: invoice.hosted_invoice_url, invoiceId: invoice.id, invoiceStatus: invoice.status });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error fetching invoice link', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error fetching invoice link', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to get invoice link' });
   }
 });
@@ -811,7 +811,7 @@ router.get('/api/stripe/subscriptions/refresh-intent/:subscriptionId', isStaffOr
       status: paymentIntent.status
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error refreshing subscription intent', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error refreshing subscription intent', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to refresh payment intent' });
   }
 });
@@ -889,7 +889,7 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
                 ...(isTerminalPayment ? { paidVia: 'terminal' } : {}),
               }
             });
-          } catch (_metaErr: unknown) { /* non-blocking */ }
+          } catch (_metaErr: unknown) { /* non-blocking: invoice already paid, metadata update is cosmetic */ }
 
           logger.info(`[Stripe Subscriptions] Invoice reconciled ${isTerminalPayment ? 'via terminal PI' : 'with inline PI'}`, { extra: { invoiceId, paymentIntentId } });
         }
@@ -978,7 +978,7 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
       memberEmail: userEmail
     });
   } catch (error: unknown) {
-    logger.error('[Stripe Subscriptions] Error confirming inline payment', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe Subscriptions] Error confirming inline payment', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to confirm payment', details: safeErrorDetail(error) });
   }
 });
@@ -1218,7 +1218,7 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, va
       logger.error('[Subscriptions] Background HubSpot contact sync failed:', { extra: { error: getErrorMessage(err), email } });
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error sending activation link', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error sending activation link', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to send activation link', details: safeErrorDetail(error) });
   }
 });
@@ -1337,7 +1337,7 @@ router.delete('/api/stripe/subscriptions/cleanup-pending/:userId', isStaffOrAdmi
       email: user.email
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error cleaning up pending user', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error cleaning up pending user', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to cleanup pending user' });
   } finally {
     if (res.locals._cleanupEmail) await releaseSubscriptionLock(res.locals._cleanupEmail);

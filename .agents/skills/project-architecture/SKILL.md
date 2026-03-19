@@ -232,6 +232,17 @@ All multi-row `SELECT ... FOR UPDATE` queries MUST include `ORDER BY id ASC` (or
 ### 18b. Error Message Extraction (v8.87.12)
 All `catch` blocks in server code MUST use `getErrorMessage(err)` from `server/utils/errorUtils.ts` when logging errors. NEVER log raw `err` objects or use `(err as Error).message` (unsafe cast crashes on non-Error objects). Import: `import { getErrorMessage } from '../utils/errorUtils';` (adjust path as needed).
 
+**Silent catch blocks** — three patterns are acceptable; any other silent catch is a bug:
+1. **Swallow with justification comment**: `catch (_) { /* reason: e.g. best-effort cleanup, connection already closed */ }` — the comment MUST explain why the error is intentionally suppressed.
+2. **Inline debug log**: `catch { logger.debug('...reason why this is non-critical'); }` — used for DB-init `ALTER TYPE`/`ADD COLUMN IF NOT EXISTS` patterns that fail when schema already exists.
+3. **Re-throw**: `try { ... } catch (err) { /* rollback best-effort */ throw err; }` — always re-throw after best-effort cleanup.
+
+**Forbidden patterns**:
+- `catch (err) { logger.error(..., { error: err }) }` — pass `getErrorMessage(err)` instead of the raw object.
+- `catch (err) { logger.error(..., { error: err instanceof Error ? err : new Error(String(err)) }) }` — redundant wrapping; use `getErrorMessage(err)`.
+- `catch (err) { logger.error(..., { error: err.message }) }` — crashes on non-Error throws.
+- `catch (err) { logger.error(..., { error: err as Error }) }` — unsafe cast.
+
 ### 19. Group Billing Rollback Completeness (v8.26.7)
 - **Add Member Failure**: When Stripe fails during `addGroupMember`/`addCorporateMember`, the catch block MUST reset both `membership_status = 'pending'` AND `tier = NULL` on the user record. Without this, ghost users appear as active members with no billing.
 - **Remove Member**: When removing from a billing group, MUST set `membership_status = 'cancelled'`, `last_tier = tier`, `tier = NULL`. Without this, removed members retain active access indefinitely.

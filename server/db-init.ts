@@ -424,7 +424,7 @@ export async function ensureDatabaseConstraints() {
         WHERE billing_provider NOT IN ('stripe', 'mindbody', 'manual', 'comped', 'family_addon')
         AND billing_provider IS NOT NULL
       `);
-    } catch { /* ignore - cleanup before constraint */ }
+    } catch { /* intentionally swallowed: UPDATE normalizes billing_provider values before a CHECK constraint is added; failure means data is already clean or table doesn't exist yet */ }
 
     try {
       await db.execute(sql`
