@@ -791,6 +791,17 @@ export async function ensureDatabaseConstraints() {
     }
 
     try {
+      await db.execute(sql`ALTER TABLE facility_closures ADD COLUMN IF NOT EXISTS locally_edited BOOLEAN DEFAULT false`);
+      await db.execute(sql`ALTER TABLE facility_closures ADD COLUMN IF NOT EXISTS google_event_etag VARCHAR`);
+      await db.execute(sql`ALTER TABLE facility_closures ADD COLUMN IF NOT EXISTS google_event_updated_at TIMESTAMP`);
+      await db.execute(sql`ALTER TABLE facility_closures ADD COLUMN IF NOT EXISTS app_last_modified_at TIMESTAMP`);
+      await db.execute(sql`ALTER TABLE facility_closures ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMP`);
+      logger.info('[DB Init] facility_closures sync tracking columns verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] facility_closures sync columns: ${getErrorMessage(err)}`);
+    }
+
+    try {
       logger.info('[DB Init] Day pass and wellness enrollment indexes are now managed by Drizzle schema');
     } catch (err: unknown) {
       logger.warn(`[DB Init] Skipping index log: ${getErrorMessage(err)}`);

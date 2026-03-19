@@ -6,7 +6,7 @@ import { facilityClosures, pushSubscriptions, users, availabilityBlocks, announc
 import { eq, desc, or, isNull, and } from 'drizzle-orm';
 import webpush from 'web-push';
 import { isStaffOrAdmin, isAdmin } from '../core/middleware';
-import { getCalendarIdByName, deleteCalendarEvent, CALENDAR_CONFIG, syncInternalCalendarToClosures } from '../core/calendar/index';
+import { getCalendarIdByName, deleteCalendarEvent, CALENDAR_CONFIG, syncInternalCalendarToClosures, backfillCalendarExtendedProperties } from '../core/calendar/index';
 import { getGoogleCalendarClient } from '../core/integrations';
 import { createPacificDate, addDaysToPacificDate, getPacificISOString, getTodayPacific } from '../utils/dateUtils';
 import { clearClosureCache } from '../core/bookingValidation';
@@ -988,7 +988,9 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
         affectedAreas: affected_areas || existing.affectedAreas,
         visibility: shouldNotifyMembers ? 'Members' : 'Staff Only',
         notifyMembers: shouldNotifyMembers,
-        needsReview: false
+        needsReview: false,
+        locallyEdited: true,
+        appLastModifiedAt: new Date(),
       })
       .where(eq(facilityClosures.id, closureId))
       .returning();
@@ -1084,6 +1086,10 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
             );
             
             if (calendarUpdated) {
+              await db
+                .update(facilityClosures)
+                .set({ locallyEdited: false, appLastModifiedAt: null, lastSyncedAt: new Date() })
+                .where(eq(facilityClosures.id, closureId));
               logger.info('[Closures] Patched Internal Calendar event(s) for closure #', { extra: { closureId } });
             }
           }
@@ -1109,7 +1115,10 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
               .set({ 
                 googleCalendarId: null,
                 conferenceCalendarId: null,
-                internalCalendarId: newInternalEventIds
+                internalCalendarId: newInternalEventIds,
+                locallyEdited: false,
+                appLastModifiedAt: null,
+                lastSyncedAt: new Date(),
               })
               .where(eq(facilityClosures.id, closureId));
             
@@ -1415,6 +1424,30 @@ router.post('/api/closures/fix-orphaned', isAdmin, async (req, res) => {
   } catch (error: unknown) {
     logger.error('[Fix Orphaned] Error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to fix orphaned closures' });
+  }
+});
+
+router.post('/api/admin/backfill-calendar-extended-properties', isAdmin, async (req, res) => {
+  try {
+    const result = await backfillCalendarExtendedProperties();
+    
+    logFromRequest(req, 'backfill_calendar_props' as Parameters<typeof logFromRequest>[1], 'system', 'calendar', 'Extended Properties Backfill', {
+      closures_patched: result.closures.patched,
+      closures_skipped: result.closures.skipped,
+      events_patched: result.events.patched,
+      events_skipped: result.events.skipped,
+      wellness_patched: result.wellness.patched,
+      wellness_skipped: result.wellness.skipped,
+    });
+    
+    res.json({
+      success: true,
+      message: `Backfilled extended properties: ${result.closures.patched} closures, ${result.events.patched} events, ${result.wellness.patched} wellness classes`,
+      ...result,
+    });
+  } catch (error: unknown) {
+    logger.error('Extended properties backfill error', { error: error instanceof Error ? error : new Error(String(error)) });
+    res.status(500).json({ error: 'Failed to backfill calendar extended properties' });
   }
 });
 

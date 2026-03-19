@@ -2,7 +2,7 @@ import { db } from '../../../db';
 import { sql, type SQL } from 'drizzle-orm';
 import { getGoogleCalendarClient } from '../../integrations';
 import { CALENDAR_CONFIG } from '../config';
-import { getCalendarIdByName } from '../cache';
+import { getCalendarIdByName, discoverCalendarIds } from '../cache';
 import { getPacificMidnightUTC } from '../../../utils/dateUtils';
 
 import { toIntArrayLiteral } from '../../../utils/sqlArrayLiteral';
@@ -97,6 +97,18 @@ export function getBaseDescription(description: string): string {
 
 interface ResourceIdRow { id: number }
 
+function getDayDatesBetween(startDate: string, endDate: string): string[] {
+  const dates: string[] = [];
+  const current = new Date(startDate + 'T12:00:00');
+  const end = new Date(endDate + 'T12:00:00');
+  while (current <= end) {
+    dates.push(current.toISOString().split('T')[0]);
+    current.setDate(current.getDate() + 1);
+  }
+  if (dates.length === 0) dates.push(startDate);
+  return dates;
+}
+
 interface ClosureRow {
   id: number;
   start_date: string;
@@ -106,6 +118,14 @@ interface ClosureRow {
   affected_areas: string | null;
   needs_review: boolean;
   notice_type: string | null;
+  locally_edited: boolean;
+  app_last_modified_at: string | null;
+  google_event_updated_at: string | null;
+  title: string;
+  notes: string | null;
+  notify_members: boolean;
+  reason: string | null;
+  internal_calendar_id: string | null;
 }
 
 async function getAllResourceIds(): Promise<number[]> {
@@ -269,13 +289,13 @@ async function ensureNoticeTypeExists(typeName: string): Promise<void> {
   );
 }
 
-export async function syncInternalCalendarToClosures(): Promise<{ synced: number; created: number; updated: number; deleted: number; error?: string }> {
+export async function syncInternalCalendarToClosures(): Promise<{ synced: number; created: number; updated: number; deleted: number; pushedToCalendar: number; error?: string }> {
   try {
     const calendar = await getGoogleCalendarClient();
     const calendarId = await getCalendarIdByName(CALENDAR_CONFIG.internal.name);
     
     if (!calendarId) {
-      return { synced: 0, created: 0, updated: 0, deleted: 0, error: `Calendar "${CALENDAR_CONFIG.internal.name}" not found` };
+      return { synced: 0, created: 0, updated: 0, deleted: 0, pushedToCalendar: 0, error: `Calendar "${CALENDAR_CONFIG.internal.name}" not found` };
     }
     
     // Use Pacific midnight for consistent timezone handling
@@ -301,6 +321,8 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
     const cancelledEventIds = new Set<string>();
     let created = 0;
     let updated = 0;
+    let pushedToCalendar = 0;
+    const pushedClosureIds = new Set<number>();
     let skippedTrackman = 0;
     
     const todayStr = pacificMidnight.toISOString().split('T')[0];
@@ -400,14 +422,20 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
       fetchedEventIds.add(event.id);
       
       let existing = await db.execute(
-        sql`SELECT id, start_date, end_date, start_time, end_time, affected_areas, needs_review, notice_type FROM facility_closures
+        sql`SELECT id, start_date, end_date, start_time, end_time, affected_areas, needs_review, notice_type,
+               locally_edited, app_last_modified_at, google_event_updated_at, title, notes, notify_members, reason,
+               internal_calendar_id
+         FROM facility_closures
          WHERE internal_calendar_id = ${internalCalendarId}
             OR POSITION(${internalCalendarId} IN internal_calendar_id) > 0`
       );
       
       if (existing.rows.length === 0) {
         const adoptable = await db.execute(
-          sql`SELECT id, start_date, end_date, start_time, end_time, affected_areas, needs_review, notice_type FROM facility_closures
+          sql`SELECT id, start_date, end_date, start_time, end_time, affected_areas, needs_review, notice_type,
+                 locally_edited, app_last_modified_at, google_event_updated_at, title, notes, notify_members, reason,
+                 internal_calendar_id
+           FROM facility_closures
            WHERE title = ${title}
              AND is_active = true
              AND start_date <= ${endDate}
@@ -427,44 +455,141 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
       if (existing.rows.length > 0) {
         const existingClosure = existing.rows[0] as unknown as ClosureRow;
         const closureId = existingClosure.id;
+        const googleUpdatedAt = event.updated ? new Date(event.updated) : null;
+        const appModifiedAt = existingClosure.app_last_modified_at ? new Date(existingClosure.app_last_modified_at) : null;
         
-        const preservedAffectedAreas = existingClosure.affected_areas || 'entire_facility';
-        
-        const datesChanged = 
-          existingClosure.start_date !== startDate || 
-          existingClosure.end_date !== endDate ||
-          existingClosure.start_time !== startTime ||
-          existingClosure.end_time !== endTime;
-        
-        const hasValidNoticeType = !!(noticeType || existingClosure.notice_type);
-        const hasValidAffectedAreas = !!(existingClosure.affected_areas && existingClosure.affected_areas !== 'none');
-        const shouldClearNeedsReview = existingClosure.needs_review && hasValidAffectedAreas && hasValidNoticeType;
-
-        await db.execute(
-          sql`UPDATE facility_closures SET 
-           title = ${title}, start_date = ${startDate}, start_time = ${startTime},
-           end_date = ${endDate}, end_time = ${endTime},
-           notice_type = COALESCE(notice_type, ${noticeType}),
-           notes = COALESCE(${calendarNotes || metadata.notes || null}, notes), is_active = true,
-           needs_review = CASE WHEN ${!!shouldClearNeedsReview} THEN false ELSE needs_review END
-           WHERE id = ${closureId}`
-        );
-        
-        if (datesChanged) {
-          await deleteAvailabilityBlocks(closureId);
-          if (preservedAffectedAreas !== 'none') {
-            const resourceIds = await getResourceIdsForAffectedAreas(preservedAffectedAreas);
-            const dates = getDatesBetween(startDate, endDate);
-            const blockStartTime = startTime || '08:00:00';
-            const blockEndTime = endTime || '22:00:00';
-            await createAvailabilityBlocks(closureId, resourceIds, dates, blockStartTime, blockEndTime, title);
-            logger.info(`[Calendar Sync] Updated availability blocks for closure #${closureId}: ${title}`);
-          } else {
-            logger.info(`[Calendar Sync] Updated closure #${closureId}: ${title} (no availability blocks - affected_areas='none')`);
+        if (existingClosure.locally_edited === true) {
+          if (!appModifiedAt) {
+            await db.execute(sql`UPDATE facility_closures SET locally_edited = false, app_last_modified_at = NULL WHERE id = ${closureId}`);
+            logger.warn(`[Calendar Sync] Cleared stale locally_edited flag (missing app_last_modified_at) for closure #${closureId}`);
           }
+          const calendarIsNewer = appModifiedAt && googleUpdatedAt && googleUpdatedAt > appModifiedAt;
+          
+          if (appModifiedAt && !calendarIsNewer && !pushedClosureIds.has(closureId)) {
+            pushedClosureIds.add(closureId);
+            try {
+              const dbNoticeType = existingClosure.notice_type;
+              const dbAffectedAreas = existingClosure.affected_areas || 'none';
+              const defaultType = dbAffectedAreas === 'none' ? 'NOTICE' : 'CLOSURE';
+              const typePrefix = dbNoticeType ? `[${dbNoticeType.toUpperCase()}]` : `[${defaultType}]`;
+              const calendarTitle = `${typePrefix}: ${existingClosure.title}`;
+              const calendarDescription = existingClosure.reason || 'Scheduled notice';
+              
+              const extendedProps: Record<string, string> = {
+                'ehApp_type': 'closure',
+                'ehApp_id': String(closureId),
+              };
+              if (dbAffectedAreas) extendedProps['ehApp_affectedAreas'] = dbAffectedAreas;
+              extendedProps['ehApp_notifyMembers'] = existingClosure.notify_members ? 'true' : 'false';
+              if (existingClosure.notes) extendedProps['ehApp_notes'] = existingClosure.notes;
+              
+              const dbInternalIds = existingClosure.internal_calendar_id;
+              const allEventIds = dbInternalIds ? dbInternalIds.split(',').filter(Boolean).map(id => id.trim()) : [internalCalendarId];
+              const dbStartTime = existingClosure.start_time;
+              const dbEndTime = existingClosure.end_time;
+              const dbStartDate = existingClosure.start_date;
+              const dbEndDate = existingClosure.end_date || dbStartDate;
+              
+              if (dbStartTime && dbEndTime) {
+                const dayDates = getDayDatesBetween(dbStartDate, dbEndDate);
+                for (let ei = 0; ei < allEventIds.length; ei++) {
+                  const evDate = dayDates[ei] || dayDates[dayDates.length - 1];
+                  const desc = allEventIds.length > 1
+                    ? `${calendarDescription}\n\n(Day ${ei + 1} of ${allEventIds.length})`
+                    : calendarDescription;
+                  await withCalendarRetry(() => calendar.events.patch({
+                    calendarId,
+                    eventId: allEventIds[ei],
+                    requestBody: {
+                      summary: calendarTitle,
+                      description: desc,
+                      extendedProperties: { shared: extendedProps },
+                      start: { dateTime: `${evDate}T${dbStartTime}`, timeZone: 'America/Los_Angeles' },
+                      end: { dateTime: `${evDate}T${dbEndTime}`, timeZone: 'America/Los_Angeles' },
+                    },
+                  }), `closures-patch-${closureId}-${ei}`);
+                }
+              } else {
+                const endDt = new Date(dbEndDate + 'T12:00:00');
+                endDt.setDate(endDt.getDate() + 1);
+                const gcEndDate = endDt.toISOString().split('T')[0];
+                await withCalendarRetry(() => calendar.events.patch({
+                  calendarId,
+                  eventId: allEventIds[0],
+                  requestBody: {
+                    summary: calendarTitle,
+                    description: calendarDescription,
+                    extendedProperties: { shared: extendedProps },
+                    start: { date: dbStartDate },
+                    end: { date: gcEndDate },
+                  },
+                }), `closures-patch-${closureId}`);
+              }
+              
+              await db.execute(sql`UPDATE facility_closures SET 
+                last_synced_at = NOW(), locally_edited = false,
+                app_last_modified_at = NULL
+                WHERE id = ${closureId}`);
+              pushedToCalendar++;
+              logger.info(`[Calendar Sync] Pushed local edits to calendar for closure #${closureId} (${allEventIds.length} event(s)): ${existingClosure.title}`);
+            } catch (pushError: unknown) {
+              logger.error(`[Calendar Sync] Failed to push local edits to calendar for closure #${closureId}:`, { error: pushError });
+            }
+          } else if (pushedClosureIds.has(closureId)) {
+            continue;
+          } else {
+            await db.execute(
+              sql`UPDATE facility_closures SET 
+               title = ${title}, start_date = ${startDate}, start_time = ${startTime},
+               end_date = ${endDate}, end_time = ${endTime},
+               notice_type = COALESCE(notice_type, ${noticeType}),
+               notes = COALESCE(${calendarNotes || metadata.notes || null}, notes), is_active = true,
+               locally_edited = false, app_last_modified_at = NULL, last_synced_at = NOW(),
+               google_event_updated_at = ${googleUpdatedAt}
+               WHERE id = ${closureId}`
+            );
+            updated++;
+          }
+        } else {
+          const preservedAffectedAreas = existingClosure.affected_areas || 'entire_facility';
+          
+          const datesChanged = 
+            existingClosure.start_date !== startDate || 
+            existingClosure.end_date !== endDate ||
+            existingClosure.start_time !== startTime ||
+            existingClosure.end_time !== endTime;
+          
+          const hasValidNoticeType = !!(noticeType || existingClosure.notice_type);
+          const hasValidAffectedAreas = !!(existingClosure.affected_areas && existingClosure.affected_areas !== 'none');
+          const shouldClearNeedsReview = existingClosure.needs_review && hasValidAffectedAreas && hasValidNoticeType;
+
+          await db.execute(
+            sql`UPDATE facility_closures SET 
+             title = ${title}, start_date = ${startDate}, start_time = ${startTime},
+             end_date = ${endDate}, end_time = ${endTime},
+             notice_type = COALESCE(notice_type, ${noticeType}),
+             notes = COALESCE(${calendarNotes || metadata.notes || null}, notes), is_active = true,
+             needs_review = CASE WHEN ${!!shouldClearNeedsReview} THEN false ELSE needs_review END,
+             last_synced_at = NOW(), google_event_updated_at = ${googleUpdatedAt}
+             WHERE id = ${closureId}`
+          );
+          
+          if (datesChanged) {
+            await deleteAvailabilityBlocks(closureId);
+            if (preservedAffectedAreas !== 'none') {
+              const resourceIds = await getResourceIdsForAffectedAreas(preservedAffectedAreas);
+              const dates = getDatesBetween(startDate, endDate);
+              const blockStartTime = startTime || '08:00:00';
+              const blockEndTime = endTime || '22:00:00';
+              await createAvailabilityBlocks(closureId, resourceIds, dates, blockStartTime, blockEndTime, title);
+              logger.info(`[Calendar Sync] Updated availability blocks for closure #${closureId}: ${title}`);
+            } else {
+              logger.info(`[Calendar Sync] Updated closure #${closureId}: ${title} (no availability blocks - affected_areas='none')`);
+            }
+          }
+          
+          updated++;
         }
-        
-        updated++;
       } else {
         let affectedAreas = metadata.affectedAreas || 'none';
         let visibility = metadata.visibility || null;
@@ -552,9 +677,229 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
       }
     }
     
-    return { synced: events.length, created, updated, deleted };
+    return { synced: events.length, created, updated, deleted, pushedToCalendar };
   } catch (error: unknown) {
     logger.error('Error syncing Internal Calendar to closures:', { error: error });
-    return { synced: 0, created: 0, updated: 0, deleted: 0, error: 'Failed to sync closures' };
+    return { synced: 0, created: 0, updated: 0, deleted: 0, pushedToCalendar: 0, error: 'Failed to sync closures' };
   }
+}
+
+interface BackfillResult {
+  closures: { patched: number; skipped: number; errors: string[] };
+  events: { patched: number; skipped: number; errors: string[] };
+  wellness: { patched: number; skipped: number; errors: string[] };
+}
+
+function propsNeedUpdate(
+  existing: Record<string, string>,
+  expected: Record<string, string>,
+  allOptionalKeys: string[] = []
+): boolean {
+  for (const [key, value] of Object.entries(expected)) {
+    if (existing[key] !== value) return true;
+  }
+  for (const key of allOptionalKeys) {
+    if (existing[key] && !expected[key]) return true;
+  }
+  return false;
+}
+
+function buildPatchProps(
+  existing: Record<string, string>,
+  expected: Record<string, string>,
+  allOptionalKeys: string[]
+): Record<string, string> {
+  const merged = { ...existing, ...expected };
+  for (const key of allOptionalKeys) {
+    if (!expected[key] && existing[key]) {
+      merged[key] = '';
+    }
+  }
+  return merged;
+}
+
+export async function backfillCalendarExtendedProperties(): Promise<BackfillResult> {
+  await discoverCalendarIds();
+  const calendar = await getGoogleCalendarClient();
+  
+  const result: BackfillResult = {
+    closures: { patched: 0, skipped: 0, errors: [] },
+    events: { patched: 0, skipped: 0, errors: [] },
+    wellness: { patched: 0, skipped: 0, errors: [] },
+  };
+
+  const internalCalendarId = await getCalendarIdByName(CALENDAR_CONFIG.internal.name);
+  if (internalCalendarId) {
+    const closuresResult = await db.execute(sql`
+      SELECT id, title, reason, notes, notice_type, start_date, start_time, end_date, end_time,
+             affected_areas, notify_members, internal_calendar_id
+      FROM facility_closures
+      WHERE internal_calendar_id IS NOT NULL AND is_active = true
+    `);
+    
+    interface ClosureBackfillRow {
+      id: number; title: string; reason: string | null; notes: string | null;
+      notice_type: string | null; start_date: string; start_time: string | null;
+      end_date: string; end_time: string | null; affected_areas: string | null;
+      notify_members: boolean; internal_calendar_id: string;
+    }
+    
+    for (const row of closuresResult.rows as unknown as ClosureBackfillRow[]) {
+      const eventIds = row.internal_calendar_id.split(',').filter(Boolean);
+      for (const eventId of eventIds) {
+        try {
+          const gcEvent = await withCalendarRetry(() => calendar.events.get({
+            calendarId: internalCalendarId,
+            eventId: eventId.trim(),
+          }), `backfill-closure-get-${row.id}`);
+          
+          const existingProps = gcEvent.data.extendedProperties?.shared || {};
+          const closureOptionalKeys = ['ehApp_affectedAreas', 'ehApp_notifyMembers', 'ehApp_notes'];
+          const extendedProps: Record<string, string> = {
+            'ehApp_type': 'closure',
+            'ehApp_id': String(row.id),
+          };
+          if (row.affected_areas) extendedProps['ehApp_affectedAreas'] = row.affected_areas;
+          extendedProps['ehApp_notifyMembers'] = row.notify_members ? 'true' : 'false';
+          if (row.notes) extendedProps['ehApp_notes'] = row.notes;
+          
+          if (!propsNeedUpdate(existingProps, extendedProps, closureOptionalKeys)) {
+            result.closures.skipped++;
+            continue;
+          }
+          
+          await withCalendarRetry(() => calendar.events.patch({
+            calendarId: internalCalendarId,
+            eventId: eventId.trim(),
+            requestBody: {
+              extendedProperties: { shared: buildPatchProps(existingProps, extendedProps, closureOptionalKeys) },
+            },
+          }), `backfill-closure-patch-${row.id}`);
+          
+          result.closures.patched++;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          result.closures.errors.push(`Closure #${row.id} event ${eventId}: ${msg}`);
+        }
+      }
+    }
+  }
+
+  const eventsCalendarId = await getCalendarIdByName(CALENDAR_CONFIG.events.name);
+  if (eventsCalendarId) {
+    const eventsResult = await db.execute(sql`
+      SELECT id, title, description, event_date, start_time, end_time, location, category,
+             image_url, external_url, max_attendees, visibility, requires_rsvp, google_calendar_id
+      FROM events
+      WHERE google_calendar_id IS NOT NULL AND archived_at IS NULL
+    `);
+    
+    interface EventBackfillRow {
+      id: number; title: string; description: string | null; event_date: string;
+      start_time: string; end_time: string | null; location: string | null;
+      category: string | null; image_url: string | null; external_url: string | null;
+      max_attendees: number | null; visibility: string | null; requires_rsvp: boolean | null;
+      google_calendar_id: string;
+    }
+    
+    for (const row of eventsResult.rows as unknown as EventBackfillRow[]) {
+      try {
+        const gcEvent = await withCalendarRetry(() => calendar.events.get({
+          calendarId: eventsCalendarId,
+          eventId: row.google_calendar_id,
+        }), `backfill-event-get-${row.id}`);
+        
+        const existingProps = gcEvent.data.extendedProperties?.shared || {};
+        const eventOptionalKeys = ['ehApp_imageUrl', 'ehApp_externalUrl', 'ehApp_category', 'ehApp_maxAttendees', 'ehApp_visibility', 'ehApp_requiresRsvp', 'ehApp_location'];
+        const extendedProps: Record<string, string> = {
+          'ehApp_type': 'event',
+          'ehApp_id': String(row.id),
+        };
+        if (row.image_url) extendedProps['ehApp_imageUrl'] = row.image_url;
+        if (row.external_url) extendedProps['ehApp_externalUrl'] = row.external_url;
+        if (row.category) extendedProps['ehApp_category'] = row.category;
+        if (row.max_attendees) extendedProps['ehApp_maxAttendees'] = String(row.max_attendees);
+        if (row.visibility) extendedProps['ehApp_visibility'] = row.visibility;
+        if (row.requires_rsvp !== null) extendedProps['ehApp_requiresRsvp'] = String(row.requires_rsvp);
+        if (row.location) extendedProps['ehApp_location'] = row.location;
+        
+        if (!propsNeedUpdate(existingProps, extendedProps, eventOptionalKeys)) {
+          result.events.skipped++;
+          continue;
+        }
+        
+        await withCalendarRetry(() => calendar.events.patch({
+          calendarId: eventsCalendarId,
+          eventId: row.google_calendar_id,
+          requestBody: {
+            extendedProperties: { shared: buildPatchProps(existingProps, extendedProps, eventOptionalKeys) },
+          },
+        }), `backfill-event-patch-${row.id}`);
+        
+        result.events.patched++;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        result.events.errors.push(`Event #${row.id}: ${msg}`);
+      }
+    }
+  }
+
+  const wellnessCalendarId = await getCalendarIdByName(CALENDAR_CONFIG.wellness.name);
+  if (wellnessCalendarId) {
+    const wellnessResult = await db.execute(sql`
+      SELECT id, title, time, instructor, duration, category, spots, status, description,
+             date, image_url, external_url, google_calendar_id
+      FROM wellness_classes
+      WHERE google_calendar_id IS NOT NULL AND is_active = true
+    `);
+    
+    interface WellnessBackfillRow {
+      id: number; title: string; time: string; instructor: string; duration: string;
+      category: string | null; spots: string | null; status: string | null;
+      description: string | null; date: string; image_url: string | null;
+      external_url: string | null; google_calendar_id: string;
+    }
+    
+    for (const row of wellnessResult.rows as unknown as WellnessBackfillRow[]) {
+      try {
+        const gcEvent = await withCalendarRetry(() => calendar.events.get({
+          calendarId: wellnessCalendarId,
+          eventId: row.google_calendar_id,
+        }), `backfill-wellness-get-${row.id}`);
+        
+        const existingProps = gcEvent.data.extendedProperties?.shared || {};
+        const wellnessOptionalKeys = ['ehApp_category', 'ehApp_duration', 'ehApp_spots', 'ehApp_status', 'ehApp_imageUrl', 'ehApp_externalUrl'];
+        const extendedProps: Record<string, string> = {
+          'ehApp_type': 'wellness',
+          'ehApp_id': String(row.id),
+        };
+        if (row.category) extendedProps['ehApp_category'] = row.category;
+        if (row.duration) extendedProps['ehApp_duration'] = row.duration;
+        if (row.spots) extendedProps['ehApp_spots'] = row.spots;
+        if (row.status) extendedProps['ehApp_status'] = row.status;
+        if (row.image_url) extendedProps['ehApp_imageUrl'] = row.image_url;
+        if (row.external_url) extendedProps['ehApp_externalUrl'] = row.external_url;
+        
+        if (!propsNeedUpdate(existingProps, extendedProps, wellnessOptionalKeys)) {
+          result.wellness.skipped++;
+          continue;
+        }
+        
+        await withCalendarRetry(() => calendar.events.patch({
+          calendarId: wellnessCalendarId,
+          eventId: row.google_calendar_id,
+          requestBody: {
+            extendedProperties: { shared: buildPatchProps(existingProps, extendedProps, wellnessOptionalKeys) },
+          },
+        }), `backfill-wellness-patch-${row.id}`);
+        
+        result.wellness.patched++;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        result.wellness.errors.push(`Wellness #${row.id}: ${msg}`);
+      }
+    }
+  }
+  
+  return result;
 }

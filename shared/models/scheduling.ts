@@ -150,6 +150,11 @@ export const facilityClosures = pgTable("facility_closures", {
   googleCalendarId: varchar("google_calendar_id"),
   conferenceCalendarId: varchar("conference_calendar_id"),
   internalCalendarId: varchar("internal_calendar_id"),
+  locallyEdited: boolean("locally_edited").default(false),
+  googleEventEtag: varchar("google_event_etag"),
+  googleEventUpdatedAt: timestamp("google_event_updated_at"),
+  appLastModifiedAt: timestamp("app_last_modified_at"),
+  lastSyncedAt: timestamp("last_synced_at"),
 });
 
 // Trackman unmatched bookings - historical bookings that couldn't be matched to members
