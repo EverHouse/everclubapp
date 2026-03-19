@@ -4,14 +4,17 @@ import { sql, eq, and } from "drizzle-orm";
 import { db } from "../../db";
 import { users, staffUsers } from "../../../shared/schema";
 import { logger } from "../../core/logger";
+import { getAlternateDomainEmail } from "../../core/utils/emailNormalization";
 
 async function isStaffEmail(email: string): Promise<boolean> {
   if (!email) return false;
   try {
+    const alternateEmail = getAlternateDomainEmail(email);
+    const emailsToCheck = alternateEmail ? [email, alternateEmail] : [email];
     const result = await db.select({ id: staffUsers.id })
       .from(staffUsers)
       .where(and(
-        sql`LOWER(${staffUsers.email}) = LOWER(${email})`,
+        sql`LOWER(${staffUsers.email}) IN (${sql.join(emailsToCheck.map(e => sql`LOWER(${e})`), sql`, `)})`,
         eq(staffUsers.isActive, true)
       ));
     return result.length > 0;

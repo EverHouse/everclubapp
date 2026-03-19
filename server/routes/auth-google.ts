@@ -4,7 +4,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { users } from '../../shared/models/auth-session';
 import { normalizeTierName } from '../../shared/constants/tiers';
-import { normalizeEmail } from '../core/utils/emailNormalization';
+import { normalizeEmail, getAlternateDomainEmail } from '../core/utils/emailNormalization';
 import { logMemberAction } from '../core/auditLog';
 import { getErrorMessage } from '../utils/errorUtils';
 import { logger } from '../core/logger';
@@ -87,9 +87,11 @@ router.post('/api/auth/google/verify', requireGoogleConfig, authRateLimiterByIp,
     }
 
     if (dbUser.length === 0) {
+      const altEmail = getAlternateDomainEmail(googleUser.email);
+      const emailsToTry = altEmail ? [googleUser.email, altEmail] : [googleUser.email];
       dbUser = await db.select(userSelectFields)
         .from(users)
-        .where(sql`LOWER(${users.email}) = LOWER(${googleUser.email}) AND ${users.archivedAt} IS NULL`)
+        .where(sql`LOWER(${users.email}) IN (${sql.join(emailsToTry.map(e => sql`LOWER(${e})`), sql`, `)}) AND ${users.archivedAt} IS NULL`)
         .limit(1);
     }
 
@@ -235,9 +237,11 @@ router.post('/api/auth/google/callback', requireGoogleConfig, async (req, res) =
     }
 
     if (dbUser.length === 0) {
+      const altEmail2 = getAlternateDomainEmail(googleUser.email);
+      const emailsToTry2 = altEmail2 ? [googleUser.email, altEmail2] : [googleUser.email];
       dbUser = await db.select(userSelectFields)
         .from(users)
-        .where(sql`LOWER(${users.email}) = LOWER(${googleUser.email}) AND ${users.archivedAt} IS NULL`)
+        .where(sql`LOWER(${users.email}) IN (${sql.join(emailsToTry2.map(e => sql`LOWER(${e})`), sql`, `)}) AND ${users.archivedAt} IS NULL`)
         .limit(1);
     }
 

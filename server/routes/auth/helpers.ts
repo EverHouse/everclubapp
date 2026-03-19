@@ -11,6 +11,7 @@ import crypto from 'crypto';
 
 export interface StaffUserData {
   id: number;
+  email: string;
   firstName: string;
   lastName: string;
   phone: string;
@@ -32,6 +33,7 @@ export async function getStaffUserByEmail(email: string): Promise<StaffUserData 
 
     const result = await db.select({
       id: staffUsers.id,
+      email: staffUsers.email,
       firstName: staffUsers.firstName,
       lastName: staffUsers.lastName,
       phone: staffUsers.phone,
@@ -48,6 +50,7 @@ export async function getStaffUserByEmail(email: string): Promise<StaffUserData 
     if (result.length > 0) {
       return {
         id: result[0].id,
+        email: result[0].email,
         firstName: result[0].firstName || '',
         lastName: result[0].lastName || '',
         phone: result[0].phone || '',

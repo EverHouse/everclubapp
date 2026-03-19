@@ -11,7 +11,7 @@ import { getResendClient } from '../../utils/resend';
 import { withResendRetry } from '../../core/retryUtils';
 import { getSessionUser, SessionUser } from '../../types/session';
 import { sendWelcomeEmail } from '../../emails/welcomeEmail';
-import { normalizeEmail } from '../../core/utils/emailNormalization';
+import { normalizeEmail, getAlternateDomainEmail } from '../../core/utils/emailNormalization';
 import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { getOtpEmailHtml } from '../../emails/otpEmail';
@@ -465,10 +465,12 @@ otpRouter.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
         return res.status(404).json({ error: 'Staff user not found' });
       }
       
+      const alternateStaffEmail = getAlternateDomainEmail(normalizedEmail);
+      const staffEmailsToCheck = alternateStaffEmail ? [normalizedEmail, alternateStaffEmail] : [normalizedEmail];
       const pwCheck = await db.select({ passwordHash: staffUsers.passwordHash })
         .from(staffUsers)
         .where(and(
-          sql`LOWER(${staffUsers.email}) = LOWER(${normalizedEmail})`,
+          sql`LOWER(${staffUsers.email}) IN (${sql.join(staffEmailsToCheck.map(e => sql`LOWER(${e})`), sql`, `)})`,
           eq(staffUsers.isActive, true)
         ))
         .limit(1);
@@ -479,7 +481,7 @@ otpRouter.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
         id: `staff-${staffUserData.id}`,
         firstName: staffUserData.firstName,
         lastName: staffUserData.lastName,
-        email: normalizedEmail,
+        email: staffUserData.email,
         phone: staffUserData.phone,
         tier: 'VIP',
         tags: [],
