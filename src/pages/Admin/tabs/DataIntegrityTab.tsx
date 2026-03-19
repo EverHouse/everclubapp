@@ -18,8 +18,8 @@ import AlertHistoryPanel from './dataIntegrity/AlertHistoryPanel';
 import PushNotificationPanel from './dataIntegrity/PushNotificationPanel';
 import AutoApprovePanel from './dataIntegrity/AutoApprovePanel';
 import AuditLogPanel from './dataIntegrity/AuditLogPanel';
-import StripeTerminalPanel from './dataIntegrity/StripeTerminalPanel';
 import EmailHealthPanel from './dataIntegrity/EmailHealthPanel';
+import MaintenanceToolsPanel from './dataIntegrity/MaintenanceToolsPanel';
 import MarketingContactsAuditPanel from './dataIntegrity/MarketingContactsAuditPanel';
 import IgnoreModals from './dataIntegrity/IgnoreModals';
 import MemberProfileDrawer from '../../../components/MemberProfileDrawer';
@@ -30,6 +30,7 @@ import { DataIntegritySkeleton } from '../../../components/skeletons';
 const DataIntegrityTab: React.FC = () => {
   const state = useDataIntegrityState();
   const actions = useDataIntegrityActions(state);
+  const [showMaintenanceTools, setShowMaintenanceTools] = React.useState(false);
 
   return (
     <div className="space-y-6 animate-page-enter pb-32">
@@ -242,11 +243,6 @@ const DataIntegrityTab: React.FC = () => {
         onToggle={() => state.setShowAuditLog(!state.showAuditLog)}
       />
 
-      <StripeTerminalPanel
-        isOpen={state.showStripeTerminal}
-        onToggle={() => state.setShowStripeTerminal(!state.showStripeTerminal)}
-      />
-
       <EmailHealthPanel
         isOpen={state.showEmailHealth}
         onToggle={() => state.setShowEmailHealth(!state.showEmailHealth)}
@@ -255,6 +251,11 @@ const DataIntegrityTab: React.FC = () => {
       <MarketingContactsAuditPanel
         isOpen={state.showMarketingAudit}
         onToggle={() => state.setShowMarketingAudit(!state.showMarketingAudit)}
+      />
+
+      <MaintenanceToolsPanel
+        isOpen={showMaintenanceTools}
+        onToggle={() => setShowMaintenanceTools(prev => !prev)}
       />
 
       <IgnoreModals

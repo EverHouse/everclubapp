@@ -128,7 +128,6 @@ export function useDataIntegrityState() {
   const [showPushNotifications, setShowPushNotifications] = useState(false);
   const [showAutoApprove, setShowAutoApprove] = useState(false);
   const [showAuditLog, setShowAuditLog] = useState(false);
-  const [showStripeTerminal, setShowStripeTerminal] = useState(false);
   const [showEmailHealth, setShowEmailHealth] = useState(false);
   const [showMarketingAudit, setShowMarketingAudit] = useState(false);
   const [resyncEmail, setResyncEmail] = useState('');
@@ -304,7 +303,6 @@ export function useDataIntegrityState() {
     showPushNotifications, setShowPushNotifications,
     showAutoApprove, setShowAutoApprove,
     showAuditLog, setShowAuditLog,
-    showStripeTerminal, setShowStripeTerminal,
     showEmailHealth, setShowEmailHealth,
     showMarketingAudit, setShowMarketingAudit,
     resyncEmail, setResyncEmail,

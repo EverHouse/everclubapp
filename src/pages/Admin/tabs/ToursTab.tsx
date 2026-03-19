@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usePageReady } from '../../../stores/pageReadyStore';
 import EmptyState from '../../../components/EmptyState';
 import { formatDateDisplayWithDay, formatTime12Hour } from '../../../utils/dateUtils';
@@ -6,6 +7,7 @@ import { formatPhoneNumber } from '../../../utils/formatting';
 import { AnimatedPage } from '../../../components/motion';
 import { useTourData, useSyncTours, useCheckInTour, useUpdateTourStatus } from '../../../hooks/queries';
 import { ToursTabSkeleton } from '../../../components/skeletons';
+import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
 
 interface Tour {
   id: number;
@@ -22,6 +24,34 @@ interface Tour {
   status: string;
   checkedInAt: string | null;
   checkedInBy: string | null;
+}
+
+interface HubSpotMeetingPotentialMatch {
+  id: number;
+  guestName: string | null;
+  guestEmail: string | null;
+  tourDate: string;
+  startTime: string;
+  status: string | null;
+}
+
+interface HubSpotUnmatchedMeeting {
+  hubspotMeetingId: string;
+  title: string;
+  guestName: string | null;
+  guestEmail: string | null;
+  guestPhone: string | null;
+  tourDate: string;
+  startTime: string;
+  endTime: string | null;
+  notes: string | null;
+  isCancelled: boolean;
+  potentialMatches: HubSpotMeetingPotentialMatch[];
+  wouldBackfill: boolean;
+}
+
+interface NeedsReviewResponse {
+  unmatchedMeetings: HubSpotUnmatchedMeeting[];
 }
 
 const statusConfig: Record<string, { label: string; icon: string; colors: string }> = {
@@ -155,6 +185,52 @@ const ToursTab: React.FC = () => {
   const updateStatusMutation = useUpdateTourStatus();
   const [syncMessage, _setSyncMessage] = useState<string | null>(null);
   const [statusMenuTourId, setStatusMenuTourId] = useState<number | null>(null);
+  const [showNeedsReview, setShowNeedsReview] = useState(false);
+  const [linkingId, setLinkingId] = useState<string | null>(null);
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
+  const [creatingId, setCreatingId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const { data: needsReviewData, isLoading: needsReviewLoading, refetch: refetchNeedsReview } = useQuery({
+    queryKey: ['tours-needs-review'],
+    queryFn: () => fetchWithCredentials<NeedsReviewResponse>('/api/tours/needs-review'),
+    enabled: showNeedsReview,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const unmatchedMeetings = needsReviewData?.unmatchedMeetings ?? [];
+
+  const linkMutation = useMutation({
+    mutationFn: ({ hubspotMeetingId, tourId }: { hubspotMeetingId: string; tourId: number }) =>
+      postWithCredentials('/api/tours/link-hubspot', { hubspotMeetingId, tourId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tours-needs-review'] });
+      queryClient.invalidateQueries({ queryKey: ['tours'] });
+      setLinkingId(null);
+    },
+    onError: () => { setLinkingId(null); },
+  });
+
+  const dismissMutation = useMutation({
+    mutationFn: (hubspotMeetingId: string) =>
+      postWithCredentials('/api/tours/dismiss-hubspot', { hubspotMeetingId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tours-needs-review'] });
+      setDismissingId(null);
+    },
+    onError: () => { setDismissingId(null); },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (hubspotMeetingId: string) =>
+      postWithCredentials('/api/tours/create-from-hubspot', { hubspotMeetingId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tours-needs-review'] });
+      queryClient.invalidateQueries({ queryKey: ['tours'] });
+      setCreatingId(null);
+    },
+    onError: () => { setCreatingId(null); },
+  });
 
   React.useEffect(() => {
     setPageReady(true);
@@ -186,6 +262,155 @@ const ToursTab: React.FC = () => {
     return <ToursTabSkeleton />;
   }
 
+  const renderNeedsReviewSection = () => (
+    <div className="mb-2">
+      <button
+        onClick={() => setShowNeedsReview(prev => !prev)}
+        className="tactile-btn flex items-center justify-between w-full p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <span aria-hidden="true" className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-lg">warning</span>
+          <span className="font-semibold text-sm text-amber-800 dark:text-amber-300">HubSpot Meetings Needing Review</span>
+          {!needsReviewLoading && unmatchedMeetings.length > 0 && (
+            <span className="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+              {unmatchedMeetings.length}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {showNeedsReview && (
+            <button
+              onClick={(e) => { e.stopPropagation(); refetchNeedsReview(); }}
+              className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 transition-colors"
+              aria-label="Refresh"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-base">refresh</span>
+            </button>
+          )}
+          <span aria-hidden="true" className={`material-symbols-outlined text-amber-600 dark:text-amber-400 transition-transform ${showNeedsReview ? 'rotate-180' : ''}`}>
+            expand_more
+          </span>
+        </div>
+      </button>
+
+      {showNeedsReview && (
+        <div className="mt-2 space-y-3">
+          {needsReviewLoading ? (
+            <div className="flex items-center gap-2 p-3 text-sm text-amber-700 dark:text-amber-400">
+              <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+              Loading HubSpot meetings...
+            </div>
+          ) : unmatchedMeetings.length === 0 ? (
+            <div className="p-4 text-center text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-700/30">
+              <span aria-hidden="true" className="material-symbols-outlined text-2xl block mb-1">check_circle</span>
+              All HubSpot meetings are linked
+            </div>
+          ) : (
+            unmatchedMeetings.map((meeting) => {
+              const isLinking = linkingId === meeting.hubspotMeetingId;
+              const isDismissing = dismissingId === meeting.hubspotMeetingId;
+              const isCreating = creatingId === meeting.hubspotMeetingId;
+              const busy = isLinking || isDismissing || isCreating;
+              return (
+                <div
+                  key={meeting.hubspotMeetingId}
+                  className="p-3 rounded-xl bg-white dark:bg-white/5 border border-amber-200 dark:border-amber-700/30"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-primary dark:text-white truncate">
+                        {meeting.guestName || meeting.title}
+                      </p>
+                      {meeting.guestEmail && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{meeting.guestEmail}</p>
+                      )}
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        {formatDateDisplayWithDay(meeting.tourDate)} · {formatTime12Hour(meeting.startTime)}
+                        {meeting.isCancelled && (
+                          <span className="ml-1 text-red-500 font-medium">(Cancelled in HubSpot)</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {meeting.potentialMatches.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1">
+                        Potential matches ({meeting.potentialMatches.length})
+                      </p>
+                      <div className="space-y-1">
+                        {meeting.potentialMatches.map((match) => (
+                          <div key={match.id} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-gray-50 dark:bg-white/5">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-medium text-primary dark:text-white truncate">
+                                {match.guestName || match.guestEmail || `Tour #${match.id}`}
+                              </p>
+                              <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                                {formatTime12Hour(match.startTime)} · {match.status}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setLinkingId(meeting.hubspotMeetingId);
+                                linkMutation.mutate({ hubspotMeetingId: meeting.hubspotMeetingId, tourId: match.id });
+                              }}
+                              disabled={busy}
+                              className="px-2 py-1 text-[10px] font-semibold rounded-lg bg-primary/10 dark:bg-white/10 text-primary dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                            >
+                              {isLinking ? (
+                                <span className="material-symbols-outlined animate-spin text-xs">progress_activity</span>
+                              ) : (
+                                <span className="material-symbols-outlined text-xs">link</span>
+                              )}
+                              Link
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => {
+                        setCreatingId(meeting.hubspotMeetingId);
+                        createMutation.mutate(meeting.hubspotMeetingId);
+                      }}
+                      disabled={busy}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 dark:bg-white/10 text-primary dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isCreating ? (
+                        <span className="material-symbols-outlined animate-spin text-xs">progress_activity</span>
+                      ) : (
+                        <span className="material-symbols-outlined text-xs">add</span>
+                      )}
+                      Create Tour
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDismissingId(meeting.hubspotMeetingId);
+                        dismissMutation.mutate(meeting.hubspotMeetingId);
+                      }}
+                      disabled={busy}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isDismissing ? (
+                        <span className="material-symbols-outlined animate-spin text-xs">progress_activity</span>
+                      ) : (
+                        <span className="material-symbols-outlined text-xs">do_not_disturb</span>
+                      )}
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
       <AnimatedPage className="space-y-6 pb-32 backdrop-blur-sm">
         <p className="text-sm text-primary/80 dark:text-white/80 animate-content-enter-delay-1">
@@ -197,6 +422,8 @@ const ToursTab: React.FC = () => {
           {syncMessage}
         </div>
       )}
+
+      {renderNeedsReviewSection()}
 
       {toursData.todayTours.length > 0 && (
         <div className="animate-content-enter-delay-2">

@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useAuthData } from '../../../contexts/DataContext';
 import { usePageReady } from '../../../stores/pageReadyStore';
 import { formatRelativeTime } from '../../../utils/dateUtils';
 import { useNotificationSounds } from '../../../hooks/useNotificationSounds';
-import FloatingActionButton from '../../../components/FloatingActionButton';
-import AnnouncementManager from '../../../components/admin/AnnouncementManager';
 import { AnimatedPage } from '../../../components/motion';
+import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
+import type { Announcement } from '../../../types/data';
 import {
     useStaffNotifications,
     useMarkNotificationRead,
@@ -34,7 +34,6 @@ const UpdatesTab: React.FC = () => {
     const { actualUser } = useAuthData();
     const [notificationsRef] = useAutoAnimate();
     const [activeSubTab, setActiveSubTab] = useState<'alerts' | 'announcements'>('alerts');
-    const [triggerCreateAnnouncement, setTriggerCreateAnnouncement] = useState(0);
     const { processNotifications } = useNotificationSounds(true, actualUser?.email);
 
     const { data: notificationsData, isLoading: notificationsLoading } = useStaffNotifications(actualUser?.email, {
@@ -73,20 +72,20 @@ const UpdatesTab: React.FC = () => {
     }, [notificationsLoading, setPageReady]);
 
     useEffect(() => {
-        const handleOpenNewAnnouncement = () => {
-            setActiveSubTab('announcements');
-            setTriggerCreateAnnouncement(prev => prev + 1);
-        };
         const handleSwitchToAlertsTab = () => {
             setActiveSubTab('alerts');
         };
-        window.addEventListener('open-new-announcement', handleOpenNewAnnouncement);
         window.addEventListener('switch-to-alerts-tab', handleSwitchToAlertsTab);
         return () => {
-            window.removeEventListener('open-new-announcement', handleOpenNewAnnouncement);
             window.removeEventListener('switch-to-alerts-tab', handleSwitchToAlertsTab);
         };
     }, []);
+
+    const { data: announcementsData, isLoading: announcementsLoading } = useQuery({
+        queryKey: ['announcements-feed'],
+        queryFn: () => fetchWithCredentials<Announcement[]>('/api/announcements'),
+        enabled: activeSubTab === 'announcements',
+    });
 
     const getStaffNotificationRoute = (notif: StaffNotification): string | null => {
         const routeMap: Record<string, string> = {
@@ -290,9 +289,66 @@ const UpdatesTab: React.FC = () => {
         </div>
     );
 
-    const handleCreateAnnouncement = () => {
-        setActiveSubTab('announcements');
-        setTriggerCreateAnnouncement(prev => prev + 1);
+    const renderAnnouncementsFeed = () => {
+        const announcements = Array.isArray(announcementsData) ? announcementsData : [];
+        return (
+            <div className="animate-content-enter space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-primary/70 dark:text-white/70">
+                        Showing current announcements. To create or edit, go to the{' '}
+                        <button
+                            onClick={() => navigate('/admin/announcements')}
+                            className="underline text-primary dark:text-white font-medium hover:opacity-80 transition-opacity"
+                        >
+                            Announcements tab
+                        </button>.
+                    </p>
+                </div>
+                {announcementsLoading ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="p-4 rounded-xl animate-pulse bg-white dark:bg-white/[0.03]">
+                            <div className="h-4 w-1/2 rounded mb-2 bg-gray-200 dark:bg-white/10" />
+                            <div className="h-3 w-3/4 rounded bg-gray-100 dark:bg-white/5" />
+                        </div>
+                    ))
+                ) : announcements.length === 0 ? (
+                    <div className="text-center py-16 text-primary/70 dark:text-white/70">
+                        <span aria-hidden="true" className="material-symbols-outlined text-6xl mb-4 block opacity-30">campaign</span>
+                        <p className="text-lg font-medium">No announcements</p>
+                        <p className="text-sm mt-1 opacity-70">Published announcements will appear here.</p>
+                    </div>
+                ) : (
+                    announcements.map((ann) => (
+                        <div
+                            key={ann.id}
+                            className="p-4 rounded-xl bg-white dark:bg-white/[0.03] border border-primary/10 dark:border-white/10"
+                        >
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <h4 className="font-bold text-sm text-primary dark:text-white">{ann.title}</h4>
+                                        {ann.priority && ann.priority !== 'normal' && (
+                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                                ann.priority === 'urgent'
+                                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                            }`}>{ann.priority}</span>
+                                        )}
+                                        {ann.showAsBanner && (
+                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Banner</span>
+                                        )}
+                                    </div>
+                                    <p className="text-xs mt-0.5 text-primary/70 dark:text-white/70 line-clamp-2">{ann.desc}</p>
+                                </div>
+                                <span className="text-[10px] shrink-0 text-primary/50 dark:text-white/50">
+                                    {ann.date ? formatRelativeTime(ann.date) : ''}
+                                </span>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        );
     };
 
     return (
@@ -326,8 +382,7 @@ const UpdatesTab: React.FC = () => {
                 </div>
 
                 {activeSubTab === 'alerts' && renderAlertsTab()}
-                {activeSubTab === 'announcements' && <AnnouncementManager triggerCreate={triggerCreateAnnouncement} />}
-                <FloatingActionButton onClick={handleCreateAnnouncement} color="purple" label="Add announcement" extended text="Add Announcement" />
+                {activeSubTab === 'announcements' && renderAnnouncementsFeed()}
             </AnimatedPage>
     );
 };

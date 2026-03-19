@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { useTheme } from '../../contexts/ThemeContext';
 import { StripeBillingSection } from './billing/StripeBillingSection';
 import { MindbodyBillingSection } from './billing/MindbodyBillingSection';
@@ -19,6 +20,7 @@ import { OutstandingFeesSection } from './memberBilling/OutstandingFeesSection';
 import { StripeSetupSection } from './memberBilling/StripeSetupSection';
 import { GuestPassesSection } from './memberBilling/GuestPassesSection';
 import { PurchaseHistorySection } from './memberBilling/PurchaseHistorySection';
+import { postWithCredentials } from '../../hooks/queries/useFetch';
 
 const MemberBillingTab: React.FC<MemberBillingTabProps> = ({ 
   memberEmail, 
@@ -34,6 +36,30 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
 }) => {
   const { effectiveTheme } = useTheme();
   const isDark = effectiveTheme === 'dark';
+  const [syncPaymentsResult, setSyncPaymentsResult] = useState<string | null>(null);
+
+  const syncPaymentsMutation = useMutation({
+    mutationFn: () =>
+      postWithCredentials<{ success: boolean; paymentsProcessed?: number; invoicesProcessed?: number; message?: string; error?: string }>(
+        '/api/financials/sync-member-payments',
+        { email: memberEmail, daysBack: 365 }
+      ),
+    onSuccess: (data) => {
+      if (data.success) {
+        const parts: string[] = [];
+        if (data.paymentsProcessed) parts.push(`${data.paymentsProcessed} payments`);
+        if (data.invoicesProcessed) parts.push(`${data.invoicesProcessed} invoices`);
+        setSyncPaymentsResult(`Synced ${parts.join(', ') || 'records'} successfully`);
+      } else {
+        setSyncPaymentsResult(data.error || data.message || 'Sync failed');
+      }
+      setTimeout(() => setSyncPaymentsResult(null), 5000);
+    },
+    onError: (err) => {
+      setSyncPaymentsResult(err instanceof Error ? err.message : 'Sync failed');
+      setTimeout(() => setSyncPaymentsResult(null), 5000);
+    },
+  });
 
   const billing = useMemberBilling(
     memberEmail,
@@ -237,6 +263,43 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       />
 
       <GroupBillingManager memberEmail={memberEmail} />
+
+      <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'} border ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Sync Payments</p>
+            <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              Re-sync this member's Stripe payment history (last 365 days).
+            </p>
+          </div>
+          <button
+            onClick={() => syncPaymentsMutation.mutate()}
+            disabled={syncPaymentsMutation.isPending}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              isDark
+                ? 'bg-white/10 text-white hover:bg-white/20'
+                : 'bg-primary/10 text-primary hover:bg-primary/20'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {syncPaymentsMutation.isPending ? (
+              <>
+                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                Syncing...
+              </>
+            ) : (
+              <>
+                <span aria-hidden="true" className="material-symbols-outlined text-sm">sync</span>
+                Sync Payments
+              </>
+            )}
+          </button>
+        </div>
+        {syncPaymentsResult && (
+          <p className={`mt-2 text-xs font-medium ${syncPaymentsMutation.isError ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
+            {syncPaymentsResult}
+          </p>
+        )}
+      </div>
 
       <PurchaseHistorySection
         purchases={purchases}

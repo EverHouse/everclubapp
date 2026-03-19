@@ -1,4 +1,6 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchWithCredentials } from '../../../../hooks/queries/useFetch';
 import type { MembershipTier } from './tiersTypes';
 
 interface FeesSubTabProps {
@@ -6,11 +8,67 @@ interface FeesSubTabProps {
     openEdit: (tier: MembershipTier) => void;
 }
 
+interface PricingData {
+    guestFeeDollars: number;
+    overageRatePerBlockDollars: number;
+    overageBlockMinutes: number;
+}
+
 const FeesSubTab: React.FC<FeesSubTabProps> = ({ tiers, openEdit }) => {
     const oneTimePasses = tiers.filter(t => t.product_type === 'one_time');
 
+    const { data: pricing, isLoading: pricingLoading } = useQuery({
+        queryKey: ['pricing-config'],
+        queryFn: () => fetchWithCredentials<PricingData>('/api/pricing'),
+        staleTime: 5 * 60 * 1000,
+    });
+
     return (
         <div className="space-y-6">
+            <div>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+                        Dynamic Fees
+                    </h3>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">Live from Stripe</span>
+                </div>
+                {pricingLoading ? (
+                    <div className="grid grid-cols-2 gap-3">
+                        {[0, 1].map(i => (
+                            <div key={i} className="p-4 rounded-xl bg-gray-100 dark:bg-white/5 animate-pulse h-20" />
+                        ))}
+                    </div>
+                ) : pricing ? (
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="p-4 rounded-xl bg-white dark:bg-surface-dark border border-gray-200 dark:border-white/20 shadow-sm">
+                            <div className="flex items-center gap-2 mb-1">
+                                <span aria-hidden="true" className="material-symbols-outlined text-base text-primary/60 dark:text-white/60">person_add</span>
+                                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Guest Fee</p>
+                            </div>
+                            <p className="text-2xl font-bold text-primary dark:text-white">
+                                ${pricing.guestFeeDollars.toFixed(2)}
+                            </p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">per guest per session</p>
+                        </div>
+                        <div className="p-4 rounded-xl bg-white dark:bg-surface-dark border border-gray-200 dark:border-white/20 shadow-sm">
+                            <div className="flex items-center gap-2 mb-1">
+                                <span aria-hidden="true" className="material-symbols-outlined text-base text-primary/60 dark:text-white/60">timer</span>
+                                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Overage Rate</p>
+                            </div>
+                            <p className="text-2xl font-bold text-primary dark:text-white">
+                                ${pricing.overageRatePerBlockDollars.toFixed(2)}
+                            </p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">per {pricing.overageBlockMinutes} min block</p>
+                        </div>
+                    </div>
+                ) : (
+                    <p className="text-xs text-gray-400 dark:text-gray-500">Could not load pricing data.</p>
+                )}
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                    These rates are sourced from Stripe products and update automatically.
+                </p>
+            </div>
+
             {oneTimePasses.length > 0 && (
                 <div>
                     <div className="flex justify-between items-center mb-4">
