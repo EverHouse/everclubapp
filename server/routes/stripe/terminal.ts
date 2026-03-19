@@ -13,6 +13,24 @@ import { findOrCreateHubSpotContact } from '../../core/hubspot/members';
 import { getSessionUser } from '../../types/session';
 import Stripe from 'stripe';
 
+async function simulatedPresentCard(stripe: Stripe, readerId: string, maxRetries = 3): Promise<void> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await new Promise(resolve => setTimeout(resolve, attempt * 500));
+      await stripe.testHelpers.terminal.readers.presentPaymentMethod(readerId);
+      return;
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err);
+      if (attempt < maxRetries && msg.includes('not currently processing')) {
+        logger.debug(`[Terminal] Simulated reader not ready, retrying (${attempt}/${maxRetries})...`);
+        continue;
+      }
+      logger.error('[Terminal] Simulated card presentation error (non-blocking)', { extra: { simErr: msg, attempt } });
+      return;
+    }
+  }
+}
+
 interface StripeInvoiceExpanded extends Stripe.Invoice {
   payment_intent: string | Stripe.PaymentIntent | null;
 }
@@ -393,11 +411,7 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
     });
     
     if (reader.device_type?.startsWith('simulated')) {
-      try {
-        await stripe.testHelpers.terminal.readers.presentPaymentMethod(readerId);
-      } catch (simErr: unknown) {
-        logger.error('[Terminal] Simulated card presentation error (non-blocking)', { extra: { simErr: getErrorMessage(simErr) } });
-      }
+      await simulatedPresentCard(stripe, readerId);
     }
     
     await logFromRequest(req, {
@@ -872,11 +886,7 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
     }
     
     if (reader.device_type?.startsWith('simulated')) {
-      try {
-        await stripe.testHelpers.terminal.readers.presentPaymentMethod(readerId);
-      } catch (simErr: unknown) {
-        logger.error('[Terminal] Simulated card presentation error (non-blocking)', { extra: { simErr: getErrorMessage(simErr) } });
-      }
+      await simulatedPresentCard(stripe, readerId);
     }
     
     await logFromRequest(req, {
@@ -1311,11 +1321,7 @@ router.post('/api/stripe/terminal/process-existing-payment', isStaffOrAdmin, asy
     });
 
     if (reader.device_type?.startsWith('simulated')) {
-      try {
-        await stripe.testHelpers.terminal.readers.presentPaymentMethod(readerId);
-      } catch (simErr: unknown) {
-        logger.error('[Terminal] Simulated card presentation error (non-blocking)', { extra: { simErr: getErrorMessage(simErr) } });
-      }
+      await simulatedPresentCard(stripe, readerId);
     }
 
     await logFromRequest(req, {
@@ -1402,11 +1408,7 @@ router.post('/api/stripe/terminal/save-card', isStaffOrAdmin, async (req: Reques
     });
 
     if (reader.device_type?.startsWith('simulated')) {
-      try {
-        await stripe.testHelpers.terminal.readers.presentPaymentMethod(readerId);
-      } catch (simErr: unknown) {
-        logger.error('[Terminal] Simulated card presentation error (non-blocking)', { extra: { simErr: getErrorMessage(simErr) } });
-      }
+      await simulatedPresentCard(stripe, readerId);
     }
 
     await logFromRequest(req, {
