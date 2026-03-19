@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { cancelPaymentIntent } from '../../core/stripe/payments';
 import { queueIntegrityFixSync } from '../../core/hubspot/queueHelpers';
-import { logger, isAdmin, validateBody, db, sql, pool, safeRelease, logFromRequest, getSessionUser, getErrorMessage, safeErrorDetail } from './shared';
+import { logger, isAdmin, validateBody, db, sql, pool, safeRelease, logFromRequest, getSessionUser, getErrorMessage, safeErrorDetail, sendFixError } from './shared';
 import type { Request } from 'express';
 import { unlinkHubspotSchema, mergeHubspotSchema, mergeStripeSchema, changeBillingProviderSchema, acceptTierSchema, userIdSchema, recordIdSchema, cancelOrphanedPiSchema, updateTourStatusSchema, clearStripeIdSchema, deleteOrphanByEmailSchema, bulkChangeBillingProviderSchema, linkStripeCustomerOnlySchema, reconnectStripeSubscriptionSchema, bulkReconnectStripeSchema } from '../../../shared/validators/dataIntegrity';
 
@@ -21,7 +21,7 @@ router.post('/api/data-integrity/fix/unlink-hubspot', isAdmin, validateBody(unli
     res.json({ success: true, message: `Unlinked HubSpot contact from user ${userId}` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Unlink HubSpot error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -49,7 +49,7 @@ router.post('/api/data-integrity/fix/merge-hubspot-duplicates', isAdmin, validat
     });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Merge HubSpot duplicates error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -74,7 +74,7 @@ router.post('/api/data-integrity/fix/merge-stripe-customers', isAdmin, validateB
     res.json({ success: true, message: `Merged Stripe customer for ${email}: kept ${keepCustomerId}, removed ${removeCustomerId}` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Merge Stripe customers error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -114,7 +114,7 @@ router.post('/api/data-integrity/fix/deactivate-stale-member', isAdmin, validate
   } catch (error: unknown) {
     await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
     logger.error('[DataIntegrity] Deactivate stale member error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   } finally {
     safeRelease(client);
   }
@@ -156,7 +156,7 @@ router.post('/api/data-integrity/fix/change-billing-provider', isAdmin, validate
   } catch (error: unknown) {
     await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
     logger.error('[DataIntegrity] Change billing provider error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   } finally {
     safeRelease(client);
   }
@@ -204,7 +204,7 @@ router.post('/api/data-integrity/fix/delete-member-no-email', isAdmin, validateB
     res.json({ success: true, message: `Deleted member "${name}" (id: ${recordId})` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Delete member without email error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -244,7 +244,7 @@ router.post('/api/data-integrity/fix/activate-stuck-member', isAdmin, validateBo
   } catch (error: unknown) {
     await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
     logger.error('[DataIntegrity] Activate stuck member error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   } finally {
     safeRelease(client);
   }
@@ -273,7 +273,7 @@ router.post('/api/data-integrity/fix/recalculate-guest-passes', isAdmin, validat
     res.json({ success: true, message: `Recalculated guest passes for user #${userId}` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Recalculate guest passes error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -292,7 +292,7 @@ router.post('/api/data-integrity/fix/release-guest-pass-hold', isAdmin, validate
     res.json({ success: true, message: `Released guest pass hold #${recordId}` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Release guest pass hold error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -324,7 +324,7 @@ router.post('/api/data-integrity/fix/cancel-orphaned-pi', isAdmin, validateBody(
     res.json({ success: true, message: `Cancelled payment intent ${paymentIntentId} and updated ${updatedCount} fee snapshot(s)` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Cancel orphaned PI error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -343,7 +343,7 @@ router.post('/api/data-integrity/fix/delete-orphan-enrollment', isAdmin, validat
     res.json({ success: true, message: `Deleted orphaned wellness enrollment #${recordId}` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Delete orphan enrollment error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -362,7 +362,7 @@ router.post('/api/data-integrity/fix/delete-orphan-rsvp', isAdmin, validateBody(
     res.json({ success: true, message: `Deleted orphaned event RSVP #${recordId}` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Delete orphan RSVP error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -388,7 +388,7 @@ router.post('/api/data-integrity/fix/delete-orphan-records-by-email', isAdmin, v
     res.json({ success: true, message: `Deleted ${deleted} orphaned record(s) from ${table}` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Delete orphan records by email error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -409,7 +409,7 @@ router.post('/api/data-integrity/fix/mark-waiver-signed', isAdmin, validateBody(
     res.json({ success: true, message: 'Waiver marked as signed' });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Mark waiver signed error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -449,7 +449,7 @@ router.post('/api/data-integrity/fix/accept-tier', isAdmin, validateBody(acceptT
   } catch (error: unknown) {
     await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
     logger.error('[DataIntegrity] Accept tier error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   } finally {
     safeRelease(client);
   }
@@ -477,7 +477,7 @@ router.post('/api/data-integrity/fix/update-tour-status', isAdmin, validateBody(
     res.json({ success: true, message: `Tour "${tour.title}" marked as ${newStatus.replace('_', ' ')}` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Update tour status error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -555,7 +555,7 @@ router.post('/api/data-integrity/fix/clear-stripe-customer-id', isAdmin, validat
   } catch (error: unknown) {
     await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
     logger.error('[DataIntegrity] Fix orphaned Stripe customer ID error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   } finally {
     safeRelease(client);
   }
@@ -608,7 +608,7 @@ router.post('/api/data-integrity/fix/bulk-change-billing-provider', isAdmin, val
   } catch (error: unknown) {
     await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
     logger.error('[DataIntegrity] Bulk change billing provider error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   } finally {
     safeRelease(client);
   }
@@ -662,7 +662,7 @@ router.post('/api/data-integrity/fix/link-stripe-customer-only', isAdmin, valida
   } catch (error: unknown) {
     await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
     logger.error('[DataIntegrity] Link Stripe customer only error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   } finally {
     safeRelease(client);
   }
@@ -798,7 +798,7 @@ router.post('/api/data-integrity/fix/reconnect-stripe-subscription', isAdmin, va
     res.status(result.success ? 200 : 404).json(result);
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Reconnect Stripe subscription error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -851,7 +851,7 @@ router.post('/api/data-integrity/fix/bulk-reconnect-stripe', isAdmin, validateBo
     });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Bulk reconnect Stripe error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 

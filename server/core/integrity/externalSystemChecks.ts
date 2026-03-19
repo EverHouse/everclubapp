@@ -31,7 +31,7 @@ export async function checkCrossSystemDrift(): Promise<IntegrityCheckResult> {
         AND u.archived_at IS NULL
         AND u.role = 'member'
         AND (u.billing_provider IS NULL OR u.billing_provider = 'stripe')
-      ORDER BY RANDOM()
+      ORDER BY u.email
       LIMIT 25
     `);
 
@@ -63,7 +63,7 @@ export async function checkCrossSystemDrift(): Promise<IntegrityCheckResult> {
         AND u.archived_at IS NULL
         AND u.role = 'member'
         AND (u.billing_provider IS NULL OR u.billing_provider NOT IN ('mindbody', 'family_addon', 'comped'))
-      ORDER BY RANDOM()
+      ORDER BY u.email
       LIMIT 25
     `);
 

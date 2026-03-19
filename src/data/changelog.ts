@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.88.1",
+    date: "2026-03-19",
+    title: "Data Integrity Architecture Hardening (Code Review Pass)",
+    changes: [
+      "Hardened: Database constraint violations from triggers (state machine, guest pass limits, etc.) now correctly return structured 409 errors from all 41 fix/sync endpoints instead of generic 500 errors",
+      "Fixed: Cross-system drift detection check now returns stable, deterministic results — was previously using random sampling so results could differ between runs",
+      "Hardened: Guest pass hold limit trigger now also guards UPDATE operations on existing holds (previously only INSERT was protected) — closes a bypass path for over-allocation",
+    ]
+  },
+  {
     version: "8.88.0",
     date: "2026-03-19",
     title: "Optimistic UI for Data Integrity Fixes",

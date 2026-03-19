@@ -10,3 +10,24 @@ export type { ResourceType } from '../../core/auditLog';
 export { getSessionUser } from '../../types/session';
 export { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
 export type { Request } from 'express';
+
+import type { Response } from 'express';
+import { parseConstraintError, safeErrorDetail } from '../../utils/errorUtils';
+
+export function sendFixError(res: Response, error: unknown): void {
+  const parsed = parseConstraintError(error);
+  if (parsed.isConstraintError) {
+    res.status(409).json({
+      success: false,
+      error: parsed.message,
+      table: parsed.table,
+      constraint: parsed.constraintName,
+    });
+  } else {
+    res.status(500).json({
+      success: false,
+      message: 'Operation failed',
+      details: safeErrorDetail(error),
+    });
+  }
+}

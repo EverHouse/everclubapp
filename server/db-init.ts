@@ -1483,6 +1483,7 @@ export async function ensureDatabaseConstraints() {
           current_used INT;
           current_held INT;
           total_allowed INT;
+          projected_held INT;
         BEGIN
           bypass := COALESCE(current_setting('app.bypass_status_check', true), '');
           IF bypass = 'true' THEN
@@ -1503,7 +1504,15 @@ export async function ensureDatabaseConstraints() {
           WHERE LOWER(member_email) = LOWER(NEW.member_email)
             AND (expires_at IS NULL OR expires_at > NOW());
 
-          IF (current_used + current_held + NEW.passes_held) > total_allowed THEN
+          -- On UPDATE, current_held already includes OLD.passes_held for this row,
+          -- so subtract the old value before adding the new one to avoid double-counting.
+          IF TG_OP = 'UPDATE' THEN
+            projected_held := current_held - OLD.passes_held + NEW.passes_held;
+          ELSE
+            projected_held := current_held + NEW.passes_held;
+          END IF;
+
+          IF (current_used + projected_held) > total_allowed THEN
             RAISE EXCEPTION '[guest_pass_holds] Hold rejected: would exceed pass limit (used=%, held=%, new_hold=%, total=%)',
               current_used, current_held, NEW.passes_held, total_allowed;
           END IF;
@@ -1514,7 +1523,7 @@ export async function ensureDatabaseConstraints() {
 
         DROP TRIGGER IF EXISTS trg_guard_guest_pass_hold ON guest_pass_holds;
         CREATE TRIGGER trg_guard_guest_pass_hold
-          BEFORE INSERT ON guest_pass_holds
+          BEFORE INSERT OR UPDATE OF passes_held ON guest_pass_holds
           FOR EACH ROW
           EXECUTE FUNCTION guard_guest_pass_hold_limit();
       `);

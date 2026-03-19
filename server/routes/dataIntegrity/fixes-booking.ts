@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { logger, isAdmin, validateBody, db, sql, pool, safeRelease, logFromRequest, getSessionUser, getErrorMessage, safeErrorDetail } from './shared';
+import { logger, isAdmin, validateBody, db, sql, pool, safeRelease, logFromRequest, getSessionUser, getErrorMessage, safeErrorDetail, sendFixError } from './shared';
 import type { ResourceType } from './shared';
 import type { Request } from 'express';
 import { recordIdSchema, dryRunSchema, reviewItemSchema, assignSessionOwnerSchema } from '../../../shared/validators/dataIntegrity';
@@ -17,7 +17,7 @@ router.post('/api/data-integrity/fix/delete-guest-pass', isAdmin, validateBody(r
     res.json({ success: true, message: `Deleted orphaned guest pass ${recordId}` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Delete guest pass error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -32,7 +32,7 @@ router.post('/api/data-integrity/fix/delete-fee-snapshot', isAdmin, validateBody
     res.json({ success: true, message: `Deleted orphaned fee snapshot ${recordId}` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Delete fee snapshot error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -49,7 +49,7 @@ router.post('/api/data-integrity/fix/dismiss-trackman-unmatched', isAdmin, valid
     res.json({ success: true, message: 'Unmatched booking dismissed' });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Dismiss trackman unmatched error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -64,7 +64,7 @@ router.post('/api/data-integrity/fix/delete-booking-participant', isAdmin, valid
     res.json({ success: true, message: `Deleted orphaned booking participant ${recordId}` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Delete booking participant error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -154,7 +154,7 @@ router.post('/api/data-integrity/fix/fix-orphaned-participants', isAdmin, valida
     });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Fix orphaned participants error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -173,7 +173,7 @@ router.post('/api/data-integrity/fix/convert-participant-to-guest', isAdmin, val
     res.json({ success: true, message: `Converted participant ${recordId} to guest` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Convert participant to guest error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -197,7 +197,7 @@ router.post('/api/data-integrity/fix/approve-review-item', isAdmin, validateBody
     res.json({ success: true, message: `Approved ${table === 'wellness_classes' ? 'wellness class' : 'event'} #${recordId}` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Approve review item error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -216,7 +216,7 @@ router.post('/api/data-integrity/fix/delete-review-item', isAdmin, validateBody(
     res.json({ success: true, message: `Removed ${table === 'wellness_classes' ? 'wellness class' : 'event'} #${recordId}` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Delete review item error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -258,7 +258,7 @@ router.post('/api/data-integrity/fix/approve-all-review-items', isAdmin, validat
     });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Approve all review items error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -298,7 +298,7 @@ router.post('/api/data-integrity/fix/delete-empty-session', isAdmin, validateBod
       await client.query('ROLLBACK');
     } catch (rollbackErr) { logger.warn('[DB] Rollback failed:', { error: rollbackErr }); }
     logger.error('[DataIntegrity] Delete empty session error', { error: getErrorMessage(error) } as Record<string, unknown>);
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   } finally {
     safeRelease(client);
   }
@@ -411,7 +411,7 @@ router.post('/api/data-integrity/fix/assign-session-owner', isAdmin, validateBod
   } catch (error: unknown) {
     try { await client.query('ROLLBACK'); } catch (rollbackErr: unknown) { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); }
     logger.error('[DataIntegrity] Assign session owner error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   } finally {
     safeRelease(client);
   }
@@ -436,7 +436,7 @@ router.post('/api/data-integrity/fix/complete-booking', isAdmin, validateBody(re
     res.json({ success: true, message: `Booking #${recordId} marked as attended` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Complete booking error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -492,7 +492,7 @@ router.post('/api/data-integrity/fix/cancel-stale-booking', isAdmin, validateBod
     res.json({ success: true, message: `Stale booking #${recordId} cancelled` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Cancel stale booking error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
@@ -556,7 +556,7 @@ router.post('/api/data-integrity/fix/bulk-cancel-stale-bookings', isAdmin, async
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Bulk cancel stale bookings error', { extra: { error: getErrorMessage(error) } });
     if (!res.headersSent) {
-      res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+      sendFixError(res, error);
     }
   }
 });
@@ -580,7 +580,7 @@ router.post('/api/data-integrity/fix/bulk-attend-stale-bookings', isAdmin, async
     res.json({ success: true, message: `Marked ${count} stale bookings as attended`, attendedCount: count });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Bulk attend stale bookings error', { extra: { error: getErrorMessage(error) } });
-    res.status(500).json({ success: false, message: 'Operation failed', details: safeErrorDetail(error) });
+    sendFixError(res, error);
   }
 });
 
