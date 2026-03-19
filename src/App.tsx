@@ -241,9 +241,10 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
   render() {
     if (this.state.hasError) {
-      const isNetworkError = this.state.error?.message?.toLowerCase().includes('fetch') ||
-                              this.state.error?.message?.toLowerCase().includes('network') ||
-                              this.state.error?.message?.toLowerCase().includes('load failed');
+      const errorMessage = this.state.error?.message?.toLowerCase() || '';
+      const isNetworkError = errorMessage.includes('fetch') ||
+                              errorMessage.includes('network') ||
+                              errorMessage.includes('load failed');
       return (
         <div className="flex items-center justify-center h-screen bg-[#141414] text-white p-6">
           <div className="glass-card rounded-xl p-8 max-w-md text-center">
@@ -323,6 +324,8 @@ const WaiverGate: React.FC = () => {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentVersion(waiverStatus.currentVersion || '1.0');
       setShowWaiverModal(true);
+    } else {
+      setShowWaiverModal(false);
     }
   }, [waiverStatus]);
 
@@ -358,7 +361,10 @@ const WaiverGate: React.FC = () => {
   return (
     <WaiverModal
       isOpen={showWaiverModal}
-      onComplete={() => setShowWaiverModal(false)}
+      onComplete={() => {
+        setShowWaiverModal(false);
+        queryClient.invalidateQueries({ queryKey: ['waiverStatus'] });
+      }}
       currentVersion={currentVersion}
     />
   );
@@ -375,12 +381,7 @@ const MemberPortalRoute: React.FC<{ children: React.ReactNode; allowStaffAccess?
     return <Navigate to="/admin" replace />;
   }
   
-  return (
-    <>
-      {children}
-      {!isStaffOrAdmin && <WaiverGate />}
-    </>
-  );
+  return <>{children}</>;
 };
 
 const AdminProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -839,7 +840,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             className={`flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-full relative ${isNavigating ? 'opacity-70' : ''}`}
             aria-label="View profile"
           >
-            <Avatar name={(user.name || '').includes('@') ? undefined : user.name} email={user.email} size="md" />
+            <Avatar name={user.name && !user.name.includes('@') ? user.name : undefined} email={user.email} size="md" />
             {isNavigating && (
               <span className="absolute inset-0 flex items-center justify-center">
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -876,6 +877,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <NotificationContext.Provider value={{ openNotifications }}>
         {isStaffOrAdmin && <Suspense fallback={null}><ViewAsBanner /></Suspense>}
         {isStaffOrAdmin && <Suspense fallback={null}><StaffBookingToast /></Suspense>}
+        {user && !isStaffOrAdmin && <WaiverGate />}
         
         {/* Header rendered via portal to escape transform context */}
         {headerContent && createPortal(headerContent, document.body)}

@@ -217,9 +217,10 @@ class PageErrorBoundary extends Component<Props, State> {
       }
 
       const isChunkError = isChunkLoadError(this.state.error);
-      const isNetworkError = this.state.error?.message?.toLowerCase().includes('fetch') ||
-                              this.state.error?.message?.toLowerCase().includes('network') ||
-                              this.state.error?.message?.toLowerCase().includes('load failed');
+      const errorMessage = this.state.error?.message?.toLowerCase() || '';
+      const isNetworkError = errorMessage.includes('fetch') ||
+                              errorMessage.includes('network') ||
+                              errorMessage.includes('load failed');
       const reloadCount = getReloadCount();
       const hitReloadLimit = reloadCount >= MAX_AUTO_RELOADS;
       const isAutoRetrying = this.state.countdown !== null && this.state.autoRetryCount < MAX_AUTO_RETRIES;
