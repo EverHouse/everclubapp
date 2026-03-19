@@ -100,8 +100,24 @@ router.get('/api/kiosk/verify-staff', isStaffOrAdmin, async (req: Request, res: 
   }
 });
 
-router.post('/api/kiosk/verify-passcode', async (req: Request, res: Response) => {
+const passcodeAttempts = new Map<string, { count: number; lastAttempt: number }>();
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS = 60_000;
+
+router.post('/api/kiosk/verify-passcode', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
+    const sessionUser = getSessionUser(req);
+    const key = sessionUser?.email || req.ip || 'unknown';
+
+    const record = passcodeAttempts.get(key);
+    if (record && record.count >= MAX_ATTEMPTS) {
+      const elapsed = Date.now() - record.lastAttempt;
+      if (elapsed < LOCKOUT_MS) {
+        return res.status(429).json({ valid: false, error: 'Too many attempts. Please wait 1 minute.' });
+      }
+      passcodeAttempts.delete(key);
+    }
+
     const { passcode } = req.body;
     if (!passcode || typeof passcode !== 'string') {
       return res.status(400).json({ valid: false, error: 'Passcode is required' });
@@ -109,8 +125,16 @@ router.post('/api/kiosk/verify-passcode', async (req: Request, res: Response) =>
 
     const storedPasscode = await getSettingValue('kiosk.exit_passcode', '1234');
     if (passcode === storedPasscode) {
+      passcodeAttempts.delete(key);
       return res.json({ valid: true });
     }
+
+    const current = passcodeAttempts.get(key) || { count: 0, lastAttempt: 0 };
+    current.count += 1;
+    current.lastAttempt = Date.now();
+    passcodeAttempts.set(key, current);
+
+    logger.warn('[Kiosk] Failed passcode attempt', { extra: { email: key, attempts: current.count } });
     return res.status(401).json({ valid: false, error: 'Invalid passcode' });
   } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to verify kiosk passcode', error);
