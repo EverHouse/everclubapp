@@ -913,29 +913,29 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                 <button
                   onClick={() => { 
                     setFabOpen(false); 
-                    setQrScannerOpen(true);
+                    setNewUserDrawerMode('member');
+                    setNewUserDrawerOpen(true);
                   }}
                   className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-2"
                   role="menuitem"
                 >
-                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">QR Scanner</span>
-                  <div className="w-10 h-10 rounded-full bg-primary dark:bg-white/90 flex items-center justify-center">
-                    <Icon name="qr_code_scanner" className="text-xl text-white dark:text-primary" />
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New Guest</span>
+                  <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center">
+                    <Icon name="person_add" className="text-xl text-white" />
                   </div>
                 </button>
 
                 <button
                   onClick={() => { 
                     setFabOpen(false); 
-                    setNewUserDrawerMode('member');
-                    setNewUserDrawerOpen(true);
+                    setQrScannerOpen(true);
                   }}
                   className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-all duration-fast hover:scale-105 active:scale-95 animate-fab-item-1"
                   role="menuitem"
                 >
-                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New User</span>
-                  <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center">
-                    <Icon name="person_add" className="text-xl text-white" />
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">Check In</span>
+                  <div className="w-10 h-10 rounded-full bg-primary dark:bg-white/90 flex items-center justify-center">
+                    <Icon name="qr_code_scanner" className="text-xl text-white dark:text-primary" />
                   </div>
                 </button>
               </div>
