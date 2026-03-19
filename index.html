@@ -108,12 +108,17 @@
         }
 
         function waitForIconFont() {
-          if (document.fonts && document.fonts.check('1em Material Symbols Outlined')) {
+          if (!document.fonts) {
             markIconsLoaded();
             return;
           }
 
-          if (document.fonts && document.fonts.ready) {
+          if (document.fonts.check('1em Material Symbols Outlined')) {
+            markIconsLoaded();
+            return;
+          }
+
+          if (document.fonts.ready) {
             document.fonts.ready.then(function() {
               if (document.fonts.check('1em Material Symbols Outlined')) {
                 markIconsLoaded();
@@ -130,10 +135,8 @@
 
             setTimeout(function() {
               clearInterval(pollingInterval);
-              if (!iconsDone && document.fonts.check('1em Material Symbols Outlined')) {
-                markIconsLoaded();
-              }
-            }, 5000);
+              markIconsLoaded();
+            }, 3000);
           }
         }
 

@@ -114,22 +114,15 @@ self.addEventListener('fetch', function(event) {
     event.respondWith(
       caches.open(FONTS_CACHE).then(function(cache) {
         return cache.match(request).then(function(cachedResponse) {
-          if (cachedResponse) {
-            fetch(request).then(function(networkResponse) {
-              if (networkResponse.ok) {
-                cache.put(request, networkResponse);
-              }
-            }).catch(function() {});
-            return cachedResponse;
-          }
-          return fetch(request).then(function(networkResponse) {
+          var networkFetch = fetch(request).then(function(networkResponse) {
             if (networkResponse.ok) {
               cache.put(request, networkResponse.clone());
             }
             return networkResponse;
           }).catch(function() {
-            return new Response('', { status: 503 });
+            return cachedResponse || new Response('', { status: 503 });
           });
+          return cachedResponse || networkFetch;
         });
       })
     );

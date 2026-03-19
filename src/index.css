@@ -1304,10 +1304,11 @@ body.keyboard-open .modal-keyboard-aware {
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
   font-family: 'Material Symbols Outlined';
-  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
 }
 html.icons-loaded .material-symbols-outlined {
-  visibility: visible;
+  opacity: 1;
 }
 .material-symbols-outlined.filled {
   font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24;
