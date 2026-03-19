@@ -380,7 +380,7 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
     
     const { client: resendClient, fromEmail: resendFrom } = await getResendClient();
     
-    const emailHtml = getOtpEmailHtml(otpCode, firstName);
+    const emailHtml = getOtpEmailHtml({ code: otpCode, firstName, logoUrl: 'https://everclub.app/images/everclub-logo-dark.png' });
     
     await withResendRetry(() => resendClient.emails.send({
       from: resendFrom,
