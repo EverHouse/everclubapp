@@ -3,7 +3,7 @@ import { sql } from 'drizzle-orm';
 import { users, membershipTiers, guestPasses } from '../../shared/schema';
 import { normalizeTierName } from '../../shared/constants/tiers';
 import { generatePkPass, type PassData, type WalletConfig, type TierColors } from './passGenerator';
-import { getOrCreateAuthToken } from './apnPushService';
+import { getOrCreateAuthToken, normalizePem } from './apnPushService';
 import { getSettingValue, getSettingBoolean } from '../core/settingsHelper';
 import { logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
@@ -16,8 +16,8 @@ export async function getWalletConfig(): Promise<WalletConfig | null> {
     getSettingValue('apple_wallet.pass_type_id', ''),
     getSettingValue('apple_wallet.team_id', ''),
   ]);
-  const certPem = process.env.APPLE_WALLET_CERT_PEM || '';
-  const keyPem = process.env.APPLE_WALLET_KEY_PEM || '';
+  const certPem = normalizePem(process.env.APPLE_WALLET_CERT_PEM || '');
+  const keyPem = normalizePem(process.env.APPLE_WALLET_KEY_PEM || '');
 
   if (!passTypeId || !teamId || !certPem || !keyPem) return null;
 

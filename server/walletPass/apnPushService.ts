@@ -9,9 +9,25 @@ import { getErrorMessage } from '../utils/errorUtils';
 
 const APN_HOST = 'https://api.push.apple.com';
 
+export function normalizePem(raw: string): string {
+  let pem = raw.replace(/\\n/g, '\n').trim();
+  if (pem.includes('-----') && !pem.includes('\n')) {
+    pem = pem
+      .replace(/(-----BEGIN [A-Z ]+-----)/g, '$1\n')
+      .replace(/(-----END [A-Z ]+-----)/g, '\n$1');
+    const match = pem.match(/-----BEGIN [A-Z ]+-----\n([\s\S]+?)\n-----END/);
+    if (match) {
+      const body = match[1].replace(/\s/g, '');
+      const lines = body.match(/.{1,64}/g) || [];
+      pem = pem.replace(match[1], lines.join('\n'));
+    }
+  }
+  return pem;
+}
+
 async function sendApnPush(pushToken: string, passTypeId: string): Promise<boolean> {
-  const certPem = process.env.APPLE_WALLET_CERT_PEM || '';
-  const keyPem = process.env.APPLE_WALLET_KEY_PEM || '';
+  const certPem = normalizePem(process.env.APPLE_WALLET_CERT_PEM || '');
+  const keyPem = normalizePem(process.env.APPLE_WALLET_KEY_PEM || '');
 
   if (!certPem || !keyPem) {
     logger.warn('[WalletPass APN] Missing certificate or key PEM for APN push');
