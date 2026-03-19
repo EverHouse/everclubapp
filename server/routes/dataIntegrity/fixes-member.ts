@@ -855,4 +855,178 @@ router.post('/api/data-integrity/fix/bulk-reconnect-stripe', isAdmin, validateBo
   }
 });
 
+router.post('/api/data-integrity/fix/repair-jan2026-status-dates', isAdmin, async (req: Request, res) => {
+  try {
+    const dryRun = req.query.dryRun === 'true' || req.body?.dryRun === true;
+    const affectedResult = await db.execute(sql`
+      SELECT id, email, membership_status, membership_status_changed_at, 
+             cancellation_effective_date, updated_at, billing_provider
+      FROM users
+      WHERE membership_status IN ('terminated', 'expired', 'suspended', 'inactive', 'cancelled', 'canceled', 'frozen', 'froze', 'declined', 'churned', 'former_member', 'deleted')
+        AND membership_status_changed_at >= '2026-01-01'::timestamp
+        AND membership_status_changed_at < '2026-02-01'::timestamp
+        AND role = 'member'
+    `);
+
+    const rows = affectedResult.rows as Array<Record<string, unknown>>;
+    if (rows.length === 0) {
+      res.json({ success: true, message: 'No corrupted January 2026 records found.', repaired: 0 });
+      return;
+    }
+
+    let repaired = 0;
+    const details: Array<{ email: string; oldDate: string; newDate: string; source: string }> = [];
+
+    for (const row of rows) {
+      const email = row.email as string;
+      const oldDate = row.membership_status_changed_at as string;
+      let newDate: Date | null = null;
+      let source = '';
+
+      if (row.cancellation_effective_date) {
+        const parsed = new Date(row.cancellation_effective_date as string);
+        if (!isNaN(parsed.getTime())) {
+          newDate = parsed;
+          source = 'cancellation_effective_date';
+        }
+      }
+
+      if (!newDate && row.updated_at) {
+        const updatedAt = new Date(row.updated_at as string);
+        const statusChangedAt = new Date(oldDate);
+        if (!isNaN(updatedAt.getTime()) && Math.abs(updatedAt.getTime() - statusChangedAt.getTime()) > 86400000) {
+          newDate = updatedAt;
+          source = 'updated_at';
+        }
+      }
+
+      if (newDate) {
+        if (!dryRun) {
+          await db.execute(sql`
+            UPDATE users 
+            SET membership_status_changed_at = ${newDate.toISOString()}::timestamptz
+            WHERE id = ${row.id as number}
+              AND membership_status_changed_at >= '2026-01-01'::timestamp
+              AND membership_status_changed_at < '2026-02-01'::timestamp
+          `);
+        }
+        repaired++;
+        details.push({ email, oldDate: String(oldDate), newDate: newDate.toISOString(), source });
+      }
+    }
+
+    logFromRequest(req, 'repair_jan2026_status_dates', 'user', undefined, undefined, {
+      totalAffected: rows.length,
+      repaired,
+      details
+    });
+
+    logger.info(`[DataIntegrity] ${dryRun ? '[DRY RUN] ' : ''}Repaired ${repaired}/${rows.length} corrupted January 2026 membership_status_changed_at records`);
+
+    res.json({
+      success: true,
+      dryRun,
+      message: `${dryRun ? '[DRY RUN] ' : ''}Repaired ${repaired} of ${rows.length} corrupted records.`,
+      repaired,
+      totalAffected: rows.length,
+      details
+    });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Repair Jan 2026 status dates error', { extra: { error: getErrorMessage(error) } });
+    sendFixError(res, error);
+  }
+});
+
+router.post('/api/data-integrity/fix/backfill-hubspot-last-modified', isAdmin, async (req: Request, res) => {
+  try {
+    const dryRun = req.query.dryRun === 'true' || req.body?.dryRun === true;
+    const membersResult = await db.execute(sql`
+      SELECT id, email, hubspot_id, membership_status_changed_at, billing_provider
+      FROM users
+      WHERE hubspot_id IS NOT NULL
+        AND membership_status_changed_at IS NOT NULL
+        AND LOWER(COALESCE(billing_provider, '')) != 'mindbody'
+        AND membership_status IN ('terminated', 'expired', 'suspended', 'inactive', 'cancelled', 'canceled', 'frozen', 'froze', 'declined', 'churned', 'former_member', 'deleted', 'active', 'trialing', 'past_due')
+        AND role = 'member'
+    `);
+
+    const rows = membersResult.rows as Array<Record<string, unknown>>;
+    if (rows.length === 0) {
+      res.json({ success: true, message: 'No members need last_modified_at backfill.', updated: 0 });
+      return;
+    }
+
+    const { getHubSpotClientWithFallback } = await import('../../core/integrations');
+    const { retryableHubSpotRequest } = await import('../../core/hubspot/request');
+    const hubspot = await getHubSpotClientWithFallback();
+
+    let updated = 0;
+    let skipped = 0;
+    let failed = 0;
+    const batchSize = 10;
+
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const batch = rows.slice(i, i + batchSize);
+      
+      for (const row of batch) {
+        const hubspotId = row.hubspot_id as string;
+        const email = row.email as string;
+        const statusChangedAt = new Date(row.membership_status_changed_at as string);
+
+        try {
+          if (dryRun) {
+            updated++;
+          } else {
+            const contact = await retryableHubSpotRequest(() =>
+              hubspot.crm.contacts.basicApi.getById(hubspotId, ['last_modified_at'])
+            );
+
+            if (contact.properties?.last_modified_at) {
+              skipped++;
+              continue;
+            }
+
+            const midnightUtc = new Date(statusChangedAt);
+            midnightUtc.setUTCHours(0, 0, 0, 0);
+
+            await retryableHubSpotRequest(() =>
+              hubspot.crm.contacts.basicApi.update(hubspotId, {
+                properties: {
+                  last_modified_at: midnightUtc.getTime().toString()
+                }
+              })
+            );
+            updated++;
+          }
+        } catch (err: unknown) {
+          failed++;
+          logger.warn(`[DataIntegrity] Failed to backfill last_modified_at for ${email} (HubSpot ID: ${hubspotId})`, { extra: { error: getErrorMessage(err) } });
+        }
+      }
+    }
+
+    logFromRequest(req, 'backfill_hubspot_last_modified', 'user', undefined, undefined, {
+      totalProcessed: rows.length,
+      updated,
+      skipped,
+      failed
+    });
+
+    logger.info(`[DataIntegrity] ${dryRun ? '[DRY RUN] ' : ''}HubSpot last_modified_at backfill: ${updated} updated, ${skipped} skipped (already set), ${failed} failed out of ${rows.length}`);
+
+    res.json({
+      success: true,
+      dryRun,
+      message: `${dryRun ? '[DRY RUN] ' : ''}Backfill complete: ${updated} ${dryRun ? 'would be' : ''} updated, ${skipped} already had value, ${failed} failed.`,
+      updated,
+      skipped,
+      failed,
+      total: rows.length
+    });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Backfill HubSpot last_modified_at error', { extra: { error: getErrorMessage(error) } });
+    sendFixError(res, error);
+  }
+});
+
 export default router;

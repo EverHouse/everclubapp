@@ -366,11 +366,11 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
             }), email);
 
           if (!isStatusProtected && oldStatus && oldStatus !== status) {
-            await retryDbOperation(() => db.execute(
-              statusChangedDate
-                ? sql`UPDATE users SET membership_status_changed_at = ${statusChangedDate.toISOString()}::timestamptz WHERE LOWER(email) = ${email.toLowerCase()}`
-                : sql`UPDATE users SET membership_status_changed_at = NOW() WHERE LOWER(email) = ${email.toLowerCase()}`
-            ), email);
+            if (statusChangedDate) {
+              await retryDbOperation(() => db.execute(
+                sql`UPDATE users SET membership_status_changed_at = ${statusChangedDate.toISOString()}::timestamptz WHERE LOWER(email) = ${email.toLowerCase()}`
+              ), email);
+            }
           } else if (isBackfillArtifact && statusChangedDate) {
             await retryDbOperation(() => db.execute(
               sql`UPDATE users SET membership_status_changed_at = ${statusChangedDate.toISOString()}::timestamptz WHERE LOWER(email) = ${email.toLowerCase()}`
