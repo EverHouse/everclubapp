@@ -253,6 +253,7 @@ export async function ensureDatabaseConstraints() {
       DO $$
       DECLARE
         tbl RECORD;
+        cnt INT := 0;
       BEGIN
         FOR tbl IN
           SELECT c.relname
@@ -264,13 +265,31 @@ export async function ensureDatabaseConstraints() {
         LOOP
           EXECUTE format('ALTER TABLE public.%I DISABLE ROW LEVEL SECURITY', tbl.relname);
           EXECUTE format('DROP POLICY IF EXISTS deny_all ON public.%I', tbl.relname);
+          cnt := cnt + 1;
         END LOOP;
+        IF cnt > 0 THEN
+          RAISE NOTICE 'Disabled RLS on % tables', cnt;
+        END IF;
       END
       $$;
     `);
+    const rlsCheckResult = await db.execute(sql`
+      SELECT COUNT(*)::int as rls_count
+      FROM pg_class c
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE n.nspname = 'public'
+        AND c.relkind = 'r'
+        AND c.relrowsecurity = true
+    `);
+    const remainingRls = (rlsCheckResult.rows[0] as any)?.rls_count ?? 0;
+    if (remainingRls > 0) {
+      logger.error(`[DB Init] CRITICAL: ${remainingRls} tables still have RLS enabled after cleanup`);
+      throw new Error(`RLS cleanup incomplete: ${remainingRls} tables still have RLS`);
+    }
     logger.info('[DB Init] Row-Level Security disabled on all application tables');
   } catch (rlsErr: unknown) {
-    logger.error('[DB Init] Failed to disable RLS:', { error: getErrorMessage(rlsErr) });
+    logger.error('[DB Init] CRITICAL: Failed to disable RLS — all application queries will fail:', { error: getErrorMessage(rlsErr) });
+    throw rlsErr;
   }
 
   try {
