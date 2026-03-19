@@ -1026,9 +1026,9 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
             }
           }
           await stripe.invoices.pay(actualInvoiceId, {
-            payment_intent: paymentIntentId,
+            paid_out_of_band: true,
           });
-          logger.info('[Terminal] Reconciled subscription invoice via terminal PI', { extra: { actualInvoiceId, paymentIntentId } });
+          logger.info('[Terminal] Reconciled subscription invoice as paid out-of-band (terminal PI)', { extra: { actualInvoiceId, paymentIntentId } });
         } else {
           logger.info('[Terminal] Invoice not in open state, skipping reconciliation', { extra: { actualInvoiceId, status: latestInvoice.status } });
         }
