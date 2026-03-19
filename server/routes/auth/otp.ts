@@ -378,12 +378,12 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
       used: false
     });
     
-    const resend = await getResendClient();
+    const { client: resendClient, fromEmail: resendFrom } = await getResendClient();
     
     const emailHtml = getOtpEmailHtml(otpCode, firstName);
     
-    await withResendRetry(() => resend.emails.send({
-      from: 'Ever Club <noreply@mail.everhouse.club>',
+    await withResendRetry(() => resendClient.emails.send({
+      from: resendFrom,
       to: normalizedEmail,
       subject: `${otpCode} - Your Ever Club Login Code`,
       html: emailHtml
