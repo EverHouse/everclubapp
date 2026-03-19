@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import BackToTop from '../../components/BackToTop';
@@ -29,7 +29,12 @@ const Landing: React.FC = () => {
   const { user, actualUser, isViewingAs, sessionChecked } = useAuthData();
   const [tiers, setTiers] = useState<MembershipTier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { offset: parallaxOffset, opacity: _parallaxOpacity, gradientShift, ref: heroRef } = useParallax({ speed: 0.15, maxOffset: 80 });
+  const landingGradient = useMemo(() => ({
+    base: [0.65, 0.35, 0.12, 0],
+    multipliers: [0.002, 0.003, 0, 0],
+    stops: ['0%', '25%', '45%', '65%'],
+  }), []);
+  const { ref: heroRef, imageRef: heroImageRef, overlayRef: heroOverlayRef } = useParallax({ speed: 0.15, maxOffset: 80, imageScale: 1.03, gradient: landingGradient });
   const [heroAnimPlayed] = useState(() => {
     const played = sessionStorage.getItem(HERO_ANIM_KEY) === '1';
     if (!played) sessionStorage.setItem(HERO_ANIM_KEY, '1');
@@ -122,6 +127,7 @@ const Landing: React.FC = () => {
           }}
         >
           <img 
+            ref={heroImageRef as React.RefObject<HTMLImageElement>}
             src="/images/hero-lounge-optimized.webp" 
             alt="Ever Members Club indoor lounge and social space in Tustin, Orange County" 
             className={`absolute inset-0 w-full h-[115%] object-cover object-[center_35%] will-change-transform ${heroAnimPlayed ? '' : 'animate-hero-bg'}`}
@@ -129,13 +135,14 @@ const Landing: React.FC = () => {
             fetchPriority="high"
             decoding="sync"
             style={{ 
-              transform: `translateY(${parallaxOffset}px) scale(1.03)`
+              transform: 'translateY(0px) scale(1.03)'
             }}
           />
           <div 
+            ref={heroOverlayRef as React.RefObject<HTMLDivElement>}
             className={`absolute inset-0 transition-opacity duration-normal ${heroAnimPlayed ? '' : 'animate-hero-overlay'}`}
             style={{
-              background: `linear-gradient(to top, rgba(0,0,0,${0.65 + gradientShift * 0.002}) 0%, rgba(0,0,0,${0.35 + gradientShift * 0.003}) 25%, rgba(0,0,0,0.12) 45%, transparent 65%)`
+              background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.35) 25%, rgba(0,0,0,0.12) 45%, transparent 65%)'
             }}
           />
         </div>

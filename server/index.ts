@@ -621,9 +621,9 @@ async function initializeApp() {
         setHeaders: (res, filePath) => {
           const fileName = filePath.replace(/\.(br|gz)$/, '');
           if (fileName.endsWith('.html')) {
-            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
           } else if (fileName.endsWith('sw.js') || fileName.endsWith('manifest.webmanifest')) {
-            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
           } else if (filePath.includes('/assets/')) {
             res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
           }
@@ -695,6 +695,21 @@ async function initializeApp() {
     if (stack) logger.error(`[CLIENT ERROR] Stack: ${stack}`);
     if (componentStack) logger.error(`[CLIENT ERROR] Component: ${componentStack}`);
     res.json({ ok: true });
+  });
+
+  app.post('/api/web-vitals', (req, res) => {
+    const { name, value, rating, delta, id, navigationType } = req.body || {};
+    if (name && typeof value === 'number') {
+      logger.info(`[Web Vitals] ${name}: ${name === 'CLS' ? value.toFixed(4) : Math.round(value) + 'ms'} (${rating})`, {
+        metric: name,
+        value,
+        rating,
+        delta,
+        id,
+        navigationType,
+      });
+    }
+    res.status(204).end();
   });
 
   try {
@@ -1075,7 +1090,7 @@ async function initializeApp() {
         const nonce = res.locals.cspNonce as string;
 
         res.setHeader('Content-Type', 'text/html');
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Cache-Control', 'no-cache, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
         const linkHints = ['</images/hero-lounge-optimized.webp>; rel=preload; as=image; type=image/webp'];

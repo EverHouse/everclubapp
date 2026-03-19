@@ -220,7 +220,7 @@ if (typeof window !== 'undefined') {
     }
   });
 
-  window.addEventListener('beforeunload', () => {
+  window.addEventListener('pagehide', () => {
     if (lockOwners.size > 0) {
       forceReleaseAllLocks();
     }

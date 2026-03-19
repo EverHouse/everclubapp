@@ -47,7 +47,13 @@ self.addEventListener('install', function(event) {
 self.addEventListener('activate', function(event) {
   console.log('[SW] Activating new version:', BUILD_VERSION);
   event.waitUntil(
-    caches.keys().then(function(keys) {
+    (self.registration.navigationPreload
+      ? self.registration.navigationPreload.enable().catch(function(err) {
+          console.log('[SW] Navigation preload not supported:', err.message);
+        })
+      : Promise.resolve()
+    ).then(function() {
+    return caches.keys().then(function(keys) {
       return Promise.all(
         keys.filter(function(key) {
           return key.startsWith('ever-club-') || key.startsWith('ever-house-') || key.startsWith('api-cache-');
@@ -89,6 +95,7 @@ self.addEventListener('activate', function(event) {
           client.postMessage({ type: 'SW_ACTIVATED', version: BUILD_VERSION });
         });
       });
+    });
     })
   );
 });
@@ -150,7 +157,9 @@ self.addEventListener('fetch', function(event) {
 
   if (request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html') {
     event.respondWith(
-      fetch(request, { cache: 'no-store' })
+      (event.preloadResponse || Promise.resolve()).then(function(preloadResp) {
+        return preloadResp || fetch(request, { cache: 'no-store' });
+      })
         .then(function(response) {
           if (response.ok && response.status !== 503) {
             var cacheClone = response.clone();

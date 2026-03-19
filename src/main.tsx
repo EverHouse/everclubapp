@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
+import { initWebVitals } from './lib/webVitals';
 
 declare global {
   interface Window {
@@ -112,4 +113,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 
 requestAnimationFrame(() => {
   removeSplash();
+});
+
+initWebVitals();
+
+window.addEventListener('pageshow', function(event) {
+  if (event.persisted) {
+    const staleKeys = ['sync_events', 'sync_cafe_menu'];
+    staleKeys.forEach(function(key) { localStorage.removeItem(key); });
+    window.dispatchEvent(new CustomEvent('app-refresh'));
+  }
 });

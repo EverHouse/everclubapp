@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import VirtualTour from '../../components/VirtualTour';
@@ -11,7 +11,12 @@ const HERO_ANIM_KEY = 'ever_hero_played_ph';
 
 const PrivateHire: React.FC = () => {
   const { setPageReady } = usePageReady();
-  const { offset: parallaxOffset, opacity: parallaxOpacity, gradientShift, ref: heroRef } = useParallax({ speed: 0.25, maxOffset: 120 });
+  const privateHireGradient = useMemo(() => ({
+    base: [0.7, 0.45, 0.2, 0.08, 0],
+    multipliers: [0.003, 0.005, 0, 0, 0],
+    stops: ['0%', '20%', '35%', '50%', '60%'],
+  }), []);
+  const { ref: heroRef, imageRef: heroImageRef, overlayRef: heroOverlayRef } = useParallax({ speed: 0.25, maxOffset: 120, imageScale: 1.05, gradient: privateHireGradient });
   const [heroAnimPlayed] = useState(() => {
     const played = sessionStorage.getItem(HERO_ANIM_KEY) === '1';
     if (!played) sessionStorage.setItem(HERO_ANIM_KEY, '1');
@@ -46,20 +51,22 @@ const PrivateHire: React.FC = () => {
            }}
          >
            <img 
+             ref={heroImageRef as React.RefObject<HTMLImageElement>}
              src="/images/venue-wide-optimized.webp" 
              alt="Private event venue with Trackman golf simulators at Ever Members Club in Orange County" 
              className={`absolute inset-0 w-full h-[120%] object-cover object-[center_35%] will-change-transform ${heroAnimPlayed ? '' : 'animate-hero-bg'}`}
              loading="eager"
              fetchPriority="high"
              style={{ 
-               transform: `translateY(${parallaxOffset}px) scale(1.05)`,
-               opacity: parallaxOpacity
+               transform: 'translateY(0px) scale(1.05)',
+               opacity: 1
              }}
            />
            <div 
+             ref={heroOverlayRef as React.RefObject<HTMLDivElement>}
              className={`absolute inset-0 transition-opacity duration-normal ${heroAnimPlayed ? '' : 'animate-hero-overlay'}`}
              style={{
-               background: `linear-gradient(to top, rgba(0,0,0,${0.7 + gradientShift * 0.003}) 0%, rgba(0,0,0,${0.45 + gradientShift * 0.005}) 20%, rgba(0,0,0,0.2) 35%, rgba(0,0,0,0.08) 50%, transparent 60%)`
+               background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.45) 20%, rgba(0,0,0,0.2) 35%, rgba(0,0,0,0.08) 50%, transparent 60%)'
              }}
            />
          </div>

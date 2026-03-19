@@ -175,7 +175,7 @@ export function MemberPaymentModal({
   useEffect(() => {
     const currentPiId = paymentIntentId;
     
-    const handleBeforeUnload = () => {
+    const handlePageHide = () => {
       if (currentPiId && !paymentSucceededRef.current) {
         navigator.sendBeacon(
           `/api/member/bookings/${bookingId}/cancel-payment`,
@@ -185,11 +185,11 @@ export function MemberPaymentModal({
     };
 
     if (currentPiId && isOpen) {
-      window.addEventListener('beforeunload', handleBeforeUnload);
+      window.addEventListener('pagehide', handlePageHide);
     }
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handlePageHide);
       if (currentPiId && !paymentSucceededRef.current) {
         fireAndForgetRequest(`/api/member/bookings/${bookingId}/cancel-payment`, {
           method: 'POST',

@@ -50,6 +50,7 @@ const EditorialShowcase: React.FC<EditorialShowcaseProps> = ({
             alt={imageAlt}
             className="absolute inset-0 w-full h-full object-cover transition-opacity duration-[800ms] ease-out hover:opacity-90"
             loading="lazy"
+            fetchPriority="low"
           />
         </div>
 

@@ -207,6 +207,7 @@ const GalleryItem: React.FC<GalleryItemProps> = React.memo(({ img, title, catego
         className={`w-full h-auto object-cover transform group-hover:scale-105 transition-all duration-emphasis ease-out ${loaded ? 'opacity-100' : 'opacity-0 absolute top-0 left-0'}`}
         alt={title || category || "Inside Ever Club — indoor golf and social club in Tustin, OC"}
         loading="lazy"
+        fetchPriority="low"
         decoding="async"
         onLoad={() => setLoaded(true)}
         onError={() => setError(true)}
