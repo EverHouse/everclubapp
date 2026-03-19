@@ -4,6 +4,7 @@ import type { TransactionContext } from '../bookingService/sessionManager';
 
 import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { GuestPassHoldError } from '../errors';
 export interface GuestPassHoldResult {
   success: boolean;
   error?: string;
@@ -86,11 +87,10 @@ export async function createGuestPassHold(
     const passesToHold = Math.min(passesNeeded, available);
     
     if (passesToHold <= 0 && passesNeeded > 0) {
-      return {
-        success: false,
-        error: `Not enough guest passes available. Requested: ${passesNeeded}, Available: ${available}`,
-        passesAvailable: available
-      };
+      throw new GuestPassHoldError(
+        `Not enough guest passes available. Requested: ${passesNeeded}, Available: ${available}`,
+        available
+      );
     }
     
     const expiresAt = new Date();
@@ -118,6 +118,9 @@ export async function createGuestPassHold(
       return await doWork(tx);
     });
   } catch (error: unknown) {
+    if (error instanceof GuestPassHoldError) {
+      throw error;
+    }
     logger.error('[GuestPassHoldService] Error creating hold:', { error: error });
     return {
       success: false,

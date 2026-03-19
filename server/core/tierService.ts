@@ -254,10 +254,10 @@ export async function checkDailyBookingLimit(
   email: string, 
   date: string, 
   requestedMinutes: number,
-  providedTier?: string,
+  _providedTier?: string,
   resourceType?: string
 ): Promise<{ allowed: boolean; reason?: string; remainingMinutes?: number; overageMinutes?: number; includedMinutes?: number }> {
-  const tier = providedTier || await getMemberTierByEmail(email);
+  const tier = await getMemberTierByEmail(email);
   
   if (!tier) {
     return { allowed: false, reason: 'Member not found or no tier assigned' };

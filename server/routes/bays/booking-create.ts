@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../../db';
-import { bookingRequests, resources, users } from '../../../shared/schema';
-import { eq, sql } from 'drizzle-orm';
+import { resources, users } from '../../../shared/schema';
+import { eq, sql, inArray } from 'drizzle-orm';
 import { BookingValidationError, SanitizedParticipant, BookingInsertRow } from './booking-shared';
 import { checkDailyBookingLimit } from '../../core/tierService';
 import { notifyAllStaff } from '../../core/notificationService';
@@ -10,10 +10,8 @@ import { logAndRespond, logger } from '../../core/logger';
 import { bookingEvents } from '../../core/bookingEvents';
 import { broadcastAvailabilityUpdate } from '../../core/websocket';
 import { getSessionUser } from '../../types/session';
-import { logFromRequest } from '../../core/auditLog';
 import { isStaffOrAdminCheck } from './helpers';
 import { isAuthenticated } from '../../core/middleware';
-import { computeFeeBreakdown } from '../../core/billing/unifiedFeeService';
 import { syncBookingInvoice, finalizeAndPayInvoice, getBookingInvoiceId } from '../../core/billing/bookingInvoiceService';
 import { createGuestPassHold } from '../../core/billing/guestPassHoldService';
 import { ensureSessionForBooking, createSessionWithUsageTracking } from '../../core/bookingService/sessionManager';
@@ -26,6 +24,14 @@ import { createBookingRequestSchema } from '../../../shared/validators/booking';
 import { checkClosureConflict, checkAvailabilityBlockConflict } from '../../core/bookingValidation';
 import { acquireBookingLocks, checkResourceOverlap, BookingConflictError } from '../../core/bookingService/bookingCreationGuard';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
+import { GuestPassHoldError } from '../../core/errors';
+
+interface BookingOverlapRow {
+  id: number;
+  resource_name: string;
+  start_time: string;
+  end_time: string;
+}
 
 const router = Router();
 
@@ -39,7 +45,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
     
     const { 
       user_email, user_name, resource_id, resource_preference, request_date, start_time, 
-      duration_minutes, notes, user_tier, declared_player_count, member_notes,
+      duration_minutes, notes, declared_player_count, member_notes,
       guardian_name, guardian_relationship, guardian_phone, guardian_consent, request_participants
     } = req.body;
     
@@ -111,9 +117,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
     const endMins = totalMins % 60;
     const end_time = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}:00`;
     
-    // Reject cross-midnight bookings (club closes at 10 PM latest)
-    // This prevents end_time from wrapping past 24:00
-    if (endHours >= 24) {
+    if (endHours > 24 || (endHours === 24 && endMins > 0)) {
       return res.status(400).json({ error: 'Booking cannot extend past midnight. Please choose an earlier start time or shorter duration.' });
     }
     
@@ -122,8 +126,8 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
     try {
       const txResult = await db.transaction(async (tx) => {
         if (resource_id) {
-          const resourceResult = await tx.execute(sql`SELECT type FROM resources WHERE id = ${resource_id}`);
-          resourceType = (resourceResult.rows[0] as Record<string, unknown>)?.type as string || 'simulator';
+          const [resourceRow] = await tx.select({ type: resources.type }).from(resources).where(eq(resources.id, resource_id));
+          resourceType = resourceRow?.type || 'simulator';
         }
         
         await acquireBookingLocks(tx as unknown as Parameters<typeof acquireBookingLocks>[0], {
@@ -192,7 +196,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           }
         }
         
-        const limitCheck = await checkDailyBookingLimit(requestEmail, request_date, duration_minutes, user_tier, resourceType);
+        const limitCheck = await checkDailyBookingLimit(requestEmail, request_date, duration_minutes, undefined, resourceType);
         if (!limitCheck.allowed) {
           throw new BookingValidationError(403, { 
             error: limitCheck.reason,
@@ -215,65 +219,83 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
             .filter((p: SanitizedParticipant) => p.email || p.userId);
         }
         
-        for (const participant of sanitizedParticipants) {
-          if (participant.email && !participant.userId) {
-            try {
-              const [existingUser] = await db.select({ 
-                id: users.id,
-                firstName: users.firstName,
-                lastName: users.lastName 
-              }).from(users)
-                .where(eq(sql`LOWER(${users.email})`, participant.email.toLowerCase()))
-                .limit(1);
-              if (existingUser) {
-                participant.userId = existingUser.id;
-                if (!participant.name || participant.name.includes('@')) {
-                  const fullName = [existingUser.firstName, existingUser.lastName].filter(Boolean).join(' ').trim();
-                  if (fullName) participant.name = fullName;
+        const emailsToLookup = sanitizedParticipants
+          .filter((p: SanitizedParticipant) => p.email && !p.userId)
+          .map((p: SanitizedParticipant) => p.email.toLowerCase());
+        const userIdsToLookup = sanitizedParticipants
+          .filter((p: SanitizedParticipant) => p.userId && !p.email)
+          .map((p: SanitizedParticipant) => p.userId as string);
+
+        if (emailsToLookup.length > 0) {
+          try {
+            const emailUsers = await tx.select({
+              id: users.id,
+              email: users.email,
+              firstName: users.firstName,
+              lastName: users.lastName
+            }).from(users)
+              .where(inArray(sql`LOWER(${users.email})`, emailsToLookup));
+            const emailMap = new Map(emailUsers.map(u => [u.email?.toLowerCase() || '', u]));
+            for (const participant of sanitizedParticipants) {
+              if (participant.email && !participant.userId) {
+                const found = emailMap.get(participant.email.toLowerCase());
+                if (found) {
+                  participant.userId = found.id;
+                  if (!participant.name || participant.name.includes('@')) {
+                    const fullName = [found.firstName, found.lastName].filter(Boolean).join(' ').trim();
+                    if (fullName) participant.name = fullName;
+                  }
                 }
               }
-            } catch (err: unknown) {
-              logger.error('[Booking] Failed to lookup user for email', { error: err instanceof Error ? err : new Error(getErrorMessage(err)), extra: { email: participant.email } });
             }
-          }
-          
-          if (participant.userId && !participant.email) {
-            try {
-              const [existingUser] = await db.select({ 
-                email: users.email, 
-                firstName: users.firstName,
-                lastName: users.lastName,
-                name: sql<string>`COALESCE(TRIM(CONCAT(${users.firstName}, ' ', ${users.lastName})), '')`.as('name')
-              }).from(users)
-                .where(eq(users.id, participant.userId))
-                .limit(1);
-              if (existingUser) {
-                participant.email = existingUser.email?.toLowerCase() || '';
-                if (!participant.name) {
-                  participant.name = existingUser.name || 
-                    `${existingUser.firstName || ''} ${existingUser.lastName || ''}`.trim() || 
-                    existingUser.email || undefined;
-                }
-                logger.info('[Booking] Resolved email for directory-selected participant', { extra: { participantEmail: participant.email } });
-              }
-            } catch (err: unknown) {
-              logger.error('[Booking] Failed to lookup email for userId', { error: err instanceof Error ? err : new Error(getErrorMessage(err)), extra: { userId: participant.userId } });
-            }
+          } catch (err: unknown) {
+            logger.error('[Booking] Failed to batch lookup users by email', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) });
           }
         }
-        
-        for (const participant of sanitizedParticipants) {
-          if (participant.userId) {
-            const statusCheck = await db.select({ 
-              membershipStatus: users.membershipStatus,
+
+        if (userIdsToLookup.length > 0) {
+          try {
+            const idUsers = await tx.select({
+              id: users.id,
               email: users.email,
-              name: sql<string>`COALESCE(TRIM(CONCAT(${users.firstName}, ' ', ${users.lastName})), '')`.as('name')
+              firstName: users.firstName,
+              lastName: users.lastName
             }).from(users)
-              .where(eq(users.id, participant.userId))
-              .limit(1);
-            if (statusCheck.length > 0 && (statusCheck[0].membershipStatus === 'inactive' || statusCheck[0].membershipStatus === 'cancelled')) {
-              throw new BookingValidationError(400, { 
-                error: `${statusCheck[0].name || statusCheck[0].email || 'A participant'} has an inactive membership and cannot be added to bookings.`
+              .where(inArray(users.id, userIdsToLookup));
+            const idMap = new Map(idUsers.map(u => [u.id, u]));
+            for (const participant of sanitizedParticipants) {
+              if (participant.userId && !participant.email) {
+                const found = idMap.get(participant.userId);
+                if (found) {
+                  participant.email = found.email?.toLowerCase() || '';
+                  if (!participant.name) {
+                    const fullName = [found.firstName, found.lastName].filter(Boolean).join(' ').trim();
+                    participant.name = fullName || found.email || undefined;
+                  }
+                  logger.info('[Booking] Resolved email for directory-selected participant', { extra: { participantEmail: participant.email } });
+                }
+              }
+            }
+          } catch (err: unknown) {
+            logger.error('[Booking] Failed to batch lookup users by userId', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) });
+          }
+        }
+
+        const allParticipantUserIds = sanitizedParticipants
+          .filter((p: SanitizedParticipant) => p.userId)
+          .map((p: SanitizedParticipant) => p.userId as string);
+        if (allParticipantUserIds.length > 0) {
+          const statusResults = await tx.select({
+            id: users.id,
+            membershipStatus: users.membershipStatus,
+            email: users.email,
+            name: sql<string>`COALESCE(TRIM(CONCAT(${users.firstName}, ' ', ${users.lastName})), '')`.as('name')
+          }).from(users)
+            .where(inArray(users.id, allParticipantUserIds));
+          for (const statusRow of statusResults) {
+            if (statusRow.membershipStatus === 'inactive' || statusRow.membershipStatus === 'cancelled') {
+              throw new BookingValidationError(400, {
+                error: `${statusRow.name || statusRow.email || 'A participant'} has an inactive membership and cannot be added to bookings.`
               });
             }
           }
@@ -312,9 +334,9 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
               LIMIT 1
             `);
             if (pOverlap.rows.length > 0) {
-              const conflict = pOverlap.rows[0] as Record<string, unknown>;
-              const cStart = (conflict.start_time as string)?.substring(0, 5);
-              const cEnd = (conflict.end_time as string)?.substring(0, 5);
+              const conflict = pOverlap.rows[0] as BookingOverlapRow;
+              const cStart = conflict.start_time?.substring(0, 5);
+              const cEnd = conflict.end_time?.substring(0, 5);
               throw new BookingValidationError(409, {
                 error: `${participant.name || participant.email} already has a booking at ${conflict.resource_name} from ${formatTime12Hour(cStart)} to ${formatTime12Hour(cEnd)}. They cannot be added to an overlapping time slot.`
               });
@@ -367,7 +389,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
             tx
           );
           if (!holdResult.success) {
-            throw new Error(`Guest pass hold failed: ${holdResult.error || 'Insufficient guest passes available'}`);
+            throw new GuestPassHoldError(holdResult.error || 'Insufficient guest passes available');
           }
         }
         
@@ -403,119 +425,12 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       if (error instanceof BookingConflictError) {
         return res.status(error.statusCode).json(error.errorBody);
       }
+      if (error instanceof GuestPassHoldError) {
+        return res.status(402).json({ error: 'Guest pass hold failed. Please check guest pass availability and try again.' });
+      }
       throw error;
     }
     
-    // Ensure session exists for auto-confirmed conference room bookings
-    // ensureSessionForBooking handles retries and writes staff_notes on failure internally
-    if (resourceType === 'conference_room' && row.resourceId) {
-      try {
-        const confEndTime = row.endTime || end_time;
-        const [startH, startM] = start_time.split(':').map(Number);
-        const [endH, endM] = confEndTime.split(':').map(Number);
-        const confDurationMinutes = (endH * 60 + endM) - (startH * 60 + startM);
-
-        const participants = [{
-          participantType: 'owner' as const,
-          displayName: resolvedUserName || requestEmail,
-          userId: resolvedUserId || sessionUser?.id || undefined,
-          guestId: undefined
-        }];
-
-        const result = await createSessionWithUsageTracking({
-          bookingId: row.id,
-          resourceId: row.resourceId,
-          sessionDate: request_date,
-          startTime: start_time,
-          endTime: confEndTime,
-          ownerEmail: requestEmail,
-          durationMinutes: confDurationMinutes > 0 ? confDurationMinutes : duration_minutes,
-          declaredPlayerCount: 1,
-          participants
-        }, 'member_request');
-
-        if (!result.success) {
-          logger.warn('[ConferenceRoom] Usage tracking returned failure, falling back to session-only', {
-            extra: { bookingId: row.id, error: result.error }
-          });
-          const fallbackSession = await ensureSessionForBooking({
-            bookingId: row.id,
-            resourceId: row.resourceId,
-            sessionDate: request_date,
-            startTime: start_time,
-            endTime: row.endTime || end_time,
-            ownerEmail: requestEmail,
-            ownerName: user_name || undefined,
-            source: 'member_request',
-            createdBy: 'conference_room_auto_confirm'
-          });
-          if (fallbackSession.error) {
-            logger.error('[ConferenceRoom] Fallback session creation failed', { extra: { bookingId: row.id, error: fallbackSession.error } });
-          }
-        }
-      } catch (confError) {
-        logger.error('[ConferenceRoom] Failed to create session with usage tracking, falling back', {
-          error: confError instanceof Error ? confError : new Error(String(confError))
-        });
-        const catchFallbackSession = await ensureSessionForBooking({
-          bookingId: row.id,
-          resourceId: row.resourceId,
-          sessionDate: request_date,
-          startTime: start_time,
-          endTime: row.endTime || end_time,
-          ownerEmail: requestEmail,
-          ownerName: user_name || undefined,
-          source: 'member_request',
-          createdBy: 'conference_room_auto_confirm'
-        }).catch(fallbackErr => {
-          logger.error('[ConferenceRoom] Fallback ensureSession also failed', {
-            error: fallbackErr instanceof Error ? fallbackErr : new Error(String(fallbackErr))
-          });
-        });
-      }
-
-      const sessionCheck = await db.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${row.id} LIMIT 1`);
-      const confSessionId = sessionCheck.rows[0]?.session_id as number | null;
-
-      if (!confSessionId) {
-        logger.error('[ConferenceRoom] Session creation failed — no session_id after all attempts, reverting to pending', {
-          extra: { bookingId: row.id }
-        });
-        const revertResult = await db.execute(sql`UPDATE booking_requests SET status = 'pending', staff_notes = 'Auto-confirm failed: session could not be created. Please review and approve manually.', updated_at = NOW() WHERE id = ${row.id} AND status IN ('approved', 'confirmed')`);
-        if (revertResult.rowCount && revertResult.rowCount > 0) {
-          row.status = 'pending';
-        }
-      } else {
-        try {
-          await recalculateSessionFees(confSessionId, 'approval');
-          await syncBookingInvoice(row.id, confSessionId);
-          
-          const invoiceId = await getBookingInvoiceId(row.id);
-          if (invoiceId) {
-            try {
-              const payResult = await finalizeAndPayInvoice({ bookingId: row.id });
-              logger.info('[ConferenceRoom] Invoice finalized and payment attempted', {
-                extra: { bookingId: row.id, sessionId: confSessionId, paidInFull: payResult.paidInFull, status: payResult.status }
-              });
-              row._invoicePayResult = payResult;
-            } catch (payErr: unknown) {
-              logger.warn('[ConferenceRoom] Invoice finalize/pay did not complete instantly — member can pay via dashboard', {
-                extra: { bookingId: row.id, error: getErrorMessage(payErr) }
-              });
-            }
-          } else {
-            logger.info('[ConferenceRoom] No fees due — skipping invoice finalization', {
-              extra: { bookingId: row.id, sessionId: confSessionId }
-            });
-          }
-        } catch (invoiceErr: unknown) {
-          logger.warn('[ConferenceRoom] Non-blocking: Failed to create invoice after booking', {
-            extra: { bookingId: row.id, error: getErrorMessage(invoiceErr) }
-          });
-        }
-      }
-    }
-
     let resourceName = 'Bay';
     if (row.resourceId) {
       try {
@@ -528,7 +443,6 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       }
     }
     
-    // Use the original request_date string (row.requestDate is a Date object from Postgres)
     const dateStr = typeof row.requestDate === 'string' 
       ? row.requestDate 
       : request_date;
@@ -549,13 +463,10 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
     
     const playerCount = declared_player_count && declared_player_count > 1 ? ` (${declared_player_count} players)` : '';
     
-    // Conference rooms are auto-confirmed so say "Booking" not "Request"
     const isConfRoom = resourceType === 'conference_room';
     const staffTitle = isConfRoom ? 'New Conference Room Booking' : 'New Golf Booking Request';
     const staffMessage = `${row.userName || row.userEmail}${playerCount} - ${resourceName} on ${formattedDate} at ${formattedTime12h} for ${durationDisplay}`;
     
-    // Send response FIRST before any post-commit async operations
-    // This ensures the client gets a success response even if notifications fail
     res.status(201).json({
       id: row.id,
       user_email: row.userEmail,
@@ -575,17 +486,8 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       created_at: row.createdAt,
       updated_at: row.updatedAt,
       calendar_event_id: row.calendarEventId,
-      ...(row._invoicePayResult ? {
-        invoicePayment: {
-          paidInFull: row._invoicePayResult.paidInFull,
-          status: row._invoicePayResult.status,
-          clientSecret: row._invoicePayResult.clientSecret || null,
-          amountFromBalance: row._invoicePayResult.amountFromBalance || 0,
-        }
-      } : {})
     });
     
-    // Track first booking for onboarding (async, non-blocking)
     db.execute(sql`UPDATE users SET first_booking_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${row.userEmail}) AND first_booking_at IS NULL`).catch((err) => logger.warn('[Booking] Non-critical first_booking_at update failed:', err));
 
     db.execute(sql`UPDATE users SET onboarding_completed_at = NOW(), updated_at = NOW() 
@@ -594,8 +496,117 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       AND first_name IS NOT NULL AND last_name IS NOT NULL AND phone IS NOT NULL
       AND waiver_signed_at IS NOT NULL AND app_installed_at IS NOT NULL`).catch((err) => logger.warn('[Booking] Non-critical onboarding update failed:', err));
 
-    // All post-commit operations are now AFTER the response is sent
-    // Wrap in try/catch so any failures don't crash the server
+    if (resourceType === 'conference_room' && row.resourceId) {
+      (async () => {
+        try {
+          const confEndTime = row.endTime || end_time;
+          const [startH, startM] = start_time.split(':').map(Number);
+          const [endH, endM] = confEndTime.split(':').map(Number);
+          const confDurationMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+
+          const participants = [{
+            participantType: 'owner' as const,
+            displayName: resolvedUserName || requestEmail,
+            userId: resolvedUserId || sessionUser?.id || undefined,
+            guestId: undefined
+          }];
+
+          const result = await createSessionWithUsageTracking({
+            bookingId: row.id,
+            resourceId: row.resourceId!,
+            sessionDate: request_date,
+            startTime: start_time,
+            endTime: confEndTime,
+            ownerEmail: requestEmail,
+            durationMinutes: confDurationMinutes > 0 ? confDurationMinutes : duration_minutes,
+            declaredPlayerCount: 1,
+            participants
+          }, 'member_request');
+
+          if (!result.success) {
+            logger.warn('[ConferenceRoom] Usage tracking returned failure, falling back to session-only', {
+              extra: { bookingId: row.id, error: result.error }
+            });
+            const fallbackSession = await ensureSessionForBooking({
+              bookingId: row.id,
+              resourceId: row.resourceId!,
+              sessionDate: request_date,
+              startTime: start_time,
+              endTime: row.endTime || end_time,
+              ownerEmail: requestEmail,
+              ownerName: user_name || undefined,
+              source: 'member_request',
+              createdBy: 'conference_room_auto_confirm'
+            });
+            if (fallbackSession.error) {
+              logger.error('[ConferenceRoom] Fallback session creation failed', { extra: { bookingId: row.id, error: fallbackSession.error } });
+            }
+          }
+
+          const sessionCheck = await db.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${row.id} LIMIT 1`);
+          const confSessionId = sessionCheck.rows[0]?.session_id as number | null;
+
+          if (!confSessionId) {
+            logger.error('[ConferenceRoom] Session creation failed — no session_id after all attempts, reverting to pending', {
+              extra: { bookingId: row.id }
+            });
+            await db.execute(sql`UPDATE booking_requests SET status = 'pending', staff_notes = 'Auto-confirm failed: session could not be created. Please review and approve manually.', updated_at = NOW() WHERE id = ${row.id} AND status IN ('approved', 'confirmed')`);
+          } else {
+            try {
+              await recalculateSessionFees(confSessionId, 'approval');
+              await syncBookingInvoice(row.id, confSessionId);
+              
+              const invoiceId = await getBookingInvoiceId(row.id);
+              if (invoiceId) {
+                try {
+                  const payResult = await finalizeAndPayInvoice({ bookingId: row.id });
+                  logger.info('[ConferenceRoom] Invoice finalized and payment attempted', {
+                    extra: { bookingId: row.id, sessionId: confSessionId, paidInFull: payResult.paidInFull, status: payResult.status }
+                  });
+                } catch (payErr: unknown) {
+                  logger.warn('[ConferenceRoom] Invoice finalize/pay did not complete instantly — member can pay via dashboard', {
+                    extra: { bookingId: row.id, error: getErrorMessage(payErr) }
+                  });
+                }
+              } else {
+                logger.info('[ConferenceRoom] No fees due — skipping invoice finalization', {
+                  extra: { bookingId: row.id, sessionId: confSessionId }
+                });
+              }
+            } catch (invoiceErr: unknown) {
+              logger.warn('[ConferenceRoom] Non-blocking: Failed to create invoice after booking', {
+                extra: { bookingId: row.id, error: getErrorMessage(invoiceErr) }
+              });
+            }
+          }
+        } catch (confError) {
+          logger.error('[ConferenceRoom] Post-response conference room processing failed', {
+            error: confError instanceof Error ? confError : new Error(String(confError)),
+            extra: { bookingId: row.id }
+          });
+          try {
+            await ensureSessionForBooking({
+              bookingId: row.id,
+              resourceId: row.resourceId!,
+              sessionDate: request_date,
+              startTime: start_time,
+              endTime: row.endTime || end_time,
+              ownerEmail: requestEmail,
+              ownerName: user_name || undefined,
+              source: 'member_request',
+              createdBy: 'conference_room_auto_confirm'
+            });
+          } catch (fallbackErr) {
+            logger.error('[ConferenceRoom] Fallback ensureSession also failed', {
+              error: fallbackErr instanceof Error ? fallbackErr : new Error(String(fallbackErr))
+            });
+          }
+        }
+      })().catch(err => logger.error('[ConferenceRoom] Unhandled error in post-response processing', {
+        error: err instanceof Error ? err : new Error(String(err))
+      }));
+    }
+
     try {
       notifyAllStaff(
         staffTitle,
@@ -633,10 +644,6 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       logger.error('[BookingRequest] Post-commit operations failed', { extra: { postCommitError } });
     }
   } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    if (errMsg.includes('Guest pass hold failed:')) {
-      return res.status(402).json({ error: 'Guest pass hold failed. Please check guest pass availability and try again.' });
-    }
     const { isConstraintError } = await import('../../core/db');
     const constraint = isConstraintError(error);
     if (constraint.type === 'unique') {

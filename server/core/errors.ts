@@ -23,3 +23,11 @@ export class AppError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 }
+
+export class GuestPassHoldError extends Error {
+  constructor(message: string, public readonly passesAvailable?: number) {
+    super(message);
+    this.name = 'GuestPassHoldError';
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
