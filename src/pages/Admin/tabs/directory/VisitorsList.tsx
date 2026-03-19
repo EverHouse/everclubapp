@@ -3,8 +3,8 @@ import { DirectoryTabSkeleton } from '../../../../components/skeletons';
 import EmptyState from '../../../../components/EmptyState';
 import { formatPhoneNumber } from '../../../../utils/formatting';
 import { formatJoinDate } from './directoryTypes';
-import type {
 import Icon from '../../../../components/icons/Icon';
+import type {
     Visitor,
     VisitorType,
     VisitorSource,

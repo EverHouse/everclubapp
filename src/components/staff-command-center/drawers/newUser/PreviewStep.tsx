@@ -1,6 +1,6 @@
 import React from 'react';
-import {
 import Icon from '../../../icons/Icon';
+import {
   MemberFormData,
   MembershipTier,
   MemberStep,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { formatPhoneInput } from '../../../../utils/formatting';
-import {
 import Icon from '../../../icons/Icon';
+import {
   MemberFormData,
   MembershipTier,
   ExistingBillingGroup,

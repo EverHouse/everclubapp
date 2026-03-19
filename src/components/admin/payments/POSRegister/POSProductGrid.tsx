@@ -1,7 +1,7 @@
 import React from 'react';
 import type { CafeItem } from '../../../../types/data';
-import {
 import Icon from '../../../icons/Icon';
+import {
   type CategoryTab,
   CAFE_CATEGORY_ICONS,
   cafeItemToCartProduct,
