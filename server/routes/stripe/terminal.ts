@@ -671,12 +671,12 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
       } catch (payErr: unknown) {
         logger.warn('[Terminal] Could not mark $0 invoice as paid (may already be paid)', { extra: { error: getErrorMessage(payErr) } });
       }
-      await db.execute(sql`UPDATE users SET membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = ${Number(userId)}`);
+      await db.execute(sql`UPDATE users SET membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = ${userId}`);
 
       try {
         const { users } = await import('../../../shared/schema');
         const { eq } = await import('drizzle-orm');
-        const [activatedUser] = await db.select().from(users).where(eq(users.id, Number(userId)));
+        const [activatedUser] = await db.select().from(users).where(eq(users.id, userId));
         if (activatedUser) {
           const { syncMemberToHubSpot } = await import('../../core/hubspot/stages');
           await syncMemberToHubSpot({
