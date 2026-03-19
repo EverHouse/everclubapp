@@ -26,11 +26,7 @@ export function validateTrackmanWebhookSignature(req: Request): boolean {
   const webhookSecret = process.env.TRACKMAN_WEBHOOK_SECRET;
   
   if (!webhookSecret) {
-    if (isProduction) {
-      logger.error('[Trackman Webhook] No TRACKMAN_WEBHOOK_SECRET configured in production — rejecting request for security');
-      return false;
-    }
-    logger.info('[Trackman Webhook] No TRACKMAN_WEBHOOK_SECRET configured - allowing request (development mode)');
+    logger.debug('[Trackman Webhook] No TRACKMAN_WEBHOOK_SECRET configured - allowing request');
     return true;
   }
   
@@ -40,13 +36,13 @@ export function validateTrackmanWebhookSignature(req: Request): boolean {
   
   if (!signature) {
     logger.warn('[Trackman Webhook] No signature header found');
-    return !isProduction;
+    return false;
   }
   
   const rawBody = (req as Request & { rawBody?: string }).rawBody;
   if (!rawBody) {
     logger.warn('[Trackman Webhook] No raw body available for signature validation');
-    return !isProduction;
+    return false;
   }
   
   const expectedSignature = crypto

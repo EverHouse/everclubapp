@@ -275,7 +275,7 @@ async function checkTrackman(): Promise<ServiceHealth> {
     return {
       status: 'healthy',
       latencyMs,
-      message: webhookSecret ? 'Signature validation enabled' : 'No webhook secret configured',
+      message: webhookSecret ? 'Signature validation enabled' : 'Accepting all webhooks (no secret required)',
       lastChecked: new Date().toISOString()
     };
   } catch (error: unknown) {
