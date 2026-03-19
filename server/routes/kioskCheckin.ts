@@ -123,7 +123,11 @@ router.post('/api/kiosk/verify-passcode', isStaffOrAdmin, async (req: Request, r
       return res.status(400).json({ valid: false, error: 'Passcode is required' });
     }
 
-    const storedPasscode = await getSettingValue('kiosk.exit_passcode', '1234');
+    const storedPasscode = await getSettingValue('kiosk.exit_passcode');
+    if (!storedPasscode) {
+      logger.error('[Kiosk] No exit passcode configured in system settings');
+      return res.status(503).json({ valid: false, error: 'Kiosk exit passcode not configured. Contact an administrator.' });
+    }
     if (passcode === storedPasscode) {
       passcodeAttempts.delete(key);
       return res.json({ valid: true });

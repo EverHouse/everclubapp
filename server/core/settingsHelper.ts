@@ -6,7 +6,7 @@ import { logger } from './logger';
 const settingsCache = new Map<string, { value: string; fetchedAt: number }>();
 const CACHE_TTL_MS = 30_000;
 
-export async function getSettingValue(key: string, defaultValue: string): Promise<string> {
+export async function getSettingValue(key: string, defaultValue?: string): Promise<string | undefined> {
   const cached = settingsCache.get(key);
   if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
     return cached.value;
@@ -15,7 +15,9 @@ export async function getSettingValue(key: string, defaultValue: string): Promis
   try {
     const [row] = await db.select().from(systemSettings).where(eq(systemSettings.key, key));
     const value = row?.value ?? defaultValue;
-    settingsCache.set(key, { value, fetchedAt: Date.now() });
+    if (value !== undefined) {
+      settingsCache.set(key, { value, fetchedAt: Date.now() });
+    }
     return value;
   } catch (error) {
     logger.error(`[Settings Helper] Failed to read setting ${key}`, { error: error as Error });
