@@ -11,7 +11,7 @@ Layered defense against data corruption, sync drift, and operational failures ac
 
 | Task | Primary File(s) | When to touch |
 |---|---|---|
-| Integrity checks (21 active) | `server/core/dataIntegrity.ts` (barrel re-export), `server/core/integrity/` (actual modules: `core.ts`, `memberChecks.ts`, `stripeChecks.ts`, `bookingChecks.ts`, `hubspotChecks.ts`, `cleanup.ts`, `resolution.ts`) | Check logic, issue tracking, ignore rules, audit log |
+| Integrity checks (22 active) | `server/core/dataIntegrity.ts` (barrel re-export), `server/core/integrity/` (actual modules: `core.ts`, `memberChecks.ts`, `stripeChecks.ts`, `bookingChecks.ts`, `hubspotChecks.ts`, `cleanup.ts`, `resolution.ts`) | Check logic, issue tracking, ignore rules, audit log |
 | Data alerts (in-app) | `server/core/dataAlerts.ts` | Staff notifications for failures |
 | Error alerts (email) | `server/core/errorAlerts.ts` | Email alerts with plain-language translation |
 | Monitoring core | `server/core/monitoring.ts` | `system_alerts` table + in-memory buffer |
@@ -73,13 +73,21 @@ What type of alert?
 6. **DB lock for multi-instance safety.** Integrity scheduler uses `system_settings` upsert with `IS DISTINCT FROM` guard.
 7. **Auto-fix tiers run every 24h (reduced scope).** Linked-email tier cleanup and HubSpot tier candidates only. Email normalization, status case normalization, billing provider auto-set, staff role sync, and participant user_id linking are now handled exclusively by DB triggers (`normalize_email_trigger`, `users_membership_status_lowercase_check`, `trg_auto_billing_provider`, `trg_sync_staff_role`, `trg_link_participant_user_id`).
 8. **6 integrity checks eliminated by DB constraints.** Participant User Relationships (FK), Booking Time Validity (CHECK), Members Without Email (CHECK), HubSpot ID Duplicates (unique index), Guest Passes Without Members (trigger), Email Cascade Orphans (trigger). These issues are now impossible at the DB level.
-9. **3 integrity checks downgraded to informational.** Overlapping Bookings → low (DB trigger prevents new), Billing Provider Hybrid State → medium (trigger auto-sets), Sessions Without Participants → low (informational).
-10. **Default billing_provider is `'stripe'`.** Schema default + db-init ALTER + explicit creation paths.
-11. **Booking auto-complete runs every 1 hr.** Marks approved/confirmed as `attended` 30 min after end time for same-day, or next day for overnight. Fee guard: blocks if unpaid fees exist.
-12. **Abandoned pending cleanup (every 6h).** Delete users pending >24h with no Stripe subscription, cascade-deleting related records in transaction.
-13. **Drizzle SQL null safety.** All optional values in `sql` template literals MUST use `?? null`. Prevents empty placeholder syntax errors.
-14. **Webhook dedup cleanup.** `cleanupOldProcessedEvents()` runs probabilistically (5% of webhooks).
-15. **FK constraints must NOT use `.references()` unless already in production.** Replit's deployment auto-generates migrations from Drizzle schema — if `.references()` exists but the FK isn't in production, deployment fails on orphaned data. FK constraints for tables with potential orphans are managed at runtime by `db-init.ts` (orphan cleanup → DROP IF EXISTS → ADD CONSTRAINT). See `project-architecture` Rule 7 for the full list.
+9. **Scheduled runs reduced to 8 external-system checks.** Only Stripe (4: subscription sync, billing orphans, orphaned subscriptions, tier reconciliation), HubSpot (1), Trackman (1), MindBody (2) remain in scheduled runs. All 15 DB-enforced/internal checks (including orphaned PI, invoice recon, billing hybrid) moved to legacy mode — only run on manual trigger (`includeLegacy: true`, default for `triggeredBy: 'manual'`). Stale pending auto-expiry is handled by `bookingExpiryScheduler`, not integrity checks.
+10. **Items Needing Review removed from integrity checks.** This was a workflow queue (needs_review flag), not a data integrity issue. It remains accessible via the admin dashboard's existing needs-review UI but is no longer part of `runAllIntegrityChecks()`.
+11. **DB-level state machines enforce status transitions.** `trg_booking_status_machine` (booking_requests) and `trg_membership_status_machine` (users) reject invalid status transitions at INSERT/UPDATE time. Terminal statuses (attended/no_show/cancelled/declined/expired for bookings; archived/merged for memberships) cannot be transitioned out of without the `SET app.bypass_status_check = 'true'` escape hatch.
+12. **DB-level guards for stale/unpaid bookings.** `trg_guard_stale_pending` rejects approving bookings >2hr past start time. `trg_guard_attended_unpaid` blocks transition to attended if unpaid fee snapshots exist.
+13. **DB-level archived member write protection.** `trg_prevent_archived_*` triggers on 5 tables (booking_requests, event_rsvps, wellness_enrollments, guest_pass_holds, push_subscriptions) reject inserts for archived members.
+14. **DB-level payment cleanup.** `trg_cleanup_fee_on_terminal` auto-cancels pending fee snapshots when booking status reaches terminal. `trg_auto_expire_stale_tours` marks tours >7 days past as no_show.
+15. **Dedup indexes.** `idx_users_email_stripe_unique` prevents duplicate Stripe customers per email. `idx_bookings_invoice_unique` prevents duplicate active invoice IDs on booking_requests.
+16. **6 checks downgraded from critical/high to medium.** Duplicate Stripe Customers, Orphaned Payment Intents, Invoice-Booking Reconciliation, Guest Pass Accounting Drift, Stale Pending Bookings, Archived Member Lingering Data — DB now prevents new occurrences; remaining issues are legacy data only. 5 of these are excluded from scheduled runs entirely (legacy mode only).
+17. **parseConstraintError utility.** `server/utils/errorUtils.ts` exports `parseConstraintError(error)` to parse PostgreSQL trigger/constraint errors into structured `{ table, message, isConstraintError, constraintName }` objects. Handles RAISE EXCEPTION `[table] message` format, CHECK violations, and unique constraint violations.
+18. **Default billing_provider is `'stripe'`.** Schema default + db-init ALTER + explicit creation paths.
+19. **Booking auto-complete runs every 1 hr.** Marks approved/confirmed as `attended` 30 min after end time for same-day, or next day for overnight. Fee guard: blocks if unpaid fees exist.
+20. **Abandoned pending cleanup (every 6h).** Delete users pending >24h with no Stripe subscription, cascade-deleting related records in transaction.
+21. **Drizzle SQL null safety.** All optional values in `sql` template literals MUST use `?? null`. Prevents empty placeholder syntax errors.
+22. **Webhook dedup cleanup.** `cleanupOldProcessedEvents()` runs probabilistically (5% of webhooks).
+23. **FK constraints must NOT use `.references()` unless already in production.** Replit's deployment auto-generates migrations from Drizzle schema — if `.references()` exists but the FK isn't in production, deployment fails on orphaned data. FK constraints for tables with potential orphans are managed at runtime by `db-init.ts` (orphan cleanup → DROP IF EXISTS → ADD CONSTRAINT). See `project-architecture` Rule 7 for the full list.
 
 ## Anti-Patterns (NEVER)
 
@@ -112,10 +120,10 @@ What type of alert?
 
 | Severity | Behavior | Examples |
 |---|---|---|
-| **Critical** | Notify staff every run | Stripe Sub Sync, Orphaned Payments, Invoice-Booking Reconciliation, Active Bookings Without Sessions, Lingering Payment Intents on Terminal Bookings |
-| **High** | Notify when count > threshold (10) | Tier Reconciliation, Duplicate Stripe Customers, Guest Pass Drift, Stale Pending, Archived Lingering |
-| **Medium** | Dashboard only, no proactive alert | Unmatched Trackman, MindBody Stale/Quality, Billing Provider Hybrid, Active Members Without Waivers |
-| **Low** | Informational | Sessions Without Participants, Overlapping Bookings, Items Needing Review, Stale Past Tours |
+| **Critical** | Notify staff every run | Stripe Sub Sync, Active Bookings Without Sessions, Stuck Transitional Members, Billing Orphans, Orphaned Stripe Subscriptions, Auth Linking Data Integrity |
+| **High** | Notify when count > threshold (10) | Tier Reconciliation, Billing Provider Hybrid State, Lingering Payment Intents on Terminal Bookings |
+| **Medium** | Dashboard only, no proactive alert | Unmatched Trackman, MindBody Stale/Quality, Active Members Without Waivers, Duplicate Stripe Customers (DB-guarded), Orphaned Payment Intents (DB-guarded), Invoice-Booking Recon (DB-guarded), Guest Pass Drift (DB-guarded), Stale Pending (DB-guarded), Archived Lingering (DB-guarded) |
+| **Low** | Informational | Sessions Without Participants, Overlapping Bookings, Stale Past Tours |
 
 ### Error Alert Email Types
 

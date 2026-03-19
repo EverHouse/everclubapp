@@ -598,7 +598,7 @@ export async function checkArchivedMemberLingeringData(): Promise<IntegrityCheck
       severity: 'warning',
       table: 'users',
       recordId: row.id,
-      description: `Archived member "${name}" <${row.email}> still has ${row.issue_count} ${typeLabels[row.issue_type] || row.issue_type}`,
+      description: `Archived member "${name}" <${row.email}> still has ${row.issue_count} ${typeLabels[row.issue_type] || row.issue_type} (DB trigger prevents new records)`,
       suggestion: 'Clean up lingering data for this archived member or re-archive them using the updated archive flow',
       context: {
         memberEmail: row.email,

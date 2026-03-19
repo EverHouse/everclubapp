@@ -62,6 +62,100 @@ export function getErrorProperty(error: unknown, key: string): unknown {
   return hasProperty(error, key) ? error[key] : undefined;
 }
 
+export interface ParsedConstraintError {
+  table: string;
+  message: string;
+  isConstraintError: boolean;
+  constraintName?: string;
+}
+
+export function parseConstraintError(error: unknown): ParsedConstraintError {
+  const msg = getErrorMessage(error);
+  const detail = getErrorDetail(error);
+  const code = getErrorCode(error);
+
+  const constraintCodes = new Set(['23514', '23505', '23503', '23502', '23P01', 'P0001']);
+  const isConstraintError = !!code && constraintCodes.has(code);
+
+  const pgTable = hasProperty(error, 'table') ? String(error.table) : undefined;
+  const pgConstraint = hasProperty(error, 'constraint') ? String(error.constraint) : undefined;
+
+  const triggerMatch = msg.match(/^\[(\w+)\]\s*(.+)/);
+  if (triggerMatch) {
+    return {
+      table: triggerMatch[1],
+      message: triggerMatch[2],
+      isConstraintError: true,
+    };
+  }
+
+  const checkMatch = msg.match(/new row for relation "(\w+)" violates check constraint "(\w+)"/);
+  if (checkMatch) {
+    return {
+      table: pgTable || checkMatch[1],
+      message: `Check constraint violation: ${checkMatch[2]}`,
+      isConstraintError: true,
+      constraintName: pgConstraint || checkMatch[2],
+    };
+  }
+
+  const uniqueMatch = msg.match(/duplicate key value violates unique constraint "(\w+)"/);
+  if (uniqueMatch) {
+    return {
+      table: pgTable || 'unknown',
+      message: `Duplicate value violates unique constraint: ${uniqueMatch[1]}`,
+      isConstraintError: true,
+      constraintName: pgConstraint || uniqueMatch[1],
+    };
+  }
+
+  if (code === '23503') {
+    const fkMatch = msg.match(/violates foreign key constraint "(\w+)"/);
+    return {
+      table: pgTable || 'unknown',
+      message: fkMatch ? `Foreign key violation: ${fkMatch[1]}` : msg,
+      isConstraintError: true,
+      constraintName: pgConstraint || fkMatch?.[1],
+    };
+  }
+
+  if (code === '23502') {
+    const notNullMatch = msg.match(/null value in column "(\w+)" of relation "(\w+)"/);
+    return {
+      table: pgTable || notNullMatch?.[2] || 'unknown',
+      message: notNullMatch ? `NOT NULL violation on column "${notNullMatch[1]}"` : msg,
+      isConstraintError: true,
+      constraintName: pgConstraint,
+    };
+  }
+
+  if (code === '23P01') {
+    const exclMatch = msg.match(/conflicting key value violates exclusion constraint "(\w+)"/);
+    return {
+      table: pgTable || 'unknown',
+      message: exclMatch ? `Exclusion constraint violation: ${exclMatch[1]}` : msg,
+      isConstraintError: true,
+      constraintName: pgConstraint || exclMatch?.[1],
+    };
+  }
+
+  if (isConstraintError) {
+    const raiseMatch = msg.match(/(?:ERROR:\s*)?(.+)/);
+    return {
+      table: pgTable || 'unknown',
+      message: raiseMatch ? raiseMatch[1] : msg,
+      isConstraintError: true,
+      constraintName: pgConstraint,
+    };
+  }
+
+  return {
+    table: pgTable || 'unknown',
+    message: msg,
+    isConstraintError: false,
+  };
+}
+
 const SENSITIVE_PATTERNS = [
   /postgres(?:ql)?:\/\/[^\s]+/gi,
   /mysql:\/\/[^\s]+/gi,

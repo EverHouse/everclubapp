@@ -284,7 +284,7 @@ export async function checkStalePastTours(): Promise<IntegrityCheckResult> {
       table: 'tours',
       recordId: row.id,
       description: `Tour "${row.title}" for ${row.guest_name || 'unknown guest'} on ${row.tour_date} is in the past but still marked as "${row.status}"`,
-      suggestion: 'Update tour status to completed, no-show, or cancelled',
+      suggestion: 'DB trigger auto-expires tours >7 days old. This tour is 1–7 days past — update status to completed, no-show, or cancelled.',
       context: {
         guestName: row.guest_name || undefined,
         memberEmail: row.guest_email || undefined,
@@ -508,7 +508,7 @@ export async function checkGuestPassAccountingDrift(): Promise<IntegrityCheckRes
         table: 'guest_passes',
         recordId: row.id,
         description: `Guest pass #${row.id} for ${row.member_email} has passes_used (${row.passes_used}) > passes_total (${row.passes_total})`,
-        suggestion: 'Guest pass usage exceeds total allocation. Review and correct the pass balance.',
+        suggestion: 'Legacy data: DB constraint now prevents new over-consumption. Review and correct this existing pass balance.',
         context: {
           memberEmail: row.member_email || undefined
         }

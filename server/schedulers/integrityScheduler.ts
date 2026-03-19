@@ -140,7 +140,7 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
             logger.error('[Integrity Check] Pre-check cleanup failed (continuing with checks):', { error: cleanupErr as Error });
           }
 
-          const results = await runAllIntegrityChecks();
+          const results = await runAllIntegrityChecks('scheduled');
           
           const totalIssues = results.reduce((sum, r) => sum + r.issueCount, 0);
           const errorCount = results.reduce((sum, r) => 

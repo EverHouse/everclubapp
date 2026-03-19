@@ -5,7 +5,7 @@ import './core/suppressWarnings';
 import http from 'http';
 import type { Server } from 'http';
 import { randomBytes } from 'crypto';
-import { getErrorMessage, getErrorStatusCode } from './utils/errorUtils';
+import { getErrorMessage, getErrorStatusCode, parseConstraintError } from './utils/errorUtils';
 import { logger } from './core/logger';
 import { usingPooler } from './core/db';
 
@@ -1131,6 +1131,19 @@ async function initializeApp() {
       }
       return;
     }
+
+    const parsed = parseConstraintError(err);
+    if (parsed.isConstraintError) {
+      logger.warn('[Express] Database constraint violation', {
+        error: err,
+        extra: { method: req.method, url: req.originalUrl, table: parsed.table, constraint: parsed.constraintName }
+      });
+      if (!res.headersSent) {
+        res.status(409).json({ error: parsed.message, table: parsed.table, constraint: parsed.constraintName });
+      }
+      return;
+    }
+
     const status = getErrorStatusCode(err) || 500;
     logger.error('[Express] Unhandled route error', {
       error: err,

@@ -293,11 +293,7 @@ export async function ensureDatabaseConstraints() {
           conflict_count INTEGER;
           bypass TEXT;
         BEGIN
-          BEGIN
-            bypass := current_setting('app.bypass_overlap_check', true);
-          EXCEPTION WHEN OTHERS THEN
-            bypass := '';
-          END;
+          bypass := COALESCE(current_setting('app.bypass_overlap_check', true), '');
           IF bypass = 'true' THEN
             RETURN NEW;
           END IF;
@@ -1301,6 +1297,522 @@ export async function ensureDatabaseConstraints() {
       logger.warn(`[DB Init] Skipping validate_guest_pass_member trigger: ${getErrorMessage(err)}`);
     }
 
+    // Task 1: Booking status state machine trigger
+    // Status values aligned with shared/constants/statuses.ts BOOKING_STATUS
+    // Terminal: attended, no_show, cancelled, declined, expired (TERMINAL_BOOKING_STATUSES + no_show + expired)
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION enforce_booking_status_transition()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        DECLARE
+          bypass TEXT;
+          valid BOOLEAN := false;
+        BEGIN
+          IF TG_OP = 'INSERT' THEN
+            RETURN NEW;
+          END IF;
+          IF OLD.status = NEW.status THEN
+            RETURN NEW;
+          END IF;
+          bypass := COALESCE(current_setting('app.bypass_status_check', true), '');
+          IF bypass = 'true' THEN
+            RETURN NEW;
+          END IF;
+
+          CASE OLD.status
+            WHEN 'pending' THEN
+              valid := NEW.status IN ('approved', 'confirmed', 'declined', 'cancelled', 'cancellation_pending', 'expired', 'pending_approval');
+            WHEN 'pending_approval' THEN
+              valid := NEW.status IN ('approved', 'declined', 'cancelled', 'cancellation_pending', 'expired');
+            WHEN 'approved' THEN
+              valid := NEW.status IN ('confirmed', 'cancelled', 'cancellation_pending', 'attended', 'no_show', 'expired', 'checked_in');
+            WHEN 'confirmed' THEN
+              valid := NEW.status IN ('cancelled', 'cancellation_pending', 'attended', 'no_show', 'checked_in');
+            WHEN 'cancellation_pending' THEN
+              valid := NEW.status IN ('cancelled');
+            WHEN 'checked_in' THEN
+              valid := NEW.status IN ('attended', 'no_show');
+            WHEN 'attended', 'no_show', 'cancelled', 'declined', 'expired' THEN
+              valid := false;
+            ELSE
+              valid := false;
+          END CASE;
+
+          IF NOT valid THEN
+            RAISE EXCEPTION '[booking_requests] Status transition rejected: cannot change from "%" to "%" (booking_id=%)', OLD.status, NEW.status, OLD.id;
+          END IF;
+
+          RETURN NEW;
+        END;
+        $$;
+
+        DROP TRIGGER IF EXISTS trg_booking_status_machine ON booking_requests;
+        CREATE TRIGGER trg_booking_status_machine
+          BEFORE UPDATE OF status ON booking_requests
+          FOR EACH ROW
+          EXECUTE FUNCTION enforce_booking_status_transition();
+      `);
+      logger.info('[DB Init] Trigger: enforce_booking_status_transition created (booking status state machine)');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping booking status state machine trigger: ${getErrorMessage(err)}`);
+    }
+
+    // Task 2: Membership status state machine trigger
+    // Status values aligned with shared/constants/statuses.ts MEMBERSHIP_STATUS
+    // Terminal: archived, merged (cannot transition out without bypass)
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION enforce_membership_status_transition()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        DECLARE
+          bypass TEXT;
+          valid BOOLEAN := false;
+        BEGIN
+          IF TG_OP = 'INSERT' THEN
+            RETURN NEW;
+          END IF;
+          IF OLD.membership_status IS NOT DISTINCT FROM NEW.membership_status THEN
+            RETURN NEW;
+          END IF;
+          IF OLD.membership_status IS NULL THEN
+            RETURN NEW;
+          END IF;
+          bypass := COALESCE(current_setting('app.bypass_status_check', true), '');
+          IF bypass = 'true' THEN
+            RETURN NEW;
+          END IF;
+
+          CASE OLD.membership_status
+            WHEN 'pending' THEN
+              valid := NEW.membership_status IN ('active', 'non-member', 'expired', 'cancelled', 'trialing', 'inactive', 'terminated', 'archived', 'merged');
+            WHEN 'active' THEN
+              valid := NEW.membership_status IN ('past_due', 'suspended', 'cancelled', 'frozen', 'paused', 'terminated', 'archived', 'merged', 'grace_period', 'inactive', 'expired', 'unpaid', 'non-member');
+            WHEN 'trialing' THEN
+              valid := NEW.membership_status IN ('active', 'expired', 'cancelled', 'non-member', 'terminated', 'archived', 'merged', 'inactive');
+            WHEN 'past_due' THEN
+              valid := NEW.membership_status IN ('active', 'suspended', 'cancelled', 'terminated', 'frozen', 'grace_period', 'inactive', 'unpaid', 'archived', 'merged');
+            WHEN 'grace_period' THEN
+              valid := NEW.membership_status IN ('active', 'suspended', 'cancelled', 'terminated', 'inactive', 'archived', 'merged');
+            WHEN 'paused' THEN
+              valid := NEW.membership_status IN ('active', 'cancelled', 'terminated', 'archived', 'merged', 'inactive');
+            WHEN 'suspended' THEN
+              valid := NEW.membership_status IN ('active', 'cancelled', 'terminated', 'frozen', 'archived', 'merged', 'inactive');
+            WHEN 'frozen' THEN
+              valid := NEW.membership_status IN ('active', 'cancelled', 'terminated', 'suspended', 'archived', 'merged', 'inactive');
+            WHEN 'unpaid' THEN
+              valid := NEW.membership_status IN ('active', 'suspended', 'cancelled', 'terminated', 'archived', 'merged', 'inactive');
+            WHEN 'cancelled' THEN
+              valid := NEW.membership_status IN ('active', 'non-member', 'archived', 'merged', 'terminated', 'former_member', 'inactive', 'pending');
+            WHEN 'inactive' THEN
+              valid := NEW.membership_status IN ('active', 'non-member', 'archived', 'merged', 'terminated', 'pending', 'cancelled');
+            WHEN 'expired' THEN
+              valid := NEW.membership_status IN ('active', 'non-member', 'archived', 'merged', 'terminated', 'pending', 'inactive');
+            WHEN 'terminated' THEN
+              valid := NEW.membership_status IN ('archived', 'merged', 'non-member', 'active', 'pending');
+            WHEN 'former_member' THEN
+              valid := NEW.membership_status IN ('active', 'non-member', 'archived', 'merged', 'pending', 'terminated');
+            WHEN 'non-member' THEN
+              valid := NEW.membership_status IN ('active', 'pending', 'archived', 'merged', 'trialing', 'terminated');
+            WHEN 'archived' THEN
+              valid := false;
+            WHEN 'merged' THEN
+              valid := false;
+            WHEN 'unknown' THEN
+              valid := true;
+            ELSE
+              valid := false;
+          END CASE;
+
+          IF NOT valid THEN
+            RAISE EXCEPTION '[users] Membership status transition rejected: cannot change from "%" to "%" (user_id=%)', OLD.membership_status, NEW.membership_status, OLD.id;
+          END IF;
+
+          RETURN NEW;
+        END;
+        $$;
+
+        DROP TRIGGER IF EXISTS trg_membership_status_machine ON users;
+        CREATE TRIGGER trg_membership_status_machine
+          BEFORE UPDATE OF membership_status ON users
+          FOR EACH ROW
+          EXECUTE FUNCTION enforce_membership_status_transition();
+      `);
+      logger.info('[DB Init] Trigger: enforce_membership_status_transition created (membership status state machine)');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping membership status state machine trigger: ${getErrorMessage(err)}`);
+    }
+
+    // Task 3: Guest pass over-consumption CHECK constraint
+    try {
+      await db.execute(sql`
+        UPDATE guest_passes SET passes_used = passes_total
+        WHERE passes_used > passes_total
+      `);
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'guest_passes_usage_check'
+          ) THEN
+            ALTER TABLE guest_passes ADD CONSTRAINT guest_passes_usage_check
+              CHECK (passes_used <= passes_total);
+          END IF;
+        END $$;
+      `);
+      logger.info('[DB Init] CHECK: guest_passes_usage_check created (passes_used <= passes_total)');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping guest_passes_usage_check: ${getErrorMessage(err)}`);
+    }
+
+    // Task 3b: Guest pass hold race-condition guard — prevent over-allocation under concurrency
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION guard_guest_pass_hold_limit()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        DECLARE
+          bypass TEXT;
+          current_used INT;
+          current_held INT;
+          total_allowed INT;
+        BEGIN
+          bypass := COALESCE(current_setting('app.bypass_status_check', true), '');
+          IF bypass = 'true' THEN
+            RETURN NEW;
+          END IF;
+
+          SELECT passes_used, passes_total INTO current_used, total_allowed
+          FROM public.guest_passes
+          WHERE LOWER(member_email) = LOWER(NEW.member_email)
+          FOR UPDATE;
+
+          IF NOT FOUND THEN
+            RAISE EXCEPTION '[guest_pass_holds] Hold rejected: no guest pass record found for member "%"', NEW.member_email;
+          END IF;
+
+          SELECT COALESCE(SUM(passes_held), 0) INTO current_held
+          FROM public.guest_pass_holds
+          WHERE LOWER(member_email) = LOWER(NEW.member_email)
+            AND (expires_at IS NULL OR expires_at > NOW());
+
+          IF (current_used + current_held + NEW.passes_held) > total_allowed THEN
+            RAISE EXCEPTION '[guest_pass_holds] Hold rejected: would exceed pass limit (used=%, held=%, new_hold=%, total=%)',
+              current_used, current_held, NEW.passes_held, total_allowed;
+          END IF;
+
+          RETURN NEW;
+        END;
+        $$;
+
+        DROP TRIGGER IF EXISTS trg_guard_guest_pass_hold ON guest_pass_holds;
+        CREATE TRIGGER trg_guard_guest_pass_hold
+          BEFORE INSERT ON guest_pass_holds
+          FOR EACH ROW
+          EXECUTE FUNCTION guard_guest_pass_hold_limit();
+      `);
+      logger.info('[DB Init] Trigger: guard_guest_pass_hold_limit created (prevents over-allocation of guest passes)');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping guest pass hold guard: ${getErrorMessage(err)}`);
+    }
+
+    // Task 4: Archived member write protection trigger
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION prevent_archived_member_writes()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        DECLARE
+          member_status TEXT;
+          member_archived TIMESTAMP;
+          lookup_email TEXT;
+          bypass TEXT;
+        BEGIN
+          bypass := COALESCE(current_setting('app.bypass_status_check', true), '');
+          IF bypass = 'true' THEN
+            RETURN NEW;
+          END IF;
+
+          IF TG_TABLE_NAME = 'booking_requests' THEN
+            IF NEW.user_id IS NOT NULL THEN
+              SELECT membership_status, archived_at INTO member_status, member_archived
+              FROM public.users WHERE id = NEW.user_id;
+            ELSIF NEW.user_email IS NOT NULL THEN
+              SELECT membership_status, archived_at INTO member_status, member_archived
+              FROM public.users WHERE LOWER(email) = LOWER(NEW.user_email) LIMIT 1;
+            END IF;
+          ELSIF TG_TABLE_NAME IN ('event_rsvps', 'wellness_enrollments', 'push_subscriptions') THEN
+            lookup_email := NEW.user_email;
+            IF lookup_email IS NOT NULL THEN
+              SELECT membership_status, archived_at INTO member_status, member_archived
+              FROM public.users WHERE LOWER(email) = LOWER(lookup_email) LIMIT 1;
+            END IF;
+          ELSIF TG_TABLE_NAME = 'guest_pass_holds' THEN
+            lookup_email := NEW.member_email;
+            IF lookup_email IS NOT NULL THEN
+              SELECT membership_status, archived_at INTO member_status, member_archived
+              FROM public.users WHERE LOWER(email) = LOWER(lookup_email) LIMIT 1;
+            END IF;
+          END IF;
+
+          IF member_status = 'archived' AND member_archived IS NOT NULL THEN
+            RAISE EXCEPTION '[%] Insert rejected: member is archived and cannot accumulate new records', TG_TABLE_NAME;
+          END IF;
+
+          RETURN NEW;
+        END;
+        $$;
+      `);
+
+      const protectedTables = ['booking_requests', 'event_rsvps', 'wellness_enrollments', 'guest_pass_holds', 'push_subscriptions'];
+      for (const tbl of protectedTables) {
+        try {
+          await db.execute(sql`
+            DROP TRIGGER IF EXISTS ${sql.raw(`trg_prevent_archived_${tbl}`)} ON ${sql.raw(tbl)};
+            CREATE TRIGGER ${sql.raw(`trg_prevent_archived_${tbl}`)}
+              BEFORE INSERT ON ${sql.raw(tbl)}
+              FOR EACH ROW
+              EXECUTE FUNCTION prevent_archived_member_writes();
+          `);
+        } catch (tblErr: unknown) {
+          logger.warn(`[DB Init] Skipping archived member trigger on ${tbl}: ${getErrorMessage(tblErr)}`);
+        }
+      }
+      logger.info('[DB Init] Triggers: prevent_archived_member_writes created on 5 tables');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping archived member write protection: ${getErrorMessage(err)}`);
+    }
+
+    // Task 5: Stale pending booking guard — prevent approving bookings whose start time has passed
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION guard_stale_pending_booking()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        DECLARE
+          bypass TEXT;
+          booking_start TIMESTAMP;
+        BEGIN
+          IF NEW.status IN ('approved', 'confirmed', 'checked_in') AND OLD.status IN ('pending', 'pending_approval') THEN
+            bypass := COALESCE(current_setting('app.bypass_status_check', true), '');
+            IF bypass = 'true' THEN
+              RETURN NEW;
+            END IF;
+
+            booking_start := (NEW.request_date + NEW.start_time::time);
+            IF booking_start < (NOW() AT TIME ZONE 'America/Los_Angeles') - INTERVAL '2 hours' THEN
+              RAISE EXCEPTION '[booking_requests] Approval rejected: booking start time has passed (% is >2 hours ago, booking_id=%)', booking_start, NEW.id;
+            END IF;
+          END IF;
+          RETURN NEW;
+        END;
+        $$;
+
+        DROP TRIGGER IF EXISTS trg_guard_stale_pending ON booking_requests;
+        CREATE TRIGGER trg_guard_stale_pending
+          BEFORE UPDATE OF status ON booking_requests
+          FOR EACH ROW
+          EXECUTE FUNCTION guard_stale_pending_booking();
+      `);
+      logger.info('[DB Init] Trigger: guard_stale_pending_booking created (prevents approving stale pending bookings)');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping stale pending booking guard: ${getErrorMessage(err)}`);
+    }
+
+    // Task 5b: Fee guard — prevent transition to attended with unpaid fee snapshots
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION guard_attended_unpaid_fees()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        DECLARE
+          bypass TEXT;
+          unpaid_count INT;
+        BEGIN
+          IF NEW.status = 'attended' AND OLD.status != 'attended' THEN
+            bypass := COALESCE(current_setting('app.bypass_status_check', true), '');
+            IF bypass = 'true' THEN
+              RETURN NEW;
+            END IF;
+
+            SELECT COUNT(*) INTO unpaid_count
+            FROM public.booking_fee_snapshots
+            WHERE booking_id = NEW.id
+              AND status IN ('pending', 'requires_action')
+              AND total_cents > 0;
+
+            IF unpaid_count > 0 THEN
+              RAISE EXCEPTION '[booking_requests] Status transition to attended rejected: % unpaid fee snapshot(s) exist (booking_id=%)', unpaid_count, NEW.id;
+            END IF;
+          END IF;
+          RETURN NEW;
+        END;
+        $$;
+
+        DROP TRIGGER IF EXISTS trg_guard_attended_unpaid ON booking_requests;
+        CREATE TRIGGER trg_guard_attended_unpaid
+          BEFORE UPDATE OF status ON booking_requests
+          FOR EACH ROW
+          EXECUTE FUNCTION guard_attended_unpaid_fees();
+      `);
+      logger.info('[DB Init] Trigger: guard_attended_unpaid_fees created (prevents marking attended with unpaid fees)');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping attended fee guard: ${getErrorMessage(err)}`);
+    }
+
+    // Task 6: Payment intent cleanup trigger on booking terminal status
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION cleanup_fee_snapshots_on_terminal()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        BEGIN
+          IF NEW.status IN ('cancelled', 'declined', 'expired') AND OLD.status NOT IN ('cancelled', 'declined', 'expired') THEN
+            UPDATE public.booking_fee_snapshots
+            SET status = 'cancelled', updated_at = NOW()
+            WHERE booking_id = NEW.id
+              AND status IN ('pending', 'requires_action');
+          END IF;
+          RETURN NEW;
+        END;
+        $$;
+
+        DROP TRIGGER IF EXISTS trg_cleanup_fee_on_terminal ON booking_requests;
+        CREATE TRIGGER trg_cleanup_fee_on_terminal
+          AFTER UPDATE OF status ON booking_requests
+          FOR EACH ROW
+          EXECUTE FUNCTION cleanup_fee_snapshots_on_terminal();
+      `);
+      logger.info('[DB Init] Trigger: cleanup_fee_snapshots_on_terminal created');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping fee snapshot cleanup trigger: ${getErrorMessage(err)}`);
+    }
+
+    // Task 7: Duplicate Stripe customer prevention (partial unique index on email)
+    try {
+      const dupStripeEmails = await db.execute(sql`
+        SELECT LOWER(email) as norm_email, COUNT(*) as cnt
+        FROM users
+        WHERE stripe_customer_id IS NOT NULL AND archived_at IS NULL
+        GROUP BY LOWER(email)
+        HAVING COUNT(*) > 1
+      `);
+      if (dupStripeEmails.rows.length > 0) {
+        logger.warn(`[DB Init] Found ${dupStripeEmails.rows.length} emails with duplicate Stripe customers — archiving older duplicates before creating unique index`);
+        for (const row of dupStripeEmails.rows as unknown as { norm_email: string }[]) {
+          await db.execute(sql`
+            UPDATE users SET archived_at = NOW(), membership_status = 'archived'
+            WHERE LOWER(email) = ${row.norm_email}
+              AND stripe_customer_id IS NOT NULL
+              AND archived_at IS NULL
+              AND id NOT IN (
+                SELECT id FROM users
+                WHERE LOWER(email) = ${row.norm_email}
+                  AND stripe_customer_id IS NOT NULL
+                  AND archived_at IS NULL
+                ORDER BY updated_at DESC
+                LIMIT 1
+              )
+          `);
+        }
+      }
+      await db.execute(sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_stripe_unique
+          ON users (LOWER(email))
+          WHERE stripe_customer_id IS NOT NULL AND archived_at IS NULL
+      `);
+      logger.info('[DB Init] Index: idx_users_email_stripe_unique created (prevents duplicate Stripe customers per email)');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping idx_users_email_stripe_unique: ${getErrorMessage(err)}`);
+    }
+
+    // Task 8: Invoice-booking reconciliation — unique partial index on stripe_invoice_id
+    // Note: stripe_invoice_id lives on booking_requests (not booking_fee_snapshots which has no such column)
+    try {
+      const dupInvoices = await db.execute(sql`
+        SELECT stripe_invoice_id, COUNT(*) as cnt
+        FROM booking_requests
+        WHERE stripe_invoice_id IS NOT NULL
+          AND status NOT IN ('cancelled', 'declined', 'expired')
+        GROUP BY stripe_invoice_id
+        HAVING COUNT(*) > 1
+      `);
+      if (dupInvoices.rows.length > 0) {
+        logger.warn(`[DB Init] Found ${dupInvoices.rows.length} duplicate invoice IDs on active bookings — clearing older duplicates before creating unique index`);
+        for (const row of dupInvoices.rows as unknown as { stripe_invoice_id: string }[]) {
+          await db.execute(sql`
+            UPDATE booking_requests SET stripe_invoice_id = NULL
+            WHERE stripe_invoice_id = ${row.stripe_invoice_id}
+              AND status NOT IN ('cancelled', 'declined', 'expired')
+              AND id NOT IN (
+                SELECT id FROM booking_requests
+                WHERE stripe_invoice_id = ${row.stripe_invoice_id}
+                  AND status NOT IN ('cancelled', 'declined', 'expired')
+                ORDER BY updated_at DESC NULLS LAST
+                LIMIT 1
+              )
+          `);
+        }
+      }
+      await db.execute(sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_bookings_invoice_unique
+          ON booking_requests (stripe_invoice_id)
+          WHERE stripe_invoice_id IS NOT NULL
+            AND status NOT IN ('cancelled', 'declined', 'expired')
+      `);
+      logger.info('[DB Init] Index: idx_bookings_invoice_unique created (prevents duplicate invoice IDs on active bookings)');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping idx_bookings_invoice_unique: ${getErrorMessage(err)}`);
+    }
+
+    // Task 9: Stale tour auto-cleanup trigger
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION auto_expire_stale_tours()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        BEGIN
+          IF NEW.status IN ('pending', 'scheduled') AND NEW.tour_date < CURRENT_DATE - INTERVAL '7 days' THEN
+            NEW.status := 'no_show';
+          END IF;
+          RETURN NEW;
+        END;
+        $$;
+
+        DROP TRIGGER IF EXISTS trg_auto_expire_stale_tours ON tours;
+        CREATE TRIGGER trg_auto_expire_stale_tours
+          BEFORE INSERT OR UPDATE ON tours
+          FOR EACH ROW
+          EXECUTE FUNCTION auto_expire_stale_tours();
+      `);
+
+      await db.execute(sql`
+        UPDATE tours SET status = 'no_show', updated_at = NOW()
+        WHERE tour_date < CURRENT_DATE - INTERVAL '7 days'
+          AND status IN ('pending', 'scheduled')
+      `);
+      logger.info('[DB Init] Trigger: auto_expire_stale_tours created + existing stale tours cleaned');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping stale tour trigger: ${getErrorMessage(err)}`);
+    }
+
     logger.info('[DB Init] Data integrity hardening constraints applied');
   } catch (error: unknown) {
     logger.error('[DB Init] Failed to ensure constraints:', { extra: { errorMessage: getErrorMessage(error) } });
@@ -1314,6 +1826,9 @@ export async function verifyIntegrityConstraints(): Promise<{ verified: boolean;
     { name: 'users_active_email_check', type: 'constraint', justifies: 'Members Without Email check elimination' },
     { name: 'users_hubspot_id_unique', type: 'index', justifies: 'HubSpot ID Duplicates check elimination' },
     { name: 'users_membership_status_lowercase_check', type: 'constraint', justifies: 'Status normalization auto-fix retirement' },
+    { name: 'guest_passes_usage_check', type: 'constraint', justifies: 'Guest Pass over-consumption prevention' },
+    { name: 'idx_users_email_stripe_unique', type: 'index', justifies: 'Duplicate Stripe customer prevention' },
+    { name: 'idx_bookings_invoice_unique', type: 'index', justifies: 'Invoice-Booking Reconciliation duplicate prevention' },
   ];
 
   const requiredTriggers = [
@@ -1329,6 +1844,18 @@ export async function verifyIntegrityConstraints(): Promise<{ verified: boolean;
     { name: 'check_booking_session_overlap', justifies: 'Overlapping Bookings check downgrade' },
     { name: 'trg_auto_billing_provider', justifies: 'Billing Provider Hybrid State check downgrade' },
     { name: 'trg_link_participant_user_id', justifies: 'Sessions Without Participants check downgrade' },
+    { name: 'trg_booking_status_machine', justifies: 'Booking status state machine enforcement' },
+    { name: 'trg_membership_status_machine', justifies: 'Membership status state machine enforcement' },
+    { name: 'trg_prevent_archived_booking_requests', justifies: 'Archived Member Lingering Data prevention' },
+    { name: 'trg_prevent_archived_event_rsvps', justifies: 'Archived Member Lingering Data prevention' },
+    { name: 'trg_prevent_archived_wellness_enrollments', justifies: 'Archived Member Lingering Data prevention' },
+    { name: 'trg_prevent_archived_guest_pass_holds', justifies: 'Archived Member Lingering Data prevention' },
+    { name: 'trg_prevent_archived_push_subscriptions', justifies: 'Archived Member Lingering Data prevention' },
+    { name: 'trg_cleanup_fee_on_terminal', justifies: 'Orphaned Payment Intents cleanup on terminal booking' },
+    { name: 'trg_auto_expire_stale_tours', justifies: 'Stale Past Tours auto-cleanup' },
+    { name: 'trg_guard_stale_pending', justifies: 'Stale Pending Bookings approval guard' },
+    { name: 'trg_guard_attended_unpaid', justifies: 'Attended booking fee guard' },
+    { name: 'trg_guard_guest_pass_hold', justifies: 'Guest pass hold race-condition guard' },
   ];
 
   const isProd = process.env.NODE_ENV === 'production';
@@ -1402,7 +1929,7 @@ export async function verifyIntegrityConstraints(): Promise<{ verified: boolean;
     if (missing.length > 0) {
       logger.error('[DB Init] INTEGRITY CONSTRAINT VERIFICATION FAILED — missing protections:', { extra: { missing } });
     } else {
-      logger.info('[DB Init] All integrity constraints verified — 6 eliminated checks are safely backed by DB-level enforcement');
+      logger.info('[DB Init] All integrity constraints verified — DB-level enforcement covers state machines, guest pass limits, archived member protection, fee cleanup, and dedup indexes');
     }
 
     return { verified: missing.length === 0, missing };

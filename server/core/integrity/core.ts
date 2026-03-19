@@ -465,20 +465,19 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Stuck Transitional Members': 'critical',
   'Active Bookings Without Sessions': 'critical',
   'Tier Reconciliation': 'high',
-  'Duplicate Stripe Customers': 'high',
+  'Duplicate Stripe Customers': 'medium',
   'MindBody Stale Sync': 'medium',
   'MindBody Data Quality': 'medium',
-  'Items Needing Review': 'low',
   'Stale Past Tours': 'low',
   'Unmatched Trackman Bookings': 'medium',
   'Sessions Without Participants': 'low',
-  'Orphaned Payment Intents': 'critical',
+  'Orphaned Payment Intents': 'medium',
   'Billing Provider Hybrid State': 'high',
-  'Invoice-Booking Reconciliation': 'critical',
+  'Invoice-Booking Reconciliation': 'medium',
   'Overlapping Bookings': 'low',
-  'Guest Pass Accounting Drift': 'high',
-  'Stale Pending Bookings': 'high',
-  'Archived Member Lingering Data': 'high',
+  'Guest Pass Accounting Drift': 'medium',
+  'Stale Pending Bookings': 'medium',
+  'Archived Member Lingering Data': 'medium',
   'Active Members Without Waivers': 'medium',
   'Lingering Payment Intents on Terminal Bookings': 'high',
   'Billing Orphans': 'critical',
@@ -753,27 +752,30 @@ export async function getIntegritySummary(): Promise<IntegritySummary> {
   return summary;
 }
 
-export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<IntegrityCheckResult[]> {
-  const { checkUnmatchedTrackmanBookings, checkNeedsReviewItems, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings } = await import('./bookingChecks');
+export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual', options?: { includeLegacy?: boolean }): Promise<IntegrityCheckResult[]> {
+  const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings } = await import('./bookingChecks');
   const { checkHubSpotSyncMismatch } = await import('./hubspotChecks');
   const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions } = await import('./stripeChecks');
   const { checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkArchivedMemberLingeringData, checkActiveMembersWithoutWaivers, checkAuthLinkingDataIntegrity } = await import('./memberChecks');
 
-  const checks = await Promise.all([
+  const includeLegacy = options?.includeLegacy ?? (triggeredBy === 'manual');
+
+  const externalSystemChecks = [
     safeCheck(checkUnmatchedTrackmanBookings, 'Unmatched Trackman Bookings'),
     safeCheck(checkHubSpotSyncMismatch, 'HubSpot Sync Mismatch'),
-    safeCheck(checkNeedsReviewItems, 'Items Needing Review'),
     safeCheck(checkStripeSubscriptionSync, 'Stripe Subscription Sync'),
-    safeCheck(checkStuckTransitionalMembers, 'Stuck Transitional Members'),
     safeCheck(checkTierReconciliation, 'Tier Reconciliation'),
-    safeCheck(checkBookingsWithoutSessions, 'Active Bookings Without Sessions'),
-    safeCheck(checkDuplicateStripeCustomers, 'Duplicate Stripe Customers'),
     safeCheck(checkMindBodyStaleSyncMembers, 'MindBody Stale Sync'),
     safeCheck(checkMindBodyStatusMismatch, 'MindBody Data Quality'),
+    safeCheck(checkBillingOrphans, 'Billing Orphans'),
+    safeCheck(checkOrphanedStripeSubscriptions, 'Orphaned Stripe Subscriptions'),
+  ];
+
+  const dbEnforcedChecks = includeLegacy ? [
+    safeCheck(checkStuckTransitionalMembers, 'Stuck Transitional Members'),
+    safeCheck(checkBookingsWithoutSessions, 'Active Bookings Without Sessions'),
+    safeCheck(checkDuplicateStripeCustomers, 'Duplicate Stripe Customers'),
     safeCheck(checkSessionsWithoutParticipants, 'Sessions Without Participants'),
-    safeCheck(checkOrphanedPaymentIntents, 'Orphaned Payment Intents'),
-    safeCheck(checkBillingProviderHybridState, 'Billing Provider Hybrid State'),
-    safeCheck(checkInvoiceBookingReconciliation, 'Invoice-Booking Reconciliation'),
     safeCheck(checkOverlappingBookings, 'Overlapping Bookings'),
     safeCheck(checkGuestPassAccountingDrift, 'Guest Pass Accounting Drift'),
     safeCheck(checkStalePendingBookings, 'Stale Pending Bookings'),
@@ -781,10 +783,13 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     safeCheck(checkArchivedMemberLingeringData, 'Archived Member Lingering Data'),
     safeCheck(checkActiveMembersWithoutWaivers, 'Active Members Without Waivers'),
     safeCheck(checkLateCancelPreservedPaymentIntents, 'Lingering Payment Intents on Terminal Bookings'),
-    safeCheck(checkBillingOrphans, 'Billing Orphans'),
-    safeCheck(checkOrphanedStripeSubscriptions, 'Orphaned Stripe Subscriptions'),
     safeCheck(checkAuthLinkingDataIntegrity, 'Auth Linking Data Integrity'),
-  ]);
+    safeCheck(checkOrphanedPaymentIntents, 'Orphaned Payment Intents'),
+    safeCheck(checkBillingProviderHybridState, 'Billing Provider Hybrid State'),
+    safeCheck(checkInvoiceBookingReconciliation, 'Invoice-Booking Reconciliation'),
+  ] : [];
+
+  const checks = await Promise.all([...externalSystemChecks, ...dbEnforcedChecks]);
 
   if (!isProduction) {
     for (const check of checks) {
