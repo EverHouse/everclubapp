@@ -52,7 +52,7 @@ export function MemberFlow({
   const [activationUrl, setActivationUrl] = useState<string | null>(null);
   const [linkSending, setLinkSending] = useState(false);
   const linkSubmittingRef = useRef(false);
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'terminal'>('card');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'terminal'>('terminal');
   const [paymentPath, setPaymentPath] = useState<'choose' | 'card_or_terminal' | 'link'>('choose');
   const [subMemberScannedIds, setSubMemberScannedIds] = useState<Record<number, { base64: string; mimeType: string }>>({});
   const [scanningSubMemberIndex, setScanningSubMemberIndex] = useState<number | null>(null);
