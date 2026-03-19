@@ -539,10 +539,22 @@ export async function ensureDatabaseConstraints() {
       }
     } catch (err: unknown) { logger.debug('[DB Init] membership_status_changed_at backfill failed: ' + getErrorMessage(err)); }
 
+    try {
+      const hasOldCol = await db.execute(sql`SELECT 1 FROM information_schema.columns WHERE table_name = 'membership_tiers' AND column_name = 'guest_passes_per_month' LIMIT 1`);
+      if (hasOldCol.rows.length > 0) {
+        await db.execute(sql`ALTER TABLE membership_tiers RENAME COLUMN guest_passes_per_month TO guest_passes_per_year`);
+        logger.info('[DB Init] Renamed guest_passes_per_month → guest_passes_per_year');
+      }
+    } catch (err: unknown) { logger.debug('[DB Init] guest_passes column rename skipped: ' + getErrorMessage(err)); }
+
     try { await db.execute(sql`ALTER TABLE membership_tiers ADD COLUMN IF NOT EXISTS wallet_pass_bg_color VARCHAR`); } catch { logger.debug('[DB Init] wallet_pass_bg_color column already exists or failed'); }
     try { await db.execute(sql`ALTER TABLE membership_tiers ADD COLUMN IF NOT EXISTS wallet_pass_foreground_color VARCHAR`); } catch { logger.debug('[DB Init] wallet_pass_foreground_color column already exists or failed'); }
     try { await db.execute(sql`ALTER TABLE membership_tiers ADD COLUMN IF NOT EXISTS wallet_pass_label_color VARCHAR`); } catch { logger.debug('[DB Init] wallet_pass_label_color column already exists or failed'); }
     logger.info('[DB Init] Wallet pass color columns verified');
+
+    try { await db.execute(sql`ALTER TABLE cafe_items ADD COLUMN IF NOT EXISTS stripe_product_id VARCHAR`); } catch { logger.debug('[DB Init] cafe_items.stripe_product_id already exists or failed'); }
+    try { await db.execute(sql`ALTER TABLE cafe_items ADD COLUMN IF NOT EXISTS stripe_price_id VARCHAR`); } catch { logger.debug('[DB Init] cafe_items.stripe_price_id already exists or failed'); }
+    logger.info('[DB Init] Cafe items Stripe columns verified');
 
     try {
       await db.execute(sql`
