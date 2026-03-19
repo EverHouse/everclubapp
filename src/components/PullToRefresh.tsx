@@ -279,6 +279,8 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
 
       if (!isPullingRef.current) return;
 
+      e.preventDefault();
+
       const scrollTop = window.scrollY || document.documentElement.scrollTop;
       if (scrollTop > 5) {
         isPullingRef.current = false;
@@ -344,7 +346,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
     };
 
     document.addEventListener('touchstart', onTouchStart, { passive: true });
-    document.addEventListener('touchmove', onTouchMove, { passive: true });
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
     document.addEventListener('touchend', onTouchEnd);
     document.addEventListener('touchcancel', onTouchEnd);
 
