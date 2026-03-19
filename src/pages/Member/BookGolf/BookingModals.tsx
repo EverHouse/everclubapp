@@ -163,7 +163,7 @@ const BookingModals: React.FC<BookingModalsProps> = ({
           <p className={`text-sm mb-6 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
             {(() => {
               const unfilledGuests = playerSlots.filter(s => s.type === 'guest' && !s.selectedId && !(s.email && s.email.includes('@'))).length;
-              return `You have ${unfilledGuests} guest slot${unfilledGuests !== 1 ? 's' : ''} without details. Each unfilled guest slot will be charged the guest fee.`;
+              return `You have ${unfilledGuests} guest slot${unfilledGuests !== 1 ? 's' : ''} without details. Unfilled guest slots will not be tracked — add guest details if you want them included in the booking.`;
             })()}
           </p>
           <div className="flex gap-3">

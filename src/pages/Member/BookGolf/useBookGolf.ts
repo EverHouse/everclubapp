@@ -57,10 +57,11 @@ export function useBookGolf() {
   const [resourcesRef] = useAutoAnimate();
   const [errorRef] = useAutoAnimate();
   const [playerSlotRef] = useAutoAnimate();
+  const playerSlotScrollRef = useRef<HTMLDivElement>(null);
   const [feeRef] = useAutoAnimate();
   const [timeSlotsAnimRef] = useAutoAnimate();
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [_bookingError, setBookingError] = useState<string | null>(null);
+  const [playerSlotError, setPlayerSlotError] = useState<string | null>(null);
   const isSubmittingRef = useRef(false);
   const [showViewAsConfirm, setShowViewAsConfirm] = useState(false);
   const [expandedHour, setExpandedHour] = useState<string | null>(null);
@@ -497,11 +498,20 @@ export function useBookGolf() {
     if (!selectedSlot || !selectedResource || !effectiveUser || !selectedDateObj) return;
     if (isSubmittingRef.current) return;
     isSubmittingRef.current = true;
-    setBookingError(null); setShowViewAsConfirm(false);
+    setPlayerSlotError(null); setShowViewAsConfirm(false);
     const consent = consentData || guardianConsentData;
     try {
+      if (activeTab === 'simulator' && playerCount > 1) {
+        const emptyMemberSlots = playerSlots.filter(slot => slot.type === 'member' && !slot.selectedId);
+        if (emptyMemberSlots.length > 0) {
+          setPlayerSlotError('Please search and select a member for each Member slot, or switch unfilled slots to Guest.');
+          haptic.error();
+          playerSlotScrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+      }
       const invalidGuestSlot = playerSlots.find(slot => slot.type === 'guest' && !slot.selectedId && slot.email && !slot.email.includes('@'));
-      if (invalidGuestSlot) { setBookingError('Please enter a valid email address for each guest.'); haptic.error(); return; }
+      if (invalidGuestSlot) { setPlayerSlotError('Please enter a valid email address for each guest.'); haptic.error(); return; }
       const freshAvailability = await postWithCredentials<Record<number, { slots: APISlot[] }>>('/api/availability/batch', {
         resource_ids: [selectedResource.dbId], date: selectedDateObj.date, duration, user_email: effectiveUser.email
       });
@@ -511,7 +521,7 @@ export function useBookGolf() {
       );
       if (!slotStillAvailable) {
         queryClient.invalidateQueries({ queryKey: bookGolfKeys.all });
-        setBookingError('This time slot is no longer available. The availability grid has been refreshed.');
+        showToast('This time slot is no longer available. The availability grid has been refreshed.', 'error');
         haptic.error();
         return;
       }
@@ -546,8 +556,8 @@ export function useBookGolf() {
       haptic.error();
       const errorMessage = (err instanceof Error ? err.message : String(err)) || 'Booking failed. Please try again.';
       if ((err instanceof ApiError && err.status === 402) || errorMessage.toLowerCase().includes('payment')) {
-        setBookingError('Please contact the front desk to complete your booking.');
-      } else { showToast(errorMessage, 'error'); setBookingError(errorMessage); }
+        showToast('Please contact the front desk to complete your booking.', 'error');
+      } else { showToast(errorMessage, 'error'); }
     } finally { isSubmittingRef.current = false; }
   };
 
@@ -561,9 +571,9 @@ export function useBookGolf() {
     if (activeTab === 'simulator' && playerCount > 1) {
       const emptyMemberSlots = playerSlots.filter(slot => slot.type === 'member' && !slot.selectedId);
       if (emptyMemberSlots.length > 0) {
-        setBookingError(`Please search and select a member for each Member slot, or switch unfilled slots to Guest.`);
+        setPlayerSlotError(`Please search and select a member for each Member slot, or switch unfilled slots to Guest.`);
         haptic.error();
-        playerSlotRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        playerSlotScrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
       const unfilledGuestSlots = playerSlots.filter(slot => slot.type === 'guest' && !slot.selectedId && !(slot.email && slot.email.includes('@')));
@@ -618,12 +628,12 @@ export function useBookGolf() {
     effectiveUser, isMinor, isAdminViewingAs, viewAsUser,
     tierPermissions, isTierLoaded, canBookSimulators, canBookConference,
     dates, resources, guestPassInfo, myRequests, closures, walletPassAvailable,
-    estimatedFees, isLoading, error, isBooking, isDark,
+    estimatedFees, isLoading, error, isBooking, isDark, playerSlotError, setPlayerSlotError,
     memberBayBookingsForDay, usedMinutesForDay, isAtDailyLimit,
     slotsByHour, activeClosures, canBook, availableSlots,
     handleCancelRequest, handleConfirm, handleGuardianConsentSubmit, submitBooking, getAvailableResourcesForSlot,
     guestFeeDollars, overageRatePerBlockDollars, cancelBookingMutation,
-    resourcesRef, errorRef, playerSlotRef, feeRef, timeSlotsAnimRef,
+    resourcesRef, errorRef, playerSlotRef, playerSlotScrollRef, feeRef, timeSlotsAnimRef,
     timeSlotsRef, baySelectionRef, requestButtonRef,
     showToast,
   };
