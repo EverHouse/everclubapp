@@ -147,21 +147,21 @@ const KioskCheckin: React.FC = () => {
     }
   }, []);
 
-  const resetToScanning = useCallback(() => {
-    setState('scanning');
+  const resetToIdle = useCallback(() => {
+    stopScanner();
+    setState('idle');
     setCheckinResult(null);
     setErrorMessage('');
     hasScannedRef.current = false;
-    setTimeout(() => startScanner(), 300);
-  }, [startScanner]);
+  }, [stopScanner]);
 
   useEffect(() => {
     if (state === 'success' || state === 'already_checked_in') {
       stopScanner();
-      resetTimerRef.current = setTimeout(resetToScanning, RESET_DELAY_SUCCESS);
+      resetTimerRef.current = setTimeout(resetToIdle, RESET_DELAY_SUCCESS);
     } else if (state === 'error') {
       stopScanner();
-      resetTimerRef.current = setTimeout(resetToScanning, RESET_DELAY_ERROR);
+      resetTimerRef.current = setTimeout(resetToIdle, RESET_DELAY_ERROR);
     }
     return () => {
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
