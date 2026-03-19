@@ -205,6 +205,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
         }
         
         let sanitizedParticipants: SanitizedParticipant[] = [];
+        logger.info('[Booking] Received request_participants', { extra: { declaredPlayerCount: declared_player_count, participantCount: Array.isArray(request_participants) ? request_participants.length : 0, participantTypes: Array.isArray(request_participants) ? request_participants.map((p: { type?: string; userId?: string }) => ({ type: p.type, hasUserId: !!p.userId })) : [] } });
         if (request_participants && Array.isArray(request_participants)) {
           if (request_participants.length > 3) {
             throw new BookingValidationError(400, { error: 'Maximum of 3 guests allowed per booking' });
@@ -394,6 +395,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
         }
         
         const dbRow = insertResult.rows[0] as Record<string, unknown>;
+        logger.info('[Booking] Persisted booking with participants', { extra: { bookingId: dbRow.id, participantsSaved: sanitizedParticipants.length, participantTypes: sanitizedParticipants.map((p: SanitizedParticipant) => ({ type: p.type, hasUserId: !!p.userId, hasEmail: !!p.email })) } });
         return {
           id: dbRow.id,
           userEmail: dbRow.user_email,

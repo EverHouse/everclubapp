@@ -379,7 +379,7 @@ export function useBookGolf() {
       if (prev.length < slotsNeeded) {
         const additional: PlayerSlot[] = [];
         for (let i = prev.length; i < slotsNeeded; i++) {
-          additional.push({ id: crypto.randomUUID(), email: '', name: '', firstName: '', lastName: '', type: 'guest', searchQuery: '' });
+          additional.push({ id: crypto.randomUUID(), email: '', name: '', firstName: '', lastName: '', type: 'member', searchQuery: '' });
         }
         return [...prev, ...additional];
       }
@@ -522,6 +522,8 @@ export function useBookGolf() {
             return { email: hasValidEmail ? slot.email : undefined, type: slot.type, userId: slot.selectedId, name: slot.selectedId ? slot.selectedName : (slot.name || slot.selectedName) };
           })
         : undefined;
+      console.info('[BookGolf] submitBooking slots:', JSON.stringify(playerSlots.map(s => ({ type: s.type, hasSelectedId: !!s.selectedId, hasEmail: !!s.email && s.email.includes('@') }))));
+      console.info('[BookGolf] submitBooking participants:', requestParticipants?.length ?? 0, 'of', playerSlots.length, 'slots');
       const bookingResult = await createBookingMutation.mutateAsync({
         user_email: effectiveUser.email, user_name: effectiveUser.name, user_tier: effectiveUser.tier,
         resource_id: selectedResource.dbId, request_date: selectedDateObj.date, start_time: selectedSlot.startTime24,
