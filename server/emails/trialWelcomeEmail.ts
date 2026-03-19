@@ -3,6 +3,7 @@ import { getErrorMessage } from '../utils/errorUtils';
 import { logger } from '../core/logger';
 import { isEmailCategoryEnabled, getSettingValue } from '../core/settingsHelper';
 import QRCode from 'qrcode';
+import { emailLayout, CLUB_COLORS, formatDate } from './emailLayout';
 
 async function generateQrDataUri(data: string): Promise<string> {
   return await QRCode.toDataURL(data, {
@@ -10,67 +11,6 @@ async function generateQrDataUri(data: string): Promise<string> {
     margin: 1,
     color: { dark: '#000000', light: '#ffffff' }
   });
-}
-
-const CLUB_COLORS = {
-  deepGreen: '#293515',
-  lavender: '#CCB8E4',
-  bone: '#F2F2EC',
-  textDark: '#1f2937',
-  textMuted: '#4b5563',
-  borderLight: '#e5e7eb'
-};
-
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  }).format(date);
-}
-
-function getEmailWrapper(content: string): string {
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ever Club</title>
-</head>
-<body style="margin: 0; padding: 0; background-color: ${CLUB_COLORS.bone}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: ${CLUB_COLORS.bone};">
-    <tr>
-      <td style="padding: 40px 20px;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; padding: 40px;">
-          
-          <tr>
-            <td style="text-align: center; padding-bottom: 32px;">
-              <img src="https://everclub.app/images/everclub-logo-dark.png" alt="Ever Club" width="180" height="60" style="display: inline-block;">
-            </td>
-          </tr>
-          
-          ${content}
-          
-          <tr>
-            <td style="text-align: center; padding-top: 24px; border-top: 1px solid ${CLUB_COLORS.borderLight};">
-              <p style="margin: 0 0 8px 0; font-size: 12px; color: ${CLUB_COLORS.textMuted};">
-                Questions? Reply to this email or contact us at the club.
-              </p>
-              <a href="https://everclub.app" style="font-size: 12px; color: ${CLUB_COLORS.deepGreen}; text-decoration: none;">
-                everclub.app
-              </a>
-            </td>
-          </tr>
-          
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-`;
 }
 
 export async function getTrialWelcomeHtml(params: { firstName?: string; userId: number; trialEndDate: Date; couponCode?: string }): Promise<string> {
@@ -225,7 +165,7 @@ export async function getTrialWelcomeHtml(params: { firstName?: string; userId: 
           </tr>
   `;
 
-  return getEmailWrapper(content);
+  return emailLayout(content);
 }
 
 export async function sendTrialWelcomeWithQrEmail(

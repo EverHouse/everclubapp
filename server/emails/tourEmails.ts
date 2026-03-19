@@ -1,11 +1,4 @@
-const CLUB_COLORS = {
-  deepGreen: '#293515',
-  lavender: '#CCB8E4',
-  bone: '#F2F2EC',
-  textDark: '#1f2937',
-  textMuted: '#4b5563',
-  borderLight: '#e5e7eb'
-};
+import { emailLayout, CLUB_COLORS } from './emailLayout';
 
 export interface TourConfirmationData {
   guestName: string;
@@ -28,24 +21,7 @@ export function getTourConfirmationHtml(data: TourConfirmationData): string {
     ? new Date(`2000-01-01T${data.time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Los_Angeles' })
     : data.time;
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tour Confirmed - Ever Club</title>
-</head>
-<body style="margin: 0; padding: 0; background-color: ${CLUB_COLORS.bone}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: ${CLUB_COLORS.bone};">
-    <tr>
-      <td style="padding: 40px 20px;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; padding: 40px;">
-          <tr>
-            <td style="text-align: center; padding-bottom: 32px;">
-              <img src="https://everclub.app/images/everclub-logo-dark.png" alt="Ever Club" width="180" height="60" style="display: inline-block;">
-            </td>
-          </tr>
+  const content = `
           <tr>
             <td style="text-align: center; padding-bottom: 16px;">
               <h1 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-size: 28px; font-weight: 400; color: ${CLUB_COLORS.deepGreen};">
@@ -69,9 +45,9 @@ export function getTourConfirmationHtml(data: TourConfirmationData): string {
           </tr>
           <tr>
             <td style="padding-bottom: 32px;">
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: ${CLUB_COLORS.bone}; border-radius: 12px; padding: 24px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: ${CLUB_COLORS.bone}; border-radius: 12px;">
                 <tr>
-                  <td>
+                  <td style="padding: 24px;">
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                       <tr>
                         <td style="padding-bottom: 16px;">
@@ -112,11 +88,7 @@ export function getTourConfirmationHtml(data: TourConfirmationData): string {
               </p>
             </td>
           </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-`;
+  `;
+
+  return emailLayout(content);
 }
