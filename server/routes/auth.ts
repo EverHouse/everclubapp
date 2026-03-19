@@ -65,7 +65,7 @@ async function getStaffUserByEmail(email: string): Promise<StaffUserData | null>
     }
     return null;
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Error fetching staff user', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Error fetching staff user', { error: getErrorMessage(error) });
     return null;
   }
 }
@@ -163,7 +163,7 @@ async function upsertUserWithTier(data: UpsertUserData): Promise<string | null> 
     if (!isProduction) logger.info('[Auth] Updated user with role , tier', { extra: { normalizedEmailValue, dataRole: data.role, normalizedTier_none: normalizedTier || 'none' } });
     return result.length > 0 ? result[0].id : null;
   } catch (error: unknown) {
-    logger.error('[Auth] Error upserting user tier', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Auth] Error upserting user tier', { error: getErrorMessage(error) });
     return null;
   }
 }
@@ -256,7 +256,7 @@ export async function createSupabaseToken(user: { id: string, email: string, rol
         !msg?.includes('ENOTFOUND') && 
         !msg?.includes('ECONNREFUSED') &&
         !msg?.includes('timed out')) {
-      logger.error('[Supabase] Failed to generate token', { error: error instanceof Error ? error : new Error(msg) });
+      logger.error('[Supabase] Failed to generate token', { error: getErrorMessage(error) });
     }
     return null;
   }
@@ -300,7 +300,7 @@ const checkOtpRequestLimit = async (email: string, ip: string): Promise<{ allowe
     return { allowed: true };
   } catch (error: unknown) {
     // Fail-closed: deny requests when rate limiting is unavailable to prevent abuse
-    logger.error('[RateLimit] Database error, denying request for safety', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[RateLimit] Database error, denying request for safety', { error: getErrorMessage(error) });
     return { allowed: false, retryAfter: 60 };
   }
 };
@@ -333,7 +333,7 @@ const _checkMagicLinkRequestLimit = async (email: string, ip: string): Promise<{
     return { allowed: true };
   } catch (error: unknown) {
     // Fail-closed: deny requests when rate limiting is unavailable to prevent abuse
-    logger.error('[RateLimit] Database error, denying request for safety', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[RateLimit] Database error, denying request for safety', { error: getErrorMessage(error) });
     return { allowed: false, retryAfter: 60 };
   }
 };
@@ -397,7 +397,7 @@ const checkOtpVerifyAttempts = async (email: string, ip?: string): Promise<{ all
     
     return { allowed: true };
   } catch (error: unknown) {
-    logger.error('[RateLimit] Database error, denying request for safety', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[RateLimit] Database error, denying request for safety', { error: getErrorMessage(error) });
     return { allowed: false, retryAfter: 60 };
   }
 };
@@ -471,7 +471,7 @@ const recordOtpVerifyFailure = async (email: string, ip?: string): Promise<void>
          updated_at = NOW()
        RETURNING count`);
   } catch (error: unknown) {
-    logger.error('[RateLimit] Database error recording failure', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[RateLimit] Database error recording failure', { error: getErrorMessage(error) });
   }
 };
 
@@ -483,7 +483,7 @@ const clearOtpVerifyAttempts = async (email: string, ip?: string): Promise<void>
     await db.delete(rateLimits).where(eq(rateLimits.key, perIpKey));
     await db.delete(rateLimits).where(eq(rateLimits.key, emailKey));
   } catch (error: unknown) {
-    logger.error('[RateLimit] Database error clearing attempts', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[RateLimit] Database error clearing attempts', { error: getErrorMessage(error) });
   }
 };
 
@@ -552,13 +552,13 @@ router.post('/api/auth/verify-member', ...authRateLimiter, async (req, res) => {
               await syncMemberToHubSpot({ email: normalizedEmail, status: subscription.status, billingProvider: 'stripe' });
               logger.info('[Auth] Synced auto-fixed status to HubSpot for', { extra: { normalizedEmail } });
             } catch (hubspotError: unknown) {
-              logger.error('[Auth] HubSpot sync failed for auto-fix', { error: hubspotError instanceof Error ? hubspotError : new Error(getErrorMessage(hubspotError)) });
+              logger.error('[Auth] HubSpot sync failed for auto-fix', { error: getErrorMessage(hubspotError) });
             }
           } else {
             return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
           }
         } catch (stripeError: unknown) {
-          logger.error('[Auth] Failed to verify Stripe subscription', { error: stripeError instanceof Error ? stripeError : new Error(getErrorMessage(stripeError)), extra: { email: normalizedEmail } });
+          logger.error('[Auth] Failed to verify Stripe subscription', { error: getErrorMessage(stripeError), extra: { email: normalizedEmail } });
           return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
         }
       } else if (!activeStatuses.includes(dbMemberStatus)) {
@@ -729,7 +729,7 @@ router.post('/api/auth/verify-member', ...authRateLimiter, async (req, res) => {
     
     res.json({ success: true, member });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Member verification error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Member verification error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to verify membership' });
   }
 });
@@ -795,7 +795,7 @@ router.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => {
             return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
           }
         } catch (stripeError: unknown) {
-          logger.error('[Auth] Failed to verify Stripe subscription', { error: stripeError instanceof Error ? stripeError : new Error(getErrorMessage(stripeError)), extra: { email: normalizedEmail } });
+          logger.error('[Auth] Failed to verify Stripe subscription', { error: getErrorMessage(stripeError), extra: { email: normalizedEmail } });
           // If we can't verify with Stripe, fall back to database status
           return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
         }
@@ -878,7 +878,7 @@ router.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => {
     }
   } catch (error: unknown) {
     const errorMsg = getErrorMessage(error);
-    if (!isProduction) logger.error('OTP request error', { extra: { error: errorMsg } });
+    logger.error('OTP request error', { extra: { error: errorMsg } });
     
     if (errorMsg.includes('HubSpot') || errorMsg.includes('hubspot')) {
       return res.status(500).json({ error: 'Unable to verify membership. Please try again later.' });
@@ -1160,19 +1160,19 @@ router.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
           }
         }
       } catch (error: unknown) {
-        logger.error('[Welcome Email] Error checking/sending', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
+        logger.error('[Welcome Email] Error checking/sending', { error: getErrorMessage(error) });
       }
-    })().catch(err => logger.error('[Welcome Email] Unhandled async error', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }));
+    })().catch(err => logger.error('[Welcome Email] Unhandled async error', { error: getErrorMessage(err) }));
     
     req.session.save((err) => {
       if (err) {
-        if (!isProduction) logger.error('Session save error', { extra: { err } });
+        logger.error('Session save error', { extra: { error: getErrorMessage(err) } });
         return res.status(500).json({ error: 'Failed to create session' });
       }
       res.json({ success: true, member, shouldSetupPassword, supabaseToken });
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('OTP verification error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('OTP verification error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to verify code' });
   }
 });
@@ -1180,7 +1180,7 @@ router.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
 router.post('/api/auth/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
-      if (!isProduction) logger.error('Session destroy error', { extra: { err } });
+      logger.error('Session destroy error', { extra: { error: getErrorMessage(err) } });
       return res.status(500).json({ error: 'Failed to logout' });
     }
     res.clearCookie('connect.sid');
@@ -1277,7 +1277,7 @@ router.post('/api/auth/ws-token', async (req, res) => {
     const token = createWsAuthToken(sessionUser.email, sessionUser.role || 'member');
     return res.json({ token });
   } catch (err) {
-    logger.error('[Auth] Failed to create WS auth token', { error: err });
+    logger.error('[Auth] Failed to create WS auth token', { error: getErrorMessage(err) });
     return res.status(500).json({ error: 'Failed to create token' });
   }
 });
@@ -1314,7 +1314,7 @@ router.get('/api/auth/check-staff-admin', authRateLimiterByIp, async (req, res) 
     
     res.json({ isStaffOrAdmin: false, role: null, hasPassword: false });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Check staff/admin error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Check staff/admin error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to check user status' });
   }
 });
@@ -1395,7 +1395,7 @@ router.post('/api/auth/password-login', ...authRateLimiter, async (req, res) => 
         };
       }
     } catch (hubspotError: unknown) {
-      if (!isProduction) logger.error('HubSpot lookup failed', { error: hubspotError instanceof Error ? hubspotError : new Error(getErrorMessage(hubspotError)) });
+      logger.error('HubSpot lookup failed', { error: getErrorMessage(hubspotError) });
     }
     
     const sessionTtl = 30 * 24 * 60 * 60 * 1000;
@@ -1440,13 +1440,13 @@ router.post('/api/auth/password-login', ...authRateLimiter, async (req, res) => 
 
     req.session.save((err) => {
       if (err) {
-        if (!isProduction) logger.error('Session save error', { extra: { err } });
+        logger.error('Session save error', { extra: { error: getErrorMessage(err) } });
         return res.status(500).json({ error: 'Failed to create session' });
       }
       res.json({ success: true, member, supabaseToken });
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Password login error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Password login error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Login failed. Please try again.' });
   }
 });
@@ -1499,7 +1499,7 @@ router.post('/api/auth/set-password', authRateLimiterByIp, async (req, res) => {
     
     res.status(403).json({ error: 'Password can only be set for staff or admin accounts' });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Set password error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Set password error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to set password' });
   }
 });
@@ -1547,13 +1547,13 @@ router.post('/api/auth/dev-login', async (req, res) => {
 
     req.session.save((err) => {
       if (err) {
-        if (!isProduction) logger.error('Session save error', { extra: { err } });
+        logger.error('Session save error', { extra: { error: getErrorMessage(err) } });
         return res.status(500).json({ error: 'Failed to create session' });
       }
       res.json({ success: true, member, supabaseToken });
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Dev login error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Dev login error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Dev login failed' });
   }
 });
@@ -1578,7 +1578,7 @@ router.post('/api/auth/test-welcome-email', async (req, res) => {
       res.status(500).json({ error: result.error || 'Failed to send welcome email' });
     }
   } catch (error: unknown) {
-    logger.error('Test welcome email error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Test welcome email error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to send test email' });
   }
 });

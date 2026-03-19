@@ -37,7 +37,9 @@ const CalendarStatusSection: React.FC<CalendarStatusSectionProps> = ({
   useEffect(() => {
     fetchWithCredentials<{ running: boolean }>('/api/admin/calendar/cleanup-status')
       .then(data => { if (data.running) setIsMigrating(true); })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('[CalendarStatus] Failed to check migration status:', err);
+      });
   }, []);
 
   const handleCleanupComplete = useCallback((e: Event) => {

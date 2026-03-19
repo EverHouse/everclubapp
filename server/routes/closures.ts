@@ -11,6 +11,7 @@ import { getGoogleCalendarClient } from '../core/integrations';
 import { createPacificDate, addDaysToPacificDate, getPacificISOString, getTodayPacific } from '../utils/dateUtils';
 import { clearClosureCache } from '../core/bookingValidation';
 import { broadcastClosureUpdate } from '../core/websocket';
+import { notifyMember } from '../core/notificationService';
 import { logFromRequest } from '../core/auditLog';
 import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../utils/errorUtils';
 
@@ -807,17 +808,19 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
         const membersWithEmails = memberUsers.filter(m => m.email && m.email.trim());
         
         if (membersWithEmails.length > 0) {
-          const notificationValues = membersWithEmails.map(m => ({
-            userEmail: m.email!,
-            title: notificationTitle,
-            message: notificationBody,
-            type: 'closure',
-            relatedId: closureId,
-            relatedType: 'closure'
-          }));
-          
-          await db.insert(notifications).values(notificationValues);
-          logger.info('[Closures] Created in-app notifications for members', { extra: { membersWithEmailsLength: membersWithEmails.length } });
+          const results = await Promise.allSettled(
+            membersWithEmails.map(m => notifyMember({
+              userEmail: m.email!,
+              title: notificationTitle,
+              message: notificationBody,
+              type: 'closure',
+              relatedId: closureId,
+              relatedType: 'closure',
+              url: '/updates?tab=notices'
+            }))
+          );
+          const failedCount = results.filter(r => r.status === 'rejected').length;
+          logger.info('[Closures] Created in-app notifications for members', { extra: { membersWithEmailsLength: membersWithEmails.length, failedCount } });
         }
       } catch (notifError: unknown) {
         logger.error('[Closures] Failed to create in-app notifications', { extra: { notifError } });
@@ -1213,17 +1216,19 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
           .where(or(eq(users.role, 'member'), isNull(users.role)));
         
         if (allMembers.length > 0) {
-          const notificationValues = allMembers.map(member => ({
-            userEmail: member.email,
-            title: `Today: ${finalTitle}`,
-            message: finalReason || `${finalTitle} - Effective today`,
-            type: 'closure_today',
-            relatedId: closureId,
-            relatedType: 'closure'
-          }));
-          
-          await db.insert(notifications).values(notificationValues as typeof notifications.$inferInsert[]);
-          logger.info('[Closures] Sent same-day publish notification to members for closure #', { extra: { allMembersLength: allMembers.length, closureId } });
+          const results = await Promise.allSettled(
+            allMembers.map(member => notifyMember({
+              userEmail: member.email,
+              title: `Today: ${finalTitle}`,
+              message: finalReason || `${finalTitle} - Effective today`,
+              type: 'closure_today',
+              relatedId: closureId,
+              relatedType: 'closure',
+              url: '/updates?tab=notices'
+            }))
+          );
+          const failedCount = results.filter(r => r.status === 'rejected').length;
+          logger.info('[Closures] Sent same-day publish notification to members for closure #', { extra: { allMembersLength: allMembers.length, closureId, failedCount } });
         }
       } catch (notifyError: unknown) {
         logger.error('[Closures] Failed to send publish notifications', { extra: { notifyError } });

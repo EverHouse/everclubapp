@@ -7,7 +7,7 @@ import { isAdmin, isStaffOrAdmin } from '../core/middleware';
 import { invalidateTierCache } from '../core/tierService';
 import { syncMembershipTiersToStripe, getTierSyncStatus, cleanupOrphanStripeProducts, syncTierFeaturesToStripe, syncCafeItemsToStripe, pullTierFeaturesFromStripe, pullCafeItemsFromStripe } from '../core/stripe/products';
 import { logFromRequest } from '../core/auditLog';
-import { getErrorCode, safeErrorDetail } from '../utils/errorUtils';
+import { getErrorCode, safeErrorDetail, getErrorMessage } from '../utils/errorUtils';
 import { getCached, setCache, invalidateCache as invalidateQueryCache } from '../core/queryCache';
 import { broadcastCafeMenuUpdate } from '../core/websocket';
 
@@ -35,13 +35,13 @@ router.get('/api/membership-tiers', async (req, res) => {
     if (cached) return res.json(cached);
 
     const result = active === 'true'
-      ? await db.execute(sql`SELECT id, name, slug, price_string, description, button_text, sort_order, is_active, is_popular, show_in_comparison, show_on_membership_page, highlighted_features, all_features, daily_sim_minutes, guest_passes_per_year, booking_window_days, daily_conf_room_minutes, can_book_simulators, can_book_conference, can_book_wellness, has_group_lessons, has_extended_sessions, has_private_lesson, has_simulator_guest_passes, has_discounted_merch, unlimited_access, guest_fee_cents, stripe_product_id, stripe_price_id, founding_price_id, price_cents, billing_interval, product_type, min_quantity, tier_type, wallet_pass_bg_color, wallet_pass_foreground_color, wallet_pass_label_color, created_at, updated_at FROM membership_tiers WHERE is_active = true ORDER BY sort_order ASC, id ASC`)
-      : await db.execute(sql`SELECT id, name, slug, price_string, description, button_text, sort_order, is_active, is_popular, show_in_comparison, show_on_membership_page, highlighted_features, all_features, daily_sim_minutes, guest_passes_per_year, booking_window_days, daily_conf_room_minutes, can_book_simulators, can_book_conference, can_book_wellness, has_group_lessons, has_extended_sessions, has_private_lesson, has_simulator_guest_passes, has_discounted_merch, unlimited_access, guest_fee_cents, stripe_product_id, stripe_price_id, founding_price_id, price_cents, billing_interval, product_type, min_quantity, tier_type, wallet_pass_bg_color, wallet_pass_foreground_color, wallet_pass_label_color, created_at, updated_at FROM membership_tiers ORDER BY sort_order ASC, id ASC`);
+      ? await db.execute(sql`SELECT * FROM membership_tiers WHERE is_active = true ORDER BY sort_order ASC, id ASC`)
+      : await db.execute(sql`SELECT * FROM membership_tiers ORDER BY sort_order ASC, id ASC`);
 
     setCache(cacheKey, result.rows, TIERS_CACHE_TTL);
     res.json(result.rows);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Membership tiers fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Membership tiers fetch error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to fetch membership tiers' });
   }
 });
@@ -82,7 +82,7 @@ router.get('/api/membership-tiers/limits/:tierName', async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Membership tier limits fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Membership tier limits fetch error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to fetch tier limits' });
   }
 });
@@ -99,7 +99,7 @@ router.get('/api/membership-tiers/:id', async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Membership tier fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Membership tier fetch error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to fetch membership tier' });
   }
 });
@@ -168,7 +168,7 @@ router.put('/api/membership-tiers/:id', isAdmin, async (req, res) => {
     
     res.json(updatedTier);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Membership tier update error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Membership tier update error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to update membership tier' });
   }
 });
@@ -220,7 +220,7 @@ router.post('/api/membership-tiers', isAdmin, async (req, res) => {
     
     res.status(201).json(result.rows[0]);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Membership tier create error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Membership tier create error', { error: getErrorMessage(error) });
     if (getErrorCode(error) === '23505') {
       res.status(400).json({ error: 'A tier with this name or slug already exists' });
     } else {
@@ -266,7 +266,7 @@ router.post('/api/admin/stripe/sync-products', isStaffOrAdmin, async (req, res) 
       cafeSync: cafeResult,
     });
   } catch (error: unknown) {
-    logger.error('[Admin] Stripe sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Admin] Stripe sync error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to sync products to Stripe', details: safeErrorDetail(error) });
   }
 });
@@ -277,7 +277,7 @@ router.get('/api/admin/stripe/sync-status', isStaffOrAdmin, async (req, res) => 
     const status = await getTierSyncStatus();
     res.json({ tiers: status });
   } catch (error: unknown) {
-    logger.error('[Admin] Error getting sync status', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Admin] Error getting sync status', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to get sync status' });
   }
 });
@@ -319,7 +319,7 @@ router.post('/api/admin/stripe/pull-from-stripe', isStaffOrAdmin, async (req, re
       cafe: cafeResult,
     });
   } catch (error: unknown) {
-    logger.error('[Admin] Pull from Stripe error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Admin] Pull from Stripe error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to pull from Stripe', details: safeErrorDetail(error) });
   }
 });

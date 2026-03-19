@@ -18,7 +18,7 @@ function usePublicSettings() {
   useEffect(() => {
     fetchWithCredentials<Record<string, string>>('/api/settings/public')
       .then((data) => setSettings(prev => ({ ...prev, ...data })))
-      .catch(() => {});
+      .catch((err) => console.warn('Failed to load public settings:', err));
   }, []);
 
   return settings;
@@ -96,8 +96,10 @@ const BookTour: React.FC = () => {
     try {
       const data = await fetchWithCredentials<{ availableSlots?: TimeSlot[] }>(`/api/tours/availability?date=${date}`);
       setSlots(data.availableSlots || []);
-    } catch {
+    } catch (err) {
+      console.error('[BookTour] Failed to fetch available slots:', err);
       setSlots([]);
+      setError('Unable to load available time slots. Please try again.');
     } finally {
       setLoadingSlots(false);
     }

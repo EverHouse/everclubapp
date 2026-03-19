@@ -5,10 +5,9 @@ import { db } from '../db';
 import { wellnessEnrollments, wellnessClasses, users, notifications } from '../../shared/schema';
 import { notifyAllStaff, notifyMember } from '../core/notificationService';
 import { eq, and, gte, sql, isNull, asc, desc } from 'drizzle-orm';
-import { sendPushNotification } from './push';
-import { formatDateDisplayWithDay, getTodayPacific } from '../utils/dateUtils';
+import { formatDateDisplayWithDay, getTodayPacific, formatTime12Hour } from '../utils/dateUtils';
 import { getAllActiveBayIds, getConferenceRoomId } from '../core/affectedAreas';
-import { sendNotificationToUser, broadcastToStaff, broadcastWaitlistUpdate } from '../core/websocket';
+import { broadcastToStaff, broadcastWaitlistUpdate } from '../core/websocket';
 import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
 import { getErrorMessage } from '../utils/errorUtils';
@@ -1059,8 +1058,8 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
         const isWaitlisted = isAtCapacity && waitlistEnabled;
         
         const memberMessage = isWaitlisted 
-          ? `You've been added to the waitlist for ${cls.title} with ${cls.instructor} on ${formattedDate} at ${cls.time}. We'll notify you if a spot opens up.`
-          : `You're enrolled in ${cls.title} with ${cls.instructor} on ${formattedDate} at ${cls.time}.`;
+          ? `You've been added to the waitlist for ${cls.title} with ${cls.instructor} on ${formattedDate} at ${formatTime12Hour(cls.time)}. We'll notify you if a spot opens up.`
+          : `You're enrolled in ${cls.title} with ${cls.instructor} on ${formattedDate} at ${formatTime12Hour(cls.time)}.`;
         
         const enrollmentResult = await tx.insert(wellnessEnrollments)
           .values({
@@ -1070,15 +1069,6 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
             isWaitlisted: isWaitlisted as boolean
           })
           .returning();
-        
-        await tx.insert(notifications).values({
-          userEmail: user_email as string,
-          title: isWaitlisted ? 'Added to Waitlist' : 'Wellness Class Confirmed',
-          message: memberMessage,
-          type: 'wellness_booking',
-          relatedId: class_id,
-          relatedType: 'wellness_class'
-        });
         
         return { full: false as const, enrollment: enrollmentResult[0], isWaitlisted, memberMessage };
       });
@@ -1095,6 +1085,16 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
     }
     
     const { isWaitlisted, memberMessage } = result;
+    
+    notifyMember({
+      userEmail: user_email as string,
+      title: isWaitlisted ? 'Added to Waitlist' : 'Wellness Class Confirmed',
+      message: memberMessage,
+      type: 'wellness_booking',
+      relatedId: class_id,
+      relatedType: 'wellness_class',
+      url: '/wellness'
+    }).catch(err => logger.warn('Failed to send wellness enrollment notification', { extra: { error: err } }));
     const staffMessage = isWaitlisted
       ? `${memberName} joined the waitlist for ${cls.title} on ${formattedDate}`
       : `${memberName} enrolled in ${cls.title} on ${formattedDate}`;
@@ -1104,21 +1104,7 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
       staffMessage,
       'wellness_enrollment',
       { relatedId: class_id, relatedType: 'wellness_class', url: '/admin/calendar' }
-    ).catch(err => logger.warn('Failed to notify staff of wellness enrollment', { extra: { error: err } }));
-    
-    sendPushNotification(user_email, {
-      title: isWaitlisted ? 'Added to Waitlist' : 'Class Booked!',
-      body: memberMessage,
-      url: '/wellness',
-      tag: `wellness-${class_id}`
-    }).catch(err => logger.error('Push notification failed', { extra: { error: err } }));
-    
-    sendNotificationToUser(user_email, {
-      type: 'notification',
-      title: isWaitlisted ? 'Added to Waitlist' : 'Wellness Class Confirmed',
-      message: memberMessage,
-      data: { classId: class_id, eventType: isWaitlisted ? 'wellness_waitlisted' : 'wellness_enrolled' }
-    }, { action: isWaitlisted ? 'wellness_waitlisted' : 'wellness_enrolled', classId: class_id, triggerSource: 'wellness.ts' });
+    ).catch(err => logger.warn('Failed to notify staff of wellness enrollment', { extra: { error: getErrorMessage(err) } }));
     
     broadcastToStaff({
       type: 'wellness_event',
@@ -1250,15 +1236,6 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', isAuthenticated
             .set({ isWaitlisted: false })
             .where(eq(wellnessEnrollments.id, row.id as number));
           
-          await tx.insert(notifications).values({
-            userEmail: row.user_email as string,
-            title: 'Spot Available - You\'re In!',
-            message: `A spot opened up! You've been moved from the waitlist and are now enrolled in ${cls.title} with ${cls.instructor} on ${formattedDate} at ${cls.time}.`,
-            type: 'wellness_booking',
-            relatedId: class_id,
-            relatedType: 'wellness_class'
-          });
-          
           return row;
         });
         
@@ -1266,23 +1243,17 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', isAuthenticated
           const promotedEmail = promotedUserRow.user_email;
           const promotedName = await getMemberDisplayName(promotedEmail as string);
           
-          const promotedMessage = `A spot opened up! You've been moved from the waitlist and are now enrolled in ${cls.title} with ${cls.instructor} on ${formattedDate} at ${cls.time}.`;
+          const promotedMessage = `A spot opened up! You've been moved from the waitlist and are now enrolled in ${cls.title} with ${cls.instructor} on ${formattedDate} at ${formatTime12Hour(cls.time)}.`;
           
-          // Send push notification
-          sendPushNotification(promotedEmail as string, {
-            title: 'Spot Available - You\'re In!',
-            body: promotedMessage,
-            url: '/wellness',
-            tag: `wellness-promoted-${cls.id}`
-          }).catch(err => logger.error('Push notification failed', { extra: { error: err } }));
-          
-          // Send real-time WebSocket notification
-          sendNotificationToUser(promotedEmail as string, {
-            type: 'notification',
+          notifyMember({
+            userEmail: promotedEmail as string,
             title: 'Spot Available - You\'re In!',
             message: promotedMessage,
-            data: { classId: class_id, eventType: 'wellness_promoted' }
-          }, { action: 'wellness_promoted', classId: class_id, triggerSource: 'wellness.ts' });
+            type: 'wellness_booking',
+            relatedId: class_id,
+            relatedType: 'wellness_class',
+            url: '/wellness'
+          }).catch(err => logger.warn('Failed to send waitlist promotion notification', { extra: { error: getErrorMessage(err) } }));
           
           // Notify staff
           await notifyAllStaff(
@@ -1447,7 +1418,7 @@ router.post('/api/wellness-classes/:id/enrollments/manual', isStaffOrAdmin, asyn
       : (typeof classDetails.date === 'string' ? classDetails.date.split('T')[0] : String(classDetails.date));
     const formattedDate = formatDateDisplayWithDay(dateStr);
     const classTitle = (classDetails?.title || 'Wellness Class') as string;
-    const memberMessage = `You've been enrolled in ${classTitle} with ${classDetails.instructor || 'instructor'} on ${formattedDate} at ${classDetails.time} by staff.`;
+    const memberMessage = `You've been enrolled in ${classTitle} with ${classDetails.instructor || 'instructor'} on ${formattedDate} at ${formatTime12Hour(classDetails.time as string)} by staff.`;
     
     try {
       await notifyMember({
@@ -1459,20 +1430,6 @@ router.post('/api/wellness-classes/:id/enrollments/manual', isStaffOrAdmin, asyn
         relatedType: 'wellness_class',
         url: '/wellness'
       });
-      
-      sendPushNotification(email, {
-        title: 'Wellness Class Confirmed',
-        body: memberMessage,
-        url: '/wellness',
-        tag: `wellness-${classId}`
-      }).catch(err => logger.error('Push notification failed for manual enrollment', { extra: { error: err } }));
-      
-      sendNotificationToUser(email, {
-        type: 'notification',
-        title: 'Wellness Class Confirmed',
-        message: memberMessage,
-        data: { classId, eventType: 'wellness_enrolled' }
-      }, { action: 'wellness_enrolled', classId, triggerSource: 'wellness.ts' });
       
       broadcastToStaff({
         type: 'wellness_event',

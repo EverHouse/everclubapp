@@ -3,10 +3,9 @@ import { isAuthenticated, isStaffOrAdmin } from '../../core/middleware';
 import { db } from '../../db';
 import { events, eventRsvps, users, notifications } from '../../../shared/schema';
 import { eq, and, or, sql, gte, desc } from 'drizzle-orm';
-import { sendPushNotification } from '../push';
 import { notifyAllStaff, notifyMember } from '../../core/notificationService';
-import { formatDateDisplayWithDay, getTodayPacific } from '../../utils/dateUtils';
-import { sendNotificationToUser, broadcastToStaff } from '../../core/websocket';
+import { formatDateDisplayWithDay, getTodayPacific, formatTime12Hour } from '../../utils/dateUtils';
+import { broadcastToStaff } from '../../core/websocket';
 import { getSessionUser } from '../../types/session';
 import { logFromRequest } from '../../core/auditLog';
 import { getErrorMessage } from '../../utils/errorUtils';
@@ -140,7 +139,7 @@ router.post('/api/rsvps', isAuthenticated, async (req, res) => {
     
     const evt = eventData[0];
     const formattedDate = formatDateDisplayWithDay(evt.eventDate);
-    const formattedTime = evt.startTime?.substring(0, 5) || '';
+    const formattedTime = evt.startTime ? formatTime12Hour(evt.startTime) : '';
     const memberMessage = `You're confirmed for ${evt.title} on ${formattedDate}${formattedTime ? ` at ${formattedTime}` : ''}${evt.location ? ` - ${evt.location}` : ''}.`;
     const memberName = await getMemberDisplayName(user_email);
     const staffMessage = `${memberName} RSVP'd for ${evt.title} on ${formattedDate}`;
@@ -168,38 +167,25 @@ router.post('/api/rsvps', isAuthenticated, async (req, res) => {
         set: { status: 'confirmed', checkedIn: true },
       }).returning();
       
-      await tx.insert(notifications).values({
-        userEmail: user_email,
-        title: 'Event RSVP Confirmed',
-        message: memberMessage,
-        type: 'event_rsvp',
-        relatedId: event_id,
-        relatedType: 'event'
-      });
-      
       return rsvpResult[0];
     });
+    
+    notifyMember({
+      userEmail: user_email,
+      title: 'Event RSVP Confirmed',
+      message: memberMessage,
+      type: 'event_rsvp',
+      relatedId: event_id,
+      relatedType: 'event',
+      url: '/events'
+    }).catch(err => logger.warn('Failed to send RSVP notification', { extra: { error: getErrorMessage(err) } }));
     
     notifyAllStaff(
       'New Event RSVP',
       staffMessage,
       'event_rsvp',
       { relatedId: event_id, relatedType: 'event', url: '/admin/calendar' }
-    ).catch((err: unknown) => logger.warn('Failed to notify staff of event RSVP', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }));
-    
-    sendPushNotification(user_email, {
-      title: 'RSVP Confirmed!',
-      body: memberMessage,
-      url: '/events',
-      tag: `event-rsvp-${event_id}`
-    }).catch((err: unknown) => logger.error('Push notification failed', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }));
-    
-    sendNotificationToUser(user_email, {
-      type: 'notification',
-      title: 'Event RSVP Confirmed',
-      message: memberMessage,
-      data: { eventId: event_id, eventType: 'rsvp_created' }
-    }, { action: 'rsvp_created', eventId: event_id, triggerSource: 'events.ts' });
+    ).catch((err: unknown) => logger.warn('Failed to notify staff of event RSVP', { error: getErrorMessage(err) }));
     
     broadcastToStaff({
       type: 'rsvp_event',

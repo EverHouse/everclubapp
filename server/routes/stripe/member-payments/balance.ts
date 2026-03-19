@@ -149,7 +149,7 @@ router.get('/api/member/balance', isAuthenticated, validateQuery(balanceQuerySch
       }
       
       if (amountCents > 0) {
-        const dateStr = row.session_date ? new Date(row.session_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' }) : '';
+        const dateStr = row.session_date ? new Date(`${String(row.session_date).split('T')[0]}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' }) : '';
         breakdown.push({
           id: row.participant_id,
           sessionId: row.session_id,
@@ -163,7 +163,7 @@ router.get('/api/member/balance', isAuthenticated, validateQuery(balanceQuerySch
 
     for (const row of guestResult.rows as unknown as GuestBalanceRow[]) {
       const amountCents = row.cached_fee_cents || GUEST_FEE_CENTS;
-      const dateStr = row.session_date ? new Date(row.session_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' }) : '';
+      const dateStr = row.session_date ? new Date(`${String(row.session_date).split('T')[0]}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' }) : '';
       breakdown.push({
         id: row.participant_id,
         sessionId: row.session_id,
@@ -223,7 +223,7 @@ router.get('/api/member/balance', isAuthenticated, validateQuery(balanceQuerySch
                    WHERE bs.id = ${sessionId}
                 `);
                 const sData = sessionDataResult.rows[0] as unknown as SessionDataRow | undefined;
-                const dateStr = sData?.session_date ? new Date(sData.session_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' }) : '';
+                const dateStr = sData?.session_date ? new Date(`${String(sData.session_date).split('T')[0]}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' }) : '';
 
                 const isGuest = sData?.participant_type === 'guest';
                 breakdown.push({
@@ -297,7 +297,7 @@ router.get('/api/member/balance', isAuthenticated, validateQuery(balanceQuerySch
       const unfilledSlots = Math.max(0, declaredCount - 1 - nonOwnerCount);
       
       if (unfilledSlots > 0) {
-        const dateStr = row.session_date ? new Date(row.session_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' }) : '';
+        const dateStr = row.session_date ? new Date(`${String(row.session_date).split('T')[0]}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' }) : '';
         for (let i = 0; i < unfilledSlots; i++) {
           breakdown.push({
             id: -row.session_id * 1000 - i,

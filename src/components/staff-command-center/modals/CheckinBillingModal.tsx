@@ -338,7 +338,9 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     setActionInProgress('checkin-after-payment');
     try {
       if (paymentIntentId) {
-        await postWithCredentials('/api/stripe/confirm-payment', { paymentIntentId }).catch(() => {});
+        await postWithCredentials('/api/stripe/confirm-payment', { paymentIntentId }).catch((err) => {
+          console.error('[CheckinBilling] Payment confirmation sync failed:', err);
+        });
       }
       const result = await checkInWithToast(bookingId, { status: BOOKING_STATUS.ATTENDED });
       if (result.success) {

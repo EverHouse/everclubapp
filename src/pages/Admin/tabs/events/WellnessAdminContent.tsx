@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import EmptyState from '../../../../components/EmptyState';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { formatDateDisplayWithDay } from '../../../../utils/dateUtils';
+import { formatDateDisplayWithDay, formatTime12Hour } from '../../../../utils/dateUtils';
 import { getApiErrorMessage, getNetworkErrorMessage } from '../../../../utils/errorHandling';
 import { useToast } from '../../../../components/Toast';
 import { SlideUpDrawer } from '../../../../components/SlideUpDrawer';
@@ -426,7 +426,7 @@ export const WellnessAdminContent: React.FC = () => {
                                         <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
                                             <span>{formatDateDisplayWithDay((cls.date || '').split('T')[0])}</span>
                                             <span>•</span>
-                                            <span>{cls.time}</span>
+                                            <span>{formatTime12Hour(cls.time)}</span>
                                             {cls.instructor && cls.instructor !== 'TBD' && (
                                                 <>
                                                     <span>•</span>
@@ -490,7 +490,7 @@ export const WellnessAdminContent: React.FC = () => {
                                             <div className="flex-1 min-w-0 flex flex-col justify-center">
                                                 <h4 className="font-bold text-xl text-primary dark:text-white leading-none truncate translate-y-[1px]" style={{ fontFamily: 'var(--font-headline)', fontOpticalSizing: 'auto', letterSpacing: '-0.02em' }}>{cls.title}</h4>
                                                 <span className="w-fit inline-block text-[10px] font-bold uppercase tracking-wider bg-[#CCB8E4]/20 text-[#293515] dark:text-[#CCB8E4] px-2 py-0.5 rounded mt-1.5" style={{ fontFamily: 'var(--font-label)' }}>{cls.category}</span>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formatDate(cls.date)} • {cls.time}</p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formatDate(cls.date)} • {formatTime12Hour(cls.time)}</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-white/20 mt-auto">
@@ -546,7 +546,7 @@ export const WellnessAdminContent: React.FC = () => {
                                             <div className="flex-1 min-w-0 flex flex-col justify-center">
                                                 <h4 className="font-bold text-xl text-primary dark:text-white leading-none truncate translate-y-[1px]" style={{ fontFamily: 'var(--font-headline)', fontOpticalSizing: 'auto', letterSpacing: '-0.02em' }}>{cls.title}</h4>
                                                 <span className="w-fit inline-block text-[10px] font-bold uppercase tracking-wider bg-[#CCB8E4]/20 text-[#293515] dark:text-[#CCB8E4] px-2 py-0.5 rounded mt-1.5" style={{ fontFamily: 'var(--font-label)' }}>{cls.category}</span>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formatDate(cls.date)} • {cls.time}</p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formatDate(cls.date)} • {formatTime12Hour(cls.time)}</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-white/20 mt-auto">
@@ -580,7 +580,7 @@ export const WellnessAdminContent: React.FC = () => {
                 isOpen={isViewingEnrollments}
                 onClose={() => { setIsViewingEnrollments(false); setSelectedClass(null); }}
                 title={selectedClass?.title || 'Class Enrollments'}
-                subtitle={selectedClass ? `${formatDate(selectedClass.date)} at ${selectedClass.time}` : undefined}
+                subtitle={selectedClass ? `${formatDate(selectedClass.date)} at ${formatTime12Hour(selectedClass.time)}` : undefined}
                 participants={enrollments}
                 isLoading={isLoadingEnrollments}
                 type="enrollment"

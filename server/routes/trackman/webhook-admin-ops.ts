@@ -11,6 +11,7 @@ import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { transferRequestParticipantsToSession } from '../../core/trackmanImport';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { formatTime12Hour } from '../../utils/dateUtils';
 
 interface WebhookEventRetryRow {
   id: number;
@@ -340,7 +341,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
     broadcastToStaff({
       type: 'booking_auto_confirmed',
       title: 'Booking Auto-Confirmed',
-      message: `${match.member_name || match.user_email}'s booking for ${pacificDate} at ${pacificStartTime} was auto-approved via Staff Auto-Match.`,
+      message: `${match.member_name || match.user_email}'s booking for ${pacificDate} at ${formatTime12Hour(pacificStartTime)} was auto-approved via Staff Auto-Match.`,
       data: {
         bookingId: match.id,
         memberName: match.member_name || match.user_email,
@@ -419,7 +420,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
     try {
       const userResult = await db.execute(sql`SELECT id, first_name, last_name, email FROM users WHERE LOWER(email) = LOWER(${match.user_email})`);
       if (userResult.rows.length > 0) {
-        const message = `Your simulator booking for ${pacificDate} at ${pacificStartTime} (Bay ${resourceId}) has been confirmed.`;
+        const message = `Your simulator booking for ${pacificDate} at ${formatTime12Hour(pacificStartTime)} (Bay ${resourceId}) has been confirmed.`;
         await notifyMember(
           {
             userEmail: match.user_email as string,

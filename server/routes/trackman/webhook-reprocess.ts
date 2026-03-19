@@ -6,7 +6,7 @@ import { sendNotificationToUser, broadcastToStaff } from '../../core/websocket';
 import { notifyMember, isNotifiableEmail } from '../../core/notificationService';
 import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
 import { linkAndNotifyParticipants } from '../../core/bookingEvents';
-import { formatDatePacific, formatTimePacific } from '../../utils/dateUtils';
+import { formatDatePacific, formatTimePacific, formatTime12Hour } from '../../utils/dateUtils';
 import { calculateDurationMinutes } from './webhook-helpers';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
@@ -309,7 +309,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
         await notifyMember({
           userEmail,
           title: 'Booking Confirmed',
-          message: `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.`,
+          message: `Your simulator booking for ${dateStr} at ${formatTime12Hour(timeStr)} has been confirmed.`,
           type: 'booking_confirmed' as const,
           relatedId: bookingId,
           relatedType: 'booking',

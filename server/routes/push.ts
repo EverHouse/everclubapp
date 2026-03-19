@@ -6,10 +6,9 @@ import { db } from '../db';
 import { pushSubscriptions, users, notifications, events, eventRsvps, bookingRequests, wellnessClasses, wellnessEnrollments, facilityClosures } from '../../shared/schema';
 import { eq, inArray, and, sql, or, isNull } from 'drizzle-orm';
 import { formatTime12Hour, getTodayPacific, getTomorrowPacific } from '../utils/dateUtils';
-import { sendNotificationToUser } from '../core/websocket';
 import { isAuthenticated, isStaffOrAdmin } from '../core/middleware';
 import { getErrorMessage, getErrorStatusCode } from '../utils/errorUtils';
-import { isSyntheticEmail } from '../core/notificationService';
+import { isSyntheticEmail, notifyMember } from '../core/notificationService';
 
 const router = Router();
 
@@ -71,7 +70,7 @@ export async function sendPushNotification(userEmail: string, payload: { title: 
     await Promise.all(notifications);
     return { sent: true };
   } catch (error: unknown) {
-    logger.error('Failed to send push notification', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Failed to send push notification', { error: getErrorMessage(error) });
     return { sent: false, reason: 'Error sending push' };
   }
 }
@@ -120,7 +119,7 @@ export async function sendPushNotificationToStaff(payload: { title: string; body
     await Promise.all(notifications);
     return { sent: true, count: staffSubscriptions.length };
   } catch (error: unknown) {
-    logger.error('Failed to send push notification to staff', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Failed to send push notification to staff', { error: getErrorMessage(error) });
     return { sent: false, count: 0, reason: 'Error sending push' };
   }
 }
@@ -155,43 +154,26 @@ export async function sendPushNotificationToAllMembers(payload: { title: string;
       .innerJoin(users, eq(pushSubscriptions.userEmail, users.email))
       .where(or(eq(users.role, 'member'), isNull(users.role)));
     
-    const notificationValues = allMembers.filter(m => m.email).map(member => ({
-      userEmail: member.email!,
-      title: payload.title,
-      message: payload.body,
-      type: 'announcement' as const,
-      relatedType: 'announcement' as const
-    }));
+    const uniqueEmails = [...new Set(allMembers.filter(m => m.email).map(m => m.email!))];
+    const notifyResults = await Promise.allSettled(
+      uniqueEmails.map(email =>
+        notifyMember({
+          userEmail: email,
+          title: payload.title,
+          message: payload.body,
+          type: 'announcement',
+          relatedType: 'announcement'
+        })
+      )
+    );
+    results.sent = notifyResults.filter(r => r.status === 'fulfilled').length;
+    results.pushFailed = notifyResults.filter(r => r.status === 'rejected').length;
     
-    try {
-      await db.insert(notifications).values(notificationValues);
-      results.sent = notificationValues.length;
-    } catch (err: unknown) {
-      logger.error('[Push to Members] Failed to insert in-app notifications', { extra: { err: getErrorMessage(err) } });
-    }
-    
-    for (const sub of memberSubscriptions) {
-      const pushSubscription = {
-        endpoint: sub.endpoint,
-        keys: { p256dh: sub.p256dh, auth: sub.auth }
-      };
-      
-      const enrichedPayload = { ...payload, icon: payload.icon || PUSH_ICON, badge: payload.badge || PUSH_BADGE };
-      try {
-        await webpush.sendNotification(pushSubscription, JSON.stringify(enrichedPayload));
-      } catch (err: unknown) {
-        if (getErrorStatusCode(err) === 410) {
-          await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));
-        }
-        results.pushFailed++;
-      }
-    }
-    
-    logger.info('[Push to Members] Sent in-app notifications, push notifications. Failures', { extra: { resultsSent: results.sent, memberSubscriptionsLength_resultsPushFailed: memberSubscriptions.length - results.pushFailed, resultsPushFailed: results.pushFailed } });
+    logger.info('[Push to Members] Sent notifications via notifyMember', { extra: { resultsSent: results.sent, resultsPushFailed: results.pushFailed } });
     
     return results.sent;
   } catch (error: unknown) {
-    logger.error('Failed to send push notification to members', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Failed to send push notification to members', { error: getErrorMessage(error) });
     return 0;
   }
 }
@@ -231,7 +213,7 @@ router.post('/api/push/subscribe', isAuthenticated, async (req, res) => {
     
     res.json({ success: true });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Push subscription error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Push subscription error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to save push subscription' });
   }
 });
@@ -249,7 +231,7 @@ router.post('/api/push/unsubscribe', isAuthenticated, async (req, res) => {
     
     res.json({ success: true });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Push unsubscribe error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Push unsubscribe error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to unsubscribe' });
   }
 });
@@ -269,7 +251,7 @@ router.post('/api/push/test', isAuthenticated, async (req, res) => {
     
     res.json({ success: true });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Test push error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Test push error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to send test notification' });
   }
 });
@@ -295,38 +277,21 @@ export async function sendDailyReminders() {
     ));
     
     if (eventReminders.length > 0) {
-      const eventNotifications = eventReminders.map(evt => ({
-        userEmail: evt.userEmail,
-        title: 'Event Tomorrow',
-        message: `Reminder: ${evt.title} is tomorrow${evt.startTime ? ` at ${formatTime12Hour(evt.startTime)}` : ''}${evt.location ? ` - ${evt.location}` : ''}.`,
-        type: 'event_reminder' as const,
-        relatedId: evt.eventId,
-        relatedType: 'event' as const
-      }));
-      
-      try {
-        await db.insert(notifications).values(eventNotifications);
-        results.events = eventNotifications.length;
-      } catch (err: unknown) {
-        results.errors.push(`Event batch insert: ${getErrorMessage(err)}`);
-      }
-      
-      for (const evt of eventReminders) {
-        const message = `Reminder: ${evt.title} is tomorrow${evt.startTime ? ` at ${formatTime12Hour(evt.startTime)}` : ''}${evt.location ? ` - ${evt.location}` : ''}.`;
-        sendPushNotification(evt.userEmail, { title: 'Event Tomorrow', body: message, url: '/events', tag: `event-${evt.eventId}`, icon: PUSH_ICON, badge: PUSH_BADGE })
-          .catch((err) => {
-            results.pushFailed++;
-            logger.warn('[push] Push reminder delivery failed', {
-              error: err instanceof Error ? err : new Error(String(err))
-            });
+      const eventNotifyResults = await Promise.allSettled(
+        eventReminders.map(evt => {
+          const message = `Reminder: ${evt.title} is tomorrow${evt.startTime ? ` at ${formatTime12Hour(evt.startTime)}` : ''}${evt.location ? ` - ${evt.location}` : ''}.`;
+          return notifyMember({
+            userEmail: evt.userEmail,
+            title: 'Event Tomorrow',
+            message,
+            type: 'event_reminder',
+            relatedId: evt.eventId,
+            relatedType: 'event',
+            url: '/events'
           });
-        // Send WebSocket notification for real-time updates
-        sendNotificationToUser(evt.userEmail, {
-          type: 'event_reminder',
-          title: 'Event Tomorrow',
-          message: message
-        });
-      }
+        })
+      );
+      results.events = eventNotifyResults.filter(r => r.status === 'fulfilled').length;
     }
     
     const bookingReminders = await db.select({
@@ -343,40 +308,22 @@ export async function sendDailyReminders() {
     ));
     
     if (bookingReminders.length > 0) {
-      const bookingNotifications = bookingReminders
-        .filter(booking => booking.userEmail && !isSyntheticEmail(booking.userEmail))
-        .map(booking => ({
-          userEmail: booking.userEmail,
-          title: 'Booking Tomorrow',
-          message: `Reminder: Your simulator booking is tomorrow at ${formatTime12Hour(booking.startTime)}${booking.resourceId ? ` on Bay ${booking.resourceId}` : ''}.`,
-          type: 'booking_reminder' as const,
-          relatedId: booking.id,
-          relatedType: 'booking_request' as const
-        }));
-      
-      try {
-        if (bookingNotifications.length > 0) await db.insert(notifications).values(bookingNotifications);
-        results.bookings = bookingNotifications.length;
-      } catch (err: unknown) {
-        results.errors.push(`Booking batch insert: ${getErrorMessage(err)}`);
-      }
-      
-      for (const booking of bookingReminders) {
-        const message = `Reminder: Your simulator booking is tomorrow at ${formatTime12Hour(booking.startTime)}${booking.resourceId ? ` on Bay ${booking.resourceId}` : ''}.`;
-        sendPushNotification(booking.userEmail, { title: 'Booking Tomorrow', body: message, url: '/sims', tag: `booking-${booking.id}`, icon: PUSH_ICON, badge: PUSH_BADGE })
-          .catch((err) => {
-            results.pushFailed++;
-            logger.warn('[push] Push reminder delivery failed', {
-              error: err instanceof Error ? err : new Error(String(err))
-            });
+      const validBookings = bookingReminders.filter(b => b.userEmail && !isSyntheticEmail(b.userEmail));
+      const bookingNotifyResults = await Promise.allSettled(
+        validBookings.map(booking => {
+          const message = `Reminder: Your simulator booking is tomorrow at ${formatTime12Hour(booking.startTime)}${booking.resourceId ? ` on Bay ${booking.resourceId}` : ''}.`;
+          return notifyMember({
+            userEmail: booking.userEmail,
+            title: 'Booking Tomorrow',
+            message,
+            type: 'booking_reminder',
+            relatedId: booking.id,
+            relatedType: 'booking_request',
+            url: '/sims'
           });
-        // Send WebSocket notification for real-time updates
-        sendNotificationToUser(booking.userEmail, {
-          type: 'booking_reminder',
-          title: 'Booking Tomorrow',
-          message: message
-        });
-      }
+        })
+      );
+      results.bookings = bookingNotifyResults.filter(r => r.status === 'fulfilled').length;
     }
     
     const wellnessReminders = await db.select({
@@ -395,38 +342,21 @@ export async function sendDailyReminders() {
     ));
     
     if (wellnessReminders.length > 0) {
-      const wellnessNotifications = wellnessReminders.map(cls => ({
-        userEmail: cls.userEmail,
-        title: 'Wellness Class Tomorrow',
-        message: `Reminder: ${cls.title} with ${cls.instructor} is tomorrow at ${cls.time}.`,
-        type: 'wellness_reminder' as const,
-        relatedId: cls.classId,
-        relatedType: 'wellness_class' as const
-      }));
-      
-      try {
-        await db.insert(notifications).values(wellnessNotifications);
-        results.wellness = wellnessNotifications.length;
-      } catch (err: unknown) {
-        results.errors.push(`Wellness batch insert: ${getErrorMessage(err)}`);
-      }
-      
-      for (const cls of wellnessReminders) {
-        const message = `Reminder: ${cls.title} with ${cls.instructor} is tomorrow at ${cls.time}.`;
-        sendPushNotification(cls.userEmail, { title: 'Class Tomorrow', body: message, url: '/wellness', tag: `wellness-${cls.classId}`, icon: PUSH_ICON, badge: PUSH_BADGE })
-          .catch((err) => {
-            results.pushFailed++;
-            logger.warn('[push] Push reminder delivery failed', {
-              error: err instanceof Error ? err : new Error(String(err))
-            });
+      const wellnessNotifyResults = await Promise.allSettled(
+        wellnessReminders.map(cls => {
+          const message = `Reminder: ${cls.title} with ${cls.instructor} is tomorrow at ${formatTime12Hour(cls.time)}.`;
+          return notifyMember({
+            userEmail: cls.userEmail,
+            title: 'Wellness Class Tomorrow',
+            message,
+            type: 'wellness_reminder',
+            relatedId: cls.classId,
+            relatedType: 'wellness_class',
+            url: '/wellness'
           });
-        // Send WebSocket notification for real-time updates
-        sendNotificationToUser(cls.userEmail, {
-          type: 'wellness_reminder',
-          title: 'Class Tomorrow',
-          message: message
-        });
-      }
+        })
+      );
+      results.wellness = wellnessNotifyResults.filter(r => r.status === 'fulfilled').length;
     }
     
   logger.info('[Daily Reminders] Sent event, booking, wellness reminders. Push failures', { extra: { resultsEvents: results.events, resultsBookings: results.bookings, resultsWellness: results.wellness, resultsPushFailed: results.pushFailed } });
@@ -443,7 +373,7 @@ router.post('/api/push/send-daily-reminders', isStaffOrAdmin, async (req, res) =
     const result = await sendDailyReminders();
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Daily reminders error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Daily reminders error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to send daily reminders' });
   }
 });
@@ -542,46 +472,21 @@ export async function sendMorningClosureNotifications() {
         ? `${closure.reason}${timeInfo}`
         : `${title}${timeInfo}`;
       
-      // Create in-app notifications for all members
-      const notificationValues = allMembers.filter(m => m.email).map(member => ({
-        userEmail: member.email!,
-        title: `Today: ${title}`,
-        message: message,
-        type: 'closure_today' as const,
-        relatedId: closure.id,
-        relatedType: 'closure' as const
-      }));
-      
-      try {
-        await db.insert(notifications).values(notificationValues);
-        results.closures++;
-      } catch (err: unknown) {
-        results.errors.push(`Closure notification insert: ${getErrorMessage(err)}`);
-      }
-      
-      // Send push notifications
-      for (const sub of memberSubscriptions) {
-        const pushSubscription = {
-          endpoint: sub.endpoint,
-          keys: { p256dh: sub.p256dh, auth: sub.auth }
-        };
-        
-        try {
-          await webpush.sendNotification(pushSubscription, JSON.stringify({
+      const uniqueEmails = [...new Set(allMembers.filter(m => m.email).map(m => m.email!))];
+      const closureNotifyResults = await Promise.allSettled(
+        uniqueEmails.map(email =>
+          notifyMember({
+            userEmail: email,
             title: `Today: ${title}`,
-            body: message,
-            url: '/updates?tab=notices',
-            icon: PUSH_ICON,
-            badge: PUSH_BADGE,
-            tag: `closure-${closure.id}`
-          }));
-        } catch (err: unknown) {
-          if (getErrorStatusCode(err) === 410) {
-            await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));
-          }
-          results.pushFailed++;
-        }
-      }
+            message,
+            type: 'closure_today',
+            relatedId: closure.id,
+            relatedType: 'closure',
+            url: '/updates?tab=notices'
+          })
+        )
+      );
+      results.closures += closureNotifyResults.filter(r => r.status === 'fulfilled').length > 0 ? 1 : 0;
     }
     
     logger.info('[Morning Notifications] Sent closure notifications, skipped (already notified). Push failures', { extra: { resultsClosures: results.closures, resultsSkipped: results.skipped, resultsPushFailed: results.pushFailed } });
@@ -592,7 +497,7 @@ export async function sendMorningClosureNotifications() {
       ...results
     };
   } catch (error: unknown) {
-    logger.error('[Morning Notifications] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Morning Notifications] Error', { error: getErrorMessage(error) });
     results.errors.push(getErrorMessage(error));
     return { success: false, message: 'Failed to send morning notifications', ...results };
   }
@@ -603,7 +508,7 @@ router.post('/api/push/send-morning-closure-notifications', isStaffOrAdmin, asyn
     const result = await sendMorningClosureNotifications();
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Morning closure notifications error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Morning closure notifications error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to send morning closure notifications' });
   }
 });

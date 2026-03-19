@@ -11,6 +11,7 @@ import { recordUsage, ensureSessionForBooking } from '../../core/bookingService/
 import { getMemberTierByEmail } from '../../core/tierService';
 import { linkAndNotifyParticipants } from '../../core/bookingEvents';
 import { calculateDurationMinutes } from './webhook-helpers';
+import { formatTime12Hour } from '../../utils/dateUtils';
 import { createPrepaymentIntent } from '../../core/billing/prepaymentService';
 import { syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
 import { transferRequestParticipantsToSession } from '../../core/trackmanImport';
@@ -441,7 +442,7 @@ export async function createBookingForMember(
       broadcastToStaff({
         type: 'booking_auto_confirmed',
         title: 'Booking Auto-Confirmed',
-        message: `${memberName}'s booking for ${slotDate} at ${startTime} (${bayNameForNotification}) was auto-linked via Trackman.`,
+        message: `${memberName}'s booking for ${slotDate} at ${formatTime12Hour(startTime)} (${bayNameForNotification}) was auto-linked via Trackman.`,
         data: {
           bookingId: pendingBookingId,
           memberName,
@@ -454,7 +455,7 @@ export async function createBookingForMember(
         }
       });
       
-      const confirmMessage = `Your simulator booking for ${slotDate} at ${startTime} (${bayNameForNotification}) has been confirmed.${feeInfo}`;
+      const confirmMessage = `Your simulator booking for ${slotDate} at ${formatTime12Hour(startTime)} (${bayNameForNotification}) has been confirmed.${feeInfo}`;
       
       await notifyMember({
         userEmail: member.email.toLowerCase(),
@@ -696,7 +697,7 @@ export async function createBookingForMember(
       broadcastToStaff({
         type: 'booking_auto_confirmed',
         title: 'Booking Auto-Confirmed',
-        message: `${memberName}'s booking for ${slotDate} at ${startTime} (${bayNameForNotification}) was auto-created via Trackman.`,
+        message: `${memberName}'s booking for ${slotDate} at ${formatTime12Hour(startTime)} (${bayNameForNotification}) was auto-created via Trackman.`,
         data: {
           bookingId,
           memberName,
@@ -711,7 +712,7 @@ export async function createBookingForMember(
       await notifyMember({
         userEmail: member.email.toLowerCase(),
         title: 'Booking Confirmed',
-        message: `Your simulator booking for ${slotDate} at ${startTime} (${bayNameForNotification}) has been confirmed.`,
+        message: `Your simulator booking for ${slotDate} at ${formatTime12Hour(startTime)} (${bayNameForNotification}) has been confirmed.`,
         type: 'booking_confirmed',
         relatedType: 'booking',
         url: '/sims'
@@ -720,7 +721,7 @@ export async function createBookingForMember(
       sendNotificationToUser(member.email, {
         type: 'booking_confirmed',
         title: 'Booking Confirmed',
-        message: `Your simulator booking for ${slotDate} at ${startTime} (${bayNameForNotification}) has been confirmed.`,
+        message: `Your simulator booking for ${slotDate} at ${formatTime12Hour(startTime)} (${bayNameForNotification}) has been confirmed.`,
         data: { bookingId },
       });
       

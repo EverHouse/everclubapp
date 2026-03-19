@@ -636,7 +636,7 @@ export function logFromRequest(
     details: finalDetails,
     req
   }).catch((err) => {
-    console.error('[auditLog] Failed to log admin action:', err);
+    logger.error('[auditLog] Failed to log admin action:', { error: getErrorMessage(err) });
   });
 }
 

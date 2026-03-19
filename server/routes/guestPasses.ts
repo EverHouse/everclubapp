@@ -2,13 +2,12 @@ import { Router } from 'express';
 import { isAuthenticated, isStaffOrAdmin } from '../core/middleware';
 import { eq, sql, and, lt, inArray } from 'drizzle-orm';
 import { db } from '../db';
-import { guestPasses, notifications, staffUsers, bookingRequests } from '../../shared/schema';
+import { guestPasses, staffUsers, bookingRequests } from '../../shared/schema';
 import { getTierLimits } from '../core/tierService';
-import { sendPushNotification } from './push';
-import { sendNotificationToUser, broadcastMemberStatsUpdated } from '../core/websocket';
+import { broadcastMemberStatsUpdated } from '../core/websocket';
 import { logAndRespond, logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
-import { isSyntheticEmail } from '../core/notificationService';
+import { isSyntheticEmail, notifyMember } from '../core/notificationService';
 import { isPlaceholderGuestName } from '../core/billing/pricingConfig';
 import { withRetry } from '../core/retry';
 import { getSessionUser } from '../types/session';
@@ -192,23 +191,17 @@ router.post('/api/guest-passes/:email/use', isAuthenticated, async (req, res) =>
       : `Guest pass used. You have ${remaining} pass${remaining !== 1 ? 'es' : ''} remaining this year.`;
     
     if (!isSyntheticEmail(normalizedEmail)) {
-      await db.insert(notifications).values({
+      notifyMember({
         userEmail: normalizedEmail,
         title: 'Guest Pass Used',
         message: message,
         type: 'guest_pass',
-        relatedType: 'guest_pass'
-      });
+        relatedType: 'guest_pass',
+        url: '/member/profile'
+      }).catch(err => logger.error('Guest pass notification failed', { extra: { error: getErrorMessage(err) } }));
     }
     
-    sendPushNotification(normalizedEmail, {
-      title: 'Guest Pass Used',
-      body: message,
-      url: '/member/profile',
-      tag: 'guest-pass-used'
-    }).catch(err => logger.error('Push notification failed', { extra: { error: err } }));
-    
-    try { broadcastMemberStatsUpdated(normalizedEmail, { guestPasses: remaining }); } catch (err: unknown) { logger.error('[Broadcast] Stats update error', { extra: { error: err } }); }
+    try { broadcastMemberStatsUpdated(normalizedEmail, { guestPasses: remaining }); } catch (err: unknown) { logger.error('[Broadcast] Stats update error', { extra: { error: getErrorMessage(err) } }); }
     
     res.json({
       passes_used: data.passesUsed,
@@ -297,29 +290,23 @@ export async function useGuestPass(
           ? `Guest pass used for ${guestName}. You have ${remaining} pass${remaining !== 1 ? 'es' : ''} remaining this year.`
           : `Guest pass used. You have ${remaining} pass${remaining !== 1 ? 'es' : ''} remaining this year.`;
         notificationMessage = message;
-        
-        await tx.insert(notifications).values({
-          userEmail: normalizedEmail,
-          title: 'Guest Pass Used',
-          message: message,
-          type: 'guest_pass',
-          relatedType: 'guest_pass'
-        });
       }
       
       return { data, remaining, notificationMessage };
     });
     
     if (notificationMessage) {
-      sendPushNotification(normalizedEmail, {
+      notifyMember({
+        userEmail: normalizedEmail,
         title: 'Guest Pass Used',
-        body: notificationMessage,
-        url: '/member/profile',
-        tag: 'guest-pass-used'
-      }).catch(err => logger.error('Push notification failed', { extra: { error: err } }));
+        message: notificationMessage,
+        type: 'guest_pass',
+        relatedType: 'guest_pass',
+        url: '/member/profile'
+      }).catch(err => logger.error('Guest pass notification failed', { extra: { error: getErrorMessage(err) } }));
     }
     
-    try { broadcastMemberStatsUpdated(normalizedEmail, { guestPasses: remaining }); } catch (err: unknown) { logger.error('[Broadcast] Stats update error', { extra: { error: err } }); }
+    try { broadcastMemberStatsUpdated(normalizedEmail, { guestPasses: remaining }); } catch (err: unknown) { logger.error('[Broadcast] Stats update error', { extra: { error: getErrorMessage(err) } }); }
     
     return { success: true, remaining };
   } catch (error: unknown) {
@@ -361,14 +348,6 @@ export async function refundGuestPass(
           ? `Guest pass refunded for ${guestName}. You now have ${remaining} pass${remaining !== 1 ? 'es' : ''} remaining this year.`
           : `Guest pass refunded. You now have ${remaining} pass${remaining !== 1 ? 'es' : ''} remaining this year.`;
         notificationMessage = message;
-        
-        await tx.insert(notifications).values({
-          userEmail: normalizedEmail,
-          title: 'Guest Pass Refunded',
-          message: message,
-          type: 'guest_pass',
-          relatedType: 'guest_pass'
-        });
       }
       
       return { data, remaining, notificationMessage };
@@ -379,18 +358,14 @@ export async function refundGuestPass(
       : await db.transaction(async (tx) => executeRefund(tx));
     
     if (notificationMessage) {
-      sendPushNotification(normalizedEmail, {
+      notifyMember({
+        userEmail: normalizedEmail,
         title: 'Guest Pass Refunded',
-        body: notificationMessage,
-        url: '/member/profile',
-        tag: 'guest-pass-refunded'
-      }).catch(err => logger.error('Push notification failed', { extra: { error: err } }));
-      
-      sendNotificationToUser(normalizedEmail, {
+        message: notificationMessage,
         type: 'guest_pass',
-        title: 'Guest Pass Refunded',
-        message: notificationMessage
-      });
+        relatedType: 'guest_pass',
+        url: '/member/profile'
+      }).catch(err => logger.error('Guest pass refund notification failed', { extra: { error: getErrorMessage(err) } }));
     }
     
     try { broadcastMemberStatsUpdated(normalizedEmail, { guestPasses: remaining }); } catch (err: unknown) { logger.error('[Broadcast] Stats update error', { extra: { error: err } }); }

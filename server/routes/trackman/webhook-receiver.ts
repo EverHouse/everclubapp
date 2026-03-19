@@ -5,6 +5,7 @@ import { logger } from '../../core/logger';
 import { broadcastToStaff, broadcastAvailabilityUpdate } from '../../core/websocket';
 import { notifyMember, notifyAllStaff } from '../../core/notificationService';
 import { linkAndNotifyParticipants } from '../../core/bookingEvents';
+import { formatTime12Hour } from '../../utils/dateUtils';
 import {
   TrackmanWebhookPayload,
   TrackmanV2WebhookPayload,
@@ -76,7 +77,7 @@ async function notifyMemberBookingConfirmed(
     
     if (userResult.rows.length > 0) {
       const _user = userResult.rows[0];
-      const message = `Your simulator booking for ${slotDate} at ${startTime}${bayName ? ` (${bayName})` : ''} has been confirmed.`;
+      const message = `Your simulator booking for ${slotDate} at ${formatTime12Hour(startTime)}${bayName ? ` (${bayName})` : ''} has been confirmed.`;
       
       await notifyMember(
         {
@@ -339,7 +340,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
           broadcastToStaff({
             type: 'booking_auto_confirmed',
             title: 'Booking Auto-Confirmed',
-            message: `${bayTimeResult.memberName || bayTimeResult.memberEmail || 'Member'}'s booking for ${v2Result.normalized.parsedDate} at ${v2Result.normalized.parsedStartTime} was auto-linked via Trackman.`,
+            message: `${bayTimeResult.memberName || bayTimeResult.memberEmail || 'Member'}'s booking for ${v2Result.normalized.parsedDate} at ${formatTime12Hour(v2Result.normalized.parsedStartTime)} was auto-linked via Trackman.`,
             data: {
               bookingId: bayTimeResult.bookingId,
               memberName: bayTimeResult.memberName || bayTimeResult.memberEmail,

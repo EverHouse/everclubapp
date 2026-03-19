@@ -65,7 +65,9 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
     let cancelled = false;
     fetchWithCredentials<FrequentPartner[]>('/api/members/frequent-partners')
       .then(data => { if (!cancelled) setFrequentPartners(data); })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('[PlayerSlotEditor] Failed to fetch frequent partners:', err);
+      });
     return () => { cancelled = true; };
   }, [ownerMemberId]);
 

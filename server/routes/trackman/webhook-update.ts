@@ -2,6 +2,7 @@ import { logger } from '../../core/logger';
 import { broadcastToStaff, broadcastAvailabilityUpdate } from '../../core/websocket';
 import { notifyAllStaff, notifyMember } from '../../core/notificationService';
 import { linkAndNotifyParticipants } from '../../core/bookingEvents';
+import { formatTime12Hour } from '../../utils/dateUtils';
 import { bookingRequests } from '../../../shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../../db';
@@ -120,7 +121,7 @@ async function notifyStaffCancelledBookingLinked(
       : '';
     
     const title = 'Trackman Booking Linked to Cancelled Request';
-    const message = `A Trackman booking for ${memberName} (${memberEmail || 'no email'}) on ${slotDate} at ${startTime}${bayName ? ` (${bayName})` : ''} was linked to a cancelled request.${passInfo} Manual Trackman cancellation may be needed.`;
+    const message = `A Trackman booking for ${memberName} (${memberEmail || 'no email'}) on ${slotDate} at ${formatTime12Hour(startTime)}${bayName ? ` (${bayName})` : ''} was linked to a cancelled request.${passInfo} Manual Trackman cancellation may be needed.`;
     
     broadcastToStaff({
       type: 'trackman_cancelled_link',
@@ -167,7 +168,7 @@ async function notifyMemberBookingConfirmed(
     if (userRows.length > 0) {
       const user = userRows[0];
       const _memberName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Member';
-      const message = `Your simulator booking for ${slotDate} at ${startTime}${bayName ? ` (${bayName})` : ''} has been confirmed.`;
+      const message = `Your simulator booking for ${slotDate} at ${formatTime12Hour(startTime)}${bayName ? ` (${bayName})` : ''} has been confirmed.`;
       
       const result = await notifyMember(
         {
@@ -485,7 +486,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
     broadcastToStaff({
       type: 'booking_auto_confirmed',
       title: 'Booking Auto-Confirmed',
-      message: `${normalized.customerName || emailForLookup}'s booking for ${startParsed.date} at ${startParsed.time} (${normalized.bayName || 'Unknown bay'}) was auto-approved via Trackman.`,
+      message: `${normalized.customerName || emailForLookup}'s booking for ${startParsed.date} at ${formatTime12Hour(startParsed.time)} (${normalized.bayName || 'Unknown bay'}) was auto-approved via Trackman.`,
       data: {
         bookingId: autoApproveResult.bookingId,
         memberName: normalized.customerName || emailForLookup,

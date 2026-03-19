@@ -5,6 +5,7 @@ import { sql } from 'drizzle-orm';
 import { walletPassDeviceRegistrations, walletPassAuthTokens } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '../core/logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const APN_HOST = 'https://api.push.apple.com';
 
@@ -32,7 +33,7 @@ async function sendApnPush(pushToken: string, passTypeId: string): Promise<boole
       });
 
       client.on('error', (err) => {
-        logger.error('[WalletPass APN] HTTP/2 connection error', { error: err });
+        logger.error('[WalletPass APN] HTTP/2 connection error', { error: getErrorMessage(err) });
         if (!settled) {
           try { client.close(); } catch { /* already closed */ }
         }
@@ -75,7 +76,7 @@ async function sendApnPush(pushToken: string, passTypeId: string): Promise<boole
       });
 
       req.on('error', (err) => {
-        logger.error('[WalletPass APN] Request error', { error: err });
+        logger.error('[WalletPass APN] Request error', { error: getErrorMessage(err) });
         if (!settled) {
           try { client.close(); } catch { /* already closed */ }
         }
@@ -94,7 +95,7 @@ async function sendApnPush(pushToken: string, passTypeId: string): Promise<boole
         }
       }, 10000);
     } catch (err) {
-      logger.error('[WalletPass APN] Failed to send push', { error: err instanceof Error ? err : new Error(String(err)) });
+      logger.error('[WalletPass APN] Failed to send push', { error: getErrorMessage(err) });
       resolve(false);
     }
   });
@@ -130,7 +131,7 @@ export async function sendPassUpdatePush(serialNumber: string): Promise<{ sent: 
     logger.info(`[WalletPass APN] Push complete for ${serialNumber}: sent=${result.sent}, failed=${result.failed}`);
   } catch (err) {
     logger.error('[WalletPass APN] Error sending pass update push', {
-      error: err instanceof Error ? err : new Error(String(err)),
+      error: getErrorMessage(err),
       extra: { serialNumber }
     });
   }
@@ -158,7 +159,7 @@ export async function sendPassUpdateForMemberByEmail(email: string): Promise<voi
     await sendPassUpdateForMember(memberId);
   } catch (err) {
     logger.error('[WalletPass APN] Error looking up member for push', {
-      error: err instanceof Error ? err : new Error(String(err)),
+      error: getErrorMessage(err),
       extra: { email }
     });
   }
@@ -194,7 +195,7 @@ export async function sendPassUpdateToAllRegistrations(): Promise<{ sent: number
     logger.info(`[WalletPass APN] Bulk push complete: sent=${result.sent}, failed=${result.failed}`);
   } catch (err) {
     logger.error('[WalletPass APN] Error sending bulk pass update push', {
-      error: err instanceof Error ? err : new Error(String(err)),
+      error: getErrorMessage(err),
     });
   }
 

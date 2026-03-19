@@ -503,7 +503,7 @@ const BookingsOverTimeChart: React.FC<{ data: BookingsOverTimeEntry[] }> = ({ da
   }
 
   const chartData = data.map(d => ({
-    week: new Date(d.weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    week: new Date(`${String(d.weekStart).split('T')[0]}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     count: d.bookingCount,
   }));
 

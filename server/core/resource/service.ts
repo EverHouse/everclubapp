@@ -12,6 +12,7 @@ import { getCached, setCache } from '../queryCache';
 import { AppError } from '../errors';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { ensureDateString, ensureTimeString } from '../../utils/dateTimeUtils';
+import { formatTime12Hour } from '../../utils/dateUtils';
 import { resolveUserByEmail } from '../stripe/customers';
 
 interface ResourceTypeRow {
@@ -315,7 +316,7 @@ export async function approveBooking(bookingId: number) {
   sendNotificationToUser(result.userEmail, {
     type: 'booking_update',
     title: 'Booking Confirmed',
-    message: `Your booking for ${ensureDateString(result.requestDate)} at ${ensureTimeString(result.startTime)} has been approved.`,
+    message: `Your booking for ${ensureDateString(result.requestDate)} at ${formatTime12Hour(ensureTimeString(result.startTime))} has been approved.`,
     data: { bookingId, status: 'confirmed' }
   });
   

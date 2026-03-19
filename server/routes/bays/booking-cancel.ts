@@ -4,7 +4,7 @@ import { bookingRequests, resources } from '../../../shared/schema';
 import { eq, and, sql, inArray } from 'drizzle-orm';
 import { logAndRespond, logger } from '../../core/logger';
 import { notifyAllStaff, notifyMember, isSyntheticEmail } from '../../core/notificationService';
-import { createPacificDate } from '../../utils/dateUtils';
+import { createPacificDate, formatTime12Hour } from '../../utils/dateUtils';
 import { broadcastAvailabilityUpdate } from '../../core/websocket';
 import { getSessionUser } from '../../types/session';
 import { getStripeClient } from '../../core/stripe';
@@ -147,7 +147,7 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
         if (resource?.name) bayName = resource.name;
       }
       
-      const staffMessage = `${memberName} wants to cancel their booking on ${bookingDate} at ${bookingTime} (${bayName}). Please cancel in Trackman to complete the cancellation.`;
+      const staffMessage = `${memberName} wants to cancel their booking on ${bookingDate} at ${formatTime12Hour(bookingTime)} (${bayName}). Please cancel in Trackman to complete the cancellation.`;
       
       notifyAllStaff(
         'Cancellation Request - Cancel in Trackman',
@@ -164,7 +164,7 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
         await notifyMember({
           userEmail: existing.userEmail,
           title: 'Cancellation Request Submitted',
-          message: `Your cancellation request for ${bookingDate} at ${bookingTime} has been submitted. You'll be notified once it's fully processed.`,
+          message: `Your cancellation request for ${bookingDate} at ${formatTime12Hour(bookingTime)} has been submitted. You'll be notified once it's fully processed.`,
           type: 'cancellation_pending',
           relatedId: bookingId,
           relatedType: 'booking_request'
@@ -393,7 +393,7 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
       const memberName = existing.userName || existing.userEmail;
       const bookingDate = ensureDateString(existing.requestDate);
       const bookingTime = ensureTimeString(existing.startTime);
-      const staffMessage = `${memberName} has cancelled their booking for ${bookingDate} at ${bookingTime}.`;
+      const staffMessage = `${memberName} has cancelled their booking for ${bookingDate} at ${formatTime12Hour(bookingTime)}.`;
       
       notifyAllStaff(
         'Booking Cancelled by Member',
@@ -415,7 +415,7 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
           }
         }
         
-        const trackmanReminderMessage = `Reminder: ${memberName}'s booking on ${bookingDate} at ${bookingTime} (${bayName}) was cancelled - please also cancel in Trackman`;
+        const trackmanReminderMessage = `Reminder: ${memberName}'s booking on ${bookingDate} at ${formatTime12Hour(bookingTime)} (${bayName}) was cancelled - please also cancel in Trackman`;
         
         notifyAllStaff(
           'Trackman Cancellation Required',
@@ -472,7 +472,7 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
       action: 'booking_cancelled_member',
       resourceType: 'booking',
       resourceId: String(bookingId),
-      resourceName: `Booking on ${bookingDate} at ${bookingTime}`,
+      resourceName: `Booking on ${bookingDate} at ${formatTime12Hour(bookingTime)}`,
       details: {
         source: 'member_dashboard',
         booking_date: bookingDate,

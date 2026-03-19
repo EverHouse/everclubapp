@@ -143,7 +143,9 @@ const ClosureAlert: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ noticeType: 'closure', noticeId: closure.id })
-      }).catch(() => {});
+      }).catch((err) => {
+        console.warn('[ClosureAlert] Failed to persist dismissal:', err);
+      });
     }, EXIT_DURATION);
   }, [activeClosures, dismissedIds, getStorageKey]);
 

@@ -5,6 +5,7 @@ import { eq, desc, and, ne, SQL } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../core/middleware';
 import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -34,7 +35,7 @@ router.get('/api/admin/inquiries', isStaffOrAdmin, async (req, res) => {
     
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Inquiries fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Inquiries fetch error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to fetch inquiries' });
   }
 });
@@ -54,7 +55,7 @@ router.get('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
     
     res.json(inquiry);
   } catch (error: unknown) {
-    logger.error('Inquiry fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Inquiry fetch error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to fetch inquiry' });
   }
 });
@@ -83,7 +84,7 @@ router.put('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
     
     res.json(updated);
   } catch (error: unknown) {
-    logger.error('Inquiry update error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Inquiry update error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to update inquiry' });
   }
 });
@@ -120,7 +121,7 @@ router.delete('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
     
     res.json({ success: true, deleted });
   } catch (error: unknown) {
-    logger.error('Inquiry deletion error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Inquiry deletion error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to delete inquiry' });
   }
 });

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { logger } from '../core/logger';
+import { getErrorMessage } from '../utils/errorUtils';
 import { Webhook } from 'svix';
 
 const router = Router();
@@ -52,7 +53,7 @@ async function initEmailEventsWithRetry(maxRetries = 3) {
       return;
     } catch (err) {
       if (attempt === maxRetries) {
-        logger.error('Failed to create email_events table after retries', { error: err });
+        logger.error('Failed to create email_events table after retries', { error: getErrorMessage(err) });
         return;
       }
       const delay = Math.pow(2, attempt) * 1000;
@@ -105,7 +106,7 @@ async function handleEmailBounced(event: ResendEmailEvent) {
         extra: { email: recipientEmail }
       });
     } catch (err: unknown) {
-      logger.error('Failed to update user bounce status', { error: err as Error });
+      logger.error('Failed to update user bounce status', { error: getErrorMessage(err) });
     }
   }
 }
@@ -138,7 +139,7 @@ async function handleEmailComplained(event: ResendEmailEvent) {
         extra: { email: recipientEmail }
       });
     } catch (err: unknown) {
-      logger.error('Failed to update user complaint status', { error: err as Error });
+      logger.error('Failed to update user complaint status', { error: getErrorMessage(err) });
     }
   }
 }
@@ -256,7 +257,7 @@ router.post('/api/webhooks/resend', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
   } catch (error: unknown) {
-    logger.error('Unhandled error in Resend webhook handler', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Unhandled error in Resend webhook handler', { error: getErrorMessage(error) });
     if (!res.headersSent) {
       return res.status(500).json({ error: 'Internal server error' });
     }

@@ -372,7 +372,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
             const bookingDateTime = createPacificDate(String(bookingDate), String(bookingForNotif.start_time));
             
             if (bookingDateTime > now && bookingForNotif.status === 'approved') {
-              const notificationMessage = `You've been added to a simulator booking on ${new Date(bookingDate as string).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' })}.`;
+              const notificationMessage = `You've been added to a simulator booking on ${new Date(`${bookingDate}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' })}.`;
               
               await notifyMember({
                 userEmail: memberEmail.toLowerCase(),
@@ -454,7 +454,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
       const bookingDateTime = createPacificDate(String(bookingDate), String(booking.start_time));
       
       if (bookingDateTime > now && booking.status === 'approved') {
-        const notificationMessage = `You've been added to a simulator booking on ${new Date(bookingDate as string).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' })}.`;
+        const notificationMessage = `You've been added to a simulator booking on ${new Date(`${bookingDate}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' })}.`;
         
         await notifyMember({
           userEmail: memberEmail.toLowerCase(),

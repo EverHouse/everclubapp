@@ -80,7 +80,7 @@ function parseSessionId(cookieHeader: string | undefined, sessionSecret: string)
     
     return signedCookie;
   } catch (err: unknown) {
-    logger.error('[WebSocket] Error parsing session cookie:', { error: err });
+    logger.error('[WebSocket] Error parsing session cookie:', { error: getErrorMessage(err) });
     return null;
   }
 }
@@ -114,7 +114,7 @@ async function verifySessionFromDatabase(sessionId: string): Promise<SessionData
     const sessionData = result.rows[0].sess as SessionData;
     return sessionData;
   } catch (err: unknown) {
-    logger.error('[WebSocket] Error verifying session:', { error: err });
+    logger.error('[WebSocket] Error verifying session:', { error: getErrorMessage(err) });
     return null;
   }
 }
@@ -263,7 +263,7 @@ export function closeWebSocketServer(): void {
     
     wss.close((err) => {
       if (err) {
-        logger.error('[WebSocket] Error closing server:', { error: err });
+        logger.error('[WebSocket] Error closing server:', { error: getErrorMessage(err) });
       } else {
         logger.info('[WebSocket] Server closed gracefully');
       }
@@ -277,8 +277,7 @@ export function initWebSocketServer(server: Server) {
   wss = new WebSocketServer({ server, path: '/ws' });
   
   wss.on('error', (error) => {
-    logger.error('[WebSocket] Server error:', { error: error.message, stack: error.stack });
-    logger.error('[WebSocket] Server error:', { error: error });
+    logger.error('[WebSocket] Server error:', { error: getErrorMessage(error), stack: error.stack });
   });
 
   wss.on('connection', async (ws, req) => {
@@ -455,7 +454,7 @@ export function initWebSocketServer(server: Server) {
             }));
           }
         } catch (e: unknown) {
-          logger.error('[WebSocket] Error parsing message from unauthenticated client:', { error: e });
+          logger.error('[WebSocket] Error parsing message from unauthenticated client:', { error: getErrorMessage(e) });
         }
         return;
       }
@@ -511,7 +510,7 @@ export function initWebSocketServer(server: Server) {
           ws.send(JSON.stringify({ type: 'pong' }));
         }
       } catch (e: unknown) {
-        logger.error('[WebSocket] Error parsing message:', { error: e });
+        logger.error('[WebSocket] Error parsing message:', { error: getErrorMessage(e) });
       }
     });
 
