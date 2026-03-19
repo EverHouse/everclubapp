@@ -140,7 +140,7 @@ router.get('/api/data-integrity/placeholder-accounts', isAdmin, async (req, res)
     });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Placeholder scan error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to scan for placeholder accounts');
   }
 });
 
@@ -319,7 +319,7 @@ router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, validate
     });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Placeholder delete error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to delete placeholder accounts');
   }
 });
 

@@ -29,7 +29,7 @@ router.post('/api/data-integrity/sync-push', isAdmin, validateBody(syncPushPullS
     res.json(result);
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Sync push error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to push sync');
   }
 });
 
@@ -54,7 +54,7 @@ router.post('/api/data-integrity/sync-pull', isAdmin, validateBody(syncPushPullS
     res.json(result);
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Sync pull error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to pull sync');
   }
 });
 
@@ -71,7 +71,7 @@ router.post('/api/data-integrity/sync-stripe-metadata', isAdmin, async (req, res
     });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Stripe metadata sync error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to sync Stripe metadata');
   }
 });
 
@@ -87,7 +87,7 @@ router.post('/api/data-integrity/cleanup', isAdmin, async (req, res) => {
     });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Data cleanup error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to run data cleanup');
   }
 });
 
@@ -107,7 +107,7 @@ router.get('/api/data-integrity/health', isAdmin, async (req, res) => {
     res.json({ success: true, health });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Health check error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to check system health');
   }
 });
 

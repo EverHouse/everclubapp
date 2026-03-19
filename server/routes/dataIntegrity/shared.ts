@@ -8,13 +8,13 @@ export { broadcastDataIntegrityUpdate } from '../../core/websocket';
 export { logFromRequest } from '../../core/auditLog';
 export type { ResourceType } from '../../core/auditLog';
 export { getSessionUser } from '../../types/session';
-export { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
+export { getErrorMessage } from '../../utils/errorUtils';
 export type { Request } from 'express';
 
 import type { Response } from 'express';
 import { parseConstraintError, safeErrorDetail } from '../../utils/errorUtils';
 
-export function sendFixError(res: Response, error: unknown): void {
+export function sendFixError(res: Response, error: unknown, fallbackMessage = 'Operation failed'): void {
   const parsed = parseConstraintError(error);
   if (parsed.isConstraintError) {
     res.status(409).json({
@@ -26,7 +26,7 @@ export function sendFixError(res: Response, error: unknown): void {
   } else {
     res.status(500).json({
       success: false,
-      message: 'Operation failed',
+      message: fallbackMessage,
       details: safeErrorDetail(error),
     });
   }

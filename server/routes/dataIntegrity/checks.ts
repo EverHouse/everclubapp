@@ -25,7 +25,7 @@ router.get('/api/data-integrity/cached', isAdmin, async (req, res) => {
     });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Cached results error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to get cached results');
   }
 });
 
@@ -46,7 +46,7 @@ router.get('/api/data-integrity/run', isAdmin, async (req, res) => {
     });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Run error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to run integrity checks');
   }
 });
 
@@ -56,7 +56,7 @@ router.get('/api/data-integrity/summary', isAdmin, async (req, res) => {
     res.json(summary);
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Summary error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to get integrity summary');
   }
 });
 
@@ -70,7 +70,7 @@ router.get('/api/data-integrity/history', isAdmin, validateQuery(historyQuerySch
     res.json(historyData);
   } catch (error: unknown) {
     logger.error('[DataIntegrity] History error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to get integrity history');
   }
 });
 
@@ -91,7 +91,7 @@ router.post('/api/data-integrity/resolve', isAdmin, validateBody(resolveIssueSch
     res.json({ success: true, auditLogId: result.auditLogId });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Resolve error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to resolve issue');
   }
 });
 
@@ -105,7 +105,7 @@ router.get('/api/data-integrity/audit-log', isAdmin, validateQuery(auditLogQuery
     res.json(auditEntries);
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Audit log error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to get audit log');
   }
 });
 
@@ -115,7 +115,7 @@ router.get('/api/data-integrity/ignores', isAdmin, async (req, res) => {
     res.json(ignores);
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Get ignores error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to get ignored issues');
   }
 });
 
@@ -135,7 +135,7 @@ router.post('/api/data-integrity/ignore', isAdmin, validateBody(ignoreIssueSchem
     res.json({ success: true, ignore: result });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Create ignore error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to create ignore rule');
   }
 });
 
@@ -156,7 +156,7 @@ router.delete('/api/data-integrity/ignore/:issueKey', isAdmin, async (req: Reque
     res.json({ success: true, message: 'Ignore rule removed' });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Remove ignore error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to remove ignore rule');
   }
 });
 
@@ -181,7 +181,7 @@ router.post('/api/data-integrity/ignore-bulk', isAdmin, validateBody(bulkIgnoreS
     });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Bulk ignore error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error);
+    sendFixError(res, error, 'Failed to create bulk ignore rules');
   }
 });
 
