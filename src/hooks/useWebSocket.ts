@@ -78,11 +78,24 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
-      ws.onopen = () => {
+      ws.onopen = async () => {
         isConnectingRef.current = false;
         reconnectAttemptRef.current = 0;
         window.__wsConnected = true;
-        ws.send(JSON.stringify({ type: 'auth', email: emailToUse }));
+
+        let wsToken: string | undefined;
+        try {
+          const resp = await fetch('/api/auth/ws-token', { method: 'POST', credentials: 'include' });
+          if (resp.ok) {
+            const data = await resp.json();
+            wsToken = data.token;
+          }
+        } catch {
+          // token fetch failed — send auth without token (cookie-based fallback on upgrade)
+        }
+        if (wsRef.current === ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'auth', email: emailToUse, wsToken }));
+        }
       };
 
       ws.onmessage = (event) => {

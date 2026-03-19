@@ -4,6 +4,7 @@ import { Server, IncomingMessage } from 'http';
 import { parse as parseCookie } from 'cookie';
 // @ts-expect-error no declaration file for cookie-signature
 import { unsign } from 'cookie-signature';
+import crypto from 'crypto';
 import { logger } from './logger';
 import { pool as sharedPool } from './db';
 
@@ -154,6 +155,55 @@ async function getVerifiedUserFromRequest(req: IncomingMessage): Promise<{
     isStaff,
     sessionId
   };
+}
+
+const WS_TOKEN_TTL_MS = 60_000;
+
+export function createWsAuthToken(email: string, role: string): string {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) throw new Error('SESSION_SECRET not configured');
+
+  const payload = JSON.stringify({
+    email: email.toLowerCase(),
+    role,
+    exp: Date.now() + WS_TOKEN_TTL_MS,
+  });
+  const payloadB64 = Buffer.from(payload).toString('base64url');
+  const sig = crypto.createHmac('sha256', secret).update(payloadB64).digest('base64url');
+  return `${payloadB64}.${sig}`;
+}
+
+function verifyWsAuthToken(token: string): { email: string; role: string; isStaff: boolean } | null {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || !token) return null;
+
+  const dotIdx = token.indexOf('.');
+  if (dotIdx < 1) return null;
+
+  const payloadB64 = token.substring(0, dotIdx);
+  const sig = token.substring(dotIdx + 1);
+
+  const expectedSig = crypto.createHmac('sha256', secret).update(payloadB64).digest('base64url');
+  const sigBuf = Buffer.from(sig);
+  const expectedBuf = Buffer.from(expectedSig);
+  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString());
+    if (!payload.email || !payload.exp || payload.exp < Date.now()) {
+      return null;
+    }
+    const role = payload.role || 'member';
+    return {
+      email: payload.email.toLowerCase(),
+      role,
+      isStaff: role === 'staff' || role === 'admin',
+    };
+  } catch {
+    return null;
+  }
 }
 
 const MAX_AUTH_ATTEMPTS = 3;
@@ -322,34 +372,42 @@ export function initWebSocketServer(server: Server) {
               return;
             }
             
-            if (initialCookieAuthFailed) {
-              ws.send(JSON.stringify({ 
-                type: 'auth_error',
-                message: 'Invalid or expired session. Please refresh to re-authenticate.',
-                attemptsRemaining: 0,
-                shouldReauth: true
-              }));
-              
-              logger.debug(`[WebSocket] Auth rejected - no valid session cookie on upgrade (client: ${message.email})`, {
-                extra: { event: 'websocket.auth_failed', clientEmail: message.email, reason: 'no_session_cookie', attempts: authAttempts }
-              });
-              
-              ws.close(4001, 'No valid session');
-              return;
+            let verifiedUser: { email: string; role: string; isStaff: boolean; sessionId?: string } | null = null;
+            let authMethod = 'session_cookie';
+
+            if (!initialCookieAuthFailed) {
+              const fromRequest = await getVerifiedUserFromRequest(req);
+              if (fromRequest) {
+                verifiedUser = fromRequest;
+              }
             }
-            
-            const verifiedFromMessage = await getVerifiedUserFromRequest(req);
-            
-            if (verifiedFromMessage) {
-              userEmail = verifiedFromMessage.email;
+
+            if (!verifiedUser && message.wsToken) {
+              try {
+                const tokenUser = verifyWsAuthToken(message.wsToken);
+                if (tokenUser) {
+                  verifiedUser = tokenUser;
+                  authMethod = 'ws_token';
+                  logger.info(`[WebSocket] Token-verified auth for ${tokenUser.email} (no cookie — mobile client)`, {
+                    userEmail: tokenUser.email,
+                    extra: { event: 'websocket.token_auth', role: tokenUser.role, isStaff: tokenUser.isStaff }
+                  });
+                }
+              } catch (tokenErr) {
+                logger.warn('[WebSocket] Token verification threw — treating as auth failure', { error: tokenErr });
+              }
+            }
+
+            if (verifiedUser) {
+              userEmail = verifiedUser.email;
               isAuthenticated = true;
-              sessionId = verifiedFromMessage.sessionId;
+              sessionId = verifiedUser.sessionId;
               
               const connection: ClientConnection = { 
                 ws, 
                 userEmail, 
                 isAlive: true, 
-                isStaff: verifiedFromMessage.isStaff,
+                isStaff: verifiedUser.isStaff,
                 sessionId
               };
               
@@ -359,7 +417,7 @@ export function initWebSocketServer(server: Server) {
               }
               clients.set(userEmail, existing);
               
-              if (verifiedFromMessage.isStaff) {
+              if (verifiedUser.isStaff) {
                 staffEmails.add(userEmail);
               }
               
@@ -369,9 +427,9 @@ export function initWebSocketServer(server: Server) {
                 verified: true
               }));
               
-              logger.info(`[WebSocket] Session-verified auth: ${userEmail}`, {
+              logger.info(`[WebSocket] Authenticated: ${userEmail}`, {
                 userEmail,
-                extra: { event: 'websocket.authenticated', role: verifiedFromMessage.role, isStaff: verifiedFromMessage.isStaff, method: 'auth_message', attempts: authAttempts }
+                extra: { event: 'websocket.authenticated', role: verifiedUser.role, isStaff: verifiedUser.isStaff, method: authMethod, attempts: authAttempts }
               });
             } else {
               const attemptsRemaining = MAX_AUTH_ATTEMPTS - authAttempts;

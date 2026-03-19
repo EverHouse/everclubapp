@@ -1265,6 +1265,21 @@ router.get('/api/auth/session', async (req, res) => {
   });
 });
 
+router.post('/api/auth/ws-token', async (req, res) => {
+  const sessionUser = getSessionUser(req);
+  if (!sessionUser?.email) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const { createWsAuthToken } = await import('../core/websocket');
+    const token = createWsAuthToken(sessionUser.email, sessionUser.role || 'member');
+    return res.json({ token });
+  } catch (err) {
+    logger.error('[Auth] Failed to create WS auth token', { error: err });
+    return res.status(500).json({ error: 'Failed to create token' });
+  }
+});
+
 router.get('/api/auth/check-staff-admin', authRateLimiterByIp, async (req, res) => {
   try {
     const { email } = req.query;

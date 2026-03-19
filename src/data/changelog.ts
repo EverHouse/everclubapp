@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.87.95",
+    date: "2026-03-19",
+    title: "Security: WebSocket Mobile Auth & Rate Limiter Hardening",
+    changes: [
+      "Fixed: Mobile staff clients can now connect to real-time updates without cookies — WebSocket auth uses a short-lived signed token obtained via an authenticated HTTP request",
+      "Fixed: Rate limiter key generators now use strict type coercion to prevent crashes from malformed inputs",
+    ]
+  },
+  {
     version: "8.87.94",
     date: "2026-03-19",
     title: "Guest Passes Now Reset Annually & Critical Bug Fixes",

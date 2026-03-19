@@ -7,9 +7,9 @@ import { sql } from 'drizzle-orm';
 const getClientKey = (req: Request): string => {
   const userId = req.session?.user?.id;
   if (userId) {
-    return `user:${userId}`;
+    return `user:${String(userId)}`;
   }
-  return req.ip || 'unknown';
+  return String(req.ip || 'unknown').toLowerCase();
 };
 
 export const globalRateLimiter = rateLimit({
@@ -118,12 +118,12 @@ export const checkoutRateLimiter = rateLimit({
     const email = req.body?.email;
     const sessionId = req.params?.sessionId;
     if (email) {
-      return `checkout:${email}:${req.ip || 'unknown'}`;
+      return `checkout:${String(email).toLowerCase()}:${String(req.ip || 'unknown')}`;
     }
     if (sessionId) {
-      return `checkout:session:${sessionId}`;
+      return `checkout:session:${String(sessionId)}`;
     }
-    return `checkout:${req.ip || 'unknown'}`;
+    return `checkout:${String(req.ip || 'unknown')}`;
   },
   validate: false,
   handler: (req: Request, res: Response) => {
