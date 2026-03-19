@@ -24,7 +24,7 @@ interface BookingModalsProps {
   showUnfilledSlotsWarning: boolean;
   setShowUnfilledSlotsWarning: (v: boolean) => void;
   playerCount: number;
-  playerSlots: Array<{ selectedId?: string; email?: string }>;
+  playerSlots: Array<{ selectedId?: string; email?: string; type?: string }>;
 }
 
 const BookingModals: React.FC<BookingModalsProps> = ({
@@ -157,14 +157,13 @@ const BookingModals: React.FC<BookingModalsProps> = ({
               <Icon name="warning" className="text-2xl text-amber-500" />
             </div>
             <div>
-              <p className={`font-bold ${isDark ? 'text-white' : 'text-primary'}`}>Unfilled Player Slots</p>
+              <p className={`font-bold ${isDark ? 'text-white' : 'text-primary'}`}>Unfilled Guest Slots</p>
             </div>
           </div>
           <p className={`text-sm mb-6 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
-            You selected {playerCount} players but {(() => {
-              const filled = playerSlots.filter(s => s.selectedId || (s.email && s.email.includes('@'))).length;
-              const unfilled = (playerCount - 1) - filled;
-              return `${unfilled} slot${unfilled !== 1 ? 's are' : ' is'} unfilled. Unfilled slots will be charged the guest fee.`;
+            {(() => {
+              const unfilledGuests = playerSlots.filter(s => s.type === 'guest' && !s.selectedId && !(s.email && s.email.includes('@'))).length;
+              return `You have ${unfilledGuests} guest slot${unfilledGuests !== 1 ? 's' : ''} without details. Each unfilled guest slot will be charged the guest fee.`;
             })()}
           </p>
           <div className="flex gap-3">

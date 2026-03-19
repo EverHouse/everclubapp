@@ -263,6 +263,12 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                   </div>
                   
                   <div className="relative">
+                    {slot.type === 'member' && !slot.selectedId && (
+                      <div className={`mb-1.5 flex items-center gap-1.5 text-xs ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                        <Icon name="search" className="text-sm" />
+                        Search and select a member to continue
+                      </div>
+                    )}
                     {slot.selectedId ? (
                       <div className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border ${
                         isDark 

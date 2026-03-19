@@ -559,8 +559,15 @@ export function useBookGolf() {
     if (isAdminViewingAs) { setShowViewAsConfirm(true); return; }
     if (activeTab === 'simulator' && isMinor && !guardianConsentData) { setShowGuardianConsent(true); return; }
     if (activeTab === 'simulator' && playerCount > 1) {
-      const filledSlots = playerSlots.filter(slot => slot.selectedId || (slot.email && slot.email.includes('@'))).length;
-      if (filledSlots < playerCount - 1) { setShowUnfilledSlotsWarning(true); return; }
+      const emptyMemberSlots = playerSlots.filter(slot => slot.type === 'member' && !slot.selectedId);
+      if (emptyMemberSlots.length > 0) {
+        setBookingError(`Please search and select a member for each Member slot, or switch unfilled slots to Guest.`);
+        haptic.error();
+        playerSlotRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      const unfilledGuestSlots = playerSlots.filter(slot => slot.type === 'guest' && !slot.selectedId && !(slot.email && slot.email.includes('@')));
+      if (unfilledGuestSlots.length > 0) { setShowUnfilledSlotsWarning(true); return; }
     }
     await submitBooking();
   };
