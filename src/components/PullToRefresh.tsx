@@ -11,7 +11,7 @@ interface PullToRefreshProps {
 
 const PULL_THRESHOLD = 160;
 const MAX_PULL = 240;
-const HEADER_HEIGHT = 72;
+const HEADER_HEIGHT = 80;
 const DESKTOP_SETTLE_DELAY = 300;
 
 const isTouchDevice = () => {
@@ -373,13 +373,16 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
     if (pullDistance > 0 || isFillingScreen || isRefreshing) {
       document.body.setAttribute('data-ptr-active', 'true');
       document.body.style.setProperty('--ptr-progress', String(pullProgress));
+      document.body.style.setProperty('--ptr-pull-distance', `${pullDistance}px`);
     } else {
       document.body.removeAttribute('data-ptr-active');
       document.body.style.removeProperty('--ptr-progress');
+      document.body.style.removeProperty('--ptr-pull-distance');
     }
     return () => {
       document.body.removeAttribute('data-ptr-active');
       document.body.style.removeProperty('--ptr-progress');
+      document.body.style.removeProperty('--ptr-pull-distance');
     };
   }, [pullDistance, isFillingScreen, isRefreshing]);
 
@@ -393,27 +396,29 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
 
   const pullProgress = Math.min(pullDistance / PULL_THRESHOLD, 1);
   const showPullBar = pullDistance > 5 && !isRefreshing && !isFillingScreen;
-  const barHeight = HEADER_HEIGHT + pullDistance;
+
+  const contentTranslate = (showPullBar && pullDistance > 5) ? pullDistance : 0;
 
   return (
     <div
       ref={containerRef}
       className={`min-h-full ${className}`}
-      style={{ touchAction: 'manipulation' }}
+      style={{ 
+        touchAction: 'manipulation',
+        transform: contentTranslate > 0 ? `translateY(${contentTranslate}px)` : undefined,
+        willChange: contentTranslate > 0 ? 'transform' : undefined,
+      }}
     >
       {showPullBar && createPortal(
         <div 
           className="ptr-pull-bar"
-          style={{ 
-            height: `${barHeight}px`,
-            paddingTop: 'env(safe-area-inset-top, 0px)'
-          }}
         >
           <div 
             className="ptr-pull-content"
             style={{
               opacity: pullProgress,
-              transform: `scale(${0.7 + pullProgress * 0.3})`
+              transform: `scale(${0.7 + pullProgress * 0.3})`,
+              marginTop: `calc(env(safe-area-inset-top, 0px) + ${HEADER_HEIGHT}px + 8px)`
             }}
           >
             <img 
@@ -432,12 +437,12 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
               top: 0;
               left: 0;
               right: 0;
+              height: calc(env(safe-area-inset-top, 0px) + ${HEADER_HEIGHT}px + ${pullDistance}px);
               background-color: #293515;
-              z-index: var(--z-modal);
+              z-index: 39;
               display: flex;
-              align-items: flex-end;
+              align-items: flex-start;
               justify-content: center;
-              padding-bottom: 12px;
               border-radius: 0 0 20px 20px;
               box-shadow: 0 4px 20px rgba(0,0,0,0.3);
               will-change: height;

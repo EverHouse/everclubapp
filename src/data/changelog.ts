@@ -10,11 +10,12 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.89.0",
     date: "2026-03-19",
-    title: "Inline SVG Icons — No More Font Loading",
+    title: "Inline SVG Icons & Pull-to-Refresh Fix",
     isMajor: true,
     changes: [
       "Fixed: All 207 icons across the entire app are now inline SVGs instead of a font — icons render instantly without any external loading, network requests, or font detection delays",
       "Fixed: PWA icons now show immediately on home screen launch — no more invisible icons in offline mode or on iOS standalone PWA",
+      "Fixed: Pull-to-refresh now shows the green sheet with walking golfer animation again — the header stays solid while you pull and the refresh indicator slides out from behind it",
       "Removed: Google Material Symbols font dependency completely eliminated — no CDN requests, no font preloading, no icon font CSS needed",
       "Performance: Icons are now part of the DOM and render in the first paint — zero flash of invisible content",
     ]
