@@ -428,6 +428,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
   }
 });
 
+// PUBLIC ROUTE - public-facing day pass checkout (rate-limited)
 router.post('/api/public/day-pass/checkout', checkoutRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email: rawEmail, passType, firstName, lastName } = req.body;

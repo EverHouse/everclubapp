@@ -15,6 +15,7 @@ const CAFE_CACHE_TTL = 60_000;
 
 const router = Router();
 
+// PUBLIC ROUTE - cafe menu visible to all visitors
 router.get('/api/cafe-menu', async (req, res) => {
   try {
     const { category, include_inactive } = req.query;

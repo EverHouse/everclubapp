@@ -90,6 +90,8 @@ const passesQuerySchema = z.object({
   passesUpdatedSince: z.string().optional(),
 }).passthrough();
 
+// PUBLIC ROUTE - Apple Wallet device pass list; per PKPass spec may return 204 without auth
+// if device has no registrations; validates auth token when registrations exist
 router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQuery(passesQuerySchema), async (req, res) => {
   try {
     const deviceLibraryId = req.params.deviceLibraryId as string;
@@ -269,6 +271,7 @@ router.delete('/v1/devices/:deviceLibraryId/registrations/:passTypeId/:serialNum
   }
 });
 
+// PUBLIC ROUTE - Apple Wallet device log endpoint (unauthenticated per Apple PKPass spec)
 router.post('/v1/log', async (req, res) => {
   try {
     const logs = req.body?.logs;

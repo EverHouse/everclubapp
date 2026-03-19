@@ -134,6 +134,7 @@ const DEFAULT_SETTINGS: Record<string, { value: string; category: string }> = {
 
 const PUBLIC_CATEGORIES = new Set(['contact', 'social', 'apple_messages', 'hours_display']);
 
+// PUBLIC ROUTE - publicly accessible settings (contact info, hours, social links)
 router.get('/api/settings/public', async (req, res) => {
   try {
     const settings = await db.select().from(systemSettings);

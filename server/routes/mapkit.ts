@@ -20,6 +20,7 @@ const mapkitTokenLimiter = rateLimit({
 
 let cachedToken: { jwt: string; expiresAt: number } | null = null;
 
+// PUBLIC ROUTE - MapKit JS token endpoint (rate-limited, no auth required)
 router.get('/api/mapkit-token', mapkitTokenLimiter, async (_req, res) => {
   try {
     if (!APPLE_TEAM_ID || !MAPKIT_KEY_ID || !MAPKIT_PRIVATE_KEY) {

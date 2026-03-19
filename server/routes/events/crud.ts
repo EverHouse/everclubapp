@@ -69,6 +69,7 @@ router.post('/api/events/:id/mark-reviewed', isStaffOrAdmin, async (req, res) =>
   }
 });
 
+// PUBLIC ROUTE - events listing for public calendar
 router.get('/api/events', async (req, res) => {
   try {
     const { date, include_past, visibility, include_archived } = req.query;

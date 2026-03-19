@@ -1008,6 +1008,7 @@ router.get('/api/tours/availability', async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE - tour scheduling (rate-limited, no auth required)
 router.post('/api/tours/schedule', checkoutRateLimiter, async (req, res) => {
   try {
     const { firstName, lastName, email: rawEmail, phone, date, startTime } = req.body;

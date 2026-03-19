@@ -49,6 +49,7 @@ router.get('/api/day-passes/products', async (req: Request, res: Response) => {
 /**
  * POST /api/day-passes/checkout
  * Creates a Stripe Checkout Session using synced Price ID
+ * PUBLIC ROUTE - rate-limited day pass checkout (no auth required)
  */
 router.post('/api/day-passes/checkout', checkoutRateLimiter, async (req: Request, res: Response) => {
   try {

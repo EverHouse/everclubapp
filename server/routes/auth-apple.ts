@@ -82,6 +82,7 @@ const userSelectFields = {
   appleId: users.appleId,
 };
 
+// PUBLIC ROUTE - Apple Sign-In token verification (login flow, no auth required)
 router.post('/api/auth/apple/verify', requireAppleConfig, authRateLimiterByIp, async (req, res) => {
   try {
     const { identityToken, user: appleUser } = req.body;

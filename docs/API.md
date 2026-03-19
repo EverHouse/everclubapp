@@ -1,13 +1,14 @@
 # Ever Club Members App — API Reference
 
 > Manually maintained reference of all REST endpoints.
-> Last updated: 2026-03-06
+> Last updated: 2026-03-19
 
 **Auth legend:**
 - 🔓 Public — no authentication required
 - 👤 Member — any logged-in member
 - 🛡️ Staff/Admin — requires `isStaffOrAdmin` or `isAdmin` middleware
 - 🔑 Webhook — verified by signature/secret
+- 🔒 Dev-gated — blocked in production or without explicit env flag
 
 ---
 
@@ -84,11 +85,14 @@
 | POST | `/api/auth/verify-otp` | 🔓 | Verify OTP and create session |
 | POST | `/api/auth/password-login` | 🔓 | Login with email + password |
 | POST | `/api/auth/set-password` | 👤 | Set/change password |
-| POST | `/api/auth/logout` | 👤 | Destroy session |
-| GET | `/api/auth/session` | 👤 | Get current session info |
-| GET | `/api/auth/check-staff-admin` | 👤 | Check if current user is staff/admin |
-| POST | `/api/auth/dev-login` | 🔓 | Dev-only: bypass login |
-| POST | `/api/auth/test-welcome-email` | 🛡️ | Dev-only: trigger welcome email |
+| POST | `/api/auth/logout` | 🔓 | Destroy session |
+| GET | `/api/auth/session` | 🔓 | Get current session info (self-guards with 401) |
+| GET | `/api/auth/check-staff-admin` | 🔓 | Check if email is staff/admin (public query) |
+| POST | `/api/auth/dev-login` | 🔓 | Dev-only: bypass login (blocked in production) |
+| POST | `/api/auth/test-welcome-email` | 🔒 | Dev-only: trigger welcome email (blocked in production, admin role check) |
+| POST | `/api/auth/test-login` | 🔒 | Dev: create test session (blocked unless `ENABLE_TEST_LOGIN=true`) |
+| POST | `/api/auth/test-logout` | 🔒 | Dev: destroy test session (blocked unless `ENABLE_TEST_LOGIN=true`) |
+| POST | `/api/auth/test-cleanup` | 🔒 | Dev: remove test accounts (blocked unless `ENABLE_TEST_LOGIN=true`) |
 
 ### Google Auth
 
@@ -99,6 +103,7 @@
 | POST | `/api/auth/google/link` | 👤 | Link Google account to profile |
 | POST | `/api/auth/google/unlink` | 👤 | Unlink Google account |
 | GET | `/api/auth/google/status` | 👤 | Check Google link status |
+| GET | `/api/auth/google/unlinked-report` | 🛡️ | List members with no Google account linked |
 
 ---
 
@@ -177,7 +182,7 @@
 | POST | `/api/availability/batch` | 🔓 | Batch check availability (public) |
 | GET | `/api/availability` | 👤 | Get availability for a date/resource |
 | POST | `/api/availability-blocks` | 🛡️ | Create availability block |
-| GET | `/api/availability-blocks` | 🛡️ | List availability blocks |
+| GET | `/api/availability-blocks` | 🔓 | List availability blocks (public read) |
 | PUT | `/api/availability-blocks/:id` | 🛡️ | Update availability block |
 | DELETE | `/api/availability-blocks/:id` | 🛡️ | Delete availability block |
 | GET | `/api/admin/calendars` | 🛡️ | List Google Calendar connections |
@@ -198,8 +203,8 @@
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/api/members/search` | 👤 | Search members by name/email |
-| GET | `/api/members/directory` | 👤 | Member directory listing |
-| GET | `/api/guests/search` | 🛡️ | Search guests by name/email |
+| GET | `/api/members/directory` | 🛡️ | Member directory listing (staff/admin only) |
+| GET | `/api/guests/search` | 👤 | Search guests by name/email |
 
 ### Member Details
 
@@ -759,10 +764,10 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/push/vapid-public-key` | 👤 | Get VAPID public key |
+| GET | `/api/push/vapid-public-key` | 🔓 | Get VAPID public key |
 | POST | `/api/push/subscribe` | 👤 | Subscribe to push |
 | POST | `/api/push/unsubscribe` | 👤 | Unsubscribe from push |
-| POST | `/api/push/test` | 🛡️ | Send test push |
+| POST | `/api/push/test` | 👤 | Send test push |
 | POST | `/api/push/send-daily-reminders` | 🛡️ | Trigger daily reminders |
 | POST | `/api/push/send-morning-closure-notifications` | 🛡️ | Trigger closure notifications |
 
@@ -851,6 +856,7 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
+| GET | `/api/settings/public` | 🔓 | Get public settings (contact, hours, social) |
 | GET | `/api/settings` | 👤 | Get all settings |
 | GET | `/api/settings/:key` | 👤 | Get setting by key |
 | PUT | `/api/admin/settings/:key` | 🛡️ | Update setting by key |

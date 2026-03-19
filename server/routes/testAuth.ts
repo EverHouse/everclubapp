@@ -119,6 +119,7 @@ async function getOrCreateTestUser(data: TestLoginRequest): Promise<{
   };
 }
 
+// DEV ROUTE - router-level guard blocks this in production and without ENABLE_TEST_LOGIN
 router.post('/test-login', async (req: Request, res: Response) => {
   try {
     const { email, role, tier, firstName, lastName } = req.body as TestLoginRequest;
@@ -175,6 +176,7 @@ router.post('/test-login', async (req: Request, res: Response) => {
   }
 });
 
+// DEV ROUTE - router-level guard blocks this in production and without ENABLE_TEST_LOGIN
 router.post('/test-logout', (req: Request, res: Response) => {
   req.session.destroy((err) => {
     if (err) {
@@ -185,6 +187,7 @@ router.post('/test-logout', (req: Request, res: Response) => {
   });
 });
 
+// DEV ROUTE - router-level guard blocks this in production and without ENABLE_TEST_LOGIN
 router.post('/test-cleanup', async (req: Request, res: Response) => {
   try {
     const { patterns = [] } = req.body;

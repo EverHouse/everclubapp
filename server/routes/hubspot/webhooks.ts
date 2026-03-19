@@ -17,6 +17,7 @@ import { getHubSpotClient } from '../../core/integrations';
 
 const router = Router();
 
+// PUBLIC ROUTE - HubSpot webhook receiver (signature-validated)
 router.post('/api/hubspot/webhooks', async (req, res) => {
   try {
   if (!validateHubSpotWebhookSignature(req)) {

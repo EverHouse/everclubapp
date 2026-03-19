@@ -26,6 +26,7 @@ const checkoutSessionSchema = z.object({
   quantity: z.number().int().min(1).max(100).optional(),
 });
 
+// PUBLIC ROUTE - membership checkout session creation (rate-limited, no auth required)
 router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
   try {
     const parseResult = checkoutSessionSchema.safeParse(req.body);
@@ -186,6 +187,7 @@ router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
 
 const sessionIdSchema = z.string().min(1).regex(/^cs_/, 'Invalid session ID format');
 
+// PUBLIC ROUTE - retrieve checkout session status for thank-you page (rate-limited)
 router.get('/api/checkout/session/:sessionId', checkoutRateLimiter, async (req, res) => {
   try {
     const { sessionId } = req.params;

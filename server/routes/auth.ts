@@ -488,6 +488,7 @@ const clearOtpVerifyAttempts = async (email: string, ip?: string): Promise<void>
 };
 
 
+// PUBLIC ROUTE - verify if email is a member (used before login to route user)
 router.post('/api/auth/verify-member', ...authRateLimiter, async (req, res) => {
   try {
     const { email } = req.body;
@@ -735,6 +736,7 @@ router.post('/api/auth/verify-member', ...authRateLimiter, async (req, res) => {
 });
 
 
+// PUBLIC ROUTE - send one-time password to email (no auth required)
 router.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => {
   try {
     const { email } = req.body;
@@ -891,6 +893,7 @@ router.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE - verify OTP and create session (no auth required)
 router.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
   try {
     const { email, code } = req.body;
@@ -1177,6 +1180,7 @@ router.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE - destroy session (no auth check, harmless if called unauthenticated)
 router.post('/api/auth/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
@@ -1188,6 +1192,7 @@ router.post('/api/auth/logout', (req, res) => {
   });
 });
 
+// PUBLIC ROUTE - get current session info (returns 401 if unauthenticated, no middleware required)
 router.get('/api/auth/session', async (req, res) => {
   const sessionUser = getSessionUser(req);
   
@@ -1282,6 +1287,7 @@ router.post('/api/auth/ws-token', authRateLimiterByIp, async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE - check if email is staff/admin (public query endpoint, rate-limited)
 router.get('/api/auth/check-staff-admin', authRateLimiterByIp, async (req, res) => {
   try {
     const { email } = req.query;
@@ -1319,6 +1325,7 @@ router.get('/api/auth/check-staff-admin', authRateLimiterByIp, async (req, res) 
   }
 });
 
+// PUBLIC ROUTE - login with email and password (no auth required)
 router.post('/api/auth/password-login', ...authRateLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -1504,6 +1511,7 @@ router.post('/api/auth/set-password', authRateLimiterByIp, async (req, res) => {
   }
 });
 
+// DEV ROUTE - bypass login for development (blocked in production)
 router.post('/api/auth/dev-login', async (req, res) => {
   if (isProduction) {
     return res.status(403).json({ error: 'Dev login not available in production' });
@@ -1558,8 +1566,11 @@ router.post('/api/auth/dev-login', async (req, res) => {
   }
 });
 
-// Test endpoint to send welcome email (admin only)
+// DEV ROUTE - send welcome email for testing (blocked in production, admin role required)
 router.post('/api/auth/test-welcome-email', async (req, res) => {
+  if (isProduction) {
+    return res.status(404).json({ error: 'Not found' });
+  }
   const sessionUser = getSessionUser(req);
   if (!sessionUser || sessionUser.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });

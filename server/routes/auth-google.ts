@@ -9,6 +9,7 @@ import { logMemberAction } from '../core/auditLog';
 import { getErrorMessage } from '../utils/errorUtils';
 import { logger } from '../core/logger';
 import { authRateLimiterByIp } from '../middleware/rateLimiting';
+import { isStaffOrAdmin } from '../replit_integrations/auth';
 
 const router = Router();
 
@@ -45,6 +46,7 @@ async function verifyGoogleToken(credential: string) {
   };
 }
 
+// PUBLIC ROUTE - Google sign-in token verification (login flow, no auth required)
 router.post('/api/auth/google/verify', requireGoogleConfig, authRateLimiterByIp, async (req, res) => {
   try {
     const { credential } = req.body;
@@ -192,6 +194,7 @@ router.post('/api/auth/google/verify', requireGoogleConfig, authRateLimiterByIp,
   }
 });
 
+// PUBLIC ROUTE - Google OAuth callback (login flow, no auth required)
 router.post('/api/auth/google/callback', requireGoogleConfig, async (req, res) => {
   try {
     const credential = req.body?.credential;
@@ -502,12 +505,9 @@ router.get('/api/auth/google/status', requireGoogleConfig, async (req, res) => {
   }
 });
 
-router.get('/api/auth/google/unlinked-report', async (req, res) => {
+// Staff/Admin route - Google unlinked member report
+router.get('/api/auth/google/unlinked-report', isStaffOrAdmin, async (req, res) => {
   try {
-    const sessionUser = req.session?.user;
-    if (!sessionUser?.role || !['admin', 'staff'].includes(sessionUser.role)) {
-      return res.status(403).json({ error: 'Staff access required' });
-    }
 
     const result = await db.execute(sql`
       SELECT

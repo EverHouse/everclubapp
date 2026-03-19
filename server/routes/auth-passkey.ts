@@ -19,6 +19,7 @@ import { normalizeTierName } from '../../shared/constants/tiers';
 import { getSessionUser } from '../types/session';
 import { logger } from '../core/logger';
 import { isProduction } from '../core/db';
+import { isAuthenticated } from '../replit_integrations/auth';
 import { authRateLimiterByIp } from '../middleware/rateLimiting';
 import { logMemberAction } from '../core/auditLog';
 import { getErrorMessage } from '../utils/errorUtils';
@@ -174,6 +175,7 @@ router.post('/api/auth/passkey/register/verify', async (req, res) => {
   }
 });
 
+// PUBLIC ROUTE - get passkey authentication challenge (login flow, no auth required)
 router.post('/api/auth/passkey/authenticate/options', authRateLimiterByIp, async (req, res) => {
   try {
     const options = await generateAuthenticationOptions({
@@ -195,6 +197,7 @@ router.post('/api/auth/passkey/authenticate/options', authRateLimiterByIp, async
   }
 });
 
+// PUBLIC ROUTE - verify passkey authentication response and create session (login flow)
 router.post('/api/auth/passkey/authenticate/verify', authRateLimiterByIp, async (req, res) => {
   try {
     const challenge = req.session.webauthnChallenge;
@@ -348,12 +351,9 @@ router.get('/api/auth/passkey/list', async (req, res) => {
   }
 });
 
-router.delete('/api/auth/passkey/:passkeyId', async (req, res) => {
+router.delete('/api/auth/passkey/:passkeyId', isAuthenticated, async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
-    if (!sessionUser?.id) {
-      return res.status(401).json({ error: 'You must be logged in' });
-    }
 
     const passkeyId = parseInt(req.params.passkeyId, 10);
     if (isNaN(passkeyId)) {
