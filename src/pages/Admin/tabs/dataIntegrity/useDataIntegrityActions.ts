@@ -671,12 +671,35 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
   const fixIssueMutation = useMutation({
     mutationFn: (params: { endpoint: string; body: Record<string, unknown> }) =>
       postWithCredentials<{ success: boolean; message: string }>(params.endpoint, params.body),
-    onMutate: (params) => {
+    onMutate: async (params) => {
       const recordId = params.body.recordId || params.body.userId || params.body.primaryUserId;
       if (recordId) {
         const key = String(recordId);
         state.setFixingIssues(prev => new Set(prev).add(key));
       }
+      await queryClient.cancelQueries({ queryKey: ['data-integrity', 'cached'] });
+      const snapshot = queryClient.getQueryData<CachedResultsResponse>(['data-integrity', 'cached']);
+      if (recordId) {
+        const rid = String(recordId);
+        const matchesIssue = (issue: { recordId?: string | number; id?: string | number; context?: { userId?: string | number } }) => {
+          const id = issue.recordId ?? issue.id;
+          if (id != null && String(id) === rid) return true;
+          if (issue.context?.userId && String(issue.context.userId) === rid) return true;
+          return false;
+        };
+        queryClient.setQueryData(['data-integrity', 'cached'], (old: CachedResultsResponse | undefined) => {
+          if (!old?.hasCached) return old;
+          return {
+            ...old,
+            results: old.results.map((check) => {
+              if (!Array.isArray(check.issues)) return check;
+              const filtered = check.issues.filter((issue) => !matchesIssue(issue));
+              return { ...check, issues: filtered, issueCount: filtered.length };
+            }).filter((check) => check.issueCount > 0),
+          };
+        });
+      }
+      return { snapshot };
     },
     onSuccess: (data, params) => {
       const recordId = params.body.recordId || params.body.userId || params.body.primaryUserId;
@@ -689,29 +712,11 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
         });
       }
       showToast(data.message || 'Issue fixed successfully', 'success');
-      queryClient.setQueryData(['data-integrity', 'cached'], (old: CachedResultsResponse | undefined) => {
-        if (!old?.hasCached || !recordId) return old;
-        const rid = String(recordId);
-        const matchesIssue = (issue: { recordId?: string | number; id?: string | number; context?: { userId?: string | number } }) => {
-          const id = issue.recordId ?? issue.id;
-          if (id != null && String(id) === rid) return true;
-          if (issue.context?.userId && String(issue.context.userId) === rid) return true;
-          return false;
-        };
-        return {
-          ...old,
-          results: old.results.map((check) => {
-            if (!Array.isArray(check.issues)) return check;
-            const filtered = check.issues.filter((issue) => !matchesIssue(issue));
-            return { ...check, issues: filtered, issueCount: filtered.length };
-          }).filter((check) => check.issueCount > 0),
-        };
-      });
       setTimeout(() => {
-        runIntegrityMutation.mutate();
-      }, 1500);
+        queryClient.invalidateQueries({ queryKey: ['data-integrity', 'cached'] });
+      }, 2000);
     },
-    onError: (err: unknown, params) => {
+    onError: (err: unknown, params, context) => {
       const recordId = params.body.recordId || params.body.userId || params.body.primaryUserId;
       if (recordId) {
         const key = String(recordId);
@@ -720,6 +725,9 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
           next.delete(key);
           return next;
         });
+      }
+      if (context?.snapshot) {
+        queryClient.setQueryData(['data-integrity', 'cached'], context.snapshot);
       }
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to fix issue', 'error');
     }

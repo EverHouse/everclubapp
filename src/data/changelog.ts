@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.88.0",
+    date: "2026-03-19",
+    title: "Optimistic UI for Data Integrity Fixes",
+    changes: [
+      "Improved: Fixing an issue in the data integrity panel now removes it from the list instantly (on click), rather than waiting for the API call to return",
+      "Improved: After a fix succeeds, the panel silently refreshes in the background — no more 'Running Checks...' banner interrupting the workflow after every single fix",
+      "Fixed: If a fix fails, the issue is restored to its original position in the list (rollback) so nothing is lost",
+    ]
+  },
+  {
     version: "8.87.99",
     date: "2026-03-19",
     title: "DB Integrity Hardening — State Machines, Guard Triggers & Dedup Indexes",
