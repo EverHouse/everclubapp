@@ -49,7 +49,7 @@ interface BookingCreationGuardParams {
   resourceType: string;
 }
 
-const OCCUPIED_STATUSES = [...ACTIVE_BOOKING_STATUSES, 'attended', 'cancellation_pending'];
+const OCCUPIED_STATUSES = [...ACTIVE_BOOKING_STATUSES, 'checked_in', 'attended', 'cancellation_pending'];
 
 export async function acquireBookingLocks(
   tx: { execute: (query: unknown) => Promise<{ rows: Record<string, unknown>[] }> },

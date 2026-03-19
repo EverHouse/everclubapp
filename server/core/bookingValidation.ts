@@ -176,6 +176,7 @@ export async function checkBookingConflict(
         eq(bookingRequests.status, 'confirmed'),
         eq(bookingRequests.status, 'approved'),
         eq(bookingRequests.status, 'pending_approval'),
+        eq(bookingRequests.status, 'checked_in'),
         eq(bookingRequests.status, 'attended'),
         eq(bookingRequests.status, 'cancellation_pending')
       ),

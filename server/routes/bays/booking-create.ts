@@ -170,7 +170,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
             FROM booking_requests br
             LEFT JOIN resources r ON r.id = br.resource_id
             WHERE br.request_date = ${request_date}
-            AND br.status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'attended')
+            AND br.status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'checked_in', 'attended', 'cancellation_pending')
             AND br.start_time < ${end_time} AND br.end_time > ${start_time}
             AND (
               LOWER(br.user_email) = LOWER(${requestEmail})
@@ -319,7 +319,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
               FROM booking_requests br
               LEFT JOIN resources r ON r.id = br.resource_id
               WHERE br.request_date = ${request_date}
-              AND br.status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'attended')
+              AND br.status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'checked_in', 'attended', 'cancellation_pending')
               AND br.start_time < ${end_time} AND br.end_time > ${start_time}
               AND (
                 LOWER(br.user_email) = LOWER(${participant.email})

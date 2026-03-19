@@ -22,7 +22,7 @@ interface ParticipantConflictRow extends BookingConflictRow {
   invite_status: string;
 }
 
-const OCCUPIED_STATUSES = [...ACTIVE_BOOKING_STATUSES, 'checked_in', 'attended'];
+const OCCUPIED_STATUSES = [...ACTIVE_BOOKING_STATUSES, 'checked_in', 'attended', 'cancellation_pending'];
 
 export interface ConflictingBooking {
   bookingId: number;
