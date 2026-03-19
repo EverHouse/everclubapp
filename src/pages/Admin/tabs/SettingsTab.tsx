@@ -613,8 +613,8 @@ const SettingsTab: React.FC = () => {
         <SectionHeader icon="dynamic_form" title="HubSpot Form IDs" subtitle="Override auto-discovered HubSpot form IDs. Leave blank to use auto-discovery or environment variables." />
         <div className="space-y-3">
           {HUBSPOT_FORM_ID_KEYS.map(({ key, label }) => (
-            <div key={key} className="flex items-center gap-4">
-              <div className="w-44 flex-shrink-0">
+            <div key={key} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+              <div className="sm:w-44 sm:flex-shrink-0">
                 <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{label}</span>
               </div>
               <input
@@ -641,8 +641,8 @@ const SettingsTab: React.FC = () => {
       <div className={sectionClass}>
         <SectionHeader icon="calendar_month" title="HubSpot Tour Scheduler" subtitle="Configure the HubSpot meeting scheduler URL used for tour bookings." />
         <div className="space-y-3">
-          <div className="flex items-center gap-4">
-            <div className="w-44 flex-shrink-0">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+            <div className="sm:w-44 sm:flex-shrink-0">
               <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Meeting Scheduler URL</span>
             </div>
             <input
