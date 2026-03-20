@@ -3021,7 +3021,7 @@ body[data-ptr-active="true"]:has(.ptr-refresh-overlay) header[role="banner"] {
   left: 0;
   right: 0;
   background-color: #293515;
-  z-index: 1500;
+  z-index: var(--z-modal);
   display: flex;
   align-items: flex-end;
   justify-content: center;
