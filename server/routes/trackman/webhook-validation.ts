@@ -4,6 +4,7 @@ import { logger } from '../../core/logger';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { isProduction, redactPII, TrackmanWebhookPayload, TrackmanBookingPayload } from './webhook-helpers';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 interface WebhookEventIdRow {
   id: number;
@@ -106,7 +107,7 @@ export async function logWebhookEvent(
           existingPayload = typeof recentDupe.rows[0].payload === 'string' 
             ? JSON.parse(recentDupe.rows[0].payload) 
             : recentDupe.rows[0].payload;
-        } catch (err) { console.warn('[Trackman] Failed to parse duplicate payload:', err); existingPayload = {}; }
+        } catch (err) { logger.warn('[Trackman] Failed to parse duplicate payload:', { extra: { error: getErrorMessage(err) } }); existingPayload = {}; }
         const existingBookingData = (existingPayload?.data || existingPayload?.booking || {}) as Record<string, unknown>;
         const existingStart = existingBookingData?.start || existingBookingData?.start_time || existingPayload?.start_time || '';
         const existingEnd = existingBookingData?.end || existingBookingData?.end_time || existingPayload?.end_time || '';

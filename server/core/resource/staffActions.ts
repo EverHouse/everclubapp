@@ -912,7 +912,7 @@ export function fireManualBookingPostCommitEffects(
           if (resource?.name) resourceName = resource.name;
           if (resource?.type) resourceType = resource.type;
         })
-        .catch((e: unknown) => logger.error('[ManualBooking] Failed to fetch resource name', { extra: { e } }))
+        .catch((e: unknown) => logger.error('[ManualBooking] Failed to fetch resource name', { extra: { error: getErrorMessage(e) } }))
         .finally(() => {
           sendNotificationAndBroadcast(row, resourceName, resourceType, input, dayPassRedeemed, trackman_id!, auditLogFn, isDayPassPayment);
         });
