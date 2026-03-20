@@ -2317,7 +2317,6 @@ html.dark .border-accessible {
 .gpu-accelerated {
   transform: translateZ(0);
   backface-visibility: hidden;
-  will-change: transform, opacity;
 }
 
 /* iOS Tap Feedback & Animation Utilities */
@@ -2638,6 +2637,13 @@ html.dark .border-accessible {
   
   .accordion-content {
     transition: none !important;
+  }
+
+  .accordion-content[data-open="true"] > .accordion-inner > *,
+  .accordion-content.is-open > .accordion-inner > *,
+  .accordion-content.expanded > * > * {
+    animation: none !important;
+    opacity: 1 !important;
   }
   
   /* Disable backdrop-filter on glass elements */

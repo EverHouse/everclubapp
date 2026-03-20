@@ -25,6 +25,7 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Camera initialization includes a 10-second timeout with a retry option if it stalls",
       "Fixed: Walk-in visit times on the member history page now display correctly in Pacific time",
       "Fixed: Rapidly switching between pages could leave the screen faded out and unresponsive — page transitions now reset cleanly on quick navigation",
+      "Improved: Below-the-fold sections on the landing page now cascade in with a staggered timing effect as you scroll down",
     ]
   },
   {

@@ -197,7 +197,7 @@ const Landing: React.FC = () => {
         </div>
       </div>
 
-      <div ref={scrollRef} className="bg-bone dark:bg-[#141414]">
+      <div ref={scrollRef} className="scroll-reveal-group bg-bone dark:bg-[#141414]">
 
       {/* As Seen In — minimal horizontal strip */}
       <div className="scroll-reveal px-6 py-16 md:py-20 bg-bone dark:bg-[#141414]">
