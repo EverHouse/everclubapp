@@ -74,6 +74,7 @@ const KioskCheckin: React.FC = () => {
   const [showPasscodeModal, setShowPasscodeModal] = useState(false);
   const [passcodeDigits, setPasscodeDigits] = useState<string[]>(['', '', '', '']);
   const [passcodeError, setPasscodeError] = useState(false);
+  const [passcodeErrorMessage, setPasscodeErrorMessage] = useState('');
   const [passcodeChecking, setPasscodeChecking] = useState(false);
   const passcodeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const passcodeDigitsRef = useRef<string[]>(['', '', '', '']);
@@ -304,6 +305,7 @@ const KioskCheckin: React.FC = () => {
     setShowPasscodeModal(true);
     setPasscodeDigits(['', '', '', '']);
     setPasscodeError(false);
+    setPasscodeErrorMessage('');
     setPasscodeChecking(false);
     setTimeout(() => passcodeInputRefs.current[0]?.focus(), 100);
   }, []);
@@ -312,6 +314,7 @@ const KioskCheckin: React.FC = () => {
     setShowPasscodeModal(false);
     setPasscodeDigits(['', '', '', '']);
     setPasscodeError(false);
+    setPasscodeErrorMessage('');
   }, []);
 
   const handlePasscodeSubmit = useCallback(async (digits: string[]) => {
@@ -339,11 +342,13 @@ const KioskCheckin: React.FC = () => {
         navigate('/admin', { replace: true });
       } else {
         setPasscodeError(true);
+        setPasscodeErrorMessage(data.error || 'Incorrect passcode. Try again.');
         setPasscodeDigits(['', '', '', '']);
         setTimeout(() => passcodeInputRefs.current[0]?.focus(), 100);
       }
     } catch {
       setPasscodeError(true);
+      setPasscodeErrorMessage('Connection error. Please try again.');
       setPasscodeDigits(['', '', '', '']);
       setTimeout(() => passcodeInputRefs.current[0]?.focus(), 100);
     } finally {
@@ -371,6 +376,7 @@ const KioskCheckin: React.FC = () => {
     if (/^\d$/.test(e.key)) {
       e.preventDefault();
       setPasscodeError(false);
+      setPasscodeErrorMessage('');
       setPasscodeDigits(prev => {
         const newDigits = [...prev];
         newDigits[index] = e.key;
@@ -681,7 +687,7 @@ const KioskCheckin: React.FC = () => {
 
             {passcodeError && (
               <p className="text-red-400 text-sm text-center mb-4 animate-in fade-in duration-200">
-                Incorrect passcode. Try again.
+                {passcodeErrorMessage || 'Incorrect passcode. Try again.'}
               </p>
             )}
 
