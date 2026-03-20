@@ -142,9 +142,17 @@ router.post('/api/kiosk/checkin', isStaffOrAdmin, validateBody(kioskCheckinSchem
         });
       }
 
+      if (checkinResult.membershipBlocked) {
+        return res.status(403).json({
+          error: checkinResult.error || 'Membership is not active. Please speak to staff.',
+          memberName,
+          tier: member.tier
+        });
+      }
+
       if (checkinResult.error && !checkinResult.success) {
         logger.warn('[Kiosk] Booking check-in failed, falling back to walk-in', {
-          extra: { bookingId, error: checkinResult.error, memberId: member.id }
+          extra: { bookingId, error: checkinResult.error, statusCode: checkinResult.statusCode, memberId: member.id }
         });
       } else {
         const freshVisits = await db.execute(sql`
@@ -255,7 +263,7 @@ const passcodeAttempts = new Map<string, { count: number; lastAttempt: number }>
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 60_000;
 
-setInterval(() => {
+const passcodeCleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [key, record] of passcodeAttempts) {
     if (now - record.lastAttempt > LOCKOUT_MS * 5) {
@@ -263,6 +271,7 @@ setInterval(() => {
     }
   }
 }, LOCKOUT_MS * 5);
+passcodeCleanupInterval.unref();
 
 router.post('/api/kiosk/verify-passcode', isStaffOrAdmin, validateBody(kioskPasscodeSchema), async (req: Request, res: Response) => {
   try {

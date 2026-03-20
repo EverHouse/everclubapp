@@ -276,7 +276,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
         });
       }
     } catch (err: unknown) {
-      logger.error('[Checkin] Failed to auto-create session', { extra: { err } });
+      logger.error('[Checkin] Failed to auto-create session', { extra: { error: getErrorMessage(err) } });
     }
   }
 
@@ -354,7 +354,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
           logger.warn('[Check-in Guard] Invoice sync failed after fee recalculation', { extra: { bookingId, session_id: existing.session_id, error: getErrorMessage(err) } });
         });
       } catch (recalcError: unknown) {
-        logger.error('[Check-in Guard] Failed to recalculate fees for session', { extra: { session_id: existing.session_id, recalcError } });
+        logger.error('[Check-in Guard] Failed to recalculate fees for session', { extra: { session_id: existing.session_id, error: getErrorMessage(recalcError) } });
       }
     }
 
@@ -508,11 +508,11 @@ export async function checkinBooking(params: CheckinBookingParams) {
     const updatedUser = updateResult.rows[0] as { lifetime_visits: number; hubspot_id: string | null } | undefined;
     if (updatedUser?.hubspot_id && updatedUser.lifetime_visits) {
       updateHubSpotContactVisitCount(updatedUser.hubspot_id, updatedUser.lifetime_visits)
-        .catch(err => logger.error('[Bays] Failed to sync visit count to HubSpot:', { extra: { err } }));
+        .catch(err => logger.error('[Bays] Failed to sync visit count to HubSpot:', { extra: { error: getErrorMessage(err) } }));
     }
 
     if (updatedUser?.lifetime_visits) {
-      try { broadcastMemberStatsUpdated(booking.userEmail, { lifetimeVisits: updatedUser.lifetime_visits }); } catch (err: unknown) { logger.error('[Broadcast] Stats update error', { extra: { err } }); }
+      try { broadcastMemberStatsUpdated(booking.userEmail, { lifetimeVisits: updatedUser.lifetime_visits }); } catch (err: unknown) { logger.error('[Broadcast] Stats update error', { extra: { error: getErrorMessage(err) } }); }
     }
 
     const dateStr = String(booking.requestDate).split('T')[0];
