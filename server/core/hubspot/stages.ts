@@ -1,7 +1,7 @@
 import { db } from '../../db';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { getHubSpotClient } from '../integrations';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { retryableHubSpotRequest } from './request';
 import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
 import { isPlaceholderEmail } from '../stripe/customers';
@@ -342,6 +342,20 @@ export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean
       { label: 'Comped', value: 'Comped', displayOrder: 5 },
     ];
 
+    let membershipTierOptions: { label: string; value: string; displayOrder: number }[] = [];
+    try {
+      const tierRows = await db.execute(
+        sql`SELECT name FROM membership_tiers WHERE is_active = true ORDER BY sort_order ASC, id ASC`
+      );
+      membershipTierOptions = (tierRows.rows as { name: string }[]).map((row, idx) => ({
+        label: `${row.name} Membership`,
+        value: `${row.name} Membership`,
+        displayOrder: idx + 1,
+      }));
+    } catch (tierErr) {
+      logger.warn('[HubSpot] Failed to fetch tiers from DB for property sync, skipping membership_tier options', { error: getErrorMessage(tierErr) });
+    }
+
     const propertiesToCreate = [
       {
         name: 'billing_provider',
@@ -351,7 +365,16 @@ export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean
         groupName: 'contactinformation',
         description: 'The billing system managing this member\'s subscription',
         options: billingProviderOptions
-      }
+      },
+      ...(membershipTierOptions.length > 0 ? [{
+        name: 'membership_tier',
+        label: 'Membership Tier',
+        type: 'enumeration',
+        fieldType: 'select',
+        groupName: 'contactinformation',
+        description: 'The membership tier for this contact',
+        options: membershipTierOptions,
+      }] : []),
     ];
     
     for (const prop of propertiesToCreate) {

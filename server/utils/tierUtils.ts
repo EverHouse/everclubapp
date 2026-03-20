@@ -150,14 +150,16 @@ export function denormalizeTierForHubSpot(rawName: string | null | undefined): s
   }
 
   const slug = tryNormalizeTierSlug(rawName);
-  
-  if (!slug || slug === 'staff') {
-    return null;
+
+  if (slug && slug !== 'staff') {
+    const baseName = _canonicalTierNames[slug];
+    if (baseName) return `${baseName} Membership`;
   }
-  
-  const baseName = _canonicalTierNames[slug];
-  if (!baseName) return null;
-  return `${baseName} Membership`;
+
+  const trimmed = rawName.trim();
+  if (trimmed.length === 0) return null;
+
+  return trimmed.endsWith(' Membership') ? trimmed : `${trimmed} Membership`;
 }
 
 export async function denormalizeTierForHubSpotAsync(rawName: string | null | undefined): Promise<string | null> {
@@ -167,12 +169,15 @@ export async function denormalizeTierForHubSpotAsync(rawName: string | null | un
 
   const slug = tryNormalizeTierSlug(rawName);
 
-  if (!slug || slug === 'staff') {
-    return null;
+  if (slug && slug !== 'staff') {
+    const { getSettingValue } = await import('../core/settingsHelper');
+    const baseName = _canonicalTierNames[slug] ?? slug;
+    const defaultTier = `${baseName} Membership`;
+    return getSettingValue(`hubspot.tier.${slug}`, defaultTier);
   }
 
-  const { getSettingValue } = await import('../core/settingsHelper');
-  const baseName = _canonicalTierNames[slug] ?? slug;
-  const defaultTier = `${baseName} Membership`;
-  return getSettingValue(`hubspot.tier.${slug}`, defaultTier);
+  const trimmed = rawName.trim();
+  if (trimmed.length === 0) return null;
+
+  return trimmed.endsWith(' Membership') ? trimmed : `${trimmed} Membership`;
 }

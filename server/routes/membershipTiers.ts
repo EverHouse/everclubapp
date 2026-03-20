@@ -258,6 +258,14 @@ router.put('/api/membership-tiers/:id', isAdmin, validateBody(updateTierSchema),
       logger.error('[AutoPush] Tier push exception', { error: syncError });
     }
 
+    if (name || is_active !== undefined) {
+      import('../core/hubspot/stages').then(({ ensureHubSpotPropertiesExist }) =>
+        ensureHubSpotPropertiesExist().catch(err =>
+          logger.warn('[HubSpot] Fire-and-forget tier property sync failed after tier update', { error: getErrorMessage(err) })
+        )
+      ).catch(() => {});
+    }
+
     res.json({ ...updatedTier, synced, syncError });
   } catch (error: unknown) {
     logger.error('Membership tier update error', { error: getErrorMessage(error) });
@@ -320,6 +328,12 @@ router.post('/api/membership-tiers', isAdmin, validateBody(createTierSchema), as
       syncError = getErrorMessage(err);
       logger.error('[AutoPush] Tier push exception', { error: syncError });
     }
+
+    import('../core/hubspot/stages').then(({ ensureHubSpotPropertiesExist }) =>
+      ensureHubSpotPropertiesExist().catch(err =>
+        logger.warn('[HubSpot] Fire-and-forget tier property sync failed after tier create', { error: getErrorMessage(err) })
+      )
+    ).catch(() => {});
 
     res.status(201).json({ ...result.rows[0], synced, syncError });
   } catch (error: unknown) {
