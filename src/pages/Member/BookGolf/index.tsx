@@ -102,20 +102,22 @@ const BookGolf: React.FC = () => {
           </section>
         ) : (
           <TabTransition activeKey={activeTab}>
-          <div ref={playerSlotRef} className="relative z-10 space-y-6">
+          <div className="relative z-10 space-y-6">
             {activeTab === 'simulator' && (
-              <PlayerSlotEditor
-                playerCount={playerCount}
-                onPlayerCountChange={(count) => { haptic.selection(); setPlayerCount(count); }}
-                slots={playerSlots}
-                onSlotsChange={setPlayerSlots}
-                guestPassesRemaining={guestPassInfo?.passes_remaining}
-                isDark={isDark}
-                privacyMode={true}
-                maxPlayers={4}
-                showPlayerCountSelector={true}
-                ownerMemberId={effectiveUser?.id}
-              />
+              <div ref={playerSlotRef}>
+                <PlayerSlotEditor
+                  playerCount={playerCount}
+                  onPlayerCountChange={(count) => { haptic.selection(); setPlayerCount(count); }}
+                  slots={playerSlots}
+                  onSlotsChange={setPlayerSlots}
+                  guestPassesRemaining={guestPassInfo?.passes_remaining}
+                  isDark={isDark}
+                  privacyMode={true}
+                  maxPlayers={4}
+                  showPlayerCountSelector={true}
+                  ownerMemberId={effectiveUser?.id}
+                />
+              </div>
             )}
 
             <section>

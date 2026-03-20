@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 
 interface TabTransitionProps {
   activeKey: string | number;
@@ -11,12 +11,12 @@ export const TabTransition: React.FC<TabTransitionProps> = ({
   children, 
   className = '' 
 }) => {
-  const [animationPhase, setAnimationPhase] = useState<'idle' | 'entering'>('idle');
+  const containerRef = useRef<HTMLDivElement>(null);
   const prevKeyRef = useRef(activeKey);
   const isFirstRender = useRef(true);
   const enterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       prevKeyRef.current = activeKey;
@@ -25,14 +25,23 @@ export const TabTransition: React.FC<TabTransitionProps> = ({
 
     if (activeKey !== prevKeyRef.current) {
       if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
-
       prevKeyRef.current = activeKey;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAnimationPhase('entering');
 
-      enterTimerRef.current = setTimeout(() => {
-        setAnimationPhase('idle');
-      }, 200);
+      const el = containerRef.current;
+      if (el) {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(4px)';
+        requestAnimationFrame(() => {
+          el.style.transition = 'opacity 200ms cubic-bezier(0.2, 0, 0, 1), transform 200ms cubic-bezier(0.2, 0, 0, 1)';
+          el.style.opacity = '1';
+          el.style.transform = 'translateY(0)';
+        });
+        enterTimerRef.current = setTimeout(() => {
+          el.style.transition = '';
+          el.style.opacity = '';
+          el.style.transform = '';
+        }, 220);
+      }
     }
 
     return () => {
@@ -40,10 +49,8 @@ export const TabTransition: React.FC<TabTransitionProps> = ({
     };
   }, [activeKey]);
 
-  const animationClass = animationPhase === 'entering' ? 'animate-tab-enter' : '';
-
   return (
-    <div className={`${animationClass} ${className}`}>
+    <div ref={containerRef} className={className}>
       {children}
     </div>
   );
