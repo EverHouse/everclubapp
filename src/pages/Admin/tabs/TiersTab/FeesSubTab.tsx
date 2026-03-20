@@ -140,12 +140,13 @@ const FeesSubTab: React.FC<FeesSubTabProps> = ({ tiers, openEdit, openCreate }) 
                                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">per guest per session</p>
                                 {guestFeeTier?.stripe_price_id && (
                                     <div className="flex items-center gap-1 mt-1 min-w-0">
-                                        <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate" title={guestFeeTier.stripe_price_id}>
+                                        <p className="flex-1 min-w-0 text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate" title={guestFeeTier.stripe_price_id}>
                                             {guestFeeTier.stripe_price_id}
                                         </p>
                                         <button
                                             type="button"
-                                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(guestFeeTier.stripe_price_id || ''); showToast('Price ID copied', 'success'); }}
+                                            aria-label="Copy Guest Fee Price ID"
+                                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(guestFeeTier.stripe_price_id || '').then(() => showToast('Price ID copied', 'success')).catch(() => showToast('Failed to copy', 'error')); }}
                                             className="flex-shrink-0 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
                                             title="Copy Price ID"
                                         >
@@ -173,12 +174,13 @@ const FeesSubTab: React.FC<FeesSubTabProps> = ({ tiers, openEdit, openCreate }) 
                                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">per {pricing.overageBlockMinutes} min block</p>
                                 {overageTier?.stripe_price_id && (
                                     <div className="flex items-center gap-1 mt-1 min-w-0">
-                                        <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate" title={overageTier.stripe_price_id}>
+                                        <p className="flex-1 min-w-0 text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate" title={overageTier.stripe_price_id}>
                                             {overageTier.stripe_price_id}
                                         </p>
                                         <button
                                             type="button"
-                                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(overageTier.stripe_price_id || ''); showToast('Price ID copied', 'success'); }}
+                                            aria-label="Copy Overage Rate Price ID"
+                                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(overageTier.stripe_price_id || '').then(() => showToast('Price ID copied', 'success')).catch(() => showToast('Failed to copy', 'error')); }}
                                             className="flex-shrink-0 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
                                             title="Copy Price ID"
                                         >
@@ -256,12 +258,14 @@ const FeesSubTab: React.FC<FeesSubTabProps> = ({ tiers, openEdit, openCreate }) 
                                         )}
                                         {pass.stripe_price_id && (
                                             <div className="flex items-center gap-1 mt-1.5 min-w-0">
-                                                <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate" title={pass.stripe_price_id}>
+                                                <p className="flex-1 min-w-0 text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate" title={pass.stripe_price_id}>
                                                     {pass.stripe_price_id}
                                                 </p>
                                                 <button
                                                     type="button"
-                                                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(pass.stripe_price_id || ''); showToast('Price ID copied', 'success'); }}
+                                                    aria-label={`Copy Price ID for ${pass.name}`}
+                                                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(pass.stripe_price_id || '').then(() => showToast('Price ID copied', 'success')).catch(() => showToast('Failed to copy', 'error')); }}
+                                                    onKeyDown={(e) => e.stopPropagation()}
                                                     className="flex-shrink-0 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
                                                     title="Copy Price ID"
                                                 >

@@ -268,11 +268,12 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                                         <div className="space-y-1.5 text-xs">
                                             <div className="flex items-center gap-1.5 min-w-0">
                                                 <span className="text-indigo-500 dark:text-indigo-400 flex-shrink-0">Product:</span>
-                                                <span className="text-indigo-700 dark:text-indigo-300 font-mono truncate">{selectedTier.stripe_product_id || '—'}</span>
+                                                <span className="flex-1 min-w-0 text-indigo-700 dark:text-indigo-300 font-mono truncate">{selectedTier.stripe_product_id || '—'}</span>
                                                 {selectedTier.stripe_product_id && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => { navigator.clipboard.writeText(selectedTier.stripe_product_id || ''); showToast('Product ID copied', 'success'); }}
+                                                        aria-label="Copy Product ID"
+                                                        onClick={() => { navigator.clipboard.writeText(selectedTier.stripe_product_id || '').then(() => showToast('Product ID copied', 'success')).catch(() => showToast('Failed to copy', 'error')); }}
                                                         className="flex-shrink-0 p-0.5 rounded hover:bg-indigo-200 dark:hover:bg-indigo-800/40 transition-colors"
                                                         title="Copy Product ID"
                                                     >
@@ -282,10 +283,11 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                                             </div>
                                             <div className="flex items-center gap-1.5 min-w-0">
                                                 <span className="text-indigo-500 dark:text-indigo-400 flex-shrink-0">Price:</span>
-                                                <span className="text-indigo-700 dark:text-indigo-300 font-mono truncate">{selectedTier.stripe_price_id}</span>
+                                                <span className="flex-1 min-w-0 text-indigo-700 dark:text-indigo-300 font-mono truncate">{selectedTier.stripe_price_id}</span>
                                                 <button
                                                     type="button"
-                                                    onClick={() => { navigator.clipboard.writeText(selectedTier.stripe_price_id || ''); showToast('Price ID copied', 'success'); }}
+                                                    aria-label="Copy Price ID"
+                                                    onClick={() => { navigator.clipboard.writeText(selectedTier.stripe_price_id || '').then(() => showToast('Price ID copied', 'success')).catch(() => showToast('Failed to copy', 'error')); }}
                                                     className="flex-shrink-0 p-0.5 rounded hover:bg-indigo-200 dark:hover:bg-indigo-800/40 transition-colors"
                                                     title="Copy Price ID"
                                                 >
@@ -335,8 +337,13 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                                                 value={selectedTier?.price_cents ?? ''}
                                                 onChange={e => {
                                                     if (!selectedTier) return;
-                                                    const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
-                                                    setSelectedTier({ ...selectedTier, price_cents: val });
+                                                    if (e.target.value === '') {
+                                                        setSelectedTier({ ...selectedTier, price_cents: null });
+                                                        return;
+                                                    }
+                                                    const parsed = parseInt(e.target.value, 10);
+                                                    if (isNaN(parsed) || parsed < 0) return;
+                                                    setSelectedTier({ ...selectedTier, price_cents: parsed });
                                                 }}
                                                 placeholder="e.g., 5000 = $50.00"
                                             />
