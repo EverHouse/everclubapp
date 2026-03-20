@@ -73,6 +73,7 @@ export const StaffNavigationRail: React.FC<StaffNavigationRailProps> = ({
       <button
         onClick={() => { startNavigation(); navigate('/'); }}
         className="flex items-center justify-center py-5 flex-shrink-0 hover:opacity-80 transition-opacity"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.25rem)' }}
         aria-label="Go to home"
       >
         <img

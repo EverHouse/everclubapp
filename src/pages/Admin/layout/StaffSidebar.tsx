@@ -70,6 +70,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
       <button 
         onClick={() => { startNavigation(); navigate('/'); }}
         className="flex items-center gap-3 px-6 py-6 flex-shrink-0 hover:opacity-80 transition-opacity w-full text-left"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}
         aria-label="Go to home"
       >
         <img 
