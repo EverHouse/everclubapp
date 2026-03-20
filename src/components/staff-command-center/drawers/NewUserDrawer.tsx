@@ -304,7 +304,7 @@ export function NewUserDrawer({
           <button
             onClick={() => handleModeChange('member')}
             disabled={cooldownRemaining > 0}
-            className={`tactile-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`tactile-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 ${
               mode === 'member'
                 ? 'bg-emerald-600 text-white'
                 : isDark
@@ -312,13 +312,13 @@ export function NewUserDrawer({
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}
           >
-            <Icon name="badge" className="text-sm align-middle mr-1" />
+            <Icon name="badge" className="text-base" />
             New Member
           </button>
           <button
             onClick={() => handleModeChange('visitor')}
             disabled={cooldownRemaining > 0}
-            className={`tactile-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`tactile-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 ${
               mode === 'visitor'
                 ? 'bg-emerald-600 text-white'
                 : isDark
@@ -326,7 +326,7 @@ export function NewUserDrawer({
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}
           >
-            <Icon name="confirmation_number" className="text-sm align-middle mr-1" />
+            <Icon name="confirmation_number" className="text-base" />
             Day Pass
           </button>
         </div>
