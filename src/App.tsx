@@ -424,16 +424,12 @@ const useViewTransitionLocation = () => {
       };
       document.documentElement.classList.add('vt-navigating');
       try {
-        const transition = doc.startViewTransition(() => {
+        doc.startViewTransition(() => {
           flushSync(() => {
             setDisplayLocation(location);
           });
         });
-        transition.finished.finally(() => {
-          document.documentElement.classList.remove('vt-navigating');
-        });
       } catch {
-        document.documentElement.classList.remove('vt-navigating');
         setDisplayLocation(location);
       }
     } else {
