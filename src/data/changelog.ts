@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.94.14",
+    date: "2026-03-20",
+    title: "Fees & Passes: New Product Button + Stripe Price IDs",
+    changes: [
+      "Added: 'New Product' button on the Fees & Passes tab for creating one-time products (day passes, guest passes) — previously the only way to create these was through the Memberships tab's 'New Tier' button",
+      "Added: Stripe price IDs are now visible on the Dynamic Fees cards (Guest Fee, Overage Rate) and on each one-time pass card",
+      "Improved: 'New Tier' on the Memberships tab now explicitly creates a subscription type, while 'New Product' on Fees & Passes creates a one-time product with appropriate defaults",
+    ]
+  },
+  {
     version: "8.94.13",
     date: "2026-03-20",
     title: "Editable Card Marketing Features",

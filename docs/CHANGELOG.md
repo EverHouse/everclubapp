@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.94.14] - 2026-03-20
+
+### Fees & Passes: New Product Button + Stripe Price IDs
+- **Added**: "New Product" button on the Fees & Passes tab that creates a one-time product with appropriate defaults (`product_type: 'one_time'`, `show_in_comparison: false`, `show_on_membership_page: false`, `button_text: 'Purchase'`). Previously one-time products could only be created via the Memberships tab's "New Tier" button, which was unintuitive.
+- **Added**: Stripe price IDs are now displayed on the Dynamic Fees cards (Guest Fee, Overage Rate) — found by matching the tier slug (`guest-pass`, `simulator-overage-30min`) from the tiers list. Also shown on each one-time pass card.
+- **Improved**: The Memberships tab "New Tier" button now explicitly sets `product_type: 'subscription'` to prevent accidentally creating subscription tiers from the wrong tab.
+- **Added**: `openCreateOneTime` function in `useTiersTab.ts` — separate creation path for one-time products with proper defaults.
+- **Scope**: `src/pages/Admin/tabs/TiersTab/FeesSubTab.tsx`, `src/pages/Admin/tabs/TiersTab/useTiersTab.ts`, `src/pages/Admin/tabs/TiersTab/index.tsx`.
+
 ## [8.94.13] - 2026-03-20
 
 ### Editable Card Marketing Features

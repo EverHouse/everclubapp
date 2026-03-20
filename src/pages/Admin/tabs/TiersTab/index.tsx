@@ -44,7 +44,7 @@ const TiersTab: React.FC = () => {
 
             <div key={tab.activeSubTab} className="animate-content-enter">
                 {tab.activeSubTab === 'fees' && (
-                    <FeesSubTab tiers={tab.tiers} openEdit={tab.openEdit} />
+                    <FeesSubTab tiers={tab.tiers} openEdit={tab.openEdit} openCreate={tab.openCreateOneTime} />
                 )}
                 {tab.activeSubTab === 'discounts' && <DiscountsSubTab />}
                 {tab.activeSubTab === 'cafe' && <CafeTab />}

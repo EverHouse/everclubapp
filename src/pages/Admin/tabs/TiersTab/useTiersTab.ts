@@ -315,7 +315,20 @@ export function useTiersTab() {
     };
 
     const openCreate = () => {
-        setSelectedTier(getDefaultTier());
+        setSelectedTier({ ...getDefaultTier(), product_type: 'subscription' });
+        setIsCreating(true);
+        setIsEditing(true);
+        setError(null);
+    };
+
+    const openCreateOneTime = () => {
+        setSelectedTier({
+            ...getDefaultTier(),
+            product_type: 'one_time',
+            show_in_comparison: false,
+            show_on_membership_page: false,
+            button_text: 'Purchase',
+        });
         setIsCreating(true);
         setIsEditing(true);
         setError(null);
@@ -400,6 +413,7 @@ export function useTiersTab() {
         createFeature,
         deleteFeature,
         openCreate,
+        openCreateOneTime,
         openEdit,
         handleSave,
         handleHighlightToggle,
