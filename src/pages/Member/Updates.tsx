@@ -4,7 +4,7 @@ import { useAuthData, useAnnouncementData, Announcement } from '../../contexts/D
 import { useTheme } from '../../contexts/ThemeContext';
 import { usePageReady } from '../../stores/pageReadyStore';
 import SwipeablePage from '../../components/SwipeablePage';
-import { MotionList, MotionListItem } from '../../components/motion';
+import { MotionList, MotionListItem, AnimatedPage } from '../../components/motion';
 import { getTodayPacific, formatDateDisplayWithDay, formatDateTimePacific, addDaysToPacificDate } from '../../utils/dateUtils';
 import { getMemberNoticeTitle, getAffectedAreasList, isBlockingClosure } from '../../utils/closureUtils';
 import { useNotificationStore } from '../../stores/notificationStore';
@@ -724,6 +724,7 @@ const MemberUpdates: React.FC = () => {
   );
 
   return (
+    <AnimatedPage>
     <SwipeablePage className="px-6 relative overflow-hidden">
       <section className="mb-4 pt-4 md:pt-2">
         <h1 className={`text-3xl sm:text-4xl md:text-5xl leading-none drop-shadow-md ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}>Updates</h1>
@@ -777,6 +778,7 @@ const MemberUpdates: React.FC = () => {
         {activeTab === 'announcements' ? renderAnnouncementsTab() : activeTab === 'notices' ? renderNoticesTab() : renderActivityTab()}
       </div>
     </SwipeablePage>
+    </AnimatedPage>
   );
 };
 

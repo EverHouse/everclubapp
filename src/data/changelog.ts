@@ -20,6 +20,7 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Landing page redirect screen now matches the site background color instead of showing a white flash",
       "Fixed: Booking a golf simulator was showing two confirmation messages at once (a toast and a floating banner) — now shows only the toast",
       "Cleaned up: Removed unused duplicate confirmation banner from the Wellness page that was leftover from an earlier design",
+      "Improved: Updates page and NFC check-in screen now have smooth entry animations matching the rest of the app",
     ]
   },
   {
