@@ -508,7 +508,7 @@ const KioskCheckin: React.FC = () => {
             <img
               src="/images/everclub-logo-light.webp"
               alt="Ever Club"
-              className="h-14 md:h-18 w-auto object-contain mx-auto mb-3 opacity-90"
+              className="w-full max-w-xs md:max-w-sm object-contain mx-auto mb-3 opacity-90"
               style={{ filter: 'brightness(1.3)' }}
             />
 
