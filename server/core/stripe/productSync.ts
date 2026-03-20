@@ -105,7 +105,9 @@ export async function syncMembershipTiersToStripe(): Promise<{
                   metadata: priceMetadata,
                   recurring: { interval: billingInterval },
                 };
-                const newPrice = await stripe.prices.create(priceParams);
+                const newPrice = await stripe.prices.create(priceParams, {
+                  idempotencyKey: `price_replace_inactive_${tier.id}_${tier.priceCents}_${Date.now()}`
+                });
                 stripePriceId = newPrice.id;
                 logger.info(`[Tier Sync] Created replacement price for ${tier.name} (old was inactive)`);
               } else if (existingPrice.unit_amount !== tier.priceCents) {
@@ -117,7 +119,9 @@ export async function syncMembershipTiersToStripe(): Promise<{
                   metadata: priceMetadata,
                   recurring: { interval: billingInterval },
                 };
-                const newPrice = await stripe.prices.create(priceParams);
+                const newPrice = await stripe.prices.create(priceParams, {
+                  idempotencyKey: `price_replace_changed_${tier.id}_${tier.priceCents}_${Date.now()}`
+                });
                 stripePriceId = newPrice.id;
                 logger.info(`[Tier Sync] Created new price for ${tier.name} (price changed)`);
               }
@@ -132,7 +136,9 @@ export async function syncMembershipTiersToStripe(): Promise<{
                   metadata: priceMetadata,
                   recurring: { interval: billingInterval },
                 };
-                const newPrice = await stripe.prices.create(priceParams);
+                const newPrice = await stripe.prices.create(priceParams, {
+                  idempotencyKey: `price_replace_missing_${tier.id}_${tier.priceCents}_${Date.now()}`
+                });
                 stripePriceId = newPrice.id;
                 logger.info(`[Tier Sync] Created replacement price for ${tier.name} (old was missing)`);
               } else {

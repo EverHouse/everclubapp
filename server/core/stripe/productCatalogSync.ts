@@ -241,7 +241,10 @@ export async function syncCafeItemsToStripe(): Promise<{
         if (stripePriceId) {
           try {
             const existingPrice = await stripe.prices.retrieve(stripePriceId);
-            if (existingPrice.unit_amount !== priceCents) {
+            if (!existingPrice.active) {
+              needNewPrice = true;
+              logger.warn(`[Cafe Sync] Price ${stripePriceId} for ${itemName} is inactive, will create replacement`);
+            } else if (existingPrice.unit_amount !== priceCents) {
               await stripe.prices.update(stripePriceId, { active: false });
               needNewPrice = true;
               logger.info(`[Cafe Sync] Price changed for ${itemName}, creating new price`);
@@ -263,7 +266,7 @@ export async function syncCafeItemsToStripe(): Promise<{
               cafe_item_id: itemId,
             },
           }, {
-            idempotencyKey: `price_cafe_${itemId}_${priceCents}`
+            idempotencyKey: `price_cafe_${itemId}_${priceCents}_${Date.now()}`
           });
           stripePriceId = newPrice.id;
           logger.info(`[Cafe Sync] Created price for ${itemName}: ${stripePriceId}`);
