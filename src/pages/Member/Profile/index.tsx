@@ -149,7 +149,7 @@ const Profile: React.FC = () => {
 
         <button
           onClick={data.logout}
-          className={`w-full p-4 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${
+          className={`tactile-btn w-full p-4 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer ${
             data.isDark 
               ? 'glass-card text-red-400 hover:bg-red-500/20' 
               : 'bg-red-50 text-red-600 hover:bg-red-100'

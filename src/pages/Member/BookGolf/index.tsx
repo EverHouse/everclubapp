@@ -60,7 +60,7 @@ const BookGolf: React.FC = () => {
           <p className={`text-sm mb-4 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
             Your membership is currently {effectiveUser.status.toLowerCase()}. Please contact the front desk or update your membership to resume booking.
           </p>
-          <a href="/membership" className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-brand-green rounded-xl font-bold text-sm">
+          <a href="/membership" className="tactile-btn inline-flex items-center gap-2 px-6 py-3 bg-accent text-brand-green rounded-xl font-bold text-sm">
             <Icon name="upgrade" className="text-lg" />View Membership Options
           </a>
         </section>
@@ -85,7 +85,7 @@ const BookGolf: React.FC = () => {
             <p className={`text-sm mb-4 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
               Golf simulator access is available for Core, Premium, and Corporate members. Upgrade your membership to start booking.
             </p>
-            <a href="/membership" className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-brand-green rounded-xl font-bold text-sm">
+            <a href="/membership" className="tactile-btn inline-flex items-center gap-2 px-6 py-3 bg-accent text-brand-green rounded-xl font-bold text-sm">
               <Icon name="upgrade" className="text-lg" />View Membership Options
             </a>
           </section>
@@ -96,7 +96,7 @@ const BookGolf: React.FC = () => {
             <p className={`text-sm mb-4 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
               Conference room booking is available for Core, Premium, and Corporate members. Upgrade your membership to start booking.
             </p>
-            <a href="/membership" className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-brand-green rounded-xl font-bold text-sm">
+            <a href="/membership" className="tactile-btn inline-flex items-center gap-2 px-6 py-3 bg-accent text-brand-green rounded-xl font-bold text-sm">
               <Icon name="upgrade" className="text-lg" />View Membership Options
             </a>
           </section>

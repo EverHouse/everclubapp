@@ -216,7 +216,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
           <button
             onClick={openCreateModal}
             data-create-coupon-btn
-            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+            className="tactile-btn flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors cursor-pointer"
           >
           <Icon name="add" className="text-lg" />
             Create Coupon
@@ -285,13 +285,13 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
                       <button
                         onClick={() => handleDelete(coupon.id)}
                         disabled={isDeleting === coupon.id}
-                        className="px-3 py-1.5 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                        className="tactile-btn px-3 py-1.5 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 cursor-pointer"
                       >
                         {isDeleting === coupon.id ? 'Deleting...' : 'Confirm'}
                       </button>
                       <button
                         onClick={() => setDeleteConfirmId(null)}
-                        className="px-3 py-1.5 bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white text-sm rounded-lg hover:bg-gray-300 dark:hover:bg-white/20 transition-colors"
+                        className="tactile-btn px-3 py-1.5 bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white text-sm rounded-lg hover:bg-gray-300 dark:hover:bg-white/20 transition-colors cursor-pointer"
                       >
                         Cancel
                       </button>

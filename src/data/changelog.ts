@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.94.0",
+    date: "2026-03-20",
+    title: "Interactive Element Consistency",
+    changes: [
+      "Improved: All action buttons across the member portal (Sign Out, Retry, Show More, Book with Amarie, View Membership Options, wallet pass, cancel confirmation) now have spring-physics press feedback for a more tactile feel",
+      "Improved: Event cards now use spring-physics press animation instead of a basic scale transform when collapsed",
+      "Improved: RSVP and Learn More buttons no longer use opacity-based hover — now use consistent color-shift hover matching the rest of the app",
+      "Improved: Admin action buttons (Sync from Stripe, Pull from Stripe, Remind, Delete, Create Coupon) now have press feedback and pointer cursors",
+      "Improved: Membership card Contact Us to Renew and Apple Wallet buttons now have press feedback matching other action buttons",
+    ]
+  },
+  {
     version: "8.93.0",
     date: "2026-03-20",
     title: "Toast & Animation Consistency Pass",

@@ -437,7 +437,7 @@ const ClassesView: React.FC<{isDark?: boolean; userEmail?: string; userStatus?: 
                   refetchClasses();
                   refetchEnrollments();
                 }}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors ${isDark ? 'bg-red-500/20 hover:bg-red-500/30 text-white' : 'bg-red-100 hover:bg-red-200 text-primary'}`}
+                className={`tactile-btn flex-shrink-0 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors cursor-pointer ${isDark ? 'bg-red-500/20 hover:bg-red-500/30 text-white' : 'bg-red-100 hover:bg-red-200 text-primary'}`}
               >
                 Retry
               </button>
@@ -495,7 +495,7 @@ const ClassesView: React.FC<{isDark?: boolean; userEmail?: string; userStatus?: 
               <div className="flex justify-center pt-2 pb-4">
                 <button
                   onClick={() => setDisplayCount(prev => prev + LOAD_MORE_COUNT)}
-                  className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-fast active:scale-[0.98] ${isDark ? 'bg-white/10 text-white hover:bg-white/15 border border-white/20' : 'bg-primary/5 text-primary hover:bg-primary/10 border border-primary/15'}`}
+                  className={`tactile-btn px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-fast cursor-pointer ${isDark ? 'bg-white/10 text-white hover:bg-white/15 border border-white/20' : 'bg-primary/5 text-primary hover:bg-primary/10 border border-primary/15'}`}
                 >
                   Show More ({sortedClasses.length - displayCount} remaining)
                 </button>
@@ -523,7 +523,7 @@ const MedSpaView: React.FC<{isDark?: boolean}> = ({ isDark = true }) => (
          href="https://www.amarieaesthetics.co" 
          target="_blank" 
          rel="noopener noreferrer"
-         className={`w-full py-3.5 rounded-xl font-bold tracking-wide active:scale-[0.98] transition-all duration-fast flex items-center justify-center gap-2 ${isDark ? 'bg-lavender text-primary hover:bg-lavender/90' : 'bg-primary text-white hover:bg-primary/90'}`}
+         className={`tactile-btn w-full py-3.5 rounded-xl font-bold tracking-wide transition-all duration-fast flex items-center justify-center gap-2 cursor-pointer ${isDark ? 'bg-lavender text-primary hover:bg-lavender/90' : 'bg-primary text-white hover:bg-primary/90'}`}
        >
          <Icon name="calendar_add_on" className="text-[20px]" />
          Book with Amarie
@@ -752,7 +752,7 @@ const ClassCard: React.FC<ClassCardProps> = React.memo(({ title, date, time, ins
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all duration-fast flex items-center justify-center gap-2 active:scale-[0.98] ${isDark ? 'bg-white text-brand-green hover:bg-white/90' : 'bg-brand-green text-white hover:opacity-90'}`}
+            className={`tactile-btn w-full py-2.5 rounded-lg font-bold text-sm transition-all duration-fast flex items-center justify-center gap-2 cursor-pointer ${isDark ? 'bg-white text-brand-green hover:bg-white/90' : 'bg-brand-green text-white hover:bg-brand-green/90'}`}
           >
             <span>Learn More</span>
             <Icon name="open_in_new" className="text-sm" />

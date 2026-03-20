@@ -101,7 +101,7 @@ const NfcCheckin: React.FC = () => {
               </p>
               <button
                 onClick={handleLoginRedirect}
-                className="w-full py-3 px-6 rounded-xl bg-white text-gray-900 font-semibold text-sm hover:bg-white/90 transition-colors"
+                className="tactile-btn w-full py-3 px-6 rounded-xl bg-white text-gray-900 font-semibold text-sm hover:bg-white/90 transition-colors cursor-pointer"
               >
                 Sign In
               </button>

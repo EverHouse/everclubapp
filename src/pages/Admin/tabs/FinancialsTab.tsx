@@ -294,7 +294,7 @@ const SubscriptionsSubTab: React.FC = () => {
         <button
           onClick={handleSyncFromStripe}
           disabled={isSyncing}
-          className="flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="tactile-btn flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
           <Icon name={isSyncing ? 'sync' : 'cloud_sync'} className={`text-lg ${isSyncing ? 'animate-spin' : ''}`} />
           {isSyncing ? 'Syncing...' : 'Sync from Stripe'}
@@ -361,7 +361,7 @@ const SubscriptionsSubTab: React.FC = () => {
                     <button
                       onClick={() => handleSendReminder(sub.id)}
                       disabled={sendingReminder === sub.id}
-                      className="flex-1 px-3 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                      className="tactile-btn flex-1 px-3 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <Icon name="mail" className="text-sm" />
                       {sendingReminder === sub.id ? 'Sending...' : 'Send Reminder'}
@@ -371,7 +371,7 @@ const SubscriptionsSubTab: React.FC = () => {
                     href={getStripeSubscriptionUrl(sub.id)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 px-3 py-2 bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/15 text-primary dark:text-white rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1"
+                    className="tactile-btn flex-1 px-3 py-2 bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/15 text-primary dark:text-white rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1 cursor-pointer"
                   >
                     <Icon name="open_in_new" className="text-sm" />
                     View in Stripe
@@ -434,7 +434,7 @@ const SubscriptionsSubTab: React.FC = () => {
                             <button
                               onClick={() => handleSendReminder(sub.id)}
                               disabled={sendingReminder === sub.id}
-                              className="px-3 py-1.5 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                              className="tactile-btn px-3 py-1.5 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1 cursor-pointer"
                             >
                               <Icon name="mail" className="text-sm" />
                               {sendingReminder === sub.id ? 'Sending...' : 'Remind'}
@@ -444,7 +444,7 @@ const SubscriptionsSubTab: React.FC = () => {
                             href={getStripeSubscriptionUrl(sub.id)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/15 text-primary dark:text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
+                            className="tactile-btn px-3 py-1.5 bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/15 text-primary dark:text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer"
                           >
                             <Icon name="open_in_new" className="text-sm" />
                             Stripe
@@ -467,7 +467,7 @@ const SubscriptionsSubTab: React.FC = () => {
             <button
               onClick={handleLoadMore}
               disabled={isLoadingMore}
-              className="flex items-center gap-1 px-4 py-2 bg-primary dark:bg-accent text-white dark:text-primary rounded-full font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="tactile-btn flex items-center gap-1 px-4 py-2 bg-primary dark:bg-accent text-white dark:text-primary rounded-full font-medium hover:bg-primary/90 dark:hover:bg-accent/90 transition-colors disabled:opacity-50 cursor-pointer"
             >
               {isLoadingMore ? (
                 <>
@@ -643,7 +643,7 @@ const InvoicesSubTab: React.FC = () => {
           />
           <button
             onClick={handleDateFilterApply}
-            className="px-3 py-1.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+            className="tactile-btn px-3 py-1.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-sm font-medium hover:bg-primary/90 dark:hover:bg-accent/90 transition-colors cursor-pointer"
           >
             Apply
           </button>
@@ -719,7 +719,7 @@ const InvoicesSubTab: React.FC = () => {
                       href={invoice.invoicePdf}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 px-3 py-2 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-400 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1"
+                      className="tactile-btn flex-1 px-3 py-2 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-400 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <Icon name="picture_as_pdf" className="text-sm" />
                       Download PDF
@@ -729,7 +729,7 @@ const InvoicesSubTab: React.FC = () => {
                     href={getStripeInvoiceUrl(invoice.id)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 px-3 py-2 bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/15 text-primary dark:text-white rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1"
+                    className="tactile-btn flex-1 px-3 py-2 bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/15 text-primary dark:text-white rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1 cursor-pointer"
                   >
                     <Icon name="open_in_new" className="text-sm" />
                     View in Stripe
@@ -804,7 +804,7 @@ const InvoicesSubTab: React.FC = () => {
                             href={getStripeInvoiceUrl(invoice.id)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/15 text-primary dark:text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
+                            className="tactile-btn px-3 py-1.5 bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/15 text-primary dark:text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer"
                           >
                             <Icon name="open_in_new" className="text-sm" />
                             Stripe
@@ -827,7 +827,7 @@ const InvoicesSubTab: React.FC = () => {
             <button
               onClick={handleLoadMore}
               disabled={isLoadingMore}
-              className="flex items-center gap-1 px-4 py-2 bg-primary dark:bg-accent text-white dark:text-primary rounded-full font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="tactile-btn flex items-center gap-1 px-4 py-2 bg-primary dark:bg-accent text-white dark:text-primary rounded-full font-medium hover:bg-primary/90 dark:hover:bg-accent/90 transition-colors disabled:opacity-50 cursor-pointer"
             >
               {isLoadingMore ? (
                 <>

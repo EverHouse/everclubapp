@@ -195,7 +195,7 @@ const MembershipDetailsModal: React.FC<MembershipDetailsModalProps> = ({
                 <p className="text-sm text-red-200 text-center mb-2">Your membership has expired</p>
                 <a 
                   href="/contact" 
-                  className="block w-full py-2 px-4 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg text-center transition-colors"
+                  className="tactile-btn block w-full py-2 px-4 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg text-center transition-colors"
                 >
                   Contact Us to Renew
                 </a>
@@ -297,7 +297,7 @@ const MembershipDetailsModal: React.FC<MembershipDetailsModalProps> = ({
                   }
                 }}
                 disabled={walletLoading}
-                className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 ${walletLoading ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90 active:scale-[0.98]'}`}
+                className={`tactile-btn inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 ${walletLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
                 style={{
                   backgroundColor: '#000000',
                   color: '#FFFFFF',

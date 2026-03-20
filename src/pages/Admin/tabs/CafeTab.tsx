@@ -126,7 +126,7 @@ const CafeTab: React.FC = () => {
                 <button 
                     onClick={handlePullFromStripe} 
                     disabled={pullMutation.isPending}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded-[4px] hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors disabled:opacity-50"
+                    className="tactile-btn flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded-[4px] hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                     <Icon name={pullMutation.isPending ? 'progress_activity' : 'cloud_download'} className={`text-sm ${pullMutation.isPending ? 'animate-spin' : ''}`} />
                     {pullMutation.isPending ? 'Pulling...' : 'Pull from Stripe'}

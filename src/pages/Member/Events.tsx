@@ -321,7 +321,7 @@ const MemberEvents: React.FC = () => {
                       onClick={() => handleCardClick(event.id)}
                       aria-expanded={isExpanded}
                       aria-label={`${event.title} on ${event.date} at ${event.time}. ${isExpanded ? 'Collapse' : 'Expand'} for details`}
-                      className={`w-full px-4 pt-4 pb-3 cursor-pointer transition-all duration-fast text-left ${isExpanded ? '' : 'active:scale-[0.98]'}`}
+                      className={`w-full px-4 pt-4 pb-3 cursor-pointer transition-all duration-fast text-left ${isExpanded ? '' : 'tactile-btn'}`}
                     >
                       <div className="flex gap-3 items-start">
                         <div className="flex-1 min-w-0">
@@ -392,7 +392,7 @@ const MemberEvents: React.FC = () => {
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className={`tactile-btn flex-1 py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${isDark ? 'bg-white text-brand-green hover:bg-white/90' : 'bg-brand-green text-white hover:opacity-90'}`}
+                              className={`tactile-btn flex-1 py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${isDark ? 'bg-white text-brand-green hover:bg-white/90' : 'bg-brand-green text-white hover:bg-brand-green/90'}`}
                             >
                               <span>Learn More</span>
                               <Icon name="open_in_new" className="text-sm" />
@@ -436,7 +436,7 @@ const MemberEvents: React.FC = () => {
                             <button 
                               onClick={(e) => { e.stopPropagation(); handleRSVP(event); }}
                               disabled={isLoadingThis}
-                              className={`tactile-btn flex-1 py-3 rounded-xl font-semibold text-sm bg-brand-green text-white hover:opacity-90 transition-opacity flex items-center justify-center gap-2 ${isLoadingThis ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              className={`tactile-btn flex-1 py-3 rounded-xl font-semibold text-sm bg-brand-green text-white hover:bg-brand-green/90 transition-colors flex items-center justify-center gap-2 ${isLoadingThis ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                               {isLoadingThis ? <WalkingGolferSpinner size="sm" variant="light" /> : 'RSVP'}
                             </button>

@@ -206,13 +206,13 @@ const Dashboard: React.FC = () => {
           <div className="flex gap-3">
             <button 
               onClick={() => setConfirmModal(null)}
-              className={`flex-1 py-3 rounded-xl font-bold text-sm ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-100 hover:bg-gray-200'}`}
+              className={`tactile-btn flex-1 py-3 rounded-xl font-bold text-sm cursor-pointer ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-100 hover:bg-gray-200'}`}
             >
               Keep it
             </button>
             <button 
               onClick={confirmModal.onConfirm}
-              className="flex-1 py-3 rounded-xl font-bold text-sm bg-red-500 hover:bg-red-600 text-white shadow-lg"
+              className="tactile-btn flex-1 py-3 rounded-xl font-bold text-sm bg-red-500 hover:bg-red-600 text-white shadow-lg cursor-pointer"
             >
               Yes, Cancel
             </button>
