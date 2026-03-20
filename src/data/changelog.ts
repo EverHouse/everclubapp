@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.94.3",
+    date: "2026-03-20",
+    title: "Tab Switch Glitch Fixes",
+    changes: [
+      "Fixed: Switching between Golf Simulator and Conference Room tabs on the booking page no longer causes a visual flicker — removed conflicting double animation that played on every tab switch",
+      "Fixed: Switching between Upcoming and MedSpa tabs on the Wellness page no longer causes a visual glitch — removed the same double animation conflict",
+      "Fixed: Booking page tab switch no longer briefly resets the selected date when the date hasn't actually changed, preventing an unnecessary flash in the availability section",
+      "Improved: Wellness page loading state now shows skeleton cards that match the layout of real class cards, instead of a generic spinner that caused content to pop in abruptly",
+    ]
+  },
+  {
     version: "8.94.2",
     date: "2026-03-20",
     title: "Page Scroll & Accordion UX Fixes",

@@ -102,7 +102,7 @@ const BookGolf: React.FC = () => {
           </section>
         ) : (
           <TabTransition activeKey={activeTab}>
-          <div ref={playerSlotRef} className="relative z-10 animate-content-enter space-y-6">
+          <div ref={playerSlotRef} className="relative z-10 space-y-6">
             {activeTab === 'simulator' && (
               <PlayerSlotEditor
                 playerCount={playerCount}

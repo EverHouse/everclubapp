@@ -115,7 +115,8 @@ export function useBookGolf() {
 
   useEffect(() => {
     if (isFirstTabRenderRef.current) { isFirstTabRenderRef.current = false; return; }
-    setSelectedDateObj(dates.length > 0 ? dates[0] : null);
+    const firstDate = dates.length > 0 ? dates[0] : null;
+    setSelectedDateObj(prev => (prev?.date === firstDate?.date) ? prev : firstDate);
     setDuration(60);
     setPlayerCount(1);
     setSelectedSlot(null);

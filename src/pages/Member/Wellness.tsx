@@ -14,7 +14,7 @@ import { EmptyWellness } from '../../components/EmptyState';
 import { playSound } from '../../utils/sounds';
 import { formatDateDisplayWithDay } from '../../utils/dateUtils';
 import { bookingEvents } from '../../lib/bookingEvents';
-import PageLoadingSpinner from '../../components/PageLoadingSpinner';
+import { WellnessCardSkeleton } from '../../components/skeletons';
 import Icon from '../../components/icons/Icon';
 
 interface WellnessEnrollment {
@@ -147,7 +147,7 @@ const Wellness: React.FC = () => {
       </section>
 
       <TabTransition activeKey={activeTab}>
-      <div className="relative z-10 animate-content-enter">
+      <div className="relative z-10">
         {activeTab === 'classes' && <ClassesView isDark={isDark} userEmail={user?.email} userStatus={user?.status} refreshKey={refreshKey} onRefreshComplete={onRefreshComplete} onSwitchToMedSpa={() => setActiveTab('medspa')} />}
         {activeTab === 'medspa' && <MedSpaView isDark={isDark} />}
       </div>
@@ -412,7 +412,11 @@ const ClassesView: React.FC<{isDark?: boolean; userEmail?: string; userStatus?: 
 
   if (isLoading) {
     return (
-      <PageLoadingSpinner />
+      <div className="space-y-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <WellnessCardSkeleton key={i} isDark={isDark} />
+        ))}
+      </div>
     );
   }
 
