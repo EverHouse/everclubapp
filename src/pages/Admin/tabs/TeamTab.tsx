@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useAuthData } from '../../../contexts/DataContext';
 import ModalShell from '../../../components/ModalShell';
-import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
+import PageLoadingSpinner from '../../../components/PageLoadingSpinner';
 import FloatingActionButton from '../../../components/FloatingActionButton';
 import { formatPhoneNumber } from '../../../utils/formatting';
 import { AnimatedPage } from '../../../components/motion';
@@ -360,8 +360,7 @@ const TeamTab: React.FC = () => {
 
         {isLoading ? (
           <div className="py-8 flex flex-col items-center gap-2">
-            <WalkingGolferSpinner size="md" variant="auto" />
-            <p className="text-sm text-gray-500">Loading team...</p>
+            <PageLoadingSpinner />
           </div>
         ) : filteredMembers.length === 0 ? (
           <div className="py-8 text-center text-gray-500 dark:text-gray-400">

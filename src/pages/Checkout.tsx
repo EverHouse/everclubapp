@@ -5,6 +5,7 @@ import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe
 import EmptyState from '../components/EmptyState';
 import { usePricing } from '../hooks/usePricing';
 import WalkingGolferSpinner from '../components/WalkingGolferSpinner';
+import PageLoadingSpinner from '../components/PageLoadingSpinner';
 import { fetchWithCredentials, postWithCredentials, isAbortError } from '../hooks/queries/useFetch';
 import Icon from '../components/icons/Icon';
 
@@ -83,7 +84,7 @@ function CheckoutForm({ tier, email, quantity = 1, companyName, jobTitle, isCorp
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <WalkingGolferSpinner size="md" variant="auto" />
+        <PageLoadingSpinner />
       </div>
     );
   }
@@ -515,7 +516,7 @@ function DayPassesSection() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <WalkingGolferSpinner size="md" variant="auto" />
+        <PageLoadingSpinner />
       </div>
     );
   }
@@ -772,7 +773,7 @@ function CheckoutSuccess() {
   if (status === 'loading') {
     return (
       <div className="flex items-center justify-center py-16">
-        <WalkingGolferSpinner size="md" variant="auto" />
+        <PageLoadingSpinner />
       </div>
     );
   }

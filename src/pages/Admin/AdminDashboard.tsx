@@ -16,6 +16,7 @@ import StaffMobileSidebar from '../../components/StaffMobileSidebar';
 import { useUndoAction } from '../../hooks/useUndoAction';
 import { TabTransition } from '../../components/motion';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
+import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 import PullToRefresh from '../../components/PullToRefresh';
 import CheckInConfirmationModal from '../../components/staff-command-center/modals/CheckInConfirmationModal';
 import { useToast } from '../../components/Toast';
@@ -31,11 +32,8 @@ import { useCommandCenter } from './layout/hooks/useCommandCenter';
 import { fetchWithCredentials, putWithCredentials, postWithCredentials, deleteWithCredentials, ApiError } from '../../hooks/queries/useFetch';
 import Icon from '../../components/icons/Icon';
 
-// Loading fallback for lazy-loaded tabs - matches app aesthetic
 const TabLoadingFallback = () => (
-  <div className="flex items-center justify-center py-20">
-    <WalkingGolferSpinner size="sm" />
-  </div>
+  <PageLoadingSpinner />
 );
 
 const AdminDashboard: React.FC = () => {

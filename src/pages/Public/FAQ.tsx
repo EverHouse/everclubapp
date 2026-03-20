@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Footer } from '../../components/Footer';
-import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
+import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 import EmptyState from '../../components/EmptyState';
 import { usePageReady } from '../../stores/pageReadyStore';
 import { AnimatedPage } from '../../components/motion';
@@ -119,7 +119,7 @@ const FAQ: React.FC = () => {
       <div ref={faqParent} className="px-6 pb-12 flex-1 space-y-3 animate-content-enter-delay-2">
         {loading ? (
           <div className="flex justify-center py-8">
-            <WalkingGolferSpinner size="md" />
+            <PageLoadingSpinner />
           </div>
         ) : filteredFaqs.length === 0 ? (
           <EmptyState

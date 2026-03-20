@@ -82,7 +82,7 @@ const AuthCallback: React.FC = () => {
     <div className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] items-center justify-center animate-page-enter">
       <div className="bg-white dark:bg-[#1a1d15] p-8 rounded-xl shadow-sm dark:shadow-none border border-black/5 dark:border-white/10 max-w-sm w-full mx-4">
         <div className="text-center">
-          <WalkingGolferSpinner size="md" className="mx-auto mb-4" />
+          <WalkingGolferSpinner size="lg" className="mx-auto mb-4" />
           <h2 className="text-2xl text-primary dark:text-white leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>Signing you in...</h2>
           <p className="text-primary/60 dark:text-white/60 mt-2">Please wait</p>
         </div>

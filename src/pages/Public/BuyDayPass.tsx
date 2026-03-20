@@ -6,7 +6,7 @@ import EmptyState from '../../components/EmptyState';
 import { usePageReady } from '../../stores/pageReadyStore';
 import { useNavigationLoading } from '../../stores/navigationLoadingStore';
 import SEO from '../../components/SEO';
-import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
+import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 import { usePublicMembershipTiers, useDayPassCheckout } from '../../hooks/queries';
 import Icon from '../../components/icons/Icon';
 
@@ -111,7 +111,7 @@ const BuyDayPass: React.FC = () => {
     return (
       <div className="flex flex-col min-h-screen bg-bone dark:bg-[#141414]">
         <div className="flex-1 flex items-center justify-center">
-          <WalkingGolferSpinner size="sm" />
+          <PageLoadingSpinner />
         </div>
       </div>
     );

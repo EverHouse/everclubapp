@@ -2,7 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
 import { AnimatedPage } from '../../../components/motion';
-import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
+import PageLoadingSpinner from '../../../components/PageLoadingSpinner';
 import { ChartCardSkeleton, Skeleton, SkeletonCrossfade } from '../../../components/skeletons';
 import type { BookingStats, ExtendedStats, MembershipInsights, ActiveMembers, AtRiskMember } from './analyticsTypes';
 import Icon from '../../../components/icons/Icon';
@@ -182,7 +182,7 @@ const AnalyticsTab: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <WalkingGolferSpinner />
+        <PageLoadingSpinner />
       </div>
     );
   }

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
 import { copyToClipboard } from '../../../lib/copyToClipboard';
 import Toggle from '../../../components/Toggle';
-import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
+import PageLoadingSpinner from '../../../components/PageLoadingSpinner';
 import Icon from '../../../components/icons/Icon';
 import { useToast } from '../../../components/Toast';
 
@@ -361,8 +361,7 @@ const SettingsTab: React.FC = () => {
   if (isLoading) {
     return (
       <div className="py-8 flex flex-col items-center gap-2">
-        <WalkingGolferSpinner size="md" variant="auto" />
-        <p className="text-sm text-gray-500">Loading settings...</p>
+        <PageLoadingSpinner />
       </div>
     );
   }

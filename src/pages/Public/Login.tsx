@@ -5,6 +5,7 @@ import { useAuthData } from '../../contexts/DataContext';
 import { usePageReady } from '../../stores/pageReadyStore';
 import { useNavigationLoading } from '../../stores/navigationLoadingStore';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
+import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
 import AppleSignInButton from '../../components/AppleSignInButton';
 import { startAuthentication, WebAuthnAbortService } from '@simplewebauthn/browser';
@@ -377,7 +378,7 @@ const Login: React.FC = () => {
   if (sessionChecked && user) {
     return (
       <div className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] items-center justify-center">
-        <WalkingGolferSpinner size="md" variant="auto" />
+        <PageLoadingSpinner />
       </div>
     );
   }
