@@ -435,6 +435,10 @@ export async function checkinBooking(params: CheckinBookingParams) {
   }
 
   const result = await db.transaction(async (tx) => {
+    if (skipPaymentCheck) {
+      await tx.execute(sql`SET LOCAL app.bypass_status_check = 'true'`);
+    }
+
     const updated = await tx.update(bookingRequests)
       .set({
         status: newStatus,

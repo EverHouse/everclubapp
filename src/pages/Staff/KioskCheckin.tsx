@@ -4,6 +4,7 @@ import { useAuthData } from '../../contexts/DataContext';
 import { parseQrCode } from '../../utils/qrCodeParser';
 import Icon from '../../components/icons/Icon';
 import { MemberPaymentModal } from '../../components/booking/MemberPaymentModal';
+import { playSound } from '../../utils/sounds';
 
 interface Html5QrcodeInstance {
   getState(): number;
@@ -137,6 +138,7 @@ const KioskCheckin: React.FC = () => {
           lifetimeVisits: data.lifetimeVisits,
           upcomingBooking: data.upcomingBooking || null
         });
+        playSound('checkinSuccess');
         setState('success');
       } else if (data.alreadyCheckedIn) {
         setCheckinResult({
@@ -144,13 +146,16 @@ const KioskCheckin: React.FC = () => {
           tier: data.tier || null,
           lifetimeVisits: 0
         });
+        playSound('tap');
         setState('already_checked_in');
       } else {
         setErrorMessage(data.error || 'Check-in failed. Please ask staff for help.');
+        playSound('checkinWarning');
         setState('error');
       }
     } catch {
       setErrorMessage('Connection error. Please try again.');
+      playSound('checkinWarning');
       setState('error');
     }
   }, []);
