@@ -11,7 +11,9 @@ All notable changes to the Ever Club Members App are documented here.
 - **Improved**: All remaining public pages (Login, Day Pass, Private Hire, Privacy Policy, Terms of Service) and admin tabs (Tiers, Discounts, Announcements) now have smooth entry animations on load
 - **Fixed**: Login page no longer flashes a blank white screen while redirecting an already-authenticated user — now shows the branded loading spinner
 - **Fixed**: Landing page redirect screen now matches the site background color instead of showing a white flash
-- Files changed: `src/pages/Admin/tabs/TiersTab/TierEditorDrawer.tsx`, `src/pages/Admin/tabs/TiersTab/index.tsx`, `src/pages/Admin/tabs/DiscountsSubTab.tsx`, `src/pages/Admin/tabs/DirectoryTab.tsx`, `src/pages/Admin/tabs/directory/useDirectoryData.ts`, `src/components/admin/AnnouncementManager.tsx`, `src/pages/Public/Login.tsx`, `src/pages/Public/Landing.tsx`, `src/pages/Public/PrivateHire.tsx`, `src/pages/Public/BuyDayPass.tsx`, `src/pages/Public/DayPassSuccess.tsx`, `src/pages/Public/PrivacyPolicy.tsx`, `src/pages/Public/TermsOfService.tsx`
+- **Fixed**: Booking a golf simulator was showing two confirmation messages at once (a toast and a floating banner) — now shows only the toast
+- **Cleaned up**: Removed unused duplicate confirmation banner from the Wellness page that was leftover from an earlier design
+- Files changed: `src/pages/Admin/tabs/TiersTab/TierEditorDrawer.tsx`, `src/pages/Admin/tabs/TiersTab/index.tsx`, `src/pages/Admin/tabs/DiscountsSubTab.tsx`, `src/pages/Admin/tabs/DirectoryTab.tsx`, `src/pages/Admin/tabs/directory/useDirectoryData.ts`, `src/components/admin/AnnouncementManager.tsx`, `src/pages/Public/Login.tsx`, `src/pages/Public/Landing.tsx`, `src/pages/Public/PrivateHire.tsx`, `src/pages/Public/BuyDayPass.tsx`, `src/pages/Public/DayPassSuccess.tsx`, `src/pages/Public/PrivacyPolicy.tsx`, `src/pages/Public/TermsOfService.tsx`, `src/pages/Member/BookGolf/useBookGolf.ts`, `src/pages/Member/BookGolf/BookingFooter.tsx`, `src/pages/Member/BookGolf/index.tsx`, `src/pages/Member/Wellness.tsx`
 
 ## [8.92.0] - 2026-03-20
 

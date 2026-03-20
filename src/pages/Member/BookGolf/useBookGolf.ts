@@ -59,7 +59,6 @@ export function useBookGolf() {
   const [playerSlotRef] = useAutoAnimate();
   const [feeRef] = useAutoAnimate();
   const [timeSlotsAnimRef] = useAutoAnimate();
-  const [showConfirmation, setShowConfirmation] = useState(false);
   const isSubmittingRef = useRef(false);
   const [showViewAsConfirm, setShowViewAsConfirm] = useState(false);
   const [expandedHour, setExpandedHour] = useState<string | null>(null);
@@ -549,8 +548,7 @@ export function useBookGolf() {
       } else if (activeTab === 'conference') {
         showToast('Conference room booked!', 'success', 4000);
       } else { showToast('Booking request sent! Staff will review shortly.', 'success', 4000); }
-      setShowConfirmation(true);
-      setTimeout(() => { setShowConfirmation(false); setSelectedSlot(null); setSelectedResource(null); }, 2500);
+      setTimeout(() => { setSelectedSlot(null); setSelectedResource(null); }, 2500);
     } catch (err: unknown) {
       haptic.error();
       const errorMessage = (err instanceof Error ? err.message : String(err)) || 'Booking failed. Please try again.';
@@ -621,7 +619,7 @@ export function useBookGolf() {
   return {
     activeTab, setActiveTab, playerCount, setPlayerCount, duration, setDuration,
     memberNotes, setMemberNotes, selectedSlot, setSelectedSlot, selectedResource, setSelectedResource,
-    showConfirmation, showViewAsConfirm, setShowViewAsConfirm,
+    showViewAsConfirm, setShowViewAsConfirm,
     expandedHour, setExpandedHour, hasUserSelectedDuration, setHasUserSelectedDuration,
     playerSlots, setPlayerSlots, cancelTargetBooking, setCancelTargetBooking,
     showCancelConfirm, setShowCancelConfirm, showGuardianConsent, setShowGuardianConsent,

@@ -23,7 +23,7 @@ const BookGolf: React.FC = () => {
   const {
     activeTab, setActiveTab, playerCount, setPlayerCount, duration, setDuration,
     memberNotes, setMemberNotes, selectedSlot, setSelectedSlot, selectedResource, setSelectedResource,
-    showConfirmation, showViewAsConfirm, setShowViewAsConfirm,
+    showViewAsConfirm, setShowViewAsConfirm,
     expandedHour, setExpandedHour, hasUserSelectedDuration, setHasUserSelectedDuration,
     playerSlots, setPlayerSlots, cancelTargetBooking, setCancelTargetBooking,
     showCancelConfirm, setShowCancelConfirm, showGuardianConsent, setShowGuardianConsent,
@@ -293,7 +293,6 @@ const BookGolf: React.FC = () => {
         effectiveUserTier={effectiveUser?.tier}
         requestButtonRef={requestButtonRef}
         feeRef={feeRef}
-        showConfirmation={showConfirmation}
       />
 
     </SwipeablePage>

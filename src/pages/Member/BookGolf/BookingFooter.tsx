@@ -27,13 +27,12 @@ interface BookingFooterProps {
   effectiveUserTier: string | undefined;
   requestButtonRef: React.RefObject<HTMLDivElement | null>;
   feeRef: (el: HTMLElement | null) => void;
-  showConfirmation: boolean;
 }
 
 const BookingFooter: React.FC<BookingFooterProps> = ({
   canBook, isBooking, isDark, activeTab, conferencePaymentRequired, conferenceOverageFee,
   handleConfirm, estimatedFees, guestFeeDollars, guestPassInfo, effectiveUserTier,
-  requestButtonRef, feeRef, showConfirmation,
+  requestButtonRef, feeRef,
 }) => {
   return (
     <>
@@ -90,17 +89,6 @@ const BookingFooter: React.FC<BookingFooterProps> = ({
         </div>
       )}
 
-      {showConfirmation && (
-        <div className="fixed bottom-32 left-0 right-0 z-[60] flex justify-center pointer-events-none">
-          <div className={`backdrop-blur-md px-6 py-3 rounded-full shadow-2xl text-sm font-bold flex items-center gap-3 animate-pop-in w-max max-w-[90%] border pointer-events-auto ${isDark ? 'bg-black/80 text-white border-white/25' : 'bg-white/95 text-primary border-black/10'}`}>
-            <Icon name={activeTab === 'conference' ? 'check_circle' : 'schedule_send'} className="text-xl text-green-500" />
-            <div>
-              <p>{activeTab === 'conference' ? 'Booked!' : 'Request sent!'}</p>
-              <p className="text-[10px] font-normal opacity-80 mt-0.5">{activeTab === 'conference' ? 'Conference room confirmed.' : 'Staff will review shortly.'}</p>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };

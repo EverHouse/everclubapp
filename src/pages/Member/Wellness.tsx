@@ -72,20 +72,8 @@ const Wellness: React.FC = () => {
   const { user } = useAuthData();
   const { effectiveTheme } = useTheme();
   const { setPageReady } = usePageReady();
-  const { showToast } = useToast();
   const isDark = effectiveTheme === 'dark';
   const activeTab: 'classes' | 'medspa' = searchParams.get('tab') === 'medspa' ? 'medspa' : 'classes';
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [confirmationMessage, setConfirmationMessage] = useState('Booking confirmed.');
-  const confirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (confirmationTimerRef.current) {
-        clearTimeout(confirmationTimerRef.current);
-      }
-    };
-  }, []);
 
   const setActiveTab = (tab: 'classes' | 'medspa') => {
     setSearchParams(prev => {
@@ -126,34 +114,6 @@ const Wellness: React.FC = () => {
     return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}:00`;
   };
 
-  const handleBook = async (classData: WellnessClass) => {
-    if (!user?.email) return;
-    
-    const { ok, error } = await apiRequest('/api/wellness-enrollments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        class_id: classData.id,
-        user_email: user.email
-      })
-    });
-    
-    if (ok) {
-      playSound('bookingConfirmed');
-      showToast(`RSVP confirmed for ${classData.title}!`, 'success');
-      setConfirmationMessage(`RSVP confirmed for ${classData.title}!`);
-      setShowConfirmation(true);
-      if (confirmationTimerRef.current) clearTimeout(confirmationTimerRef.current);
-      confirmationTimerRef.current = setTimeout(() => setShowConfirmation(false), 2500);
-    } else {
-      showToast(error || 'Unable to load data. Please try again.', 'error');
-      setConfirmationMessage(error || 'Unable to load data. Please try again.');
-      setShowConfirmation(true);
-      if (confirmationTimerRef.current) clearTimeout(confirmationTimerRef.current);
-      confirmationTimerRef.current = setTimeout(() => setShowConfirmation(false), 2500);
-    }
-  };
-
   const [refreshKey, _setRefreshKey] = useState(0);
   const [refreshPromiseResolve, setRefreshPromiseResolve] = useState<(() => void) | null>(null);
 
@@ -188,28 +148,17 @@ const Wellness: React.FC = () => {
 
       <TabTransition activeKey={activeTab}>
       <div className="relative z-10 animate-content-enter">
-        {activeTab === 'classes' && <ClassesView onBook={handleBook} isDark={isDark} userEmail={user?.email} userStatus={user?.status} refreshKey={refreshKey} onRefreshComplete={onRefreshComplete} onSwitchToMedSpa={() => setActiveTab('medspa')} />}
+        {activeTab === 'classes' && <ClassesView isDark={isDark} userEmail={user?.email} userStatus={user?.status} refreshKey={refreshKey} onRefreshComplete={onRefreshComplete} onSwitchToMedSpa={() => setActiveTab('medspa')} />}
         {activeTab === 'medspa' && <MedSpaView isDark={isDark} />}
       </div>
       </TabTransition>
-
-      {showConfirmation && (
-         <div className="fixed bottom-32 left-0 right-0 z-[60] flex justify-center pointer-events-none">
-             <div className={`backdrop-blur-md px-6 py-3 rounded-full shadow-2xl text-sm font-bold flex items-center gap-3 animate-pop-in w-max max-w-[90%] border pointer-events-auto ${isDark ? 'bg-black/80 text-white border-white/25' : 'bg-white/95 text-primary border-black/10'}`}>
-                <Icon name="check_circle" className="text-xl text-green-500" />
-                <div>
-                  <p>{confirmationMessage}</p>
-                </div>
-             </div>
-         </div>
-      )}
 
     </SwipeablePage>
     </AnimatedPage>
   );
 };
 
-const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: boolean; userEmail?: string; userStatus?: string; refreshKey?: number; onRefreshComplete?: () => void; onSwitchToMedSpa?: () => void}> = ({ onBook: _onBook, isDark = true, userEmail, userStatus, refreshKey = 0, onRefreshComplete, onSwitchToMedSpa }) => {
+const ClassesView: React.FC<{isDark?: boolean; userEmail?: string; userStatus?: string; refreshKey?: number; onRefreshComplete?: () => void; onSwitchToMedSpa?: () => void}> = ({ isDark = true, userEmail, userStatus, refreshKey = 0, onRefreshComplete, onSwitchToMedSpa }) => {
   const { showToast } = useToast();
   const { setPageReady } = usePageReady();
   const queryClient = useQueryClient();

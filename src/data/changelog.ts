@@ -18,6 +18,8 @@ export const changelog: ChangelogEntry[] = [
       "Improved: All remaining public pages (Login, Day Pass, Private Hire, Privacy Policy, Terms of Service) and admin tabs (Tiers, Discounts, Announcements) now have smooth entry animations on load",
       "Fixed: Login page no longer flashes a blank white screen while redirecting an already-authenticated user — now shows the branded loading spinner",
       "Fixed: Landing page redirect screen now matches the site background color instead of showing a white flash",
+      "Fixed: Booking a golf simulator was showing two confirmation messages at once (a toast and a floating banner) — now shows only the toast",
+      "Cleaned up: Removed unused duplicate confirmation banner from the Wellness page that was leftover from an earlier design",
     ]
   },
   {
