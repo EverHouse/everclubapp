@@ -311,20 +311,6 @@
   --radius-3xl: 28px;
 }
 
-::view-transition-old(root) {
-  animation: none;
-}
-
-::view-transition-new(root) {
-  animation: vt-fade-in 220ms ease-out both;
-  mix-blend-mode: normal;
-}
-
-@keyframes vt-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 /* Global box-sizing reset */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -2790,27 +2776,6 @@ html.dark .border-accessible {
   }
 }
 
-/* View Transition navigation — suppress per-element entrance animations during VT.
-   The VT API handles the page-level transition; per-element animations with opacity/translateY
-   cause content to flash transparent and shift into place on top of the VT crossfade. */
-html.vt-navigating .animate-page-enter,
-html.vt-navigating .page-fade-in,
-html.vt-navigating .animate-content-enter,
-html.vt-navigating [class*="animate-content-enter-delay-"],
-html.vt-navigating .animate-list-item,
-html.vt-navigating [class*="animate-list-item-delay-"],
-html.vt-navigating .animate-slide-up-stagger,
-html.vt-navigating .animate-fade-in,
-html.vt-navigating .animate-header-title,
-html.vt-navigating .animate-hero-bg,
-html.vt-navigating .animate-hero-overlay,
-html.vt-navigating .animate-hero-headline,
-html.vt-navigating .animate-hero-tagline,
-html.vt-navigating .animate-hero-cta {
-  animation: none !important;
-  opacity: 1 !important;
-  transform: none !important;
-}
 
 /* Optimized Transitions - Use transform/opacity only */
 .transition-gpu {

@@ -1,6 +1,5 @@
 
-import React, { useState, useEffect, ErrorInfo, useMemo, useRef, lazy, Suspense, useCallback, useLayoutEffect } from 'react';
-import { flushSync } from 'react-dom';
+import React, { useState, useEffect, ErrorInfo, useMemo, useRef, lazy, Suspense, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { QueryClientProvider, useQueryClient, useQuery } from '@tanstack/react-query';
@@ -403,38 +402,12 @@ const ROUTE_INDICES: Record<string, number> = {
   '/profile': 6,
 };
 
-const supportsViewTransitions = typeof document !== 'undefined' &&
-  'startViewTransition' in document;
-
 const useViewTransitionLocation = () => {
   const location = useLocation();
   const [displayLocation, setDisplayLocation] = useState(location);
-  const prevPathRef = useRef(location.pathname);
 
-  useLayoutEffect(() => {
-    if (prevPathRef.current === location.pathname) {
-      if (displayLocation !== location) setDisplayLocation(location);
-      return;
-    }
-    prevPathRef.current = location.pathname;
-
-    if (supportsViewTransitions) {
-      const doc = document as Document & {
-        startViewTransition: (cb: () => void) => { finished: Promise<void> };
-      };
-      document.documentElement.classList.add('vt-navigating');
-      try {
-        doc.startViewTransition(() => {
-          flushSync(() => {
-            setDisplayLocation(location);
-          });
-        });
-      } catch {
-        setDisplayLocation(location);
-      }
-    } else {
-      setDisplayLocation(location);
-    }
+  useEffect(() => {
+    setDisplayLocation(location);
   }, [location]);
 
   return displayLocation;
