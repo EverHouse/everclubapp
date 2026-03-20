@@ -83,7 +83,7 @@ export const StaffNavigationRail: React.FC<StaffNavigationRailProps> = ({
         />
       </button>
 
-      <nav className="relative flex-1 overflow-y-auto px-1 py-2" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.5rem)' }}>
+      <nav className="relative flex-1 min-h-0 overflow-y-auto px-1 py-2" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.5rem)' } as React.CSSProperties}>
         <div className="space-y-0.5">
           {MAIN_NAV_ITEMS.map(item => (
             <RailItem key={item.id} item={item} />

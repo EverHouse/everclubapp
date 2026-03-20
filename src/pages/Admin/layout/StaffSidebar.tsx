@@ -84,7 +84,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
         </div>
       </button>
 
-      <nav className="relative flex-1 overflow-y-auto px-3 py-4">
+      <nav className="relative flex-1 min-h-0 overflow-y-auto px-3 py-4">
         <div className="space-y-0.5">
           {MAIN_NAV_ITEMS.map(item => (
             <NavButton key={item.id} item={item} />
