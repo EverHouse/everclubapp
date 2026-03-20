@@ -1632,11 +1632,6 @@ html.dark .border-accessible {
   }
 }
 
-.accordion-content.expanded {
-  grid-template-rows: 1fr;
-  opacity: 1;
-}
-
 /* Pop In Animation - Used across the app (horizontal-aligned, no vertical offset) */
 @keyframes segmentCheckIn {
   0% {
@@ -1921,6 +1916,22 @@ html.dark .border-accessible {
   animation: pageEnter 0.35s var(--m3-emphasized-decel) both;
 }
 
+@keyframes pageExit {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+.page-fade-out {
+  animation: pageExit 0.15s var(--m3-standard-accel) both;
+  pointer-events: none;
+}
+
 /* Page Content Animation - Staggered fade + slide for page elements */
 @keyframes pageContentEnter {
   0% {
@@ -1935,39 +1946,34 @@ html.dark .border-accessible {
 
 .animate-content-enter {
   animation: pageContentEnter 0.4s var(--m3-emphasized-decel) both;
-  will-change: transform, opacity;
 }
 
 .animate-content-enter-delay-0 {
   animation: pageContentEnter 0.4s var(--m3-emphasized-decel) both;
-  will-change: transform, opacity;
 }
 
 .animate-content-enter-delay-1 {
   animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 60ms both;
-  will-change: transform, opacity;
 }
 
 .animate-content-enter-delay-2 {
   animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 120ms both;
-  will-change: transform, opacity;
 }
 
 .animate-content-enter-delay-3 {
   animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 180ms both;
-  will-change: transform, opacity;
 }
 
 /* Extended stagger delays for sections (4-12) — 60ms intervals */
-.animate-content-enter-delay-4 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 240ms both; will-change: transform, opacity; }
-.animate-content-enter-delay-5 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 300ms both; will-change: transform, opacity; }
-.animate-content-enter-delay-6 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 360ms both; will-change: transform, opacity; }
-.animate-content-enter-delay-7 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 420ms both; will-change: transform, opacity; }
-.animate-content-enter-delay-8 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 480ms both; will-change: transform, opacity; }
-.animate-content-enter-delay-9 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 540ms both; will-change: transform, opacity; }
-.animate-content-enter-delay-10 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 600ms both; will-change: transform, opacity; }
-.animate-content-enter-delay-11 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 660ms both; will-change: transform, opacity; }
-.animate-content-enter-delay-12 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 720ms both; will-change: transform, opacity; }
+.animate-content-enter-delay-4 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 240ms both; }
+.animate-content-enter-delay-5 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 300ms both; }
+.animate-content-enter-delay-6 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 360ms both; }
+.animate-content-enter-delay-7 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 420ms both; }
+.animate-content-enter-delay-8 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 480ms both; }
+.animate-content-enter-delay-9 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 540ms both; }
+.animate-content-enter-delay-10 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 600ms both; }
+.animate-content-enter-delay-11 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 660ms both; }
+.animate-content-enter-delay-12 { animation: pageContentEnter 0.4s var(--m3-emphasized-decel) 720ms both; }
 
 /* List item stagger with slide - for lists/cards that need vertical motion */
 @keyframes listItemEnter {
@@ -1983,20 +1989,19 @@ html.dark .border-accessible {
 
 .animate-list-item {
   animation: listItemEnter 0.35s var(--m3-emphasized-decel) both;
-  will-change: transform, opacity;
 }
 
-.animate-list-item-delay-0 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) both; will-change: transform, opacity; }
-.animate-list-item-delay-1 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 40ms both; will-change: transform, opacity; }
-.animate-list-item-delay-2 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 80ms both; will-change: transform, opacity; }
-.animate-list-item-delay-3 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 120ms both; will-change: transform, opacity; }
-.animate-list-item-delay-4 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 160ms both; will-change: transform, opacity; }
-.animate-list-item-delay-5 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 200ms both; will-change: transform, opacity; }
-.animate-list-item-delay-6 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 240ms both; will-change: transform, opacity; }
-.animate-list-item-delay-7 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 280ms both; will-change: transform, opacity; }
-.animate-list-item-delay-8 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 320ms both; will-change: transform, opacity; }
-.animate-list-item-delay-9 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 360ms both; will-change: transform, opacity; }
-.animate-list-item-delay-10 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 400ms both; will-change: transform, opacity; }
+.animate-list-item-delay-0 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) both; }
+.animate-list-item-delay-1 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 40ms both; }
+.animate-list-item-delay-2 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 80ms both; }
+.animate-list-item-delay-3 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 120ms both; }
+.animate-list-item-delay-4 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 160ms both; }
+.animate-list-item-delay-5 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 200ms both; }
+.animate-list-item-delay-6 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 240ms both; }
+.animate-list-item-delay-7 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 280ms both; }
+.animate-list-item-delay-8 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 320ms both; }
+.animate-list-item-delay-9 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 360ms both; }
+.animate-list-item-delay-10 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 400ms both; }
 
 /* FAB expanding menu item animations */
 @keyframes fabItemEnter {
@@ -2239,35 +2244,39 @@ html.dark .border-accessible {
   opacity: 1;
 }
 
-/* Skeleton Shimmer - Standardized */
+/* Skeleton Shimmer - Premium wave effect */
 @keyframes shimmer {
   0% {
-    background-position: -200% 0;
+    background-position: -300% 0;
   }
   100% {
-    background-position: 200% 0;
+    background-position: 300% 0;
   }
 }
 
 .skeleton-shimmer {
   background: linear-gradient(
-    90deg,
-    rgba(0, 0, 0, 0.06) 25%,
-    rgba(0, 0, 0, 0.12) 50%,
-    rgba(0, 0, 0, 0.06) 75%
+    100deg,
+    rgba(0, 0, 0, 0.05) 0%,
+    rgba(0, 0, 0, 0.04) 35%,
+    rgba(0, 0, 0, 0.10) 50%,
+    rgba(0, 0, 0, 0.04) 65%,
+    rgba(0, 0, 0, 0.05) 100%
   );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
+  background-size: 300% 100%;
+  animation: shimmer 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 .dark .skeleton-shimmer {
   background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.06) 25%,
-    rgba(255, 255, 255, 0.12) 50%,
-    rgba(255, 255, 255, 0.06) 75%
+    100deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.03) 35%,
+    rgba(255, 255, 255, 0.10) 50%,
+    rgba(255, 255, 255, 0.03) 65%,
+    rgba(255, 255, 255, 0.04) 100%
   );
-  background-size: 200% 100%;
+  background-size: 300% 100%;
 }
 
 /* Skeleton base with rounded corners */
@@ -2605,9 +2614,13 @@ html.dark .border-accessible {
   .animate-dialog-scale-in,
   .animate-drawer-content-enter,
   .animate-tab-enter,
-  .animate-tab-exit {
+  .animate-tab-exit,
+  .page-fade-out,
+  .scroll-reveal,
+  .scroll-reveal.is-visible {
     opacity: 1 !important;
     transform: none !important;
+    animation: none !important;
   }
   
   .glass-button:hover,
@@ -2833,14 +2846,77 @@ html.dark .border-accessible {
 }
 
 .accordion-content[data-open="true"],
-.accordion-content.is-open {
+.accordion-content.is-open,
+.accordion-content.expanded {
   grid-template-rows: 1fr;
   opacity: 1;
+}
+
+.accordion-content[data-open="true"] > .accordion-inner > *,
+.accordion-content.is-open > .accordion-inner > *,
+.accordion-content.expanded > * > * {
+  animation: accordionChildReveal 0.3s var(--m3-emphasized-decel) both;
+}
+
+.accordion-content[data-open="true"] > .accordion-inner > *:nth-child(2),
+.accordion-content.is-open > .accordion-inner > *:nth-child(2),
+.accordion-content.expanded > * > *:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.accordion-content[data-open="true"] > .accordion-inner > *:nth-child(3),
+.accordion-content.is-open > .accordion-inner > *:nth-child(3),
+.accordion-content.expanded > * > *:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.accordion-content[data-open="true"] > .accordion-inner > *:nth-child(4),
+.accordion-content.is-open > .accordion-inner > *:nth-child(4),
+.accordion-content.expanded > * > *:nth-child(4) {
+  animation-delay: 120ms;
+}
+
+@keyframes accordionChildReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .accordion-inner {
   overflow: hidden;
 }
+
+/* Scroll-reveal: elements reveal as they enter the viewport */
+@keyframes scrollReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.scroll-reveal {
+  opacity: 0;
+}
+
+.scroll-reveal.is-visible {
+  animation: scrollReveal 0.5s var(--m3-emphasized-decel) both;
+}
+
+.scroll-reveal-group > .scroll-reveal.is-visible:nth-child(1) { animation-delay: 0ms; }
+.scroll-reveal-group > .scroll-reveal.is-visible:nth-child(2) { animation-delay: 60ms; }
+.scroll-reveal-group > .scroll-reveal.is-visible:nth-child(3) { animation-delay: 120ms; }
+.scroll-reveal-group > .scroll-reveal.is-visible:nth-child(4) { animation-delay: 180ms; }
+.scroll-reveal-group > .scroll-reveal.is-visible:nth-child(5) { animation-delay: 240ms; }
+.scroll-reveal-group > .scroll-reveal.is-visible:nth-child(6) { animation-delay: 300ms; }
 
 /* Content visibility optimization for off-screen elements */
 .content-visibility-auto {

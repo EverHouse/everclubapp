@@ -6,7 +6,7 @@ import { QueryClientProvider, useQueryClient, useQuery } from '@tanstack/react-q
 import { queryClient } from './lib/queryClient';
 import { DataProvider, useAuthData, useAnnouncementData } from './contexts/DataContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
-import DirectionalPageTransition, { TransitionContext } from './components/motion/DirectionalPageTransition';
+import DirectionalPageTransition, { TransitionContext, PageExitContext } from './components/motion/DirectionalPageTransition';
 import Logo from './components/Logo';
 import MenuOverlay from './components/MenuOverlay';
 import MemberMenuOverlay from './components/MemberMenuOverlay';
@@ -402,19 +402,57 @@ const ROUTE_INDICES: Record<string, number> = {
   '/profile': 6,
 };
 
+const PAGE_EXIT_DURATION = 150;
+
 const useViewTransitionLocation = () => {
   const location = useLocation();
   const [displayLocation, setDisplayLocation] = useState(location);
+  const [isExiting, setIsExiting] = useState(false);
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstRender = useRef(true);
+  const latestLocationRef = useRef(location);
+  latestLocationRef.current = location;
 
   useEffect(() => {
-    setDisplayLocation(location);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      setDisplayLocation(location);
+      return;
+    }
+
+    if (exitTimerRef.current) {
+      clearTimeout(exitTimerRef.current);
+      exitTimerRef.current = null;
+    }
+
+    if (location.pathname === displayLocation.pathname && location.search === displayLocation.search) {
+      setIsExiting(false);
+      setDisplayLocation(location);
+      return;
+    }
+
+    setIsExiting(true);
+
+    exitTimerRef.current = setTimeout(() => {
+      const latest = latestLocationRef.current;
+      setIsExiting(false);
+      setDisplayLocation(latest);
+      exitTimerRef.current = null;
+    }, PAGE_EXIT_DURATION);
+
+    return () => {
+      if (exitTimerRef.current) {
+        clearTimeout(exitTimerRef.current);
+        exitTimerRef.current = null;
+      }
+    };
   }, [location]);
 
-  return displayLocation;
+  return { displayLocation, isExiting };
 };
 
 const AnimatedRoutes: React.FC = () => {
-  const displayLocation = useViewTransitionLocation();
+  const { displayLocation, isExiting } = useViewTransitionLocation();
   const location = useLocation();
   const prevPathRef = useRef(location.pathname);
   const { user } = useAuthData();
@@ -459,6 +497,7 @@ const AnimatedRoutes: React.FC = () => {
 
   return (
     <TransitionContext.Provider value={transitionState}>
+      <PageExitContext.Provider value={isExiting}>
           <Routes location={displayLocation}>
             <Route path="/" element={<DirectionalPageTransition><Suspense fallback={<PageSkeleton />}><PageErrorBoundary pageName="Landing"><Landing /></PageErrorBoundary></Suspense></DirectionalPageTransition>} />
             <Route path="/membership/apply" element={<DirectionalPageTransition><Suspense fallback={<PageSkeleton />}><PageErrorBoundary pageName="MembershipApply"><MembershipApply /></PageErrorBoundary></Suspense></DirectionalPageTransition>} />
@@ -588,6 +627,7 @@ const AnimatedRoutes: React.FC = () => {
             
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+      </PageExitContext.Provider>
     </TransitionContext.Provider>
   );
 };

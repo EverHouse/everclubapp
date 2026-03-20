@@ -24,6 +24,7 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: QR scanner now waits for the camera container to be ready before starting, preventing freezes",
       "Fixed: Camera initialization includes a 10-second timeout with a retry option if it stalls",
       "Fixed: Walk-in visit times on the member history page now display correctly in Pacific time",
+      "Fixed: Rapidly switching between pages could leave the screen faded out and unresponsive — page transitions now reset cleanly on quick navigation",
     ]
   },
   {

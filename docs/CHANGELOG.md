@@ -21,7 +21,8 @@ All notable changes to the Ever Club Members App are documented here.
 - **Fixed**: QR scanner freeze — replaced blind `setTimeout(() => startScanner(), 500)` with `requestAnimationFrame` DOM-ready loop that waits for the scanner container element to exist
 - **Fixed**: Camera init timeout — 10s timeout with retry on failure; `handleScan` added to `startScanner` dependency array
 - **Fixed**: Walk-in visit timezone (`server/routes/members/communications.ts`) — `wiv.created_at::date::text` and `TO_CHAR(wiv.created_at, ...)` now use `AT TIME ZONE 'America/Los_Angeles'` for correct Pacific time display on member history page
-- Files changed: `src/pages/Staff/KioskCheckin.tsx`, `server/routes/kioskCheckin.ts`, `server/routes/members/communications.ts`
+- **Fixed**: Page exit transition race condition in `useViewTransitionLocation` — rapid navigation (A→B→A before 150ms exit timer fires) left `isExiting=true` permanently, causing `.page-fade-out` (opacity:0, pointer-events:none) to stick. Fix: always clear timer on new location change, reset `isExiting` on same-route navigation, use `latestLocationRef` so timer callback resolves to most recent location instead of stale closure.
+- Files changed: `src/pages/Staff/KioskCheckin.tsx`, `server/routes/kioskCheckin.ts`, `server/routes/members/communications.ts`, `src/App.tsx`
 
 ## [8.90.1] - 2026-03-20
 

@@ -10,6 +10,7 @@ import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
 import Icon from '../../components/icons/Icon';
+import { useScrollReveal } from '../../hooks/useScrollReveal';
 
 interface MembershipTier {
   id: number;
@@ -35,6 +36,7 @@ const Landing: React.FC = () => {
     stops: ['0%', '25%', '45%', '65%'],
   }), []);
   const { ref: heroRef, imageRef: heroImageRef, overlayRef: heroOverlayRef } = useParallax({ speed: 0.15, maxOffset: 80, imageScale: 1.03, gradient: landingGradient });
+  const scrollRef = useScrollReveal<HTMLDivElement>();
   const [heroAnimPlayed] = useState(() => {
     const played = sessionStorage.getItem(HERO_ANIM_KEY) === '1';
     if (!played) sessionStorage.setItem(HERO_ANIM_KEY, '1');
@@ -195,10 +197,10 @@ const Landing: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-bone dark:bg-[#141414]">
+      <div ref={scrollRef} className="bg-bone dark:bg-[#141414]">
 
       {/* As Seen In — minimal horizontal strip */}
-      <div className="px-6 py-16 md:py-20 bg-bone dark:bg-[#141414] animate-content-enter-delay-1">
+      <div className="scroll-reveal px-6 py-16 md:py-20 bg-bone dark:bg-[#141414]">
         <p
           className="text-center text-[10px] uppercase tracking-[0.35em] text-primary/30 dark:text-white/30 mb-10"
           style={{ fontFamily: 'var(--font-label)', fontWeight: 400 }}
@@ -250,7 +252,7 @@ const Landing: React.FC = () => {
       </div>
 
       {/* Private Events — editorial spread */}
-      <div className="px-6 md:px-12 py-16 bg-bone dark:bg-[#141414] animate-content-enter-delay-2">
+      <div className="scroll-reveal px-6 md:px-12 py-16 bg-bone dark:bg-[#141414]">
          <div
            className="relative overflow-hidden h-[450px] md:h-[500px] group max-w-5xl mx-auto cursor-pointer"
            onClick={() => navigate('/private-hire')}
@@ -333,7 +335,7 @@ const Landing: React.FC = () => {
       </div>
 
       {/* Membership Tiers — typographic, no glassmorphism */}
-      <section className="px-6 py-24 bg-bone dark:bg-[#141414] animate-content-enter-delay-3">
+      <section className="scroll-reveal px-6 py-24 bg-bone dark:bg-[#141414]">
          <div className="text-center mb-16">
             <p
               className="text-[10px] uppercase tracking-[0.35em] text-primary/30 dark:text-white/30 mb-4"
@@ -477,7 +479,7 @@ const Landing: React.FC = () => {
 
 
       {/* Final CTA — calm invitation */}
-      <section className="px-6 py-28 md:py-36 bg-bone dark:bg-[#141414]">
+      <section className="scroll-reveal px-6 py-28 md:py-36 bg-bone dark:bg-[#141414]">
         <div className="max-w-lg mx-auto text-center">
           <h2
             className="text-3xl md:text-4xl text-primary dark:text-white mb-5 leading-tight"
