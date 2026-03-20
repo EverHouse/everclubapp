@@ -83,7 +83,7 @@ export const StaffNavigationRail: React.FC<StaffNavigationRailProps> = ({
         />
       </button>
 
-      <nav className="relative flex-1 overflow-y-auto px-1 py-2">
+      <nav className="relative flex-1 overflow-y-auto px-1 py-2" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.5rem)' }}>
         <div className="space-y-0.5">
           {MAIN_NAV_ITEMS.map(item => (
             <RailItem key={item.id} item={item} />
@@ -99,23 +99,23 @@ export const StaffNavigationRail: React.FC<StaffNavigationRailProps> = ({
             </div>
           </div>
         )}
-      </nav>
 
-      <div className="px-1 py-3 border-t border-white/10 flex-shrink-0">
-        <button
-          onClick={() => { startNavigation(); navigate('/kiosk'); }}
-          style={{ WebkitTapHighlightColor: 'transparent', fontFamily: 'var(--font-label)' }}
-          aria-label="Kiosk Check-in"
-          className="tactile-btn flex flex-col items-center gap-1 w-full min-h-[56px] py-2 px-1 transition-colors duration-normal ease-out"
-        >
-          <div className="flex items-center justify-center w-10 h-7 rounded-full hover:bg-white/10 transition-colors duration-normal">
-            <Icon name="qr_code_scanner" className="text-[20px] text-white/50 group-hover:text-white/70" />
-          </div>
-          <span className="text-[9px] uppercase tracking-[0.1em] leading-tight text-center truncate w-full px-0.5 text-white/50">
-            Kiosk
-          </span>
-        </button>
-      </div>
+        <div className="mt-3 pt-3 border-t border-white/10">
+          <button
+            onClick={() => { startNavigation(); navigate('/kiosk'); }}
+            style={{ WebkitTapHighlightColor: 'transparent', fontFamily: 'var(--font-label)' }}
+            aria-label="Kiosk Check-in"
+            className="tactile-btn flex flex-col items-center gap-1 w-full min-h-[56px] py-2 px-1 transition-colors duration-normal ease-out"
+          >
+            <div className="flex items-center justify-center w-10 h-7 rounded-full hover:bg-white/10 transition-colors duration-normal">
+              <Icon name="qr_code_scanner" className="text-[20px] text-white/50 group-hover:text-white/70" />
+            </div>
+            <span className="text-[9px] uppercase tracking-[0.1em] leading-tight text-center truncate w-full px-0.5 text-white/50">
+              Kiosk
+            </span>
+          </button>
+        </div>
+      </nav>
     </aside>
   );
 

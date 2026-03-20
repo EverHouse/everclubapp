@@ -105,7 +105,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
         )}
       </nav>
 
-      <div className="px-3 py-4 border-t border-white/10 flex-shrink-0 space-y-2">
+      <div className="px-3 py-4 border-t border-white/10 flex-shrink-0 space-y-2" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
         <button
           onClick={() => { startNavigation(); navigate('/kiosk'); }}
           style={{ WebkitTapHighlightColor: 'transparent', fontFamily: 'var(--font-label)' }}
