@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.94.9",
+    date: "2026-03-20",
+    title: "Fix Tier Editor Validation",
+    changes: [
+      "Fixed: Editing membership tiers (daily sim minutes, conference room minutes, guest passes, etc.) was failing with 'all_features: Invalid input: expected array, received object' — the backend validation schema expected an array but the frontend sends an object",
+    ]
+  },
+  {
     version: "8.94.8",
     date: "2026-03-20",
     title: "Application Notes & CSP Fix",

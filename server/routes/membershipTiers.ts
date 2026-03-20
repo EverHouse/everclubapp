@@ -22,7 +22,7 @@ const tierBaseFields = {
   show_in_comparison: z.boolean().optional(),
   show_on_membership_page: z.boolean().optional(),
   highlighted_features: z.array(z.string()).optional().nullable(),
-  all_features: z.array(z.string()).optional().nullable(),
+  all_features: z.record(z.string(), z.boolean()).optional().nullable(),
   daily_sim_minutes: z.number().int().optional().nullable(),
   guest_passes_per_year: z.number().int().optional().nullable(),
   booking_window_days: z.number().int().optional().nullable(),

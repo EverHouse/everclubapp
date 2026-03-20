@@ -2,6 +2,11 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.94.9] - 2026-03-20
+
+### Fix Tier Editor Validation
+- **Fixed**: Editing membership tiers was failing with `all_features: Invalid input: expected array, received object`. The Zod validation schema in `membershipTiers.ts` defined `all_features` as `z.array(z.string())` but the frontend sends it as `Record<string, boolean>` (an object mapping feature names to booleans). Updated the schema to `z.record(z.string(), z.boolean())` to match the actual data shape.
+
 ## [8.94.8] - 2026-03-20
 
 ### Application Notes & CSP Fix
