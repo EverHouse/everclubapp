@@ -202,13 +202,28 @@ export async function syncCafeItemsToStripe(): Promise<{
         let stripePriceId = item.stripe_price_id as string | null;
 
         if (stripeProductId) {
-          await stripe.products.update(stripeProductId, {
-            name: itemName,
-            description: itemDescription,
-            metadata,
-          });
-          logger.info(`[Cafe Sync] Updated product for ${itemName}`);
-        } else {
+          try {
+            const existingProduct = await stripe.products.retrieve(stripeProductId);
+            const updateParams: Record<string, unknown> = { name: itemName, description: itemDescription, metadata };
+            if (!existingProduct.active) {
+              updateParams.active = true;
+              logger.warn(`[Cafe Sync] Reactivating archived Stripe product ${stripeProductId} for ${itemName}`);
+            }
+            await stripe.products.update(stripeProductId, updateParams);
+            logger.info(`[Cafe Sync] Updated product for ${itemName}`);
+          } catch (prodErr: unknown) {
+            const errMsg = prodErr instanceof Error ? prodErr.message : String(prodErr);
+            if (errMsg.includes('No such product') || errMsg.includes('resource_missing')) {
+              logger.warn(`[Cafe Sync] Stored product ${stripeProductId} no longer exists for ${itemName}, will recreate`);
+              stripeProductId = null;
+              stripePriceId = null;
+            } else {
+              throw prodErr;
+            }
+          }
+        }
+
+        if (!stripeProductId) {
           const existingProduct = await findExistingStripeProduct(
             stripe,
             itemName,
@@ -218,11 +233,12 @@ export async function syncCafeItemsToStripe(): Promise<{
 
           if (existingProduct) {
             stripeProductId = existingProduct.id;
-            await stripe.products.update(stripeProductId, {
-              name: itemName,
-              description: itemDescription,
-              metadata,
-            });
+            const reuseParams: Record<string, unknown> = { name: itemName, description: itemDescription, metadata };
+            if (!existingProduct.active) {
+              reuseParams.active = true;
+              logger.warn(`[Cafe Sync] Reactivating archived Stripe product ${stripeProductId} for ${itemName}`);
+            }
+            await stripe.products.update(stripeProductId, reuseParams);
             logger.info(`[Cafe Sync] Reusing existing Stripe product ${stripeProductId} for ${itemName}`);
           } else {
             const newProduct = await stripe.products.create({

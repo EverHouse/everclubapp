@@ -18,6 +18,8 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: If the staff dashboard's real-time connection dropped and reconnected, any booking changes that happened during the gap were permanently missed — reconnection now automatically refreshes all booking data",
       "Fixed: Day Pass (Coworking and Golf Sim) products were not checking if their Stripe price was still active — if a price was deactivated externally, billing would silently fail; now detects and recreates like the other product types",
       "Fixed: Group add-on (family billing) products had the same inactive-price blindspot — now validates and replaces inactive or missing prices during sync",
+      "Fixed: If a cafe item's Stripe product was archived or deleted externally, the sync would crash — now auto-reactivates archived products and recreates deleted ones",
+      "Fixed: If a member tried to sign up with a stale or deactivated Stripe price, they would see a confusing error — now shows a clear message that pricing is temporarily unavailable",
       "Fixed: 7 duplicate icon entries in the icon registry were causing build warnings",
     ]
   },

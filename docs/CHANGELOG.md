@@ -11,8 +11,10 @@ All notable changes to the Ever Club Members App are documented here.
 - **Fixed**: Staff dashboard real-time connection reconnection now refreshes all booking data automatically (previously missed events during disconnection were permanently lost)
 - **Fixed**: Day Pass (Coworking and Golf Sim) products were not checking if their Stripe price was still active — if deactivated externally, billing would silently fail; now detects and recreates
 - **Fixed**: Group add-on (family billing) products had the same inactive-price blindspot — now validates and replaces inactive or missing prices during sync
+- **Fixed**: Cafe item Stripe sync would crash if the product was archived or deleted externally — now auto-reactivates archived products and recreates deleted ones
+- **Fixed**: Members trying to sign up with a stale or deactivated Stripe price would see a confusing "Failed to create checkout session" error — now shows a clear message that pricing is temporarily unavailable
 - **Fixed**: 7 duplicate icon entries in icon registry causing build warnings
-- **Key files**: `server/core/stripe/productSync.ts`, `server/core/stripe/productCreation.ts`, `server/core/stripe/productCatalogSync.ts`, `server/core/stripe/groupBillingCrud.ts`, `src/hooks/useStaffWebSocket.ts`, `src/components/icons/iconPaths.ts`
+- **Key files**: `server/core/stripe/productSync.ts`, `server/core/stripe/productCreation.ts`, `server/core/stripe/productCatalogSync.ts`, `server/core/stripe/groupBillingCrud.ts`, `server/routes/checkout.ts`, `src/hooks/useStaffWebSocket.ts`, `src/components/icons/iconPaths.ts`
 
 ## [8.89.2] - 2026-03-19
 

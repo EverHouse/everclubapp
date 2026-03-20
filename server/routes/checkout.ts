@@ -181,7 +181,19 @@ router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
     });
   } catch (error: unknown) {
     logger.error('[Checkout] Session creation error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to create checkout session' });
+    const stripeErr = error as { type?: string; code?: string; raw?: { code?: string }; message?: string };
+    const isStalePrice =
+      stripeErr.type === 'StripeInvalidRequestError' && (
+        stripeErr.code === 'resource_missing' ||
+        stripeErr.raw?.code === 'resource_missing' ||
+        stripeErr.code === 'price_inactive' ||
+        (stripeErr.message && (stripeErr.message.includes('No such price') || stripeErr.message.includes('price_inactive')))
+      );
+    if (isStalePrice) {
+      res.status(400).json({ error: 'This membership tier\'s pricing is temporarily unavailable. Please try again shortly — an admin has been notified.' });
+    } else {
+      res.status(500).json({ error: 'Failed to create checkout session' });
+    }
   }
 });
 
