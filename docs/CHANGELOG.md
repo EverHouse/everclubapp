@@ -7,6 +7,7 @@ All notable changes to the Ever Club Members App are documented here.
 ### Fix Stripe ID Preservation on Tier Save
 - **Fixed**: The tier PUT handler used `${stripe_price_id || null}`, `${stripe_product_id || null}`, and `${price_cents || null}` instead of `COALESCE`. When the frontend saved a tier without including those fields (which is normal — they're system-managed), the values were wiped to `null` in the database. This caused `autoPushTierToStripe` to re-discover or re-create the Stripe product and price on every single save, producing unnecessary API calls and potentially orphaned prices. Changed to `COALESCE(${value}, column)` to match the pattern used by every other field in the same query.
 - **Fixed**: The `handlePriceChange` webhook handler now skips inactive prices. Previously, when auto-push replaced a price (deactivating the old one and creating a new one), the `price.updated` webhook for the deactivation could arrive after the new price was set, overwriting the DB with stale `stripe_price_id` and `price_cents` values.
+- **Fixed**: Editing membership privileges was failing with `all_features.events: Invalid input: expected boolean, received object`. The `all_features` field in the database stores rich feature objects (e.g. `{"label": "Programs & Events", "value": "✓", "included": true}`), not simple booleans. Updated the Zod validation schema to accept both `boolean` and `{label, value, included}` object formats.
 
 ## [8.94.9] - 2026-03-20
 
