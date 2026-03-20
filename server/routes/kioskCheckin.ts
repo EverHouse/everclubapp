@@ -176,6 +176,15 @@ const passcodeAttempts = new Map<string, { count: number; lastAttempt: number }>
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 60_000;
 
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, record] of passcodeAttempts) {
+    if (now - record.lastAttempt > LOCKOUT_MS * 5) {
+      passcodeAttempts.delete(key);
+    }
+  }
+}, LOCKOUT_MS * 5);
+
 router.post('/api/kiosk/verify-passcode', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);

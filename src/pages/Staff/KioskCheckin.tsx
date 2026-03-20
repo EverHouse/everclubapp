@@ -83,6 +83,8 @@ const KioskCheckin: React.FC = () => {
   const qrScannerRef = useRef<Html5QrcodeInstance | null>(null);
   const hasScannedRef = useRef(false);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const passcodeSubmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const passcodeSubmittingRef = useRef(false);
 
   const elementId = useMemo(() => `kiosk-qr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, []);
 
@@ -307,6 +309,8 @@ const KioskCheckin: React.FC = () => {
     setPasscodeError(false);
     setPasscodeErrorMessage('');
     setPasscodeChecking(false);
+    passcodeSubmittingRef.current = false;
+    if (passcodeSubmitTimerRef.current) { clearTimeout(passcodeSubmitTimerRef.current); passcodeSubmitTimerRef.current = null; }
     setTimeout(() => passcodeInputRefs.current[0]?.focus(), 100);
   }, []);
 
@@ -315,11 +319,20 @@ const KioskCheckin: React.FC = () => {
     setPasscodeDigits(['', '', '', '']);
     setPasscodeError(false);
     setPasscodeErrorMessage('');
+    passcodeSubmittingRef.current = false;
+    if (passcodeSubmitTimerRef.current) { clearTimeout(passcodeSubmitTimerRef.current); passcodeSubmitTimerRef.current = null; }
   }, []);
 
   const handlePasscodeSubmit = useCallback(async (digits: string[]) => {
     const code = digits.join('');
     if (code.length !== 4) return;
+    if (passcodeSubmittingRef.current) return;
+    passcodeSubmittingRef.current = true;
+
+    if (passcodeSubmitTimerRef.current) {
+      clearTimeout(passcodeSubmitTimerRef.current);
+      passcodeSubmitTimerRef.current = null;
+    }
 
     setPasscodeChecking(true);
     setPasscodeError(false);
@@ -353,6 +366,7 @@ const KioskCheckin: React.FC = () => {
       setTimeout(() => passcodeInputRefs.current[0]?.focus(), 100);
     } finally {
       setPasscodeChecking(false);
+      passcodeSubmittingRef.current = false;
     }
   }, [navigate, stopScanner]);
 
@@ -361,29 +375,31 @@ const KioskCheckin: React.FC = () => {
     if (value && !/^\d$/.test(value)) return;
 
     setPasscodeError(false);
-    setPasscodeDigits(prev => {
-      const newDigits = [...prev];
-      newDigits[index] = value;
-      return newDigits;
-    });
+    const newDigits = [...passcodeDigitsRef.current];
+    newDigits[index] = value;
+    setPasscodeDigits(newDigits);
 
     if (value && index < 3) {
       setTimeout(() => passcodeInputRefs.current[index + 1]?.focus(), 0);
+    } else if (value && index === 3 && newDigits.every(d => d !== '')) {
+      if (passcodeSubmitTimerRef.current) clearTimeout(passcodeSubmitTimerRef.current);
+      passcodeSubmitTimerRef.current = setTimeout(() => handlePasscodeSubmit(newDigits), 50);
     }
-  }, []);
+  }, [handlePasscodeSubmit]);
 
   const handlePasscodeKeyDown = useCallback((index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (/^\d$/.test(e.key)) {
       e.preventDefault();
       setPasscodeError(false);
       setPasscodeErrorMessage('');
-      setPasscodeDigits(prev => {
-        const newDigits = [...prev];
-        newDigits[index] = e.key;
-        return newDigits;
-      });
+      const newDigits = [...passcodeDigitsRef.current];
+      newDigits[index] = e.key;
+      setPasscodeDigits(newDigits);
       if (index < 3) {
         setTimeout(() => passcodeInputRefs.current[index + 1]?.focus(), 0);
+      } else if (newDigits.every(d => d !== '')) {
+        if (passcodeSubmitTimerRef.current) clearTimeout(passcodeSubmitTimerRef.current);
+        passcodeSubmitTimerRef.current = setTimeout(() => handlePasscodeSubmit(newDigits), 50);
       }
       return;
     }
