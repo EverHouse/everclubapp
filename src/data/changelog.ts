@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.90.1",
+    date: "2026-03-20",
+    title: "Stripe Price Sync & Booking Queue Refresh Fixes",
+    changes: [
+      "Fixed: 'Sync to Stripe' button was silently pointing to deactivated prices — now detects inactive or missing prices and creates fresh replacements automatically",
+      "Fixed: Duplicate Stripe prices were being created across days because old idempotency keys were being reused — keys are now unique per sync attempt",
+      "Fixed: Booking queue items (like cancellation-pending bookings) were not disappearing from the admin list after Trackman webhook confirmation — cancellation events now trigger an immediate data refresh instead of being delayed by the debounce timer",
+      "Fixed: If the staff dashboard's real-time connection dropped and reconnected, any booking changes that happened during the gap were permanently missed — reconnection now automatically refreshes all booking data",
+      "Fixed: 7 duplicate icon entries in the icon registry were causing build warnings",
+    ]
+  },
+  {
     version: "8.90.0",
     date: "2026-03-19",
     title: "Kiosk Self-Service Check-In Mode",

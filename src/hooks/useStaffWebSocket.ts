@@ -153,12 +153,19 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
         isConnectingRef.current = false;
         setIsConnected(true);
         activeConnectionUserRef.current = currentEmail || null;
+        const wasReconnect = reconnectAttemptRef.current > 0;
         reconnectAttemptRef.current = 0;
         ws.send(JSON.stringify({ 
           type: 'auth', 
           email: currentEmail,
           isStaff: true 
         }));
+
+        if (wasReconnect) {
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('booking-action-completed', { detail: { eventType: 'reconnect_refresh' } }));
+          }, 500);
+        }
 
         if (keepaliveIntervalRef.current) {
           clearInterval(keepaliveIntervalRef.current);
@@ -192,6 +199,9 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
             // eslint-disable-next-line no-console
             if (import.meta.env.DEV) console.log('[StaffWebSocket] Received booking_event:', message.eventType);
             handleBookingEvent(message as BookingEvent);
+            if (message.eventType === 'booking_cancelled') {
+              window.dispatchEvent(new CustomEvent('booking-action-completed', { detail: message }));
+            }
           }
           
           if (message.type === 'notification') {
@@ -199,13 +209,17 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
             if (import.meta.env.DEV) console.log('[StaffWebSocket] Received notification');
             handleBookingEvent({
               eventType: 'notification',
-              bookingId: message.data?.bookingId || 0,
+              bookingId: message.data?.bookingId || message.data?.relatedId || 0,
               memberEmail: '',
               bookingDate: '',
               startTime: '',
               status: '',
               timestamp: new Date().toISOString()
             });
+            const notifType = message.data?.notificationType || '';
+            if (notifType === 'booking_cancelled' || notifType === 'cancellation_pending') {
+              window.dispatchEvent(new CustomEvent('booking-action-completed', { detail: { eventType: notifType } }));
+            }
           }
           
           if (message.type === 'rsvp_event') {
@@ -260,6 +274,9 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
               status: message.action,
               timestamp: new Date().toISOString()
             });
+            if (message.action === 'cancelled') {
+              window.dispatchEvent(new CustomEvent('booking-action-completed', { detail: { eventType: 'availability_cancelled' } }));
+            }
           }
 
           if (message.type === 'cafe_menu_update') {

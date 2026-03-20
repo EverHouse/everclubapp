@@ -2,6 +2,16 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.90.1] - 2026-03-20
+
+### Stripe Price Sync & Booking Queue Refresh Fixes
+- **Fixed**: "Sync to Stripe" button was silently pointing to deactivated prices — now detects inactive/missing prices and creates fresh replacements automatically
+- **Fixed**: Duplicate Stripe prices created across days due to stale idempotency keys — keys are now unique per sync attempt
+- **Fixed**: Booking queue items (cancellation-pending bookings) were not disappearing from admin list after Trackman webhook confirmation — cancellation events now trigger immediate data refresh instead of being delayed by debounce
+- **Fixed**: Staff dashboard real-time connection reconnection now refreshes all booking data automatically (previously missed events during disconnection were permanently lost)
+- **Fixed**: 7 duplicate icon entries in icon registry causing build warnings
+- **Key files**: `server/core/stripe/productSync.ts`, `server/core/stripe/productCreation.ts`, `src/hooks/useStaffWebSocket.ts`, `src/components/icons/iconPaths.ts`
+
 ## [8.89.2] - 2026-03-19
 
 ### Calendar Sync Fix — Timestamp Precision
