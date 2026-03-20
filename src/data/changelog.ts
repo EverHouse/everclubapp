@@ -10,10 +10,11 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.94.15",
     date: "2026-03-20",
-    title: "Cafe Item Cleanup: Hard Delete on Stripe Product Removal",
+    title: "Cafe Item Cleanup: Hard Delete + Webhook Loop Prevention",
     changes: [
       "Fixed: When a product is deleted in Stripe, the matching cafe item is now permanently removed from the database instead of being soft-deleted — eliminates ghost 'archived' items lingering in the admin view",
       "Fixed: Admin cafe item delete now permanently removes the record from the database instead of just marking it inactive — archived items no longer pile up in the menu",
+      "Fixed: Admin cafe delete now marks the Stripe product ID as app-originated before archiving, preventing the webhook handler from double-processing the echoed event",
       "Cleaned up 32 orphaned inactive cafe items that were previously soft-deleted and had no Stripe backing",
     ]
   },

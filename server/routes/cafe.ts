@@ -12,6 +12,7 @@ import { sql, eq, and, asc } from 'drizzle-orm';
 import { getCached, setCache, invalidateCache } from '../core/queryCache';
 import { validateBody } from '../middleware/validate';
 import { autoPushCafeItemToStripe } from '../core/stripe/autoPush';
+import { markAppOriginated } from '../core/stripe/appOriginTracker';
 
 const cafeItemSchema = z.object({
   category: z.string().min(1, 'Category is required'),
@@ -221,6 +222,7 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
         const stripe = await getStripeClient();
         const product = await stripe.products.retrieve(existing[0].stripeProductId) as unknown as { active?: boolean; deleted?: boolean };
         if (product && !product.deleted && product.active) {
+          markAppOriginated(existing[0].stripeProductId);
           await stripe.products.update(existing[0].stripeProductId, { active: false });
           logger.info(`[Cafe] Archived Stripe product ${existing[0].stripeProductId} for cafe item "${existing[0].name}"`);
         }
