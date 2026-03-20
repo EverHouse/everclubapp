@@ -5,9 +5,12 @@ All notable changes to the Ever Club Members App are documented here.
 ## [8.94.6] - 2026-03-20
 
 ### Error Logging Safety Sweep
-- **Fixed**: Eliminated all raw error object logging across the server codebase (25+ files, ~80 occurrences). Raw caught errors were being passed to the structured logger via `{ extra: { err } }`, `{ extra: { calError } }`, `{ extra: { hubspotError } }`, etc., producing unreadable `[object Object]` entries. All now use `getErrorMessage(varName)` to extract a clean string.
-- **Scope**: Booking approval/cancellation/completion flows, Stripe payments/subscriptions/invoices/terminal, HubSpot sync/contacts/forms, closures CRUD, member billing/communications, day passes, guest roster, training, auth helpers, booking creation/cancellation/fees, account deletion, and kiosk check-in.
-- **Added**: Missing `getErrorMessage` imports to `hubspot/forms.ts`, `members/communications.ts`, `testAuth.ts`, `account.ts`, `bays/booking-shared.ts`, `training.ts`
+- **Fixed**: Eliminated all raw error object logging across the server codebase (30+ files, ~100 occurrences). Three unsafe patterns were addressed:
+  1. `{ extra: { err } }` / `{ extra: { calError } }` / `{ extra: { hubspotError } }` etc. — raw caught errors in structured extra fields, producing `[object Object]` in JSON logs. All replaced with `{ extra: { error: getErrorMessage(varName) } }`.
+  2. `logger.warn('message', err)` / `logger.error('message', err)` — raw error as the logger's second positional argument. Error properties are non-enumerable, so all error details were silently discarded. 16 instances fixed.
+- **Scope**: Booking approval/cancellation/completion flows, Stripe payments/subscriptions/invoices/terminal, HubSpot sync/contacts/forms, closures CRUD, member billing/communications, day passes, guest roster, training, auth (OTP, session, passkey, helpers), waivers, onboarding, Trackman import, integrity resolution, Resend webhooks, visitors, booking creation/cancellation/fees, account deletion, and kiosk check-in.
+- **Added**: Missing `getErrorMessage` imports to `hubspot/forms.ts`, `members/communications.ts`, `testAuth.ts`, `account.ts`, `bays/booking-shared.ts`, `training.ts`, `waivers.ts`
+- **Note**: The `{ error: err as Error }` pattern (~90 instances in schedulers/index) was evaluated and left as-is — the `logger.error()` method has built-in `instanceof Error` handling that correctly extracts message and stack from these.
 
 ## [8.94.5] - 2026-03-20
 

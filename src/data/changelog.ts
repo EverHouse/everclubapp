@@ -12,9 +12,10 @@ export const changelog: ChangelogEntry[] = [
     date: "2026-03-20",
     title: "Error Logging Safety Sweep",
     changes: [
-      "Fixed: All server error logging now properly extracts error messages instead of passing raw error objects, preventing '[object Object]' entries in logs across 25+ files (80+ occurrences)",
-      "Fixed: Added missing error utility imports to 6 modules that were logging raw caught errors",
-      "Improved: Error logs across booking flows, Stripe payments, HubSpot sync, closures, notifications, check-in, and member management now produce readable, searchable log messages",
+      "Fixed: All server error logging now properly extracts error messages instead of passing raw error objects, preventing '[object Object]' entries in logs across 30+ files (~100 occurrences)",
+      "Fixed: Eliminated raw error objects passed as logger's second argument (16 instances across auth, booking, scheduler, and HubSpot modules) — these were silently discarding all error details",
+      "Fixed: Added missing error utility imports to 7 modules that were logging raw caught errors",
+      "Improved: Error logs across booking flows, Stripe payments, HubSpot sync, closures, notifications, check-in, auth, waivers, and member management now produce readable, searchable log messages",
     ]
   },
   {
