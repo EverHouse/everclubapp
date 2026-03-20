@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.94.15",
+    date: "2026-03-20",
+    title: "Cafe Item Cleanup: Hard Delete on Stripe Product Removal",
+    changes: [
+      "Fixed: When a product is deleted in Stripe, the matching cafe item is now permanently removed from the database instead of being soft-deleted — eliminates ghost 'archived' items lingering in the admin view",
+      "Fixed: Admin cafe item delete now permanently removes the record from the database instead of just marking it inactive — archived items no longer pile up in the menu",
+      "Cleaned up 32 orphaned inactive cafe items that were previously soft-deleted and had no Stripe backing",
+    ]
+  },
+  {
     version: "8.94.14",
     date: "2026-03-20",
     title: "Fees & Passes: New Product Button + Stripe Price IDs",

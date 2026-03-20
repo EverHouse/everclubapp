@@ -208,12 +208,13 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Invalid cafe item ID: must be a number' });
     }
     
-    const existing = await db.select({ stripeProductId: cafeItems.stripeProductId, name: cafeItems.name })
+    const existing = await db.select({ stripeProductId: cafeItems.stripeProductId, name: cafeItems.name, isActive: cafeItems.isActive })
       .from(cafeItems)
       .where(eq(cafeItems.id, numericId));
     if (existing.length === 0) {
       return res.status(404).json({ error: 'Cafe item not found' });
     }
+
     if (existing[0].stripeProductId) {
       try {
         const { getStripeClient } = await import('../core/stripe/client');
@@ -231,7 +232,7 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
       }
     }
     
-    await db.update(cafeItems).set({ isActive: false }).where(eq(cafeItems.id, numericId));
+    await db.delete(cafeItems).where(eq(cafeItems.id, numericId));
     invalidateCache(CAFE_CACHE_KEY);
     broadcastCafeMenuUpdate('deleted');
     logFromRequest(req, 'delete_cafe_item', 'cafe', String(id), existing[0].name || undefined, {});

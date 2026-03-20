@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.94.15] - 2026-03-20
+
+### Cafe Item Cleanup: Hard Delete on Stripe Product Removal
+- **Fixed**: `handleProductDeleted` webhook handler (`server/core/stripe/webhooks/handlers/catalog.ts`) now hard-deletes (`DELETE FROM cafe_items`) instead of soft-deleting (`SET is_active = false`) when a Stripe product is deleted. Previously, deleted Stripe products left behind ghost cafe items that showed as "archived" in the admin view with no way to fully remove them.
+- **Fixed**: Admin cafe item delete endpoint (`DELETE /api/cafe-menu/:id`) now performs a hard delete (`db.delete()`) instead of soft-delete (`SET isActive: false`). The endpoint still archives the Stripe product first if one exists and is still active.
+- **Data cleanup**: Removed 32 orphaned inactive cafe items from the database that had accumulated from previous soft-deletes. All had empty `stripe_product_id` and `stripe_price_id`.
+- **Scope**: `server/core/stripe/webhooks/handlers/catalog.ts`, `server/routes/cafe.ts`.
+
 ## [8.94.14] - 2026-03-20
 
 ### Fees & Passes: New Product Button + Stripe Price IDs

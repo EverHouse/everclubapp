@@ -254,13 +254,13 @@ export async function handleProductDeleted(client: PoolClient, product: Stripe.P
     }
 
     const cafeResult = await client.query(
-      'UPDATE cafe_items SET is_active = false, stripe_product_id = NULL, stripe_price_id = NULL WHERE stripe_product_id = $1 AND is_active = true RETURNING id, name',
+      'DELETE FROM cafe_items WHERE stripe_product_id = $1 RETURNING id, name',
       [product.id]
     );
 
     if (cafeResult.rowCount && cafeResult.rowCount > 0) {
       for (const row of cafeResult.rows) {
-        logger.info(`[Stripe Webhook] Deactivated cafe item "${row.name}" (id: ${row.id}) and cleared Stripe references due to product deletion`);
+        logger.info(`[Stripe Webhook] Permanently deleted cafe item "${row.name}" (id: ${row.id}) — Stripe product ${product.id} was deleted`);
       }
     }
   } catch (error: unknown) {
