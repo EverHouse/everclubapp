@@ -11,16 +11,10 @@ export const TabTransition: React.FC<TabTransitionProps> = ({
   children, 
   className = '' 
 }) => {
-  const [animationPhase, setAnimationPhase] = useState<'idle' | 'exiting' | 'entering'>('idle');
+  const [animationPhase, setAnimationPhase] = useState<'idle' | 'entering'>('idle');
   const prevKeyRef = useRef(activeKey);
   const isFirstRender = useRef(true);
-  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const enterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const frozenChildrenRef = useRef<React.ReactNode>(children);
-
-  if (animationPhase !== 'exiting') {
-    frozenChildrenRef.current = children;
-  }
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -30,37 +24,27 @@ export const TabTransition: React.FC<TabTransitionProps> = ({
     }
 
     if (activeKey !== prevKeyRef.current) {
-      if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
       if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
 
+      prevKeyRef.current = activeKey;
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAnimationPhase('exiting');
-      
-      exitTimerRef.current = setTimeout(() => {
-        setAnimationPhase('entering');
-        prevKeyRef.current = activeKey;
-        
-        enterTimerRef.current = setTimeout(() => {
-          setAnimationPhase('idle');
-        }, 200);
-      }, 100);
+      setAnimationPhase('entering');
+
+      enterTimerRef.current = setTimeout(() => {
+        setAnimationPhase('idle');
+      }, 200);
     }
 
     return () => {
-      if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
       if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
     };
   }, [activeKey]);
 
-  const animationClass = 
-    animationPhase === 'exiting' ? 'animate-tab-exit' :
-    animationPhase === 'entering' ? 'animate-tab-enter' : '';
-
-  const renderedChildren = animationPhase === 'exiting' ? frozenChildrenRef.current : children;
+  const animationClass = animationPhase === 'entering' ? 'animate-tab-enter' : '';
 
   return (
     <div className={`${animationClass} ${className}`}>
-      {renderedChildren}
+      {children}
     </div>
   );
 };
