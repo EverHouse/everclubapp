@@ -8,6 +8,7 @@ function sanitizeMemberId(raw: string): string | undefined {
   const trimmed = raw.trim();
   if (!trimmed) return undefined;
   if (/^\d+$/.test(trimmed)) return trimmed;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) return trimmed;
   return undefined;
 }
 

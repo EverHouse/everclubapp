@@ -126,7 +126,7 @@ router.post('/api/kiosk/checkin', isStaffOrAdmin, validateBody(kioskCheckinSchem
             LOWER(br.user_email) = LOWER(${result.memberEmail})
             OR br.session_id IN (
               SELECT bp.session_id FROM booking_participants bp
-              WHERE bp.user_id = ${parseInt(String(member.id), 10) || 0}
+              WHERE bp.user_id = ${String(member.id)}
             )
           )
         ORDER BY br.start_time ASC
