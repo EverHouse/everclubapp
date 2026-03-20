@@ -232,6 +232,11 @@ export async function handlePriceChange(client: PoolClient, price: Stripe.Price)
     const productId = typeof price.product === 'string' ? price.product : price.product?.id;
     if (!productId) return deferredActions;
 
+    if (!price.active) {
+      logger.info(`[Stripe Webhook] Ignoring inactive price ${price.id} for product ${productId} — only active prices update the app`);
+      return deferredActions;
+    }
+
     logger.info(`[Stripe Webhook] Price changed: ${price.id} for product ${productId}`);
 
     const priceCents = price.unit_amount || 0;

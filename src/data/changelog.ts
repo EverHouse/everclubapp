@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.94.10",
+    date: "2026-03-20",
+    title: "Fix Stripe ID Preservation on Tier Save",
+    changes: [
+      "Fixed: Saving a tier (e.g. editing description or features) was wiping the Stripe product ID, price ID, and price_cents from the database — causing auto-push to re-discover or re-create Stripe products and prices on every save. Changed to COALESCE to preserve existing values when not explicitly provided.",
+      "Fixed: Stripe price webhook handler now ignores inactive/deactivated prices — previously, when a price was replaced (old deactivated, new created), the deactivation webhook could arrive late and overwrite the database with stale price data.",
+    ]
+  },
+  {
     version: "8.94.9",
     date: "2026-03-20",
     title: "Fix Tier Editor Validation",
