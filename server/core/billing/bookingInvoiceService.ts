@@ -214,11 +214,11 @@ async function addLineItemsToInvoice(
           const errObj = priceErr instanceof Error ? priceErr : null;
           const errType = errObj && 'type' in errObj ? (errObj as Record<string, unknown>).type : undefined;
           const errCode = errObj && 'code' in errObj ? (errObj as Record<string, unknown>).code : undefined;
-          const isStalePrice = (errType === 'StripeInvalidRequestError' && errCode === 'resource_missing')
-            || (errObj !== null && errObj.message.includes('No such price'));
+          const isStalePrice = (errType === 'StripeInvalidRequestError' && (errCode === 'resource_missing' || errCode === 'price_inactive'))
+            || (errObj !== null && (errObj.message.includes('No such price') || errObj.message.includes('inactive')));
           if (isStalePrice) {
             const errMsg = errObj ? errObj.message : String(priceErr);
-            logger.warn('[BookingInvoice] Stale overage price ID, falling back to custom amount', { extra: { overagePriceId, error: errMsg } });
+            logger.warn('[BookingInvoice] Stale/inactive overage price ID, falling back to custom amount', { extra: { overagePriceId, error: errMsg } });
             await stripe.invoiceItems.create({
               customer: customerId,
               invoice: invoiceId,
@@ -280,11 +280,11 @@ async function addLineItemsToInvoice(
           const errObj = priceErr instanceof Error ? priceErr : null;
           const errType = errObj && 'type' in errObj ? (errObj as Record<string, unknown>).type : undefined;
           const errCode = errObj && 'code' in errObj ? (errObj as Record<string, unknown>).code : undefined;
-          const isStalePrice = (errType === 'StripeInvalidRequestError' && errCode === 'resource_missing')
-            || (errObj !== null && errObj.message.includes('No such price'));
+          const isStalePrice = (errType === 'StripeInvalidRequestError' && (errCode === 'resource_missing' || errCode === 'price_inactive'))
+            || (errObj !== null && (errObj.message.includes('No such price') || errObj.message.includes('inactive')));
           if (isStalePrice) {
             const errMsg = errObj ? errObj.message : String(priceErr);
-            logger.warn('[BookingInvoice] Stale guest price ID, falling back to custom amount', { extra: { guestPriceId, error: errMsg } });
+            logger.warn('[BookingInvoice] Stale/inactive guest price ID, falling back to custom amount', { extra: { guestPriceId, error: errMsg } });
             await stripe.invoiceItems.create({
               customer: customerId,
               invoice: invoiceId,

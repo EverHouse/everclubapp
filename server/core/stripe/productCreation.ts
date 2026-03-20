@@ -90,7 +90,11 @@ export async function ensureSimulatorOverageProduct(): Promise<{
     
     if (stripePriceId) {
       try {
-        await stripe.prices.retrieve(stripePriceId);
+        const existingPrice = await stripe.prices.retrieve(stripePriceId);
+        if (!existingPrice.active) {
+          logger.warn(`[Overage Product] Stored Stripe price ${stripePriceId} is inactive, will recreate`);
+          stripePriceId = null;
+        }
       } catch (priceErr: unknown) {
         const errMsg = getErrorMessage(priceErr);
         if (errMsg.includes('No such price') || errMsg.includes('resource_missing')) {
@@ -242,7 +246,11 @@ export async function ensureGuestPassProduct(): Promise<{
     
     if (stripePriceId) {
       try {
-        await stripe.prices.retrieve(stripePriceId);
+        const existingPrice = await stripe.prices.retrieve(stripePriceId);
+        if (!existingPrice.active) {
+          logger.warn(`[Guest Pass Product] Stored Stripe price ${stripePriceId} is inactive, will recreate`);
+          stripePriceId = null;
+        }
       } catch (priceErr: unknown) {
         const errMsg = getErrorMessage(priceErr);
         if (errMsg.includes('No such price') || errMsg.includes('resource_missing')) {
