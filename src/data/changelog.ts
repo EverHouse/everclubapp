@@ -8,10 +8,11 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "8.94.7",
+    version: "8.94.8",
     date: "2026-03-20",
-    title: "CSP Style Fix",
+    title: "Application Notes & CSP Fix",
     changes: [
+      "Fixed: Saving notes on the Admin Applications page now works correctly — previously it was returning a 400 error because the notes-only update was hitting the status-change endpoint which required a status value",
       "Fixed: Restored 'unsafe-inline' to the Content Security Policy style-src directive — React inline styles were being blocked by the browser, breaking page layout",
     ]
   },

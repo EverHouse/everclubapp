@@ -45,11 +45,20 @@ router.put('/api/admin/applications/:id/status', isStaffOrAdmin, async (req, res
     const { status, notes } = req.body;
 
     const validStatuses = ['new', 'read', 'reviewing', 'approved', 'invited', 'converted', 'declined', 'archived'];
-    if (!validStatuses.includes(status)) {
+
+    if (status !== undefined && !validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    await db.execute(sql`UPDATE form_submissions SET status = ${status}, notes = COALESCE(${notes || null}, notes), updated_at = NOW() WHERE id = ${id} AND form_type = 'membership'`);
+    if (!status && notes === undefined) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    if (status) {
+      await db.execute(sql`UPDATE form_submissions SET status = ${status}, notes = COALESCE(${notes || null}, notes), updated_at = NOW() WHERE id = ${id} AND form_type = 'membership'`);
+    } else {
+      await db.execute(sql`UPDATE form_submissions SET notes = ${notes || null}, updated_at = NOW() WHERE id = ${id} AND form_type = 'membership'`);
+    }
 
     res.json({ success: true });
   } catch (error: unknown) {

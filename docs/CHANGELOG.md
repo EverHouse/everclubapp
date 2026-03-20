@@ -2,9 +2,10 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
-## [8.94.7] - 2026-03-20
+## [8.94.8] - 2026-03-20
 
-### CSP Style Fix
+### Application Notes & CSP Fix
+- **Fixed**: Saving notes on the Admin Applications page was silently failing with a 400 error. The `useSaveApplicationNotes` hook sends `{ notes }` to the `/api/admin/applications/:id/status` endpoint, but the route handler required a valid `status` in the body. Made `status` optional on the backend — when only `notes` are provided, only notes are updated.
 - **Fixed**: Restored `'unsafe-inline'` to the Content Security Policy `style-src` directive. It had been accidentally dropped, causing browsers to block React inline styles and breaking page layout. This is a documented trade-off required by React inline styles and third-party widget CSS.
 
 ## [8.94.6] - 2026-03-20
