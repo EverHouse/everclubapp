@@ -226,11 +226,21 @@ router.put('/api/membership-tiers/:id', isAdmin, validateBody(updateTierSchema),
     if (updatedTier.slug) invalidateTierCache(String(updatedTier.slug));
     invalidateQueryCache(TIERS_CACHE_KEY);
     
-    autoPushTierToStripe(updatedTier as Record<string, unknown> & { id: number; name: string; slug: string }).catch(err => {
-      logger.error('[AutoPush] Background tier push failed', { error: getErrorMessage(err) });
-    });
+    let synced = false;
+    let syncError: string | undefined;
+    try {
+      const pushResult = await autoPushTierToStripe(updatedTier as Record<string, unknown> & { id: number; name: string; slug: string });
+      synced = pushResult.success;
+      if (!pushResult.success) {
+        syncError = pushResult.error || 'Stripe sync failed';
+        logger.error('[AutoPush] Tier push failed', { error: syncError });
+      }
+    } catch (err) {
+      syncError = getErrorMessage(err);
+      logger.error('[AutoPush] Tier push exception', { error: syncError });
+    }
 
-    res.json(updatedTier);
+    res.json({ ...updatedTier, synced, syncError });
   } catch (error: unknown) {
     logger.error('Membership tier update error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to update membership tier' });
@@ -278,11 +288,21 @@ router.post('/api/membership-tiers', isAdmin, validateBody(createTierSchema), as
     if (newTier.slug) invalidateTierCache(String(newTier.slug));
     invalidateQueryCache(TIERS_CACHE_KEY);
     
-    autoPushTierToStripe(newTier as Record<string, unknown> & { id: number; name: string; slug: string }).catch(err => {
-      logger.error('[AutoPush] Background tier push failed', { error: getErrorMessage(err) });
-    });
+    let synced = false;
+    let syncError: string | undefined;
+    try {
+      const pushResult = await autoPushTierToStripe(newTier as Record<string, unknown> & { id: number; name: string; slug: string });
+      synced = pushResult.success;
+      if (!pushResult.success) {
+        syncError = pushResult.error || 'Stripe sync failed';
+        logger.error('[AutoPush] Tier push failed', { error: syncError });
+      }
+    } catch (err) {
+      syncError = getErrorMessage(err);
+      logger.error('[AutoPush] Tier push exception', { error: syncError });
+    }
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({ ...result.rows[0], synced, syncError });
   } catch (error: unknown) {
     logger.error('Membership tier create error', { error: getErrorMessage(error) });
     if (getErrorCode(error) === '23505') {

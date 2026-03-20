@@ -3,7 +3,7 @@ import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { usePageReady } from '../../../stores/pageReadyStore';
 import { useToast } from '../../../components/Toast';
 import ModalShell from '../../../components/ModalShell';
-import { useCafeMenu, useUploadCafeImage, useSeedCafeMenu, useUpdateCafeItem, useDeleteCafeItem } from '../../../hooks/queries/useCafeQueries';
+import { useCafeMenu, useUploadCafeImage, useSeedCafeMenu, useCreateCafeItem, useUpdateCafeItem, useDeleteCafeItem } from '../../../hooks/queries/useCafeQueries';
 import type { CafeItem } from '../../../types/data';
 import Icon from '../../../components/icons/Icon';
 
@@ -16,6 +16,7 @@ const CafeTab: React.FC = () => {
     const { data: cafeMenu = [] } = useCafeMenu({ includeInactive: true });
     const uploadImageMutation = useUploadCafeImage();
     const seedMenuMutation = useSeedCafeMenu();
+    const createItemMutation = useCreateCafeItem();
     const updateItemMutation = useUpdateCafeItem();
     const deleteItemMutation = useDeleteCafeItem();
 
@@ -41,6 +42,13 @@ const CafeTab: React.FC = () => {
         setIsEditing(true);
     };
 
+    const openCreate = () => {
+        setNewItem({ category: 'Coffee & Drinks', price: 0, isActive: true });
+        setEditId(null);
+        setUploadResult(null);
+        setIsEditing(true);
+    };
+
     const handleImageUpload = async (file: File) => {
         try {
             const data = await uploadImageMutation.mutateAsync(file);
@@ -60,30 +68,53 @@ const CafeTab: React.FC = () => {
     };
 
     const handleSave = async () => {
-        if (!editId || !newItem.name || newItem.price === undefined || newItem.price === null) return;
-        
-        const itemData: CafeItem = {
-            id: editId,
-            name: newItem.name,
-            price: Number(newItem.price),
-            desc: newItem.desc || '',
-            category: newItem.category || 'Coffee & Drinks',
-            icon: newItem.icon || 'coffee',
-            image: newItem.image || '',
-            isActive: newItem.isActive,
-        };
+        if (!newItem.name || newItem.price === undefined || newItem.price === null) return;
 
-        try {
-            const result = await updateItemMutation.mutateAsync(itemData);
-            const synced = result?.synced === true;
-            const syncError = result?.syncError;
-            showToast(
-                synced ? 'Item saved — synced to Stripe' : `Item saved — Stripe sync failed${syncError ? `: ${syncError}` : ''}`,
-                synced ? 'success' : 'error'
-            );
-            setIsEditing(false);
-        } catch (err: unknown) {
-            showToast(err instanceof Error ? err.message : 'Failed to save item', 'error');
+        if (editId) {
+            const itemData: CafeItem = {
+                id: editId,
+                name: newItem.name,
+                price: Number(newItem.price),
+                desc: newItem.desc || '',
+                category: newItem.category || 'Coffee & Drinks',
+                icon: newItem.icon || 'coffee',
+                image: newItem.image || '',
+                isActive: newItem.isActive,
+            };
+
+            try {
+                const result = await updateItemMutation.mutateAsync(itemData);
+                const synced = result?.synced === true;
+                const syncError = result?.syncError;
+                showToast(
+                    synced ? 'Item saved — synced to Stripe' : `Item saved — Stripe sync failed${syncError ? `: ${syncError}` : ''}`,
+                    synced ? 'success' : 'error'
+                );
+                setIsEditing(false);
+            } catch (err: unknown) {
+                showToast(err instanceof Error ? err.message : 'Failed to save item', 'error');
+            }
+        } else {
+            try {
+                const result = await createItemMutation.mutateAsync({
+                    name: newItem.name,
+                    price: Number(newItem.price),
+                    desc: newItem.desc || '',
+                    category: newItem.category || 'Coffee & Drinks',
+                    icon: newItem.icon || 'coffee',
+                    image: newItem.image || '',
+                    isActive: newItem.isActive ?? true,
+                });
+                const synced = result?.synced === true;
+                const syncError = result?.syncError;
+                showToast(
+                    synced ? 'Item created — synced to Stripe' : `Item created — Stripe sync failed${syncError ? `: ${syncError}` : ''}`,
+                    synced ? 'success' : 'error'
+                );
+                setIsEditing(false);
+            } catch (err: unknown) {
+                showToast(err instanceof Error ? err.message : 'Failed to create item', 'error');
+            }
         }
     };
 
@@ -100,7 +131,7 @@ const CafeTab: React.FC = () => {
         }
     };
 
-    const isLoading = uploadImageMutation.isPending || seedMenuMutation.isPending || updateItemMutation.isPending;
+    const isLoading = uploadImageMutation.isPending || seedMenuMutation.isPending || createItemMutation.isPending || updateItemMutation.isPending;
 
     return (
         <div className="animate-page-enter backdrop-blur-sm">
@@ -112,6 +143,13 @@ const CafeTab: React.FC = () => {
                         Changes sync to Stripe automatically
                     </p>
                 </div>
+                <button
+                    onClick={openCreate}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl font-semibold shadow-md hover:bg-primary/90 transition-colors text-sm"
+                >
+                    <Icon name="add" className="text-lg" />
+                    New Item
+                </button>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide -mx-1 px-1 mb-4 animate-content-enter-delay-2 scroll-fade-right">
                 {categories.map(cat => (

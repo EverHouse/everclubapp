@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.94.12",
+    date: "2026-03-20",
+    title: "Stripe Sync Reliability & Cafe Item Creation",
+    changes: [
+      "Fixed: Tier create/update and cafe item creation now await the Stripe auto-push and report success or failure to the frontend — previously these ran fire-and-forget in the background, so the admin UI always showed success even when Stripe sync failed",
+      "Added: 'New Item' button on the Cafe menu admin tab — admins can now create new menu items directly from the UI (was completely missing before)",
+      "Fixed: Fee pricing updates (guest fee, overage rate) now use the central autoPushFeeToStripe engine instead of a local duplicate that skipped stale-price cleanup and audit logging",
+    ]
+  },
+  {
     version: "8.94.11",
     date: "2026-03-20",
     title: "Complete Bidirectional Stripe Sync",

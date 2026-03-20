@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.94.12] - 2026-03-20
+
+### Stripe Sync Reliability & Cafe Item Creation
+- **Fixed**: Tier create/update (`POST /api/membership-tiers`, `PUT /api/membership-tiers/:id`) and cafe item creation (`POST /api/cafe-menu`) now `await` the Stripe auto-push and return `synced`/`syncError` in the response. Previously these ran fire-and-forget with `.catch()`, so the admin UI always showed success even when Stripe sync actually failed.
+- **Added**: "New Item" button and `useCreateCafeItem` mutation on the Cafe admin tab (`CafeTab.tsx`). Admins can now create new menu items directly from the UI — previously the component only supported editing existing items (the create path was never wired up).
+- **Fixed**: Fee pricing updates (`PUT /api/pricing`) now delegate to `autoPushFeeToStripe` from `server/core/stripe/autoPush.ts` instead of a local `pushFeeToStripe` function that duplicated logic but skipped stale-price archival and audit logging. The local function has been deleted.
+- **Added**: Audit logging (`logFromRequest`) for fee pricing changes in the `/api/pricing` PUT handler.
+- **Scope**: `server/routes/pricing.ts`, `server/routes/membershipTiers.ts`, `server/routes/cafe.ts`, `src/pages/Admin/tabs/CafeTab.tsx`, `src/hooks/queries/useCafeQueries.ts`.
+
 ## [8.94.11] - 2026-03-20
 
 ### Complete Bidirectional Stripe Sync

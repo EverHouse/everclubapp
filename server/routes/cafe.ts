@@ -107,22 +107,32 @@ router.post('/api/cafe-menu', isStaffOrAdmin, validateBody(cafeItemSchema), asyn
     
     const newItem = result[0];
 
-    autoPushCafeItemToStripe({
-      id: newItem.id,
-      name: newItem.name,
-      description: newItem.description,
-      price: String(newItem.price),
-      category: newItem.category,
-      stripeProductId: null,
-      stripePriceId: null,
-    }).catch(err => {
-      logger.error('[AutoPush] Background cafe item creation push failed', { error: getErrorMessage(err) });
-    });
+    let synced = false;
+    let syncError: string | undefined;
+    try {
+      const pushResult = await autoPushCafeItemToStripe({
+        id: newItem.id,
+        name: newItem.name,
+        description: newItem.description,
+        price: String(newItem.price),
+        category: newItem.category,
+        stripeProductId: null,
+        stripePriceId: null,
+      });
+      synced = pushResult.success;
+      if (!pushResult.success) {
+        syncError = pushResult.error || 'Stripe sync failed';
+        logger.error('[AutoPush] Cafe item creation push failed', { error: syncError });
+      }
+    } catch (err) {
+      syncError = getErrorMessage(err);
+      logger.error('[AutoPush] Cafe item creation push exception', { error: syncError });
+    }
 
     invalidateCache(CAFE_CACHE_KEY);
     broadcastCafeMenuUpdate('created');
     logFromRequest(req, 'create_cafe_item', 'cafe', String(newItem.id), newItem.name || name, {});
-    res.status(201).json(newItem);
+    res.status(201).json({ ...newItem, synced, syncError });
   } catch (error: unknown) {
     if (!isProduction) logger.error('Cafe item creation error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to create cafe item' });

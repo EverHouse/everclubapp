@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchWithCredentials, putWithCredentials, deleteWithCredentials } from './useFetch';
+import { fetchWithCredentials, postWithCredentials, putWithCredentials, deleteWithCredentials } from './useFetch';
 import type { CafeItem } from '../../types/data';
 import { cafeKeys } from './adminKeys';
 
@@ -116,6 +116,25 @@ export function useUpdateCafeItem() {
         queryClient.setQueryData(key, data);
       });
     },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: cafeKeys.menu() });
+    },
+  });
+}
+
+export function useCreateCafeItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (item: Omit<CafeItem, 'id'>) =>
+      postWithCredentials<CafeMenuResponse & { synced?: boolean; syncError?: string }>('/api/cafe-menu', {
+        category: item.category,
+        name: item.name,
+        price: item.price,
+        description: item.desc,
+        icon: item.icon,
+        image_url: item.image,
+        is_active: item.isActive,
+      }),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: cafeKeys.menu() });
     },
