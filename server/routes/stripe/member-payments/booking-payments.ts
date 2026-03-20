@@ -79,7 +79,7 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       });
       await applyFeeBreakdownToParticipants(booking.session_id, breakdown);
     } catch (feeError: unknown) {
-      logger.error('[Stripe] Failed to compute fees', { extra: { feeError } });
+      logger.error('[Stripe] Failed to compute fees', { extra: { error: getErrorMessage(feeError) } });
       return res.status(500).json({ error: 'Failed to calculate fees' });
     }
 
@@ -660,7 +660,7 @@ router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, async (
         action: 'payment_confirmed',
       });
     } catch (txError: unknown) {
-      logger.error('[Stripe] Transaction rolled back for member payment confirmation', { extra: { txError } });
+      logger.error('[Stripe] Transaction rolled back for member payment confirmation', { extra: { error: getErrorMessage(txError) } });
       throw txError;
     }
 

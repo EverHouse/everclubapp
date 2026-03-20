@@ -230,7 +230,7 @@ router.post('/api/staff/passes/:id/redeem', isStaffOrAdmin, async (req: Request,
         passType: passDetails.productType,
         remainingUses: remainingUses ?? 0,
         redeemedAt: new Date(),
-      }).catch(err => logger.error('[Passes] Email send failed:', { extra: { err } }));
+      }).catch(err => logger.error('[Passes] Email send failed:', { extra: { error: getErrorMessage(err) } }));
     }
 
     broadcastDayPassUpdate({

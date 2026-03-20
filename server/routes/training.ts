@@ -7,6 +7,7 @@ import { isStaffOrAdmin, isAdmin } from '../core/middleware';
 import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
 import { TRAINING_SEED_DATA } from '../data/trainingSeedData';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -112,7 +113,7 @@ router.get('/api/training-sections', isStaffOrAdmin, async (req, res) => {
         }
         logger.info('[Training] Auto-seeded sections', { extra: { resultLength: result.length } });
       } catch (seedError) {
-        logger.error('[Training] Auto-seed failed', { extra: { seedError } });
+        logger.error('[Training] Auto-seed failed', { extra: { error: getErrorMessage(seedError) } });
       }
     }
     

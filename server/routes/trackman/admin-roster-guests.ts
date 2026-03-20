@@ -186,7 +186,7 @@ router.delete('/api/admin/booking/:id/guests/:guestId', isStaffOrAdmin, async (r
             await refundGuestPassForParticipant(participant.id as number, booking.owner_email as string, guestDisplayName);
             logger.info('[RemoveGuest] Guest pass refunded for', { extra: { guestDisplayName } });
           } catch (err: unknown) {
-            logger.error('[RemoveGuest] Failed to refund guest pass', { extra: { err } });
+            logger.error('[RemoveGuest] Failed to refund guest pass', { extra: { error: getErrorMessage(err) } });
           }
         }
         await db.execute(sql`DELETE FROM booking_participants WHERE id = ${guestId}`);
@@ -528,7 +528,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/unlink', isStaffOrAdmi
           logger.warn('[unlink] Non-blocking: draft invoice sync failed after roster change', { extra: { error: getErrorMessage(err), bookingId, sessionId } });
         });
       } catch (feeError: unknown) {
-        logger.warn('[unlink] Failed to recalculate session fees (non-blocking)', { extra: { feeError } });
+        logger.warn('[unlink] Failed to recalculate session fees (non-blocking)', { extra: { error: getErrorMessage(feeError) } });
       }
     }
     

@@ -1182,7 +1182,7 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
           billingGroupRole: 'Primary',
         });
       } catch (hubspotError: unknown) {
-        logger.error('[Terminal] HubSpot sync error (non-blocking)', { extra: { hubspotError } });
+        logger.error('[Terminal] HubSpot sync error (non-blocking)', { extra: { error: getErrorMessage(hubspotError) } });
       }
     }
     

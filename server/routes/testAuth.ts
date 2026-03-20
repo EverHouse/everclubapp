@@ -7,6 +7,7 @@ import { users, staffUsers, membershipTiers, notifications, bookingRequests } fr
 import { sql, eq, like, or } from 'drizzle-orm';
 import { normalizeTierName } from '../../shared/constants/tiers';
 import '../types/session';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -136,7 +137,7 @@ router.post('/test-login', async (req: Request, res: Response) => {
 
     req.session.regenerate((err) => {
       if (err) {
-        logger.error('[TestAuth] Session regeneration error', { extra: { err } });
+        logger.error('[TestAuth] Session regeneration error', { extra: { error: getErrorMessage(err) } });
         return res.status(500).json({ error: 'Session error' });
       }
 
@@ -152,7 +153,7 @@ router.post('/test-login', async (req: Request, res: Response) => {
 
       req.session.save((saveErr) => {
         if (saveErr) {
-          logger.error('[TestAuth] Session save error', { extra: { saveErr } });
+          logger.error('[TestAuth] Session save error', { extra: { error: getErrorMessage(saveErr) } });
           return res.status(500).json({ error: 'Session save error' });
         }
 

@@ -714,7 +714,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                VALUES (${member.id}, ${'day-pass-golf-sim'}, 1, ${amountCents}, ${paymentIntentId}, ${bookingDateStr}, ${paymentStatus}, ${booking.trackman_booking_id}, NOW())`);
             
             updateVisitorTypeByUserId(member.id as string, 'day_pass', 'day_pass_purchase', new Date(bookingDateStr))
-              .catch(err => logger.error('[VisitorType] Failed to update day_pass type:', { extra: { err } }));
+              .catch(err => logger.error('[VisitorType] Failed to update day_pass type:', { extra: { error: getErrorMessage(err) } }));
             }
             }
           }
@@ -766,7 +766,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
           });
         }
       } catch (billingError: unknown) {
-        logger.error('[Trackman Resolve] Billing error for visitor', { extra: { billingError } });
+        logger.error('[Trackman Resolve] Billing error for visitor', { extra: { error: getErrorMessage(billingError) } });
         billingMessage = ' (Billing setup failed - manual follow-up needed)';
       }
     }
@@ -843,7 +843,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
           }
         }
       } catch (sessionError: unknown) {
-        logger.error('[Trackman Resolve] Session creation error for member', { extra: { sessionError } });
+        logger.error('[Trackman Resolve] Session creation error for member', { extra: { error: getErrorMessage(sessionError) } });
         billingMessage += ' (Session setup may need manual review)';
       }
     }

@@ -6,6 +6,7 @@ import { formSubmissions } from '../../../shared/schema';
 import { sql } from 'drizzle-orm';
 import { notifyAllStaff } from '../../core/notificationService';
 import { getSessionUser } from '../../types/session';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -206,10 +207,10 @@ router.post('/api/hubspot/forms/:formType', async (req, res) => {
           relatedType: notificationRelatedType,
           url: notificationUrl
         }
-      ).catch(err => logger.error('Staff inquiry notification failed:', { extra: { err } }));
+      ).catch(err => logger.error('Staff inquiry notification failed:', { extra: { error: getErrorMessage(err) } }));
 
     } catch (dbError: unknown) {
-      logger.error('Failed to save form submission locally', { extra: { dbError } });
+      logger.error('Failed to save form submission locally', { extra: { error: getErrorMessage(dbError) } });
     }
     
     res.json({ success: true, message: result.inlineMessage || 'Form submitted successfully' });

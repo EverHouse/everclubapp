@@ -213,7 +213,7 @@ export async function createSupabaseToken(user: { id: string, email: string, rol
 
     if (linkError) {
       if (!getErrorMessage(linkError)?.includes('fetch failed') && !getErrorMessage(linkError)?.includes('ENOTFOUND')) {
-        logger.error('[Supabase] generateLink error', { extra: { linkError } });
+        logger.error('[Supabase] generateLink error', { extra: { error: getErrorMessage(linkError) } });
       }
       return null;
     }
@@ -234,7 +234,7 @@ export async function createSupabaseToken(user: { id: string, email: string, rol
       
       if (otpError) {
         if (!otpError.message?.includes('fetch failed') && !otpError.message?.includes('ENOTFOUND')) {
-          logger.error('[Supabase] verifyOtp error', { extra: { otpError } });
+          logger.error('[Supabase] verifyOtp error', { extra: { error: getErrorMessage(otpError) } });
         }
         return null;
       }

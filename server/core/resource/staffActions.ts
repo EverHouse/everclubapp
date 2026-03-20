@@ -920,7 +920,7 @@ export function fireManualBookingPostCommitEffects(
       sendNotificationAndBroadcast(row, resourceName, resourceType, input, dayPassRedeemed, trackman_id!, auditLogFn, isDayPassPayment);
     }
   } catch (postCommitError: unknown) {
-    logger.error('[StaffManualBooking] Post-commit operations failed', { extra: { postCommitError } });
+    logger.error('[StaffManualBooking] Post-commit operations failed', { extra: { error: getErrorMessage(postCommitError) } });
   }
 }
 
@@ -965,7 +965,7 @@ function sendNotificationAndBroadcast(
       relatedId: row.id as number,
       relatedType: 'booking_request'
     }
-  ).catch(err => logger.error('Staff notification failed:', { extra: { err } }));
+  ).catch(err => logger.error('Staff notification failed:', { extra: { error: getErrorMessage(err) } }));
 
   broadcastAvailabilityUpdate({
     resourceId: (row.resourceId as number) || undefined,

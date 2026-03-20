@@ -134,7 +134,7 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
             logger.info('[Tier Sync] Updated batch : contacts', { extra: { MathFloor_i_batchSize_1: Math.floor(i / batchSize) + 1, batchLength: batch.length } });
           } catch (err: unknown) {
             results.errors.push(`Batch ${Math.floor(i / batchSize) + 1} failed: ${getErrorMessage(err)}`);
-            logger.error('[Tier Sync] Batch update error:', { extra: { err } });
+            logger.error('[Tier Sync] Batch update error:', { extra: { error: getErrorMessage(err) } });
           }
         }
       }
@@ -243,7 +243,7 @@ router.post('/api/hubspot/push-db-tiers', isStaffOrAdmin, async (req, res) => {
             logger.info('[DB Tier Push] Updated batch : contacts', { extra: { MathFloor_i_batchSize_1: Math.floor(i / batchSize) + 1, batchLength: batch.length } });
           } catch (err: unknown) {
             results.errors.push(`Batch ${Math.floor(i / batchSize) + 1} failed: ${getErrorMessage(err)}`);
-            logger.error('[DB Tier Push] Batch update error:', { extra: { err } });
+            logger.error('[DB Tier Push] Batch update error:', { extra: { error: getErrorMessage(err) } });
           }
         }
         

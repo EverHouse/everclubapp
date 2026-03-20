@@ -644,7 +644,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
         action: 'booked'
       });
     } catch (postCommitError: unknown) {
-      logger.error('[BookingRequest] Post-commit operations failed', { extra: { postCommitError } });
+      logger.error('[BookingRequest] Post-commit operations failed', { extra: { error: getErrorMessage(postCommitError) } });
     }
   } catch (error: unknown) {
     const { isConstraintError } = await import('../../core/db');

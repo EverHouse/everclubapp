@@ -742,7 +742,7 @@ router.post('/api/member-billing/:email/sync-tier-from-stripe', requireStaffAuth
       await syncMemberToHubSpot({ email: targetEmail, status: 'active', tier: newTier, billingProvider: 'stripe' });
       logger.info('[SyncTierFromStripe] Synced to HubSpot: status=active, tier=, billing=stripe', { extra: { targetEmail, newTier } });
     } catch (hubspotError) {
-      logger.error('[SyncTierFromStripe] HubSpot sync failed', { extra: { hubspotError } });
+      logger.error('[SyncTierFromStripe] HubSpot sync failed', { extra: { error: getErrorMessage(hubspotError) } });
     }
     
     res.json({ 
@@ -872,7 +872,7 @@ router.post('/api/my/billing/request-cancellation', requireAuth, async (req, res
         'membership_cancellation'
       );
     } catch (notifyErr) {
-      logger.warn('[MyBilling] Failed to notify staff of cancellation request', { extra: { notifyErr } });
+      logger.warn('[MyBilling] Failed to notify staff of cancellation request', { extra: { error: getErrorMessage(notifyErr) } });
     }
     
     logger.info('[MyBilling] Member requested cancellation, effective', { extra: { email, effectiveDateToISOString: effectiveDate.toISOString() } });

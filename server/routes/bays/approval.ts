@@ -240,7 +240,7 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
       cleanup_errors: result.sideEffectErrors
     });
   } catch (err: unknown) {
-    logger.error('[Complete Cancellation] Error', { extra: { err } });
+    logger.error('[Complete Cancellation] Error', { extra: { error: getErrorMessage(err) } });
     return res.status(500).json({ error: 'Failed to complete cancellation' });
   }
 });

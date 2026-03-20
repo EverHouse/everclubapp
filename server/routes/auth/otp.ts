@@ -311,7 +311,7 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
               await syncMemberToHubSpot({ email: normalizedEmail, status: subscription.status, billingProvider: 'stripe' });
               logger.info('[Auth] Synced auto-fixed status to HubSpot for', { extra: { normalizedEmail } });
             } catch (hubspotError: unknown) {
-              logger.error('[Auth] HubSpot sync failed for auto-fix', { extra: { hubspotError } });
+              logger.error('[Auth] HubSpot sync failed for auto-fix', { extra: { error: getErrorMessage(hubspotError) } });
             }
           } else {
             return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });

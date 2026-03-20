@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.94.6",
+    date: "2026-03-20",
+    title: "Error Logging Safety Sweep",
+    changes: [
+      "Fixed: All server error logging now properly extracts error messages instead of passing raw error objects, preventing '[object Object]' entries in logs across 25+ files (80+ occurrences)",
+      "Fixed: Added missing error utility imports to 6 modules that were logging raw caught errors",
+      "Improved: Error logs across booking flows, Stripe payments, HubSpot sync, closures, notifications, check-in, and member management now produce readable, searchable log messages",
+    ]
+  },
+  {
     version: "8.94.5",
     date: "2026-03-20",
     title: "Kiosk Check-In Redesign",

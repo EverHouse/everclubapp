@@ -253,7 +253,7 @@ router.post('/api/stripe/staff/send-membership-link', isStaffOrAdmin, async (req
       });
       logger.info('[Stripe] Membership invite email sent to', { extra: { email } });
     } catch (emailError: unknown) {
-      logger.error('[Stripe] Failed to send membership invite email', { extra: { emailError } });
+      logger.error('[Stripe] Failed to send membership invite email', { extra: { error: getErrorMessage(emailError) } });
     }
 
     res.json({ success: true, checkoutUrl });
@@ -402,7 +402,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
         });
         logger.info('[Stripe] Reactivation email sent to', { extra: { email: member.email } });
       } catch (emailError: unknown) {
-        logger.error('[Stripe] Failed to send reactivation email', { extra: { emailError } });
+        logger.error('[Stripe] Failed to send reactivation email', { extra: { error: getErrorMessage(emailError) } });
       }
     }
 

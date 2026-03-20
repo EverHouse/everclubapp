@@ -355,7 +355,7 @@ export async function approveBooking(params: ApproveBookingParams) {
         }
       } catch (sessionError: unknown) {
         if (sessionError instanceof AppError) throw sessionError;
-        logger.error('[Booking Approval] Failed to create session', { extra: { sessionError } });
+        logger.error('[Booking Approval] Failed to create session', { extra: { error: getErrorMessage(sessionError) } });
         throw new AppError(500, 'Failed to create booking session. Please try again.', { details: getErrorMessage(sessionError) || sessionError });
       }
     }
@@ -449,7 +449,7 @@ export async function approveBooking(params: ApproveBookingParams) {
           }
         }
       } catch (calError: unknown) {
-        logger.error('Calendar sync failed (non-blocking)', { extra: { calError } });
+        logger.error('Calendar sync failed (non-blocking)', { extra: { error: getErrorMessage(calError) } });
       }
     }
 
@@ -482,7 +482,7 @@ export async function approveBooking(params: ApproveBookingParams) {
           logger.info('[Booking Approval] Prepayment fully covered by credit for session', { extra: { createdSessionId: prepaymentData.createdSessionId } });
         }
       } catch (prepayError: unknown) {
-        logger.error('[Booking Approval] Failed to create prepayment intent', { extra: { prepayError } });
+        logger.error('[Booking Approval] Failed to create prepayment intent', { extra: { error: getErrorMessage(prepayError) } });
       }
     }
 
@@ -513,7 +513,7 @@ export async function approveBooking(params: ApproveBookingParams) {
       body: approvalMessage,
       url: '/sims',
       tag: `booking-${bookingId}`
-    }).catch(err => logger.error('Push notification failed:', { extra: { err } }));
+    }).catch(err => logger.error('Push notification failed:', { extra: { error: getErrorMessage(err) } }));
 
     notifyLinkedMembers(bookingId, updated as unknown as BookingUpdateResult)
       .catch(err => logger.error('[Approval] Group notification failed', { extra: { error: getErrorMessage(err) } }));
@@ -529,7 +529,7 @@ export async function approveBooking(params: ApproveBookingParams) {
       endTime: updated.endTime,
       status: 'approved',
       actionBy: 'staff'
-    }, { notifyMember: true, notifyStaff: true, cleanupNotifications: true }).catch(err => logger.error('Booking event publish failed:', { extra: { err } }));
+    }, { notifyMember: true, notifyStaff: true, cleanupNotifications: true }).catch(err => logger.error('Booking event publish failed:', { extra: { error: getErrorMessage(err) } }));
 
     broadcastAvailabilityUpdate({
       resourceId: updated.resourceId || undefined,
@@ -614,7 +614,7 @@ async function notifyLinkedMembers(bookingId: number, updated: BookingUpdateResu
       }
     }
   } catch (err: unknown) {
-    logger.error('Failed to notify linked members', { extra: { err } });
+    logger.error('Failed to notify linked members', { extra: { error: getErrorMessage(err) } });
   }
 }
 
@@ -680,7 +680,7 @@ async function notifyApprovalParticipants(bookingId: number, updated: BookingUpd
       logger.info('[Approval] Sent Added to Booking notification', { extra: { participantEmail, bookingId } });
     }
   } catch (notifyErr: unknown) {
-    logger.error('[Approval] Failed to notify participants (non-blocking)', { extra: { notifyErr } });
+    logger.error('[Approval] Failed to notify participants (non-blocking)', { extra: { error: getErrorMessage(notifyErr) } });
   }
 }
 
@@ -785,7 +785,7 @@ export async function declineBooking(params: DeclineBookingParams) {
     body: declineMessage,
     url: '/sims',
     tag: `booking-${bookingId}`
-  }).catch(err => logger.error('Push notification failed:', { extra: { err } }));
+  }).catch(err => logger.error('Push notification failed:', { extra: { error: getErrorMessage(err) } }));
 
   bookingEvents.publish('booking_declined', {
     bookingId,
@@ -795,7 +795,7 @@ export async function declineBooking(params: DeclineBookingParams) {
     startTime: updated.startTime,
     status: 'declined',
     actionBy: 'staff'
-  }, { notifyMember: true, notifyStaff: true, cleanupNotifications: true }).catch(err => logger.error('Booking event publish failed:', { extra: { err } }));
+  }, { notifyMember: true, notifyStaff: true, cleanupNotifications: true }).catch(err => logger.error('Booking event publish failed:', { extra: { error: getErrorMessage(err) } }));
 
   sendNotificationToUser(updated.userEmail, {
     type: 'notification',

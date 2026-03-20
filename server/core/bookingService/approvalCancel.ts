@@ -175,7 +175,7 @@ export async function cancelBooking(params: CancelBookingParams) {
         logger.info('[Staff Cancel] Cleared pending fees for session', { extra: { existingSessionId: existing.sessionId } });
       }
     } catch (cancelIntentsErr: unknown) {
-      logger.error('[Staff Cancel] Failed to handle payment intents (non-blocking)', { extra: { cancelIntentsErr } });
+      logger.error('[Staff Cancel] Failed to handle payment intents (non-blocking)', { extra: { error: getErrorMessage(cancelIntentsErr) } });
     }
 
     let updatedStaffNotes = staff_notes || '';
@@ -264,7 +264,7 @@ export async function cancelBooking(params: CancelBookingParams) {
           ));
         logger.info('[Staff Cancel] Cleared pending fees for session', { extra: { sessionResult_0_SessionId: sessionResult[0].sessionId } });
       } catch (feeCleanupErr: unknown) {
-        logger.error('[Staff Cancel] Failed to clear pending fees (non-blocking)', { extra: { feeCleanupErr } });
+        logger.error('[Staff Cancel] Failed to clear pending fees (non-blocking)', { extra: { error: getErrorMessage(feeCleanupErr) } });
       }
 
       try {
@@ -285,7 +285,7 @@ export async function cancelBooking(params: CancelBookingParams) {
           logger.info('[Staff Cancel] Cleaned up orphaned session without Trackman ID', { extra: { sessionId: sessionResult[0].sessionId } });
         }
       } catch (sessionCleanupErr: unknown) {
-        logger.error('[Staff Cancel] Failed to clean up session (non-blocking)', { extra: { sessionCleanupErr } });
+        logger.error('[Staff Cancel] Failed to clean up session (non-blocking)', { extra: { error: getErrorMessage(sessionCleanupErr) } });
       }
     }
 
@@ -471,7 +471,7 @@ export async function handlePendingCancellation(bookingId: number, bookingData: 
       relatedType: 'booking_request',
       url: '/admin/bookings'
     }
-  ).catch(err => logger.error('Staff cancellation notification failed:', { extra: { err } }));
+  ).catch(err => logger.error('Staff cancellation notification failed:', { extra: { error: getErrorMessage(err) } }));
 
   if (bookingData.userEmail && !isSyntheticEmail(bookingData.userEmail)) {
     await notifyMember({
@@ -482,7 +482,7 @@ export async function handlePendingCancellation(bookingId: number, bookingData: 
       relatedId: bookingId,
       relatedType: 'booking_request',
       url: '/sims'
-    }, { sendPush: true }).catch(err => logger.error('Member cancellation notification failed:', { extra: { err } }));
+    }, { sendPush: true }).catch(err => logger.error('Member cancellation notification failed:', { extra: { error: getErrorMessage(err) } }));
   }
 }
 
@@ -509,7 +509,7 @@ export async function handleCancelPostTransaction(
         }
       }
     } catch (calError: unknown) {
-      logger.error('Failed to delete calendar event (non-blocking)', { extra: { calError } });
+      logger.error('Failed to delete calendar event (non-blocking)', { extra: { error: getErrorMessage(calError) } });
     }
   }
 
@@ -524,7 +524,7 @@ export async function handleCancelPostTransaction(
           relatedType: 'booking_request',
           url: '/admin/bookings'
         }
-      ).catch(err => logger.error('Staff cancellation notification failed:', { extra: { err } }));
+      ).catch(err => logger.error('Staff cancellation notification failed:', { extra: { error: getErrorMessage(err) } }));
       if (pushInfo.email && !isSyntheticEmail(pushInfo.email)) {
         notifyMember({
           userEmail: pushInfo.email,
@@ -534,7 +534,7 @@ export async function handleCancelPostTransaction(
           relatedId: bookingId,
           relatedType: 'booking_request',
           url: '/sims'
-        }, { sendPush: true }).catch(err => logger.error('Member cancellation notification failed:', { extra: { err } }));
+        }, { sendPush: true }).catch(err => logger.error('Member cancellation notification failed:', { extra: { error: getErrorMessage(err) } }));
       }
     } else if (pushInfo.type === 'staff') {
       notifyAllStaff(
@@ -546,7 +546,7 @@ export async function handleCancelPostTransaction(
           relatedType: 'booking_request',
           url: '/admin/bookings'
         }
-      ).catch(err => logger.error('Staff cancellation notification failed:', { extra: { err } }));
+      ).catch(err => logger.error('Staff cancellation notification failed:', { extra: { error: getErrorMessage(err) } }));
     } else if (pushInfo.email && !isSyntheticEmail(pushInfo.email)) {
       notifyMember({
         userEmail: pushInfo.email,
@@ -556,7 +556,7 @@ export async function handleCancelPostTransaction(
         relatedId: bookingId,
         relatedType: 'booking_request',
         url: '/sims'
-      }, { sendPush: true }).catch(err => logger.error('Member cancellation notification failed:', { extra: { err } }));
+      }, { sendPush: true }).catch(err => logger.error('Member cancellation notification failed:', { extra: { error: getErrorMessage(err) } }));
     }
   }
 
@@ -570,9 +570,9 @@ export async function handleCancelPostTransaction(
     startTime: bookingData.startTime,
     status: 'cancelled',
     actionBy: cancelledBy
-  }, { notifyMember: false, notifyStaff: true, cleanupNotifications: false }).catch(err => logger.error('Booking event publish failed:', { extra: { err } }));
+  }, { notifyMember: false, notifyStaff: true, cleanupNotifications: false }).catch(err => logger.error('Booking event publish failed:', { extra: { error: getErrorMessage(err) } }));
 
-  voidBookingPass(bookingId).catch(err => logger.error('[cancelBooking] Failed to void booking wallet pass:', { extra: { err } }));
+  voidBookingPass(bookingId).catch(err => logger.error('[cancelBooking] Failed to void booking wallet pass:', { extra: { error: getErrorMessage(err) } }));
 
   broadcastAvailabilityUpdate({
     resourceId: bookingData.resourceId || undefined,

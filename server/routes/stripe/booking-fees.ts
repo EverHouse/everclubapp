@@ -186,7 +186,7 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, validateBody(cr
                 try {
                   await cancelPaymentIntent(existing.stripe_payment_intent_id as string);
                 } catch (cancelErr: unknown) {
-                  logger.warn('[Stripe] Failed to cancel stale payment intent', { extra: { cancelErr } });
+                  logger.warn('[Stripe] Failed to cancel stale payment intent', { extra: { error: getErrorMessage(cancelErr) } });
                 }
                 await db.execute(sql`DELETE FROM booking_fee_snapshots WHERE id = ${existing.id}`);
               } else {
@@ -220,7 +220,7 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, validateBody(cr
         await applyFeeBreakdownToParticipants(sessionId, feeBreakdown);
         logger.info('[Stripe] Applied unified fees for session : $', { extra: { sessionId, feeBreakdownTotalsTotalCents_100_ToFixed_2: (feeBreakdown.totals.totalCents/100).toFixed(2) } });
       } catch (unifiedError: unknown) {
-        logger.error('[Stripe] Unified fee service error', { extra: { unifiedError } });
+        logger.error('[Stripe] Unified fee service error', { extra: { error: getErrorMessage(unifiedError) } });
         return res.status(500).json({ error: 'Failed to calculate fees' });
       }
 

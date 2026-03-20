@@ -439,7 +439,7 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
             }
           }
         } catch (calError: unknown) {
-          logger.error('Failed to delete calendar event (non-blocking)', { extra: { calError } });
+          logger.error('Failed to delete calendar event (non-blocking)', { extra: { error: getErrorMessage(calError) } });
         }
       }
       

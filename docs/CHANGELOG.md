@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.94.6] - 2026-03-20
+
+### Error Logging Safety Sweep
+- **Fixed**: Eliminated all raw error object logging across the server codebase (25+ files, ~80 occurrences). Raw caught errors were being passed to the structured logger via `{ extra: { err } }`, `{ extra: { calError } }`, `{ extra: { hubspotError } }`, etc., producing unreadable `[object Object]` entries. All now use `getErrorMessage(varName)` to extract a clean string.
+- **Scope**: Booking approval/cancellation/completion flows, Stripe payments/subscriptions/invoices/terminal, HubSpot sync/contacts/forms, closures CRUD, member billing/communications, day passes, guest roster, training, auth helpers, booking creation/cancellation/fees, account deletion, and kiosk check-in.
+- **Added**: Missing `getErrorMessage` imports to `hubspot/forms.ts`, `members/communications.ts`, `testAuth.ts`, `account.ts`, `bays/booking-shared.ts`, `training.ts`
+
 ## [8.94.5] - 2026-03-20
 
 ### Kiosk Check-In Redesign

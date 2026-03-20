@@ -420,7 +420,7 @@ const SettingsTab: React.FC = () => {
           </div>
 
           <SubSectionLabel>Club GPS Coordinates</SubSectionLabel>
-          <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">Used for the contact page map and Apple Wallet lock screen location trigger</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">Used for the contact page map and digital wallet lock screen location trigger</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <FieldLabel>Latitude</FieldLabel>
@@ -473,11 +473,11 @@ const SettingsTab: React.FC = () => {
             </div>
           )}
 
-          <SubSectionLabel>Apple Wallet Pass</SubSectionLabel>
+          <SubSectionLabel>Digital Wallet Pass</SubSectionLabel>
           <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-black/20 rounded-xl">
             <div>
-              <p className="font-medium text-primary dark:text-white">Enable Apple Wallet Pass</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Allow members to add their membership card to Apple Wallet</p>
+              <p className="font-medium text-primary dark:text-white">Enable Digital Wallet Pass</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Allow members to add their membership card to their digital wallet</p>
             </div>
             <Toggle
               checked={settings.appleWalletEnabled}

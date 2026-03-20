@@ -90,7 +90,7 @@ export async function processWalkInCheckin(params: WalkInCheckinParams): Promise
 
     if (member.hubspot_id) {
       updateHubSpotContactVisitCount(String(member.hubspot_id), newVisitCount)
-        .catch(err => logger.error(`[WalkInCheckin] Failed to sync visit count to HubSpot:`, { extra: { err } }));
+        .catch(err => logger.error(`[WalkInCheckin] Failed to sync visit count to HubSpot:`, { extra: { error: getErrorMessage(err) } }));
     }
 
     try { broadcastMemberStatsUpdated(member.email, { lifetimeVisits: newVisitCount }); } catch (err: unknown) {logger.error('[Broadcast] Stats update error:', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }); }
@@ -101,12 +101,12 @@ export async function processWalkInCheckin(params: WalkInCheckinParams): Promise
       message: "Welcome back! You've been checked in by staff.",
       type: 'booking',
       relatedType: 'booking'
-    }).catch(err => logger.error(`[WalkInCheckin] Failed to send notification:`, { extra: { err } }));
+    }).catch(err => logger.error(`[WalkInCheckin] Failed to send notification:`, { extra: { error: getErrorMessage(err) } }));
 
     if (newVisitCount === 1 && member.membership_status?.toLowerCase() === 'trialing') {
       sendFirstVisitConfirmationEmail(String(member.email), { firstName: member.first_name || undefined })
         .then(() => logger.info(`[WalkInCheckin] Sent first visit confirmation email to trial member:`, { extra: { email: member.email } }))
-        .catch(err => logger.error(`[WalkInCheckin] Failed to send first visit confirmation email:`, { extra: { err } }));
+        .catch(err => logger.error(`[WalkInCheckin] Failed to send first visit confirmation email:`, { extra: { error: getErrorMessage(err) } }));
     }
 
     const pinnedNotesResult = await db.execute(sql`SELECT content, created_by_name FROM member_notes WHERE member_email = ${member.email} AND is_pinned = true ORDER BY created_at DESC`);

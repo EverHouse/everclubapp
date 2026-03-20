@@ -111,7 +111,7 @@ router.post('/api/stripe/subscriptions', isStaffOrAdmin, validateBody(createSubs
         }
       }
     } catch (notifyError) {
-      logger.error('[Stripe] Failed to send subscription creation notification', { extra: { notifyError } });
+      logger.error('[Stripe] Failed to send subscription creation notification', { extra: { error: getErrorMessage(notifyError) } });
     }
     
     res.json({
@@ -148,7 +148,7 @@ router.delete('/api/stripe/subscriptions/:subscriptionId', isStaffOrAdmin, async
         broadcastBillingUpdate({ action: 'subscription_cancelled', memberEmail });
       }
     } catch (notifyError) {
-      logger.error('[Stripe] Failed to send subscription cancellation notification', { extra: { notifyError } });
+      logger.error('[Stripe] Failed to send subscription cancellation notification', { extra: { error: getErrorMessage(notifyError) } });
     }
     
     res.json({ success: true });
@@ -380,7 +380,7 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subsc
       await syncMemberToHubSpot({ email: member.email!, status: memberStatus, tier: tierName, billingProvider: 'stripe', memberSince: new Date(), billingGroupRole: 'Primary', stripeCustomerId: customerId || undefined });
       logger.info('[Stripe] Synced to HubSpot: status=, tier=, billing=stripe, memberSince=now', { extra: { memberEmail: member.email, memberStatus, tierName } });
     } catch (hubspotError) {
-      logger.error('[Stripe] HubSpot sync failed for subscription creation', { extra: { hubspotError } });
+      logger.error('[Stripe] HubSpot sync failed for subscription creation', { extra: { error: getErrorMessage(hubspotError) } });
     }
     
     logger.info('[Stripe] Created subscription for', { extra: { memberEmail: member.email, subscriptionResultSubscription: subscriptionResult.subscription?.subscriptionId } });
@@ -394,7 +394,7 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subsc
       });
       broadcastBillingUpdate({ action: 'subscription_created', memberEmail: member.email! });
     } catch (notifyError) {
-      logger.error('[Stripe] Failed to send membership activation notification', { extra: { notifyError } });
+      logger.error('[Stripe] Failed to send membership activation notification', { extra: { error: getErrorMessage(notifyError) } });
     }
     
     const autoCharged = stripeSubscription?.autoCharged === true;
@@ -942,7 +942,7 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
         });
         logger.info('[Stripe Subscriptions] Synced to HubSpot', { extra: { userEmail } });
       } catch (hubspotError) {
-        logger.error('[Stripe Subscriptions] HubSpot sync failed', { extra: { hubspotError } });
+        logger.error('[Stripe Subscriptions] HubSpot sync failed', { extra: { error: getErrorMessage(hubspotError) } });
       }
       
       try {
@@ -955,7 +955,7 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
         });
         broadcastUpdate({ memberEmail: userEmail, action: 'subscription_created' });
       } catch (notifyError) {
-        logger.error('[Stripe Subscriptions] Notification failed', { extra: { notifyError } });
+        logger.error('[Stripe Subscriptions] Notification failed', { extra: { error: getErrorMessage(notifyError) } });
       }
     }
     

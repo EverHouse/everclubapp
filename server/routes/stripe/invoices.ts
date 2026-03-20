@@ -103,7 +103,7 @@ router.post('/api/stripe/invoices', isStaffOrAdmin, async (req: Request, res: Re
         broadcastBillingUpdate({ action: 'invoice_created', memberEmail });
       }
     } catch (notifyError) {
-      logger.error('[Stripe] Failed to send invoice notification', { extra: { notifyError } });
+      logger.error('[Stripe] Failed to send invoice notification', { extra: { error: getErrorMessage(notifyError) } });
     }
     
     res.json({
@@ -144,7 +144,7 @@ router.post('/api/stripe/invoices/:invoiceId/finalize', isStaffOrAdmin, async (r
         }
       }
     } catch (notifyError) {
-      logger.error('[Stripe] Failed to send invoice finalize notification', { extra: { notifyError } });
+      logger.error('[Stripe] Failed to send invoice finalize notification', { extra: { error: getErrorMessage(notifyError) } });
     }
     
     res.json({
@@ -212,7 +212,7 @@ router.post('/api/stripe/invoices/:invoiceId/void', isStaffOrAdmin, async (req: 
         }
       }
     } catch (notifyError) {
-      logger.error('[Stripe] Failed to send invoice void notification', { extra: { notifyError } });
+      logger.error('[Stripe] Failed to send invoice void notification', { extra: { error: getErrorMessage(notifyError) } });
     }
     
     res.json({ success: true });

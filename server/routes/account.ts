@@ -6,6 +6,7 @@ import { getResendClient } from '../utils/resend';
 import {logAndRespond, logger } from '../core/logger';
 import { isAuthenticated } from '../core/middleware';
 import { getAccountDeletionHtml } from '../emails/memberInviteEmail';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -56,7 +57,7 @@ router.post('/api/account/delete-request', isAuthenticated, async (req: Request,
         html: getAccountDeletionHtml({ firstName: user.first_name || 'Member' })
       });
     } catch (emailError: unknown) {
-      logger.warn('[Account] Failed to send deletion confirmation email (non-blocking)', { extra: { emailError } });
+      logger.warn('[Account] Failed to send deletion confirmation email (non-blocking)', { extra: { error: getErrorMessage(emailError) } });
     }
 
     logger.info('[Account] Deletion request submitted for', { extra: { userEmail: user.email } });

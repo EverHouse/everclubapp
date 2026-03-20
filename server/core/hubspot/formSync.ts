@@ -553,7 +553,7 @@ export async function syncHubSpotFormSubmissions(options?: { force?: boolean }):
               relatedType: notificationRelatedType,
               url: notificationUrl
             }
-          ).catch(err => logger.error('[HubSpot FormSync] Staff notification failed:', { extra: { err } }));
+          ).catch(err => logger.error('[HubSpot FormSync] Staff notification failed:', { extra: { error: getErrorMessage(err) } }));
         } catch (err: unknown) {
           const msg = `Failed to insert submission ${submission.conversionId}: ${getErrorMessage(err)}`;
           logger.error(`[HubSpot FormSync] ${msg}`);

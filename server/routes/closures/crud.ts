@@ -448,7 +448,7 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
           logger.info('[Closures] Created in-app notifications for members', { extra: { membersWithEmailsLength: membersWithEmails.length, failedCount } });
         }
       } catch (notifError: unknown) {
-        logger.error('[Closures] Failed to create in-app notifications', { extra: { notifError } });
+        logger.error('[Closures] Failed to create in-app notifications', { extra: { error: getErrorMessage(notifError) } });
       }
       
       try {
@@ -459,7 +459,7 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
           tag: `closure-${closureId}`
         });
       } catch (pushError: unknown) {
-        logger.error('[Closures] Failed to send push notifications', { extra: { pushError } });
+        logger.error('[Closures] Failed to send push notifications', { extra: { error: getErrorMessage(pushError) } });
       }
     }
     
@@ -518,7 +518,7 @@ router.delete('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
           : Promise.resolve(),
       ]);
     } catch (calError: unknown) {
-      logger.error('[Closures] Failed to delete calendar event', { extra: { calError } });
+      logger.error('[Closures] Failed to delete calendar event', { extra: { error: getErrorMessage(calError) } });
     }
     
     await deleteAvailabilityBlocksForClosure(closureId);
@@ -529,7 +529,7 @@ router.delete('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
         .where(eq(announcements.closureId, closureId));
       logger.info('[Closures] Deleted announcement(s) for closure #', { extra: { closureId } });
     } catch (announcementError: unknown) {
-      logger.error('[Closures] Failed to delete announcement', { extra: { announcementError } });
+      logger.error('[Closures] Failed to delete announcement', { extra: { error: getErrorMessage(announcementError) } });
     }
     
     await db
@@ -636,7 +636,7 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
           ));
         logger.info('[Closures] Cleared old notifications for closure # (start date changed to )', { extra: { closureId, start_date } });
       } catch (err: unknown) {
-        logger.error('[Closures] Failed to clear old notifications', { extra: { err } });
+        logger.error('[Closures] Failed to clear old notifications', { extra: { error: getErrorMessage(err) } });
       }
     }
     
@@ -755,7 +755,7 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
           }
         }
       } catch (calError: unknown) {
-        logger.error('[Closures] Failed to update calendar events', { extra: { calError } });
+        logger.error('[Closures] Failed to update calendar events', { extra: { error: getErrorMessage(calError) } });
       }
     }
     
@@ -797,7 +797,7 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
       
       logger.info('[Closures] Updated announcement for closure #', { extra: { closureId } });
     } catch (announcementError: unknown) {
-      logger.error('[Closures] Failed to update announcement', { extra: { announcementError } });
+      logger.error('[Closures] Failed to update announcement', { extra: { error: getErrorMessage(announcementError) } });
     }
     
     clearClosureCache();
@@ -850,7 +850,7 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
           logger.info('[Closures] Sent same-day publish notification to members for closure #', { extra: { allMembersLength: allMembers.length, closureId, failedCount } });
         }
       } catch (notifyError: unknown) {
-        logger.error('[Closures] Failed to send publish notifications', { extra: { notifyError } });
+        logger.error('[Closures] Failed to send publish notifications', { extra: { error: getErrorMessage(notifyError) } });
       }
     } else if (wasPublished && hasAffectedResources && !startsToday) {
       logger.info('[Closures] Draft published for future date (), morning job will notify on start day', { extra: { finalStartDate } });

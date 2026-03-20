@@ -12,6 +12,7 @@ import { withResendRetry } from '../../core/retryUtils';
 import { logFromRequest } from '../../core/auditLog';
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -146,7 +147,7 @@ router.patch('/api/members/me/preferences', isAuthenticated, validateQuery(optio
       updateHubSpotContactPreferences(updated.hubspotId, { 
         emailOptIn: emailOptIn !== undefined ? emailOptIn : undefined,
         smsOptIn: smsOptIn !== undefined ? smsOptIn : undefined
-      }).catch(err => logger.error('[Members] Failed to sync preferences to HubSpot:', { extra: { err } }));
+      }).catch(err => logger.error('[Members] Failed to sync preferences to HubSpot:', { extra: { error: getErrorMessage(err) } }));
     }
     
     res.json({ 
@@ -401,7 +402,7 @@ router.post('/api/members/me/data-export-request', isAuthenticated, async (req, 
         logger.info('[Privacy] Data export notification sent to admin(s)', { extra: { adminEmailsLength: adminEmails.length } });
       }
     } catch (emailError) {
-      logger.error('[Privacy] Failed to send data export notification email', { extra: { emailError } });
+      logger.error('[Privacy] Failed to send data export notification email', { extra: { error: getErrorMessage(emailError) } });
     }
     
     res.json({ 

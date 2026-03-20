@@ -180,7 +180,7 @@ export async function devConfirmBooking(params: DevConfirmParams) {
             if (resolvedUserId) existingUserIds.add(String(resolvedUserId));
             if (!resolvedUserId && participantType === 'guest') existingGuestNames.add(resolvedName.toLowerCase());
           } catch (partErr: unknown) {
-            logger.error('[Dev Confirm] Failed to create participant', { extra: { partErr } });
+            logger.error('[Dev Confirm] Failed to create participant', { extra: { error: getErrorMessage(partErr) } });
           }
 
         }
@@ -230,7 +230,7 @@ export async function devConfirmBooking(params: DevConfirmParams) {
           .map(p => p.user_email?.toLowerCase())
           .filter(Boolean);
       } catch (notifyErr: unknown) {
-        logger.error('[Dev Confirm] Failed to query participants (non-blocking)', { extra: { notifyErr } });
+        logger.error('[Dev Confirm] Failed to query participants (non-blocking)', { extra: { error: getErrorMessage(notifyErr) } });
       }
     }
 
@@ -245,7 +245,7 @@ export async function devConfirmBooking(params: DevConfirmParams) {
         resolvedTotalFeeCents = feeResult.totals.totalCents;
       }
     } catch (feeError: unknown) {
-      logger.warn('[Dev Confirm] Failed to calculate fees', { extra: { feeError } });
+      logger.warn('[Dev Confirm] Failed to calculate fees', { extra: { error: getErrorMessage(feeError) } });
     }
   }
 
@@ -403,7 +403,7 @@ export async function completeCancellation(params: CompleteCancellationParams) {
     }
   } catch (err: unknown) {
     errors.push(`Failed to query pending intents: ${getErrorMessage(err)}`);
-    logger.error('[Complete Cancellation] Failed to query pending intents', { extra: { err } });
+    logger.error('[Complete Cancellation] Failed to query pending intents', { extra: { error: getErrorMessage(err) } });
   }
 
   // Refund fee snapshot payments (check-in register payments)
@@ -461,7 +461,7 @@ export async function completeCancellation(params: CompleteCancellationParams) {
     }));
   } catch (snapshotErr: unknown) {
     errors.push(`Failed to query fee snapshots: ${getErrorMessage(snapshotErr)}`);
-    logger.error('[Complete Cancellation] Failed to query fee snapshots', { extra: { snapshotErr } });
+    logger.error('[Complete Cancellation] Failed to query fee snapshots', { extra: { error: getErrorMessage(snapshotErr) } });
   }
 
   if (existing.sessionId) {
@@ -474,7 +474,7 @@ export async function completeCancellation(params: CompleteCancellationParams) {
         ));
     } catch (clearErr: unknown) {
       errors.push(`Failed to clear pending fees: ${getErrorMessage(clearErr)}`);
-      logger.error('[Complete Cancellation] Failed to clear pending fees', { extra: { clearErr } });
+      logger.error('[Complete Cancellation] Failed to clear pending fees', { extra: { error: getErrorMessage(clearErr) } });
     }
 
     try {
@@ -525,7 +525,7 @@ export async function completeCancellation(params: CompleteCancellationParams) {
       }
     } catch (feeErr: unknown) {
       errors.push(`Failed to handle participant refunds: ${getErrorMessage(feeErr)}`);
-      logger.error('[Complete Cancellation] Failed to handle fees', { extra: { feeErr } });
+      logger.error('[Complete Cancellation] Failed to handle fees', { extra: { error: getErrorMessage(feeErr) } });
     }
 
     try {
@@ -554,7 +554,7 @@ export async function completeCancellation(params: CompleteCancellationParams) {
       }
     } catch (err: unknown) {
       errors.push(`Failed to query guest participants: ${getErrorMessage(err)}`);
-      logger.error('[Complete Cancellation] Failed to query guest participants', { extra: { err } });
+      logger.error('[Complete Cancellation] Failed to query guest participants', { extra: { error: getErrorMessage(err) } });
     }
   }
 
@@ -562,7 +562,7 @@ export async function completeCancellation(params: CompleteCancellationParams) {
     await releaseGuestPassHold(bookingId);
   } catch (err: unknown) {
     errors.push(`Failed to release guest pass holds: ${getErrorMessage(err)}`);
-    logger.error('[Complete Cancellation] Failed to release guest pass holds', { extra: { err } });
+    logger.error('[Complete Cancellation] Failed to release guest pass holds', { extra: { error: getErrorMessage(err) } });
   }
 
   try {

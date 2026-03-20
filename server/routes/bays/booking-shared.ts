@@ -5,6 +5,7 @@ import { getMemberTierByEmail, getTierLimits, getDailyBookedMinutes } from '../.
 import { logger } from '../../core/logger';
 import { computeFeeBreakdown, applyFeeBreakdownToParticipants } from '../../core/billing/unifiedFeeService';
 import { PRICING } from '../../core/billing/pricingConfig';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 export class BookingValidationError extends Error {
   constructor(public statusCode: number, public errorBody: Record<string, unknown>) {
@@ -150,7 +151,7 @@ export async function calculateFeeEstimate(params: {
       try {
         await applyFeeBreakdownToParticipants(sessionId, breakdown);
       } catch (syncErr: unknown) {
-        logger.warn('[FeeEstimate] Non-blocking cache sync failed', { extra: { syncErr } });
+        logger.warn('[FeeEstimate] Non-blocking cache sync failed', { extra: { error: getErrorMessage(syncErr) } });
       }
     }
     

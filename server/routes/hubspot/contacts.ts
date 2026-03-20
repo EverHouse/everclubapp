@@ -123,7 +123,7 @@ router.get('/api/hubspot/contacts', isStaffOrAdmin, validateQuery(hubspotContact
       const promise = fetchAllHubSpotContacts(forceRefresh)
         .then(() => {})
         .catch(err => {
-          if (!isProduction) logger.warn('[HubSpot] Background full sync failed', { extra: { err } });
+          if (!isProduction) logger.warn('[HubSpot] Background full sync failed', { extra: { error: getErrorMessage(err) } });
         })
         .finally(() => {
           setBackgroundRefreshInProgress(false);

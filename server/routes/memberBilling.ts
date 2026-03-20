@@ -274,7 +274,7 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
       billingInfo.outstandingBalanceCents = totalCents;
       billingInfo.outstandingBalanceDollars = totalCents / 100;
     } catch (outstandingErr) {
-      logger.error('[MemberBilling] Error fetching outstanding balance', { extra: { outstandingErr } });
+      logger.error('[MemberBilling] Error fetching outstanding balance', { extra: { error: getErrorMessage(outstandingErr) } });
       billingInfo.outstandingBalanceCents = null;
       billingInfo.outstandingBalanceDollars = null;
       billingInfo.outstandingBalanceError = true;
@@ -485,7 +485,7 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
       });
       logger.info('[MemberBilling] Synced billing provider and status to HubSpot for', { extra: { billingProvider, memberMembership_status: member.membership_status, email } });
     } catch (hubspotError) {
-      logger.error('[MemberBilling] HubSpot sync failed for billing provider change', { extra: { hubspotError } });
+      logger.error('[MemberBilling] HubSpot sync failed for billing provider change', { extra: { error: getErrorMessage(hubspotError) } });
     }
     
     res.json({ success: true, billingProvider });
