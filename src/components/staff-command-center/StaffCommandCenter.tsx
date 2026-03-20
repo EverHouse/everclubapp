@@ -244,9 +244,9 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
           playSound('checkinWarning');
           showToast(result.error || 'Check-in failed', 'error');
         }
-      } catch (_err: unknown) {
+      } catch (err: unknown) {
         playSound('checkinWarning');
-        showToast('Failed to process check-in', 'error');
+        showToast(err instanceof Error ? err.message : 'Failed to process check-in', 'error');
       }
       return;
     }

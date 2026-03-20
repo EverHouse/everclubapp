@@ -9,10 +9,14 @@ All notable changes to the Ever Club Members App are documented here.
 - **Fixed**: QR code parser now validates that member IDs are numeric before returning them. Non-numeric IDs from malformed QR codes now return `unknown` instead of causing 500 errors on the backend.
 - **Fixed**: Terminal payment cancel endpoint now returns HTTP 409 (instead of 200) when the payment has already succeeded.
 - **Fixed**: Payment retry endpoint now returns HTTP 422 (instead of 200) when a retry fails, so the frontend can properly detect and handle the failure.
+- **Fixed**: Staff-assisted check-in (`approvalCheckin.ts`) now includes `archived` in blocked statuses, matching all other check-in paths.
+- **Fixed**: Staff QR check-in (`/api/staff/qr-checkin`) now validates membership status before check-in. Previously it bypassed the status check entirely, allowing cancelled/suspended/archived members to be checked in via staff QR scan.
+- **Fixed**: Trackman auto-match endpoint now returns proper HTTP status codes: 409 for already-linked events and race conditions, 404 when no matching booking is found (was returning 200 with `success: false`).
+- **Fixed**: Frontend error catch blocks for staff QR check-in (SimulatorTab, StaffCommandCenter) and Trackman auto-match now display the actual server error message instead of a generic "Failed to process" toast.
 - **Hardened**: Added Zod schema validation to cafe menu POST/PUT routes (`server/routes/cafe.ts`). Category and name are now required with min-length checks; price, sort_order, and booleans are type-validated.
 - **Hardened**: Added Zod schema validation to membership tier POST/PUT routes (`server/routes/membershipTiers.ts`). Name, slug, and price_string are required on create; all fields are optional on update with proper type constraints.
 - **Hardened**: Added Zod schema validation to kiosk check-in (`/api/kiosk/checkin`) and passcode verification (`/api/kiosk/verify-passcode`) routes (`server/routes/kioskCheckin.ts`).
-- Files changed: `server/routes/nfcCheckin.ts`, `server/routes/cafe.ts`, `server/routes/membershipTiers.ts`, `server/routes/kioskCheckin.ts`, `server/routes/stripe/terminal.ts`, `server/routes/stripe/payment-admin.ts`, `src/utils/qrCodeParser.ts`
+- Files changed: `server/routes/nfcCheckin.ts`, `server/routes/cafe.ts`, `server/routes/membershipTiers.ts`, `server/routes/kioskCheckin.ts`, `server/routes/stripe/terminal.ts`, `server/routes/stripe/payment-admin.ts`, `src/utils/qrCodeParser.ts`, `server/core/bookingService/approvalCheckin.ts`, `server/routes/staffCheckin/directAdd.ts`, `server/routes/trackman/webhook-admin-ops.ts`, `src/pages/Admin/tabs/SimulatorTab/index.tsx`, `src/components/staff-command-center/StaffCommandCenter.tsx`, `src/components/staff-command-center/sections/TrackmanWebhookEventsSection.tsx`
 
 ## [8.93.0] - 2026-03-20
 

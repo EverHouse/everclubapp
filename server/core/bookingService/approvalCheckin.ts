@@ -232,7 +232,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
       LIMIT 1
     `);
     const ownerStatus = (ownerStatusResult.rows[0] as unknown as { membership_status: string | null })?.membership_status;
-    const blockedStatuses = ['cancelled', 'suspended', 'terminated', 'inactive'];
+    const blockedStatuses = ['cancelled', 'suspended', 'terminated', 'inactive', 'archived'];
     if (ownerStatus && blockedStatuses.includes(ownerStatus) && !skipPaymentCheck) {
       logger.warn('[Checkin] Attempting check-in for member with blocked status', { extra: { bookingId, ownerEmail: existing.user_email, membershipStatus: ownerStatus } });
       return {

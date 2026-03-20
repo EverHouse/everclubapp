@@ -583,8 +583,8 @@ const SimulatorTab: React.FC = () => {
                 } else {
                     showToast(result.error || 'Check-in failed', 'error');
                 }
-            } catch {
-                showToast('Failed to process check-in', 'error');
+            } catch (err: unknown) {
+                showToast(err instanceof Error ? err.message : 'Failed to process check-in', 'error');
             }
             return;
         }

@@ -192,7 +192,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
       const matchedBooking = await db.execute(sql`SELECT id, user_email, is_unmatched FROM booking_requests WHERE id = ${event.matched_booking_id}`);
       
       if (matchedBooking.rows.length > 0 && !(matchedBooking.rows[0] as unknown as BookingUnmatchedCheckRow).is_unmatched) {
-        return res.json({ 
+        return res.status(409).json({ 
           success: false, 
           message: 'This event is already linked to a member booking',
           alreadyLinked: true
@@ -271,7 +271,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
          LIMIT 5`);
       
       if (approvedMatchResult.rows.length === 0) {
-        return res.json({
+        return res.status(404).json({
           success: false,
           message: 'No matching booking requests found for this bay, date, and time',
           searched: { date: pacificDate, startTime: pacificStartTime, bay: resourceId }
@@ -291,7 +291,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
          RETURNING id`);
       
       if (updateResult.rowCount === 0) {
-        return res.json({
+        return res.status(409).json({
           success: false,
           message: 'Booking was already linked by another process',
           conflict: true
@@ -331,7 +331,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
        RETURNING id`);
     
     if (pendingUpdateResult.rowCount === 0) {
-      return res.json({
+      return res.status(409).json({
         success: false,
         message: 'Booking was already linked or approved by another process',
         conflict: true

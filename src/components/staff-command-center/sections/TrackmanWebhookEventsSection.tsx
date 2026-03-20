@@ -329,11 +329,12 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
       
       if (autoMatchTimeoutRef.current) clearTimeout(autoMatchTimeoutRef.current);
       autoMatchTimeoutRef.current = setTimeout(() => setAutoMatchResult(null), 5000);
-    } catch (_err: unknown) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Network error - try again';
       setAutoMatchResult({
         eventId,
         success: false,
-        message: 'Network error - try again'
+        message: errorMessage
       });
       if (autoMatchTimeoutRef.current) clearTimeout(autoMatchTimeoutRef.current);
       autoMatchTimeoutRef.current = setTimeout(() => setAutoMatchResult(null), 5000);

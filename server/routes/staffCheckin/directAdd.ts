@@ -431,6 +431,17 @@ router.post('/api/staff/qr-checkin', isStaffOrAdmin, async (req: Request, res: R
     const staffEmail = sessionUser?.email || 'unknown';
     const staffName = sessionUser?.name || null;
 
+    const memberStatusResult = await db.execute(sql`
+      SELECT membership_status FROM users WHERE id = ${memberId} LIMIT 1
+    `);
+    if (memberStatusResult.rows.length > 0) {
+      const status = String((memberStatusResult.rows[0] as { membership_status: string | null }).membership_status || '').toLowerCase();
+      const blockedStatuses = ['cancelled', 'suspended', 'terminated', 'inactive', 'archived'];
+      if (blockedStatuses.includes(status)) {
+        return res.status(403).json({ error: `Member status is "${status}". Check-in blocked — membership is no longer active.` });
+      }
+    }
+
     const result = await processWalkInCheckin({
       memberId,
       checkedInBy: staffEmail,
