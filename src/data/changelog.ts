@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.95.2",
+    date: "2026-03-21",
+    title: "Stripe Sync Bug Fixes: Tier ID Drift, Corporate Propagation, Schedule Handling",
+    changes: [
+      "Fixed: Stripe webhook now repairs stale tier_id when the tier name matches but the internal tier_id is out of sync — prevents silent privilege drift",
+      "Fixed: Corporate group tier propagation now updates sub-members when their tier_id is stale, even if tier name already matches",
+      "Fixed: Subscription schedule 'released' status now correctly clears pending tier change display — previously only 'canceled' and 'completed' cleared it",
+    ]
+  },
+  {
     version: "8.95.1",
     date: "2026-03-21",
     title: "Dynamic Tiers Cleanup: Hardcoded Tier Mappings, Bug Fixes, Error Handling",

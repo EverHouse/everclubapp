@@ -48,7 +48,7 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
     }
 
     const userResult = await client.query(
-      'SELECT id, email, first_name, last_name, tier, billing_provider, pending_tier_change FROM users WHERE stripe_customer_id = $1',
+      'SELECT id, email, first_name, last_name, tier, tier_id, billing_provider, pending_tier_change FROM users WHERE stripe_customer_id = $1',
       [customerId]
     );
 
@@ -57,7 +57,7 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
       return deferredActions;
     }
 
-    const { id: userId, email, first_name, last_name, tier: currentTier } = userResult.rows[0];
+    const { id: userId, email, first_name, last_name, tier: currentTier, tier_id: currentTierId } = userResult.rows[0];
     const memberName = `${first_name || ''} ${last_name || ''}`.trim() || email;
 
     const userBillingProvider = userResult.rows[0].billing_provider;
@@ -129,7 +129,9 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
         }
       }
       
-      if (newTierName && newTierName !== currentTier) {
+      const tierChanged = newTierName && newTierName !== currentTier;
+      const tierIdDrifted = newTierName && newTierId && newTierId !== currentTierId;
+      if (tierChanged || tierIdDrifted) {
         const pendingTierChange = userResult.rows[0].pending_tier_change;
         const shouldClearPending = pendingTierChange &&
           pendingTierChange.newTier && pendingTierChange.newTier === newTierName;
@@ -143,39 +145,45 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
           logger.info(`[Stripe Webhook] Cleared pending tier change for ${email} — scheduled tier change has executed`);
         }
         
-        logger.info(`[Stripe Webhook] Tier updated via Stripe for ${email}: ${currentTier} -> ${newTierName} (matched by ${matchMethod})`);
+        if (tierIdDrifted && !tierChanged) {
+          logger.info(`[Stripe Webhook] Repaired stale tier_id for ${email}: tier=${newTierName}, tier_id ${currentTierId} -> ${newTierId}`);
+        } else {
+          logger.info(`[Stripe Webhook] Tier updated via Stripe for ${email}: ${currentTier} -> ${newTierName} (matched by ${matchMethod})`);
+        }
         
         const deferredTierEmail = email;
         const deferredOldTier = currentTier || 'None';
         const deferredNewTierName = newTierName;
 
-        deferredActions.push(async () => {
-          try {
-            await queueTierSync({
-              email: deferredTierEmail,
-              newTier: deferredNewTierName,
-              oldTier: deferredOldTier,
-              changedBy: 'stripe-webhook',
-              changedByName: 'Stripe Subscription'
-            });
-            logger.info(`[Stripe Webhook] Queued HubSpot tier sync for ${deferredTierEmail} tier=${deferredNewTierName}`);
-          } catch (queueErr: unknown) {
-            logger.error('[Stripe Webhook] Failed to queue tier sync:', { error: getErrorMessage(queueErr) });
-          }
-        });
-        
-        deferredActions.push(async () => {
-          try {
-            await notifyMember({
-              userEmail: deferredTierEmail,
-              title: 'Membership Updated',
-              message: `Your membership has been changed to ${deferredNewTierName}.`,
-              type: 'membership_tier_change',
-            });
-          } catch (notifyErr: unknown) {
-            logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
-          }
-        });
+        if (tierChanged) {
+          deferredActions.push(async () => {
+            try {
+              await queueTierSync({
+                email: deferredTierEmail,
+                newTier: deferredNewTierName,
+                oldTier: deferredOldTier,
+                changedBy: 'stripe-webhook',
+                changedByName: 'Stripe Subscription'
+              });
+              logger.info(`[Stripe Webhook] Queued HubSpot tier sync for ${deferredTierEmail} tier=${deferredNewTierName}`);
+            } catch (queueErr: unknown) {
+              logger.error('[Stripe Webhook] Failed to queue tier sync:', { error: getErrorMessage(queueErr) });
+            }
+          });
+          
+          deferredActions.push(async () => {
+            try {
+              await notifyMember({
+                userEmail: deferredTierEmail,
+                title: 'Membership Updated',
+                message: `Your membership has been changed to ${deferredNewTierName}.`,
+                type: 'membership_tier_change',
+              });
+            } catch (notifyErr: unknown) {
+              logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+            }
+          });
+        }
 
         deferredActions.push(async () => {
           try {
@@ -208,7 +216,7 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
                  AND LOWER(u.email) = LOWER(gm.member_email)
                  AND u.membership_status IN ('active', 'past_due', 'trialing')
                  AND (u.billing_provider IS NULL OR u.billing_provider = '' OR u.billing_provider = 'stripe' OR u.billing_provider = 'family_addon')
-                 AND (u.tier IS DISTINCT FROM $2)
+                 AND (u.tier IS DISTINCT FROM $2 OR u.tier_id IS DISTINCT FROM $3)
                  RETURNING u.email`,
                 [billingGroup.id, newTierName, newTierId]
               );

@@ -180,7 +180,7 @@ export async function handleSubscriptionScheduleUpdated(
   const deferredActions: DeferredAction[] = [];
 
   try {
-    if (schedule.status === 'canceled' || schedule.status === 'completed') {
+    if (schedule.status === 'canceled' || schedule.status === 'completed' || schedule.status === 'released') {
       const customerId = typeof schedule.customer === 'string' ? schedule.customer : schedule.customer?.id;
       if (customerId) {
         await client.query(

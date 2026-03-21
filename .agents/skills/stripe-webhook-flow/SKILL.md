@@ -81,6 +81,10 @@ Does it write to the database?
 14. **Dispute-won reactivation is guarded.** `handleChargeDisputeClosed` checks for OTHER open disputes on the same member AND verifies the Stripe subscription status. Reactivation is blocked if subscription is `past_due`, `unpaid`, or `canceled`. Subscription lookup failures are fail-closed (block reactivation, alert staff). The `membershipAction` variable tracks whether reactivation actually happened so audit logs and notifications reflect the real outcome.
 15. **`last_modified_at` on every status write.** Every UPDATE that sets `membership_status` must also set `last_modified_at = CASE WHEN membership_status IS DISTINCT FROM '[new_status]' THEN NOW() ELSE last_modified_at END`. This applies to all 37+ write paths across webhook handlers, subscription sync, reconciliation, group billing, admin tools, and member management. See `member-lifecycle` skill Hard Rule #16 for the full regression check command.
 
+16. **Tier update must also repair stale `tier_id`.** The `subscription.updated` handler checks BOTH `tierChanged` (name differs) and `tierIdDrifted` (name matches but `tier_id` is null/wrong). Both conditions trigger the UPDATE. The initial SELECT includes `tier_id` alongside `tier`. (`updated.ts`)
+17. **Corporate propagation checks `tier_id` parity.** The sub-member propagation WHERE clause is `AND (u.tier IS DISTINCT FROM $2 OR u.tier_id IS DISTINCT FROM $3)` — catches members with correct tier name but stale `tier_id`. (`updated.ts`)
+18. **Schedule `released` status clears `pending_tier_change`.** The `handleScheduleUpdate` terminal-status block handles `canceled`, `completed`, AND `released`. (`schedules.ts`)
+
 ## Anti-Patterns (NEVER)
 
 1. NEVER make Stripe/HubSpot API calls inside a DB transaction without the 5s `Promise.race()` timeout.

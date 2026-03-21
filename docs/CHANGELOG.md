@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.95.2] - 2026-03-21
+
+### Stripe Sync Bug Fixes: Tier ID Drift, Corporate Propagation, Schedule Handling
+- **Fixed**: `subscription.updated` handler now also triggers tier update when `tier_id` is stale (null or mismatched) even if the tier name already matches. Previously, if a member had the correct tier name but a stale/null `tier_id`, the handler would skip the update, leaving privileges silently drifted. Added `currentTierId` to the initial SELECT and `tierIdDrifted` check alongside `tierChanged`. Logs a distinct "Repaired stale tier_id" message for observability. (`server/core/stripe/webhooks/handlers/subscriptions/updated.ts`)
+- **Fixed**: Corporate group sub-member propagation SQL now includes `OR u.tier_id IS DISTINCT FROM $3` in the WHERE clause, ensuring sub-members with the correct tier name but stale `tier_id` are also updated. Previously, `AND (u.tier IS DISTINCT FROM $2)` alone would skip members whose tier name matched but whose `tier_id` was wrong. (`server/core/stripe/webhooks/handlers/subscriptions/updated.ts`)
+- **Fixed**: `handleScheduleUpdate` now treats `schedule.status === 'released'` as a terminal status that clears `pending_tier_change`. Previously, only `canceled` and `completed` statuses triggered the clear — a released schedule left a stale pending change card visible in the admin UI. (`server/core/stripe/webhooks/handlers/subscriptions/schedules.ts`)
+- **Known**: `handlePrimarySubscriptionCancelled` uses its own `db.transaction()` separate from the webhook's `PoolClient` — split-brain risk if outer transaction rolls back. This is a pre-existing pattern; noted for future refactor.
+
 ## [8.95.1] - 2026-03-21
 
 ### Dynamic Tiers Cleanup: Hardcoded Tier Mappings, Bug Fixes, Error Handling
