@@ -7,7 +7,7 @@ import Stripe from 'stripe';
 import { invalidateTierRegistry } from '../tierRegistry';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { logger } from '../logger';
-import { type TierRecord, type StripePaginationParams, type StripeProductWithMarketingFeatures, buildFeatureKeysForTier } from './productHelpers';
+import { type TierRecord, type StripePaginationParams, type StripeProductWithMarketingFeatures, buildFeatureKeysForTier, parseMarketingFeatures } from './productHelpers';
 import { markAppOriginated } from './appOriginTracker';
 
 export async function syncTierFeaturesToStripe(): Promise<{
@@ -480,19 +480,27 @@ export async function pullTierFeaturesFromStripe(): Promise<{
         const stripeProduct = await stripe.products.retrieve(tier.stripeProductId);
         const marketingFeatures = (stripeProduct as StripeProductWithMarketingFeatures).marketing_features;
         if (Array.isArray(marketingFeatures) && marketingFeatures.length > 0) {
-          const featureNames = marketingFeatures
-            .map((f: { name: string }) => f.name)
-            .filter((n: string) => n && n.trim());
-          if (featureNames.length > 0) {
+          const parsed = parseMarketingFeatures(marketingFeatures);
+
+          if (parsed.highlightedFeatures.length > 0) {
             await db.update(membershipTiers)
-              .set({ highlightedFeatures: featureNames })
+              .set({ highlightedFeatures: parsed.highlightedFeatures })
               .where(eq(membershipTiers.id, tier.id));
-            logger.info(`[Reverse Sync] Updated highlighted features for "${tier.name}" from ${featureNames.length} Stripe marketing features`);
+            logger.info(`[Reverse Sync] Updated highlighted features for "${tier.name}" from ${parsed.highlightedFeatures.length} Stripe marketing features`);
           } else {
             await db.update(membershipTiers)
               .set({ highlightedFeatures: [] })
               .where(eq(membershipTiers.id, tier.id));
             logger.info(`[Reverse Sync] Cleared highlighted features for "${tier.name}" (Stripe marketing features empty)`);
+          }
+
+          const localAllFeatures = (tier.allFeatures as Record<string, boolean>) || {};
+          const mergedAllFeatures = { ...localAllFeatures, ...parsed.allFeatures };
+          await db.update(membershipTiers)
+            .set({ allFeatures: mergedAllFeatures })
+            .where(eq(membershipTiers.id, tier.id));
+          if (Object.keys(parsed.allFeatures).length > 0) {
+            logger.info(`[Reverse Sync] Updated all_features for "${tier.name}" with ${Object.keys(parsed.allFeatures).length} features from Stripe (${Object.keys(mergedAllFeatures).length} total after merge)`);
           }
         } else {
           await db.update(membershipTiers)

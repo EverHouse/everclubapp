@@ -200,3 +200,61 @@ export function buildFeatureKeysForTier(tier: TierRecord): Array<{ lookupKey: st
 
   return features;
 }
+
+const ALL_FEATURES_PREFIX = '⌁af:';
+const ALL_FEATURES_SUFFIX = '⌁';
+
+export function buildMergedMarketingFeatures(
+  highlightedFeatures: string[] | null,
+  allFeatures: Record<string, boolean> | null
+): Array<{ name: string }> {
+  const result: Array<{ name: string }> = [];
+
+  if (Array.isArray(highlightedFeatures)) {
+    for (const f of highlightedFeatures) {
+      if (f && f.trim()) {
+        result.push({ name: f });
+      }
+    }
+  }
+
+  if (allFeatures && typeof allFeatures === 'object') {
+    for (const [featureName, value] of Object.entries(allFeatures)) {
+      if (featureName && featureName.trim()) {
+        const encoded = `${ALL_FEATURES_PREFIX}${value ? 'true' : 'false'}${ALL_FEATURES_SUFFIX}${featureName}`;
+        result.push({ name: encoded });
+      }
+    }
+  }
+
+  return result.slice(0, 15);
+}
+
+export function parseMarketingFeatures(
+  marketingFeatures: Array<{ name: string }>
+): {
+  highlightedFeatures: string[];
+  allFeatures: Record<string, boolean>;
+} {
+  const highlightedFeatures: string[] = [];
+  const allFeatures: Record<string, boolean> = {};
+
+  for (const f of marketingFeatures) {
+    if (!f.name || !f.name.trim()) continue;
+
+    if (f.name.startsWith(ALL_FEATURES_PREFIX)) {
+      const closingIdx = f.name.indexOf(ALL_FEATURES_SUFFIX, ALL_FEATURES_PREFIX.length);
+      if (closingIdx !== -1) {
+        const boolStr = f.name.substring(ALL_FEATURES_PREFIX.length, closingIdx);
+        const featureName = f.name.substring(closingIdx + 1);
+        if (featureName.trim()) {
+          allFeatures[featureName] = boolStr === 'true';
+        }
+      }
+    } else {
+      highlightedFeatures.push(f.name);
+    }
+  }
+
+  return { highlightedFeatures, allFeatures };
+}

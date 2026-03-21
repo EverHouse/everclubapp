@@ -5,7 +5,7 @@ import { getStripeClient } from './client';
 import Stripe from 'stripe';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { logger } from '../logger';
-import { findExistingStripeProduct, buildPrivilegeMetadata, type StripePaginationParams } from './productHelpers';
+import { findExistingStripeProduct, buildPrivilegeMetadata, buildMergedMarketingFeatures, type StripePaginationParams } from './productHelpers';
 import { markAppOriginated } from './appOriginTracker';
 
 export interface TierSyncResult {
@@ -75,10 +75,9 @@ export async function syncMembershipTiersToStripe(): Promise<{
         const privilegeMetadata = buildPrivilegeMetadata(tier);
 
         const featuresArray = tier.highlightedFeatures as string[] | null;
-        const hasMarketingFeatures = Array.isArray(featuresArray) && featuresArray.length > 0;
-        const marketingFeatures = hasMarketingFeatures
-          ? featuresArray.slice(0, 15).map((f: string) => ({ name: f }))
-          : [];
+        const allFeaturesObj = tier.allFeatures as Record<string, boolean> | null;
+        const marketingFeatures = buildMergedMarketingFeatures(featuresArray, allFeaturesObj);
+        const hasMarketingFeatures = marketingFeatures.length > 0;
 
         if (stripeProductId) {
           const updateParams: Stripe.ProductUpdateParams & { marketing_features?: Array<{ name: string }> } = {
@@ -86,9 +85,7 @@ export async function syncMembershipTiersToStripe(): Promise<{
             description: tier.description || undefined,
             metadata: privilegeMetadata,
           };
-          if (hasMarketingFeatures) {
-            updateParams.marketing_features = marketingFeatures;
-          }
+          updateParams.marketing_features = marketingFeatures;
           markAppOriginated(stripeProductId);
           await stripe.products.update(stripeProductId, updateParams);
           logger.info(`[Tier Sync] Updated existing product for ${tier.name} with privileges${hasMarketingFeatures ? ' and features' : ''}`);
@@ -197,9 +194,7 @@ export async function syncMembershipTiersToStripe(): Promise<{
             description: tier.description || undefined,
             metadata: privilegeMetadata,
           };
-          if (hasMarketingFeatures) {
-            createParams.marketing_features = marketingFeatures;
-          }
+          createParams.marketing_features = marketingFeatures;
           const existingStripeProduct = await findExistingStripeProduct(
             stripe,
             productName,
