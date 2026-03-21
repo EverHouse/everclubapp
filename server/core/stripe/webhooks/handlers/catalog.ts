@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { pullTierFeaturesFromStripe } from '../../products';
+import { parseMarketingFeatures } from '../../productHelpers';
 import { invalidateTierRegistry } from '../../../tierRegistry';
 import { updateOverageRate, updateGuestFee } from '../../../billing/pricingConfig';
 import { logger } from '../../../logger';
@@ -46,13 +47,15 @@ export async function handleProductUpdated(client: PoolClient, product: StripePr
       }
 
       if (Array.isArray(product.marketing_features) && product.marketing_features.length > 0) {
-        const featureNames = product.marketing_features
-          .map((f: { name: string }) => f.name)
-          .filter((n: string) => n && n.trim());
-        if (featureNames.length > 0) {
-          tierUpdateParts.push(`highlighted_features = $${paramIdx++}`);
-          tierUpdateValues.push(JSON.stringify(featureNames));
-          logger.info(`[Stripe Webhook] Updated highlighted features for "${tierName}" from ${featureNames.length} marketing features`);
+        const parsed = parseMarketingFeatures(product.marketing_features);
+        tierUpdateParts.push(`highlighted_features = $${paramIdx++}`);
+        tierUpdateValues.push(JSON.stringify(parsed.highlightedFeatures));
+        if (Object.keys(parsed.allFeatures).length > 0) {
+          tierUpdateParts.push(`all_features = $${paramIdx++}`);
+          tierUpdateValues.push(JSON.stringify(parsed.allFeatures));
+          logger.info(`[Stripe Webhook] Updated features for "${tierName}": ${parsed.highlightedFeatures.length} highlighted, ${Object.keys(parsed.allFeatures).length} all_features`);
+        } else {
+          logger.info(`[Stripe Webhook] Updated highlighted features for "${tierName}" from ${parsed.highlightedFeatures.length} marketing features`);
         }
       }
 
