@@ -253,6 +253,7 @@ router.get('/api/members/directory', isStaffOrAdmin, validateQuery(directoryQuer
       firstLoginAt: users.firstLoginAt,
       billingGroupId: users.billingGroupId,
       discountCode: users.discountCode,
+      pendingTierChange: users.pendingTierChange,
     })
       .from(users)
       .where(whereClause)
@@ -421,6 +422,7 @@ router.get('/api/members/directory', isStaffOrAdmin, validateQuery(directoryQuer
         firstLoginAt: member.firstLoginAt || null,
         billingGroupId: member.billingGroupId || null,
         discountCode: member.discountCode || null,
+        pendingTierChange: member.pendingTierChange || null,
       };
     });
     

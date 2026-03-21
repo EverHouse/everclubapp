@@ -41,6 +41,9 @@ import {
   handleSubscriptionResumed,
   handleSubscriptionDeleted,
   handleTrialWillEnd,
+  handleSubscriptionScheduleCreated,
+  handleSubscriptionScheduleUpdated,
+  handleSubscriptionScheduleCanceled,
 } from './handlers/subscriptions';
 
 import {
@@ -167,6 +170,12 @@ async function dispatchWebhookEvent(
     return handleSetupIntentSucceeded(client, dataObject as Stripe.SetupIntent);
   } else if (eventType === 'setup_intent.setup_failed') {
     return handleSetupIntentFailed(client, dataObject as Stripe.SetupIntent);
+  } else if (eventType === 'subscription_schedule.created') {
+    return handleSubscriptionScheduleCreated(client, dataObject as Stripe.SubscriptionSchedule);
+  } else if (eventType === 'subscription_schedule.updated') {
+    return handleSubscriptionScheduleUpdated(client, dataObject as Stripe.SubscriptionSchedule);
+  } else if (eventType === 'subscription_schedule.canceled') {
+    return handleSubscriptionScheduleCanceled(client, dataObject as Stripe.SubscriptionSchedule);
   }
 
   logger.warn(`[Stripe Webhook] Received unhandled event type: ${eventType} — consider adding a handler or removing this event from the Stripe webhook endpoint configuration`);

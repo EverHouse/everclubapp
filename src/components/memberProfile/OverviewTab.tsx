@@ -257,6 +257,38 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
         </div>
       )}
 
+      {isAdmin && !visitorMode && member.pendingTierChange && (
+        <div
+          className="animate-slide-up-stagger"
+          style={{ '--stagger-index': 0.75 } as React.CSSProperties}
+        >
+          <div className={`p-3 rounded-xl border ${isDark ? 'bg-amber-900/20 border-amber-700/40' : 'bg-amber-50 border-amber-200'}`}>
+            <div className="flex items-start gap-2">
+              <Icon name="schedule" className={`text-lg mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+              <div className="flex-1 min-w-0">
+                <h4 className={`text-xs font-bold mb-1 ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
+                  Scheduled Change
+                </h4>
+                <p className={`text-xs ${isDark ? 'text-amber-200/80' : 'text-amber-800'}`}>
+                  {member.pendingTierChange.newStatus === 'cancellation'
+                    ? 'Scheduled cancellation'
+                    : member.pendingTierChange.newStatus === 'pause'
+                    ? 'Scheduled pause'
+                    : `Tier change to ${member.pendingTierChange.newTier || 'unknown'}`}
+                  {' on '}
+                  {new Date(member.pendingTierChange.effectiveDate).toLocaleDateString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric',
+                  })}
+                </p>
+                <p className={`text-[10px] mt-1 ${isDark ? 'text-amber-400/60' : 'text-amber-600/60'}`}>
+                  Set via Stripe Dashboard
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isAdmin && !visitorMode && (
         <div 
           className="animate-slide-up-stagger"

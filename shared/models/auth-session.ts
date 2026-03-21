@@ -107,6 +107,7 @@ export const users = pgTable("users", {
   requiresCardUpdate: boolean("requires_card_update").default(false),
   lastManualFixAt: timestamp("last_manual_fix_at"),
   lastManualFixBy: varchar("last_manual_fix_by"),
+  pendingTierChange: jsonb("pending_tier_change"),
 }, (table) => [
   index("users_stripe_customer_id_idx").on(table.stripeCustomerId),
   index("users_membership_status_idx").on(table.membershipStatus),

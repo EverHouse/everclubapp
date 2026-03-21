@@ -102,6 +102,7 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
       waiverVersion: users.waiverVersion,
       waiverSignedAt: users.waiverSignedAt,
       lastModifiedAt: users.lastModifiedAt,
+      pendingTierChange: users.pendingTierChange,
     })
       .from(users)
       .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
@@ -231,6 +232,7 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
       waiverVersion: user.waiverVersion || null,
       waiverSignedAt: user.waiverSignedAt || null,
       lastModifiedAt: user.lastModifiedAt || null,
+      pendingTierChange: user.pendingTierChange || null,
     });
   } catch (error: unknown) {
     logger.error('API error fetching member details', { error: new Error(getErrorMessage(error)) });

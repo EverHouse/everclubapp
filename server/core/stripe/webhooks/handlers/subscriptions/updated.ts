@@ -48,7 +48,7 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
     }
 
     const userResult = await client.query(
-      'SELECT id, email, first_name, last_name, tier, billing_provider FROM users WHERE stripe_customer_id = $1',
+      'SELECT id, email, first_name, last_name, tier, billing_provider, pending_tier_change FROM users WHERE stripe_customer_id = $1',
       [customerId]
     );
 
@@ -110,10 +110,18 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
       }
       
       if (newTierName && newTierName !== currentTier) {
+        const pendingTierChange = userResult.rows[0].pending_tier_change;
+        const shouldClearPending = pendingTierChange &&
+          pendingTierChange.newTier && pendingTierChange.newTier === newTierName;
+
         await client.query(
-          'UPDATE users SET tier = $1, billing_provider = $3, stripe_current_period_end = COALESCE($4, stripe_current_period_end), updated_at = NOW() WHERE id = $2',
+          `UPDATE users SET tier = $1, billing_provider = $3, stripe_current_period_end = COALESCE($4, stripe_current_period_end)${shouldClearPending ? ', pending_tier_change = NULL' : ''}, updated_at = NOW() WHERE id = $2`,
           [newTierName, userId, 'stripe', subscriptionPeriodEnd]
         );
+
+        if (shouldClearPending) {
+          logger.info(`[Stripe Webhook] Cleared pending tier change for ${email} — scheduled tier change has executed`);
+        }
         
         logger.info(`[Stripe Webhook] Tier updated via Stripe for ${email}: ${currentTier} -> ${newTierName} (matched by ${matchMethod})`);
         

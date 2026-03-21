@@ -168,6 +168,7 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
         stripe_subscription_id = NULL,
         grace_period_start = NULL,
         grace_period_email_count = 0,
+        pending_tier_change = NULL,
         updated_at = NOW()
       WHERE LOWER(email) = LOWER($1) AND (stripe_subscription_id = $2 OR stripe_subscription_id IS NULL)`,
       [email, subscriptionId]

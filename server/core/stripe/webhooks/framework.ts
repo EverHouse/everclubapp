@@ -19,6 +19,7 @@ export function extractResourceId(event: Stripe.Event): string | null {
   if (event.type.startsWith('checkout.session.')) return obj.id;
   if (event.type.startsWith('charge.')) return obj.payment_intent || obj.id;
   if (event.type.startsWith('setup_intent.')) return obj.id;
+  if (event.type.startsWith('subscription_schedule.')) return obj.id;
   
   return null;
 }
@@ -83,6 +84,9 @@ export async function checkResourceEventOrder(
     'customer.subscription.paused': 8,
     'customer.subscription.resumed': 9,
     'customer.subscription.deleted': 20,
+    'subscription_schedule.created': 5,
+    'subscription_schedule.updated': 5,
+    'subscription_schedule.canceled': 10,
   };
 
   const currentPriority = EVENT_PRIORITY[eventType] || 5;

@@ -13,7 +13,7 @@ export async function handleSubscriptionPaused(client: PoolClient, subscription:
     const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id;
 
     const userResult = await client.query(
-      'SELECT id, email, first_name, last_name, billing_provider FROM users WHERE stripe_customer_id = $1',
+      'SELECT id, email, first_name, last_name, billing_provider, pending_tier_change FROM users WHERE stripe_customer_id = $1',
       [customerId]
     );
 
@@ -31,10 +31,17 @@ export async function handleSubscriptionPaused(client: PoolClient, subscription:
       return deferredActions;
     }
 
+    const pendingTierChange = userResult.rows[0].pending_tier_change;
+    const shouldClearPending = pendingTierChange && pendingTierChange.newStatus === 'pause';
+    const clearPendingClause = shouldClearPending ? ', pending_tier_change = NULL' : '';
+
     const frozenResult = await client.query(
-      `UPDATE users SET membership_status = 'frozen', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'frozen' THEN NOW() ELSE membership_status_changed_at END, billing_provider = 'stripe', updated_at = NOW() WHERE id = $1 AND (membership_status IS NULL OR membership_status IN ('active', 'trialing', 'past_due', 'suspended', 'frozen'))`,
+      `UPDATE users SET membership_status = 'frozen', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'frozen' THEN NOW() ELSE membership_status_changed_at END, billing_provider = 'stripe'${clearPendingClause}, updated_at = NOW() WHERE id = $1 AND (membership_status IS NULL OR membership_status IN ('active', 'trialing', 'past_due', 'suspended', 'frozen'))`,
       [userId]
     );
+    if (shouldClearPending) {
+      logger.info(`[Stripe Webhook] Cleared pending tier change for ${email} — scheduled pause has executed`);
+    }
     if (frozenResult.rowCount === 0) {
       logger.warn(`[Stripe Webhook] Skipping frozen transition for ${email} — current status is terminal or incompatible`, { extra: { userId } });
       return deferredActions;

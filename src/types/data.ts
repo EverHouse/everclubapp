@@ -94,6 +94,15 @@ export interface MemberProfile {
   lastName?: string | null;
   userId?: string;
   lastModifiedAt?: string | null;
+  pendingTierChange?: {
+    scheduleId: string;
+    currentTier: string | null;
+    newTier: string | null;
+    newStatus: string | null;
+    effectiveDate: string;
+    createdAt: string;
+    source: string;
+  } | null;
 }
 
 export interface Booking {
