@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { getErrorStatusCode } from '../utils/errorUtils';
+import { getErrorMessage, getErrorStatusCode } from '../utils/errorUtils';
 import { users } from '../../shared/schema';
 import { communicationLogs } from '../../shared/models/membership';
 import { getHubSpotClient } from './integrations';
@@ -144,7 +144,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
                       const contact = await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.getById(contactId, ['email']));
                       memberEmail = contact.properties?.email?.toLowerCase() || null;
                     } catch (err) {
-                      logger.debug('HubSpot contact not found by ID', { error: err });
+                      logger.debug('HubSpot contact not found by ID', { error: getErrorMessage(err) });
                     }
                   }
                 }
@@ -198,7 +198,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
               synced++;
             } catch (err: unknown) {
               errors++;
-              if (!isProduction) logger.error('[CommLogs] Error processing call:', { error: err });
+              if (!isProduction) logger.error('[CommLogs] Error processing call:', { error: getErrorMessage(err) });
             }
           })
         )
@@ -301,7 +301,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
                   const contact = await retryableHubSpotRequest(() => hubspot.crm.contacts.basicApi.getById(contactId, ['email']));
                   memberEmail = contact.properties?.email?.toLowerCase() || null;
                 } catch (err) {
-                  logger.debug('HubSpot contact not found by ID for communication', { error: err });
+                  logger.debug('HubSpot contact not found by ID for communication', { error: getErrorMessage(err) });
                 }
               }
             }
@@ -333,7 +333,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
           synced++;
         } catch (err: unknown) {
           errors++;
-          if (!isProduction) logger.error('[CommLogs] Error processing SMS:', { error: err });
+          if (!isProduction) logger.error('[CommLogs] Error processing SMS:', { error: getErrorMessage(err) });
         }
       }
       
@@ -349,7 +349,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
     
     return { synced, errors };
   } catch (error: unknown) {
-    logger.error('[CommLogs] Fatal error:', { error: error });
+    logger.error('[CommLogs] Fatal error:', { error: getErrorMessage(error) });
     return { synced: 0, errors: 1 };
   } finally {
     commLogsSyncInProgress = false;
@@ -358,7 +358,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
 
 export function triggerCommunicationLogsSync(): void {
   syncCommunicationLogsFromHubSpot().catch(err => {
-    logger.error('[CommLogs] Background sync failed:', { error: err });
+    logger.error('[CommLogs] Background sync failed:', { error: getErrorMessage(err) });
   });
 }
 
@@ -379,7 +379,7 @@ export async function updateHubSpotContactVisitCount(hubspotId: string, visitCou
     if (!isProduction) logger.info(`[MemberSync] Updated HubSpot contact ${hubspotId} visit count to ${visitCount}`);
     return true;
   } catch (error: unknown) {
-    logger.error(`[MemberSync] Failed to update HubSpot visit count for ${hubspotId}:`, { error: error });
+    logger.error(`[MemberSync] Failed to update HubSpot visit count for ${hubspotId}:`, { error: getErrorMessage(error) });
     return false;
   }
 }
@@ -413,7 +413,7 @@ export async function updateHubSpotContactPreferences(
     if (!isProduction) logger.info(`[MemberSync] Updated HubSpot contact ${hubspotId} preferences:`, { extra: { detail: properties } });
     return true;
   } catch (error: unknown) {
-    logger.error(`[MemberSync] Failed to update HubSpot preferences for ${hubspotId}:`, { error: error });
+    logger.error(`[MemberSync] Failed to update HubSpot preferences for ${hubspotId}:`, { error: getErrorMessage(error) });
     return false;
   }
 }

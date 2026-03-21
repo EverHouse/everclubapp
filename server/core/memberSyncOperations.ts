@@ -386,16 +386,16 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
             try {
               const { syncTierToHubSpot } = await import('./hubspot/members');
               syncTierToHubSpot({ email, newTier: '', oldTier: existingUser[0]?.tier || undefined }).catch(err => {
-                logger.error(`[MemberSync] Failed to push deactivation to HubSpot for ${email}:`, { error: err });
+                logger.error(`[MemberSync] Failed to push deactivation to HubSpot for ${email}:`, { error: getErrorMessage(err) });
               });
             } catch (err) {
-              logger.error(`[MemberSync] Failed to import syncTierToHubSpot for ${email}:`, { error: err });
+              logger.error(`[MemberSync] Failed to import syncTierToHubSpot for ${email}:`, { error: getErrorMessage(err) });
             }
           }
           
           if (oldStatus !== status && !isStatusProtected) {
             detectAndNotifyStatusChange(email, firstName, lastName, oldStatus, status).catch(err => {
-              logger.error(`[MemberSync] Failed to notify status change for ${email}:`, { error: err });
+              logger.error(`[MemberSync] Failed to notify status change for ${email}:`, { error: getErrorMessage(err) });
             });
           }
           
@@ -533,7 +533,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
               }
             }
           } catch (err: unknown) {
-            if (!isProduction) logger.error(`[MemberSync] Error fetching merged contacts:`, { error: err });
+            if (!isProduction) logger.error(`[MemberSync] Error fetching merged contacts:`, { error: getErrorMessage(err) });
           }
           
           if (i + BATCH_SIZE < allMergedIds.length) {
@@ -577,7 +577,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
     
     return { synced, errors };
   } catch (error: unknown) {
-    logger.error('[MemberSync] Fatal error:', { error: error });
+    logger.error('[MemberSync] Fatal error:', { error: getErrorMessage(error) });
     await alertOnSyncFailure(
       'hubspot',
       'Member sync from HubSpot',
@@ -591,6 +591,6 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
 
 export function triggerMemberSync(): void {
   syncAllMembersFromHubSpot().catch(err => {
-    logger.error('[MemberSync] Background sync failed:', { error: err });
+    logger.error('[MemberSync] Background sync failed:', { error: getErrorMessage(err) });
   });
 }

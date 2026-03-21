@@ -12,7 +12,8 @@ All notable changes to the Ever Club Members App are documented here.
 - **Fixed**: `MembershipApply` tier options now filter by `product_type='subscription'` and use empty fallback instead of hardcoded `['Social', 'Core', 'Premium', 'Corporate']`.
 - **Fixed**: `useTierNames` hook uses empty array fallback instead of hardcoded 5-tier list — prevents stale tier names appearing before API data loads.
 - **Fixed**: All catch blocks in `server/core/hubspot/stages.ts` now use `getErrorMessage()` instead of logging raw error objects.
-- **Scope**: `server/core/mindbody/import.ts`, `server/core/integrity/resolution.ts`, `server/core/memberSyncRelevant.ts`, `server/core/resource/service.ts`, `server/core/hubspot/stages.ts`, `src/hooks/useTierNames.ts`, `src/pages/Public/MembershipApply.tsx`.
+- **Fixed**: All catch blocks in `memberSyncOperations.ts`, `memberSyncHelpers.ts`, and `memberSyncCommLogs.ts` now use `getErrorMessage()` consistently (added missing import in `memberSyncCommLogs.ts`).
+- **Scope**: `server/core/mindbody/import.ts`, `server/core/integrity/resolution.ts`, `server/core/memberSyncRelevant.ts`, `server/core/memberSyncOperations.ts`, `server/core/memberSyncHelpers.ts`, `server/core/memberSyncCommLogs.ts`, `server/core/resource/service.ts`, `server/core/hubspot/stages.ts`, `src/hooks/useTierNames.ts`, `src/pages/Public/MembershipApply.tsx`.
 
 ## [8.95.0] - 2026-03-20
 

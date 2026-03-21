@@ -19,6 +19,8 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: MembershipApply tier options now filter by product_type=subscription and use empty fallback instead of hardcoded tier list",
       "Fixed: useTierNames hook uses empty array fallback instead of hardcoded 5-tier list — prevents stale tier names from appearing",
       "Fixed: All catch blocks in HubSpot stages.ts now use getErrorMessage() instead of logging raw error objects",
+      "Fixed: All catch blocks in memberSyncOperations.ts, memberSyncHelpers.ts, and memberSyncCommLogs.ts now use getErrorMessage() consistently",
+      "Fixed: Missing getErrorMessage import in memberSyncCommLogs.ts — all 8 catch blocks were logging raw error objects",
     ]
   },
   {

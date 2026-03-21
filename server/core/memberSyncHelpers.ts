@@ -136,7 +136,7 @@ export async function detectAndNotifyStatusChange(
         logger.info(`[MemberSync] Started grace period for Mindbody member ${email} - status changed to ${newStatus}`);
       }
     } catch (err: unknown) {
-      logger.error(`[MemberSync] Failed to start grace period for ${email}:`, { error: err });
+      logger.error(`[MemberSync] Failed to start grace period for ${email}:`, { error: getErrorMessage(err) });
     }
   }
 }
@@ -181,7 +181,7 @@ export async function initMemberSyncSettings(): Promise<void> {
       logger.info(`[MemberSync] Loaded last sync time: ${new Date(lastSyncTime).toISOString()}`);
     }
   } catch (err: unknown) {
-    logger.error('[MemberSync] Failed to load last sync time:', { error: err });
+    logger.error('[MemberSync] Failed to load last sync time:', { error: getErrorMessage(err) });
   }
 }
 
@@ -196,7 +196,7 @@ export async function setLastMemberSyncTime(time: number): Promise<void> {
        VALUES ('last_member_sync_time', ${time.toString()}, 'sync', NOW())
        ON CONFLICT (key) DO UPDATE SET value = ${time.toString()}, updated_at = NOW()`);
   } catch (err: unknown) {
-    logger.error('[MemberSync] Failed to persist last sync time:', { error: err });
+    logger.error('[MemberSync] Failed to persist last sync time:', { error: getErrorMessage(err) });
   }
 }
 
