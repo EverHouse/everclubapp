@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.0",
+    date: "2026-03-21",
+    title: "Dev Environment: Resync from Production & Local DB Isolation",
+    changes: [
+      "Added: DEV-only 'Resync from Production' button in Data Integrity tools — pulls a fresh snapshot from the production database into the local dev database using psql COPY",
+      "Added: Production-safety guard prevents the resync endpoint from running in production or targeting a non-local database",
+      "Fixed: Dev environment now uses a fully isolated local database — removed FORCE_POOLER_REDIRECT so dev changes never affect production",
+      "Fixed: Added pending_tier_change JSONB column auto-creation in db-init to prevent login errors when column is missing",
+      "Fixed: Simulator booking calendar now shows bookings up to 60 days ahead (was limited to ~30 days due to incorrect date window)",
+    ]
+  },
+  {
     version: "8.96.0",
     date: "2026-03-21",
     title: "App is Source of Truth: Stripe Webhooks No Longer Overwrite Local Data",

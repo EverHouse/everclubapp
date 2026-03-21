@@ -184,6 +184,7 @@ export function useDataIntegrityState() {
   } | null>(null);
 
   const [stripeCacheResult, setStripeCacheResult] = useState<{ success: boolean; message: string; stats?: StripeCacheStats } | null>(null);
+  const [devResyncResult, setDevResyncResult] = useState<{ success: boolean; message: string; tables?: number; users?: number; bookings?: number } | null>(null);
 
   const [showSyncTools, setShowSyncTools] = useState(true);
   const [subscriptionStatusResult, setSubscriptionStatusResult] = useState<{ success: boolean; message: string; totalChecked?: number; mismatchCount?: number; updated?: SubscriptionUpdate[]; dryRun?: boolean } | null>(null);
@@ -329,6 +330,7 @@ export function useDataIntegrityState() {
     csvUploadResult, setCsvUploadResult,
     reconcileResult, setReconcileResult,
     stripeCacheResult, setStripeCacheResult,
+    devResyncResult, setDevResyncResult,
     showSyncTools, setShowSyncTools,
     subscriptionStatusResult, setSubscriptionStatusResult,
     orphanedStripeResult, setOrphanedStripeResult,

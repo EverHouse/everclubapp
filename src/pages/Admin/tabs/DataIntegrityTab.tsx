@@ -185,6 +185,9 @@ const DataIntegrityTab: React.FC = () => {
         isRunningStripeCustomerCleanup={actions.isRunningStripeCustomerCleanup}
         stripeCleanupResult={state.stripeCleanupResult}
         stripeCleanupProgress={state.stripeCleanupProgress}
+        handleResyncFromProduction={actions.handleResyncFromProduction}
+        isResyncingFromProduction={actions.isResyncingFromProduction}
+        devResyncResult={state.devResyncResult}
         handleArchiveStaleVisitors={actions.handleArchiveStaleVisitors}
         isRunningVisitorArchive={state.isRunningVisitorArchive}
         visitorArchiveResult={state.visitorArchiveResult}

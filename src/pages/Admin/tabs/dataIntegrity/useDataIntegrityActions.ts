@@ -626,6 +626,19 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
     },
   });
 
+  const devResyncMutation = useMutation({
+    mutationFn: () =>
+      postWithCredentials<{ message: string; tables?: number; users?: number; bookings?: number; failed?: string[] }>('/api/data-integrity/resync-from-production', {}),
+    onSuccess: (data) => {
+      state.setDevResyncResult({ success: true, message: data.message, tables: data.tables, users: data.users, bookings: data.bookings });
+      showToast(data.message, 'success');
+    },
+    onError: (err: Error) => {
+      state.setDevResyncResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Resync failed' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Resync failed', 'error');
+    },
+  });
+
   const syncMembersToHubspotMutation = useMutation({
     mutationFn: (dryRun: boolean) => 
       postWithCredentials<{ message: string; members?: HubspotSyncMember[]; syncedCount?: number; totalSynced?: number }>('/api/data-tools/bulk-push-to-hubspot', { dryRun }),
@@ -1345,6 +1358,11 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
     backfillStripeCacheMutation.mutate();
   };
 
+  const handleResyncFromProduction = () => {
+    state.setDevResyncResult(null);
+    devResyncMutation.mutate();
+  };
+
   const handleSyncMembersToHubspot = (dryRun: boolean = true) => {
     state.setHubspotSyncResult(null);
     syncMembersToHubspotMutation.mutate(dryRun);
@@ -1462,6 +1480,7 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
   const isRunningMindbodyImport = mindbodyReimportMutation.isPending;
   const isUploadingCSV = false;
   const isBackfillingStripeCache = backfillStripeCacheMutation.isPending;
+  const isResyncingFromProduction = devResyncMutation.isPending;
   const isSyncingToHubspot = syncMembersToHubspotMutation.isPending;
   const isCleaningMindbodyIds = cleanupMindbodyIdsMutation.isPending;
   const isRunningSubscriptionSync = syncSubscriptionStatusMutation.isPending;
@@ -1508,6 +1527,7 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
     handleUpdateAttendance,
     handleMindbodyReimport,
     handleBackfillStripeCache,
+    handleResyncFromProduction,
     handleSyncMembersToHubspot,
     handleCleanupMindbodyIds,
     handleSyncSubscriptionStatus,
@@ -1548,6 +1568,7 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
     isRunningMindbodyImport,
     isUploadingCSV,
     isBackfillingStripeCache,
+    isResyncingFromProduction,
     isSyncingToHubspot,
     isCleaningMindbodyIds,
     isRunningSubscriptionSync,

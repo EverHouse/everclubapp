@@ -56,6 +56,9 @@ interface SyncToolsPanelProps {
     deleted: number;
     errors: number;
   } | null;
+  handleResyncFromProduction: () => void;
+  isResyncingFromProduction: boolean;
+  devResyncResult: { success: boolean; message: string; tables?: number; users?: number; bookings?: number } | null;
   handleArchiveStaleVisitors: (dryRun: boolean) => void;
   isRunningVisitorArchive: boolean;
   visitorArchiveResult: {
@@ -102,6 +105,9 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
   isRunningStripeCustomerCleanup,
   stripeCleanupResult,
   stripeCleanupProgress,
+  handleResyncFromProduction,
+  isResyncingFromProduction,
+  devResyncResult,
   handleArchiveStaleVisitors,
   isRunningVisitorArchive,
   visitorArchiveResult,
@@ -124,6 +130,32 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
       
       {showDataTools && (
         <div ref={toolsRef} className="mt-4 space-y-6">
+          {import.meta.env.DEV && (
+            <div className="space-y-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Icon name="cloud_download" className="text-amber-600 dark:text-amber-400" />
+                <h4 className="text-sm font-medium text-amber-800 dark:text-amber-300">Resync from Production</h4>
+                <span className="text-[10px] px-1.5 py-0.5 bg-amber-200 dark:bg-amber-800 text-amber-700 dark:text-amber-300 rounded font-medium">DEV ONLY</span>
+              </div>
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Pull a fresh snapshot of all production data into the local dev database. This replaces all local data.
+              </p>
+              <button
+                onClick={handleResyncFromProduction}
+                disabled={isResyncingFromProduction}
+                className="tactile-btn px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+              >
+                {isResyncingFromProduction && <Icon name="progress_activity" className="animate-spin text-[16px]" />}
+                {isResyncingFromProduction ? 'Syncing from production...' : 'Resync from Production'}
+              </button>
+              {devResyncResult && (
+                <p className={`text-xs ${devResyncResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {devResyncResult.message}
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="space-y-3">
             <h4 className="text-sm font-medium text-primary dark:text-white">Resync Member</h4>
             <p className="text-xs text-gray-500 dark:text-gray-400">Force a full resync of a member's data from HubSpot and Stripe</p>
