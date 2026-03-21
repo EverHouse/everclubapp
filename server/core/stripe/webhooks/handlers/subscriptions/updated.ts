@@ -184,6 +184,107 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
             logger.warn('[Stripe Webhook] Wallet pass push failed (non-fatal):', { extra: { error: getErrorMessage(pushErr) } });
           }
         });
+
+        try {
+          const corpGroupResult = await client.query(
+            `SELECT bg.id, bg.group_name, bg.type FROM billing_groups bg
+             WHERE LOWER(bg.primary_email) = LOWER($1) AND bg.is_active = true`,
+            [email]
+          );
+
+          if (corpGroupResult.rows.length > 0) {
+            const billingGroup = corpGroupResult.rows[0];
+
+            if (billingGroup.type === 'family') {
+              logger.info(`[Stripe Webhook] Skipping tier propagation for family group "${billingGroup.group_name}" — family members have independent tiers`);
+            } else if (billingGroup.type === 'corporate') {
+              const corpTierUpdateResult = await client.query(
+                `UPDATE users u SET tier = $2,
+                 tier_id = $3,
+                 updated_at = NOW()
+                 FROM group_members gm
+                 WHERE gm.billing_group_id = $1
+                 AND gm.is_active = true
+                 AND LOWER(u.email) = LOWER(gm.member_email)
+                 AND u.membership_status IN ('active', 'past_due', 'trialing')
+                 AND (u.billing_provider IS NULL OR u.billing_provider = '' OR u.billing_provider = 'stripe' OR u.billing_provider = 'family_addon')
+                 AND (u.tier IS DISTINCT FROM $2)
+                 RETURNING u.email`,
+                [billingGroup.id, newTierName, newTierId]
+              );
+
+              await client.query(
+                `UPDATE group_members SET member_tier = $2
+                 WHERE billing_group_id = $1 AND is_active = true`,
+                [billingGroup.id, newTierName]
+              );
+
+              const corpAffectedCount = corpTierUpdateResult.rows.length;
+              if (corpAffectedCount > 0) {
+                logger.info(`[Stripe Webhook] Propagated tier ${newTierName} to ${corpAffectedCount} corporate sub-members in group "${billingGroup.group_name}"`);
+
+                const deferredCorpSubEmails = corpTierUpdateResult.rows.map((r: { email: string }) => r.email);
+                const deferredCorpNewTier = newTierName;
+                const deferredCorpOldTier = currentTier || 'None';
+                const deferredCorpGroupName = billingGroup.group_name;
+
+                deferredActions.push(async () => {
+                  try {
+                    await notifyAllStaff(
+                      'Corporate Tier Update',
+                      `${corpAffectedCount} sub-member(s) in corporate group "${deferredCorpGroupName}" updated from ${deferredCorpOldTier} to ${deferredCorpNewTier}.`,
+                      'membership_tier_change',
+                      { sendPush: true, url: '/admin/members' }
+                    );
+                  } catch (notifyErr: unknown) {
+                    logger.error('[Stripe Webhook] Staff notification for corporate tier propagation failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+                  }
+                });
+
+                deferredActions.push(async () => {
+                  try {
+                    const { syncMemberToHubSpot } = await import('../../../../hubspot/stages');
+                    for (const subEmail of deferredCorpSubEmails) {
+                      await syncMemberToHubSpot({ email: subEmail, tier: deferredCorpNewTier, billingProvider: 'stripe', billingGroupRole: 'Sub-member' });
+                    }
+                    logger.info(`[Stripe Webhook] Synced ${deferredCorpSubEmails.length} corporate sub-members to HubSpot after tier propagation`);
+                  } catch (hubspotErr: unknown) {
+                    logger.error('[Stripe Webhook] HubSpot sync failed for corporate tier propagation:', { error: getErrorMessage(hubspotErr) });
+                  }
+                });
+
+                deferredActions.push(async () => {
+                  for (const subEmail of deferredCorpSubEmails) {
+                    try {
+                      await sendPassUpdateForMemberByEmail(subEmail);
+                    } catch (pushErr: unknown) {
+                      logger.warn('[Stripe Webhook] Wallet pass push failed for corporate sub-member tier update (non-fatal):', { extra: { email: subEmail, error: getErrorMessage(pushErr) } });
+                    }
+                  }
+                });
+
+                deferredActions.push(async () => {
+                  for (const subEmail of deferredCorpSubEmails) {
+                    try {
+                      await notifyMember({
+                        userEmail: subEmail,
+                        title: 'Membership Tier Updated',
+                        message: `Your membership tier has been updated to ${deferredCorpNewTier}.`,
+                        type: 'membership_tier_change',
+                      });
+                    } catch (notifyErr: unknown) {
+                      logger.error('[Stripe Webhook] Sub-member tier notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+                    }
+                  }
+                });
+              } else {
+                logger.info(`[Stripe Webhook] Corporate tier propagation: no sub-members needed tier update in group "${billingGroup.group_name}"`);
+              }
+            }
+          }
+        } catch (corpTierErr: unknown) {
+          logger.error('[Stripe Webhook] Corporate tier propagation failed (non-fatal):', { error: getErrorMessage(corpTierErr) });
+        }
       }
     }
 
