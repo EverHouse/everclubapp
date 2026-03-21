@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.1",
+    date: "2026-03-21",
+    title: "Fix: Checked-In Bookings & Trackman Slots Now Block Availability",
+    changes: [
+      "Fixed: Bookings with 'checked_in' status now correctly block their time slot — previously, once a member checked in, the slot appeared available to other members",
+      "Fixed: Single-resource availability endpoint now checks Trackman bay slot cache — was missing entirely, so Trackman-only bookings without a matching app booking could show as available",
+      "Both the batch and single-resource availability endpoints now use the same comprehensive conflict checks as the booking creation guard",
+    ]
+  },
+  {
     version: "8.97.0",
     date: "2026-03-21",
     title: "Dev Environment: Resync from Production & Local DB Isolation",

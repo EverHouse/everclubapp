@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.1] - 2026-03-21
+
+### Fix: Checked-In Bookings & Trackman Slots Now Block Availability
+- **Fixed**: Bookings with `checked_in` status now correctly block their time slot in both availability endpoints — previously, once a member checked in, the slot appeared available to other members because `checked_in` was missing from the status filter
+- **Fixed**: Single-resource availability endpoint (`GET /api/availability`) now queries `trackman_bay_slots` for Trackman-synced bookings — this query was entirely missing, so Trackman-only bookings without a matching app booking could show as available
+- **Alignment**: Both batch and single-resource availability endpoints now use the same comprehensive conflict checks as the booking creation guard (`OCCUPIED_STATUSES`)
+
 ## [8.97.0] - 2026-03-21
 
 ### Dev Environment: Resync from Production & Local DB Isolation

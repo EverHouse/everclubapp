@@ -171,9 +171,9 @@ router.post('/api/availability/batch', async (req, res) => {
       db.execute(sql`SELECT id, type FROM resources WHERE id = ANY(${resourceIdsLiteral}::int[])`),
       ignoreId
         ? db.execute(sql`SELECT resource_id, start_time, end_time FROM booking_requests 
-             WHERE resource_id = ANY(${resourceIdsLiteral}::int[]) AND request_date = ${date} AND status IN ('approved', 'confirmed', 'cancellation_pending', 'attended') AND id != ${ignoreId}`)
+             WHERE resource_id = ANY(${resourceIdsLiteral}::int[]) AND request_date = ${date} AND status IN ('approved', 'confirmed', 'checked_in', 'cancellation_pending', 'attended') AND id != ${ignoreId}`)
         : db.execute(sql`SELECT resource_id, start_time, end_time FROM booking_requests 
-             WHERE resource_id = ANY(${resourceIdsLiteral}::int[]) AND request_date = ${date} AND status IN ('approved', 'confirmed', 'cancellation_pending', 'attended')`),
+             WHERE resource_id = ANY(${resourceIdsLiteral}::int[]) AND request_date = ${date} AND status IN ('approved', 'confirmed', 'checked_in', 'cancellation_pending', 'attended')`),
       db.execute(sql`SELECT resource_id, start_time, end_time FROM availability_blocks 
          WHERE resource_id = ANY(${resourceIdsLiteral}::int[]) AND block_date = ${date}`),
       db.execute(sql`SELECT tub.bay_number, tub.start_time, tub.end_time FROM trackman_unmatched_bookings tub
@@ -333,9 +333,9 @@ router.get('/api/availability', async (req, res) => {
     // Include both 'approved' and 'confirmed' statuses as active bookings that block availability
     const bookedSlots = ignoreId
       ? await db.execute(sql`SELECT start_time, end_time FROM booking_requests 
-           WHERE resource_id = ${resource_id} AND request_date = ${date} AND status IN ('approved', 'confirmed', 'cancellation_pending', 'attended') AND id != ${ignoreId}`)
+           WHERE resource_id = ${resource_id} AND request_date = ${date} AND status IN ('approved', 'confirmed', 'checked_in', 'cancellation_pending', 'attended') AND id != ${ignoreId}`)
       : await db.execute(sql`SELECT start_time, end_time FROM booking_requests 
-           WHERE resource_id = ${resource_id} AND request_date = ${date} AND status IN ('approved', 'confirmed', 'cancellation_pending', 'attended')`);
+           WHERE resource_id = ${resource_id} AND request_date = ${date} AND status IN ('approved', 'confirmed', 'checked_in', 'cancellation_pending', 'attended')`);
     
     const blockedSlots = await db.execute(sql`SELECT start_time, end_time FROM availability_blocks 
        WHERE resource_id = ${resource_id} AND block_date = ${date}`);
@@ -355,6 +355,7 @@ router.get('/api/availability', async (req, res) => {
     // Also check unmatched Trackman bookings (unresolved imports occupy time slots)
     // Exclude entries that already exist in booking_requests to prevent double-counting
     let unmatchedTrackmanSlots: { rows: { start_time: string; end_time: string }[] } = { rows: [] };
+    let trackmanBaySlots: { rows: { start_time: string; end_time: string }[] } = { rows: [] };
     try {
       unmatchedTrackmanSlots = await db.execute(sql`SELECT tub.start_time, tub.end_time FROM trackman_unmatched_bookings tub
          WHERE tub.bay_number = ${resource_id}::text AND tub.booking_date = ${date} AND tub.resolved_at IS NULL
@@ -363,8 +364,13 @@ router.get('/api/availability', async (req, res) => {
              WHERE br.trackman_booking_id = tub.trackman_booking_id::text
            )`);
     } catch (e: unknown) {
-      // Non-blocking: continue without unmatched booking checks if table doesn't exist
       logger.error('Failed to fetch unmatched Trackman bookings (non-blocking)', { extra: { error: getErrorMessage(e) } });
+    }
+    try {
+      trackmanBaySlots = await db.execute(sql`SELECT start_time, end_time FROM trackman_bay_slots 
+         WHERE resource_id = ${resource_id} AND slot_date = ${date} AND status = 'booked'`);
+    } catch (e: unknown) {
+      logger.warn('[Availability] Failed to query trackman_bay_slots (non-blocking)', { extra: { error: getErrorMessage(e) } });
     }
     
     // For conference room, also fetch busy times from Google Calendar (Mindbody bookings)
@@ -444,11 +450,13 @@ router.get('/api/availability', async (req, res) => {
         return (startTime < blockEnd && endTime > blockStart);
       });
       
-      // Check unmatched Trackman bookings (unresolved historical imports)
+      // Check unmatched Trackman bookings and Trackman bay slot cache
       const hasUnmatchedConflict = unmatchedTrackmanSlots.rows.some((unmatched: Record<string, unknown>) => {
         const unmatchedStart = unmatched.start_time as string;
         const unmatchedEnd = unmatched.end_time as string;
         return (startTime < unmatchedEnd && endTime > unmatchedStart);
+      }) || trackmanBaySlots.rows.some((tbs: Record<string, unknown>) => {
+        return (startTime < (tbs.end_time as string) && endTime > (tbs.start_time as string));
       });
       
       // Check Google Calendar busy times (for Mindbody conference room bookings)
