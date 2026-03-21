@@ -75,8 +75,8 @@ export async function syncMembershipTiersToStripe(): Promise<{
         const privilegeMetadata = buildPrivilegeMetadata(tier);
 
         const featuresArray = tier.highlightedFeatures as string[] | null;
-        const allFeaturesObj = tier.allFeatures as Record<string, boolean> | null;
-        const marketingFeatures = buildMergedMarketingFeatures(featuresArray, allFeaturesObj);
+        const allFeaturesObj = tier.allFeatures as Record<string, import('./productHelpers').AllFeatureValue> | null;
+        const marketingFeatures = buildMergedMarketingFeatures(featuresArray, allFeaturesObj, tier.name);
         const hasMarketingFeatures = marketingFeatures.length > 0;
 
         if (stripeProductId) {

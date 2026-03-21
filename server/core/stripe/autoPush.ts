@@ -1,5 +1,5 @@
 import { getStripeClient } from './client';
-import { findExistingStripeProduct, buildPrivilegeMetadata, resolveAppCategory, type TierRecord } from './productHelpers';
+import { findExistingStripeProduct, buildPrivilegeMetadata, buildMergedMarketingFeatures, resolveAppCategory, type TierRecord } from './productHelpers';
 import { markAppOriginated } from './appOriginTracker';
 import { archiveStalePricesForProduct } from './productSync';
 import { syncSingleTierFeaturesToStripe } from './productCatalogSync';
@@ -59,6 +59,7 @@ export async function autoPushTierToStripe(tierRow: Record<string, unknown> & { 
     const productType = pick<string | null>(tierRow, 'productType', 'product_type') ?? null;
     const billingInterval = pick<string | null>(tierRow, 'billingInterval', 'billing_interval') ?? null;
     const highlightedFeatures = pick<unknown>(tierRow, 'highlightedFeatures', 'highlighted_features');
+    const allFeatures = pick<unknown>(tierRow, 'allFeatures', 'all_features') as Record<string, import('./productHelpers').AllFeatureValue> | null;
     const rawStripeProductId = pick<string | null>(tierRow, 'stripeProductId', 'stripe_product_id') ?? null;
     const rawStripePriceId = pick<string | null>(tierRow, 'stripePriceId', 'stripe_price_id') ?? null;
 
@@ -95,10 +96,10 @@ export async function autoPushTierToStripe(tierRow: Record<string, unknown> & { 
 
     const isSubscription = !isOneTime;
     const featuresArray = highlightedFeatures as string[] | null;
-    const hasMarketingFeatures = isSubscription && Array.isArray(featuresArray) && featuresArray.length > 0;
-    const marketingFeatures = hasMarketingFeatures
-      ? featuresArray.slice(0, 15).map((f: string) => ({ name: f }))
+    const marketingFeatures = isSubscription
+      ? buildMergedMarketingFeatures(featuresArray, allFeatures, tierRow.name)
       : [];
+    const hasMarketingFeatures = marketingFeatures.length > 0;
 
     let stripeProductId = rawStripeProductId;
     let stripePriceId = rawStripePriceId;

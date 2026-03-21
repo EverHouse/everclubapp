@@ -208,9 +208,12 @@ export function buildFeatureKeysForTier(tier: TierRecord): Array<{ lookupKey: st
 const ALL_FEATURES_PREFIX = '⌁af:';
 const ALL_FEATURES_SUFFIX = '⌁';
 
+export type AllFeatureValue = boolean | { label?: string; value?: string | boolean; included?: boolean };
+
 export function buildMergedMarketingFeatures(
   highlightedFeatures: string[] | null,
-  allFeatures: Record<string, boolean> | null
+  allFeatures: Record<string, AllFeatureValue> | null,
+  tierName?: string
 ): Array<{ name: string }> {
   const result: Array<{ name: string }> = [];
 
@@ -225,10 +228,16 @@ export function buildMergedMarketingFeatures(
   if (allFeatures && typeof allFeatures === 'object') {
     for (const [featureName, value] of Object.entries(allFeatures)) {
       if (featureName && featureName.trim()) {
-        const encoded = `${ALL_FEATURES_PREFIX}${value ? 'true' : 'false'}${ALL_FEATURES_SUFFIX}${featureName}`;
+        const encodedValue = typeof value === 'boolean' ? String(value) : JSON.stringify(value);
+        const encoded = `${ALL_FEATURES_PREFIX}${encodedValue}${ALL_FEATURES_SUFFIX}${featureName}`;
         result.push({ name: encoded });
       }
     }
+  }
+
+  if (result.length > 15) {
+    const dropped = result.length - 15;
+    logger.warn(`[Stripe] Marketing features for tier "${tierName ?? 'unknown'}" truncated: ${result.length} entries exceeds Stripe's 15-entry limit, ${dropped} feature(s) dropped`);
   }
 
   return result.slice(0, 15);
@@ -238,10 +247,10 @@ export function parseMarketingFeatures(
   marketingFeatures: Array<{ name: string }>
 ): {
   highlightedFeatures: string[];
-  allFeatures: Record<string, boolean>;
+  allFeatures: Record<string, AllFeatureValue>;
 } {
   const highlightedFeatures: string[] = [];
-  const allFeatures: Record<string, boolean> = {};
+  const allFeatures: Record<string, AllFeatureValue> = {};
 
   for (const f of marketingFeatures) {
     if (!f.name || !f.name.trim()) continue;
@@ -249,10 +258,21 @@ export function parseMarketingFeatures(
     if (f.name.startsWith(ALL_FEATURES_PREFIX)) {
       const closingIdx = f.name.indexOf(ALL_FEATURES_SUFFIX, ALL_FEATURES_PREFIX.length);
       if (closingIdx !== -1) {
-        const boolStr = f.name.substring(ALL_FEATURES_PREFIX.length, closingIdx);
+        const rawValue = f.name.substring(ALL_FEATURES_PREFIX.length, closingIdx);
         const featureName = f.name.substring(closingIdx + 1);
         if (featureName.trim()) {
-          allFeatures[featureName] = boolStr === 'true';
+          if (rawValue === 'true') {
+            allFeatures[featureName] = true;
+          } else if (rawValue === 'false') {
+            allFeatures[featureName] = false;
+          } else {
+            try {
+              allFeatures[featureName] = JSON.parse(rawValue) as AllFeatureValue;
+            } catch (e) {
+              logger.warn(`[Stripe] Failed to decode all_features value for "${featureName}", falling back to true: ${rawValue}`);
+              allFeatures[featureName] = true;
+            }
+          }
         }
       }
     } else {

@@ -494,7 +494,7 @@ export async function pullTierFeaturesFromStripe(): Promise<{
             logger.info(`[Reverse Sync] Cleared highlighted features for "${tier.name}" (Stripe marketing features empty)`);
           }
 
-          const localAllFeatures = (tier.allFeatures as Record<string, boolean>) || {};
+          const localAllFeatures = (tier.allFeatures as Record<string, import('./productHelpers').AllFeatureValue>) || {};
           const mergedAllFeatures = { ...localAllFeatures, ...parsed.allFeatures };
           await db.update(membershipTiers)
             .set({ allFeatures: mergedAllFeatures })
