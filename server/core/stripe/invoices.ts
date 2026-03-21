@@ -359,7 +359,12 @@ export async function chargeOneTimeFee(params: {
 function mapInvoice(invoice: Stripe.Invoice): InvoiceResult {
   return {
     id: invoice.id,
-    status: invoice.status || 'draft',
+    status: (() => {
+      if (!invoice.status) {
+        logger.warn('[Invoices] Stripe invoice has null status, falling back to draft', { extra: { invoiceId: invoice.id } });
+      }
+      return invoice.status || 'draft';
+    })(),
     customerId: typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id || null,
     amountDue: invoice.amount_due,
     amountPaid: invoice.amount_paid,

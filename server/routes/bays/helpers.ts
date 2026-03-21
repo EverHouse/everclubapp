@@ -32,7 +32,7 @@ export async function dismissStaffNotificationsForBooking(bookingId: number): Pr
   try {
     await bookingEvents.cleanupNotificationsForBooking(bookingId, { markRead: true });
   } catch (error: unknown) {
-    logger.error('Failed to dismiss staff notifications', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Failed to dismiss staff notifications', { error: getErrorMessage(error) });
   }
 }
 
@@ -55,7 +55,8 @@ export async function isStaffOrAdminCheck(email: string): Promise<boolean> {
       emails
     );
     return (result as unknown as { rows: Array<Record<string, unknown>> }).rows.length > 0;
-  } catch (_error: unknown) {
+  } catch (error: unknown) {
+    logger.error('[Bays] isActiveStaff DB check failed, defaulting to false', { error: getErrorMessage(error) });
     return false;
   }
 }

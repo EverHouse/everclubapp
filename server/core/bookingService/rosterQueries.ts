@@ -146,6 +146,9 @@ export async function getBookingParticipants(
     }
   }
 
+  if (!booking.declared_player_count) {
+    logger.warn('[RosterQueries] declared_player_count is null/zero, falling back to 1', { extra: { bookingId: booking.id } });
+  }
   const declaredCount = booking.declared_player_count || 1;
   const ownerInParticipants = participants.some(p => p.participantType === 'owner');
   const currentCount = ownerInParticipants ? participants.length : (1 + participants.length);

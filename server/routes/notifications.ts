@@ -1,8 +1,9 @@
 import { Router, Request } from 'express';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
-import { logAndRespond, createErrorResponse } from '../core/logger';
+import { logAndRespond, createErrorResponse, logger } from '../core/logger';
 import { isAuthenticated, isAdminEmail } from '../core/middleware';
+import { getErrorMessage } from '../utils/errorUtils';
 import { getSessionUser } from '../types/session';
 
 const router = Router();
@@ -23,7 +24,8 @@ async function isStaffUser(email: string): Promise<boolean> {
       sql`SELECT id FROM staff_users WHERE LOWER(email) IN (${sql.join(emails.map(e => sql`LOWER(${e})`), sql`, `)}) AND is_active = true`
     );
     return result.rows.length > 0;
-  } catch (_error: unknown) {
+  } catch (error: unknown) {
+    logger.error('[Notifications] isStaffUser DB check failed, defaulting to false', { error: getErrorMessage(error) });
     return false;
   }
 }

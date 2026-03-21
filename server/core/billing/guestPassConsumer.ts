@@ -302,8 +302,8 @@ export async function refundGuestPassForParticipant(
           logger.warn('[GuestPassConsumer] Non-blocking: draft invoice sync failed after pass refund', { extra: { error: getErrorMessage(err) } });
         });
       }
-    } catch (_syncErr) {
-      logger.warn('[GuestPassConsumer] Non-blocking: failed to sync invoice after pass refund');
+    } catch (syncErr: unknown) {
+      logger.warn('[GuestPassConsumer] Non-blocking: failed to sync invoice after pass refund', { error: getErrorMessage(syncErr) });
     }
 
     return {

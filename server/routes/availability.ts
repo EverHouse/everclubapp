@@ -318,7 +318,11 @@ router.get('/api/availability', async (req, res) => {
     
     // Get resource type to determine business hours
     const resourceResult = await db.execute(sql`SELECT type FROM resources WHERE id = ${resource_id}`);
-    const resourceType = resourceResult.rows[0]?.type || 'simulator';
+    const rawType = resourceResult.rows[0]?.type;
+    if (!rawType) {
+      logger.warn('[Availability] Resource type lookup returned null/empty, falling back to simulator', { extra: { resource_id } });
+    }
+    const resourceType = rawType || 'simulator';
     
     // When rescheduling, ignore the original booking so its slot shows as available
     const ignoreId = ignore_booking_id ? parseInt(ignore_booking_id as string, 10) : null;

@@ -263,7 +263,9 @@ router.put('/api/membership-tiers/:id', isAdmin, validateBody(updateTierSchema),
         ensureHubSpotPropertiesExist().catch(err =>
           logger.warn('[HubSpot] Fire-and-forget tier property sync failed after tier update', { error: getErrorMessage(err) })
         )
-      ).catch(() => {});
+      ).catch((err: unknown) => {
+          logger.warn('[HubSpot] Dynamic import of stages module failed after tier update', { error: getErrorMessage(err) });
+        });
     }
 
     res.json({ ...updatedTier, synced, syncError });
@@ -333,7 +335,9 @@ router.post('/api/membership-tiers', isAdmin, validateBody(createTierSchema), as
       ensureHubSpotPropertiesExist().catch(err =>
         logger.warn('[HubSpot] Fire-and-forget tier property sync failed after tier create', { error: getErrorMessage(err) })
       )
-    ).catch(() => {});
+    ).catch((err: unknown) => {
+      logger.warn('[HubSpot] Dynamic import of stages module failed after tier create', { error: getErrorMessage(err) });
+    });
 
     res.status(201).json({ ...result.rows[0], synced, syncError });
   } catch (error: unknown) {

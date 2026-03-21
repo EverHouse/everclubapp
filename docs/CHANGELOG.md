@@ -2,6 +2,21 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.95.3] - 2026-03-21
+
+### Error Visibility: Silent Catch Blocks & Dangerous Fallback Defaults
+- **Fixed**: Empty `.catch(() => {})` on HubSpot dynamic imports in `membershipTiers.ts` (tier create & update) now logs the error with `getErrorMessage()`.
+- **Fixed**: `isStaffUser()` in `notifications.ts` and `isActiveStaff()` in `bays/helpers.ts` now log `logger.error` when DB check fails instead of silently returning `false`.
+- **Fixed**: `guestPassConsumer.ts` invoice sync catch block now includes `getErrorMessage(syncErr)` in the log output.
+- **Fixed**: `booking-fees.ts` payment intent reuse catch block now includes error detail in the warning log.
+- **Fixed**: `balance.ts` intent reuse catch block now logs error detail and uses `logger.warn` instead of `logger.info`.
+- **Fixed**: `memberSyncCommLogs.ts` HubSpot call and communication association catch blocks now log error detail instead of only incrementing counters.
+- **Fixed**: `availability.ts` resource type lookup now warns when falling back to `'simulator'` due to null/empty type.
+- **Fixed**: `rosterQueries.ts` `declared_player_count` fallback to 1 now warns when the value is null/zero — makes billing-affecting defaults visible.
+- **Fixed**: `invoices.ts` `mapInvoice()` now warns when Stripe returns null invoice status and fallback to `'draft'` activates.
+- **Fixed**: `events/sync.ts` sync-all endpoint now logs actual exceptions via `logger.error` with `getErrorMessage()` instead of returning fake success objects silently.
+- **Scope**: 11 server files, ~25 edit points. No control flow changes — only added logging to make failures visible.
+
 ## [8.95.2] - 2026-03-21
 
 ### Stripe Sync Bug Fixes: Tier ID Drift, Corporate Propagation, Schedule Handling

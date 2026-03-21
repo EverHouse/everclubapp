@@ -148,7 +148,8 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
                     }
                   }
                 }
-              } catch (_err) {
+              } catch (err: unknown) {
+                logger.warn('[MemberSync] HubSpot call association failed', { error: getErrorMessage(err) });
                 hubspotCallAssocFailCount++;
               }
               
@@ -305,7 +306,8 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
                 }
               }
             }
-          } catch (_err) {
+          } catch (err: unknown) {
+            logger.warn('[MemberSync] HubSpot communication association failed', { error: getErrorMessage(err) });
             hubspotCommAssocFailCount++;
           }
           

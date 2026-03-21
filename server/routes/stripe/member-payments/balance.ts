@@ -495,8 +495,8 @@ router.post('/api/member/balance/pay', isAuthenticated, async (req: Request, res
             creditApplied: false
           });
         }
-      } catch (_intentError: unknown) {
-        logger.info('[Member Balance] Could not reuse intent , creating new one', { extra: { existingPaymentIntentId } });
+      } catch (intentError: unknown) {
+        logger.warn('[Member Balance] Could not reuse intent, creating new one', { extra: { existingPaymentIntentId }, error: getErrorMessage(intentError) });
       }
     }
 

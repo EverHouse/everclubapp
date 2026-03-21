@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.95.3",
+    date: "2026-03-21",
+    title: "Error Visibility: Silent Catch Blocks & Dangerous Fallback Defaults",
+    changes: [
+      "Fixed: ~20 catch blocks across 11 server files now log error details instead of swallowing silently — covers HubSpot sync, staff permission checks, Stripe payment intent reuse, guest pass invoice sync, calendar sync, and member sync associations",
+      "Fixed: Dangerous fallback defaults in resource type lookup, player count, and invoice status mapping now log warnings when fallback activates — makes data corruption visible in logs",
+      "Fixed: Google Calendar sync-all endpoint now logs actual exceptions instead of returning fake success objects with zero detail",
+    ]
+  },
+  {
     version: "8.95.2",
     date: "2026-03-21",
     title: "Stripe Sync Bug Fixes: Tier ID Drift, Corporate Propagation, Schedule Handling",

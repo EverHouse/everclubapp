@@ -198,8 +198,8 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, validateBody(cr
                 });
               }
             }
-          } catch (_err: unknown) {
-            logger.warn('[Stripe] Failed to check existing payment intent, creating new one');
+          } catch (err: unknown) {
+            logger.warn('[Stripe] Failed to check existing payment intent, creating new one', { error: getErrorMessage(err) });
           }
         }
       }

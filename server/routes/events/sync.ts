@@ -25,7 +25,7 @@ router.post('/api/events/sync/google', isStaffOrAdmin, async (req, res) => {
       ...result
     });
   } catch (error: unknown) {
-    logger.error('Google Calendar sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Google Calendar sync error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to sync Google Calendar events' });
   }
 });
@@ -57,7 +57,7 @@ router.post('/api/events/sync', isStaffOrAdmin, async (req, res) => {
       eventbrite: eventbriteResult.error ? { error: eventbriteResult.error } : eventbriteResult
     });
   } catch (error: unknown) {
-    logger.error('Event sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Event sync error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to sync events' });
   }
 });
@@ -65,9 +65,18 @@ router.post('/api/events/sync', isStaffOrAdmin, async (req, res) => {
 router.post('/api/calendars/sync-all', isStaffOrAdmin, async (req, res) => {
   try {
     const [eventsResult, wellnessResult, backfillResult] = await Promise.all([
-      syncGoogleCalendarEvents().catch(() => ({ synced: 0, created: 0, updated: 0, error: 'Events sync failed' })),
-      syncWellnessCalendarEvents().catch(() => ({ synced: 0, created: 0, updated: 0, error: 'Wellness sync failed' })),
-      backfillWellnessToCalendar().catch(() => ({ created: 0, total: 0, errors: ['Backfill failed'] }))
+      syncGoogleCalendarEvents().catch((err: unknown) => {
+        logger.error('[CalendarSync] Events sync failed', { error: getErrorMessage(err) });
+        return { synced: 0, created: 0, updated: 0, error: 'Events sync failed' };
+      }),
+      syncWellnessCalendarEvents().catch((err: unknown) => {
+        logger.error('[CalendarSync] Wellness sync failed', { error: getErrorMessage(err) });
+        return { synced: 0, created: 0, updated: 0, error: 'Wellness sync failed' };
+      }),
+      backfillWellnessToCalendar().catch((err: unknown) => {
+        logger.error('[CalendarSync] Wellness backfill failed', { error: getErrorMessage(err) });
+        return { created: 0, total: 0, errors: ['Backfill failed'] };
+      })
     ]);
     
     const eventsSynced = eventsResult?.synced || 0;
@@ -96,7 +105,7 @@ router.post('/api/calendars/sync-all', isStaffOrAdmin, async (req, res) => {
       message: `Synced ${eventsSynced} events and ${wellnessSynced} wellness classes from Google Calendar. Created ${wellnessBackfilled} calendar events for existing classes.`
     });
   } catch (error: unknown) {
-    logger.error('Calendar sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Calendar sync error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to sync calendars' });
   }
 });
@@ -221,7 +230,7 @@ router.post('/api/eventbrite/sync', isStaffOrAdmin, async (req, res) => {
       updated
     });
   } catch (error: unknown) {
-    logger.error('Eventbrite sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Eventbrite sync error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to sync Eventbrite events' });
   }
 });
@@ -423,7 +432,7 @@ router.post('/api/events/:id/sync-eventbrite-attendees', isStaffOrAdmin, async (
       message: `Synced ${synced} attendees, ${totalMatched} matched to members`
     });
   } catch (error: unknown) {
-    logger.error('Eventbrite attendees sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Eventbrite attendees sync error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to sync Eventbrite attendees' });
   }
 });
@@ -457,7 +466,7 @@ router.get('/api/events/:id/eventbrite-attendees', isStaffOrAdmin, async (req, r
     
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Eventbrite attendees fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Eventbrite attendees fetch error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to fetch Eventbrite attendees' });
   }
 });
