@@ -25,6 +25,7 @@ interface BookingFooterProps {
   guestFeeDollars: number;
   guestPassInfo: { passes_remaining: number; passes_total: number } | undefined;
   effectiveUserTier: string | undefined;
+  dailySimMinutes?: number;
   requestButtonRef: React.RefObject<HTMLDivElement | null>;
   feeRef: (el: HTMLElement | null) => void;
 }
@@ -32,7 +33,7 @@ interface BookingFooterProps {
 const BookingFooter: React.FC<BookingFooterProps> = ({
   canBook, isBooking, isDark, activeTab, conferencePaymentRequired, conferenceOverageFee,
   handleConfirm, estimatedFees, guestFeeDollars, guestPassInfo, effectiveUserTier,
-  requestButtonRef, feeRef,
+  dailySimMinutes, requestButtonRef, feeRef,
 }) => {
   return (
     <>
@@ -66,6 +67,7 @@ const BookingFooter: React.FC<BookingFooterProps> = ({
                 passesRemainingAfter={guestPassInfo ? estimatedFees.passesRemainingAfter : undefined}
                 passesTotal={guestPassInfo?.passes_total}
                 tierLabel={effectiveUserTier}
+                hasDailyAllowance={dailySimMinutes !== undefined && dailySimMinutes > 0}
                 resourceType="conference"
                 isDark={isDark}
               />

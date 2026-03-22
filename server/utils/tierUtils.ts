@@ -121,6 +121,10 @@ export function isSocialTier(tierName: string | null | undefined): boolean {
   return normalizeTierSlug(tierName) === 'social';
 }
 
+export function isCorporateTier(tierName: string | null | undefined): boolean {
+  return normalizeTierSlug(tierName) === 'corporate';
+}
+
 export function isStaffTier(tierName: string | null | undefined): boolean {
   return normalizeTierSlug(tierName) === 'staff';
 }

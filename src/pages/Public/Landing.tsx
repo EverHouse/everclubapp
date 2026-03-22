@@ -11,6 +11,7 @@ import SEO from '../../components/SEO';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
 import Icon from '../../components/icons/Icon';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
+import { isStaffTier } from '../../utils/tierUtils';
 
 interface MembershipTier {
   id: number;
@@ -20,6 +21,10 @@ interface MembershipTier {
   description: string;
   is_popular: boolean;
   highlighted_features: string[];
+  tier_type?: string;
+  product_type?: string;
+  sort_order?: number;
+  show_on_membership_page?: boolean;
 }
 
 const HERO_ANIM_KEY = 'ever_hero_played';
@@ -62,7 +67,7 @@ const Landing: React.FC = () => {
     if (user) return;
     try {
       const data = await fetchWithCredentials<MembershipTier[]>('/api/membership-tiers?active=true');
-      setTiers(data.filter((t: MembershipTier) => t.slug !== 'staff').slice(0, 3));
+      setTiers(data.filter((t: MembershipTier) => !isStaffTier(t.slug) && t.show_on_membership_page !== false && t.product_type !== 'one_time').slice(0, 3));
     } catch (error: unknown) {
       console.error('Failed to fetch tiers:', error);
     } finally {
@@ -80,9 +85,7 @@ const Landing: React.FC = () => {
     return () => window.removeEventListener('app-refresh', handler);
   }, [fetchTiers]);
 
-  const socialTier = tiers.find(t => t.slug === 'social');
-  const coreTier = tiers.find(t => t.slug === 'core');
-  const corporateTier = tiers.find(t => t.slug === 'corporate');
+  const featuredTiers = tiers.slice(0, 3);
 
   const extractPrice = (priceString: string) => {
     const match = priceString?.match(/\$[\d,]+/);
@@ -358,112 +361,79 @@ const Landing: React.FC = () => {
          </div>
          
          <div className="grid grid-cols-1 lg:grid-cols-3 gap-px max-w-5xl mx-auto border border-primary/10 dark:border-white/10" style={{ minHeight: '420px' }}>
-            {socialTier && (
-            <div className="p-8 md:p-10 bg-bone dark:bg-[#1a1a1a] transition-colors duration-[600ms] hover:bg-white/60 dark:hover:bg-white/5">
-                <div className="mb-6">
-                    <h3
-                      className="text-lg text-primary dark:text-white mb-1"
-                      style={{ fontFamily: 'var(--font-display)' }}
-                    >
-                      {socialTier.name}
-                    </h3>
-                    <span className="text-2xl font-light text-primary dark:text-white" style={{ fontFamily: 'var(--font-display)' }}>
-                      {extractPrice(socialTier.price_string)}
-                      <span className="text-xs font-light text-primary/40 dark:text-white/40 ml-0.5">{extractSuffix(socialTier.price_string)}</span>
-                    </span>
-                </div>
-                <p className="text-xs text-primary/50 dark:text-white/50 mb-6 leading-[1.8] font-light" style={{ fontFamily: 'var(--font-body)' }}>{socialTier.description}</p>
-                <ul className="space-y-3 mb-8">
-                    {(socialTier.highlighted_features || []).slice(0, 3).map((feature, idx) => (
-                        <li key={idx} className="flex gap-2.5 text-xs text-primary/60 dark:text-white/60 font-light">
-                          <span className="text-primary/30 dark:text-white/30 text-[10px] mt-0.5">—</span> {feature}
-                        </li>
-                    ))}
-                </ul>
-                <Link
-                  to="/membership"
-                  className="block text-center py-3 text-[10px] uppercase tracking-[0.25em] font-normal text-primary/60 dark:text-white/60 border border-primary/15 dark:border-white/15 hover:border-primary/40 dark:hover:border-white/40 hover:text-primary dark:hover:text-white transition-all duration-[600ms]"
-                  style={{ fontFamily: 'var(--font-label)' }}
-                >
-                  View Details
-                </Link>
-            </div>
-            )}
+            {featuredTiers.map((tier, idx) => {
+              const isMiddle = idx === 1;
+              const isCorporate = tier.tier_type === 'corporate';
+              const linkTo = isCorporate ? '/membership/corporate' : '/membership';
 
-            {coreTier && (
-            <div className="p-8 md:p-10 bg-[#f5f5ef] dark:bg-[#1e1e18] border-x border-primary/10 dark:border-white/10 transition-colors duration-[600ms] hover:bg-[#f0f0e8] dark:hover:bg-[#222218] relative">
-                <div className="mb-6">
-                    <div className="flex items-baseline gap-3">
-                        <h3
-                          className="text-lg text-primary dark:text-white"
-                          style={{ fontFamily: 'var(--font-display)' }}
-                        >
-                          {coreTier.name}
+              if (isMiddle) {
+                return (
+                  <div key={tier.id} className="p-8 md:p-10 bg-[#f5f5ef] dark:bg-[#1e1e18] border-x border-primary/10 dark:border-white/10 transition-colors duration-[600ms] hover:bg-[#f0f0e8] dark:hover:bg-[#222218] relative">
+                    <div className="mb-6">
+                      <div className="flex items-baseline gap-3">
+                        <h3 className="text-lg text-primary dark:text-white" style={{ fontFamily: 'var(--font-display)' }}>
+                          {tier.name}
                         </h3>
-                        {coreTier.is_popular && (
-                          <span
-                            className="text-[9px] italic text-primary/40 dark:text-white/40"
-                            style={{ fontFamily: 'var(--font-display)' }}
-                          >
+                        {tier.is_popular && (
+                          <span className="text-[9px] italic text-primary/40 dark:text-white/40" style={{ fontFamily: 'var(--font-display)' }}>
                             Most popular
                           </span>
                         )}
+                      </div>
+                      <span className="text-2xl font-light text-primary dark:text-white" style={{ fontFamily: 'var(--font-display)' }}>
+                        {extractPrice(tier.price_string)}
+                        <span className="text-xs font-light text-primary/40 dark:text-white/40 ml-0.5">{extractSuffix(tier.price_string)}</span>
+                      </span>
                     </div>
-                    <span className="text-2xl font-light text-primary dark:text-white" style={{ fontFamily: 'var(--font-display)' }}>
-                      {extractPrice(coreTier.price_string)}
-                      <span className="text-xs font-light text-primary/40 dark:text-white/40 ml-0.5">{extractSuffix(coreTier.price_string)}</span>
-                    </span>
-                </div>
-                <p className="text-xs text-primary/50 dark:text-white/50 mb-6 leading-[1.8] font-light" style={{ fontFamily: 'var(--font-body)' }}>{coreTier.description}</p>
-                <ul className="space-y-3 mb-8">
-                    {(coreTier.highlighted_features || []).slice(0, 3).map((feature, idx) => (
-                        <li key={idx} className="flex gap-2.5 text-xs text-primary/60 dark:text-white/60 font-light">
+                    <p className="text-xs text-primary/50 dark:text-white/50 mb-6 leading-[1.8] font-light" style={{ fontFamily: 'var(--font-body)' }}>{tier.description}</p>
+                    <ul className="space-y-3 mb-8">
+                      {(tier.highlighted_features || []).slice(0, 3).map((feature, fidx) => (
+                        <li key={fidx} className="flex gap-2.5 text-xs text-primary/60 dark:text-white/60 font-light">
                           <span className="text-primary/30 dark:text-white/30 text-[10px] mt-0.5">—</span> {feature}
                         </li>
-                    ))}
-                </ul>
-                <Link
-                  to="/membership"
-                  className="block text-center py-3 text-[10px] uppercase tracking-[0.25em] font-normal text-primary dark:text-white border border-primary/30 dark:border-white/30 hover:border-primary/60 dark:hover:border-white/60 transition-all duration-[600ms]"
-                  style={{ fontFamily: 'var(--font-label)' }}
-                >
-                  View Details
-                </Link>
-                <div className="absolute top-0 left-0 right-0 h-px bg-[#b8a44c]/40"></div>
-            </div>
-            )}
-
-            {corporateTier && (
-            <div className="p-8 md:p-10 bg-bone dark:bg-[#1a1a1a] transition-colors duration-[600ms] hover:bg-white/60 dark:hover:bg-white/5">
-                <div className="mb-6">
-                    <h3
-                      className="text-lg text-primary dark:text-white mb-1"
-                      style={{ fontFamily: 'var(--font-display)' }}
+                      ))}
+                    </ul>
+                    <Link
+                      to={linkTo}
+                      className="block text-center py-3 text-[10px] uppercase tracking-[0.25em] font-normal text-primary dark:text-white border border-primary/30 dark:border-white/30 hover:border-primary/60 dark:hover:border-white/60 transition-all duration-[600ms]"
+                      style={{ fontFamily: 'var(--font-label)' }}
                     >
-                      {corporateTier.name}
+                      View Details
+                    </Link>
+                    <div className="absolute top-0 left-0 right-0 h-px bg-[#b8a44c]/40"></div>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={tier.id} className="p-8 md:p-10 bg-bone dark:bg-[#1a1a1a] transition-colors duration-[600ms] hover:bg-white/60 dark:hover:bg-white/5">
+                  <div className="mb-6">
+                    <h3 className="text-lg text-primary dark:text-white mb-1" style={{ fontFamily: 'var(--font-display)' }}>
+                      {tier.name}
                     </h3>
                     <span className="text-2xl font-light text-primary dark:text-white" style={{ fontFamily: 'var(--font-display)' }}>
-                      {extractPrice(corporateTier.price_string)}
-                      <span className="text-xs font-light text-primary/40 dark:text-white/40 ml-0.5">{extractSuffix(corporateTier.price_string)}</span>
+                      {extractPrice(tier.price_string)}
+                      <span className="text-xs font-light text-primary/40 dark:text-white/40 ml-0.5">{extractSuffix(tier.price_string)}</span>
                     </span>
-                </div>
-                <p className="text-xs text-primary/50 dark:text-white/50 mb-6 leading-[1.8] font-light" style={{ fontFamily: 'var(--font-body)' }}>{corporateTier.description}</p>
-                <ul className="space-y-3 mb-8">
-                    {(corporateTier.highlighted_features || []).slice(0, 3).map((feature, idx) => (
-                        <li key={idx} className="flex gap-2.5 text-xs text-primary/60 dark:text-white/60 font-light">
-                          <span className="text-primary/30 dark:text-white/30 text-[10px] mt-0.5">—</span> {feature}
-                        </li>
+                  </div>
+                  <p className="text-xs text-primary/50 dark:text-white/50 mb-6 leading-[1.8] font-light" style={{ fontFamily: 'var(--font-body)' }}>{tier.description}</p>
+                  <ul className="space-y-3 mb-8">
+                    {(tier.highlighted_features || []).slice(0, 3).map((feature, fidx) => (
+                      <li key={fidx} className="flex gap-2.5 text-xs text-primary/60 dark:text-white/60 font-light">
+                        <span className="text-primary/30 dark:text-white/30 text-[10px] mt-0.5">—</span> {feature}
+                      </li>
                     ))}
-                </ul>
-                <Link
-                  to="/membership/corporate"
-                  className="block text-center py-3 text-[10px] uppercase tracking-[0.25em] font-normal text-primary/60 dark:text-white/60 border border-primary/15 dark:border-white/15 hover:border-primary/40 dark:hover:border-white/40 hover:text-primary dark:hover:text-white transition-all duration-[600ms]"
-                  style={{ fontFamily: 'var(--font-label)' }}
-                >
-                  View Details
-                </Link>
-            </div>
-            )}
+                  </ul>
+                  <Link
+                    to={linkTo}
+                    className="block text-center py-3 text-[10px] uppercase tracking-[0.25em] font-normal text-primary/60 dark:text-white/60 border border-primary/15 dark:border-white/15 hover:border-primary/40 dark:hover:border-white/40 hover:text-primary dark:hover:text-white transition-all duration-[600ms]"
+                    style={{ fontFamily: 'var(--font-label)' }}
+                  >
+                    View Details
+                  </Link>
+                </div>
+              );
+            })}
 
          </div>
 

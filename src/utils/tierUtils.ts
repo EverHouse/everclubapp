@@ -84,3 +84,19 @@ export function getDisplayTier(tierString: string): BaseTier | null {
   const { tier } = parseTierString(tierString);
   return tier;
 }
+
+export function isSocialTier(tierString: string | null | undefined): boolean {
+  if (!tierString) return false;
+  return normalizeTierName(tierString)?.toLowerCase() === 'social';
+}
+
+export function isCorporateTier(tierString: string | null | undefined): boolean {
+  if (!tierString) return false;
+  return normalizeTierName(tierString)?.toLowerCase() === 'corporate';
+}
+
+export function isStaffTier(tierString: string | null | undefined): boolean {
+  if (!tierString) return false;
+  const normalized = normalizeTierName(tierString);
+  return normalized?.toLowerCase() === 'staff' || tierString.toLowerCase() === 'staff';
+}

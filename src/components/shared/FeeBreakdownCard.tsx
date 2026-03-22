@@ -13,6 +13,7 @@ export interface FeeBreakdownCardProps {
   passesTotal?: number;
   isLoading?: boolean;
   tierLabel?: string;
+  hasDailyAllowance?: boolean;
   resourceType?: 'simulator' | 'conference';
   isDark?: boolean;
   compact?: boolean;
@@ -30,13 +31,14 @@ const FeeBreakdownCard: React.FC<FeeBreakdownCardProps> = ({
   passesRemainingAfter,
   passesTotal,
   tierLabel,
+  hasDailyAllowance,
   resourceType = 'simulator',
   isDark = false,
   compact = false,
   guestsWithoutInfo,
 }) => {
   const isSimulator = resourceType === 'simulator';
-  const isSocial = tierLabel?.toLowerCase() === 'social';
+  const isSocial = hasDailyAllowance === false;
   const guestCount = guestsCharged + guestsUsingPasses;
 
   return (

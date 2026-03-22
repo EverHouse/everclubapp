@@ -5,6 +5,7 @@ import { useToast } from '../../Toast';
 import { postWithCredentials } from '../../../hooks/queries/useFetch';
 import Icon from '../../icons/Icon';
 import { useTierNames } from '../../../hooks/useTierNames';
+import { isSocialTier } from '../../../utils/tierUtils';
 
 interface StaffDirectAddModalProps {
   isOpen: boolean;
@@ -97,7 +98,7 @@ export const StaffDirectAddModal: React.FC<StaffDirectAddModalProps> = ({
     }
   };
 
-  const isSocialHost = ownerTier?.toLowerCase() === 'social';
+  const isSocialHost = isSocialTier(ownerTier);
 
   const handleSubmit = async () => {
     setLoading(true);

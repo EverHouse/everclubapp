@@ -38,6 +38,7 @@ interface MembershipTier {
   has_simulator_guest_passes: boolean;
   has_discounted_merch: boolean;
   unlimited_access: boolean;
+  tier_type?: string;
 }
 
 interface TierFeature {
@@ -129,7 +130,7 @@ const MembershipOverview: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-content-enter-delay-2">
         {tiers.map((tier) => {
-          const isCorporate = tier.slug === 'corporate';
+          const isCorporate = tier.tier_type === 'corporate';
           const suffix = isCorporate ? '/mo per employee' : extractSuffix(tier.price_string);
           const handleClick = () => {
             if (isCorporate) {

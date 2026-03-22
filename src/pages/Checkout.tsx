@@ -923,7 +923,30 @@ export default function Checkout() {
   const tier = searchParams.get('tier');
   const email = searchParams.get('email') || undefined;
   const qty = parseInt(searchParams.get('qty') || '1', 10);
-  const isCorporate = tier === 'corporate';
+  const [tierRecord, setTierRecord] = useState<{ tier_type?: string } | null>(null);
+  const [tierLoading, setTierLoading] = useState(!!tier);
+  const [tierLoadError, setTierLoadError] = useState(false);
+  
+  useEffect(() => {
+    if (!tier) return;
+    setTierLoading(true);
+    setTierLoadError(false);
+    fetchWithCredentials<Array<{ slug: string; tier_type?: string }>>('/api/membership-tiers?active=true')
+      .then(tiers => {
+        const match = tiers.find(t => t.slug === tier);
+        if (match) {
+          setTierRecord(match);
+        } else {
+          setTierRecord({ tier_type: 'individual' });
+        }
+      })
+      .catch(() => {
+        setTierLoadError(true);
+      })
+      .finally(() => setTierLoading(false));
+  }, [tier]);
+
+  const isCorporate = tierRecord?.tier_type === 'corporate';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f5f7f0] to-[#eef1e6] dark:from-[#141414] dark:to-[#1c1c1c]">
@@ -940,6 +963,19 @@ export default function Checkout() {
         {isSuccess ? (
           <div className="animate-content-enter">
             <CheckoutSuccess />
+          </div>
+        ) : tier && tierLoading ? (
+          <div className="animate-content-enter flex justify-center py-20">
+            <PageLoadingSpinner />
+          </div>
+        ) : tier && tierLoadError ? (
+          <div className="animate-content-enter text-center py-20">
+            <EmptyState
+              icon="error_outline"
+              title="Unable to load checkout"
+              description="We couldn't load the membership details. Please try again."
+              action={{ label: 'Retry', onClick: () => window.location.reload() }}
+            />
           </div>
         ) : tier ? (
           <div className="animate-content-enter glass-card rounded-xl p-6 md:p-8 backdrop-blur-xl bg-white/50 dark:bg-white/5 border border-white/30 dark:border-white/10">

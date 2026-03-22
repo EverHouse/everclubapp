@@ -9,6 +9,7 @@ import { computeFeeBreakdown, recalculateSessionFees } from '../../core/billing/
 import { PRICING } from '../../core/billing/pricingConfig';
 import { checkBookingPaymentStatus } from '../../core/billing/bookingInvoiceService';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { isSocialTier } from '../../utils/tierUtils';
 import type { DbRow } from './admin-roster-shared';
 
 const router = Router();
@@ -148,10 +149,10 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
 
       const dailyAllowance = lineItem.dailyAllowance || 0;
       const isUnlimited = dailyAllowance >= 999;
-      const isSocialTier = lineItem.tierName?.toLowerCase() === 'social';
+      const isSocial = isSocialTier(lineItem.tierName);
 
       if (isUnlimited) return 'Included in membership';
-      if (isSocialTier) return fee > 0 ? `Social tier - $${fee} (${lineItem.minutesAllocated} min)` : 'Included';
+      if (isSocial) return fee > 0 ? `Social tier - $${fee} (${lineItem.minutesAllocated} min)` : 'Included';
       if (lineItem.tierName) {
         if (dailyAllowance > 0) return fee > 0 ? `${lineItem.tierName} - $${fee} (overage)` : 'Included in membership';
         return `Pay-as-you-go - $${fee}`;
@@ -256,7 +257,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
             overageMinutes: om,
             fee,
             isUnlimited: lineItem.isStaff ? true : da >= 999,
-            isSocialTier: lineItem.tierName?.toLowerCase() === 'social'
+            isSocialTier: isSocialTier(lineItem.tierName)
           };
         }
 
@@ -322,7 +323,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
             overageMinutes: om,
             fee,
             isUnlimited: lineItem.isStaff ? true : da >= 999,
-            isSocialTier: lineItem.tierName?.toLowerCase() === 'social'
+            isSocialTier: isSocialTier(lineItem.tierName)
           };
         } else {
           fee = PRICING.GUEST_FEE_DOLLARS;
@@ -599,7 +600,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
               overageMinutes,
               fee,
               isUnlimited: lineItem.isStaff ? true : dailyAllowance >= 999,
-              isSocialTier: lineItem.tierName?.toLowerCase() === 'social'
+              isSocialTier: isSocialTier(lineItem.tierName)
             };
           } else {
             fee = PRICING.GUEST_FEE_DOLLARS;
@@ -663,7 +664,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
             overageMinutes: om,
             fee: ownerFee,
             isUnlimited: isStaffUser ? true : da >= 999,
-            isSocialTier: ownerLineItem.tierName?.toLowerCase() === 'social'
+            isSocialTier: isSocialTier(ownerLineItem.tierName)
           };
         }
 

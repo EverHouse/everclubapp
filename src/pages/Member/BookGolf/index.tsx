@@ -293,6 +293,7 @@ const BookGolf: React.FC = () => {
         guestFeeDollars={guestFeeDollars}
         guestPassInfo={guestPassInfo}
         effectiveUserTier={effectiveUser?.tier}
+        dailySimMinutes={tierPermissions.dailySimulatorMinutes}
         requestButtonRef={requestButtonRef}
         feeRef={feeRef}
       />
