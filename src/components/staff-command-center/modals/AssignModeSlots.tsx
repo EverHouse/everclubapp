@@ -2,6 +2,7 @@ import React from 'react';
 import { MemberSearchInput, SelectedMember } from '../../shared/MemberSearchInput';
 import type { SlotState, SlotsArray, VisitorSearchResult } from './bookingSheetTypes';
 import Icon from '../../icons/Icon';
+import { isStaffTier } from '../../../utils/tierUtils';
 
 interface AssignModeSlotsProps {
   slots: SlotsArray;
@@ -87,7 +88,7 @@ export function AssignModeSlots({
                 {slot.member?.email && (
                   <p className="text-xs text-primary/60 dark:text-white/60">{slot.member.email}</p>
                 )}
-                {slot.member?.tier === 'Staff' ? (
+                {isStaffTier(slot.member?.tier) ? (
                   <p className="text-xs text-blue-600 dark:text-blue-400">$0.00 — Staff — included</p>
                 ) : slot.type === 'guest_placeholder' ? (
                   <p className="text-xs text-amber-600 dark:text-amber-400">{`Guest fee: $${guestFeeDollars}`}</p>

@@ -8,6 +8,7 @@ import TierBadge from '../../TierBadge';
 import type { BookingMember, ManageModeRosterData, MemberMatchWarning, UnifiedBookingSheetProps, VisitorSearchResult, SlotState, SlotsArray } from './bookingSheetTypes';
 import { isPlaceholderEmail } from './bookingSheetTypes';
 import { useBookingActions } from '../../../hooks/useBookingActions';
+import { isStaffTier } from '../../../utils/tierUtils';
 import React from 'react';
 
 export type { VisitorSearchResult, SlotState, SlotsArray } from './bookingSheetTypes';
@@ -142,7 +143,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       }, membershipStatus.toUpperCase());
     }
     if (!tier) return null;
-    if (tier === 'Staff') {
+    if (isStaffTier(tier)) {
       return (
         React.createElement('span', { className: 'px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded' }, 'Staff')
       );

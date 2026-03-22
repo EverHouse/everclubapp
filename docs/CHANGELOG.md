@@ -2,6 +2,17 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.9] - 2026-03-22
+
+### Fix: Remaining Hardcoded Tier Slug References (Task #208 completion)
+- **Fixed**: Replaced 4 remaining `tier === 'Staff'` hardcoded string checks in staff command center modals with `isStaffTier()` utility:
+  - `PaymentSection.tsx` — staff fee display styling
+  - `useUnifiedBookingLogic.ts` — staff tier badge rendering
+  - `ManageModeRoster.tsx` — staff member detection
+  - `AssignModeSlots.tsx` — staff slot fee display
+- **Fixed**: `Landing.tsx` — added empty-state fallback when no subscription tiers are available, replacing an empty grid shell with a "View all membership options" link
+- **Fixed**: `Checkout.tsx` — added AbortController to tier fetch `useEffect` to prevent stale responses from overwriting state during navigation or unmount
+
 ## [8.97.8] - 2026-03-22
 
 ### Fix: Production Data Sync

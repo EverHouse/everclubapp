@@ -2,6 +2,7 @@ import React from 'react';
 import { MemberSearchInput } from '../../shared/MemberSearchInput';
 import type { BookingMember, ManageModeRosterData, MemberMatchWarning } from './bookingSheetTypes';
 import Icon from '../../icons/Icon';
+import { isStaffTier } from '../../../utils/tierUtils';
 
 interface ManageModeRosterProps {
   rosterData: ManageModeRosterData | null;
@@ -84,7 +85,7 @@ export function ManageModeRoster({
     const isGuestSlot = !!member.guestInfo;
     const isRemoving = isGuestSlot && removingGuestId === member.guestInfo?.guestId;
     const showGuestPassBadge = isGuestSlot && member.guestInfo?.usedGuestPass === true && member.guestInfo?.fee === 0;
-    const isStaff = member.isStaff || member.tier === 'Staff';
+    const isStaff = member.isStaff || isStaffTier(member.tier);
 
     return (
       <div 

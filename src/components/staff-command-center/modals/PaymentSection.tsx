@@ -6,6 +6,7 @@ import { useToast } from '../../Toast';
 import { BookingStatusDropdown } from '../../BookingStatusDropdown';
 import { postWithCredentials, patchWithCredentials } from '../../../hooks/queries/useFetch';
 import Icon from '../../icons/Icon';
+import { isStaffTier } from '../../../utils/tierUtils';
 
 interface PaymentSummaryBodyProps {
   rosterData: ManageModeRosterData | null;
@@ -65,8 +66,8 @@ export function PaymentSummaryBody({
                   {p.name}
                   {renderTierBadge(p.tier, p.membershipStatus)}
                 </span>
-                <span className={p.tier === 'Staff' ? 'text-blue-600 dark:text-blue-400' : ''}>
-                  {p.tier === 'Staff' ? '$0.00 — Staff — included' : p.fee > 0 ? `$${p.fee.toFixed(2)}` : p.feeNote || 'Included'}
+                <span className={isStaffTier(p.tier) ? 'text-blue-600 dark:text-blue-400' : ''}>
+                  {isStaffTier(p.tier) ? '$0.00 — Staff — included' : p.fee > 0 ? `$${p.fee.toFixed(2)}` : p.feeNote || 'Included'}
                 </span>
               </div>
             ))}

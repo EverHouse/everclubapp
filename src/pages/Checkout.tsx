@@ -929,10 +929,12 @@ export default function Checkout() {
   
   useEffect(() => {
     if (!tier) return;
+    const controller = new AbortController();
     setTierLoading(true);
     setTierLoadError(false);
-    fetchWithCredentials<Array<{ slug: string; tier_type?: string }>>('/api/membership-tiers?active=true')
+    fetchWithCredentials<Array<{ slug: string; tier_type?: string }>>('/api/membership-tiers?active=true', { signal: controller.signal })
       .then(tiers => {
+        if (controller.signal.aborted) return;
         const match = tiers.find(t => t.slug === tier);
         if (match) {
           setTierRecord(match);
@@ -940,10 +942,14 @@ export default function Checkout() {
           setTierRecord({ tier_type: 'individual' });
         }
       })
-      .catch(() => {
-        setTierLoadError(true);
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        if (err?.name !== 'AbortError') setTierLoadError(true);
       })
-      .finally(() => setTierLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setTierLoading(false);
+      });
+    return () => controller.abort();
   }, [tier]);
 
   const isCorporate = tierRecord?.tier_type === 'corporate';

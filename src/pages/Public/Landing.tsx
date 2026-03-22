@@ -360,6 +360,17 @@ const Landing: React.FC = () => {
             </p>
          </div>
          
+         {featuredTiers.length === 0 && !isLoading ? (
+           <div className="max-w-5xl mx-auto text-center py-16">
+             <a
+               href="/membership"
+               className="inline-block text-sm text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white transition-colors underline underline-offset-4"
+               style={{ fontFamily: 'var(--font-body)' }}
+             >
+               View all membership options →
+             </a>
+           </div>
+         ) : (
          <div className="grid grid-cols-1 lg:grid-cols-3 gap-px max-w-5xl mx-auto border border-primary/10 dark:border-white/10" style={{ minHeight: '420px' }}>
             {featuredTiers.map((tier, idx) => {
               const isMiddle = idx === 1;
@@ -436,6 +447,7 @@ const Landing: React.FC = () => {
             })}
 
          </div>
+         )}
 
             <Link
               to="/membership/compare"
