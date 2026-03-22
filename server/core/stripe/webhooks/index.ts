@@ -81,7 +81,9 @@ async function dispatchWebhookEvent(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   previousAttributes?: any
 ): Promise<DeferredAction[]> {
-  if (eventType === 'payment_intent.processing' || eventType === 'payment_intent.requires_action') {
+  if (eventType === 'payment_intent.created') {
+    return [];
+  } else if (eventType === 'payment_intent.processing' || eventType === 'payment_intent.requires_action') {
     return handlePaymentIntentStatusUpdate(client, dataObject);
   } else if (eventType === 'payment_intent.succeeded') {
     return handlePaymentIntentSucceeded(client, dataObject);

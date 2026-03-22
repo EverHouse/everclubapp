@@ -939,6 +939,13 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
     
     const dbTotal = participantFees.reduce((sum, pf) => sum + pf.amountCents, 0);
     if (Math.abs(dbTotal - amount) > 1) {
+      // Investigated March 20 2026 incident (db=5000c vs payment=10000c).
+      // Known scenarios that cause this mismatch:
+      // 1. Roster changes between payment creation and webhook delivery (participants added/removed)
+      // 2. Fee recalculation after pricing config update while payment was in-flight
+      // 3. Credit/discount applied at Stripe level not reflected in cached_fee_cents
+      // The proportional scaling below is the correct behavior — Stripe amount is authoritative.
+      // Session is flagged needs_review for staff to verify the discrepancy.
       logger.error(`[Stripe Webhook] CRITICAL: Fallback total mismatch: db=${dbTotal}, payment=${amount} - using Stripe amount as source of truth`, { extra: { paymentIntentId: id, dbTotal, stripeAmount: amount, participantCount: participantFees.length } });
       if (sessionId) {
         await client.query(

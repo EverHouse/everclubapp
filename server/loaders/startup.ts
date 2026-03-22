@@ -305,7 +305,9 @@ export async function runStartupTasks(): Promise<void> {
     const databaseUrl = stripSslMode(process.env.DATABASE_POOLER_URL) || process.env.DATABASE_URL;
     if (databaseUrl) {
       logger.info('[Stripe] Initializing Stripe schema...');
-      await retryWithBackoff(() => runMigrations({ databaseUrl, schema: 'stripe' } as unknown as Parameters<typeof runMigrations>[0]), 'Stripe schema migration');
+      const migrationUrl = new URL(databaseUrl);
+      migrationUrl.searchParams.set('options', '-c statement_timeout=30000');
+      await retryWithBackoff(() => runMigrations({ databaseUrl: migrationUrl.toString(), schema: 'stripe' } as unknown as Parameters<typeof runMigrations>[0]), 'Stripe schema migration', 5);
       logger.info('[Stripe] Schema ready');
 
       origStdoutWrite = process.stdout.write.bind(process.stdout);
