@@ -4,8 +4,11 @@ All notable changes to the Ever Club Members App are documented here.
 
 ## [8.97.3] - 2026-03-22
 
-### Fix: Payment Confirmation Now Correctly Reports Failures
-- **Fixed**: Staff inline Stripe payment flow in `PaymentSection.tsx` — `onSuccess` callback called `handleInlineStripeSuccess()` unconditionally even when both retry attempts of `/api/stripe/confirm-payment` failed. Now tracks confirmation status and shows a warning toast ("Payment was collected but failed to record") with a data refresh instead of falsely reporting success. The payment form is dismissed and the roster is refreshed so staff can see the actual state and retry if needed.
+### Bug Fixes: Cafe Sync, Terminal Payments & Fee Tracking
+- **Fixed**: Staff inline Stripe payment flow in `PaymentSection.tsx` — `onSuccess` callback called `handleInlineStripeSuccess()` unconditionally even when both retry attempts of `/api/stripe/confirm-payment` failed. Now tracks confirmation status and shows a warning toast ("Payment was collected but failed to record") with a data refresh instead of falsely reporting success.
+- **Fixed**: Cafe items Stripe environment validation in `server/core/stripe/environmentValidation.ts` — when >25% of cafe items had stale Stripe product IDs (e.g., after environment switch), the safety guard blocked auto-clearing and left all items broken. Now clears stale IDs and triggers `syncCafeItemsToStripe()` to recreate products in the current environment automatically.
+- **Fixed**: Terminal subscription payment confirmation in `server/routes/stripe/terminal.ts` — `db.insert(terminalPayments)` was not wrapped in try-catch, so a DB insert failure caused a 500 error even though the Stripe payment and invoice reconciliation had already succeeded. Now gracefully logs the error and continues with card save and membership activation.
+- **Fixed**: Stripe webhook fallback fee reconciliation in `server/core/stripe/webhooks/handlers/payments.ts` — when `cached_fee_cents` drifted from the actual Stripe charge (no snapshot), the system logged the mismatch but recorded the stale DB amounts, leaving unaccounted money. Now uses the Stripe-charged amount as source of truth and distributes proportionally across participants, while still flagging the session for staff review.
 
 ## [8.97.2] - 2026-03-22
 

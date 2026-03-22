@@ -1071,25 +1071,30 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
     }
     
     const staffEmail = getSessionUser(req)?.email || 'unknown';
-    const insertResult = await db.insert(terminalPayments).values({
-      userId,
-      userEmail: existingUser?.email || piMetadata.email || 'unknown',
-      stripePaymentIntentId: paymentIntentId,
-      stripeSubscriptionId: subscriptionId,
-      stripeInvoiceId: actualInvoiceId || null,
-      stripeCustomerId: customerId,
-      amountCents: paymentIntent.amount,
-      currency: paymentIntent.currency || 'usd',
-      readerId: piMetadata.readerId || null,
-      readerLabel: piMetadata.readerLabel || null,
-      status: 'succeeded',
-      processedBy: staffEmail,
-    }).onConflictDoNothing({ target: terminalPayments.stripePaymentIntentId });
-    const isFirstConfirm = (insertResult.rowCount ?? 0) > 0;
-    if (!isFirstConfirm) {
-      logger.warn('[Terminal] Duplicate confirm detected (PI already recorded), proceeding with idempotent side effects', { extra: { paymentIntentId } });
+    let isFirstConfirm = true;
+    try {
+      const insertResult = await db.insert(terminalPayments).values({
+        userId,
+        userEmail: existingUser?.email || piMetadata.email || 'unknown',
+        stripePaymentIntentId: paymentIntentId,
+        stripeSubscriptionId: subscriptionId,
+        stripeInvoiceId: actualInvoiceId || null,
+        stripeCustomerId: customerId,
+        amountCents: paymentIntent.amount,
+        currency: paymentIntent.currency || 'usd',
+        readerId: piMetadata.readerId || null,
+        readerLabel: piMetadata.readerLabel || null,
+        status: 'succeeded',
+        processedBy: staffEmail,
+      }).onConflictDoNothing({ target: terminalPayments.stripePaymentIntentId });
+      isFirstConfirm = (insertResult.rowCount ?? 0) > 0;
+      if (!isFirstConfirm) {
+        logger.warn('[Terminal] Duplicate confirm detected (PI already recorded), proceeding with idempotent side effects', { extra: { paymentIntentId } });
+      }
+      logger.info('[Terminal] Payment record ensured for PI', { extra: { paymentIntentId, isFirstConfirm } });
+    } catch (insertErr: unknown) {
+      logger.error('[Terminal] Failed to insert terminal_payments record — payment already succeeded in Stripe, continuing with activation', { extra: { paymentIntentId, userId, error: getErrorMessage(insertErr) } });
     }
-    logger.info('[Terminal] Payment record ensured for PI', { extra: { paymentIntentId, isFirstConfirm } });
     
     let cardSaved = false;
     let cardSaveWarning: string | null = null;

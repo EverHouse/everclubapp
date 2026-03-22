@@ -10,9 +10,12 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.97.3",
     date: "2026-03-22",
-    title: "Fix: Payment Confirmation Now Correctly Reports Failures",
+    title: "Bug Fixes: Cafe Sync, Terminal Payments & Fee Tracking",
     changes: [
       "Fixed: Staff payment flow now properly alerts when a payment is collected but the backend confirmation fails, instead of silently showing success",
+      "Fixed: Cafe menu items now auto-resync to Stripe when switching environments, instead of getting stuck with invalid product links",
+      "Fixed: Terminal subscription payments no longer fail with an error even though the payment went through — the tracking record failure is now handled gracefully",
+      "Fixed: When fee amounts change between booking and payment, the system now correctly records what was actually charged instead of the stale amount",
     ]
   },
   {

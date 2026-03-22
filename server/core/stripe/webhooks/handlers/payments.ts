@@ -939,12 +939,26 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
     
     const dbTotal = participantFees.reduce((sum, pf) => sum + pf.amountCents, 0);
     if (Math.abs(dbTotal - amount) > 1) {
-      logger.error(`[Stripe Webhook] CRITICAL: Fallback total mismatch: db=${dbTotal}, payment=${amount} - flagging for review`);
+      logger.error(`[Stripe Webhook] CRITICAL: Fallback total mismatch: db=${dbTotal}, payment=${amount} - using Stripe amount as source of truth`, { extra: { paymentIntentId: id, dbTotal, stripeAmount: amount, participantCount: participantFees.length } });
       if (sessionId) {
         await client.query(
           `UPDATE booking_sessions SET needs_review = true, review_reason = $1 WHERE id = $2`,
-          [`Fallback amount mismatch: expected ${dbTotal} cents, received ${amount} cents from Stripe`, sessionId]
+          [`Fallback amount mismatch: DB fees ${dbTotal} cents vs Stripe charged ${amount} cents — participant fees adjusted proportionally to match Stripe`, sessionId]
         );
+      }
+      if (dbTotal > 0 && participantFees.length > 0) {
+        const scale = amount / dbTotal;
+        let distributed = 0;
+        for (let i = 0; i < participantFees.length; i++) {
+          if (i === participantFees.length - 1) {
+            const remainder = amount - distributed;
+            participantFees[i].amountCents = Math.max(0, remainder);
+          } else {
+            participantFees[i].amountCents = Math.max(0, Math.floor(participantFees[i].amountCents * scale));
+            distributed += participantFees[i].amountCents;
+          }
+        }
+        logger.info(`[Stripe Webhook] Adjusted participant fees proportionally to match Stripe amount ${amount}`, { extra: { adjusted: participantFees.map(pf => ({ id: pf.id, cents: pf.amountCents })) } });
       }
     }
     
