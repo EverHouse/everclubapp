@@ -5,7 +5,7 @@ import { db } from '../db';
 import { tours, dismissedHubspotMeetings } from '../../shared/schema';
 import { eq, gte, asc, desc, and, sql, or, ilike } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../core/middleware';
-import { getHubSpotClient } from '../core/integrations';
+import { getHubSpotClient, getHubSpotAccessToken } from '../core/integrations';
 import { retryableHubSpotRequest } from '../core/hubspot/request';
 import { getResourceConfig, getCalendarAvailability } from '../core/calendar/index';
 
@@ -78,6 +78,7 @@ async function bookHubSpotMeeting(options: {
   }
 
   try {
+    const accessToken = await getHubSpotAccessToken();
     const response = await fetch(
       `${apiBase}/scheduler/v3/meetings/meeting-links/book?timezone=${encodeURIComponent(timezone)}`,
       {
@@ -86,6 +87,7 @@ async function bookHubSpotMeeting(options: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'User-Agent': 'EverClub/1.0',
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify(body),
       }

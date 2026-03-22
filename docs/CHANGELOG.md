@@ -2,6 +2,11 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.4] - 2026-03-22
+
+### Bug Fix: Tour Booking HubSpot Sync
+- **Fixed**: `bookHubSpotMeeting()` in `server/routes/tours.ts` was calling HubSpot's Meetings API (`/scheduler/v3/meetings/meeting-links/book`) without an `Authorization` header, causing 401 errors on every tour booking. Added `getHubSpotAccessToken()` call and `Authorization: Bearer` header to the fetch request. Tour bookings were saved locally but never synced to HubSpot calendar.
+
 ## [8.97.3] - 2026-03-22
 
 ### Bug Fixes: Cafe Sync, Terminal Payments & Fee Tracking

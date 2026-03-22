@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.4",
+    date: "2026-03-22",
+    title: "Bug Fix: Tour Booking HubSpot Sync",
+    changes: [
+      "Fixed: Tour bookings now properly sync to HubSpot — previously, bookings were saved locally but never appeared on the HubSpot calendar due to a missing authentication credential",
+    ]
+  },
+  {
     version: "8.97.3",
     date: "2026-03-22",
     title: "Bug Fixes: Cafe Sync, Terminal Payments & Fee Tracking",
