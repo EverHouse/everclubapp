@@ -7,6 +7,8 @@ import { logger } from '../core/logger';
 import { refreshBookingPass } from '../walletPass/bookingPassService';
 import { getErrorMessage } from '../utils/errorUtils';
 
+const STUCK_ESCALATION_HOURS = parseInt(process.env.STUCK_BOOKING_ESCALATION_HOURS || '24', 10);
+
 interface AutoCompletedBookingResult {
   id: number;
   userEmail: string;
@@ -28,9 +30,11 @@ async function autoCompletePastBookings(): Promise<void> {
     logger.info(`[Booking Auto-Complete] Running auto-complete check at ${todayStr} ${currentTimePacific}`);
 
 
-    const stuckPendingPayments = await queryWithRetry<{ id: number; userEmail: string; userName: string | null; requestDate: string; startTime: string }>(
+    const stuckPendingPayments = await queryWithRetry<{ id: number; userEmail: string; userName: string | null; requestDate: string; startTime: string; endTime: string | null; stuckHours: number }>(
       `SELECT br.id, br.user_email AS "userEmail", br.user_name AS "userName", 
-              br.request_date AS "requestDate", br.start_time AS "startTime"
+              br.request_date AS "requestDate", br.start_time AS "startTime",
+              br.end_time AS "endTime",
+              EXTRACT(EPOCH FROM (NOW() - (br.request_date + COALESCE(br.end_time, br.start_time)::time))) / 3600 AS "stuckHours"
        FROM booking_requests br
        WHERE br.status IN ('approved', 'confirmed')
          AND br.request_date < $1::date
@@ -46,30 +50,66 @@ async function autoCompletePastBookings(): Promise<void> {
     );
 
     if (stuckPendingPayments.rows.length > 0) {
+      const stuckIds = stuckPendingPayments.rows.map(b => b.id).sort((a, b) => a - b);
       const stuckSummary = stuckPendingPayments.rows
         .slice(0, 5)
-        .map(b => `• #${b.id} ${b.userName || b.userEmail} - ${b.requestDate} ${b.startTime}`)
+        .map(b => {
+          const hours = Math.round(b.stuckHours);
+          const durationStr = hours >= 24 ? `${Math.floor(hours / 24)}d ${hours % 24}h` : `${hours}h`;
+          return `• #${b.id} ${b.userName || b.userEmail} (${b.userEmail}) - ${b.requestDate} ${b.startTime} — stuck ${durationStr}`;
+        })
         .join('\n');
       const stuckMore = stuckPendingPayments.rows.length > 5 ? `\n...and ${stuckPendingPayments.rows.length - 5} more` : '';
-      logger.warn(`[Booking Auto-Complete] ${stuckPendingPayments.rows.length} booking(s) stuck with unpaid fees, skipped auto-complete`);
+      const logDetails = stuckPendingPayments.rows
+        .slice(0, 10)
+        .map(b => {
+          const hours = Math.round(b.stuckHours);
+          const durationStr = hours >= 24 ? `${Math.floor(hours / 24)}d ${hours % 24}h` : `${hours}h`;
+          return `#${b.id} ${b.userEmail} (${durationStr})`;
+        })
+        .join(', ');
+      logger.warn(`[Booking Auto-Complete] ${stuckPendingPayments.rows.length} booking(s) stuck with unpaid fees, skipped auto-complete. IDs: [${stuckIds.join(', ')}]. Details: ${logDetails}`);
 
-      const stuckIds = stuckPendingPayments.rows.map(b => b.id).sort((a, b) => a - b).join(',');
+      const escalatedBookings = stuckPendingPayments.rows.filter(b => b.stuckHours >= STUCK_ESCALATION_HOURS);
+      const isEscalation = escalatedBookings.length > 0;
+
       const recentDup = await queryWithRetry<{ id: number }>(
         `SELECT id FROM notifications
-         WHERE title = 'Bookings Stuck — Unpaid Fees'
+         WHERE title = $1
            AND created_at > NOW() - INTERVAL '6 hours'
-         LIMIT 1`
+         LIMIT 1`,
+        [isEscalation ? `URGENT: Bookings Stuck ${STUCK_ESCALATION_HOURS}h+ — Manual Resolution Required` : 'Bookings Stuck — Unpaid Fees']
       );
 
       if (recentDup.rows.length === 0) {
-        await notifyAllStaff(
-          'Bookings Stuck — Unpaid Fees',
-          `${stuckPendingPayments.rows.length} past booking(s) cannot be auto checked-in because they have unpaid fees. Please collect payment or waive fees:\n\n${stuckSummary}${stuckMore}`,
-          'system',
-          { sendPush: false }
-        );
+        if (isEscalation) {
+          const escalatedSummary = escalatedBookings
+            .slice(0, 10)
+            .map(b => {
+              const hours = Math.round(b.stuckHours);
+              const durationStr = hours >= 24 ? `${Math.floor(hours / 24)}d ${hours % 24}h` : `${hours}h`;
+              return `• Booking #${b.id} — ${b.userName || 'Unknown'} (${b.userEmail}) — ${b.requestDate} ${b.startTime} — stuck ${durationStr}`;
+            })
+            .join('\n');
+          const escalatedMore = escalatedBookings.length > 10 ? `\n...and ${escalatedBookings.length - 10} more` : '';
+
+          await notifyAllStaff(
+            `URGENT: Bookings Stuck ${STUCK_ESCALATION_HOURS}h+ — Manual Resolution Required`,
+            `${escalatedBookings.length} booking(s) have been stuck for over ${STUCK_ESCALATION_HOURS} hours with unpaid fees and cannot be auto checked-in. These require immediate manual attention — collect payment or waive fees:\n\n${escalatedSummary}${escalatedMore}`,
+            'warning',
+            { sendPush: true }
+          );
+          logger.warn(`[Booking Auto-Complete] ESCALATION: ${escalatedBookings.length} booking(s) stuck ${STUCK_ESCALATION_HOURS}h+, sent urgent staff notification. IDs: [${escalatedBookings.map(b => b.id).join(', ')}]`);
+        } else {
+          await notifyAllStaff(
+            'Bookings Stuck — Unpaid Fees',
+            `${stuckPendingPayments.rows.length} past booking(s) cannot be auto checked-in because they have unpaid fees. Please collect payment or waive fees:\n\n${stuckSummary}${stuckMore}`,
+            'system',
+            { sendPush: false }
+          );
+        }
       } else {
-        logger.info(`[Booking Auto-Complete] Skipping duplicate stuck-fees notification — sent within last 6h (bookings: ${stuckIds})`);
+        logger.info(`[Booking Auto-Complete] Skipping duplicate stuck-fees notification — sent within last 6h (bookings: ${stuckIds.join(', ')})`);
       }
     }
 

@@ -20,6 +20,7 @@ import type {
   OrphanHoldRow,
   ExpiredHoldRow,
   StaleBookingRow,
+  StuckUnpaidBookingRow,
 } from './core';
 
 export async function checkUnmatchedTrackmanBookings(): Promise<IntegrityCheckResult> {
@@ -579,6 +580,92 @@ export async function checkGuestPassAccountingDrift(): Promise<IntegrityCheckRes
     issues,
     lastRun: new Date()
   };
+}
+
+export async function checkStuckUnpaidBookings(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+  const today = getTodayPacific();
+
+  try {
+    const totalCountResult = await db.execute(sql`
+      SELECT COUNT(DISTINCT br.id)::int AS count
+      FROM booking_requests br
+      JOIN booking_participants bp ON bp.session_id = br.session_id
+        AND bp.cached_fee_cents > 0
+        AND bp.payment_status = 'pending'
+      WHERE br.status IN ('approved', 'confirmed')
+        AND br.request_date < ${today}::date
+        AND br.request_date >= ${today}::date - INTERVAL '14 days'
+        AND br.session_id IS NOT NULL
+    `);
+    const totalStuck = (totalCountResult.rows[0] as unknown as CountRow)?.count || 0;
+
+    const stuckResult = await db.execute(sql`
+      SELECT br.id, br.user_email, br.user_name, br.request_date, br.start_time, br.end_time,
+             r.name as resource_name,
+             EXTRACT(EPOCH FROM (NOW() - (br.request_date + COALESCE(br.end_time, br.start_time)::time))) / 3600 AS stuck_hours,
+             COALESCE(SUM(bp.cached_fee_cents), 0)::int AS unpaid_cents
+      FROM booking_requests br
+      JOIN booking_participants bp ON bp.session_id = br.session_id
+        AND bp.cached_fee_cents > 0
+        AND bp.payment_status = 'pending'
+      LEFT JOIN resources r ON br.resource_id = r.id
+      WHERE br.status IN ('approved', 'confirmed')
+        AND br.request_date < ${today}::date
+        AND br.request_date >= ${today}::date - INTERVAL '14 days'
+        AND br.session_id IS NOT NULL
+      GROUP BY br.id, br.user_email, br.user_name, br.request_date, br.start_time, br.end_time, r.name
+      ORDER BY br.request_date ASC
+      LIMIT 50
+    `);
+
+    for (const row of stuckResult.rows as unknown as StuckUnpaidBookingRow[]) {
+      const hours = Math.round(Number(row.stuck_hours));
+      const durationStr = hours >= 24 ? `${Math.floor(hours / 24)}d ${hours % 24}h` : `${hours}h`;
+      const unpaidDollars = (Number(row.unpaid_cents) / 100).toFixed(2);
+
+      issues.push({
+        category: 'billing_issue',
+        severity: hours >= 24 ? 'error' : 'warning',
+        table: 'booking_requests',
+        recordId: row.id,
+        description: `Booking #${row.id} for ${row.user_name || row.user_email} (${row.user_email}) on ${row.request_date} is stuck — $${unpaidDollars} unpaid fees blocking auto-complete for ${durationStr}`,
+        suggestion: 'Collect payment from the member or waive the fees to allow this booking to complete. Go to the booking details to take action.',
+        context: {
+          memberEmail: row.user_email || undefined,
+          memberName: row.user_name || undefined,
+          bookingDate: row.request_date || undefined,
+          startTime: row.start_time || undefined,
+          endTime: row.end_time || undefined,
+          resourceName: row.resource_name || undefined,
+        }
+      });
+    }
+
+    return {
+      checkName: 'Stuck Unpaid Bookings',
+      status: Number(totalStuck) === 0 ? 'pass' : issues.some(i => i.severity === 'error') ? 'fail' : 'warning',
+      issueCount: Number(totalStuck),
+      issues,
+      lastRun: new Date()
+    };
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Error checking stuck unpaid bookings:', { extra: { detail: getErrorMessage(error) } });
+    return {
+      checkName: 'Stuck Unpaid Bookings',
+      status: 'warning',
+      issueCount: 1,
+      issues: [{
+        category: 'system_error',
+        severity: 'error',
+        table: 'booking_requests',
+        recordId: 'check_error',
+        description: `Failed to check stuck unpaid bookings: ${getErrorMessage(error)}`,
+        suggestion: 'Review server logs for details and retry'
+      }],
+      lastRun: new Date()
+    };
+  }
 }
 
 export async function checkStalePendingBookings(): Promise<IntegrityCheckResult> {

@@ -286,6 +286,18 @@ export interface StaleBookingRow {
   resource_id: number;
 }
 
+export interface StuckUnpaidBookingRow {
+  id: string | number;
+  user_email: string;
+  user_name: string | null;
+  request_date: string;
+  start_time: string;
+  end_time: string | null;
+  resource_name: string | null;
+  stuck_hours: number;
+  unpaid_cents: number;
+}
+
 export interface AuditLogDetailsRow {
   issueKey?: string;
   resolutionMethod?: string;
@@ -483,6 +495,7 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Billing Orphans': 'critical',
   'Orphaned Stripe Subscriptions': 'critical',
   'Auth Linking Data Integrity': 'critical',
+  'Stuck Unpaid Bookings': 'high',
 };
 
 export function getCheckSeverity(checkName: string): 'critical' | 'high' | 'medium' | 'low' {
@@ -753,7 +766,7 @@ export async function getIntegritySummary(): Promise<IntegritySummary> {
 }
 
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual', options?: { includeLegacy?: boolean }): Promise<IntegrityCheckResult[]> {
-  const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings } = await import('./bookingChecks');
+  const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings, checkStuckUnpaidBookings } = await import('./bookingChecks');
   const { checkHubSpotSyncMismatch, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
   const { checkCrossSystemDrift, checkEmailDeliveryHealth } = await import('./externalSystemChecks');
   const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions } = await import('./stripeChecks');
@@ -770,6 +783,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     safeCheck(checkMindBodyStatusMismatch, 'MindBody Data Quality'),
     safeCheck(checkBillingOrphans, 'Billing Orphans'),
     safeCheck(checkOrphanedStripeSubscriptions, 'Orphaned Stripe Subscriptions'),
+    safeCheck(checkStuckUnpaidBookings, 'Stuck Unpaid Bookings'),
   ];
 
   const dbEnforcedChecks = includeLegacy ? [
