@@ -6,16 +6,16 @@ import {
   isTierAtLeast,
   TIER_HIERARCHY,
   TIER_NAMES,
-  DEFAULT_TIER,
 } from '../shared/constants/tiers';
 
 describe('Tier Constants', () => {
-  it('defines five tiers', () => {
-    expect(TIER_NAMES).toEqual(['Social', 'Core', 'Premium', 'Corporate', 'VIP']);
-  });
-
-  it('defaults to Social', () => {
-    expect(DEFAULT_TIER).toBe('Social');
+  it('defines bootstrap fallback tiers', () => {
+    expect(TIER_NAMES.length).toBeGreaterThanOrEqual(5);
+    expect(TIER_NAMES).toContain('Social');
+    expect(TIER_NAMES).toContain('Core');
+    expect(TIER_NAMES).toContain('Premium');
+    expect(TIER_NAMES).toContain('Corporate');
+    expect(TIER_NAMES).toContain('VIP');
   });
 
   it('has ascending hierarchy values', () => {

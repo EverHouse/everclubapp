@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.6] - 2026-03-22
+
+### Hardcoded Tier Defaults Removed
+- **Removed**: `DEFAULT_TIER` constant (`'Social'`) from `shared/constants/tiers.ts` — no code should assign a hardcoded default tier to any user.
+- **Fixed**: `MembershipCard.tsx` dark logo logic now uses luminance-based background color check instead of hardcoded `['Social', 'Premium', 'VIP'].includes(baseTier)`.
+- **Updated**: Test `tierRules.test.ts` no longer asserts `DEFAULT_TIER === 'Social'`; validates bootstrap fallback tiers dynamically instead.
+- **Documented**: `DEFAULT_TIER_NAMES` / `DEFAULT_TIER_SLUGS` arrays in `shared/constants/tiers.ts` and `server/utils/tierUtils.ts` now have clear bootstrap-only comments stating they are overwritten by `setTierData()` / `setServerTierData()` on startup.
+
 ## [8.97.5] - 2026-03-22
 
 ### Improvement: Booking Auto-Complete Window

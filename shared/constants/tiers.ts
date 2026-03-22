@@ -1,5 +1,11 @@
 export type TierName = string;
 
+/**
+ * Bootstrap-only fallback tier names. These are overwritten on startup by setTierData()
+ * when tiers are loaded from the membership_tiers database table.
+ * NEVER use these as authoritative tier lists — always query the DB or use the
+ * dynamically-populated TIER_NAMES / TIER_HIERARCHY exports after startup.
+ */
 const DEFAULT_TIER_NAMES = ['Social', 'Core', 'Premium', 'Corporate', 'VIP'] as const;
 const DEFAULT_TIER_HIERARCHY: Record<string, number> = {
   'Social': 1,
@@ -13,8 +19,6 @@ let _tierNames: string[] = [...DEFAULT_TIER_NAMES];
 let _tierHierarchy: Record<string, number> = { ...DEFAULT_TIER_HIERARCHY };
 
 export const TIER_NAMES: string[] = _tierNames;
-
-export const DEFAULT_TIER: string = 'Social';
 
 export const TIER_HIERARCHY: Record<string, number> = _tierHierarchy;
 

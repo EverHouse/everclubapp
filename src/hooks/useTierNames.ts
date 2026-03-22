@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { fetchWithCredentials } from './queries/useFetch';
+import { setDynamicTierColors } from '../utils/tierUtils';
 
 interface TierRow {
   id: number;
@@ -7,6 +9,9 @@ interface TierRow {
   slug: string;
   sort_order: number;
   product_type: string | null;
+  wallet_pass_bg_color?: string | null;
+  wallet_pass_foreground_color?: string | null;
+  wallet_pass_label_color?: string | null;
 }
 
 export function useTierNames() {
@@ -16,6 +21,12 @@ export function useTierNames() {
     staleTime: 1000 * 60 * 10,
     gcTime: 1000 * 60 * 30,
   });
+
+  useEffect(() => {
+    if (data && data.length > 0) {
+      setDynamicTierColors(data);
+    }
+  }, [data]);
 
   const tiers = data
     ? data

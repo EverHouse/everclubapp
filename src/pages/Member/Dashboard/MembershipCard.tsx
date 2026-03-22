@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { getBaseTier } from '../../../utils/permissions';
-import { getTierColor } from '../../../utils/tierUtils';
+import { getTierColor, isLightTierBackground } from '../../../utils/tierUtils';
 import { formatMemberSince } from '../../../utils/dateUtils';
 import { apiRequestBlob } from '../../../lib/apiRequest';
 import TierBadge from '../../../components/TierBadge';
@@ -51,8 +50,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
   const tierColors = isVisitor ? { bg: '#EFF6FF', text: '#2563EB', border: '#BFDBFE' } : getTierColor(user.tier || '');
   const cardBgColor = isExpired ? '#6B7280' : tierColors.bg;
   const cardTextColor = isExpired ? '#F9FAFB' : tierColors.text;
-  const baseTier = isVisitor ? 'visitor' : (getBaseTier(user.tier || '') || '');
-  const useDarkLogo = isExpired || ['Social', 'Premium', 'VIP'].includes(baseTier);
+  const useDarkLogo = isExpired || isLightTierBackground(cardBgColor);
 
   return (
     <>

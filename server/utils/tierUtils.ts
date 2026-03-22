@@ -1,5 +1,11 @@
 import { logger } from '../core/logger';
 
+/**
+ * Bootstrap-only fallback tier slugs. These are overwritten on startup by setServerTierData()
+ * when tiers are loaded from the membership_tiers database table.
+ * NEVER use these as authoritative tier lists — always query the DB or use the
+ * dynamically-populated TIER_SLUGS / CANONICAL_TIER_NAMES exports after startup.
+ */
 const DEFAULT_TIER_SLUGS = ['social', 'core', 'premium', 'corporate', 'vip', 'staff', 'group-lessons'];
 const DEFAULT_CANONICAL_NAMES: Record<string, string> = {
   social: 'Social',

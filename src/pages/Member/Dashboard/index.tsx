@@ -14,6 +14,7 @@ import FirstLoginWelcomeModal from '../../../components/FirstLoginWelcomeModal';
 import NfcCheckinWelcomeModal from '../../../components/NfcCheckinWelcomeModal';
 import { GUEST_CHECKIN_FIELDS } from './dashboardTypes';
 import { useDashboardData } from './useDashboardData';
+import { useTierNames } from '../../../hooks/useTierNames';
 import { MembershipCard } from './MembershipCard';
 import { ScheduleSection } from './ScheduleSection';
 import { PasskeyNudge, BannerAlert, MembershipStatusAlert } from './DashboardAlerts';
@@ -28,6 +29,7 @@ const getGreeting = () => {
 
 const Dashboard: React.FC = () => {
   const data = useDashboardData();
+  useTierNames();
   const [scheduleRef] = useAutoAnimate();
 
   const {

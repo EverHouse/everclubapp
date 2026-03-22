@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.6",
+    date: "2026-03-22",
+    title: "Hardcoded Tier Defaults Removed",
+    changes: [
+      "Removed: DEFAULT_TIER constant ('Social') — no code assigns a hardcoded default tier to users",
+      "Fixed: MembershipCard dark logo logic uses luminance-based color check instead of hardcoded tier name list",
+      "Updated: Test expectations no longer assert DEFAULT_TIER === 'Social'",
+      "Documented: Bootstrap-only fallback arrays clearly marked as overwritten on startup by setTierData()/setServerTierData()",
+    ]
+  },
+  {
     version: "8.97.5",
     date: "2026-03-22",
     title: "Improvement: Booking Auto-Complete Window",
