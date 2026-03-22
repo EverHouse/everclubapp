@@ -5,7 +5,7 @@ import { isStaffOrAdmin, isAdmin } from '../core/middleware';
 import { broadcastCafeMenuUpdate } from '../core/websocket';
 import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
-import { getErrorMessage } from '../utils/errorUtils';
+import { getErrorMessage, isStripeResourceMissing } from '../utils/errorUtils';
 import { db } from '../db';
 import { cafeItems } from '../../shared/schema';
 import { sql, eq, and, asc } from 'drizzle-orm';
@@ -234,11 +234,11 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
           logger.info(`[Cafe] Archived Stripe product ${existing[0].stripeProductId} for cafe item "${existing[0].name}"`);
         }
       } catch (stripeErr: unknown) {
-        const isNotFound = stripeErr instanceof Error && 'statusCode' in stripeErr && (stripeErr as { statusCode: number }).statusCode === 404;
-        if (!isNotFound) {
+        if (!isStripeResourceMissing(stripeErr)) {
           logger.error(`[Cafe] Failed to archive Stripe product ${existing[0].stripeProductId} — aborting delete to prevent orphaned Stripe product`, { error: getErrorMessage(stripeErr) });
           return res.status(502).json({ error: 'Failed to archive Stripe product — delete aborted to prevent data inconsistency. Try again or archive the product in Stripe first.' });
         }
+        logger.info(`[Cafe] Stripe product ${existing[0].stripeProductId} not found — proceeding with delete`);
       }
     }
     

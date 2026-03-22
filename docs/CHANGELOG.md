@@ -2,6 +2,12 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.7] - 2026-03-22
+
+### Fix: Cafe Item Delete
+- **Fixed**: Cafe item delete endpoint used a manual `statusCode === 404` check that missed Stripe `resource_missing` errors (which use `code` instead of `statusCode`). Replaced with the robust `isStripeResourceMissing()` utility. This was blocking all cafe item deletes when the linked Stripe product didn't exist in the current environment.
+- **File**: `server/routes/cafe.ts:236-245`
+
 ## [8.97.6] - 2026-03-22
 
 ### Hardcoded Tier Defaults Removed
