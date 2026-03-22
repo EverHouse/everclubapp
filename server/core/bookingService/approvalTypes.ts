@@ -5,6 +5,7 @@ import { logger } from '../logger';
 import { cancelPendingPaymentIntentsForBooking } from '../billing/paymentIntentCleanup';
 import { getStripeClient } from '../stripe/client';
 import { PaymentStatusService } from '../billing/PaymentStatusService';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 type _SqlQueryParam = string | number | boolean | null | Date;
 
@@ -175,7 +176,7 @@ export async function validateTrackmanId(trackmanBookingId: string, bookingId: n
           });
         } catch (piErr: unknown) {
           logger.warn('[ValidateTrackmanId] Payment intent cleanup failed for orphaned booking (non-blocking)', {
-            extra: { declinedBookingId: duplicateId, error: piErr instanceof Error ? piErr.message : String(piErr) }
+            extra: { declinedBookingId: duplicateId, error: getErrorMessage(piErr) }
           });
         }
 
@@ -209,7 +210,7 @@ export async function validateTrackmanId(trackmanBookingId: string, bookingId: n
               }
             } catch (snapErr: unknown) {
               logger.warn('[ValidateTrackmanId] Fee snapshot refund failed (non-blocking)', {
-                extra: { paymentIntentId: snapshot.stripe_payment_intent_id, error: snapErr instanceof Error ? snapErr.message : String(snapErr) }
+                extra: { paymentIntentId: snapshot.stripe_payment_intent_id, error: getErrorMessage(snapErr) }
               });
             }
           }
@@ -233,7 +234,7 @@ export async function validateTrackmanId(trackmanBookingId: string, bookingId: n
           }
         } catch (invoiceErr: unknown) {
           logger.warn('[ValidateTrackmanId] Stripe cleanup failed for orphaned booking (non-blocking)', {
-            extra: { declinedBookingId: duplicateId, error: invoiceErr instanceof Error ? invoiceErr.message : String(invoiceErr) }
+            extra: { declinedBookingId: duplicateId, error: getErrorMessage(invoiceErr) }
           });
         }
 

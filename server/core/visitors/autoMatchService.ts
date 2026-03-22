@@ -540,7 +540,7 @@ export async function autoMatchSingleBooking(
     return result;
   } catch (error: unknown) {
     logger.error('[AutoMatch] Error auto-matching booking:', { error: getErrorMessage(error) });
-    result.reason = error instanceof Error ? error.message : 'Unknown error';
+    result.reason = getErrorMessage(error) || 'Unknown error';
     return result;
   }
 }
@@ -976,7 +976,7 @@ async function autoMatchBookingRequests(
         bookingId: row.id as number,
         matched: false,
         matchType: 'failed',
-        reason: error instanceof Error ? error.message : 'Unknown error'
+        reason: getErrorMessage(error) || 'Unknown error'
       });
       failed++;
     }

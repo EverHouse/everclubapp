@@ -334,15 +334,15 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subsc
           }
           // eslint-disable-next-line preserve-caught-error
           throw new Error(
-            `Failed to complete subscription setup. Database error: ${dbError instanceof Error ? dbError.message : String(dbError)}. ` +
-            `Rollback attempt failed: ${cancelError instanceof Error ? cancelError.message : String(cancelError)}. ` +
+            `Failed to complete subscription setup. Database error: ${getErrorMessage(dbError)}. ` +
+            `Rollback attempt failed: ${getErrorMessage(cancelError)}. ` +
             `Subscription ${stripeSubscription.subscriptionId} may need manual cancellation in Stripe.`
           );
         }
       }
       // eslint-disable-next-line preserve-caught-error
       throw new Error(
-        `Failed to activate membership in database: ${dbError instanceof Error ? dbError.message : String(dbError)}. ` +
+        `Failed to activate membership in database: ${getErrorMessage(dbError)}. ` +
         `Stripe subscription ${stripeSubscription?.subscriptionId} has been cancelled to prevent unauthorized charges.`
       );
     }

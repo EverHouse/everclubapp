@@ -2,6 +2,7 @@ import { notifyAllStaff } from './notificationService';
 import { isProduction } from './db';
 import { getTodayPacific } from '../utils/dateUtils';
 import { getSettingBoolean } from './settingsHelper';
+import { getErrorMessage } from '../utils/errorUtils';
 
 import { logger } from './logger';
 export type DataAlertType = 
@@ -238,7 +239,7 @@ export async function alertOnSyncFailure(
     title = `${serviceName} Sync Failed: ${details.calendarName}`;
   }
   
-  const errorMessage = error instanceof Error ? error.message : error;
+  const errorMessage = getErrorMessage(error);
   let message = `${operation} failed: ${errorMessage}`;
   
   if (details) {
@@ -308,13 +309,7 @@ export async function alertOnScheduledTaskFailure(
     return;
   }
   
-  let errorMessage = error instanceof Error ? error.message : error;
-  if (error instanceof Error && error.cause) {
-    const causeMsg = error.cause instanceof Error ? error.cause.message : String(error.cause);
-    if (causeMsg && causeMsg !== errorMessage) {
-      errorMessage = causeMsg;
-    }
-  }
+  const errorMessage = getErrorMessage(error);
 
   const title = `Scheduled Task Failed: ${taskName}`;
   let message = `The ${taskName} scheduled task failed: ${errorMessage}`;

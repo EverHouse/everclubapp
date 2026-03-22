@@ -40,7 +40,7 @@ const router = Router();
 function mapServiceError(res: Response, error: unknown): Response | void {
   const statusCode = (error as { statusCode?: number }).statusCode;
   const extra = (error as { extra?: Record<string, unknown> }).extra;
-  let message = error instanceof Error ? error.message : 'An error occurred';
+  let message = getErrorMessage(error) || 'An error occurred';
 
   if (statusCode) {
     if (message.startsWith('ROSTER_LOCKED:')) {

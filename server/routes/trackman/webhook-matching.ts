@@ -150,7 +150,7 @@ export async function tryAutoApproveBooking(
       }
 
     } catch (txError: unknown) {
-      const txMsg = txError instanceof Error ? txError.message : String(txError);
+      const txMsg = getErrorMessage(txError);
       if (txMsg === 'ALREADY_LINKED') {
         logger.warn('[Trackman Webhook] Pending booking was already linked by another process', {
           extra: { bookingId, trackmanBookingId, email: customerEmail }
@@ -386,7 +386,7 @@ export async function createUnmatchedBookingRequest(
            updated_at = NOW()
          RETURNING id, (xmax = 0) AS was_inserted`);
     } catch (insertError: unknown) {
-      const errMsg = insertError instanceof Error ? insertError.message : String(insertError);
+      const errMsg = getErrorMessage(insertError);
       const cause = (insertError as { cause?: { code?: string } })?.cause;
       const isDeadlock = cause?.code === '40P01' || errMsg.includes('deadlock detected');
       if (isDeadlock) {
@@ -407,7 +407,7 @@ export async function createUnmatchedBookingRequest(
                updated_at = NOW()
              RETURNING id, (xmax = 0) AS was_inserted`);
         } catch (retryError: unknown) {
-          const retryMsg = retryError instanceof Error ? retryError.message : String(retryError);
+          const retryMsg = getErrorMessage(retryError);
           const retryCause = (retryError as { cause?: { code?: string } })?.cause;
           const isOverlapAfterDeadlock = retryCause?.code === '23P01' || retryMsg.includes('booking_requests_no_overlap') || retryMsg.includes('23P01');
           if (!isOverlapAfterDeadlock) {

@@ -250,7 +250,7 @@ router.post('/api/admin/calendar/sync-all', isStaffOrAdmin, async (req, res) => 
 
     const extract = <T>(r: PromiseSettledResult<T>, label: string): T & { error?: string } => {
       if (r.status === 'fulfilled') return r.value as T & { error?: string };
-      const msg = r.reason instanceof Error ? r.reason.message : String(r.reason);
+      const msg = getErrorMessage(r.reason);
       logger.error(`[Admin] ${label} sync failed: ${msg}`);
       return { error: msg } as T & { error?: string };
     };

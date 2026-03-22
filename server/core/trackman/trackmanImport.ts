@@ -685,7 +685,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               refreshBookingPass(existing.id).catch(err => logger.error('[Trackman Import] Booking pass refresh failed', { extra: { bookingId: existing.id, error: getErrorMessage(err) } }));
             }
           } catch (updateErr: unknown) {
-            const errMsg = (updateErr instanceof Error && updateErr.cause instanceof Error ? updateErr.cause.message : null) || getErrorMessage(updateErr) || '';
+            const errMsg = getErrorMessage(updateErr) || '';
             if (errMsg.includes('booking_requests_no_overlap') || errMsg.includes('exclusion constraint')) {
               delete updateFields.startTime;
               delete updateFields.endTime;
@@ -711,7 +711,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               .set(updateFields)
               .where(eq(bookingRequests.id, existing.id));
           } catch (updateErr: unknown) {
-            const errMsg = (updateErr instanceof Error && updateErr.cause instanceof Error ? updateErr.cause.message : null) || getErrorMessage(updateErr) || '';
+            const errMsg = getErrorMessage(updateErr) || '';
             if (errMsg.includes('booking_requests_no_overlap') || errMsg.includes('exclusion constraint')) {
               logger.warn(`[Trackman Import] Booking #${existing.id}: sync tracking update skipped due to overlap constraint`);
             } else {
@@ -1526,7 +1526,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             skippedRows++;
             continue;
           }
-          const errDetails = (insertErr instanceof Error && insertErr.cause instanceof Error ? insertErr.cause.message : null) || getErrorCode(insertErr) || 'no details';
+          const errDetails = getErrorMessage(insertErr) || getErrorCode(insertErr) || 'no details';
           logger.error(`[Trackman Import] Insert error for ${row.bookingId}: ${getErrorMessage(insertErr)} | Details: ${errDetails}`);
           throw insertErr;
         }
@@ -1612,7 +1612,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         unmatchedRows++;
       }
     } catch (err: unknown) {
-      const dbError = (err instanceof Error && err.cause instanceof Error ? err.cause.message : null) || getErrorMessage(err);
+      const dbError = getErrorMessage(err);
       errors.push(`Row ${i}: ${dbError}`);
       skippedRows++;
     }

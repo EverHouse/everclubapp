@@ -15,6 +15,7 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Simulator Overage product no longer fails on server startup — was caused by a Stripe key conflict when the product was recreated",
       "Improved: Error messages now show the underlying database error instead of a generic wrapper, making production issues much easier to diagnose",
       "Fixed: Dev database sync error logging now correctly captures the actual import error instead of showing unrelated messages",
+      "Improved: All server error handling now uses the enhanced error extraction — better diagnostics across bookings, Trackman, billing, memberships, and guest passes",
     ]
   },
   {

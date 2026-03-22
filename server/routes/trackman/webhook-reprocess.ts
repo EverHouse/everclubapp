@@ -499,7 +499,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
                 updated_at = NOW()
               RETURNING id, (xmax = 0) AS was_inserted`);
           } catch (insertErr: unknown) {
-            const errMsg = insertErr instanceof Error ? insertErr.message : String(insertErr);
+            const errMsg = getErrorMessage(insertErr);
             const cause = (insertErr as { cause?: { code?: string } })?.cause;
             if (cause?.code === '23P01' || errMsg.includes('booking_requests_no_overlap') || errMsg.includes('23P01')) {
               const txResult = await db.transaction(async (tx) => {

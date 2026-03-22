@@ -313,7 +313,7 @@ export async function useGuestPass(
     
     return { success: true, remaining };
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Failed to use guest pass';
+    const msg = getErrorMessage(error) || 'Failed to use guest pass';
     if (msg === 'No guest passes remaining') {
       return { success: false, error: msg };
     }
@@ -379,7 +379,7 @@ export async function refundGuestPass(
 
     return { success: true, remaining };
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Failed to refund guest pass';
+    const msg = getErrorMessage(error) || 'Failed to refund guest pass';
     if (msg === 'Member guest pass record not found') {
       return { success: false, error: msg };
     }

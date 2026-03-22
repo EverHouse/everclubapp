@@ -505,7 +505,7 @@ export async function createBookingForMember(
            updated_at = NOW()
          RETURNING id, (xmax = 0) AS was_inserted`);
     } catch (insertError: unknown) {
-      const errMsg = insertError instanceof Error ? insertError.message : String(insertError);
+      const errMsg = getErrorMessage(insertError);
       const cause = (insertError as { cause?: { code?: string } })?.cause;
       if (cause?.code === '23P01' || errMsg.includes('booking_requests_no_overlap') || errMsg.includes('23P01')) {
         logger.info('[Trackman Webhook] createBookingForMember overlap constraint — cancelling conflicting bookings (Trackman is authoritative)', {

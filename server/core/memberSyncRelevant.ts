@@ -499,7 +499,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
         } else if (result.status === 'rejected') {
           errors++;
           const failedEmail = batch[j]?.properties?.email || 'unknown';
-          const errMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
+          const errMsg = getErrorMessage(result.reason);
           logger.error(`[MemberSync] Failed to sync contact ${failedEmail}: ${errMsg}`);
         }
       }

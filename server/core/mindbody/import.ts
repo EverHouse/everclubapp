@@ -4,6 +4,7 @@ import { eq, sql, and, ilike } from "drizzle-orm";
 import fs from "fs";
 import { alertOnImportFailure, alertOnLowMatchRate } from "../dataAlerts";
 import { findMatchingUser, normalizePhone } from "../visitors/matchingService";
+import { getErrorMessage } from '../../utils/errorUtils';
 
 import { logger } from '../logger';
 import { normalizeTierName as dynamicNormalizeTierName } from '../utils/tierUtils';
@@ -270,7 +271,7 @@ export async function importFirstVisitReport(content: string): Promise<{
         result.skipped++;
       }
     } catch (error: unknown) {
-      result.errors.push(`Client ${clientId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      result.errors.push(`Client ${clientId}: ${getErrorMessage(error) || 'Unknown error'}`);
     }
   }
   
@@ -454,7 +455,7 @@ export async function importSalesFromContent(content: string, clientLookup?: Map
         result.linked++;
       }
     } catch (error: unknown) {
-      result.errors.push(`Row ${i}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      result.errors.push(`Row ${i}: ${getErrorMessage(error) || 'Unknown error'}`);
     }
   }
   
@@ -558,7 +559,7 @@ export async function importMembersFromCSV(csvPath: string): Promise<{
         }
       }
     } catch (error: unknown) {
-      result.errors.push(`Row ${i}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      result.errors.push(`Row ${i}: ${getErrorMessage(error) || 'Unknown error'}`);
     }
   }
   
@@ -671,7 +672,7 @@ export async function importSalesFromCSV(csvPath: string, batchId?: string): Pro
         result.linked++;
       }
     } catch (error: unknown) {
-      result.errors.push(`Row ${i}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      result.errors.push(`Row ${i}: ${getErrorMessage(error) || 'Unknown error'}`);
     }
   }
   
@@ -714,7 +715,7 @@ export async function importAttendanceFromCSV(csvPath: string): Promise<{
       
       result.updated++;
     } catch (error: unknown) {
-      result.errors.push(`Row ${i}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      result.errors.push(`Row ${i}: ${getErrorMessage(error) || 'Unknown error'}`);
     }
   }
   

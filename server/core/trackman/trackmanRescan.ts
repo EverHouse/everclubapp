@@ -282,7 +282,7 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
         }
       }
     } catch (err: unknown) {
-      errors.push(`Error processing booking ${booking.trackmanBookingId}: ${(err instanceof Error && err.cause instanceof Error ? err.cause.message : null) || getErrorMessage(err)}`);
+      errors.push(`Error processing booking ${booking.trackmanBookingId}: ${getErrorMessage(err)}`);
     }
   }
   

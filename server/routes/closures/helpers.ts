@@ -384,7 +384,7 @@ export async function patchClosureCalendarEvents(
     try {
       await calendar.events.patch({ calendarId, eventId, requestBody });
     } catch (error: unknown) {
-      logger.warn(`[Closures] Failed to patch calendar event ${eventId}, will fall back to create`, { error: error instanceof Error ? error.message : error });
+      logger.warn(`[Closures] Failed to patch calendar event ${eventId}, will fall back to create`, { error: getErrorMessage(error) });
       return false;
     }
   }
