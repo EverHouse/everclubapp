@@ -63,7 +63,7 @@ const MASS_WIPE_THRESHOLD = 0.25;
 export async function validateStripeEnvironmentIds(): Promise<void> {
   try {
     const stripe = await getStripeClient();
-    const { mode } = await getStripeEnvironmentInfo();
+    const { mode, isProduction } = await getStripeEnvironmentInfo();
 
     logger.info(`[Stripe Env] Validating stored Stripe IDs against ${mode} environment...`);
 
@@ -111,7 +111,8 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
     if (staleTiers.length > 0 && tiersChecked > 0) {
       const ratio = staleTiers.length / tiersChecked;
       if (ratio > MASS_WIPE_THRESHOLD) {
-        logger.warn(`[Stripe Env] SAFETY GUARD: ${staleTiers.length}/${tiersChecked} (${Math.round(ratio * 100)}%) tiers have missing Stripe products. Skipping auto-clear to prevent mass data loss. Stale tiers: ${staleTiers.map(t => `"${t.name}" (${t.stripe_product_id})`).join(', ')}`);
+        const tierLogLevel = isProduction ? 'warn' : 'info';
+        logger[tierLogLevel](`[Stripe Env] SAFETY GUARD: ${staleTiers.length}/${tiersChecked} (${Math.round(ratio * 100)}%) tiers have missing Stripe products. Skipping auto-clear to prevent mass data loss. Stale tiers: ${staleTiers.map(t => `"${t.name}" (${t.stripe_product_id})`).join(', ')}`);
       } else {
         for (const tier of staleTiers) {
           await db.execute(
@@ -160,7 +161,8 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
     if (staleCafeItems.length > 0 && cafeChecked > 0) {
       const ratio = staleCafeItems.length / cafeChecked;
       if (ratio > MASS_WIPE_THRESHOLD) {
-        logger.warn(`[Stripe Env] ${staleCafeItems.length}/${cafeChecked} (${Math.round(ratio * 100)}%) cafe items have stale Stripe IDs (likely environment switch). Clearing stale IDs and triggering auto-resync...`);
+        const logLevel = isProduction ? 'warn' : 'info';
+        logger[logLevel](`[Stripe Env] ${staleCafeItems.length}/${cafeChecked} (${Math.round(ratio * 100)}%) cafe items have stale Stripe IDs (likely environment switch). Clearing stale IDs and triggering auto-resync...`);
         for (const item of staleCafeItems) {
           await db.execute(
             sql`UPDATE cafe_items SET stripe_product_id = NULL, stripe_price_id = NULL WHERE id = ${item.id}`
@@ -171,7 +173,11 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
           const { syncCafeItemsToStripe } = await import('./productCatalogSync');
           const syncResult = await syncCafeItemsToStripe();
           logger.info(`[Stripe Env] Cafe items auto-resync complete: ${syncResult.synced} synced, ${syncResult.failed} failed, ${syncResult.skipped} skipped`);
-          cafeAutoResynced = syncResult.failed === 0;
+          const postResyncResult = await db.execute(
+            sql`SELECT COUNT(*) as count FROM cafe_items WHERE is_active = true AND (stripe_product_id IS NULL OR stripe_price_id IS NULL)`
+          );
+          const postResyncUnlinked = Number((postResyncResult.rows[0] as Record<string, unknown>).count) || 0;
+          cafeAutoResynced = syncResult.failed === 0 && postResyncUnlinked === 0;
         } catch (syncErr: unknown) {
           logger.error(`[Stripe Env] Cafe items auto-resync failed — items cleared but not re-created. Use Admin > Products & Pricing > Sync to retry.`, { error: getErrorMessage(syncErr) });
         }
@@ -183,6 +189,28 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
           logger.info(`[Stripe Env] Cleared stale Stripe IDs for cafe item "${item.name}"`);
           cafeCleared++;
         }
+      }
+    }
+
+    let unlinkedCafeResult = await db.execute(
+      sql`SELECT COUNT(*) as count FROM cafe_items WHERE is_active = true AND (stripe_product_id IS NULL OR stripe_price_id IS NULL)`
+    );
+    let unlinkedCafeCount = Number((unlinkedCafeResult.rows[0] as Record<string, unknown>).count) || 0;
+
+    if (unlinkedCafeCount > 0 && !cafeAutoResynced) {
+      const logLevel = isProduction ? 'warn' : 'info';
+      logger[logLevel](`[Stripe Env] ${unlinkedCafeCount} active cafe items have missing Stripe product/price IDs. Triggering auto-sync...`);
+      try {
+        const { syncCafeItemsToStripe } = await import('./productCatalogSync');
+        const syncResult = await syncCafeItemsToStripe();
+        logger.info(`[Stripe Env] Cafe items auto-sync complete: ${syncResult.synced} synced, ${syncResult.failed} failed, ${syncResult.skipped} skipped`);
+        unlinkedCafeResult = await db.execute(
+          sql`SELECT COUNT(*) as count FROM cafe_items WHERE is_active = true AND (stripe_product_id IS NULL OR stripe_price_id IS NULL)`
+        );
+        unlinkedCafeCount = Number((unlinkedCafeResult.rows[0] as Record<string, unknown>).count) || 0;
+        cafeAutoResynced = syncResult.failed === 0 && unlinkedCafeCount === 0;
+      } catch (syncErr: unknown) {
+        logger.error(`[Stripe Env] Cafe items auto-sync failed. Use Admin > Products & Pricing > Sync to retry.`, { error: getErrorMessage(syncErr) });
       }
     }
 
@@ -241,15 +269,22 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
     // e) Log summary
     logger.info(`[Stripe Env] Environment validation complete (${mode} mode):
   - Tiers: ${tiersChecked} checked, ${staleTiers.length} stale found, ${tiersCleared} cleared${staleTiers.length > tiersCleared ? ` (${staleTiers.length - tiersCleared} blocked by safety guard)` : ''}
-  - Cafe items: ${cafeChecked} checked, ${staleCafeItems.length} stale found, ${cafeCleared} cleared${cafeAutoResynced ? ' (auto-resynced)' : staleCafeItems.length > cafeCleared ? ` (${staleCafeItems.length - cafeCleared} blocked by safety guard)` : ''}
+  - Cafe items: ${cafeChecked} checked, ${staleCafeItems.length} stale found, ${cafeCleared} cleared${unlinkedCafeCount > 0 ? `, ${unlinkedCafeCount} unlinked` : ''}${cafeAutoResynced ? ' (auto-synced)' : staleCafeItems.length > cafeCleared ? ` (${staleCafeItems.length - cafeCleared} blocked by safety guard)` : ''}
   - User subscriptions: ${subsChecked} checked, ${staleSubs.length} stale found (LOG ONLY — no auto-clear)${transactionCacheCleared ? '\n  - Transaction cache: cleared (backfill started)' : ''}`);
 
     if (clearedSubscriptionTierCount > 0) {
-      logger.warn(`[STARTUP WARNING] ⚠️ ${clearedSubscriptionTierCount} subscription tiers lost their Stripe product links due to environment change. Run "Sync to Stripe" from Products & Pricing before member signups will work.`);
+      const startupLogLevel = isProduction ? 'warn' : 'info';
+      logger[startupLogLevel](`[STARTUP${isProduction ? ' WARNING' : ''}] ${isProduction ? '⚠️ ' : ''}${clearedSubscriptionTierCount} subscription tiers lost their Stripe product links due to environment change. Run "Sync to Stripe" from Products & Pricing before member signups will work.`);
     }
 
     if (cafeCleared > 0 && !cafeAutoResynced) {
-      logger.warn(`[STARTUP WARNING] ⚠️ ${cafeCleared} cafe items lost their Stripe product links. Run "Sync to Stripe" to restore.`);
+      const startupLogLevel = isProduction ? 'warn' : 'info';
+      logger[startupLogLevel](`[STARTUP${isProduction ? ' WARNING' : ''}] ${isProduction ? '⚠️ ' : ''}${cafeCleared} cafe items lost their Stripe product links. Run "Sync to Stripe" to restore.`);
+    }
+
+    if (unlinkedCafeCount > 0 && !cafeAutoResynced) {
+      const startupLogLevel = isProduction ? 'warn' : 'info';
+      logger[startupLogLevel](`[STARTUP${isProduction ? ' WARNING' : ''}] ${isProduction ? '⚠️ ' : ''}${unlinkedCafeCount} active cafe items still missing Stripe product/price IDs after auto-sync attempt. Run "Sync to Stripe" from Admin to fix.`);
     }
   } catch (error: unknown) {
     logger.error('[Stripe Env] Environment validation failed (non-blocking):', { extra: { detail: getErrorMessage(error) } });
