@@ -234,11 +234,11 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
           logger.info(`[Cafe] Archived Stripe product ${existing[0].stripeProductId} for cafe item "${existing[0].name}"`);
         }
       } catch (stripeErr: unknown) {
-        if (!isStripeResourceMissing(stripeErr)) {
-          logger.error(`[Cafe] Failed to archive Stripe product ${existing[0].stripeProductId} — aborting delete to prevent orphaned Stripe product`, { error: getErrorMessage(stripeErr) });
-          return res.status(502).json({ error: 'Failed to archive Stripe product — delete aborted to prevent data inconsistency. Try again or archive the product in Stripe first.' });
+        if (isStripeResourceMissing(stripeErr)) {
+          logger.info(`[Cafe] Stripe product ${existing[0].stripeProductId} not found — proceeding with delete`);
+        } else {
+          logger.warn(`[Cafe] Could not archive Stripe product ${existing[0].stripeProductId} — proceeding with delete anyway (product may need manual cleanup in Stripe)`, { error: getErrorMessage(stripeErr) });
         }
-        logger.info(`[Cafe] Stripe product ${existing[0].stripeProductId} not found — proceeding with delete`);
       }
     }
     

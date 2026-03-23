@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.11",
+    date: "2026-03-23",
+    title: "Cafe Item Deletion Fix",
+    changes: [
+      "Fixed: Deleting cafe menu items no longer fails when Stripe products have been removed — items will now delete reliably even if Stripe is unreachable or the product was already deleted",
+    ]
+  },
+  {
     version: "8.97.10",
     date: "2026-03-23",
     title: "Stripe Product Self-Healing",

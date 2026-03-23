@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.11] - 2026-03-23
+
+### Fix: Cafe Item Deletion No Longer Blocked by Stale Stripe Products
+- **Root cause**: When deleting a cafe menu item that had a `stripe_product_id` referencing a deleted or unreachable Stripe product, the delete endpoint would abort with a 502 error ("Failed to archive Stripe product — delete aborted"). The frontend's optimistic update would briefly remove the item, then roll it back when the error response arrived — making items appear to "come back" after deletion.
+- **Fix**: Changed `server/routes/cafe.ts` delete endpoint to proceed with the database deletion regardless of Stripe archive outcome. If the Stripe product can't be archived (deleted, unreachable, rate-limited), the delete logs a warning and continues instead of aborting.
+- **Impact**: All 32 cafe items with stale Stripe product IDs can now be deleted from the admin panel without interference.
+
 ## [8.97.10] - 2026-03-23
 
 ### Fix: Stripe Product Auto-Recovery for Stale/Deleted Products
