@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.10] - 2026-03-23
+
+### Fix: Stripe Product Auto-Recovery for Stale/Deleted Products
+- **Root cause**: When Stripe products (Guest Pass, Day Pass Coworking, Day Pass Golf Sim, Corporate Pricing) were deleted from the Stripe dashboard, the app stored stale product IDs in `membership_tiers.stripe_product_id`. On startup, the `ensure*Product()` functions tried to use these IDs but got "No such product" errors, causing all 4 product initializations to fail repeatedly.
+- **Fix**: Added product existence validation to all 5 product initialization functions in `server/core/stripe/productCreation.ts`. When a stored `stripe_product_id` no longer exists in Stripe, the ID (and associated price ID) is cleared, and the product is automatically recreated.
+- **Functions fixed**: `ensureSimulatorOverageProduct`, `ensureGuestPassProduct`, `ensureDayPassCoworkingProduct`, `ensureDayPassGolfSimProduct`, `ensureCorporateVolumePricingProduct`, `pullCorporateVolumePricingFromStripe`
+- **Impact**: Eliminates 15+ ERROR log entries on every server startup; products self-heal without manual intervention
+
 ## [8.97.9] - 2026-03-22
 
 ### Fix: Remaining Hardcoded Tier Slug References (Task #208 completion)

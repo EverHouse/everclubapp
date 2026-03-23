@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.10",
+    date: "2026-03-23",
+    title: "Stripe Product Self-Healing",
+    changes: [
+      "Fixed: Guest Pass, Day Pass, and other Stripe products now automatically recreate themselves if they're deleted from Stripe — no more startup errors or broken product references",
+    ]
+  },
+  {
     version: "8.97.9",
     date: "2026-03-23",
     title: "Bug Fix: Dynamic Tier Names",

@@ -71,6 +71,19 @@ export async function ensureSimulatorOverageProduct(): Promise<{
       }
     }
     
+    if (stripeProductId) {
+      try {
+        await stripe.products.retrieve(stripeProductId);
+      } catch (prodErr: unknown) {
+        const errMsg = getErrorMessage(prodErr);
+        if (errMsg.includes('No such product') || errMsg.includes('resource_missing')) {
+          logger.warn(`[Overage Product] Stored Stripe product ${stripeProductId} no longer exists, will recreate`);
+          stripeProductId = null;
+          stripePriceId = null;
+        }
+      }
+    }
+
     if (!stripeProductId) {
       const product = await stripe.products.create({
         name: OVERAGE_NAME,
@@ -217,6 +230,26 @@ export async function ensureGuestPassProduct(): Promise<{
       }
     }
     
+    if (stripeProductId) {
+      try {
+        const existingProduct = await stripe.products.retrieve(stripeProductId);
+        if (existingProduct.name !== GUEST_PASS_NAME) {
+          markAppOriginated(stripeProductId);
+          await stripe.products.update(stripeProductId, { name: GUEST_PASS_NAME, description: GUEST_PASS_DESCRIPTION });
+          logger.info(`[Guest Pass Product] Renamed Stripe product: ${existingProduct.name} -> ${GUEST_PASS_NAME}`);
+        }
+      } catch (renameErr: unknown) {
+        const errMsg = getErrorMessage(renameErr);
+        if (errMsg.includes('No such product') || errMsg.includes('resource_missing')) {
+          logger.warn(`[Guest Pass Product] Stored Stripe product ${stripeProductId} no longer exists, will recreate`);
+          stripeProductId = null;
+          stripePriceId = null;
+        } else {
+          logger.warn('[Guest Pass Product] Could not sync Stripe product name', { error: errMsg });
+        }
+      }
+    }
+
     if (!stripeProductId) {
       const product = await stripe.products.create({
         name: GUEST_PASS_NAME,
@@ -233,17 +266,6 @@ export async function ensureGuestPassProduct(): Promise<{
       });
       stripeProductId = product.id;
       logger.info(`[Guest Pass Product] Created Stripe product: ${stripeProductId}`);
-    } else {
-      try {
-        const existingProduct = await stripe.products.retrieve(stripeProductId);
-        if (existingProduct.name !== GUEST_PASS_NAME) {
-          markAppOriginated(stripeProductId);
-          await stripe.products.update(stripeProductId, { name: GUEST_PASS_NAME, description: GUEST_PASS_DESCRIPTION });
-          logger.info(`[Guest Pass Product] Renamed Stripe product: ${existingProduct.name} -> ${GUEST_PASS_NAME}`);
-        }
-      } catch (renameErr: unknown) {
-        logger.warn('[Guest Pass Product] Could not sync Stripe product name', { error: getErrorMessage(renameErr) });
-      }
     }
     
     if (stripePriceId) {
@@ -368,6 +390,19 @@ export async function ensureDayPassCoworkingProduct(): Promise<{
           .set({ productType: 'one_time' })
           .where(eq(membershipTiers.id, tierId));
         logger.info(`[Day Pass Coworking Product] Fixed productType to one_time`);
+      }
+    }
+
+    if (stripeProductId) {
+      try {
+        await stripe.products.retrieve(stripeProductId);
+      } catch (prodErr: unknown) {
+        const errMsg = getErrorMessage(prodErr);
+        if (errMsg.includes('No such product') || errMsg.includes('resource_missing')) {
+          logger.warn(`[Day Pass Coworking Product] Stored Stripe product ${stripeProductId} no longer exists, will recreate`);
+          stripeProductId = null;
+          stripePriceId = null;
+        }
       }
     }
 
@@ -504,6 +539,19 @@ export async function ensureDayPassGolfSimProduct(): Promise<{
       }
     }
 
+    if (stripeProductId) {
+      try {
+        await stripe.products.retrieve(stripeProductId);
+      } catch (prodErr: unknown) {
+        const errMsg = getErrorMessage(prodErr);
+        if (errMsg.includes('No such product') || errMsg.includes('resource_missing')) {
+          logger.warn(`[Day Pass Golf Sim Product] Stored Stripe product ${stripeProductId} no longer exists, will recreate`);
+          stripeProductId = null;
+          stripePriceId = null;
+        }
+      }
+    }
+
     if (stripePriceId) {
       try {
         const existingPrice = await stripe.prices.retrieve(stripePriceId);
@@ -627,6 +675,18 @@ export async function ensureCorporateVolumePricingProduct(): Promise<{
       tierId = existing[0].id;
     }
     
+    if (stripeProductId) {
+      try {
+        await stripe.products.retrieve(stripeProductId);
+      } catch (prodErr: unknown) {
+        const errMsg = getErrorMessage(prodErr);
+        if (errMsg.includes('No such product') || errMsg.includes('resource_missing')) {
+          logger.warn(`[Corporate Pricing] Stored Stripe product ${stripeProductId} no longer exists, will recreate`);
+          stripeProductId = null;
+        }
+      }
+    }
+
     if (!stripeProductId) {
       const existingProducts = await stripe.products.search({
         query: `metadata['config_type']:'corporate_volume_pricing' AND metadata['tier_slug']:'${CORPORATE_PRICING_SLUG}'`,
@@ -697,7 +757,20 @@ export async function pullCorporateVolumePricingFromStripe(): Promise<boolean> {
       return false;
     }
     
-    const product = await stripe.products.retrieve(existing[0].stripeProductId);
+    let product;
+    try {
+      product = await stripe.products.retrieve(existing[0].stripeProductId);
+    } catch (prodErr: unknown) {
+      const errMsg = getErrorMessage(prodErr);
+      if (errMsg.includes('No such product') || errMsg.includes('resource_missing')) {
+        logger.warn(`[Corporate Pricing] Stored Stripe product ${existing[0].stripeProductId} no longer exists, clearing reference`);
+        await db.update(membershipTiers)
+          .set({ stripeProductId: null })
+          .where(eq(membershipTiers.id, existing[0].id));
+        return false;
+      }
+      throw prodErr;
+    }
     const metadata = product.metadata || {};
     
     const tiers: VolumeTier[] = [];
