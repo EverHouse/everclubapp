@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.9",
+    date: "2026-03-23",
+    title: "Bug Fix: Dynamic Tier Names",
+    changes: [
+      "Fixed: Booking page upgrade messages no longer list hardcoded tier names — messages now adapt automatically when tiers change",
+    ]
+  },
+  {
     version: "8.97.8",
     date: "2026-03-22",
     title: "Production Data Sync Fix",

@@ -83,7 +83,7 @@ const BookGolf: React.FC = () => {
             <Icon name="lock" className="text-4xl text-accent-dark dark:text-accent mb-4" />
             <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>Upgrade to Book Simulators</h3>
             <p className={`text-sm mb-4 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
-              Golf simulator access is available for Core, Premium, and Corporate members. Upgrade your membership to start booking.
+              Golf simulator access requires a higher-tier membership. Upgrade your membership to start booking.
             </p>
             <a href="/membership" className="tactile-btn inline-flex items-center gap-2 px-6 py-3 bg-accent text-brand-green rounded-xl font-bold text-sm">
               <Icon name="upgrade" className="text-lg" />View Membership Options
@@ -94,7 +94,7 @@ const BookGolf: React.FC = () => {
             <Icon name="lock" className="text-4xl text-accent-dark dark:text-accent mb-4" />
             <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>Upgrade for Conference Room Access</h3>
             <p className={`text-sm mb-4 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
-              Conference room booking is available for Core, Premium, and Corporate members. Upgrade your membership to start booking.
+              Conference room booking requires a higher-tier membership. Upgrade your membership to start booking.
             </p>
             <a href="/membership" className="tactile-btn inline-flex items-center gap-2 px-6 py-3 bg-accent text-brand-green rounded-xl font-bold text-sm">
               <Icon name="upgrade" className="text-lg" />View Membership Options
