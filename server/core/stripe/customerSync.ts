@@ -9,10 +9,11 @@ export interface CustomerSyncResult {
   updated: number;
   skipped: number;
   staleFound: number;
+  relinked: number;
   errors: string[];
   details: Array<{
     email: string;
-    action: 'updated' | 'skipped' | 'error' | 'stale';
+    action: 'updated' | 'skipped' | 'error' | 'stale' | 'relinked';
     customerId?: string;
     reason?: string;
   }>;
@@ -24,6 +25,7 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
     updated: 0,
     skipped: 0,
     staleFound: 0,
+    relinked: 0,
     errors: [],
     details: [],
   };
@@ -73,14 +75,59 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
         
       } catch (error: unknown) {
         if (isStripeResourceMissing(error)) {
-          logger.warn(`[Stripe Customer Sync] Customer ${member.stripe_customer_id} for "${member.email}" not found in Stripe — NOT auto-clearing (use Data Integrity tools to review)`);
-          result.staleFound++;
-          result.details.push({
-            email: member.email as string,
-            action: 'stale',
-            customerId: member.stripe_customer_id as string,
-            reason: 'Customer not found in Stripe (logged only, not auto-cleared)',
-          });
+          const memberEmail = (member.email as string).toLowerCase();
+          const staleId = member.stripe_customer_id as string;
+          let relinked = false;
+
+          try {
+            const searchResult = await stripe.customers.list({
+              email: memberEmail,
+              limit: 10,
+            });
+
+            if (searchResult.data.length > 0) {
+              const activeCustomers = searchResult.data.filter(c => !('deleted' in c && (c as { deleted?: boolean }).deleted));
+              if (activeCustomers.length > 0) {
+                const sortedCustomers = activeCustomers.sort((a, b) => b.created - a.created);
+                const matchedCustomer = sortedCustomers[0];
+                const fullName = [member.first_name as string, member.last_name as string].filter(Boolean).join(' ') || undefined;
+
+                await stripe.customers.update(matchedCustomer.id, {
+                  metadata: {
+                    user_id: member.id as string,
+                    tier: (member.tier as string) || '',
+                    billing_provider: 'mindbody',
+                    ...(fullName ? { name: fullName } : {}),
+                  },
+                });
+
+                await db.execute(sql`UPDATE users SET stripe_customer_id = ${matchedCustomer.id}, updated_at = NOW() WHERE id = ${member.id as string}`);
+
+                logger.info(`[Stripe Customer Sync] Re-linked "${memberEmail}": stale ${staleId} → ${matchedCustomer.id}`);
+                result.relinked++;
+                result.details.push({
+                  email: memberEmail,
+                  action: 'relinked',
+                  customerId: matchedCustomer.id,
+                  reason: `Stale ${staleId} replaced with ${matchedCustomer.id} found by email lookup`,
+                });
+                relinked = true;
+              }
+            }
+          } catch (searchError: unknown) {
+            logger.warn(`[Stripe Customer Sync] Email search failed for "${memberEmail}" during re-link attempt:`, { extra: { detail: getErrorMessage(searchError) } });
+          }
+
+          if (!relinked) {
+            logger.warn(`[Stripe Customer Sync] Customer ${staleId} for "${memberEmail}" not found in Stripe and no match by email — NOT auto-clearing (use Data Integrity tools to review)`);
+            result.staleFound++;
+            result.details.push({
+              email: memberEmail,
+              action: 'stale',
+              customerId: staleId,
+              reason: 'Customer not found in Stripe and no match found by email',
+            });
+          }
         } else {
           logger.error(`[Stripe Customer Sync] Error updating ${member.email}:`, { extra: { detail: getErrorMessage(error) } });
           result.errors.push(`${member.email}: ${getErrorMessage(error)}`);
@@ -94,6 +141,7 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
     }
     
     const parts = [`updated=${result.updated}`];
+    if (result.relinked > 0) parts.push(`relinked=${result.relinked}`);
     if (result.staleFound > 0) parts.push(`stale_detected=${result.staleFound}`);
     if (result.skipped > 0) parts.push(`skipped=${result.skipped}`);
     if (result.errors.length > 0) parts.push(`errors=${result.errors.length}`);

@@ -529,12 +529,13 @@ router.post('/api/stripe/sync-customers', isStaffOrAdmin, sensitiveActionRateLim
     
     res.json({
       success: result.success,
-      created: (result as CustomerSyncResult & { created?: number; linked?: number }).created,
-      linked: (result as CustomerSyncResult & { created?: number; linked?: number }).linked,
+      updated: result.updated,
+      relinked: result.relinked,
+      staleFound: result.staleFound,
       skipped: result.skipped,
       errorCount: result.errors.length,
       errors: result.errors.slice(0, 10),
-      message: `Created ${(result as CustomerSyncResult & { created?: number; linked?: number }).created} new customers, linked ${(result as CustomerSyncResult & { created?: number; linked?: number }).linked} existing customers`,
+      message: `Updated ${result.updated} customers, re-linked ${result.relinked} to current environment, ${result.staleFound} still unmatched`,
     });
   } catch (error: unknown) {
     logger.error('[Stripe Customer Sync] Error', { error: error instanceof Error ? error : new Error(String(error)) });
