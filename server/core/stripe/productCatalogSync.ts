@@ -718,6 +718,14 @@ export async function pullCafeItemsFromStripe(): Promise<{
             synced++;
             logger.info(`[Reverse Sync] Updated cafe item "${product.name}" (id: ${existingId})`);
           }
+        } else if (cafeItemId > 0) {
+          logger.info(`[Reverse Sync] Skipping Stripe product "${product.name}" (cafe_item_id: ${cafeItemId}) — item was deleted locally. Archiving orphaned Stripe product.`);
+          try {
+            markAppOriginated(product.id);
+            await stripe.products.update(product.id, { active: false });
+          } catch (archiveErr: unknown) {
+            logger.warn(`[Reverse Sync] Could not archive orphaned Stripe product ${product.id}: ${getErrorMessage(archiveErr)}`);
+          }
         } else {
           await db.execute(sql`INSERT INTO cafe_items (name, description, price, category, image_url, icon, sort_order, is_active, stripe_product_id, stripe_price_id, created_at)
              VALUES (${product.name}, ${product.description || null}, ${priceDecimal}, ${category}, ${imageUrl}, ${'restaurant'}, ${0}, ${true}, ${product.id}, ${stripePriceId}, NOW())

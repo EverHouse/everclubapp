@@ -4,10 +4,11 @@ All notable changes to the Ever Club Members App are documented here.
 
 ## [8.97.11] - 2026-03-23
 
-### Fix: Cafe Item Deletion No Longer Blocked by Stale Stripe Products
-- **Root cause**: When deleting a cafe menu item that had a `stripe_product_id` referencing a deleted or unreachable Stripe product, the delete endpoint would abort with a 502 error ("Failed to archive Stripe product — delete aborted"). The frontend's optimistic update would briefly remove the item, then roll it back when the error response arrived — making items appear to "come back" after deletion.
-- **Fix**: Changed `server/routes/cafe.ts` delete endpoint to proceed with the database deletion regardless of Stripe archive outcome. If the Stripe product can't be archived (deleted, unreachable, rate-limited), the delete logs a warning and continues instead of aborting.
-- **Impact**: All 32 cafe items with stale Stripe product IDs can now be deleted from the admin panel without interference.
+### Fix: Cafe Menu Stripe Resilience — Delete, Edit, and Reverse Sync
+- **Delete endpoint** (`server/routes/cafe.ts`): No longer aborts with 502 when Stripe product is unreachable or deleted. Logs a warning and proceeds with DB deletion regardless of Stripe archive outcome.
+- **Auto-push** (`server/core/stripe/autoPush.ts`): `autoPushCafeItemToStripe` now handles stale `stripe_product_id` — when the stored product no longer exists in Stripe, it clears the stale ID and recreates the product instead of throwing an unhandled error.
+- **Reverse sync** (`server/core/stripe/productCatalogSync.ts`): `pullCafeItemsFromStripe` no longer recreates cafe items that were intentionally deleted from the app. When a Stripe product's `cafe_item_id` references a deleted local item, the orphaned Stripe product is archived instead of being re-imported.
+- **Impact**: All three cafe↔Stripe code paths (delete, edit/create, pull) now handle stale Stripe product IDs gracefully.
 
 ## [8.97.10] - 2026-03-23
 

@@ -260,14 +260,27 @@ export async function autoPushCafeItemToStripe(item: {
     let stripePriceId = item.stripePriceId || null;
 
     if (stripeProductId) {
-      markAppOriginated(stripeProductId);
-      await stripe.products.update(stripeProductId, {
-        name: item.name,
-        description: item.description || undefined,
-        metadata,
-      });
-      logger.info(`[AutoPush] Updated Stripe product for cafe item "${item.name}"`);
-    } else {
+      try {
+        markAppOriginated(stripeProductId);
+        await stripe.products.update(stripeProductId, {
+          name: item.name,
+          description: item.description || undefined,
+          metadata,
+        });
+        logger.info(`[AutoPush] Updated Stripe product for cafe item "${item.name}"`);
+      } catch (prodErr: unknown) {
+        const errMsg = getErrorMessage(prodErr);
+        if (errMsg.includes('No such product') || errMsg.includes('resource_missing')) {
+          logger.warn(`[AutoPush] Stored product ${stripeProductId} no longer exists for cafe item "${item.name}", will recreate`);
+          stripeProductId = null;
+          stripePriceId = null;
+        } else {
+          throw prodErr;
+        }
+      }
+    }
+
+    if (!stripeProductId) {
       const existingProduct = await findExistingStripeProduct(stripe, item.name, 'cafe_item_id', item.id.toString());
       if (existingProduct) {
         stripeProductId = existingProduct.id;

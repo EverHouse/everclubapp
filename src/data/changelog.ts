@@ -10,9 +10,11 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.97.11",
     date: "2026-03-23",
-    title: "Cafe Item Deletion Fix",
+    title: "Cafe Menu Stripe Resilience",
     changes: [
       "Fixed: Deleting cafe menu items no longer fails when Stripe products have been removed — items will now delete reliably even if Stripe is unreachable or the product was already deleted",
+      "Fixed: Editing cafe menu items with stale Stripe product IDs no longer crashes — the product is automatically recreated in Stripe",
+      "Fixed: 'Pull from Stripe' no longer recreates cafe items that were intentionally deleted from the app — orphaned Stripe products are archived instead",
     ]
   },
   {
