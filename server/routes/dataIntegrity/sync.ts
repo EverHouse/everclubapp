@@ -157,6 +157,7 @@ router.post('/api/data-integrity/resync-from-production', isAdmin, async (req, r
     logger.info(`[DevSync] Found ${tables.length} tables to export`);
 
     let exported = 0;
+    const exportedTables: { table: string; rows: number }[] = [];
     for (const table of tables) {
       const { stdout: countStr } = await execFileAsync('psql', [
         poolerUrl, '-t', '-A', '-c', `SELECT count(*) FROM "${table}";`
@@ -168,38 +169,57 @@ router.post('/api/data-integrity/resync-from-production', isAdmin, async (req, r
         poolerUrl, '-c', `\\COPY "${table}" TO '${dumpDir}/${table}.csv' WITH (FORMAT csv, HEADER true)`
       ], { timeout: 60000 });
       exported++;
+      exportedTables.push({ table, rows: count });
     }
 
     logger.info(`[DevSync] Exported ${exported} tables from production`);
 
-    let imported = 0;
-    const failed: string[] = [];
     const csvFiles = readdirSync(dumpDir).filter(f => f.endsWith('.csv'));
 
-    const truncateSql = csvFiles.map(f => `TRUNCATE "${f.replace('.csv', '')}" CASCADE;`).join(' ');
-    await execFileAsync('psql', [
-      localUrl, '-c', `SET session_replication_role = 'replica'; ${truncateSql}`
-    ], { timeout: 30000 });
+    const CRITICAL_TABLES = ['users', 'booking_requests', 'staff_users'];
+    const missingCritical = CRITICAL_TABLES.filter(t => !csvFiles.includes(`${t}.csv`));
+    if (missingCritical.length > 0) {
+      const msg = `Export failed for critical tables: ${missingCritical.join(', ')}. Aborting — no data was modified.`;
+      logger.error(`[DevSync] ${msg}`);
+      return res.status(500).json({ success: false, error: msg });
+    }
+
+    if (csvFiles.length < 5) {
+      const msg = `Only ${csvFiles.length} CSV files exported — expected many more. Aborting — no data was modified.`;
+      logger.error(`[DevSync] ${msg}`);
+      return res.status(500).json({ success: false, error: msg });
+    }
+
+    logger.info(`[DevSync] Export verified: ${csvFiles.length} CSV files, all critical tables present. Starting import...`);
+
+    let imported = 0;
+    const failed: string[] = [];
+
+    const truncateSql = `SET session_replication_role = 'replica'; ` +
+      csvFiles.map(f => `TRUNCATE "${f.replace('.csv', '')}" CASCADE;`).join(' ');
+    await execFileAsync('psql', [localUrl, '-c', truncateSql], { timeout: 60000 });
+    logger.info(`[DevSync] Truncated ${csvFiles.length} tables`);
 
     for (const csvFile of csvFiles) {
       const table = csvFile.replace('.csv', '');
+      const importSql = `SET session_replication_role = 'replica';\n\\COPY "${table}" FROM '${dumpDir}/${csvFile}' WITH (FORMAT csv, HEADER true)`;
       try {
-        await execFileAsync('psql', [
-          localUrl, '-c', `SET session_replication_role = 'replica'; \\COPY "${table}" FROM '${dumpDir}/${csvFile}' WITH (FORMAT csv, HEADER true)`
-        ], { timeout: 60000, shell: true });
+        await execFileAsync('psql', [localUrl], {
+          timeout: 120000,
+          input: importSql
+        } as Parameters<typeof execFileAsync>[2] & { input: string });
         imported++;
-      } catch (err) {
-        const importSql = `SET session_replication_role = 'replica';\n\\COPY "${table}" FROM '${dumpDir}/${csvFile}' WITH (FORMAT csv, HEADER true)`;
-        try {
-          await execFileAsync('psql', [localUrl], {
-            timeout: 60000,
-            input: importSql
-          } as Parameters<typeof execFileAsync>[2] & { input: string });
-          imported++;
-        } catch (importErr: unknown) {
-          failed.push(table);
-          logger.warn(`[DevSync] Failed to import ${table}: ${getErrorMessage(importErr)}`);
-        }
+      } catch (importErr: unknown) {
+        failed.push(table);
+        logger.warn(`[DevSync] Failed to import ${table}: ${getErrorMessage(importErr)}`);
+      }
+    }
+
+    if (failed.length > 0) {
+      logger.warn(`[DevSync] ${failed.length} tables failed to import: ${failed.join(', ')}`);
+      const criticalFailed = failed.filter(t => criticalTables.includes(t));
+      if (criticalFailed.length > 0) {
+        throw new Error(`Critical tables failed to import: ${criticalFailed.join(', ')}`);
       }
     }
 
@@ -220,19 +240,21 @@ router.post('/api/data-integrity/resync-from-production', isAdmin, async (req, r
 
     const { stdout: userCount } = await execFileAsync('psql', [localUrl, '-t', '-A', '-c', 'SELECT count(*) FROM users;'], { timeout: 10000 });
     const { stdout: bookingCount } = await execFileAsync('psql', [localUrl, '-t', '-A', '-c', 'SELECT count(*) FROM booking_requests;'], { timeout: 10000 });
+    const { stdout: staffCount } = await execFileAsync('psql', [localUrl, '-t', '-A', '-c', 'SELECT count(*) FROM staff_users;'], { timeout: 10000 });
 
-    const summary = `Synced ${imported} tables (${failed.length} failed). Local DB now has ${userCount.trim()} users, ${bookingCount.trim()} bookings.`;
+    const summary = `Synced ${imported} tables (${failed.length} failed). Local DB: ${userCount.trim()} users, ${bookingCount.trim()} bookings, ${staffCount.trim()} staff.`;
     logger.info(`[DevSync] ${summary}`);
 
     logFromRequest(req, 'dev_resync_from_production', 'system', undefined, summary);
 
     res.json({
-      success: true,
+      success: failed.length === 0,
       message: summary,
       tables: imported,
       failed: failed.length > 0 ? failed : undefined,
       users: parseInt(userCount.trim(), 10),
       bookings: parseInt(bookingCount.trim(), 10),
+      staff: parseInt(staffCount.trim(), 10),
     });
   } catch (error: unknown) {
     logger.error('[DevSync] Resync failed', { error: error instanceof Error ? error : new Error(String(error)) });
