@@ -100,14 +100,17 @@ export async function acquireBookingLocks(
     logger.debug('[BookingGuard] Acquired user lock', { extra: { email: normalizedEmail } });
   }
 
-  if (needsUserLock && resourceType !== 'conference_room') {
+  const pendingLimit = resourceType === 'conference_room' ? 5 : 1;
+  if (needsUserLock) {
     const pendingCheck = await tx.execute(sql`
       SELECT COUNT(*)::int AS cnt FROM booking_requests
       WHERE LOWER(user_email) = ${normalizedEmail} AND status IN ('pending', 'pending_approval')
     `);
-    if ((pendingCheck.rows[0] as Record<string, unknown>).cnt as number > 0) {
+    if ((pendingCheck.rows[0] as Record<string, unknown>).cnt as number >= pendingLimit) {
       throw new BookingConflictError(409, {
-        error: 'You already have a pending request. Please wait for it to be approved or denied before requesting another slot.'
+        error: resourceType === 'conference_room'
+          ? 'You have too many pending conference room requests. Please wait for some to be processed before submitting more.'
+          : 'You already have a pending request. Please wait for it to be approved or denied before requesting another slot.'
       });
     }
   }

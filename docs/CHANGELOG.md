@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.16] - 2026-03-24
+
+### Payment Safety & Booking Guard Hardening
+- **Array mutation fix**: `generatePaymentIdempotencyKey` in `server/core/stripe/payments.ts` now copies the `participantIds` array before sorting (`[...participantIds].sort(...)`) to prevent mutating the caller's array.
+- **Zero-dollar charge guard**: `createPaymentIntent` and `chargeWithBalance` in `server/core/stripe/payments.ts` now short-circuit with a synthetic success when `amountCents <= 0`, preventing a Stripe 400 error when a member has a 100% discount or comp.
+- **Conference room pending limit**: `bookingCreationGuard.ts` now enforces a limit of 5 pending conference room requests per user (previously unlimited). Simulator bookings retain the existing 1-pending limit.
+- **Files changed**: `server/core/stripe/payments.ts`, `server/core/bookingService/bookingCreationGuard.ts`
+
 ## [8.97.15] - 2026-03-24
 
 ### Self-Serve Checkout Visibility Fix

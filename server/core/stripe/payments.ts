@@ -51,7 +51,7 @@ export function generatePaymentIdempotencyKey(
   participantIds: number[],
   amountCents: number
 ): string {
-  const data = `${bookingId}-${sessionId || 'none'}-${participantIds.sort((a, b) => a - b).join(',')}-${amountCents}`;
+  const data = `${bookingId}-${sessionId || 'none'}-${[...participantIds].sort((a, b) => a - b).join(',')}-${amountCents}`;
   return crypto.createHash('sha256').update(data).digest('hex').substring(0, 32);
 }
 
@@ -96,6 +96,16 @@ export async function createPaymentIntent(
     productName,
     stripeCustomerId
   } = params;
+
+  if (amountCents <= 0) {
+    logger.info(`[Stripe] Skipping zero-dollar charge for ${purpose}, booking #${bookingId || 'none'}`);
+    return {
+      paymentIntentId: `pi_zero_${purpose}_${bookingId || 'none'}_${Date.now()}`,
+      clientSecret: '',
+      customerId: stripeCustomerId || '',
+      status: 'succeeded',
+    };
+  }
 
   let customerId: string;
   if (stripeCustomerId) {
@@ -594,6 +604,16 @@ export async function createBalanceAwarePayment(params: {
   error?: string;
 }> {
   const { stripeCustomerId, userId, email, memberName: _memberName, amountCents, purpose, description, bookingId, sessionId, metadata = {} } = params;
+
+  if (amountCents <= 0) {
+    logger.info(`[Stripe] Skipping zero-dollar balance charge for ${purpose}, booking #${bookingId || 'none'}`);
+    return {
+      paidInFull: true,
+      totalCents: 0,
+      balanceApplied: 0,
+      remainingCents: 0,
+    };
+  }
 
   try {
     const stripe = await getStripeClient();

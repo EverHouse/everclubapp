@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.16",
+    date: "2026-03-24",
+    title: "Payment Safety & Booking Guard Hardening",
+    changes: [
+      "Fixed: Array mutation in payment idempotency key generation no longer modifies caller's participant ID order",
+      "Fixed: Zero-dollar charges (from 100% discounts or comps) now gracefully bypass Stripe instead of crashing with a 400 error",
+      "Fixed: Conference room booking requests now enforce a limit of 5 pending requests per user instead of allowing unlimited submissions",
+    ]
+  },
+  {
     version: "8.97.15",
     date: "2026-03-24",
     title: "Self-Serve Checkout Visibility Fix",
