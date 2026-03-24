@@ -6,6 +6,7 @@ import { PRICING, getCorporateVolumeTiers, getCorporateBasePrice, updateCorporat
 import { getErrorMessage } from '../../utils/errorUtils';
 import { logger } from '../logger';
 import { markAppOriginated } from './appOriginTracker';
+import { findExistingStripeProduct } from './productHelpers';
 
 export async function ensureSimulatorOverageProduct(): Promise<{
   success: boolean;
@@ -85,21 +86,33 @@ export async function ensureSimulatorOverageProduct(): Promise<{
     }
 
     if (!stripeProductId) {
-      const product = await stripe.products.create({
-        name: OVERAGE_NAME,
-        description: OVERAGE_DESCRIPTION,
-        metadata: {
-          tier_id: tierId.toString(),
-          tier_slug: OVERAGE_SLUG,
-          product_type: 'one_time',
-          fee_type: 'simulator_overage',
-          app_category: 'fee',
-        },
-      }, {
-        idempotencyKey: `product_overage_${OVERAGE_SLUG}`
-      });
-      stripeProductId = product.id;
-      logger.info(`[Overage Product] Created Stripe product: ${stripeProductId}`);
+      const found = await findExistingStripeProduct(stripe, OVERAGE_NAME, 'tier_slug', OVERAGE_SLUG);
+      if (found) {
+        stripeProductId = found.id;
+        if (found.default_price && typeof found.default_price === 'string') {
+          stripePriceId = found.default_price;
+        } else if (found.default_price && typeof found.default_price === 'object') {
+          stripePriceId = found.default_price.id;
+        }
+        logger.info(`[Overage Product] Re-linked existing Stripe product: ${stripeProductId}${stripePriceId ? `, price: ${stripePriceId}` : ''}`);
+      } else {
+        const product = await stripe.products.create({
+          name: OVERAGE_NAME,
+          description: OVERAGE_DESCRIPTION,
+          metadata: {
+            tier_id: tierId.toString(),
+            tier_slug: OVERAGE_SLUG,
+            product_type: 'one_time',
+            fee_type: 'simulator_overage',
+            app_category: 'fee',
+            source: 'ever_house_app',
+          },
+        }, {
+          idempotencyKey: `product_overage_${OVERAGE_SLUG}`
+        });
+        stripeProductId = product.id;
+        logger.info(`[Overage Product] Created Stripe product: ${stripeProductId}`);
+      }
     }
     
     if (stripePriceId) {
@@ -251,21 +264,33 @@ export async function ensureGuestPassProduct(): Promise<{
     }
 
     if (!stripeProductId) {
-      const product = await stripe.products.create({
-        name: GUEST_PASS_NAME,
-        description: GUEST_PASS_DESCRIPTION,
-        metadata: {
-          tier_id: tierId.toString(),
-          tier_slug: GUEST_PASS_SLUG,
-          product_type: 'one_time',
-          fee_type: 'guest_pass',
-          app_category: 'fee',
-        },
-      }, {
-        idempotencyKey: `product_guest_pass_${GUEST_PASS_SLUG}`
-      });
-      stripeProductId = product.id;
-      logger.info(`[Guest Pass Product] Created Stripe product: ${stripeProductId}`);
+      const found = await findExistingStripeProduct(stripe, GUEST_PASS_NAME, 'tier_slug', GUEST_PASS_SLUG);
+      if (found) {
+        stripeProductId = found.id;
+        if (found.default_price && typeof found.default_price === 'string') {
+          stripePriceId = found.default_price;
+        } else if (found.default_price && typeof found.default_price === 'object') {
+          stripePriceId = found.default_price.id;
+        }
+        logger.info(`[Guest Pass Product] Re-linked existing Stripe product: ${stripeProductId}${stripePriceId ? `, price: ${stripePriceId}` : ''}`);
+      } else {
+        const product = await stripe.products.create({
+          name: GUEST_PASS_NAME,
+          description: GUEST_PASS_DESCRIPTION,
+          metadata: {
+            tier_id: tierId.toString(),
+            tier_slug: GUEST_PASS_SLUG,
+            product_type: 'one_time',
+            fee_type: 'guest_pass',
+            app_category: 'fee',
+            source: 'ever_house_app',
+          },
+        }, {
+          idempotencyKey: `product_guest_pass_${GUEST_PASS_SLUG}`
+        });
+        stripeProductId = product.id;
+        logger.info(`[Guest Pass Product] Created Stripe product: ${stripeProductId}`);
+      }
     }
     
     if (stripePriceId) {
@@ -425,21 +450,33 @@ export async function ensureDayPassCoworkingProduct(): Promise<{
     }
     
     if (!stripeProductId) {
-      const product = await stripe.products.create({
-        name: COWORKING_NAME,
-        description: COWORKING_DESCRIPTION,
-        metadata: {
-          tier_id: tierId.toString(),
-          tier_slug: COWORKING_SLUG,
-          product_type: 'one_time',
-          fee_type: 'day_pass_coworking',
-          app_category: 'fee',
-        },
-      }, {
-        idempotencyKey: `product_daypass_${COWORKING_SLUG}`
-      });
-      stripeProductId = product.id;
-      logger.info(`[Day Pass Coworking Product] Created Stripe product: ${stripeProductId}`);
+      const found = await findExistingStripeProduct(stripe, COWORKING_NAME, 'tier_slug', COWORKING_SLUG);
+      if (found) {
+        stripeProductId = found.id;
+        if (found.default_price && typeof found.default_price === 'string') {
+          stripePriceId = found.default_price;
+        } else if (found.default_price && typeof found.default_price === 'object') {
+          stripePriceId = found.default_price.id;
+        }
+        logger.info(`[Day Pass Coworking Product] Re-linked existing Stripe product: ${stripeProductId}${stripePriceId ? `, price: ${stripePriceId}` : ''}`);
+      } else {
+        const product = await stripe.products.create({
+          name: COWORKING_NAME,
+          description: COWORKING_DESCRIPTION,
+          metadata: {
+            tier_id: tierId.toString(),
+            tier_slug: COWORKING_SLUG,
+            product_type: 'one_time',
+            fee_type: 'day_pass_coworking',
+            app_category: 'fee',
+            source: 'ever_house_app',
+          },
+        }, {
+          idempotencyKey: `product_daypass_${COWORKING_SLUG}`
+        });
+        stripeProductId = product.id;
+        logger.info(`[Day Pass Coworking Product] Created Stripe product: ${stripeProductId}`);
+      }
     }
     
     if (!stripePriceId) {
@@ -571,21 +608,33 @@ export async function ensureDayPassGolfSimProduct(): Promise<{
     }
     
     if (!stripeProductId) {
-      const product = await stripe.products.create({
-        name: GOLF_SIM_NAME,
-        description: GOLF_SIM_DESCRIPTION,
-        metadata: {
-          tier_id: tierId.toString(),
-          tier_slug: GOLF_SIM_SLUG,
-          product_type: 'one_time',
-          fee_type: 'day_pass_golf_sim',
-          app_category: 'fee',
-        },
-      }, {
-        idempotencyKey: `product_daypass_${GOLF_SIM_SLUG}`
-      });
-      stripeProductId = product.id;
-      logger.info(`[Day Pass Golf Sim Product] Created Stripe product: ${stripeProductId}`);
+      const found = await findExistingStripeProduct(stripe, GOLF_SIM_NAME, 'tier_slug', GOLF_SIM_SLUG);
+      if (found) {
+        stripeProductId = found.id;
+        if (found.default_price && typeof found.default_price === 'string') {
+          stripePriceId = found.default_price;
+        } else if (found.default_price && typeof found.default_price === 'object') {
+          stripePriceId = found.default_price.id;
+        }
+        logger.info(`[Day Pass Golf Sim Product] Re-linked existing Stripe product: ${stripeProductId}${stripePriceId ? `, price: ${stripePriceId}` : ''}`);
+      } else {
+        const product = await stripe.products.create({
+          name: GOLF_SIM_NAME,
+          description: GOLF_SIM_DESCRIPTION,
+          metadata: {
+            tier_id: tierId.toString(),
+            tier_slug: GOLF_SIM_SLUG,
+            product_type: 'one_time',
+            fee_type: 'day_pass_golf_sim',
+            app_category: 'fee',
+            source: 'ever_house_app',
+          },
+        }, {
+          idempotencyKey: `product_daypass_${GOLF_SIM_SLUG}`
+        });
+        stripeProductId = product.id;
+        logger.info(`[Day Pass Golf Sim Product] Created Stripe product: ${stripeProductId}`);
+      }
     }
     
     if (!stripePriceId) {
