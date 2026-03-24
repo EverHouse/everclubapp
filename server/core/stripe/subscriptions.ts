@@ -271,8 +271,8 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
           (productRef && isExpandedProduct(productRef) ? productRef.name : '');
         
         let pendingUpdate: { newPriceId: string; newProductName: string; effectiveAt: Date } | null = null;
-        if (sub.pending_update?.subscription_items && (sub.pending_update.subscription_items as unknown as { data: Stripe.SubscriptionItem[] }).data.length > 0) {
-          const pendingItem = (sub.pending_update.subscription_items as unknown as { data: Stripe.SubscriptionItem[] }).data[0];
+        if (sub.pending_update?.subscription_items && (sub.pending_update.subscription_items as unknown as Stripe.SubscriptionItem[]).length > 0) {
+          const pendingItem = (sub.pending_update.subscription_items as unknown as Stripe.SubscriptionItem[])[0];
           const pendingPriceRef = pendingItem?.price;
           const pendingPriceId = typeof pendingPriceRef === 'string' 
             ? pendingPriceRef 

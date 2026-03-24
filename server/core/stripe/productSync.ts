@@ -107,7 +107,7 @@ export async function syncMembershipTiersToStripe(): Promise<{
                 };
                 markAppOriginated(stripeProductId);
                 const newPrice = await stripe.prices.create(priceParams, {
-                  idempotencyKey: `price_replace_inactive_${tier.id}_${tier.priceCents}_${Date.now()}`
+                  idempotencyKey: `price_replace_inactive_${tier.id}_${tier.priceCents}_${billingInterval}`
                 });
                 stripePriceId = newPrice.id;
                 priceChanged = true;
@@ -124,7 +124,7 @@ export async function syncMembershipTiersToStripe(): Promise<{
                 };
                 markAppOriginated(stripeProductId);
                 const newPrice = await stripe.prices.create(priceParams, {
-                  idempotencyKey: `price_replace_changed_${tier.id}_${tier.priceCents}_${Date.now()}`
+                  idempotencyKey: `price_replace_changed_${tier.id}_${tier.priceCents}_${billingInterval}`
                 });
                 stripePriceId = newPrice.id;
                 priceChanged = true;
@@ -143,7 +143,7 @@ export async function syncMembershipTiersToStripe(): Promise<{
                 };
                 markAppOriginated(stripeProductId);
                 const newPrice = await stripe.prices.create(priceParams, {
-                  idempotencyKey: `price_replace_missing_${tier.id}_${tier.priceCents}_${Date.now()}`
+                  idempotencyKey: `price_replace_missing_${tier.id}_${tier.priceCents}_${billingInterval}`
                 });
                 stripePriceId = newPrice.id;
                 priceChanged = true;

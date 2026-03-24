@@ -299,8 +299,8 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
     if (status === 'active') {
       const isReactivation = previousAttributes?.status && ['past_due', 'unpaid', 'suspended'].includes(previousAttributes.status);
       const allowedStatuses = isReactivation
-        ? ['pending', 'inactive', 'non-member', 'past_due', 'trialing', 'suspended']
-        : ['pending', 'inactive', 'non-member', 'past_due', 'trialing'];
+        ? ['active', 'pending', 'inactive', 'non-member', 'past_due', 'trialing', 'suspended']
+        : ['active', 'pending', 'inactive', 'non-member', 'past_due', 'trialing'];
 
       const activeResult = await client.query(
         `UPDATE users SET membership_status = 'active', billing_provider = 'stripe', stripe_current_period_end = COALESCE($2, stripe_current_period_end),
