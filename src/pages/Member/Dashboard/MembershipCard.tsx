@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getTierColor, isLightTierBackground } from '../../../utils/tierUtils';
 import { formatMemberSince } from '../../../utils/dateUtils';
 import { apiRequestBlob } from '../../../lib/apiRequest';
@@ -7,6 +7,7 @@ import ModalShell from '../../../components/ModalShell';
 import MetricsGrid from '../../../components/MetricsGrid';
 import type { GuestPasses, DashboardWellnessClass, DashboardEvent } from './dashboardTypes';
 import Icon from '../../../components/icons/Icon';
+import QRCode from 'qrcode';
 
 interface UserLike {
   id?: string | number;
@@ -202,16 +203,7 @@ const MembershipDetailsModal: React.FC<MembershipDetailsModalProps> = ({
           </div>
 
           {!isExpiredModal && user.id && (
-            <div className="px-6 pb-2 flex flex-col items-center" style={{ backgroundColor: cardBgColor }}>
-              <div className="bg-white p-2.5 rounded-xl shadow-md flex items-center justify-center" style={{ width: '55%', aspectRatio: '1' }}>
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`MEMBER:${user.id}`)}`}
-                  alt="Member QR Code"
-                  className="w-full h-full"
-                />
-              </div>
-              <p className="text-xs mt-1.5 opacity-50" style={{ color: cardTextColor }}>Show for quick check-in</p>
-            </div>
+            <LocalQrCode userId={user.id} cardTextColor={cardTextColor} cardBgColor={cardBgColor} />
           )}
 
           <div className="px-6 pb-6" style={{ backgroundColor: cardBgColor }}>
@@ -318,5 +310,27 @@ const MembershipDetailsModal: React.FC<MembershipDetailsModalProps> = ({
         </div>
       </div>
     </ModalShell>
+  );
+};
+
+const LocalQrCode: React.FC<{ userId: string | number; cardTextColor: string; cardBgColor: string }> = ({ userId, cardTextColor, cardBgColor }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    QRCode.toCanvas(canvas, `MEMBER:${userId}`, { width: 200, margin: 1 }, (err) => {
+      if (!err) setReady(true);
+    });
+  }, [userId]);
+
+  return (
+    <div className="px-6 pb-2 flex flex-col items-center" style={{ backgroundColor: cardBgColor }}>
+      <div className="bg-white p-2.5 rounded-xl shadow-md flex items-center justify-center" style={{ width: '55%', aspectRatio: '1' }}>
+        <canvas ref={canvasRef} className="w-full h-full" style={{ display: ready ? 'block' : 'none' }} />
+      </div>
+      <p className="text-xs mt-1.5 opacity-50" style={{ color: cardTextColor }}>Show for quick check-in</p>
+    </div>
   );
 };

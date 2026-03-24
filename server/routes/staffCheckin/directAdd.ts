@@ -463,10 +463,13 @@ router.post('/api/staff/qr-checkin', isStaffOrAdmin, async (req: Request, res: R
           LEFT JOIN resources r ON br.resource_id = r.id
           WHERE (LOWER(br.user_email) = LOWER(${result.memberEmail})
                  OR LOWER(br.user_email) IN (SELECT LOWER(ule.linked_email) FROM user_linked_emails ule WHERE LOWER(ule.primary_email) = LOWER(${result.memberEmail}))
-                 OR LOWER(br.user_email) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = LOWER(${result.memberEmail})))
-            AND br.request_date = (CURRENT_DATE AT TIME ZONE 'America/Chicago')::date
+                 OR LOWER(br.user_email) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = LOWER(${result.memberEmail}))
+                 OR LOWER(br.user_email) IN (SELECT LOWER(mle.linked_email) FROM unnest(
+                   (SELECT u2.manually_linked_emails FROM users u2 WHERE LOWER(u2.email) = LOWER(${result.memberEmail}) AND u2.manually_linked_emails IS NOT NULL LIMIT 1)
+                 ) AS mle(linked_email)))
+            AND br.request_date = (CURRENT_DATE AT TIME ZONE 'America/Los_Angeles')::date
             AND br.status IN ('approved', 'confirmed')
-          ORDER BY ABS(EXTRACT(EPOCH FROM (br.start_time::time - (CURRENT_TIME AT TIME ZONE 'America/Chicago')::time))) ASC
+          ORDER BY ABS(EXTRACT(EPOCH FROM (br.start_time::time - (CURRENT_TIME AT TIME ZONE 'America/Los_Angeles')::time))) ASC
           LIMIT 1
         `);
 

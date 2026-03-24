@@ -210,6 +210,23 @@ export async function runStartupTasks(): Promise<void> {
     })(),
     (async () => {
       try {
+        await db.execute(sql`
+          INSERT INTO system_settings (key, value, category, updated_at, updated_by)
+          VALUES ('scheduling.onboarding_nudge_hour', '10', 'scheduling', NOW(), 'system')
+          ON CONFLICT (key) DO NOTHING
+        `);
+        await db.execute(sql`
+          INSERT INTO system_settings (key, value, category, updated_at, updated_by)
+          VALUES ('scheduling.max_onboarding_nudges', '3', 'scheduling', NOW(), 'system')
+          ON CONFLICT (key) DO NOTHING
+        `);
+        logger.info('[Startup] Onboarding nudge settings seeded');
+      } catch (err: unknown) {
+        logger.warn('[Startup] Onboarding nudge settings seed failed (non-critical)', { error: getErrorMessage(err) });
+      }
+    })(),
+    (async () => {
+      try {
         await createStripeTransactionCache();
       } catch (err: unknown) {
         logger.error('[Startup] Creating stripe transaction cache failed', { error: getErrorMessage(err) });

@@ -78,15 +78,28 @@ function appendSearchPath(connString: string | undefined): string | undefined {
 
 const mainConnString = appendSearchPath(usingPooler ? poolerUrl : directUrl);
 
+const poolMax = parseInt(process.env.DB_POOL_MAX || '25', 10);
+
 const basePool = new Pool({
   connectionString: mainConnString,
-  connectionTimeoutMillis: 15000,
+  connectionTimeoutMillis: 30000,
   idleTimeoutMillis: 30000,
-  max: parseInt(process.env.DB_POOL_MAX || '60', 10),
+  max: poolMax,
   ssl: needsSsl ? sslConfig : undefined,
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
   allowExitOnIdle: true,
+});
+
+logger.info(`[Database] Pool configured: max=${poolMax}, connectionTimeout=30s, idle=30s`);
+
+basePool.on('connect', () => {
+  const { totalCount, idleCount, waitingCount } = basePool;
+  if (waitingCount > 0 || totalCount >= poolMax - 2) {
+    logger.warn('[Database] Pool near exhaustion', {
+      extra: { total: totalCount, idle: idleCount, waiting: waitingCount, max: poolMax },
+    });
+  }
 });
 
 if (needsSsl) {

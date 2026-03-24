@@ -21,6 +21,9 @@ export async function getSettingValue(key: string, defaultValue?: string): Promi
     return value;
   } catch (error) {
     logger.error(`[Settings Helper] Failed to read setting ${key}`, { error: error as Error });
+    if (defaultValue !== undefined) {
+      settingsCache.set(key, { value: defaultValue, fetchedAt: Date.now() });
+    }
     return defaultValue;
   }
 }

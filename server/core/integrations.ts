@@ -156,7 +156,7 @@ export async function getHubSpotClientWithFallback(): Promise<{ client: Client; 
   return { client: new Client({ accessToken: accessToken as string }), source: 'connector' };
 }
 
-async function fetchGoogleCalendarToken(): Promise<string> {
+async function fetchGoogleCalendarTokenOnce(): Promise<string> {
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME || 'connectors.replit.com';
   const xReplitToken = process.env.REPL_IDENTITY 
     ? 'repl ' + process.env.REPL_IDENTITY 
@@ -195,6 +195,33 @@ async function fetchGoogleCalendarToken(): Promise<string> {
     throw new Error('Google Calendar not connected');
   }
   return accessToken as string;
+}
+
+async function fetchGoogleCalendarToken(): Promise<string> {
+  const MAX_RETRIES = 3;
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const token = await fetchGoogleCalendarTokenOnce();
+      if (attempt > 1) {
+        logger.info(`[Google Calendar] Token fetch succeeded on attempt ${attempt}/${MAX_RETRIES}`);
+      }
+      return token;
+    } catch (error: unknown) {
+      lastError = error;
+      if (attempt < MAX_RETRIES) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        logger.warn(`[Google Calendar] Token fetch failed (attempt ${attempt}/${MAX_RETRIES}), retrying in ${delay}ms`, {
+          extra: { error: error instanceof Error ? error.message : String(error) },
+        });
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  logger.error(`[Google Calendar] Token fetch failed after ${MAX_RETRIES} attempts`);
+  throw lastError;
 }
 
 async function getGoogleCalendarAccessToken() {

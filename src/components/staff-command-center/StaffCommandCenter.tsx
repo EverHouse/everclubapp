@@ -245,8 +245,14 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
           showToast(result.error || 'Check-in failed', 'error');
         }
       } catch (err: unknown) {
-        playSound('checkinWarning');
-        showToast(err instanceof Error ? err.message : 'Failed to process check-in', 'error');
+        const apiErr = err as { errorData?: { alreadyCheckedIn?: boolean } };
+        if (apiErr?.errorData?.alreadyCheckedIn) {
+          playSound('tap');
+          showToast('This member was already checked in less than 2 minutes ago', 'info');
+        } else {
+          playSound('checkinWarning');
+          showToast(err instanceof Error ? err.message : 'Failed to process check-in', 'error');
+        }
       }
       return;
     }
