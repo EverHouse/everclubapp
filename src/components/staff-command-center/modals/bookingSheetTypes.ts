@@ -44,6 +44,34 @@ export interface FinancialSummary {
   grandTotal: number;
   playerBreakdown: Array<{ name: string; tier: string | null; /** Fee amount in cents */ fee: number; feeNote: string; membershipStatus?: string | null }>;
   allPaid?: boolean;
+  timeAllocation?: {
+    totalMinutes: number;
+    declaredPlayerCount: number;
+    minutesPerParticipant: number;
+    allocations: Array<{
+      displayName: string;
+      type: string;
+      minutes: number;
+      feeCents?: number;
+      guestPassUsed?: boolean;
+    }>;
+  };
+  ownerFees?: {
+    tier: string | null;
+    dailyAllowance: number;
+    minutesWithinAllowance: number;
+    overageMinutes: number;
+    overageBlocks: number;
+    overageRatePerBlock: number;
+    estimatedOverageFee: number;
+    estimatedGuestFees: number;
+    isUnlimited: boolean;
+  };
+  guestFeeBreakdown?: {
+    guestsWithoutPass: number;
+    guestFeePerGuest: number;
+    guestPassesUsed: number;
+  };
 }
 
 export interface BookingContextType {

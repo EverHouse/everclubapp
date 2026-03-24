@@ -1157,15 +1157,59 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         passesRemainingAfterBooking: guestPassesRemainingAfterBooking,
         guestsWithoutPasses: guestsWithFees.filter(g => !g.usedGuestPass).length
       },
-      financialSummary: {
-        ownerOverageFee,
-        guestFeesWithoutPass,
-        totalOwnerOwes: grandTotal,
-        totalPlayersOwe,
-        grandTotal,
-        playerBreakdown: playerBreakdownFromSession,
-        allPaid
-      }
+      financialSummary: (() => {
+        const timeAllocations = feeBreakdownResult.participants.map(li => ({
+          displayName: li.displayName,
+          type: li.participantType as string,
+          minutes: li.minutesAllocated,
+          feeCents: li.totalCents,
+          guestPassUsed: li.guestPassUsed || false,
+        }));
+        const ownerLineItem = feeBreakdownResult.participants.find(li => li.participantType === 'owner');
+        const ownerDailyAllowance = ownerLineItem?.dailyAllowance || ownerTierLimits?.daily_sim_minutes || 0;
+        const isOwnerUnlimited = ownerDailyAllowance >= 999 || (ownerTierLimits?.unlimited_access ?? false) || (ownerLineItem?.isStaff ?? false);
+        const ownerOverageMinutes = ownerLineItem && ownerLineItem.overageCents > 0
+          ? Math.ceil((ownerLineItem.overageCents / 100) / PRICING.OVERAGE_RATE_DOLLARS) * PRICING.OVERAGE_BLOCK_MINUTES
+          : 0;
+        const ownerOverageBlocks = ownerOverageMinutes > 0 ? Math.ceil(ownerOverageMinutes / PRICING.OVERAGE_BLOCK_MINUTES) : 0;
+        const minutesWithinAllowance = isOwnerUnlimited
+          ? feeBreakdownResult.metadata.sessionDuration
+          : Math.max(0, (ownerLineItem?.minutesAllocated || 0) - ownerOverageMinutes);
+        const guestsWithoutPassCount = feeBreakdownResult.participants.filter(li => li.participantType === 'guest' && !li.guestPassUsed && li.guestCents > 0).length;
+        const guestPassesUsedCount = feeBreakdownResult.totals.guestPassesUsed;
+
+        return {
+          ownerOverageFee,
+          guestFeesWithoutPass,
+          totalOwnerOwes: grandTotal,
+          totalPlayersOwe,
+          grandTotal,
+          playerBreakdown: playerBreakdownFromSession,
+          allPaid,
+          timeAllocation: {
+            totalMinutes: feeBreakdownResult.metadata.sessionDuration,
+            declaredPlayerCount: feeBreakdownResult.metadata.effectivePlayerCount,
+            minutesPerParticipant: perPersonMins,
+            allocations: timeAllocations,
+          },
+          ownerFees: {
+            tier: ownerTier,
+            dailyAllowance: ownerDailyAllowance,
+            minutesWithinAllowance,
+            overageMinutes: ownerOverageMinutes,
+            overageBlocks: ownerOverageBlocks,
+            overageRatePerBlock: PRICING.OVERAGE_RATE_DOLLARS,
+            estimatedOverageFee: ownerLineItem ? ownerLineItem.overageCents / 100 : 0,
+            estimatedGuestFees: guestFeesWithoutPass,
+            isUnlimited: isOwnerUnlimited,
+          },
+          guestFeeBreakdown: {
+            guestsWithoutPass: guestsWithoutPassCount,
+            guestFeePerGuest: PRICING.GUEST_FEE_DOLLARS,
+            guestPassesUsed: guestPassesUsedCount,
+          },
+        };
+      })()
     });
   } catch (error: unknown) {
     logger.error('Get booking members error', { error: error instanceof Error ? error : new Error(String(error)) });

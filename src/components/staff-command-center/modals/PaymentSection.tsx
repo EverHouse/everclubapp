@@ -26,6 +26,8 @@ export function PaymentSummaryBody({
     m => m.guestInfo && m.guestInfo.usedGuestPass === true && m.guestInfo.fee === 0
   ).length || 0;
 
+  const hasDetailedBreakdown = !!fs.timeAllocation && !!fs.ownerFees;
+
   return (
     <div className="p-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/5 dark:bg-white/5 space-y-2">
       <div className="flex items-center gap-2 mb-1">
@@ -39,47 +41,168 @@ export function PaymentSummaryBody({
         )}
       </div>
 
-      <div className="space-y-1 text-xs">
-        {fs.ownerOverageFee > 0 && (
-          <div className="flex justify-between text-primary/70 dark:text-white/70">
-            <span>Owner overage fee</span>
-            <span>${fs.ownerOverageFee.toFixed(2)}</span>
+      {hasDetailedBreakdown ? (
+        <div className="space-y-1.5 text-xs">
+          <div className="space-y-1">
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-primary/50 dark:text-white/50">
+              Time Allocation
+            </div>
+            {fs.timeAllocation!.allocations.map((alloc, idx) => {
+              const isGuest = alloc.type === 'guest';
+              const isGuestWithPass = isGuest && alloc.guestPassUsed;
+              const isGuestWithFee = isGuest && !alloc.guestPassUsed && (alloc.feeCents ?? 0) > 0;
+              return (
+                <div key={idx} className="flex justify-between text-primary/60 dark:text-white/60">
+                  <span className="flex items-center gap-1">
+                    {isGuestWithPass && (
+                      <Icon name="confirmation_number" className="text-xs text-emerald-600 dark:text-emerald-400" />
+                    )}
+                    {alloc.displayName}
+                    {isGuestWithPass && (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400">(pass)</span>
+                    )}
+                    {isGuestWithFee && fs.guestFeeBreakdown && (
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400">(${fs.guestFeeBreakdown.guestFeePerGuest} fee)</span>
+                    )}
+                  </span>
+                  <span className="font-medium text-primary/80 dark:text-white/80">{alloc.minutes} min</span>
+                </div>
+              );
+            })}
           </div>
-        )}
-        {fs.guestFeesWithoutPass > 0 && (
-          <div className="flex justify-between text-primary/70 dark:text-white/70">
-            <span>Guest fees (no pass)</span>
-            <span>${fs.guestFeesWithoutPass.toFixed(2)}</span>
+
+          <div className="pt-1.5 border-t border-primary/10 dark:border-white/10">
+            <div className="flex justify-between text-primary/70 dark:text-white/70">
+              <span>Total Session</span>
+              <span className="font-medium">{fs.timeAllocation!.totalMinutes} min</span>
+            </div>
           </div>
-        )}
-        {guestPassesUsed > 0 && (
-          <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-            <span>Guest passes used</span>
-            <span>{guestPassesUsed}</span>
-          </div>
-        )}
-        {fs.playerBreakdown && fs.playerBreakdown.length > 0 && (
-          <div className="pt-1 border-t border-primary/10 dark:border-white/10 space-y-0.5">
-            {fs.playerBreakdown.map((p, idx) => (
-              <div key={idx} className="flex justify-between text-primary/60 dark:text-white/60">
-                <span className="flex items-center gap-1">
-                  {p.name}
-                  {renderTierBadge(p.tier, p.membershipStatus)}
-                </span>
-                <span className={isStaffTier(p.tier) ? 'text-blue-600 dark:text-blue-400' : ''}>
-                  {isStaffTier(p.tier) ? '$0.00 — Staff — included' : p.fee > 0 ? `$${p.fee.toFixed(2)}` : p.feeNote || 'Included'}
-                </span>
+
+          {!fs.ownerFees!.isUnlimited && (fs.ownerFees!.dailyAllowance > 0 || fs.ownerFees!.overageMinutes > 0) && (
+            <>
+              <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                <span>Included (daily)</span>
+                <span className="font-medium">{fs.ownerFees!.minutesWithinAllowance} min</span>
               </div>
-            ))}
-          </div>
-        )}
-        {fs.grandTotal > 0 && fs.grandTotal !== fs.totalOwnerOwes && (
-          <div className="pt-1 border-t border-primary/10 dark:border-white/10 flex justify-between text-primary/70 dark:text-white/70">
-            <span>Grand Total</span>
-            <span>${fs.grandTotal.toFixed(2)}</span>
-          </div>
-        )}
-      </div>
+
+              {fs.ownerFees!.overageMinutes > 0 && (
+                <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                  <span>
+                    Overage
+                    {fs.ownerFees!.overageBlocks > 0 && (
+                      <span className="text-[10px] opacity-70 ml-1">
+                        ({fs.ownerFees!.overageBlocks} × ${fs.ownerFees!.overageRatePerBlock})
+                      </span>
+                    )}
+                  </span>
+                  <span className="font-medium">{fs.ownerFees!.overageMinutes} min</span>
+                </div>
+              )}
+
+              {fs.ownerFees!.estimatedOverageFee > 0 && (
+                <div className="pt-1 border-t border-primary/10 dark:border-white/10 flex justify-between text-amber-600 dark:text-amber-400 font-semibold">
+                  <span>Est. Overage Fee</span>
+                  <span>${fs.ownerFees!.estimatedOverageFee.toFixed(2)}</span>
+                </div>
+              )}
+            </>
+          )}
+
+          {fs.ownerFees!.isUnlimited && (
+            <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+              <span>Unlimited access</span>
+              <span className="font-medium">$0.00</span>
+            </div>
+          )}
+
+          {fs.guestFeeBreakdown && fs.guestFeeBreakdown.guestsWithoutPass > 0 && (
+            <div className="flex justify-between text-primary/70 dark:text-white/70">
+              <span>
+                Guest fees
+                <span className="text-[10px] opacity-70 ml-1">
+                  ({fs.guestFeeBreakdown.guestsWithoutPass} × ${fs.guestFeeBreakdown.guestFeePerGuest})
+                </span>
+              </span>
+              <span className="font-medium">${fs.guestFeesWithoutPass.toFixed(2)}</span>
+            </div>
+          )}
+
+          {guestPassesUsed > 0 && (
+            <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+              <span>Guest passes used</span>
+              <span className="font-medium">{guestPassesUsed}</span>
+            </div>
+          )}
+
+          {fs.playerBreakdown && fs.playerBreakdown.length > 0 && (
+            <div className="pt-1.5 border-t border-primary/10 dark:border-white/10 space-y-0.5">
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-primary/50 dark:text-white/50">
+                Player Breakdown
+              </div>
+              {fs.playerBreakdown.map((p, idx) => (
+                <div key={idx} className="flex justify-between text-primary/60 dark:text-white/60">
+                  <span className="flex items-center gap-1">
+                    {p.name}
+                    {renderTierBadge(p.tier, p.membershipStatus)}
+                  </span>
+                  <span className={isStaffTier(p.tier) ? 'text-blue-600 dark:text-blue-400' : ''}>
+                    {isStaffTier(p.tier) ? '$0.00 — Staff — included' : p.fee > 0 ? `$${p.fee.toFixed(2)}` : p.feeNote || 'Included'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {fs.grandTotal > 0 && (
+            <div className="pt-1.5 border-t border-primary/10 dark:border-white/10 flex justify-between text-primary dark:text-white font-semibold text-sm">
+              <span>Estimated Total</span>
+              <span>${fs.grandTotal.toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-1 text-xs">
+          {fs.ownerOverageFee > 0 && (
+            <div className="flex justify-between text-primary/70 dark:text-white/70">
+              <span>Owner overage fee</span>
+              <span>${fs.ownerOverageFee.toFixed(2)}</span>
+            </div>
+          )}
+          {fs.guestFeesWithoutPass > 0 && (
+            <div className="flex justify-between text-primary/70 dark:text-white/70">
+              <span>Guest fees (no pass)</span>
+              <span>${fs.guestFeesWithoutPass.toFixed(2)}</span>
+            </div>
+          )}
+          {guestPassesUsed > 0 && (
+            <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+              <span>Guest passes used</span>
+              <span>{guestPassesUsed}</span>
+            </div>
+          )}
+          {fs.playerBreakdown && fs.playerBreakdown.length > 0 && (
+            <div className="pt-1 border-t border-primary/10 dark:border-white/10 space-y-0.5">
+              {fs.playerBreakdown.map((p, idx) => (
+                <div key={idx} className="flex justify-between text-primary/60 dark:text-white/60">
+                  <span className="flex items-center gap-1">
+                    {p.name}
+                    {renderTierBadge(p.tier, p.membershipStatus)}
+                  </span>
+                  <span className={isStaffTier(p.tier) ? 'text-blue-600 dark:text-blue-400' : ''}>
+                    {isStaffTier(p.tier) ? '$0.00 — Staff — included' : p.fee > 0 ? `$${p.fee.toFixed(2)}` : p.feeNote || 'Included'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {fs.grandTotal > 0 && fs.grandTotal !== fs.totalOwnerOwes && (
+            <div className="pt-1 border-t border-primary/10 dark:border-white/10 flex justify-between text-primary/70 dark:text-white/70">
+              <span>Grand Total</span>
+              <span>${fs.grandTotal.toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {paymentSuccess && fs.allPaid && (
         <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-500/30 rounded-lg flex items-center gap-2">
