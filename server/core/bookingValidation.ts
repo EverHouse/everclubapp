@@ -5,6 +5,12 @@ import { parseAffectedAreasBatch } from './affectedAreas';
 import { logger } from './logger';
 import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
 
+function validateTimeParams(startTime: string, endTime: string): void {
+  if (!startTime || !endTime) {
+    throw new Error(`Missing required time parameters: startTime="${startTime}", endTime="${endTime}"`);
+  }
+}
+
 interface ClosureCacheEntry {
   closures: Record<string, unknown>[];
   expiry: number;
@@ -36,8 +42,19 @@ export function clearClosureCache(): void {
 
 export function parseTimeToMinutes(time: string | null | undefined): number {
   if (!time) return 0;
-  const parts = time.split(':').map(Number);
-  return (parts[0] || 0) * 60 + (parts[1] || 0);
+  const parts = time.split(':');
+  if (parts.length < 2) {
+    throw new Error(`Invalid time format: "${time}" (expected HH:MM)`);
+  }
+  const nums = parts.map(Number);
+  if (nums.some(p => isNaN(p))) {
+    throw new Error(`Invalid time format: "${time}" (non-numeric components)`);
+  }
+  const [hours, minutes] = nums;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    throw new Error(`Invalid time format: "${time}" (out of range)`);
+  }
+  return hours * 60 + minutes;
 }
 
 export function hasTimeOverlap(start1: number, end1: number, start2: number, end2: number): boolean {
@@ -100,6 +117,7 @@ export async function checkClosureConflict(
   txClient?: { select: typeof db.select, execute: typeof db.execute }
 ): Promise<{ hasConflict: boolean; closureTitle?: string }> {
   try {
+    validateTimeParams(startTime, endTime);
     const activeClosures = await getActiveClosuresForDate(bookingDate, txClient);
 
     const bookingStartMinutes = parseTimeToMinutes(startTime);
@@ -113,7 +131,7 @@ export async function checkClosureConflict(
       const closure = activeClosures[i];
       const affectedResourceIds = allAffectedIds[i];
 
-      if (!affectedResourceIds.includes(resourceId)) continue;
+      if (!affectedResourceIds.map(Number).includes(resourceId)) continue;
 
       if (!closure.startTime && !closure.endTime) {
         return { hasConflict: true, closureTitle: (closure.title as string) || 'Facility Closure' };
@@ -168,6 +186,7 @@ export async function checkBookingConflict(
   excludeBookingId?: number
 ): Promise<{ hasConflict: boolean; conflictingBooking?: Record<string, unknown>; conflictSource?: string }> {
   try {
+    validateTimeParams(startTime, endTime);
     const conditions = [
       eq(bookingRequests.resourceId, resourceId),
       sql`${bookingRequests.requestDate} = ${bookingDate}`,
@@ -180,10 +199,12 @@ export async function checkBookingConflict(
         eq(bookingRequests.status, 'attended'),
         eq(bookingRequests.status, 'cancellation_pending')
       ),
-      and(
-        sql`${bookingRequests.startTime}::time < ${endTime ?? null}::time`,
-        sql`${bookingRequests.endTime}::time > ${startTime ?? null}::time`
-      )
+      sql`(CASE
+        WHEN ${bookingRequests.startTime}::time > ${bookingRequests.endTime}::time AND ${startTime}::time > ${endTime}::time THEN true
+        WHEN ${bookingRequests.startTime}::time > ${bookingRequests.endTime}::time THEN (${bookingRequests.startTime}::time < ${endTime}::time OR ${bookingRequests.endTime}::time > ${startTime}::time)
+        WHEN ${startTime}::time > ${endTime}::time THEN (${startTime}::time < ${bookingRequests.endTime}::time OR ${endTime}::time > ${bookingRequests.startTime}::time)
+        ELSE (${bookingRequests.startTime}::time < ${endTime}::time AND ${bookingRequests.endTime}::time > ${startTime}::time)
+      END)`
     ];
 
     if (excludeBookingId) {
@@ -207,7 +228,12 @@ export async function checkBookingConflict(
         WHERE resource_id = ${resourceId}
         AND slot_date = ${bookingDate}
         AND status = 'booked'
-        AND start_time < ${endTime}::time AND end_time > ${startTime}::time
+        AND (CASE
+          WHEN start_time > end_time AND ${startTime}::time > ${endTime}::time THEN true
+          WHEN start_time > end_time THEN (start_time < ${endTime}::time OR end_time > ${startTime}::time)
+          WHEN ${startTime}::time > ${endTime}::time THEN (${startTime}::time < end_time OR ${endTime}::time > start_time)
+          ELSE (start_time < ${endTime}::time AND end_time > ${startTime}::time)
+        END)
         LIMIT 1
       `);
       if (trackmanBayResult.rows.length > 0) {
@@ -231,7 +257,12 @@ export async function checkBookingConflict(
           SELECT 1 FROM booking_requests br
           WHERE br.trackman_booking_id = tub.trackman_booking_id::text
         )
-        AND tub.start_time < ${endTime}::time AND tub.end_time > ${startTime}::time
+        AND (CASE
+          WHEN tub.start_time > tub.end_time AND ${startTime}::time > ${endTime}::time THEN true
+          WHEN tub.start_time > tub.end_time THEN (tub.start_time < ${endTime}::time OR tub.end_time > ${startTime}::time)
+          WHEN ${startTime}::time > ${endTime}::time THEN (${startTime}::time < tub.end_time OR ${endTime}::time > tub.start_time)
+          ELSE (tub.start_time < ${endTime}::time AND tub.end_time > ${startTime}::time)
+        END)
         LIMIT 1
       `);
       if (unmatchedResult.rows.length > 0) {
@@ -249,7 +280,12 @@ export async function checkBookingConflict(
         SELECT bs.id, bs.start_time, bs.end_time FROM booking_sessions bs
         WHERE bs.resource_id = ${resourceId}
         AND bs.session_date = ${bookingDate}
-        AND bs.start_time < ${endTime}::time AND bs.end_time > ${startTime}::time
+        AND (CASE
+          WHEN bs.start_time > bs.end_time AND ${startTime}::time > ${endTime}::time THEN true
+          WHEN bs.start_time > bs.end_time THEN (bs.start_time < ${endTime}::time OR bs.end_time > ${startTime}::time)
+          WHEN ${startTime}::time > ${endTime}::time THEN (${startTime}::time < bs.end_time OR ${endTime}::time > bs.start_time)
+          ELSE (bs.start_time < ${endTime}::time AND bs.end_time > ${startTime}::time)
+        END)
         AND EXISTS (
           SELECT 1 FROM booking_requests br
           WHERE br.session_id = bs.id
@@ -282,6 +318,7 @@ export async function checkAvailabilityBlockConflict(
   txClient?: { select: typeof db.select, execute: typeof db.execute }
 ): Promise<{ hasConflict: boolean; blockType?: string; blockNotes?: string }> {
   try {
+    validateTimeParams(startTime, endTime);
     const dbCtx = txClient || db;
     const blocks = await dbCtx
       .select()
@@ -289,10 +326,12 @@ export async function checkAvailabilityBlockConflict(
       .where(and(
         eq(availabilityBlocks.resourceId, resourceId),
         sql`${availabilityBlocks.blockDate} = ${bookingDate}`,
-        and(
-          sql`${availabilityBlocks.startTime}::time < ${endTime ?? null}::time`,
-          sql`${availabilityBlocks.endTime}::time > ${startTime ?? null}::time`
-        )
+        sql`(CASE
+          WHEN ${availabilityBlocks.startTime}::time > ${availabilityBlocks.endTime}::time AND ${startTime}::time > ${endTime}::time THEN true
+          WHEN ${availabilityBlocks.startTime}::time > ${availabilityBlocks.endTime}::time THEN (${availabilityBlocks.startTime}::time < ${endTime}::time OR ${availabilityBlocks.endTime}::time > ${startTime}::time)
+          WHEN ${startTime}::time > ${endTime}::time THEN (${startTime}::time < ${availabilityBlocks.endTime}::time OR ${endTime}::time > ${availabilityBlocks.startTime}::time)
+          ELSE (${availabilityBlocks.startTime}::time < ${endTime}::time AND ${availabilityBlocks.endTime}::time > ${startTime}::time)
+        END)`
       ));
 
     if (blocks.length > 0) {
