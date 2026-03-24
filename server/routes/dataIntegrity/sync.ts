@@ -192,15 +192,94 @@ router.post('/api/data-integrity/resync-from-production', isAdmin, async (req, r
 
     logger.info(`[DevSync] Export verified: ${csvFiles.length} CSV files, all critical tables present. Starting import...`);
 
+    const DEV_ONLY_TABLES = [
+      'stripe_products',
+      'stripe_transaction_cache',
+      'stripe_payment_intents',
+      'webhook_processed_events',
+      'terminal_payments',
+    ];
+
+    interface StripeMapping {
+      matchKey: string;
+      stripeProductId?: string | null;
+      stripePriceId?: string | null;
+      stripeCustomerId?: string | null;
+    }
+    const savedStripeMappings: Record<string, StripeMapping[]> = {};
+
+    const stripePreserveQueries: Record<string, string> = {
+      users: `SELECT email AS match_key, stripe_customer_id FROM users WHERE stripe_customer_id IS NOT NULL`,
+      membership_tiers: `SELECT slug AS match_key, stripe_product_id, stripe_price_id FROM membership_tiers WHERE stripe_product_id IS NOT NULL OR stripe_price_id IS NOT NULL`,
+      cafe_items: `SELECT name AS match_key, stripe_product_id, stripe_price_id FROM cafe_items WHERE stripe_product_id IS NOT NULL OR stripe_price_id IS NOT NULL`,
+      billing_groups: `SELECT id::text AS match_key, stripe_customer_id FROM billing_groups WHERE stripe_customer_id IS NOT NULL`,
+      family_add_on_products: `SELECT name AS match_key, stripe_product_id, stripe_price_id FROM family_add_on_products WHERE stripe_product_id IS NOT NULL OR stripe_price_id IS NOT NULL`,
+      day_pass_purchases: `SELECT id::text AS match_key, stripe_product_id, stripe_price_id FROM day_pass_purchases WHERE stripe_product_id IS NOT NULL OR stripe_price_id IS NOT NULL`,
+    };
+
+    for (const [table, query] of Object.entries(stripePreserveQueries)) {
+      try {
+        const { stdout } = await execFileAsync('psql', [
+          localUrl, '-t', '-A', '-F', '|', '-c', query
+        ], { timeout: 10000 });
+        const rows = stdout.trim().split('\n').filter(Boolean);
+        if (rows.length > 0) {
+          savedStripeMappings[table] = rows.map(row => {
+            const parts = row.split('|');
+            if (table === 'users' || table === 'billing_groups') {
+              return { matchKey: parts[0], stripeCustomerId: parts[1] || null };
+            }
+            return {
+              matchKey: parts[0],
+              stripeProductId: parts[1] || null,
+              stripePriceId: parts[2] || null,
+            };
+          });
+          logger.info(`[DevSync] Saved ${rows.length} Stripe mappings from ${table}`);
+        }
+      } catch {
+        logger.warn(`[DevSync] Could not save Stripe mappings from ${table} (table may be empty)`);
+      }
+    }
+
+    let devOnlyPreserved = 0;
+    const devOnlyData: Record<string, string> = {};
+    for (const table of DEV_ONLY_TABLES) {
+      try {
+        const { stdout: countStr } = await execFileAsync('psql', [
+          localUrl, '-t', '-A', '-c', `SELECT count(*) FROM "${table}";`
+        ], { timeout: 10000 });
+        const count = parseInt(countStr.trim(), 10);
+        if (count > 0) {
+          const backupPath = `${dumpDir}/_dev_${table}.csv`;
+          await execFileAsync('psql', [
+            localUrl, '-c', `\\COPY "${table}" TO '${backupPath}' WITH (FORMAT csv, HEADER true)`
+          ], { timeout: 60000 });
+          devOnlyData[table] = backupPath;
+          devOnlyPreserved++;
+          logger.info(`[DevSync] Backed up ${count} rows from dev-only table ${table}`);
+        }
+      } catch {
+        logger.warn(`[DevSync] Could not backup dev-only table ${table}`);
+      }
+    }
+
+    const importCsvFiles = csvFiles.filter(f => {
+      const table = f.replace('.csv', '');
+      return !DEV_ONLY_TABLES.includes(table);
+    });
+
+    const allTablesToTruncate = importCsvFiles.map(f => f.replace('.csv', ''));
+
     let imported = 0;
     const failed: string[] = [];
 
     const truncateSql = `SET session_replication_role = 'replica'; ` +
-      csvFiles.map(f => `TRUNCATE "${f.replace('.csv', '')}" CASCADE;`).join(' ');
+      allTablesToTruncate.map(t => `TRUNCATE "${t}" CASCADE;`).join(' ');
     await execFileAsync('psql', [localUrl, '-c', truncateSql], { timeout: 60000 });
-    logger.info(`[DevSync] Truncated ${csvFiles.length} tables`);
+    logger.info(`[DevSync] Truncated ${allTablesToTruncate.length} tables (preserved ${DEV_ONLY_TABLES.length} dev-only tables)`);
 
-    for (const csvFile of csvFiles) {
+    for (const csvFile of importCsvFiles) {
       const table = csvFile.replace('.csv', '');
       const importSql = `SET session_replication_role = 'replica';\n\\COPY "${table}" FROM '${dumpDir}/${csvFile}' WITH (FORMAT csv, HEADER true)`;
       try {
@@ -215,9 +294,57 @@ router.post('/api/data-integrity/resync-from-production', isAdmin, async (req, r
       }
     }
 
+    const stripeRestoreQueries: Record<string, (m: StripeMapping) => string> = {
+      users: (m) => `UPDATE users SET stripe_customer_id = '${m.stripeCustomerId}' WHERE email = '${m.matchKey.replace(/'/g, "''")}' AND (stripe_customer_id IS NULL OR stripe_customer_id != '${m.stripeCustomerId}')`,
+      membership_tiers: (m) => {
+        const sets: string[] = [];
+        if (m.stripeProductId) sets.push(`stripe_product_id = '${m.stripeProductId}'`);
+        if (m.stripePriceId) sets.push(`stripe_price_id = '${m.stripePriceId}'`);
+        return sets.length > 0 ? `UPDATE membership_tiers SET ${sets.join(', ')} WHERE slug = '${m.matchKey.replace(/'/g, "''")}'` : '';
+      },
+      cafe_items: (m) => {
+        const sets: string[] = [];
+        if (m.stripeProductId) sets.push(`stripe_product_id = '${m.stripeProductId}'`);
+        if (m.stripePriceId) sets.push(`stripe_price_id = '${m.stripePriceId}'`);
+        return sets.length > 0 ? `UPDATE cafe_items SET ${sets.join(', ')} WHERE name = '${m.matchKey.replace(/'/g, "''")}'` : '';
+      },
+      billing_groups: (m) => `UPDATE billing_groups SET stripe_customer_id = '${m.stripeCustomerId}' WHERE id = ${m.matchKey}`,
+      family_add_on_products: (m) => {
+        const sets: string[] = [];
+        if (m.stripeProductId) sets.push(`stripe_product_id = '${m.stripeProductId}'`);
+        if (m.stripePriceId) sets.push(`stripe_price_id = '${m.stripePriceId}'`);
+        return sets.length > 0 ? `UPDATE family_add_on_products SET ${sets.join(', ')} WHERE name = '${m.matchKey.replace(/'/g, "''")}'` : '';
+      },
+      day_pass_purchases: (m) => {
+        const sets: string[] = [];
+        if (m.stripeProductId) sets.push(`stripe_product_id = '${m.stripeProductId}'`);
+        if (m.stripePriceId) sets.push(`stripe_price_id = '${m.stripePriceId}'`);
+        return sets.length > 0 ? `UPDATE day_pass_purchases SET ${sets.join(', ')} WHERE id = ${m.matchKey}` : '';
+      },
+    };
+
+    let restoredCount = 0;
+    for (const [table, mappings] of Object.entries(savedStripeMappings)) {
+      const builder = stripeRestoreQueries[table];
+      if (!builder) continue;
+      for (const mapping of mappings) {
+        const sql = builder(mapping);
+        if (!sql) continue;
+        try {
+          await execFileAsync('psql', [localUrl, '-c', sql], { timeout: 10000 });
+          restoredCount++;
+        } catch (restoreErr: unknown) {
+          logger.warn(`[DevSync] Failed to restore Stripe mapping for ${table}/${mapping.matchKey}: ${getErrorMessage(restoreErr)}`);
+        }
+      }
+    }
+    if (restoredCount > 0) {
+      logger.info(`[DevSync] Restored ${restoredCount} dev Stripe ID mappings across ${Object.keys(savedStripeMappings).length} tables`);
+    }
+
     if (failed.length > 0) {
       logger.warn(`[DevSync] ${failed.length} tables failed to import: ${failed.join(', ')}`);
-      const criticalFailed = failed.filter(t => criticalTables.includes(t));
+      const criticalFailed = failed.filter(t => CRITICAL_TABLES.includes(t));
       if (criticalFailed.length > 0) {
         throw new Error(`Critical tables failed to import: ${criticalFailed.join(', ')}`);
       }
@@ -242,7 +369,9 @@ router.post('/api/data-integrity/resync-from-production', isAdmin, async (req, r
     const { stdout: bookingCount } = await execFileAsync('psql', [localUrl, '-t', '-A', '-c', 'SELECT count(*) FROM booking_requests;'], { timeout: 10000 });
     const { stdout: staffCount } = await execFileAsync('psql', [localUrl, '-t', '-A', '-c', 'SELECT count(*) FROM staff_users;'], { timeout: 10000 });
 
-    const summary = `Synced ${imported} tables (${failed.length} failed). Local DB: ${userCount.trim()} users, ${bookingCount.trim()} bookings, ${staffCount.trim()} staff.`;
+    const stripePart = restoredCount > 0 ? ` Restored ${restoredCount} dev Stripe mappings.` : '';
+    const preservedPart = devOnlyPreserved > 0 ? ` Preserved ${devOnlyPreserved} dev-only tables.` : '';
+    const summary = `Synced ${imported} tables (${failed.length} failed).${stripePart}${preservedPart} Local DB: ${userCount.trim()} users, ${bookingCount.trim()} bookings, ${staffCount.trim()} staff.`;
     logger.info(`[DevSync] ${summary}`);
 
     logFromRequest(req, 'dev_resync_from_production', 'system', undefined, summary);
@@ -252,6 +381,8 @@ router.post('/api/data-integrity/resync-from-production', isAdmin, async (req, r
       message: summary,
       tables: imported,
       failed: failed.length > 0 ? failed : undefined,
+      stripePreserved: restoredCount,
+      devOnlyTablesPreserved: devOnlyPreserved,
       users: parseInt(userCount.trim(), 10),
       bookings: parseInt(bookingCount.trim(), 10),
       staff: parseInt(staffCount.trim(), 10),

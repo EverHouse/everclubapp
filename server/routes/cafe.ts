@@ -50,6 +50,10 @@ router.get('/api/cafe-menu', async (req, res) => {
     const isStaffOrAdminUser = userRole === 'admin' || userRole === 'staff';
     const showInactive = include_inactive === 'true' && isStaffOrAdminUser;
 
+    if (showInactive) {
+      res.set('Cache-Control', 'no-store');
+    }
+
     if (!category && !showInactive) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cached = getCached<any[]>(CAFE_CACHE_KEY);
@@ -205,6 +209,45 @@ router.put('/api/cafe-menu/:id', isStaffOrAdmin, validateBody(cafeItemUpdateSche
   } catch (error: unknown) {
     if (!isProduction) logger.error('Cafe item update error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to update cafe item' });
+  }
+});
+
+router.delete('/api/cafe-menu/inactive/all', isAdmin, async (req, res) => {
+  try {
+    const inactive = await db.select({ id: cafeItems.id, name: cafeItems.name, stripeProductId: cafeItems.stripeProductId })
+      .from(cafeItems)
+      .where(eq(cafeItems.isActive, false));
+
+    if (inactive.length === 0) {
+      return res.json({ success: true, deleted: 0 });
+    }
+
+    for (const item of inactive) {
+      if (item.stripeProductId) {
+        try {
+          const { getStripeClient } = await import('../core/stripe/client');
+          const stripe = await getStripeClient();
+          const product = await stripe.products.retrieve(item.stripeProductId) as unknown as { active?: boolean; deleted?: boolean };
+          if (product && !product.deleted && product.active) {
+            markAppOriginated(item.stripeProductId);
+            await stripe.products.update(item.stripeProductId, { active: false });
+          }
+        } catch (stripeErr: unknown) {
+          if (!isStripeResourceMissing(stripeErr)) {
+            logger.warn(`[Cafe] Could not archive Stripe product ${item.stripeProductId} for "${item.name}"`, { error: getErrorMessage(stripeErr) });
+          }
+        }
+      }
+    }
+
+    await db.delete(cafeItems).where(eq(cafeItems.isActive, false));
+    invalidateCache(CAFE_CACHE_KEY);
+    broadcastCafeMenuUpdate('deleted');
+    logFromRequest(req, 'bulk_delete_inactive_cafe', 'cafe', 'all_inactive', `Deleted ${inactive.length} inactive items`, {});
+    res.json({ success: true, deleted: inactive.length });
+  } catch (error: unknown) {
+    if (!isProduction) logger.error('Bulk delete inactive cafe items error', { error: getErrorMessage(error) });
+    res.status(500).json({ error: 'Failed to delete inactive items' });
   }
 });
 

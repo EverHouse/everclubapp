@@ -3,7 +3,7 @@ import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { usePageReady } from '../../../stores/pageReadyStore';
 import { useToast } from '../../../components/Toast';
 import ModalShell from '../../../components/ModalShell';
-import { useCafeMenu, useUploadCafeImage, useSeedCafeMenu, useCreateCafeItem, useUpdateCafeItem, useDeleteCafeItem } from '../../../hooks/queries/useCafeQueries';
+import { useCafeMenu, useUploadCafeImage, useSeedCafeMenu, useCreateCafeItem, useUpdateCafeItem, useDeleteCafeItem, useDeleteAllInactiveCafeItems } from '../../../hooks/queries/useCafeQueries';
 import type { CafeItem } from '../../../types/data';
 import Icon from '../../../components/icons/Icon';
 

@@ -141,6 +141,33 @@ export function useCreateCafeItem() {
   });
 }
 
+export function useDeleteAllInactiveCafeItems() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      deleteWithCredentials<{ success: boolean; deleted: number }>('/api/cafe-menu/inactive/all'),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: cafeKeys.menu() });
+      const allCaches = queryClient.getQueriesData<CafeItem[]>({ queryKey: cafeKeys.menu() });
+      allCaches.forEach(([key]) => {
+        queryClient.setQueryData<CafeItem[]>(key, (old) => {
+          if (!old) return old;
+          return old.filter(i => i.isActive !== false);
+        });
+      });
+      return { snapshots: allCaches };
+    },
+    onError: (_err, _vars, context) => {
+      context?.snapshots?.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: cafeKeys.menu() });
+    },
+  });
+}
+
 export function useDeleteCafeItem() {
   const queryClient = useQueryClient();
   return useMutation({
