@@ -22,14 +22,17 @@ export async function findExistingStripeProduct(
   metadataValue?: string
 ): Promise<Stripe.Product | null> {
   try {
+    const isAppProduct = (p: Stripe.Product) => p.metadata?.source === 'ever_house_app';
+
     if (metadataKey && metadataValue) {
       const productsByMetadata = await stripe.products.search({
         query: `metadata['${metadataKey}']:'${metadataValue}'`,
         limit: 10,
       });
-      if (productsByMetadata.data.length > 0) {
-        const oldest = productsByMetadata.data.reduce((a, b) => a.created <= b.created ? a : b);
-        logger.info(`[Stripe Products] Found existing product by metadata: ${oldest.id} (oldest of ${productsByMetadata.data.length})`);
+      const appProducts = productsByMetadata.data.filter(isAppProduct);
+      if (appProducts.length > 0) {
+        const oldest = appProducts.reduce((a, b) => a.created <= b.created ? a : b);
+        logger.info(`[Stripe Products] Found existing product by metadata: ${oldest.id} (oldest of ${appProducts.length})`);
         return oldest;
       }
     }
@@ -38,9 +41,10 @@ export async function findExistingStripeProduct(
       query: `name:'${productName.replace(/'/g, "\\'")}'`,
       limit: 10,
     });
-    if (productsByName.data.length > 0) {
-      const oldest = productsByName.data.reduce((a, b) => a.created <= b.created ? a : b);
-      logger.info(`[Stripe Products] Found existing product by name "${productName}": ${oldest.id} (oldest of ${productsByName.data.length})`);
+    const appProductsByName = productsByName.data.filter(isAppProduct);
+    if (appProductsByName.length > 0) {
+      const oldest = appProductsByName.reduce((a, b) => a.created <= b.created ? a : b);
+      logger.info(`[Stripe Products] Found existing product by name "${productName}": ${oldest.id} (oldest of ${appProductsByName.length})`);
       return oldest;
     }
     

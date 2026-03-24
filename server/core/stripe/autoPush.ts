@@ -129,9 +129,23 @@ export async function autoPushTierToStripe(tierRow: Record<string, unknown> & { 
       const existingProduct = await findExistingStripeProduct(stripe, productName, 'tier_id', tierRow.id.toString());
       let stripeProduct;
       if (existingProduct) {
-        markAppOriginated(existingProduct.id);
-        stripeProduct = await stripe.products.update(existingProduct.id, createParams);
-        logger.info(`[AutoPush] Reusing existing Stripe product ${stripeProduct.id} for tier "${tierRow.name}"`);
+        try {
+          markAppOriginated(existingProduct.id);
+          stripeProduct = await stripe.products.update(existingProduct.id, createParams);
+          logger.info(`[AutoPush] Reusing existing Stripe product ${stripeProduct.id} for tier "${tierRow.name}"`);
+        } catch (reuseErr: unknown) {
+          const reuseMsg = getErrorMessage(reuseErr);
+          if (reuseMsg.includes('cannot be updated') || reuseMsg.includes('created by Stripe automatically')) {
+            logger.warn(`[AutoPush] Product ${existingProduct.id} is Stripe-auto-created, creating new product for tier "${tierRow.name}"`);
+            stripeProduct = await stripe.products.create(createParams, {
+              idempotencyKey: `autopush_product_tier_${tierRow.id}_${tierRow.slug}_${Date.now()}`
+            });
+            markAppOriginated(stripeProduct.id);
+            logger.info(`[AutoPush] Created new Stripe product ${stripeProduct.id} for tier "${tierRow.name}"`);
+          } else {
+            throw reuseErr;
+          }
+        }
       } else {
         stripeProduct = await stripe.products.create(createParams, {
           idempotencyKey: `autopush_product_tier_${tierRow.id}_${tierRow.slug}`
@@ -283,22 +297,33 @@ export async function autoPushCafeItemToStripe(item: {
     if (!stripeProductId) {
       const existingProduct = await findExistingStripeProduct(stripe, item.name, 'cafe_item_id', item.id.toString());
       if (existingProduct) {
-        stripeProductId = existingProduct.id;
-        markAppOriginated(stripeProductId);
-        await stripe.products.update(stripeProductId, {
-          name: item.name,
-          description: item.description || undefined,
-          metadata,
-          active: true,
-        });
-        logger.info(`[AutoPush] Reusing existing Stripe product ${stripeProductId} for cafe item "${item.name}"`);
-      } else {
+        try {
+          stripeProductId = existingProduct.id;
+          markAppOriginated(stripeProductId);
+          await stripe.products.update(stripeProductId, {
+            name: item.name,
+            description: item.description || undefined,
+            metadata,
+            active: true,
+          });
+          logger.info(`[AutoPush] Reusing existing Stripe product ${stripeProductId} for cafe item "${item.name}"`);
+        } catch (reuseErr: unknown) {
+          const reuseMsg = getErrorMessage(reuseErr);
+          if (reuseMsg.includes('cannot be updated') || reuseMsg.includes('created by Stripe automatically')) {
+            logger.warn(`[AutoPush] Product ${existingProduct.id} is Stripe-auto-created, creating new product for cafe item "${item.name}"`);
+            stripeProductId = null;
+          } else {
+            throw reuseErr;
+          }
+        }
+      }
+      if (!stripeProductId) {
         const newProduct = await stripe.products.create({
           name: item.name,
           description: item.description || undefined,
           metadata,
         }, {
-          idempotencyKey: `autopush_product_cafe_${item.id}`
+          idempotencyKey: `autopush_product_cafe_${item.id}_${Date.now()}`
         });
         stripeProductId = newProduct.id;
         markAppOriginated(stripeProductId);
