@@ -98,8 +98,8 @@ router.post(
           return res.status(400).json({ error: `This membership tier is not available for self-serve checkout yet.` });
         }
 
-        if (tier.tierType === 'corporate') {
-          return res.status(400).json({ error: 'Corporate memberships require contacting the club directly.' });
+        if (!tier.showOnMembershipPage) {
+          return res.status(400).json({ error: 'This membership tier is not available for self-serve checkout. Please contact the club directly.' });
         }
 
         const userId = existingUserId || randomUUID();
@@ -264,7 +264,8 @@ router.get('/api/public/membership-tiers', async (_req: Request, res: Response) 
     .orderBy(membershipTiers.sortOrder, membershipTiers.id);
 
     const filteredTiers = tiers.filter(
-      t => t.productType === 'subscription' && t.tierType !== 'corporate'
+      t => t.productType === 'subscription'
+        && t.showOnMembershipPage === true
     );
 
     res.json(filteredTiers);

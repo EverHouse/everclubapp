@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.15] - 2026-03-24
+
+### Self-Serve Checkout Visibility Fix
+- **Public join page tier filtering**: The `/join` self-serve checkout page now uses the existing "Show on Membership Page" admin toggle to determine which tiers appear. Tiers with the toggle off (e.g., VIP) are hidden from the public page. Tiers with the toggle on (Social, Core, Premium, Corporate) are shown.
+- **Checkout endpoint hardened**: The POST `/api/public/membership-checkout` endpoint now blocks checkout attempts for tiers with "Show on Membership Page" disabled, returning a clear error message directing the user to contact the club.
+- **Files changed**: `server/routes/public/membershipCheckout.ts`
+
 ## [8.97.14] - 2026-03-24
 
 ### Production Bug Fixes: Closure Calendar Validation & Startup Resilience

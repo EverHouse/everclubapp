@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.15",
+    date: "2026-03-24",
+    title: "Self-Serve Checkout Visibility Fix",
+    changes: [
+      "Fixed: Public /join checkout page now respects the 'Show on Membership Page' toggle — only tiers with this enabled appear for self-serve signup",
+      "Fixed: Direct API checkout requests for hidden tiers are now blocked with a clear error message",
+    ]
+  },
+  {
     version: "8.97.14",
     date: "2026-03-24",
     title: "Production Bug Fixes",
