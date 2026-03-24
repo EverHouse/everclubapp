@@ -91,7 +91,7 @@ router.post('/api/kiosk/checkin', isStaffOrAdmin, validateBody(kioskCheckinSchem
             (SELECT SUM(bp2.cached_fee_cents)
              FROM booking_participants bp2
              WHERE bp2.session_id = br.session_id
-               AND bp2.payment_status NOT IN ('paid', 'waived', 'cancelled')),
+               AND bp2.payment_status NOT IN ('paid', 'waived', 'refunded')),
             0
           )::int as unpaid_fee_cents
         FROM booking_requests br
@@ -116,8 +116,13 @@ router.post('/api/kiosk/checkin', isStaffOrAdmin, validateBody(kioskCheckinSchem
         upcomingBooking = bookingResult.rows[0] as unknown as UpcomingBookingRow;
       }
     } catch (bookingErr: unknown) {
-      logger.warn('[Kiosk] Failed to fetch upcoming booking for member', {
-        error: bookingErr instanceof Error ? bookingErr : new Error(getErrorMessage(bookingErr))
+      const err = bookingErr instanceof Error ? bookingErr : new Error(getErrorMessage(bookingErr));
+      const pgCode = (bookingErr as Record<string, unknown>)?.code;
+      const isDbTypeError = pgCode === '22P02' || pgCode === '42804';
+      const level = isDbTypeError ? 'error' : 'warn';
+      logger[level]('[Kiosk] Failed to fetch upcoming booking for member', {
+        error: err,
+        pgCode,
       });
     }
 
