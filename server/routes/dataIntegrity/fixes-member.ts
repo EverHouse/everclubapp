@@ -254,25 +254,71 @@ router.post('/api/data-integrity/fix/recalculate-guest-passes', isAdmin, validat
   try {
     const { userId } = req.body;
 
-    await db.execute(sql`
-      UPDATE guest_passes gp
+    const userResult = await db.execute(sql`SELECT email FROM users WHERE id = ${userId}`);
+    const userEmail = (userResult.rows[0] as { email: string })?.email;
+    if (!userEmail) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const result = await db.execute(sql`
+      UPDATE guest_passes
       SET passes_used = COALESCE((
         SELECT COUNT(*)
         FROM booking_participants bp
         JOIN booking_sessions bs ON bp.session_id = bs.id
         JOIN booking_requests br ON br.session_id = bs.id
-        WHERE bp.guest_pass_id = gp.id
+        WHERE LOWER(br.user_email) = LOWER(guest_passes.member_email)
+          AND bp.participant_type = 'guest'
           AND bp.used_guest_pass = true
           AND br.status NOT IN ('cancelled', 'rejected', 'deleted')
       ), 0)
-      WHERE gp.user_id = ${userId}
+      WHERE LOWER(member_email) = LOWER(${userEmail})
+      RETURNING member_email, passes_used, passes_total
     `);
 
-    logFromRequest(req, 'recalculate_guest_passes', 'guest_pass', String(userId), `Recalculated guest passes for user #${userId} via data integrity`, { userId });
+    const updated = result.rows[0] as { member_email: string; passes_used: number; passes_total: number } | undefined;
 
-    res.json({ success: true, message: `Recalculated guest passes for user #${userId}` });
+    logFromRequest(req, 'recalculate_guest_passes', 'guest_pass', String(userId), `Recalculated guest passes for ${userEmail}: ${updated?.passes_used ?? 0}/${updated?.passes_total ?? 0}`, { userId });
+
+    res.json({ success: true, message: `Recalculated guest passes for ${userEmail}: ${updated?.passes_used ?? 0} used / ${updated?.passes_total ?? 0} total` });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Recalculate guest passes error', { extra: { error: getErrorMessage(error) } });
+    sendFixError(res, error);
+  }
+});
+
+router.post('/api/data-integrity/fix/reconcile-all-guest-passes', isAdmin, async (req: Request, res) => {
+  try {
+    const result = await db.execute(sql`
+      UPDATE guest_passes gp
+      SET passes_used = COALESCE(actual.used_count, 0)
+      FROM (
+        SELECT LOWER(gp2.member_email) as email, COUNT(bp.id) as used_count
+        FROM guest_passes gp2
+        LEFT JOIN booking_requests br ON LOWER(br.user_email) = LOWER(gp2.member_email)
+          AND br.status NOT IN ('cancelled', 'rejected', 'deleted')
+        LEFT JOIN booking_sessions bs ON br.session_id = bs.id
+        LEFT JOIN booking_participants bp ON bp.session_id = bs.id
+          AND bp.participant_type = 'guest'
+          AND bp.used_guest_pass = true
+        GROUP BY LOWER(gp2.member_email)
+      ) actual
+      WHERE LOWER(gp.member_email) = actual.email
+        AND gp.passes_used != COALESCE(actual.used_count, 0)
+      RETURNING gp.member_email, gp.passes_used as new_used, gp.passes_total
+    `);
+
+    const fixed = result.rows as Array<{ member_email: string; new_used: number; passes_total: number }>;
+
+    logFromRequest(req, 'reconcile_all_guest_passes', 'guest_pass', undefined, `Reconciled ${fixed.length} guest pass records`, {});
+
+    res.json({
+      success: true,
+      message: `Reconciled ${fixed.length} guest pass records`,
+      fixed: fixed.map(r => ({ email: r.member_email, passesUsed: r.new_used, passesTotal: r.passes_total }))
+    });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Reconcile all guest passes error', { extra: { error: getErrorMessage(error) } });
     sendFixError(res, error);
   }
 });
