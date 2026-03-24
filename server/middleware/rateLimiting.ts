@@ -2,6 +2,8 @@ import rateLimit from 'express-rate-limit';
 import { Request, Response } from 'express';
 import { logger } from '../core/logger';
 import { db } from '../db';
+import { pool, safeRelease } from '../core/db';
+import type { PoolClient } from 'pg';
 import { sql } from 'drizzle-orm';
 import { getErrorMessage } from '../utils/errorUtils';
 
@@ -147,75 +149,66 @@ export const subscriptionCreationRateLimiter = rateLimit({
 });
 
 const LOCK_TIMEOUT_MS = 120_000;
-
-const subscriptionLocksMemory = new Map<string, number>();
+const advisoryLockClients = new Map<string, { client: PoolClient; acquiredAt: number }>();
 
 setInterval(() => {
   const now = Date.now();
-  for (const [key, timestamp] of subscriptionLocksMemory.entries()) {
-    if (now - timestamp > LOCK_TIMEOUT_MS) {
-      subscriptionLocksMemory.delete(key);
+  for (const [key, entry] of advisoryLockClients.entries()) {
+    if (now - entry.acquiredAt > LOCK_TIMEOUT_MS) {
+      logger.warn('[SubscriptionLock] Releasing stale advisory lock', { extra: { email: key } });
+      entry.client.query('SELECT pg_advisory_unlock(hashtext($1))', [key]).catch(() => {});
+      safeRelease(entry.client);
+      advisoryLockClients.delete(key);
     }
   }
 }, 60_000).unref();
 
-let dbLocksInitialized = false;
-async function ensureLocksTable(): Promise<boolean> {
-  if (dbLocksInitialized) return true;
+export async function acquireSubscriptionLock(email: string, _lockedBy?: string): Promise<boolean> {
+  const key = email.toLowerCase();
+
+  const existing = advisoryLockClients.get(key);
+  if (existing && Date.now() - existing.acquiredAt < LOCK_TIMEOUT_MS) {
+    logger.info('[SubscriptionLock] Advisory lock already held', { extra: { email: key } });
+    return false;
+  }
+
+  let client: PoolClient | null = null;
   try {
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS subscription_locks (
-        email TEXT PRIMARY KEY,
-        locked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        locked_by TEXT
-      )
-    `);
-    dbLocksInitialized = true;
+    client = await pool.connect();
+    await client.query(`SET statement_timeout = '10s'`);
+    const result = await client.query('SELECT pg_try_advisory_lock(hashtext($1)) AS acquired', [key]);
+    const acquired = (result.rows[0] as { acquired: boolean })?.acquired === true;
+    if (!acquired) {
+      logger.info('[SubscriptionLock] Advisory lock contention', { extra: { email: key } });
+      await client.query(`SET statement_timeout = '0'`).catch(() => {});
+      safeRelease(client);
+      return false;
+    }
+    advisoryLockClients.set(key, { client, acquiredAt: Date.now() });
     return true;
   } catch (err) {
-    logger.warn('[SubscriptionLock] Failed to create locks table, falling back to memory', { extra: { error: getErrorMessage(err) } });
-    return false;
-  }
-}
-
-export async function acquireSubscriptionLock(email: string, lockedBy?: string): Promise<boolean> {
-  const key = email.toLowerCase();
-  const dbReady = await ensureLocksTable();
-
-  if (dbReady) {
-    try {
-      const result = await db.execute(sql`
-        INSERT INTO subscription_locks (email, locked_at, locked_by)
-        VALUES (${key}, NOW(), ${lockedBy || null})
-        ON CONFLICT (email) DO UPDATE
-        SET locked_at = EXCLUDED.locked_at, locked_by = EXCLUDED.locked_by
-        WHERE subscription_locks.locked_at < NOW() - INTERVAL '120 seconds'
-        RETURNING email
-      `);
-      return result.rows.length > 0;
-    } catch (err) {
-      logger.warn('[SubscriptionLock] DB lock failed, falling back to memory', { extra: { error: getErrorMessage(err) } });
+    logger.error('[SubscriptionLock] Advisory lock acquisition failed', { extra: { error: getErrorMessage(err) } });
+    if (client) {
+      safeRelease(client);
     }
-  }
-
-  const existing = subscriptionLocksMemory.get(key);
-  if (existing && Date.now() - existing < LOCK_TIMEOUT_MS) {
     return false;
   }
-  subscriptionLocksMemory.set(key, Date.now());
-  return true;
 }
 
 export async function releaseSubscriptionLock(email: string): Promise<void> {
   const key = email.toLowerCase();
-  subscriptionLocksMemory.delete(key);
-
-  if (dbLocksInitialized) {
+  const entry = advisoryLockClients.get(key);
+  if (!entry) return;
+  advisoryLockClients.delete(key);
+  try {
+    await entry.client.query('SELECT pg_advisory_unlock(hashtext($1))', [key]);
+  } catch (err) {
+    logger.warn('[SubscriptionLock] Advisory lock release failed', { extra: { error: getErrorMessage(err) } });
+  } finally {
     try {
-      await db.execute(sql`DELETE FROM subscription_locks WHERE email = ${key}`);
-    } catch (err) {
-      logger.warn('[SubscriptionLock] DB lock release failed', { extra: { error: getErrorMessage(err) } });
-    }
+      await entry.client.query(`SET statement_timeout = '0'`);
+    } catch { /* best-effort reset */ }
+    safeRelease(entry.client);
   }
 }
 

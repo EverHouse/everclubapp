@@ -17,6 +17,29 @@ import { getHubSpotClient } from '../../core/integrations';
 
 const router = Router();
 
+function buildHubSpotEventId(event: { eventId?: string | number; subscriptionType?: string; objectId?: string; propertyName?: string; occurredAt?: number }): string | null {
+  if (event.eventId) return String(event.eventId);
+  if (event.subscriptionType && event.objectId && event.occurredAt) {
+    return `${event.subscriptionType}:${event.objectId}:${event.propertyName || ''}:${event.occurredAt}`;
+  }
+  return null;
+}
+
+async function isHubSpotEventProcessed(eventId: string, eventType: string): Promise<boolean> {
+  try {
+    const result = await db.execute(sql`
+      INSERT INTO hubspot_processed_webhooks (event_id, event_type, processed_at)
+      VALUES (${eventId}, ${eventType}, NOW())
+      ON CONFLICT (event_id) DO NOTHING
+      RETURNING event_id
+    `);
+    return result.rows.length === 0;
+  } catch (err: unknown) {
+    logger.warn('[HubSpot Webhook] Dedup check failed, processing anyway', { extra: { eventId, error: getErrorMessage(err) } });
+    return false;
+  }
+}
+
 // PUBLIC ROUTE - HubSpot webhook receiver (signature-validated)
 router.post('/api/hubspot/webhooks', async (req, res) => {
   try {
@@ -31,6 +54,15 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
     for (const event of events) {
       const { subscriptionType, objectId, propertyName, propertyValue } = event as { subscriptionType: string; objectId: string; propertyName: string; propertyValue: string | null };
       
+      const eventId = buildHubSpotEventId(event as { eventId?: string | number; subscriptionType?: string; objectId?: string; propertyName?: string; occurredAt?: number });
+      if (eventId) {
+        const alreadyProcessed = await isHubSpotEventProcessed(eventId, subscriptionType);
+        if (alreadyProcessed) {
+          logger.info('[HubSpot Webhook] Skipping duplicate event', { extra: { eventId, subscriptionType, objectId } });
+          continue;
+        }
+      }
+
       logger.info('[HubSpot Webhook] Received: for object , =', { extra: { subscriptionType, objectId, propertyName, propertyValue } });
       
       if (subscriptionType === 'contact.propertyChange') {

@@ -334,7 +334,7 @@ export async function ensureDatabaseConstraints() {
         END IF;
         
         ALTER TABLE booking_requests ADD CONSTRAINT booking_requests_status_check 
-          CHECK (status IN ('pending', 'approved', 'confirmed', 'declined', 'cancelled', 'cancellation_pending', 'attended', 'no_show', 'expired'));
+          CHECK (status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'declined', 'cancelled', 'cancellation_pending', 'checked_in', 'attended', 'no_show', 'expired'));
 
         IF EXISTS (
           SELECT 1 FROM pg_constraint 
@@ -1970,6 +1970,88 @@ export async function ensureDatabaseConstraints() {
       logger.info('[DB Init] Trigger: auto_expire_stale_tours created + existing stale tours cleaned');
     } catch (err: unknown) {
       logger.warn(`[DB Init] Skipping stale tour trigger: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS hubspot_processed_webhooks (
+          id SERIAL PRIMARY KEY,
+          event_id VARCHAR(255) NOT NULL UNIQUE,
+          event_type VARCHAR(100),
+          processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+      await db.execute(sql`
+        CREATE INDEX IF NOT EXISTS hubspot_processed_webhooks_processed_at_idx
+          ON hubspot_processed_webhooks (processed_at)
+      `);
+      logger.info('[DB Init] hubspot_processed_webhooks table created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping hubspot_processed_webhooks table: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION enforce_booking_status_transition()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        DECLARE
+          allowed TEXT[];
+        BEGIN
+          IF TG_OP = 'INSERT' THEN
+            RETURN NEW;
+          END IF;
+
+          IF OLD.status IS NULL OR OLD.status = NEW.status THEN
+            RETURN NEW;
+          END IF;
+
+          CASE OLD.status
+            WHEN 'pending' THEN
+              allowed := ARRAY['pending_approval', 'approved', 'declined', 'cancelled', 'expired'];
+            WHEN 'pending_approval' THEN
+              allowed := ARRAY['approved', 'declined', 'cancelled'];
+            WHEN 'approved' THEN
+              allowed := ARRAY['confirmed', 'cancelled', 'declined', 'cancellation_pending'];
+            WHEN 'confirmed' THEN
+              allowed := ARRAY['checked_in', 'cancelled', 'no_show', 'attended', 'cancellation_pending'];
+            WHEN 'cancellation_pending' THEN
+              allowed := ARRAY['cancelled', 'confirmed', 'approved'];
+            WHEN 'checked_in' THEN
+              allowed := ARRAY['attended', 'no_show', 'cancelled'];
+            WHEN 'attended' THEN
+              allowed := ARRAY['cancelled'];
+            WHEN 'no_show' THEN
+              allowed := ARRAY['attended', 'cancelled'];
+            WHEN 'declined' THEN
+              allowed := ARRAY['pending', 'cancelled'];
+            WHEN 'cancelled' THEN
+              allowed := ARRAY['pending'];
+            WHEN 'expired' THEN
+              allowed := ARRAY['pending'];
+            ELSE
+              RETURN NEW;
+          END CASE;
+
+          IF NEW.status = ANY(allowed) THEN
+            RETURN NEW;
+          END IF;
+
+          RAISE EXCEPTION 'Invalid booking status transition: % -> %', OLD.status, NEW.status;
+        END;
+        $$;
+
+        DROP TRIGGER IF EXISTS trg_enforce_booking_status_transition ON booking_requests;
+        CREATE TRIGGER trg_enforce_booking_status_transition
+          BEFORE UPDATE OF status ON booking_requests
+          FOR EACH ROW
+          EXECUTE FUNCTION enforce_booking_status_transition();
+      `);
+      logger.info('[DB Init] Booking status transition trigger created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping booking status transition trigger: ${getErrorMessage(err)}`);
     }
 
     logger.info('[DB Init] Data integrity hardening constraints applied');

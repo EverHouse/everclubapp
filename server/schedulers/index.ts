@@ -20,6 +20,7 @@ import { startDuplicateCleanupScheduler } from './duplicateCleanupScheduler';
 import { startStuckCancellationScheduler, stopStuckCancellationScheduler } from './stuckCancellationScheduler';
 import { startPendingUserCleanupScheduler, stopPendingUserCleanupScheduler } from './pendingUserCleanupScheduler';
 import { startWebhookEventCleanupScheduler, stopWebhookEventCleanupScheduler } from './webhookEventCleanupScheduler';
+import { startHubSpotWebhookCleanupScheduler, stopHubSpotWebhookCleanupScheduler } from './hubspotWebhookCleanupScheduler';
 import { startOnboardingNudgeScheduler, stopOnboardingNudgeScheduler } from './onboardingNudgeScheduler';
 import { startSupabaseHeartbeatScheduler, stopSupabaseHeartbeatScheduler } from './supabaseHeartbeatScheduler';
 import { startNotificationCleanupScheduler, stopNotificationCleanupScheduler } from './notificationCleanupScheduler';
@@ -77,6 +78,7 @@ export function initSchedulers(): void {
   schedulerTracker.registerScheduler('Stuck Cancellation', 2 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Pending User Cleanup', 6 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Webhook Event Cleanup', 24 * 60 * 60 * 1000);
+  schedulerTracker.registerScheduler('HubSpot Webhook Cleanup', 24 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Onboarding Nudge', 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Supabase Heartbeat', 6 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Notification Cleanup', 24 * 60 * 60 * 1000);
@@ -171,6 +173,9 @@ export function initSchedulers(): void {
   staggerStart(slot * STAGGER_INTERVAL_MS, 'Webhook Event Cleanup', () => startWebhookEventCleanupScheduler());
   slot++;
 
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'HubSpot Webhook Cleanup', () => startHubSpotWebhookCleanupScheduler());
+  slot++;
+
   staggerStart(slot * STAGGER_INTERVAL_MS, 'Duplicate Cleanup', () => {
     intervalIds.push(startDuplicateCleanupScheduler());
   });
@@ -204,6 +209,7 @@ export function stopSchedulers(): void {
   stopStuckCancellationScheduler();
   stopPendingUserCleanupScheduler();
   stopWebhookEventCleanupScheduler();
+  stopHubSpotWebhookCleanupScheduler();
   stopCommunicationLogsScheduler();
   stopDailyReminderScheduler();
   stopMorningClosureScheduler();
