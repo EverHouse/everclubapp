@@ -1447,9 +1447,10 @@ export async function ensureDatabaseConstraints() {
       logger.warn(`[DB Init] Skipping validate_guest_pass_member trigger: ${getErrorMessage(err)}`);
     }
 
-    // Task 1: Booking status state machine trigger
+    // Booking status state machine trigger (consolidated)
     // Status values aligned with shared/constants/statuses.ts BOOKING_STATUS
-    // Terminal: attended, no_show, cancelled, declined, expired (TERMINAL_BOOKING_STATUSES + no_show + expired)
+    // Includes correction transitions (cancelled→pending, no_show→attended, etc.) for staff fixes
+    // Bypass via SET LOCAL app.bypass_status_check = 'true' for admin/migration operations
     try {
       await db.execute(sql`
         CREATE OR REPLACE FUNCTION enforce_booking_status_transition()
@@ -1464,7 +1465,7 @@ export async function ensureDatabaseConstraints() {
           IF TG_OP = 'INSERT' THEN
             RETURN NEW;
           END IF;
-          IF OLD.status = NEW.status THEN
+          IF OLD.status IS NULL OR OLD.status = NEW.status THEN
             RETURN NEW;
           END IF;
           bypass := COALESCE(current_setting('app.bypass_status_check', true), '');
@@ -1474,19 +1475,27 @@ export async function ensureDatabaseConstraints() {
 
           CASE OLD.status
             WHEN 'pending' THEN
-              valid := NEW.status IN ('approved', 'confirmed', 'declined', 'cancelled', 'cancellation_pending', 'expired', 'pending_approval');
+              valid := NEW.status IN ('pending_approval', 'approved', 'confirmed', 'declined', 'cancelled', 'cancellation_pending', 'expired');
             WHEN 'pending_approval' THEN
               valid := NEW.status IN ('approved', 'declined', 'cancelled', 'cancellation_pending', 'expired');
             WHEN 'approved' THEN
-              valid := NEW.status IN ('confirmed', 'cancelled', 'cancellation_pending', 'attended', 'no_show', 'expired', 'checked_in');
+              valid := NEW.status IN ('confirmed', 'cancelled', 'cancellation_pending', 'declined', 'attended', 'no_show', 'expired', 'checked_in');
             WHEN 'confirmed' THEN
-              valid := NEW.status IN ('cancelled', 'cancellation_pending', 'attended', 'no_show', 'checked_in');
+              valid := NEW.status IN ('checked_in', 'cancelled', 'cancellation_pending', 'attended', 'no_show');
             WHEN 'cancellation_pending' THEN
-              valid := NEW.status IN ('cancelled');
+              valid := NEW.status IN ('cancelled', 'confirmed', 'approved');
             WHEN 'checked_in' THEN
-              valid := NEW.status IN ('attended', 'no_show');
-            WHEN 'attended', 'no_show', 'cancelled', 'declined', 'expired' THEN
-              valid := false;
+              valid := NEW.status IN ('attended', 'no_show', 'cancelled');
+            WHEN 'attended' THEN
+              valid := NEW.status IN ('cancelled');
+            WHEN 'no_show' THEN
+              valid := NEW.status IN ('attended', 'cancelled');
+            WHEN 'cancelled' THEN
+              valid := NEW.status IN ('pending');
+            WHEN 'declined' THEN
+              valid := NEW.status IN ('pending', 'cancelled');
+            WHEN 'expired' THEN
+              valid := NEW.status IN ('pending');
             ELSE
               valid := false;
           END CASE;
@@ -1500,6 +1509,7 @@ export async function ensureDatabaseConstraints() {
         $$;
 
         DROP TRIGGER IF EXISTS trg_booking_status_machine ON booking_requests;
+        DROP TRIGGER IF EXISTS trg_enforce_booking_status_transition ON booking_requests;
         CREATE TRIGGER trg_booking_status_machine
           BEFORE UPDATE OF status ON booking_requests
           FOR EACH ROW
@@ -1990,69 +2000,6 @@ export async function ensureDatabaseConstraints() {
       logger.warn(`[DB Init] Skipping hubspot_processed_webhooks table: ${getErrorMessage(err)}`);
     }
 
-    try {
-      await db.execute(sql`
-        CREATE OR REPLACE FUNCTION enforce_booking_status_transition()
-        RETURNS TRIGGER
-        LANGUAGE plpgsql
-        SET search_path = ''
-        AS $$
-        DECLARE
-          allowed TEXT[];
-        BEGIN
-          IF TG_OP = 'INSERT' THEN
-            RETURN NEW;
-          END IF;
-
-          IF OLD.status IS NULL OR OLD.status = NEW.status THEN
-            RETURN NEW;
-          END IF;
-
-          CASE OLD.status
-            WHEN 'pending' THEN
-              allowed := ARRAY['pending_approval', 'approved', 'declined', 'cancelled', 'expired'];
-            WHEN 'pending_approval' THEN
-              allowed := ARRAY['approved', 'declined', 'cancelled'];
-            WHEN 'approved' THEN
-              allowed := ARRAY['confirmed', 'cancelled', 'declined', 'cancellation_pending'];
-            WHEN 'confirmed' THEN
-              allowed := ARRAY['checked_in', 'cancelled', 'no_show', 'attended', 'cancellation_pending'];
-            WHEN 'cancellation_pending' THEN
-              allowed := ARRAY['cancelled', 'confirmed', 'approved'];
-            WHEN 'checked_in' THEN
-              allowed := ARRAY['attended', 'no_show', 'cancelled'];
-            WHEN 'attended' THEN
-              allowed := ARRAY['cancelled'];
-            WHEN 'no_show' THEN
-              allowed := ARRAY['attended', 'cancelled'];
-            WHEN 'declined' THEN
-              allowed := ARRAY['pending', 'cancelled'];
-            WHEN 'cancelled' THEN
-              allowed := ARRAY['pending'];
-            WHEN 'expired' THEN
-              allowed := ARRAY['pending'];
-            ELSE
-              RETURN NEW;
-          END CASE;
-
-          IF NEW.status = ANY(allowed) THEN
-            RETURN NEW;
-          END IF;
-
-          RAISE EXCEPTION 'Invalid booking status transition: % -> %', OLD.status, NEW.status;
-        END;
-        $$;
-
-        DROP TRIGGER IF EXISTS trg_enforce_booking_status_transition ON booking_requests;
-        CREATE TRIGGER trg_enforce_booking_status_transition
-          BEFORE UPDATE OF status ON booking_requests
-          FOR EACH ROW
-          EXECUTE FUNCTION enforce_booking_status_transition();
-      `);
-      logger.info('[DB Init] Booking status transition trigger created/verified');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Skipping booking status transition trigger: ${getErrorMessage(err)}`);
-    }
 
     logger.info('[DB Init] Data integrity hardening constraints applied');
   } catch (error: unknown) {
