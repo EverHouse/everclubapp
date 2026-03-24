@@ -144,16 +144,21 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
       const resolvedSub = await resolveSubEmail(customerEmail);
       if (resolvedSub && resolvedSub.matchType !== 'direct') {
         logger.info(`[Stripe Webhook] Email ${customerEmail} resolved to existing user ${resolvedSub.primaryEmail} via ${resolvedSub.matchType}`);
-        await client.query(
+        const resolvedUpdateResult = await client.query(
           `UPDATE users SET 
-            stripe_customer_id = $1, stripe_subscription_id = $2, membership_status = $3,
+            stripe_customer_id = CASE WHEN stripe_customer_id IS NULL OR stripe_customer_id = $1 THEN $1 ELSE stripe_customer_id END,
+            stripe_subscription_id = $2, membership_status = $3,
             membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM $3 THEN NOW() ELSE membership_status_changed_at END,
             billing_provider = 'stripe', stripe_current_period_end = COALESCE($4, stripe_current_period_end),
             tier = COALESCE($5, tier), tier_id = CASE WHEN $5 IS NOT NULL THEN $7 ELSE COALESCE(tier_id, $7) END, join_date = COALESCE(join_date, NOW()),
             archived_at = NULL, archived_by = NULL, updated_at = NOW()
-           WHERE id = $6`,
+           WHERE id = $6
+           RETURNING stripe_customer_id`,
           [customerId, subscription.id, actualStatus, subscriptionPeriodEnd, tierName, resolvedSub.userId, tierId]
         );
+        if (resolvedUpdateResult.rows[0]?.stripe_customer_id && resolvedUpdateResult.rows[0].stripe_customer_id !== customerId) {
+          logger.warn(`[Stripe Webhook] stripe_customer_id mismatch for user ${resolvedSub.primaryEmail} — kept existing ${resolvedUpdateResult.rows[0].stripe_customer_id}, incoming was ${customerId}. Staff should investigate.`);
+        }
         logger.info(`[Stripe Webhook] Updated existing user ${resolvedSub.primaryEmail} via linked email with tier ${tierName || 'none'}, subscription ${subscription.id}`);
       } else {
         const exclusionCheck = await client.query('SELECT 1 FROM sync_exclusions WHERE email = $1', [customerEmail.toLowerCase()]);
@@ -318,10 +323,10 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
       const shouldActivate = ['pending', 'inactive', 'non-member', null].includes(currentStatus) && 
                               (subscription.status === 'active' || subscription.status === 'trialing');
 
-      await client.query(
+      const existingUserUpdateResult = await client.query(
         `UPDATE users SET 
           stripe_subscription_id = $1,
-          stripe_customer_id = $5,
+          stripe_customer_id = CASE WHEN stripe_customer_id IS NULL OR stripe_customer_id = $5 THEN $5 ELSE stripe_customer_id END,
           stripe_current_period_end = COALESCE($2, stripe_current_period_end),
           billing_provider = 'stripe',
           membership_status = CASE 
@@ -336,9 +341,13 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
           archived_by = NULL,
           join_date = CASE WHEN join_date IS NULL AND $3 = 'active' THEN NOW() ELSE join_date END,
           updated_at = NOW()
-        WHERE LOWER(email) = LOWER($4)`,
+        WHERE LOWER(email) = LOWER($4)
+        RETURNING stripe_customer_id`,
         [subscription.id, subscriptionPeriodEnd, mappedStatus, email, customerId]
       );
+      if (existingUserUpdateResult.rows[0]?.stripe_customer_id && existingUserUpdateResult.rows[0].stripe_customer_id !== customerId) {
+        logger.warn(`[Stripe Webhook] stripe_customer_id mismatch for user ${email} — kept existing ${existingUserUpdateResult.rows[0].stripe_customer_id}, incoming was ${customerId}. Staff should investigate.`);
+      }
       logger.info(`[Stripe Webhook] Updated existing user ${email}: subscription=${subscription.id}, customerId=${customerId}, status=${mappedStatus} (stripe: ${subscription.status}), shouldActivate=${shouldActivate}`);
 
       if (subscription.metadata?.migration === 'true') {

@@ -403,7 +403,7 @@ export async function syncCafeItemsToStripe(): Promise<{
               source: 'ever_house_app',
             },
           }, {
-            idempotencyKey: `price_cafe_${itemId}_${priceCents}_${Date.now()}`
+            idempotencyKey: `price_cafe_${itemId}_${priceCents}`
           });
           stripePriceId = newPrice.id;
           logger.info(`[Cafe Sync] Created price for ${itemName}: ${stripePriceId}`);

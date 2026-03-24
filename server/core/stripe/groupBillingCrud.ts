@@ -150,7 +150,7 @@ export async function syncGroupAddOnProductsToStripe(): Promise<{
               group_addon: 'true',
               tier_name: product.tierName,
             },
-          }, { idempotencyKey: `price_${stripeProductId}_${product.priceCents}_${interval}_${Date.now()}` });
+          }, { idempotencyKey: `price_${stripeProductId}_${product.priceCents}_${interval}` });
           stripePriceId = stripePrice.id;
         }
         

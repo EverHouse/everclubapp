@@ -134,7 +134,7 @@ export async function autoPushTierToStripe(tierRow: Record<string, unknown> & { 
         logger.info(`[AutoPush] Reusing existing Stripe product ${stripeProduct.id} for tier "${tierRow.name}"`);
       } else {
         stripeProduct = await stripe.products.create(createParams, {
-          idempotencyKey: `autopush_product_tier_${tierRow.id}_${tierRow.slug}_${Date.now()}`
+          idempotencyKey: `autopush_product_tier_${tierRow.id}_${tierRow.slug}`
         });
         markAppOriginated(stripeProduct.id);
         logger.info(`[AutoPush] Created new Stripe product ${stripeProduct.id} for tier "${tierRow.name}"`);
@@ -194,7 +194,7 @@ export async function autoPushTierToStripe(tierRow: Record<string, unknown> & { 
           priceParams.recurring = { interval };
         }
         const newPrice = await stripe.prices.create(priceParams, {
-          idempotencyKey: `autopush_price_tier_${tierRow.id}_${priceCents}_${Date.now()}`
+          idempotencyKey: `autopush_price_tier_${tierRow.id}_${priceCents}_${billingInterval}`
         });
         markAppOriginated(newPrice.id);
         stripePriceId = newPrice.id;
@@ -298,7 +298,7 @@ export async function autoPushCafeItemToStripe(item: {
           description: item.description || undefined,
           metadata,
         }, {
-          idempotencyKey: `autopush_product_cafe_${item.id}_${Date.now()}`
+          idempotencyKey: `autopush_product_cafe_${item.id}`
         });
         stripeProductId = newProduct.id;
         markAppOriginated(stripeProductId);
@@ -338,7 +338,7 @@ export async function autoPushCafeItemToStripe(item: {
           source: 'ever_house_app',
         },
       }, {
-        idempotencyKey: `autopush_price_cafe_${item.id}_${priceCents}_${Date.now()}`
+        idempotencyKey: `autopush_price_cafe_${item.id}_${priceCents}`
       });
       markAppOriginated(newPrice.id);
       stripePriceId = newPrice.id;
@@ -417,7 +417,7 @@ export async function autoPushFeeToStripe(slug: string, priceCents: number): Pro
           source: 'ever_house_app',
         },
       }, {
-        idempotencyKey: `autopush_fee_${slug}_${priceCents}_${Date.now()}`
+        idempotencyKey: `autopush_fee_${slug}_${priceCents}`
       });
       markAppOriginated(newPrice.id);
       stripePriceId = newPrice.id;
