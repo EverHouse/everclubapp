@@ -76,6 +76,8 @@ const PageLoadingSpinner: React.FC<PageLoadingSpinnerProps> = ({
         src={imageSrc}
         alt="Loading"
         className="h-auto"
+        width={80}
+        height={80}
         style={{ width: '80px' }}
       />
       <p

@@ -22,11 +22,17 @@ const Logo: React.FC<LogoProps> = ({
   const logoVariant: LogoVariant = variant || (isDarkBackground ? 'white' : 'dark');
   const src = BRAND.logos[logoType][logoVariant];
 
+  const dimensions = logoType === 'mascot'
+    ? { width: 48, height: 48 }
+    : { width: 120, height: 48 };
+
   return (
     <img
       src={src}
       alt={alt}
       className={className}
+      width={dimensions.width}
+      height={dimensions.height}
     />
   );
 };

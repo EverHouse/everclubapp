@@ -1950,6 +1950,8 @@ html.dark .border-accessible {
 
 .animate-content-enter {
   animation: pageContentEnter 0.4s var(--m3-emphasized-decel) both;
+  will-change: opacity, transform;
+  backface-visibility: hidden;
 }
 
 .animate-content-enter-delay-0 {

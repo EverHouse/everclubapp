@@ -72,7 +72,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
           </div>
           <div className="absolute inset-0 p-6 flex flex-col justify-between z-10">
             <div className="flex justify-between items-start">
-              <img src={useDarkLogo ? "/images/everclub-logo-dark.webp" : "/images/everclub-logo-light.webp"} className={`h-10 w-auto ${isExpired ? 'opacity-50' : 'opacity-90'}`} alt="" />
+              <img src={useDarkLogo ? "/images/everclub-logo-dark.webp" : "/images/everclub-logo-light.webp"} className={`h-10 w-auto ${isExpired ? 'opacity-50' : 'opacity-90'}`} alt="" width={100} height={40} />
               <div className="flex flex-col items-end gap-1">
                 <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `${cardTextColor}99` }}>Ever Club</span>
                 {isExpired && (

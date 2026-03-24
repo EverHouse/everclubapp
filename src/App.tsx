@@ -19,6 +19,7 @@ import OfflineBanner from './components/OfflineBanner';
 import { NotificationContext } from './contexts/NotificationContext';
 import { BottomSentinel } from './components/layout/BottomSentinel';
 import MemberBottomNav from './components/MemberBottomNav';
+import { DashboardSkeleton, BookGolfSkeleton } from './components/skeletons';
 import { useNavigationLoading } from './stores/navigationLoadingStore';
 import WalkingGolferLoader from './components/WalkingGolferLoader';
 import { useNotificationSounds } from './hooks/useNotificationSounds';
@@ -562,12 +563,12 @@ const AnimatedRoutes: React.FC = () => {
 
             <Route path="/dashboard" element={
               <MemberPortalRoute>
-                <DirectionalPageTransition><Suspense fallback={<PageSkeleton />}><PageErrorBoundary pageName="Dashboard"><Dashboard /></PageErrorBoundary></Suspense></DirectionalPageTransition>
+                <DirectionalPageTransition><Suspense fallback={<DashboardSkeleton />}><PageErrorBoundary pageName="Dashboard"><Dashboard /></PageErrorBoundary></Suspense></DirectionalPageTransition>
               </MemberPortalRoute>
             } />
             <Route path="/book" element={
               <MemberPortalRoute>
-                <DirectionalPageTransition><Suspense fallback={<PageSkeleton />}><PageErrorBoundary pageName="BookGolf"><BookGolf /></PageErrorBoundary></Suspense></DirectionalPageTransition>
+                <DirectionalPageTransition><Suspense fallback={<BookGolfSkeleton />}><PageErrorBoundary pageName="BookGolf"><BookGolf /></PageErrorBoundary></Suspense></DirectionalPageTransition>
               </MemberPortalRoute>
             } />
             <Route path="/events" element={

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { getPacificHour, CLUB_TIMEZONE } from '../../../utils/dateUtils';
-import PageLoadingSpinner from '../../../components/PageLoadingSpinner';
+import { DashboardSkeleton } from '../../../components/skeletons';
 import { SmoothReveal } from '../../../components/motion/SmoothReveal';
 import { AnimatedPage } from '../../../components/motion';
 import ClosureAlert from '../../../components/ClosureAlert';
@@ -90,7 +90,7 @@ const Dashboard: React.FC = () => {
     <SmoothReveal isLoaded={!initialLoading}>
     <div className="full-bleed-page flex flex-col">
     {initialLoading ? (
-      <PageLoadingSpinner />
+      <DashboardSkeleton />
     ) : (
     <>
     <div className="flex-1 flex flex-col">
@@ -128,7 +128,7 @@ const Dashboard: React.FC = () => {
         
         <OnboardingChecklist />
         
-        <div className="mb-6 animate-content-enter">
+        <div className="mb-6 animate-content-enter" style={{ minHeight: '72px' }}>
           <div className="flex items-center gap-3">
             <h1 className={`text-3xl sm:text-4xl md:text-5xl leading-none translate-y-[1px] ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)', fontOpticalSizing: 'auto', letterSpacing: '-0.03em' }}>
               {getGreeting()}, {user?.firstName || (user?.name && !user.name.includes('@') ? user.name.split(' ')[0] : 'there')}
