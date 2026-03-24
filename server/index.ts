@@ -1221,8 +1221,24 @@ async function initializeApp() {
 
     runStartupTasks()
       .then(() => handleStartupResult(1))
+      .then(() => {
+        try {
+          initSchedulers();
+          schedulersInitialized = true;
+          logger.info('[Startup] Schedulers initialized after startup tasks completed');
+        } catch (err: unknown) {
+          logger.error('[Startup] Scheduler initialization failed:', { error: err as Error });
+        }
+      })
       .catch((err) => {
         logger.error('[Startup] Startup tasks failed unexpectedly:', { error: err as Error });
+        try {
+          initSchedulers();
+          schedulersInitialized = true;
+          logger.warn('[Startup] Schedulers initialized despite startup task failure');
+        } catch (schedErr: unknown) {
+          logger.error('[Startup] Scheduler initialization also failed:', { error: schedErr as Error });
+        }
       });
 
     if (!isProduction) {
@@ -1232,19 +1248,10 @@ async function initializeApp() {
         } catch (err: unknown) {
           logger.error('[Startup] Auto-seed resources failed:', { error: err as Error });
         }
-        // Auto-seed cafe menu removed — deleted items should stay deleted.
-        // Use POST /api/admin/seed-cafe for intentional re-seeding.
       }, 30000);
     }
 
-    try {
-      initSchedulers();
-      schedulersInitialized = true;
-    } catch (err: unknown) {
-      logger.error('[Startup] Scheduler initialization failed:', { error: err as Error });
-    }
-
-    logger.info('[Startup] All background services launched');
+    logger.info('[Startup] Background initialization launched');
   });
 }
 

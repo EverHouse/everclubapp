@@ -6,9 +6,12 @@ import { getErrorMessage } from '../utils/errorUtils';
 let intervalId: NodeJS.Timeout | null = null;
 let initialTimerId: NodeJS.Timeout | null = null;
 
-const HEARTBEAT_INTERVAL = 6 * 60 * 60 * 1000;
+const HEARTBEAT_INTERVAL = 60 * 60 * 1000;
 
-const HEARTBEAT_TIMEOUT = 10000;
+const HEARTBEAT_TIMEOUT = 30000;
+
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 5000;
 
 async function runHeartbeat(): Promise<void> {
   if (!isSupabaseConfigured()) {
@@ -16,39 +19,60 @@ async function runHeartbeat(): Promise<void> {
     return;
   }
 
-  const supabase = getSupabaseAdmin();
+  let lastError: Error | null = null;
 
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Supabase heartbeat query timed out after 10s')), HEARTBEAT_TIMEOUT);
-  });
+  for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+    try {
+      const supabase = getSupabaseAdmin();
 
-  const queryPromise = supabase
-    .from('users')
-    .select('id', { count: 'exact', head: true });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), HEARTBEAT_TIMEOUT);
 
-  const { count, error } = await Promise.race([queryPromise, timeoutPromise]) as Awaited<typeof queryPromise>;
+      try {
+        const { count, error } = await supabase
+          .from('users')
+          .select('id', { count: 'exact', head: true })
+          .abortSignal(controller.signal);
 
-  if (error) {
-    throw new Error(`Supabase heartbeat query failed: ${error.message}`);
-  }
+        clearTimeout(timeoutId);
 
-  logger.info(`[Supabase Heartbeat] Ping successful - ${count ?? 0} users in Supabase`);
+        if (error) {
+          throw new Error(`Supabase heartbeat query failed: ${error.message}`);
+        }
 
-  if (!isRealtimeEnabled()) {
-    logger.info('[Supabase Heartbeat] Realtime not enabled — attempting recovery...');
-    resetSupabaseAvailability();
-    const { successCount, total } = await enableRealtimeWithRetry();
-    if (successCount > 0) {
-      logger.info(`[Supabase Heartbeat] Realtime recovery succeeded (${successCount}/${total} tables)`);
-    } else {
-      logger.warn('[Supabase Heartbeat] Realtime recovery failed — will retry next heartbeat');
+        logger.info(`[Supabase Heartbeat] Ping successful - ${count ?? 0} users in Supabase`);
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
+
+      if (!isRealtimeEnabled()) {
+        logger.info('[Supabase Heartbeat] Realtime not enabled — attempting recovery...');
+        resetSupabaseAvailability();
+        const { successCount, total } = await enableRealtimeWithRetry();
+        if (successCount > 0) {
+          logger.info(`[Supabase Heartbeat] Realtime recovery succeeded (${successCount}/${total} tables)`);
+        } else {
+          logger.warn('[Supabase Heartbeat] Realtime recovery failed — will retry next heartbeat');
+        }
+      }
+
+      return;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (attempt <= MAX_RETRIES) {
+        logger.warn(`[Supabase Heartbeat] Attempt ${attempt} failed, retrying in ${RETRY_DELAY_MS / 1000}s...`, { extra: { error: lastError.message } });
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      }
     }
   }
+
+  throw lastError ?? new Error('Supabase heartbeat failed after retries');
 }
 
 export function startSupabaseHeartbeatScheduler(): void {
   stopSupabaseHeartbeatScheduler();
-  logger.info('[Startup] Supabase heartbeat scheduler enabled (runs every 6 hours)');
+  logger.info('[Startup] Supabase heartbeat scheduler enabled (runs every 1 hour)');
 
   initialTimerId = setTimeout(async () => {
     initialTimerId = null;

@@ -43,9 +43,13 @@ const Landing: React.FC = () => {
   const { ref: heroRef, imageRef: heroImageRef, overlayRef: heroOverlayRef } = useParallax({ speed: 0.15, maxOffset: 80, imageScale: 1.03, gradient: landingGradient });
   const scrollRef = useScrollReveal<HTMLDivElement>();
   const [heroAnimPlayed] = useState(() => {
-    const played = sessionStorage.getItem(HERO_ANIM_KEY) === '1';
-    if (!played) sessionStorage.setItem(HERO_ANIM_KEY, '1');
-    return played;
+    try {
+      const played = sessionStorage.getItem(HERO_ANIM_KEY) === '1';
+      if (!played) sessionStorage.setItem(HERO_ANIM_KEY, '1');
+      return played;
+    } catch {
+      return false;
+    }
   });
 
   useEffect(() => {
