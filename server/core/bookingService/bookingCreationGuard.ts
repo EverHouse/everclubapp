@@ -153,7 +153,8 @@ export async function checkResourceOverlap(
       AND status = 'booked'
       AND start_time < ${endTime} AND end_time > ${startTime}
       ORDER BY start_time ASC
-      LIMIT 1`,
+      LIMIT 1
+      FOR SHARE`,
     'trackman_bay_slots',
   );
 
@@ -175,7 +176,8 @@ export async function checkResourceOverlap(
       )
       AND tub.start_time < ${endTime} AND tub.end_time > ${startTime}
       ORDER BY tub.start_time ASC
-      LIMIT 1`,
+      LIMIT 1
+      FOR SHARE`,
     'trackman_unmatched_bookings',
   );
 
@@ -196,7 +198,8 @@ export async function checkResourceOverlap(
         AND br.status NOT IN ('cancelled', 'deleted', 'declined')
       )
       ORDER BY bs.start_time ASC
-      LIMIT 1`,
+      LIMIT 1
+      FOR SHARE`,
     'booking_sessions',
   );
 

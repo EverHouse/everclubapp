@@ -419,6 +419,15 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, validateBody(cr
       description: description
     });
     
+    if (result.status === 'succeeded') {
+      res.json({
+        paidInFull: true,
+        paymentIntentId: result.paymentIntentId,
+        customerId: result.customerId
+      });
+      return;
+    }
+
     res.json({
       paymentIntentId: result.paymentIntentId,
       clientSecret: result.clientSecret,
