@@ -17,6 +17,7 @@ interface ClosureCacheEntry {
 }
 
 const closureCache = new Map<string, ClosureCacheEntry>();
+const MAX_CACHE_SIZE = 1000;
 const CLOSURE_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
 const CLOSURE_CACHE_PRUNE_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -101,6 +102,11 @@ async function getActiveClosuresForDate(bookingDate: string, txClient?: { select
       sql`${facilityClosures.endDate} >= ${bookingDate}`
     ));
   
+  if (closureCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = closureCache.keys().next().value;
+    if (firstKey) closureCache.delete(firstKey);
+  }
+
   closureCache.set(cacheKey, {
     closures,
     expiry: Date.now() + CLOSURE_CACHE_TTL_MS
@@ -194,10 +200,12 @@ export async function checkBookingConflict(
   bookingDate: string,
   startTime: string,
   endTime: string,
-  excludeBookingId?: number
+  excludeBookingId?: number,
+  txClient?: { select: typeof db.select, execute: typeof db.execute }
 ): Promise<{ hasConflict: boolean; conflictingBooking?: Record<string, unknown>; conflictSource?: string }> {
   try {
     validateTimeParams(startTime, endTime);
+    const dbCtx = txClient || db;
     const conditions = [
       eq(bookingRequests.resourceId, resourceId),
       sql`${bookingRequests.requestDate} = ${bookingDate}`,
@@ -222,7 +230,7 @@ export async function checkBookingConflict(
       conditions.push(sql`${bookingRequests.id} != ${excludeBookingId}`);
     }
 
-    const existingBookings = await db
+    const existingBookings = await dbCtx
       .select()
       .from(bookingRequests)
       .where(and(...conditions));
@@ -234,7 +242,7 @@ export async function checkBookingConflict(
     }
 
     try {
-      const trackmanBayResult = await db.execute(sql`
+      const trackmanBayResult = await dbCtx.execute(sql`
         SELECT resource_id, start_time, end_time FROM trackman_bay_slots
         WHERE resource_id = ${resourceId}
         AND slot_date = ${bookingDate}
@@ -251,15 +259,16 @@ export async function checkBookingConflict(
         return { hasConflict: true, conflictingBooking: trackmanBayResult.rows[0] as Record<string, unknown>, conflictSource: 'trackman_bay_slot' };
       }
     } catch (err: unknown) {
+      logger.error('[checkBookingConflict] Failed to check trackman_bay_slots', { error: err instanceof Error ? err : new Error(String(err)) });
       if (getErrorCode(err) !== '42P01') {
-        logger.error('[checkBookingConflict] Failed to check trackman_bay_slots', { error: err instanceof Error ? err : new Error(String(err)) });
         throw err;
       }
+      return { hasConflict: true, conflictingBooking: undefined, conflictSource: 'trackman_bay_slot_unavailable' };
     }
 
     const resourceIdStr = String(resourceId);
     try {
-      const unmatchedResult = await db.execute(sql`
+      const unmatchedResult = await dbCtx.execute(sql`
         SELECT tub.bay_number, tub.start_time, tub.end_time FROM trackman_unmatched_bookings tub
         WHERE tub.bay_number = ${resourceIdStr}
         AND tub.booking_date = ${bookingDate}
@@ -280,14 +289,15 @@ export async function checkBookingConflict(
         return { hasConflict: true, conflictingBooking: unmatchedResult.rows[0] as Record<string, unknown>, conflictSource: 'trackman_unmatched' };
       }
     } catch (err: unknown) {
+      logger.error('[checkBookingConflict] Failed to check trackman_unmatched_bookings', { error: err instanceof Error ? err : new Error(String(err)) });
       if (getErrorCode(err) !== '42P01') {
-        logger.error('[checkBookingConflict] Failed to check trackman_unmatched_bookings', { error: err instanceof Error ? err : new Error(String(err)) });
         throw err;
       }
+      return { hasConflict: true, conflictingBooking: undefined, conflictSource: 'trackman_unmatched_unavailable' };
     }
 
     try {
-      const sessionResult = await db.execute(sql`
+      const sessionResult = await dbCtx.execute(sql`
         SELECT bs.id, bs.start_time, bs.end_time FROM booking_sessions bs
         WHERE bs.resource_id = ${resourceId}
         AND bs.session_date = ${bookingDate}
@@ -308,10 +318,11 @@ export async function checkBookingConflict(
         return { hasConflict: true, conflictingBooking: sessionResult.rows[0] as Record<string, unknown>, conflictSource: 'booking_session' };
       }
     } catch (err: unknown) {
+      logger.error('[checkBookingConflict] Failed to check booking_sessions', { error: err instanceof Error ? err : new Error(String(err)) });
       if (getErrorCode(err) !== '42P01') {
-        logger.error('[checkBookingConflict] Failed to check booking_sessions', { error: err instanceof Error ? err : new Error(String(err)) });
         throw err;
       }
+      return { hasConflict: true, conflictingBooking: undefined, conflictSource: 'booking_session_unavailable' };
     }
 
     return { hasConflict: false };
@@ -366,19 +377,20 @@ export async function checkAllConflicts(
   bookingDate: string,
   startTime: string,
   endTime: string,
-  excludeBookingId?: number
+  excludeBookingId?: number,
+  txClient?: { select: typeof db.select, execute: typeof db.execute }
 ): Promise<{ hasConflict: boolean; conflictType?: 'closure' | 'availability_block' | 'booking'; conflictTitle?: string }> {
-  const closureCheck = await checkClosureConflict(resourceId, bookingDate, startTime, endTime);
+  const closureCheck = await checkClosureConflict(resourceId, bookingDate, startTime, endTime, txClient);
   if (closureCheck.hasConflict) {
     return { hasConflict: true, conflictType: 'closure', conflictTitle: closureCheck.closureTitle || 'Facility Closure' };
   }
 
-  const blockCheck = await checkAvailabilityBlockConflict(resourceId, bookingDate, startTime, endTime);
+  const blockCheck = await checkAvailabilityBlockConflict(resourceId, bookingDate, startTime, endTime, txClient);
   if (blockCheck.hasConflict) {
     return { hasConflict: true, conflictType: 'availability_block', conflictTitle: blockCheck.blockType || 'Event Block' };
   }
 
-  const bookingCheck = await checkBookingConflict(resourceId, bookingDate, startTime, endTime, excludeBookingId);
+  const bookingCheck = await checkBookingConflict(resourceId, bookingDate, startTime, endTime, excludeBookingId, txClient);
   if (bookingCheck.hasConflict) {
     return { hasConflict: true, conflictType: 'booking', conflictTitle: 'Existing Booking' };
   }

@@ -150,6 +150,15 @@ const LOCK_TIMEOUT_MS = 120_000;
 
 const subscriptionLocksMemory = new Map<string, number>();
 
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamp] of subscriptionLocksMemory.entries()) {
+    if (now - timestamp > LOCK_TIMEOUT_MS) {
+      subscriptionLocksMemory.delete(key);
+    }
+  }
+}, 60_000).unref();
+
 let dbLocksInitialized = false;
 async function ensureLocksTable(): Promise<boolean> {
   if (dbLocksInitialized) return true;
