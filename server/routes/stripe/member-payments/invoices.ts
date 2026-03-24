@@ -98,7 +98,7 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
             UPDATE booking_participants
              SET payment_status = 'paid', paid_at = NOW(), updated_at = NOW()
              WHERE booking_id = ${metaBookingId}
-               AND payment_status IN ('pending', 'unpaid')
+               AND payment_status = 'pending'
           `);
           await logPaymentAudit({
             bookingId: metaBookingId,

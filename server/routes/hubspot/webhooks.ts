@@ -98,7 +98,14 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
                     } else if (recentManualFix) {
                       logger.info('[HubSpot Webhook] MANUAL FIX PROTECTED: Skipping status/tier change — user was manually fixed recently', { extra: { email, propertyName, propertyValue, fixedAt: existingUser.last_manual_fix_at } });
                     } else if (propertyName === 'membership_status') {
-                      const newStatus = (propertyValue || 'non-member').toLowerCase();
+                      const rawStatus = (propertyValue || 'non-member').toLowerCase();
+                      const STATUS_NORMALIZATION: Record<string, string> = {
+                        'declined': 'cancelled',
+                        'canceled': 'cancelled',
+                        'churned': 'cancelled',
+                        'lapsed': 'expired',
+                      };
+                      const newStatus = STATUS_NORMALIZATION[rawStatus] || rawStatus;
 
                       if (isStripeProtected) {
                         logger.info('[HubSpot Webhook] STRIPE WINS: Skipping status change for Stripe-billed member', { extra: { email, newStatus } });
