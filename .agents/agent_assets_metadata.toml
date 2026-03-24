@@ -18,3 +18,9 @@ id = "jeYTAhmB7o5Qg7L0Eb66_"
 uri = "file://.local/audit-report-2026-03-18.md"
 type = "text"
 title = "Comprehensive Audit Report — Ever Club Members App v8.87.92"
+
+[[outputs]]
+id = "EO_OIDDjEAw95peprb-qc"
+uri = "file://docs/PRD.md"
+type = "text"
+title = "Ever Club Members App — Product Requirements Document"
