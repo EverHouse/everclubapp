@@ -42,7 +42,14 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
     if (couponId) {
       try {
         const coupon = await stripe.coupons.retrieve(couponId);
-        isFullyComped = coupon.percent_off === 100;
+        if (coupon.percent_off === 100) {
+          isFullyComped = true;
+        } else if (coupon.amount_off && coupon.amount_off > 0) {
+          const price = await stripe.prices.retrieve(priceId);
+          if (price.unit_amount && coupon.amount_off >= price.unit_amount) {
+            isFullyComped = true;
+          }
+        }
       } catch (couponErr: unknown) {
         logger.warn(`[Stripe Subscriptions] Could not verify coupon ${couponId}, proceeding with default behavior`, { extra: { error: getErrorMessage(couponErr) } });
       }

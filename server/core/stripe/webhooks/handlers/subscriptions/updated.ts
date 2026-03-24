@@ -113,8 +113,11 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
               const allTiersResult = await client.query(
                 'SELECT id, slug, name FROM membership_tiers ORDER BY id'
               );
-              for (const tier of allTiersResult.rows) {
-                if (productName.includes(tier.slug.toLowerCase()) || productName.includes(tier.name.toLowerCase())) {
+              const sortedTiers = [...allTiersResult.rows].sort((a, b) => b.name.length - a.name.length);
+              for (const tier of sortedTiers) {
+                const slugPattern = new RegExp(`\\b${tier.slug.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+                const namePattern = new RegExp(`\\b${tier.name.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+                if (slugPattern.test(productName) || namePattern.test(productName)) {
                   newTierName = tier.name;
                   newTierId = tier.id;
                   matchMethod = 'product_name';

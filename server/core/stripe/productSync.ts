@@ -112,7 +112,7 @@ export async function syncMembershipTiersToStripe(): Promise<{
                 stripePriceId = newPrice.id;
                 priceChanged = true;
                 logger.info(`[Tier Sync] Created replacement price for ${tier.name} (old was inactive)`);
-              } else if (existingPrice.unit_amount !== tier.priceCents) {
+              } else if (existingPrice.unit_amount !== tier.priceCents || existingPrice.recurring?.interval !== billingInterval) {
                 markAppOriginated(stripePriceId);
                 await stripe.prices.update(stripePriceId, { active: false });
                 const priceParams: Stripe.PriceCreateParams = {

@@ -321,7 +321,7 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
       await client.query(
         `UPDATE users SET 
           stripe_subscription_id = $1,
-          stripe_customer_id = COALESCE(stripe_customer_id, $5),
+          stripe_customer_id = $5,
           stripe_current_period_end = COALESCE($2, stripe_current_period_end),
           billing_provider = 'stripe',
           membership_status = CASE 
@@ -468,7 +468,7 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
             tier = $1, 
             tier_id = $7,
             billing_provider = 'stripe',
-            stripe_customer_id = COALESCE(stripe_customer_id, $3),
+            stripe_customer_id = $3,
             stripe_subscription_id = COALESCE(stripe_subscription_id, $4),
             stripe_current_period_end = COALESCE($5, stripe_current_period_end),
             membership_status = CASE 
@@ -601,8 +601,11 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
                 const allTiersResult = await deferredClient.query(
                   'SELECT id, slug, name FROM membership_tiers ORDER BY id'
                 );
-                for (const tier of allTiersResult.rows) {
-                  if (productName.includes(tier.slug.toLowerCase()) || productName.includes(tier.name.toLowerCase())) {
+                const sortedTiers = [...allTiersResult.rows].sort((a: { name: string }, b: { name: string }) => b.name.length - a.name.length);
+                for (const tier of sortedTiers) {
+                  const slugPattern = new RegExp(`\\b${tier.slug.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+                  const namePattern = new RegExp(`\\b${tier.name.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+                  if (slugPattern.test(productName) || namePattern.test(productName)) {
                     matchedTierName = tier.name;
                     matchedTierId = tier.id;
                     logger.info(`[Stripe Webhook] Tier matched by product name "${product.name}" -> ${matchedTierName}`);
