@@ -256,7 +256,6 @@ export const bookingSessions = pgTable("booking_sessions", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
   index("booking_sessions_resource_date_idx").on(table.resourceId, table.sessionDate),
-  index("booking_sessions_trackman_idx").on(table.trackmanBookingId),
 ]);
 
 // Guests table - persistent guest tracking across bookings
@@ -319,9 +318,7 @@ export const bookingParticipants = pgTable("booking_participants", {
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("booking_participants_session_idx").on(table.sessionId),
-  index("booking_participants_user_idx").on(table.userId),
   index("booking_participants_guest_idx").on(table.guestId),
-  index("idx_booking_participants_session_id").on(table.sessionId),
 ]);
 
 export type BookingSession = typeof bookingSessions.$inferSelect;

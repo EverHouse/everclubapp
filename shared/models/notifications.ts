@@ -13,7 +13,6 @@ export const notifications = pgTable("notifications", {
   isRead: boolean("is_read").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
-  index("notifications_user_email_is_read_idx").on(table.userEmail, table.isRead),
   index("idx_notifications_lower_user_email").on(sql`LOWER(${table.userEmail})`),
   index("idx_notifications_created_at").on(table.createdAt),
   index("idx_notifications_user_created").on(table.userEmail, table.createdAt),

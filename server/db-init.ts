@@ -145,9 +145,23 @@ export async function fixFunctionSearchPaths(): Promise<void> {
 
   try {
     await db.execute(sql`DROP INDEX IF EXISTS idx_availability_blocks_closure_id`);
+    await db.execute(sql`DROP INDEX IF EXISTS admin_audit_log_created_at_idx`);
+    await db.execute(sql`DROP INDEX IF EXISTS booking_sessions_trackman_idx`);
+    await db.execute(sql`DROP INDEX IF EXISTS booking_participants_user_idx`);
+    await db.execute(sql`DROP INDEX IF EXISTS idx_booking_participants_session_id`);
+    await db.execute(sql`DROP INDEX IF EXISTS hubspot_deals_hubspot_deal_id_idx`);
+    await db.execute(sql`DROP INDEX IF EXISTS notifications_user_email_is_read_idx`);
+    await db.execute(sql`DROP INDEX IF EXISTS idx_notifications_user`);
     logger.info('[DB Init] Duplicate index cleanup complete');
   } catch (err: unknown) {
     logger.warn(`[DB Init] Skipping duplicate index cleanup: ${getErrorMessage(err)}`);
+  }
+
+  try {
+    await db.execute(sql`REINDEX TABLE integrity_check_history`);
+    logger.info('[DB Init] Reindexed integrity_check_history to reclaim bloated space');
+  } catch (err: unknown) {
+    logger.warn(`[DB Init] Skipping integrity_check_history reindex: ${getErrorMessage(err)}`);
   }
 }
 
