@@ -35,6 +35,11 @@ export async function calculateAndCacheParticipantFees(
   participantIds: number[]
 ): Promise<FeeCalculationResult> {
   try {
+    const safeParticipantIds = participantIds.filter(id => Number.isFinite(id));
+    if (safeParticipantIds.length === 0) {
+      return { fees: [], totalCents: 0, success: true };
+    }
+
     const result = await db.transaction(async (tx) => {
       const participantsResult = await tx.execute(
         sql`SELECT 
@@ -56,7 +61,7 @@ export async function calculateAndCacheParticipantFees(
              OR LOWER(ul.member_id) = LOWER(u.email)
              OR (bp.user_id IS NULL AND bp.participant_type != 'guest' AND LOWER(ul.member_id) = LOWER(br.user_email))
            )
-         WHERE bp.session_id = ${sessionId} AND bp.id = ANY(${toIntArrayLiteral(participantIds)}::int[])`
+         WHERE bp.session_id = ${sessionId} AND bp.id = ANY(${toIntArrayLiteral(safeParticipantIds)}::int[])`
       );
       
       const fees: ParticipantFee[] = [];

@@ -137,33 +137,44 @@ export async function checkClosureConflict(
         return { hasConflict: true, closureTitle: (closure.title as string) || 'Facility Closure' };
       }
 
-      const closureStartDate = (closure.startDate as string);
-      const closureEndDate = (closure.endDate as string);
-      const isStartDate = bookingDate === closureStartDate;
-      const isEndDate = bookingDate === closureEndDate;
-      const isIntermediateDay = !isStartDate && !isEndDate;
-
       let effectiveStartMinutes: number;
       let effectiveEndMinutes: number;
 
-      if (isIntermediateDay) {
+      try {
+        const closureStartDate = (closure.startDate as string);
+        const closureEndDate = (closure.endDate as string);
+        const isStartDate = bookingDate === closureStartDate;
+        const isEndDate = bookingDate === closureEndDate;
+        const isIntermediateDay = !isStartDate && !isEndDate;
+
+        if (isIntermediateDay) {
+          effectiveStartMinutes = 0;
+          effectiveEndMinutes = 24 * 60;
+        } else if (isStartDate && isEndDate) {
+          effectiveStartMinutes = closure.startTime ? parseTimeToMinutes(closure.startTime as string) : 0;
+          effectiveEndMinutes = closure.endTime ? parseTimeToMinutes(closure.endTime as string) : 24 * 60;
+          if (effectiveEndMinutes === 0 && closure.endTime) {
+            effectiveEndMinutes = 24 * 60;
+          }
+        } else if (isStartDate) {
+          effectiveStartMinutes = closure.startTime ? parseTimeToMinutes(closure.startTime as string) : 0;
+          effectiveEndMinutes = 24 * 60;
+        } else {
+          effectiveStartMinutes = 0;
+          effectiveEndMinutes = closure.endTime ? parseTimeToMinutes(closure.endTime as string) : 24 * 60;
+          if (effectiveEndMinutes === 0 && closure.endTime) {
+            effectiveEndMinutes = 24 * 60;
+          }
+        }
+      } catch (parseErr) {
+        logger.warn('[checkClosureConflict] Malformed closure time data, treating as full-day closure', {
+          closureId: closure.id,
+          startTime: closure.startTime,
+          endTime: closure.endTime,
+          error: getErrorMessage(parseErr)
+        });
         effectiveStartMinutes = 0;
         effectiveEndMinutes = 24 * 60;
-      } else if (isStartDate && isEndDate) {
-        effectiveStartMinutes = closure.startTime ? parseTimeToMinutes(closure.startTime as string) : 0;
-        effectiveEndMinutes = closure.endTime ? parseTimeToMinutes(closure.endTime as string) : 24 * 60;
-        if (effectiveEndMinutes === 0 && closure.endTime) {
-          effectiveEndMinutes = 24 * 60;
-        }
-      } else if (isStartDate) {
-        effectiveStartMinutes = closure.startTime ? parseTimeToMinutes(closure.startTime as string) : 0;
-        effectiveEndMinutes = 24 * 60;
-      } else {
-        effectiveStartMinutes = 0;
-        effectiveEndMinutes = closure.endTime ? parseTimeToMinutes(closure.endTime as string) : 24 * 60;
-        if (effectiveEndMinutes === 0 && closure.endTime) {
-          effectiveEndMinutes = 24 * 60;
-        }
       }
 
       if (hasTimeOverlap(bookingStartMinutes, bookingEndMinutes, effectiveStartMinutes, effectiveEndMinutes)) {
