@@ -19,7 +19,7 @@ async function cleanupNotificationTables(): Promise<void> {
       return;
     }
 
-    const retentionDaysStr = await getSettingValue('cleanup.notification_retention_days', '30');
+    const retentionDaysStr = await getSettingValue('cleanup.notification_retention_days', '14');
     const retentionDays = Math.max(1, parseInt(retentionDaysStr, 10) || 30);
 
     const notificationsResult = await db.execute(

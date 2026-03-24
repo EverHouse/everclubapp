@@ -279,6 +279,98 @@ export async function cleanupLessonClosures(): Promise<number> {
   }
 }
 
+export async function cleanupOldIntegrityHistory(daysOld: number = 14): Promise<number> {
+  try {
+    const result = await db.execute(sql`
+      DELETE FROM integrity_check_history 
+      WHERE checked_at < NOW() - ${daysOld} * INTERVAL '1 day'
+    `);
+    const execResult = result as unknown as DrizzleExecuteResult;
+    const count = Number(execResult.rowCount || execResult.rows?.length || 0);
+    if (count > 0) {
+      logger.info(`[Cleanup] Removed ${count} old integrity check history records (>${daysOld} days)`, {
+        extra: { event: 'cleanup.integrity_history', count, daysOld }
+      });
+    }
+    return count;
+  } catch (error: unknown) {
+    logger.error('[Cleanup] Integrity history cleanup failed', {
+      error: getErrorMessage(error),
+      extra: { event: 'cleanup.integrity_history_failed' }
+    });
+    return 0;
+  }
+}
+
+export async function cleanupResolvedIntegrityIssues(daysOld: number = 14): Promise<number> {
+  try {
+    const result = await db.execute(sql`
+      DELETE FROM integrity_issues_tracking 
+      WHERE status = 'resolved' AND resolved_at < NOW() - ${daysOld} * INTERVAL '1 day'
+    `);
+    const execResult = result as unknown as DrizzleExecuteResult;
+    const count = Number(execResult.rowCount || execResult.rows?.length || 0);
+    if (count > 0) {
+      logger.info(`[Cleanup] Removed ${count} resolved integrity issues (>${daysOld} days)`, {
+        extra: { event: 'cleanup.resolved_integrity_issues', count, daysOld }
+      });
+    }
+    return count;
+  } catch (error: unknown) {
+    logger.error('[Cleanup] Resolved integrity issues cleanup failed', {
+      error: getErrorMessage(error),
+      extra: { event: 'cleanup.resolved_integrity_issues_failed' }
+    });
+    return 0;
+  }
+}
+
+export async function cleanupOldAuditLog(daysOld: number = 60): Promise<number> {
+  try {
+    const result = await db.execute(sql`
+      DELETE FROM admin_audit_log 
+      WHERE created_at < NOW() - ${daysOld} * INTERVAL '1 day'
+    `);
+    const execResult = result as unknown as DrizzleExecuteResult;
+    const count = Number(execResult.rowCount || execResult.rows?.length || 0);
+    if (count > 0) {
+      logger.info(`[Cleanup] Removed ${count} old audit log entries (>${daysOld} days)`, {
+        extra: { event: 'cleanup.audit_log', count, daysOld }
+      });
+    }
+    return count;
+  } catch (error: unknown) {
+    logger.error('[Cleanup] Audit log cleanup failed', {
+      error: getErrorMessage(error),
+      extra: { event: 'cleanup.audit_log_failed' }
+    });
+    return 0;
+  }
+}
+
+export async function cleanupOldCommunicationLogs(daysOld: number = 30): Promise<number> {
+  try {
+    const result = await db.execute(sql`
+      DELETE FROM communication_logs 
+      WHERE created_at < NOW() - ${daysOld} * INTERVAL '1 day'
+    `);
+    const execResult = result as unknown as DrizzleExecuteResult;
+    const count = Number(execResult.rowCount || execResult.rows?.length || 0);
+    if (count > 0) {
+      logger.info(`[Cleanup] Removed ${count} old communication logs (>${daysOld} days)`, {
+        extra: { event: 'cleanup.communication_logs', count, daysOld }
+      });
+    }
+    return count;
+  } catch (error: unknown) {
+    logger.error('[Cleanup] Communication logs cleanup failed', {
+      error: getErrorMessage(error),
+      extra: { event: 'cleanup.communication_logs_failed' }
+    });
+    return 0;
+  }
+}
+
 export async function cleanupOldJobs(daysToKeep: number = 7): Promise<number> {
   try {
     const { cleanupOldJobs: cleanupJobs } = await import('../core/jobQueue');
@@ -306,6 +398,10 @@ export async function runScheduledCleanup(): Promise<void> {
     await cleanupOldAvailabilityBlocks(30);
     await cleanupLessonClosures();
     await cleanupOldJobs(7);
+    await cleanupOldIntegrityHistory(14);
+    await cleanupResolvedIntegrityIssues(14);
+    await cleanupOldAuditLog(60);
+    await cleanupOldCommunicationLogs(30);
     
     logger.info('[Cleanup] Scheduled cleanup completed', {
       extra: { event: 'cleanup.scheduled_complete' }
