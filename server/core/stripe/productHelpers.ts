@@ -25,21 +25,23 @@ export async function findExistingStripeProduct(
     if (metadataKey && metadataValue) {
       const productsByMetadata = await stripe.products.search({
         query: `metadata['${metadataKey}']:'${metadataValue}'`,
-        limit: 1,
+        limit: 10,
       });
       if (productsByMetadata.data.length > 0) {
-        logger.info(`[Stripe Products] Found existing product by metadata: ${productsByMetadata.data[0].id}`);
-        return productsByMetadata.data[0];
+        const oldest = productsByMetadata.data.reduce((a, b) => a.created <= b.created ? a : b);
+        logger.info(`[Stripe Products] Found existing product by metadata: ${oldest.id} (oldest of ${productsByMetadata.data.length})`);
+        return oldest;
       }
     }
     
     const productsByName = await stripe.products.search({
       query: `name:'${productName.replace(/'/g, "\\'")}'`,
-      limit: 1,
+      limit: 10,
     });
     if (productsByName.data.length > 0) {
-      logger.info(`[Stripe Products] Found existing product by name "${productName}": ${productsByName.data[0].id}`);
-      return productsByName.data[0];
+      const oldest = productsByName.data.reduce((a, b) => a.created <= b.created ? a : b);
+      logger.info(`[Stripe Products] Found existing product by name "${productName}": ${oldest.id} (oldest of ${productsByName.data.length})`);
+      return oldest;
     }
     
     return null;

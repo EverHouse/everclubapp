@@ -598,15 +598,15 @@ export async function deduplicateStripeProducts(): Promise<{
       const unlinked = group.filter(p => !linkedProductIds.has(p.id));
 
       if (linkedInGroup.length === 0) {
-        group.sort((a, b) => b.created - a.created);
-        const [newest, ...rest] = group;
-        results.push({ productId: newest.id, productName: name, action: 'kept', reason: 'No DB link found; kept newest' });
+        group.sort((a, b) => a.created - b.created);
+        const [oldest, ...rest] = group;
+        results.push({ productId: oldest.id, productName: name, action: 'kept', reason: 'No DB link found; kept oldest (production)' });
         kept++;
         for (const dup of rest) {
           try {
             markAppOriginated(dup.id);
             await stripe.products.update(dup.id, { active: false });
-            results.push({ productId: dup.id, productName: name, action: 'archived', reason: 'Duplicate (no DB link, older)' });
+            results.push({ productId: dup.id, productName: name, action: 'archived', reason: 'Duplicate (no DB link, newer copy)' });
             archived++;
           } catch (err: unknown) {
             results.push({ productId: dup.id, productName: name, action: 'error', reason: getErrorMessage(err) });
