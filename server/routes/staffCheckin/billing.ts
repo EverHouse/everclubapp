@@ -389,6 +389,54 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
 
       const newStatus = action === 'confirm_all' ? 'paid' : 'waived';
 
+      try {
+        const pendingGuests = await db.execute(sql`
+          SELECT bp.id, bp.display_name, bp.used_guest_pass, bs.session_date
+          FROM booking_participants bp
+          LEFT JOIN booking_sessions bs ON bp.session_id = bs.id
+          WHERE bp.session_id = ${sessionId}
+            AND bp.payment_status = 'pending'
+            AND bp.participant_type = 'guest'
+            AND bp.used_guest_pass IS NOT TRUE
+        `);
+        const guestRows = pendingGuests.rows as unknown as Array<{ id: number; display_name: string; used_guest_pass: boolean; session_date: string | null }>;
+
+        if (guestRows.length > 0) {
+          const passCheck = await canUseGuestPass(booking.owner_email);
+          if (passCheck.canUse && passCheck.remaining > 0) {
+            const { isPlaceholderGuestName } = await import('../../core/billing/pricingConfig');
+            const eligibleGuests = guestRows.filter(g => !isPlaceholderGuestName(g.display_name));
+            const passesToConsume = Math.min(eligibleGuests.length, passCheck.remaining);
+            let consumed = 0;
+
+            for (let i = 0; i < passesToConsume; i++) {
+              const guest = eligibleGuests[i];
+              const sessionDate = guest.session_date ? new Date(guest.session_date) : new Date();
+              const result = await consumeGuestPassForParticipant(
+                guest.id,
+                booking.owner_email,
+                guest.display_name || 'Guest',
+                sessionId!,
+                sessionDate,
+                staffEmail
+              );
+              if (result.success) {
+                consumed++;
+              } else {
+                logger.warn('[GuestPassAutoConsume] Failed to consume pass', { extra: { participantId: guest.id, error: result.error, bookingId } });
+                break;
+              }
+            }
+
+            if (consumed > 0) {
+              logger.info(`[GuestPassAutoConsume] Consumed ${consumed} pass(es) for booking #${bookingId} via ${action}`);
+            }
+          }
+        }
+      } catch (passErr: unknown) {
+        logger.error('[GuestPassAutoConsume] Error during auto-consumption', { extra: { bookingId, error: getErrorMessage(passErr) } });
+      }
+
       const pendingParticipants = await db.execute(sql`SELECT id, payment_status FROM booking_participants 
          WHERE session_id = ${sessionId} AND payment_status = 'pending'`);
 

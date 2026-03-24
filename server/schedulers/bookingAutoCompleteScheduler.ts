@@ -212,6 +212,77 @@ async function autoCompletePastBookings(): Promise<void> {
       logger.info(`[Booking Auto-Complete] Session backfill: ${sessionsCreated} created, ${sessionErrors} errors`);
     }
 
+    let totalPassesConsumed = 0;
+    for (const booking of markedBookings.rows) {
+      let resolvedSessionId = booking.sessionId;
+      if (!resolvedSessionId) {
+        try {
+          const sessionLookup = await queryWithRetry<{ session_id: number }>(
+            `SELECT session_id FROM booking_requests WHERE id = $1 AND session_id IS NOT NULL`,
+            [booking.id]
+          );
+          resolvedSessionId = sessionLookup.rows[0]?.session_id ?? null;
+        } catch {
+          // ignore lookup failure
+        }
+      }
+      if (!resolvedSessionId) continue;
+
+      try {
+        const guestParticipants = await queryWithRetry<{ id: number; display_name: string; used_guest_pass: boolean; session_date: string | null }>(
+          `SELECT bp.id, bp.display_name, bp.used_guest_pass, bs.session_date
+           FROM booking_participants bp
+           LEFT JOIN booking_sessions bs ON bp.session_id = bs.id
+           WHERE bp.session_id = $1
+             AND bp.participant_type = 'guest'
+             AND bp.used_guest_pass IS NOT TRUE
+             AND bp.payment_status = 'pending'`,
+          [resolvedSessionId]
+        );
+
+        if (guestParticipants.rows.length === 0) continue;
+
+        const { canUseGuestPass, consumeGuestPassForParticipant } = await import('../core/billing/guestPassConsumer');
+        const { isPlaceholderGuestName } = await import('../core/billing/pricingConfig');
+
+        const passCheck = await canUseGuestPass(booking.userEmail);
+        if (!passCheck.canUse || passCheck.remaining <= 0) continue;
+
+        const eligibleGuests = guestParticipants.rows.filter(g => !isPlaceholderGuestName(g.display_name));
+        const passesToConsume = Math.min(eligibleGuests.length, passCheck.remaining);
+        let consumed = 0;
+
+        for (let i = 0; i < passesToConsume; i++) {
+          const guest = eligibleGuests[i];
+          const sessionDate = guest.session_date ? new Date(guest.session_date) : new Date();
+          const result = await consumeGuestPassForParticipant(
+            guest.id,
+            booking.userEmail,
+            guest.display_name || 'Guest',
+            resolvedSessionId,
+            sessionDate
+          );
+          if (result.success) {
+            consumed++;
+          } else {
+            logger.warn('[GuestPassAutoConsume] Auto-complete pass consumption failed', { extra: { participantId: guest.id, error: result.error, bookingId: booking.id } });
+            break;
+          }
+        }
+
+        if (consumed > 0) {
+          totalPassesConsumed += consumed;
+          logger.info(`[GuestPassAutoConsume] Consumed ${consumed} pass(es) for booking #${booking.id} via auto-complete`);
+        }
+      } catch (passErr: unknown) {
+        logger.error('[GuestPassAutoConsume] Error during auto-complete pass consumption', { extra: { bookingId: booking.id, error: getErrorMessage(passErr) } });
+      }
+    }
+
+    if (totalPassesConsumed > 0) {
+      logger.info(`[GuestPassAutoConsume] Auto-complete total: ${totalPassesConsumed} guest pass(es) consumed across ${markedCount} booking(s)`);
+    }
+
     for (const booking of markedBookings.rows) {
       refreshBookingPass(booking.id).catch(err =>
         logger.error('[Booking Auto-Complete] Wallet pass refresh failed', { extra: { bookingId: booking.id, error: getErrorMessage(err) } })
