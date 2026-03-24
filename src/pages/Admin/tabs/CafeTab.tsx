@@ -19,6 +19,7 @@ const CafeTab: React.FC = () => {
     const createItemMutation = useCreateCafeItem();
     const updateItemMutation = useUpdateCafeItem();
     const deleteItemMutation = useDeleteCafeItem();
+    const deleteAllInactiveMutation = useDeleteAllInactiveCafeItems();
 
     // Local state
     const categories = useMemo(() => ['All', ...Array.from(new Set(cafeMenu.map(item => item.category)))], [cafeMenu]);
@@ -28,6 +29,7 @@ const CafeTab: React.FC = () => {
     const [newItem, setNewItem] = useState<Partial<CafeItem>>({ category: 'Coffee & Drinks' });
     const [uploadResult, setUploadResult] = useState<{ originalSize: number; optimizedSize: number } | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showDeleteAllInactive, setShowDeleteAllInactive] = useState(false);
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -35,6 +37,7 @@ const CafeTab: React.FC = () => {
     }, [setPageReady]);
 
     const filteredMenu = activeCategory === 'All' ? cafeMenu : cafeMenu.filter(item => item.category === activeCategory);
+    const inactiveCount = cafeMenu.filter(item => item.isActive === false).length;
 
     const openEdit = (item: CafeItem) => {
         setNewItem(item);
@@ -131,6 +134,17 @@ const CafeTab: React.FC = () => {
         }
     };
 
+    const handleDeleteAllInactive = async () => {
+        try {
+            const result = await deleteAllInactiveMutation.mutateAsync();
+            showToast(`Deleted ${result.deleted} inactive item${result.deleted === 1 ? '' : 's'}`, 'success');
+            setShowDeleteAllInactive(false);
+        } catch (err: unknown) {
+            showToast(err instanceof Error ? err.message : 'Failed to delete inactive items', 'error');
+            setShowDeleteAllInactive(false);
+        }
+    };
+
     const isLoading = uploadImageMutation.isPending || seedMenuMutation.isPending || createItemMutation.isPending || updateItemMutation.isPending;
 
     return (
@@ -143,13 +157,24 @@ const CafeTab: React.FC = () => {
                         Changes sync to Stripe automatically
                     </p>
                 </div>
-                <button
-                    onClick={openCreate}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl font-semibold shadow-md hover:bg-primary/90 transition-colors text-sm"
-                >
-                    <Icon name="add" className="text-lg" />
-                    New Item
-                </button>
+                <div className="flex items-center gap-2">
+                    {inactiveCount > 0 && (
+                        <button
+                            onClick={() => setShowDeleteAllInactive(true)}
+                            className="flex items-center gap-1.5 px-3 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-xl font-semibold hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors text-sm"
+                        >
+                            <Icon name="delete" className="text-base" />
+                            Delete {inactiveCount} Inactive
+                        </button>
+                    )}
+                    <button
+                        onClick={openCreate}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl font-semibold shadow-md hover:bg-primary/90 transition-colors text-sm"
+                    >
+                        <Icon name="add" className="text-lg" />
+                        New Item
+                    </button>
+                </div>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide -mx-1 px-1 mb-4 animate-content-enter-delay-2 scroll-fade-right">
                 {categories.map(cat => (
@@ -275,6 +300,31 @@ const CafeTab: React.FC = () => {
                             <button onClick={() => { setIsEditing(false); setShowDeleteConfirm(false); }} className="tactile-btn px-5 py-2.5 text-gray-500 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-[4px] transition-colors">Cancel</button>
                             <button onClick={handleSave} disabled={isLoading} className="tactile-btn px-6 py-2.5 bg-primary text-white rounded-[4px] font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50">Save</button>
                         </div>
+                    </div>
+                </div>
+            </ModalShell>
+
+            <ModalShell isOpen={showDeleteAllInactive} onClose={() => setShowDeleteAllInactive(false)} title="Delete All Inactive Items" showCloseButton={false}>
+                <div className="p-6 space-y-4">
+                    <p className="text-gray-600 dark:text-gray-300 text-sm">
+                        This will permanently delete <span className="font-bold text-red-600">{inactiveCount}</span> inactive menu item{inactiveCount === 1 ? '' : 's'} from the database. Their Stripe products (if any) will also be archived.
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">This action cannot be undone.</p>
+                    <div className="flex gap-3 justify-end pt-2">
+                        <button
+                            onClick={() => setShowDeleteAllInactive(false)}
+                            disabled={deleteAllInactiveMutation.isPending}
+                            className="px-5 py-2.5 text-gray-500 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-[4px] transition-colors disabled:opacity-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleDeleteAllInactive}
+                            disabled={deleteAllInactiveMutation.isPending}
+                            className="px-5 py-2.5 bg-red-600 text-white rounded-[4px] font-bold shadow-md hover:bg-red-700 transition-colors disabled:opacity-50"
+                        >
+                            {deleteAllInactiveMutation.isPending ? 'Deleting...' : `Delete ${inactiveCount} Items`}
+                        </button>
                     </div>
                 </div>
             </ModalShell>
