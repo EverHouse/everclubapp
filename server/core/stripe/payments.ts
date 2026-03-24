@@ -705,8 +705,8 @@ export async function createBalanceAwarePayment(params: {
     const participantIds: number[] = metadata?.participantIds 
       ? metadata.participantIds.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id))
       : [];
-    const idempotencyKey = bookingId && sessionId
-      ? generatePaymentIdempotencyKey(bookingId, sessionId, participantIds, remainingCents)
+    const idempotencyKey = bookingId
+      ? generatePaymentIdempotencyKey(bookingId, sessionId || null, participantIds, remainingCents)
       : `pi_${purpose}_${userId.replace(/[^a-zA-Z0-9-]/g, '')}_${remainingCents}_${crypto.randomUUID()}`;
 
     let paymentIntent;

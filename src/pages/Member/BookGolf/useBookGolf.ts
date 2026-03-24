@@ -464,8 +464,12 @@ export function useBookGolf() {
   }, [selectedDateObj?.date, myRequests, activeTab, tierPermissions]);
 
   const doTimesOverlap = (start1: string, end1: string, start2: string, end2: string): boolean => {
-    const toMinutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-    return toMinutes(start1) < toMinutes(end2) && toMinutes(start2) < toMinutes(end1);
+    const toMins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+    const s1 = toMins(start1), e1 = toMins(end1), s2 = toMins(start2), e2 = toMins(end2);
+    if (s1 < e1 && s2 < e2) return s1 < e2 && s2 < e1;
+    if (s1 > e1 && s2 > e2) return true;
+    if (s1 > e1) return s2 >= s1 || s2 < e1;
+    return s1 >= s2 || s1 < e2;
   };
 
   const filteredSlotsForConference = useMemo(() => {
