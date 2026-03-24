@@ -119,6 +119,7 @@ const WhatsOn = lazy(() => import('./pages/Public/WhatsOn'));
 const PrivateHire = lazy(() => import('./pages/Public/PrivateHire'));
 const PrivateHireInquire = lazy(() => import('./pages/Public/PrivateHireInquire'));
 const MembershipApply = lazy(() => import('./pages/Public/MembershipApply'));
+const MembershipJoin = lazy(() => import('./pages/Public/MembershipJoin'));
 const PublicCafe = lazy(() => import('./pages/Public/Cafe'));
 const FAQ = lazy(() => import('./pages/Public/FAQ'));
 const About = lazy(() => import('./pages/Public/About'));
@@ -497,6 +498,7 @@ const AnimatedRoutes: React.FC = () => {
       <PageExitContext.Provider value={isExiting}>
           <Routes location={displayLocation}>
             <Route path="/" element={<DirectionalPageTransition><Suspense fallback={<PageSkeleton />}><PageErrorBoundary pageName="Landing"><Landing /></PageErrorBoundary></Suspense></DirectionalPageTransition>} />
+            <Route path="/join" element={<DirectionalPageTransition><Suspense fallback={<PageSkeleton />}><PageErrorBoundary pageName="MembershipJoin"><MembershipJoin /></PageErrorBoundary></Suspense></DirectionalPageTransition>} />
             <Route path="/membership/apply" element={<DirectionalPageTransition><Suspense fallback={<PageSkeleton />}><PageErrorBoundary pageName="MembershipApply"><MembershipApply /></PageErrorBoundary></Suspense></DirectionalPageTransition>} />
             <Route path="/membership/*" element={<DirectionalPageTransition><Suspense fallback={<PageSkeleton />}><PageErrorBoundary pageName="Membership"><Membership /></PageErrorBoundary></Suspense></DirectionalPageTransition>} />
             <Route path="/contact" element={<DirectionalPageTransition><Suspense fallback={<PageSkeleton />}><PageErrorBoundary pageName="Contact"><Contact /></PageErrorBoundary></Suspense></DirectionalPageTransition>} />

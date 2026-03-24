@@ -163,7 +163,7 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
       }
     }
 
-    if (session.metadata?.source === 'activation_link') {
+    if (session.metadata?.source === 'activation_link' || session.metadata?.source === 'self_serve') {
       const userId = session.metadata?.userId;
       const memberEmail = session.metadata?.memberEmail?.toLowerCase();
       const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id || null;
@@ -171,7 +171,8 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
       const tierSlugMeta = session.metadata?.tierSlug;
       const tierNameMeta = session.metadata?.tier;
 
-      logger.info(`[Stripe Webhook] Processing activation_link checkout: session=${session.id}, user=${userId}, email=${memberEmail}, subscription=${subscriptionId}`);
+      const checkoutSource = session.metadata?.source || 'activation_link';
+      logger.info(`[Stripe Webhook] Processing ${checkoutSource} checkout: session=${session.id}, user=${userId}, email=${memberEmail}, subscription=${subscriptionId}`);
 
       if (userId && memberEmail) {
         try {
@@ -215,19 +216,25 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
             logger.info(`[Stripe Webhook] Activation link checkout: activated user ${updatedEmail} with subscription ${subscriptionId}`);
 
             const couponApplied = session.metadata?.couponApplied;
-            if (couponApplied) {
+            const promoCodeApplied = session.metadata?.promoCodeApplied;
+            if (couponApplied || promoCodeApplied) {
               const deferredCouponUserId = updateResult.rows[0].id;
               const deferredCouponEmail = updatedEmail;
 
               deferredActions.push(async () => {
                 try {
-                  const stripe = await getStripeClient();
-                  const coupon = await stripe.coupons.retrieve(couponApplied);
-                  const couponName = coupon.name || couponApplied;
-                  await db.execute(sql`UPDATE users SET discount_code = ${couponName}, updated_at = NOW() WHERE id = ${deferredCouponUserId}`);
-                  logger.info(`[Stripe Webhook] Set discount_code="${couponName}" for activated user ${deferredCouponEmail}`);
+                  if (couponApplied) {
+                    const stripe = await getStripeClient();
+                    const coupon = await stripe.coupons.retrieve(couponApplied);
+                    const couponName = coupon.name || couponApplied;
+                    await db.execute(sql`UPDATE users SET discount_code = ${couponName}, updated_at = NOW() WHERE id = ${deferredCouponUserId}`);
+                    logger.info(`[Stripe Webhook] Set discount_code="${couponName}" for activated user ${deferredCouponEmail}`);
+                  } else if (promoCodeApplied) {
+                    await db.execute(sql`UPDATE users SET discount_code = ${promoCodeApplied}, updated_at = NOW() WHERE id = ${deferredCouponUserId}`);
+                    logger.info(`[Stripe Webhook] Set discount_code="${promoCodeApplied}" (promo) for self-serve user ${deferredCouponEmail}`);
+                  }
                 } catch (couponErr: unknown) {
-                  logger.warn('[Stripe Webhook] Failed to set discount_code from coupon:', { extra: { couponApplied, error: getErrorMessage(couponErr) } });
+                  logger.warn('[Stripe Webhook] Failed to set discount_code from coupon/promo:', { extra: { couponApplied, promoCodeApplied, error: getErrorMessage(couponErr) } });
                 }
               });
             }

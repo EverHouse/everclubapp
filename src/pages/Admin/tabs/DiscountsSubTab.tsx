@@ -21,6 +21,7 @@ interface StripeCoupon {
   valid: boolean;
   createdAt: string;
   metadata: Record<string, string>;
+  promotionCodes: string[];
 }
 
 interface DiscountsSubTabProps {
@@ -51,6 +52,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
     amountOffCents: 500,
     duration: 'forever' as 'once' | 'repeating' | 'forever',
     durationInMonths: 3,
+    promotionCode: '',
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [discountsRef] = useAutoAnimate();
@@ -62,6 +64,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
     const payload: Record<string, unknown> = {
       duration: newCoupon.duration,
       name: newCoupon.name || undefined,
+      promotionCode: newCoupon.promotionCode.trim() || undefined,
     };
     
     if (newCoupon.id.trim()) {
@@ -89,6 +92,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
           amountOffCents: 500,
           duration: 'forever',
           durationInMonths: 3,
+          promotionCode: '',
         });
         haptic.success();
         showToast('Coupon created', 'success');
@@ -268,8 +272,14 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
                     )}
                   </div>
                   
-                  <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                    <span className="font-mono text-xs bg-gray-100 dark:bg-black/30 px-2 py-1 rounded">{coupon.id}</span>
+                  <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 flex-wrap">
+                    {coupon.promotionCodes && coupon.promotionCodes.length > 0 ? (
+                      coupon.promotionCodes.map(code => (
+                        <span key={code} className="font-mono text-xs bg-primary/10 dark:bg-primary/20 text-primary dark:text-lavender px-2 py-1 rounded">{code}</span>
+                      ))
+                    ) : (
+                      <span className="font-mono text-xs bg-gray-100 dark:bg-black/30 px-2 py-1 rounded">{coupon.id}</span>
+                    )}
                     {coupon.timesRedeemed > 0 && (
                       <span className="flex items-center gap-1">
                         <Icon name="redeem" className="text-sm" />
@@ -354,6 +364,20 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
               onChange={e => setNewCoupon({ ...newCoupon, name: e.target.value })}
               placeholder="e.g., Summer Sale 20% Off"
             />
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Promotion Code (Optional)</label>
+            <input
+              type="text"
+              className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast uppercase"
+              value={newCoupon.promotionCode}
+              onChange={e => setNewCoupon({ ...newCoupon, promotionCode: e.target.value.toUpperCase() })}
+              placeholder="e.g., WELCOME50 (shareable code for /join page)"
+            />
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+              The code prospects can enter on the /join page to get this discount
+            </p>
           </div>
 
           <div>

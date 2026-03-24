@@ -18,6 +18,15 @@ router.get('/api/stripe/coupons', isStaffOrAdmin, async (req: Request, res: Resp
     
     logger.info('[Stripe Coupons] Found coupons', { extra: { count: coupons.data.length, coupons: coupons.data.map(c => ({ id: c.id, name: c.name })) } });
     
+    const promoCodes = await stripe.promotionCodes.list({ limit: 100, active: true });
+    const promoMap = new Map<string, string[]>();
+    for (const pc of promoCodes.data) {
+      const couponId = typeof pc.coupon === 'string' ? pc.coupon : pc.coupon.id;
+      const existing = promoMap.get(couponId) || [];
+      existing.push(pc.code);
+      promoMap.set(couponId, existing);
+    }
+
     const formattedCoupons = coupons.data.map(coupon => ({
       id: coupon.id,
       name: coupon.name || coupon.id,
@@ -32,6 +41,7 @@ router.get('/api/stripe/coupons', isStaffOrAdmin, async (req: Request, res: Resp
       valid: coupon.valid,
       createdAt: new Date(coupon.created * 1000).toISOString(),
       metadata: coupon.metadata,
+      promotionCodes: promoMap.get(coupon.id) || [],
     }));
     
     res.json({ coupons: formattedCoupons, count: formattedCoupons.length });
@@ -50,7 +60,8 @@ router.post('/api/stripe/coupons', isAdmin, async (req: Request, res: Response) 
       amountOffCents, 
       currency = 'usd',
       duration, 
-      durationInMonths 
+      durationInMonths,
+      promotionCode,
     } = req.body;
     
     if (!duration || !['once', 'repeating', 'forever'].includes(duration)) {
@@ -117,6 +128,22 @@ router.post('/api/stripe/coupons', isAdmin, async (req: Request, res: Response) 
     logger.info('[Stripe] Created coupon', { extra: { couponId: coupon.id } });
     logFromRequest(req, 'create_coupon', 'coupon', coupon.id, coupon.name || '', {});
     
+    let createdPromoCode: string | null = null;
+    if (promotionCode && typeof promotionCode === 'string' && promotionCode.trim()) {
+      const code = promotionCode.trim().toUpperCase().replace(/\s+/g, '');
+      const promo = await stripe.promotionCodes.create({
+        coupon: coupon.id,
+        code,
+        metadata: {
+          source: 'admin_dashboard',
+          created_by: 'staff',
+        },
+      });
+      createdPromoCode = promo.code;
+      logger.info('[Stripe] Created promotion code', { extra: { promoCode: promo.code, couponId: coupon.id } });
+      logFromRequest(req, 'create_promotion_code', 'promotion_code', promo.id, promo.code, { couponId: coupon.id });
+    }
+
     res.json({
       success: true,
       coupon: {
@@ -129,6 +156,7 @@ router.post('/api/stripe/coupons', isAdmin, async (req: Request, res: Response) 
         duration: coupon.duration,
         durationInMonths: coupon.duration_in_months,
         valid: coupon.valid,
+        promotionCodes: createdPromoCode ? [createdPromoCode] : [],
       },
     });
   } catch (error: unknown) {
@@ -205,6 +233,22 @@ router.delete('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Resp
       return res.status(404).json({ error: 'Coupon not found.' });
     }
     res.status(500).json({ error: 'Failed to delete coupon' });
+  }
+});
+
+router.post('/api/stripe/promo-codes/seed-welcome', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const { seedWelcomePromoCode } = await import('../../scripts/seedWelcomePromo');
+    const result = await seedWelcomePromoCode();
+    if (result.success) {
+      logFromRequest(req, 'seed_promo_code', 'promo_code', result.promoCodeId || '', 'WELCOME50', {});
+      res.json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error: unknown) {
+    logger.error('[Stripe] Error seeding welcome promo code', { error: error instanceof Error ? error : new Error(String(error)) });
+    res.status(500).json({ error: 'Failed to seed welcome promo code' });
   }
 });
 

@@ -63,6 +63,7 @@ import walletPassRouter from '../routes/walletPass';
 import walletPassWebServiceRouter from '../routes/walletPassWebService';
 import mapkitRouter from '../routes/mapkit';
 import directorySyncRouter from '../routes/directorySync';
+import publicMembershipCheckoutRouter from '../routes/public/membershipCheckout';
 import { registerObjectStorageRoutes } from '../replit_integrations/object_storage';
 import { registerImageRoutes } from '../replit_integrations/image';
 
@@ -130,6 +131,7 @@ export function registerRoutes(app: Express): void {
   app.use('/api/wallet', walletPassWebServiceRouter);
   app.use(mapkitRouter);
   app.use(directorySyncRouter);
+  app.use(publicMembershipCheckoutRouter);
   registerObjectStorageRoutes(app);
   registerImageRoutes(app);
 }
