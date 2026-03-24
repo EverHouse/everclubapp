@@ -587,6 +587,32 @@ export async function runStartupTasks(): Promise<void> {
   }
 
   try {
+    const passReconcile = await db.execute(sql`
+      UPDATE guest_passes gp
+      SET passes_used = COALESCE(actual.used_count, 0)
+      FROM (
+        SELECT LOWER(gp2.member_email) as email, COUNT(bp.id) as used_count
+        FROM guest_passes gp2
+        LEFT JOIN booking_requests br ON LOWER(br.user_email) = LOWER(gp2.member_email)
+          AND br.status NOT IN ('cancelled', 'rejected', 'deleted')
+        LEFT JOIN booking_sessions bs ON br.session_id = bs.id
+        LEFT JOIN booking_participants bp ON bp.session_id = bs.id
+          AND bp.participant_type = 'guest'
+          AND bp.used_guest_pass = true
+        GROUP BY LOWER(gp2.member_email)
+      ) actual
+      WHERE LOWER(gp.member_email) = actual.email
+        AND gp.passes_used != COALESCE(actual.used_count, 0)
+    `);
+    const reconciled = (passReconcile as { rowCount?: number })?.rowCount || 0;
+    if (reconciled > 0) {
+      logger.info(`[Startup] Reconciled guest pass counters for ${reconciled} members`);
+    }
+  } catch (err: unknown) {
+    logger.warn('[Startup] Guest pass reconciliation failed (non-critical)', { error: getErrorMessage(err) });
+  }
+
+  try {
     const mismatchedSessions = await db.execute(sql`
       SELECT active_br.session_id,
              active_br.user_id AS correct_user_id,
