@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.13",
+    date: "2026-03-24",
+    title: "Bug Fixes",
+    changes: [
+      "Fixed: Missing icons on the Cafe menu upload button and Tiers menu button now display correctly",
+      "Fixed: Stripe product setup (overage fees, guest passes, day passes) no longer fails on server restart when products were previously deleted",
+    ]
+  },
+  {
     version: "8.97.12",
     date: "2026-03-24",
     title: "Codebase Cleanup",

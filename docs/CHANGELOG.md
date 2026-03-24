@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.13] - 2026-03-24
+
+### Bug Fixes: Missing Icons & Stripe Product Initialization
+- **Missing icons fixed**: Added `upload` and `more_vert` icon paths to `src/components/icons/iconPaths.ts`. The `upload` icon was used in `CafeTab.tsx` (cafe menu image upload button) and `more_vert` was used in `TierCardList.tsx` (tier action menu). Both rendered blank due to missing SVG path data.
+- **Stripe product initialization fixed**: Removed static idempotency keys from product/price creation in `server/core/stripe/productCreation.ts`. When Stripe products were deleted (e.g., environment switch), the app tried to recreate them but Stripe rejected the requests because the same idempotency key was previously used with different parameters (old product ID). Affected products: Simulator Overage, Guest Pass, Day Pass Coworking, Day Pass Golf Sim, Corporate Volume Pricing. The find-or-create logic already prevents duplicates, making idempotency keys unnecessary here.
+- **Files changed**: `src/components/icons/iconPaths.ts`, `server/core/stripe/productCreation.ts`
+
 ## [8.97.12] - 2026-03-24
 
 ### Codebase Cleanup — Dead Code Removal & Optimization
