@@ -70,6 +70,9 @@ export interface MemberFormData {
   phone: string;
   dob: string;
   discountCode: string;
+  freeTrialEnabled: boolean;
+  trialDays: number;
+  trialEndDate: string;
   addGroupMembers: boolean;
   groupMembers: GroupMember[];
   joinExistingGroup: boolean;
@@ -114,6 +117,9 @@ export const initialMemberForm: MemberFormData = {
   phone: '',
   dob: '',
   discountCode: '',
+  freeTrialEnabled: false,
+  trialDays: 0,
+  trialEndDate: '',
   addGroupMembers: false,
   groupMembers: [],
   joinExistingGroup: false,

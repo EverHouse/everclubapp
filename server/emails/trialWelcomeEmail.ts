@@ -17,6 +17,7 @@ export async function getTrialWelcomeHtml(params: { firstName?: string; userId: 
   const greeting = params.firstName ? `Welcome, ${params.firstName}!` : 'Welcome to Ever Club!';
   const qrCodeUrl = await generateQrDataUri(`MEMBER:${params.userId}`);
   const coupon = params.couponCode || await getSettingValue('scheduling.trial_coupon_code', 'ASTORIA7');
+  const trialDays = Math.max(1, Math.round((params.trialEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
 
   const content = `
           <tr>
@@ -30,7 +31,7 @@ export async function getTrialWelcomeHtml(params: { firstName?: string; userId: 
           <tr>
             <td style="text-align: center; padding-bottom: 40px;">
               <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
-                You've been activated as a trial member. Enjoy full access to Ever Club for 7 days, through ${formatDate(params.trialEndDate)}.
+                You've been activated as a trial member. Enjoy full access to Ever Club for ${trialDays} day${trialDays === 1 ? '' : 's'}, through ${formatDate(params.trialEndDate)}.
               </p>
             </td>
           </tr>
@@ -156,7 +157,7 @@ export async function getTrialWelcomeHtml(params: { firstName?: string; userId: 
                   <td style="padding: 24px;">
                     <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: ${CLUB_COLORS.deepGreen};">Love Ever Club?</p>
                     <p style="margin: 0; font-size: 14px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
-                      After your 7-day trial, use code <strong style="color: ${CLUB_COLORS.deepGreen};">${coupon}</strong> to get 50% off your first month of membership.
+                      After your ${trialDays}-day trial, use code <strong style="color: ${CLUB_COLORS.deepGreen};">${coupon}</strong> to get 50% off your first month of membership.
                     </p>
                   </td>
                 </tr>

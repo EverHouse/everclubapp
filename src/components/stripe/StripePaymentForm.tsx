@@ -52,13 +52,15 @@ interface SimpleCheckoutFormProps {
   onError?: (message: string) => void;
   onCancel?: () => void;
   submitLabel?: string;
+  isSetupMode?: boolean;
 }
 
 export function SimpleCheckoutForm({ 
   onSuccess, 
   onError,
   onCancel, 
-  submitLabel = 'Pay Now' 
+  submitLabel = 'Pay Now',
+  isSetupMode = false,
 }: SimpleCheckoutFormProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -69,6 +71,33 @@ export function SimpleCheckoutForm({
   useEffect(() => {
     if (!stripe) return;
     const params = new URLSearchParams(window.location.search);
+
+    if (isSetupMode) {
+      const siId = params.get('setup_intent');
+      const siSecret = params.get('setup_intent_client_secret');
+      if (!siId || !siSecret) return;
+
+      setIsProcessing(true);
+      stripe.retrieveSetupIntent(siSecret).then(({ setupIntent, error }) => {
+        if (error) {
+          const msg = error.message || 'Failed to verify card setup';
+          setErrorMessage(msg);
+          onError?.(msg);
+          setIsProcessing(false);
+        } else if (setupIntent && setupIntent.id === siId && setupIntent.status === 'succeeded') {
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, '', cleanUrl);
+          onSuccess(setupIntent.id);
+        } else {
+          setIsProcessing(false);
+        }
+      }).catch((err) => {
+        console.error('[StripePaymentForm] Setup intent confirmation failed:', err);
+        setIsProcessing(false);
+      });
+      return;
+    }
+
     const piId = params.get('payment_intent');
     const piSecret = params.get('payment_intent_client_secret');
     if (!piId || !piSecret) return;
@@ -107,26 +136,50 @@ export function SimpleCheckoutForm({
     setErrorMessage(null);
 
     try {
-      const { error, paymentIntent } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: window.location.href,
-        },
-        redirect: 'if_required',
-      });
+      if (isSetupMode) {
+        const { error, setupIntent } = await stripe.confirmSetup({
+          elements,
+          confirmParams: {
+            return_url: window.location.href,
+          },
+          redirect: 'if_required',
+        });
 
-      if (error) {
-        const msg = error.message || 'Payment failed';
-        setErrorMessage(msg);
-        onError?.(msg);
-        setIsProcessing(false);
-      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-        onSuccess(paymentIntent.id);
+        if (error) {
+          const msg = error.message || 'Card setup failed';
+          setErrorMessage(msg);
+          onError?.(msg);
+          setIsProcessing(false);
+        } else if (setupIntent && setupIntent.status === 'succeeded') {
+          onSuccess(setupIntent.id);
+        } else {
+          const msg = 'Card setup incomplete. Please try again.';
+          setErrorMessage(msg);
+          onError?.(msg);
+          setIsProcessing(false);
+        }
       } else {
-        const msg = 'Payment incomplete. Please try again.';
-        setErrorMessage(msg);
-        onError?.(msg);
-        setIsProcessing(false);
+        const { error, paymentIntent } = await stripe.confirmPayment({
+          elements,
+          confirmParams: {
+            return_url: window.location.href,
+          },
+          redirect: 'if_required',
+        });
+
+        if (error) {
+          const msg = error.message || 'Payment failed';
+          setErrorMessage(msg);
+          onError?.(msg);
+          setIsProcessing(false);
+        } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+          onSuccess(paymentIntent.id);
+        } else {
+          const msg = 'Payment incomplete. Please try again.';
+          setErrorMessage(msg);
+          onError?.(msg);
+          setIsProcessing(false);
+        }
       }
     } finally {
       isSubmittingRef.current = false;

@@ -14,6 +14,8 @@ export interface CreateSubscriptionParams {
   priceId: string;
   metadata?: Record<string, string>;
   couponId?: string;
+  trialPeriodDays?: number;
+  trialEnd?: number;
 }
 
 export interface SubscriptionResult {
@@ -32,7 +34,8 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
 }> {
   try {
     const stripe = await getStripeClient();
-    const { customerId, priceId, metadata = {}, couponId } = params;
+    const { customerId, priceId, metadata = {}, couponId, trialPeriodDays, trialEnd } = params;
+    const hasTrial = !!(trialPeriodDays || trialEnd);
     
     const paymentMethods = await listCustomerPaymentMethods(customerId);
     const defaultPaymentMethod = paymentMethods.length > 0 ? paymentMethods[0] : null;
@@ -55,14 +58,14 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
       }
     }
 
-    const useAllowIncomplete = hasCardOnFile || isFullyComped;
-    logger.info(`[Stripe Subscriptions] Customer ${customerId}: ${paymentMethods.length} payment method(s), comped=${isFullyComped}, behavior=${useAllowIncomplete ? 'allow_incomplete' : 'default_incomplete'}`);
+    const useAllowIncomplete = !hasTrial && (hasCardOnFile || isFullyComped);
+    logger.info(`[Stripe Subscriptions] Customer ${customerId}: ${paymentMethods.length} payment method(s), comped=${isFullyComped}, trial=${hasTrial}, behavior=${useAllowIncomplete ? 'allow_incomplete' : 'default_incomplete'}`);
 
     const subscriptionParams: Stripe.SubscriptionCreateParams = {
       customer: customerId,
       items: [{ price: priceId }],
       payment_behavior: useAllowIncomplete ? 'allow_incomplete' : 'default_incomplete',
-      ...(hasCardOnFile && defaultPaymentMethod ? { default_payment_method: defaultPaymentMethod.id } : {}),
+      ...(hasCardOnFile && !hasTrial && defaultPaymentMethod ? { default_payment_method: defaultPaymentMethod.id } : {}),
       payment_settings: {
         save_default_payment_method: 'on_subscription',
         payment_method_types: ['card'],
@@ -72,6 +75,7 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
         ...metadata,
         source: 'even_house_app',
       },
+      ...(trialEnd ? { trial_end: trialEnd } : trialPeriodDays ? { trial_period_days: trialPeriodDays } : {}),
     };
     
     if (couponId) {
@@ -145,6 +149,9 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
     let clientSecret: string | undefined;
     if (invoiceAmountDue > 0) {
       clientSecret = paymentIntent?.client_secret || pendingSetupIntent?.client_secret || undefined;
+    } else if (hasTrial && pendingSetupIntent?.client_secret) {
+      clientSecret = pendingSetupIntent.client_secret;
+      logger.info(`[Stripe Subscriptions] Trial subscription — returning SetupIntent client_secret for card collection`);
     } else {
       logger.info(`[Stripe Subscriptions] Invoice amount is $0 — skipping clientSecret (no payment needed)`);
     }

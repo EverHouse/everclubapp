@@ -141,6 +141,15 @@ export function MemberFlow({
         const discount = discounts.find(d => d.code === form.discountCode);
         const couponId = discount?.stripeCouponId || undefined;
         
+        const trialParams: Record<string, unknown> = {};
+        if (form.freeTrialEnabled) {
+          if (form.trialEndDate) {
+            trialParams.trialEnd = Math.floor(new Date(form.trialEndDate + 'T00:00:00').getTime() / 1000);
+          } else if (form.trialDays > 0) {
+            trialParams.trialPeriodDays = form.trialDays;
+          }
+        }
+        
         const result = await apiRequest<Record<string, unknown>>('/api/stripe/subscriptions/create-new-member', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -152,6 +161,7 @@ export function MemberFlow({
             dob: form.dob || undefined,
             tierSlug: selectedTier.slug,
             couponId,
+            ...trialParams,
             streetAddress: form.streetAddress || undefined,
             city: form.city || undefined,
             state: form.state || undefined,
@@ -186,10 +196,12 @@ export function MemberFlow({
         }
         
         const clientSecret = data.clientSecret as string | undefined;
-        if (clientSecret && !clientSecret.startsWith('seti_')) {
+        if (clientSecret) {
           setClientSecret(clientSecret);
-          const piId = clientSecret.split('_secret_')[0];
-          if (piId) setPaymentIntentId(piId);
+          if (!clientSecret.startsWith('seti_')) {
+            const piId = clientSecret.split('_secret_')[0];
+            if (piId) setPaymentIntentId(piId);
+          }
         }
         setSubscriptionId(data.subscriptionId as string);
         setCreatedUserId(data.userId as string);
@@ -200,7 +212,7 @@ export function MemberFlow({
     } finally {
       setStripeLoading(false);
     }
-  }, [selectedTier, subscriptionId, createdUserId, form.joinExistingGroup, form.existingGroupId, form.email, form.firstName, form.lastName, form.phone, form.dob, form.discountCode, form.streetAddress, form.city, form.state, form.zipCode, discounts, scannedIdImage, onSuccess, showToast, setPendingUserToCleanup]);
+  }, [selectedTier, subscriptionId, createdUserId, form.joinExistingGroup, form.existingGroupId, form.email, form.firstName, form.lastName, form.phone, form.dob, form.discountCode, form.freeTrialEnabled, form.trialDays, form.trialEndDate, form.streetAddress, form.city, form.state, form.zipCode, discounts, scannedIdImage, onSuccess, showToast, setPendingUserToCleanup]);
 
   useEffect(() => {
     if (step === 'payment' && paymentPath === 'card_or_terminal' && selectedTier && !paymentInitiatedRef.current) {
@@ -213,6 +225,27 @@ export function MemberFlow({
     setIsLoading(true);
     
     try {
+      if (paymentIntentIdResult.startsWith('seti_')) {
+        await postWithCredentials('/api/stripe/subscriptions/confirm-trial-setup', {
+          setupIntentId: paymentIntentIdResult,
+          subscriptionId,
+          userId: createdUserId,
+        });
+        
+        showToast('Card saved! Free trial started.', 'success');
+        
+        if (scannedIdImage && createdUserId) {
+          postWithCredentials('/api/admin/save-id-image', {
+            userId: createdUserId,
+            image: scannedIdImage.base64,
+            mimeType: scannedIdImage.mimeType,
+          }).catch(err => console.error('Failed to save ID image:', err));
+        }
+        
+        onSuccess({ id: createdUserId || 'member-' + Date.now(), email: form.email, name: `${form.firstName} ${form.lastName}` });
+        return;
+      }
+      
       if (form.joinExistingGroup && form.existingGroupId && selectedTier) {
         await postWithCredentials('/api/stripe/staff/quick-charge/confirm', { paymentIntentId: paymentIntentIdResult });
         
@@ -325,6 +358,15 @@ export function MemberFlow({
       
       const discount = discounts.find(d => d.code === form.discountCode);
       
+      const sendTrialParams: Record<string, unknown> = {};
+      if (form.freeTrialEnabled) {
+        if (form.trialEndDate) {
+          sendTrialParams.trialEnd = Math.floor(new Date(form.trialEndDate + 'T00:00:00').getTime() / 1000);
+        } else if (form.trialDays > 0) {
+          sendTrialParams.trialPeriodDays = form.trialDays;
+        }
+      }
+      
       const result = await apiRequest<Record<string, unknown>>('/api/stripe/subscriptions/send-activation-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -336,6 +378,7 @@ export function MemberFlow({
           dob: form.dob || undefined,
           tierSlug: selectedTier.slug,
           couponId: discount?.stripeCouponId || undefined,
+          ...sendTrialParams,
           streetAddress: form.streetAddress || undefined,
           city: form.city || undefined,
           state: form.state || undefined,
@@ -392,6 +435,15 @@ export function MemberFlow({
       
       const discount = discounts.find(d => d.code === form.discountCode);
       
+      const copyTrialParams: Record<string, unknown> = {};
+      if (form.freeTrialEnabled) {
+        if (form.trialEndDate) {
+          copyTrialParams.trialEnd = Math.floor(new Date(form.trialEndDate + 'T00:00:00').getTime() / 1000);
+        } else if (form.trialDays > 0) {
+          copyTrialParams.trialPeriodDays = form.trialDays;
+        }
+      }
+      
       const result = await apiRequest<Record<string, unknown>>('/api/stripe/subscriptions/send-activation-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -403,6 +455,7 @@ export function MemberFlow({
           dob: form.dob || undefined,
           tierSlug: selectedTier.slug,
           couponId: discount?.stripeCouponId || undefined,
+          ...copyTrialParams,
           streetAddress: form.streetAddress || undefined,
           city: form.city || undefined,
           state: form.state || undefined,

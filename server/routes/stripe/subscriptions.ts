@@ -22,7 +22,7 @@ import { getSessionUser } from '../../types/session';
 import { logFromRequest } from '../../core/auditLog';
 import { isStripeError } from '../../utils/errorUtils';
 import { validateBody } from '../../middleware/validate';
-import { createSubscriptionSchema, createSubscriptionForMemberSchema, createNewMemberSubscriptionSchema, confirmInlinePaymentSchema, sendActivationLinkSchema } from '../../../shared/validators/subscriptions';
+import { createSubscriptionSchema, createSubscriptionForMemberSchema, createNewMemberSubscriptionSchema, confirmInlinePaymentSchema, confirmTrialSetupSchema, sendActivationLinkSchema } from '../../../shared/validators/subscriptions';
 import { sendNotificationToUser, broadcastBillingUpdate } from '../../core/websocket';
 import { sendMembershipActivationEmail } from '../../emails/membershipEmails';
 import { findOrCreateHubSpotContact } from '../../core/hubspot/members';
@@ -425,9 +425,10 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subsc
 
 router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, subscriptionCreationRateLimiter, validateBody(createNewMemberSubscriptionSchema), async (req: Request, res: Response) => {
   try {
-    const { email: rawEmail, firstName, lastName, phone, dob, tierSlug, couponId, streetAddress, city, state, zipCode } = req.body;
+    const { email: rawEmail, firstName, lastName, phone, dob, tierSlug, couponId, trialPeriodDays, trialEnd, streetAddress, city, state, zipCode } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
     const sessionUser = getSessionUser(req);
+    const hasTrial = !!(trialPeriodDays || trialEnd);
 
     if (!await acquireSubscriptionLock(email)) {
       logger.warn('[Stripe] Subscription creation already in progress for new member', { extra: { email } });
@@ -548,6 +549,7 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, subsc
       customerId,
       priceId: tier.stripePriceId,
       couponId: couponId || undefined,
+      ...(trialEnd ? { trialEnd } : trialPeriodDays ? { trialPeriodDays } : {}),
       metadata: {
         memberEmail: email,
         tier: tier.name,
@@ -555,7 +557,8 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, subsc
         createdBy: sessionUser?.email || 'staff',
         userId,
         isNewMember: 'true',
-        ...(couponId ? { couponApplied: couponId } : {})
+        ...(couponId ? { couponApplied: couponId } : {}),
+        ...(hasTrial ? { hasTrial: 'true' } : {})
       }
     });
     
@@ -657,7 +660,7 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, subsc
     
     const subStatus = subscriptionResult.subscription?.status;
     const amountDue = subscriptionResult.subscription?.amountDue ?? 0;
-    const isFreeActivation = amountDue === 0;
+    const isFreeActivation = !hasTrial && amountDue === 0;
     
     if (isFreeActivation) {
       logger.info('[Stripe] Free activation ($0 subscription) — activating member immediately, no payment needed', {
@@ -813,6 +816,58 @@ router.get('/api/stripe/subscriptions/refresh-intent/:subscriptionId', isStaffOr
   } catch (error: unknown) {
     logger.error('[Stripe] Error refreshing subscription intent', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to refresh payment intent' });
+  }
+});
+
+router.post('/api/stripe/subscriptions/confirm-trial-setup', isStaffOrAdmin, validateBody(confirmTrialSetupSchema), async (req: Request, res: Response) => {
+  try {
+    const { setupIntentId, subscriptionId, userId } = req.body;
+    
+    const stripe = await getStripeClient();
+    const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
+    
+    if (setupIntent.status !== 'succeeded') {
+      return res.status(400).json({ error: `Card setup not complete. Status: ${setupIntent.status}` });
+    }
+    
+    let sub: Stripe.Subscription | null = null;
+    if (subscriptionId) {
+      sub = await stripe.subscriptions.retrieve(subscriptionId);
+      
+      if (userId) {
+        const user = await db.select({ stripeCustomerId: users.stripeCustomerId }).from(users).where(eq(users.id, userId)).limit(1);
+        if (user.length > 0 && user[0].stripeCustomerId && sub.customer !== user[0].stripeCustomerId) {
+          return res.status(400).json({ error: 'Subscription does not belong to this user' });
+        }
+      }
+
+      if (sub.status === 'incomplete' && setupIntent.payment_method) {
+        const pmId = typeof setupIntent.payment_method === 'string' ? setupIntent.payment_method : setupIntent.payment_method.id;
+        await stripe.subscriptions.update(subscriptionId, {
+          default_payment_method: pmId,
+        });
+        logger.info('[Stripe] Attached payment method to trial subscription', { extra: { subscriptionId, pmId } });
+      }
+      
+      if (!['trialing', 'active'].includes(sub.status)) {
+        logger.info('[Stripe] Trial subscription not yet trialing after setup — waiting for Stripe webhook', { extra: { subscriptionId, status: sub.status } });
+      }
+    }
+    
+    if (userId) {
+      await db.update(users).set({
+        membershipStatus: 'active',
+        archivedAt: null,
+        archivedBy: null,
+        updatedAt: new Date(),
+      }).where(eq(users.id, userId));
+      logger.info('[Stripe] Activated trial member after card setup', { extra: { userId, subscriptionId } });
+    }
+    
+    res.json({ success: true, subscriptionId });
+  } catch (error: unknown) {
+    logger.error('[Stripe] Error confirming trial setup', { error: getErrorMessage(error) });
+    res.status(500).json({ error: 'Failed to confirm trial setup' });
   }
 });
 
@@ -985,7 +1040,7 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
 
 router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, validateBody(sendActivationLinkSchema), async (req: Request, res: Response) => {
   try {
-    const { email: rawEmail, firstName, lastName, phone, dob, tierSlug, couponId, streetAddress, city, state, zipCode } = req.body;
+    const { email: rawEmail, firstName, lastName, phone, dob, tierSlug, couponId, trialPeriodDays, trialEnd, streetAddress, city, state, zipCode } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
     const sessionUser = getSessionUser(req);
     
@@ -1105,6 +1160,7 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, va
       const successUrl = `${baseUrl}/welcome?session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl = `${baseUrl}/`;
       
+      const hasTrial = !!(trialPeriodDays || trialEnd);
       const sessionParams: Stripe.Checkout.SessionCreateParams = {
         customer: customerId,
         mode: 'subscription',
@@ -1114,6 +1170,7 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, va
         }],
         success_url: successUrl,
         cancel_url: cancelUrl,
+        ...(hasTrial ? { payment_method_collection: 'always' as const } : {}),
         metadata: {
           userId,
           memberEmail: email,
@@ -1130,7 +1187,8 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, va
             tier: tier.name,
             tierSlug: tier.slug,
             isNewMember: 'true'
-          }
+          },
+          ...(trialEnd ? { trial_end: trialEnd } : trialPeriodDays ? { trial_period_days: trialPeriodDays } : {}),
         },
         expires_at: Math.floor(Date.now() / 1000) + (23 * 60 * 60),
       };

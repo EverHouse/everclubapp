@@ -262,7 +262,11 @@ export function PaymentStep({
                   <SimpleCheckoutForm
                     onSuccess={handlePaymentSuccess}
                     onError={(msg) => setStripeError(msg)}
-                    submitLabel={`Charge $${(totalPrice / 100).toFixed(2)}`}
+                    isSetupMode={clientSecret.startsWith('seti_')}
+                    submitLabel={clientSecret.startsWith('seti_')
+                      ? 'Save Card & Start Trial'
+                      : `Charge $${(totalPrice / 100).toFixed(2)}`
+                    }
                   />
                 </Elements>
               )}

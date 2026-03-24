@@ -24,6 +24,8 @@ export const createNewMemberSubscriptionSchema = z.object({
   phone: z.string().max(30).optional(),
   dob: z.string().optional(),
   couponId: z.string().optional(),
+  trialPeriodDays: z.number().int().min(1).max(730).optional(),
+  trialEnd: z.number().int().refine(val => val > Math.floor(Date.now() / 1000), { message: 'Trial end date must be in the future' }).optional(),
   streetAddress: z.string().max(200).optional(),
   city: z.string().max(100).optional(),
   state: z.string().max(50).optional(),
@@ -48,6 +50,8 @@ export const sendActivationLinkSchema = z.object({
   phone: z.string().max(30).optional(),
   dob: z.string().optional(),
   couponId: z.string().optional(),
+  trialPeriodDays: z.number().int().min(1).max(730).optional(),
+  trialEnd: z.number().int().refine(val => val > Math.floor(Date.now() / 1000), { message: 'Trial end date must be in the future' }).optional(),
   streetAddress: z.string().max(200).optional(),
   city: z.string().max(100).optional(),
   state: z.string().max(50).optional(),
@@ -55,3 +59,11 @@ export const sendActivationLinkSchema = z.object({
 });
 
 export type SendActivationLinkInput = z.infer<typeof sendActivationLinkSchema>;
+
+export const confirmTrialSetupSchema = z.object({
+  setupIntentId: z.string().min(1, 'setupIntentId is required'),
+  subscriptionId: z.string().optional(),
+  userId: z.string().optional(),
+});
+
+export type ConfirmTrialSetupInput = z.infer<typeof confirmTrialSetupSchema>;

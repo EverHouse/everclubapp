@@ -118,6 +118,28 @@ export function PreviewStep({
               </span>
             </div>
           </div>
+
+          {form.freeTrialEnabled && (form.trialDays > 0 || form.trialEndDate) && (
+            <div className={`p-3 rounded-lg mt-3 ${isDark ? 'bg-emerald-900/20 border border-emerald-700' : 'bg-emerald-50 border border-emerald-200'}`}>
+              <div className="flex items-center gap-2">
+                <Icon name="schedule" className={`text-lg ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                <div>
+                  <p className={`font-medium ${isDark ? 'text-emerald-300' : 'text-emerald-800'}`}>
+                    Free trial: {form.trialEndDate
+                      ? `until ${new Date(form.trialEndDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                      : `${form.trialDays} day${form.trialDays === 1 ? '' : 's'}`
+                    }
+                  </p>
+                  <p className={`text-sm ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                    First billing date: {form.trialEndDate
+                      ? new Date(form.trialEndDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                      : new Date(Date.now() + form.trialDays * 86400000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

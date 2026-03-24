@@ -242,6 +242,89 @@ export function MemberFormStep({
         </select>
       </div>
 
+      <div className={`p-4 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.freeTrialEnabled}
+            onChange={(e) => {
+              setForm(prev => ({
+                ...prev,
+                freeTrialEnabled: e.target.checked,
+                trialDays: e.target.checked ? prev.trialDays : 0,
+                trialEndDate: e.target.checked ? prev.trialEndDate : '',
+              }));
+            }}
+            className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+          />
+          <div>
+            <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Free Trial
+            </span>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Start with a trial period before billing begins
+            </p>
+          </div>
+        </label>
+
+        {form.freeTrialEnabled && (
+          <div className="mt-4 space-y-3">
+            <div className="space-y-1">
+              <label className={labelClass}>Trial Days</label>
+              <input
+                type="number"
+                min={1}
+                max={730}
+                value={form.trialEndDate ? '' : form.trialDays || ''}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  setForm(prev => ({
+                    ...prev,
+                    trialDays: isNaN(val) ? 0 : Math.max(0, Math.min(730, val)),
+                    trialEndDate: '',
+                  }));
+                }}
+                disabled={!!form.trialEndDate}
+                placeholder="e.g. 14"
+                className={`${inputClass} ${form.trialEndDate ? 'opacity-50' : ''}`}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`flex-1 h-px ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
+              <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>or</span>
+              <div className={`flex-1 h-px ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
+            </div>
+            <div className="space-y-1">
+              <label className={labelClass}>Trial End Date</label>
+              <input
+                type="date"
+                value={form.trialEndDate}
+                min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                onChange={(e) => {
+                  setForm(prev => ({
+                    ...prev,
+                    trialEndDate: e.target.value,
+                    trialDays: 0,
+                  }));
+                }}
+                className={inputClass}
+              />
+            </div>
+            {(form.trialDays > 0 || form.trialEndDate) && (
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${
+                isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
+              }`}>
+                <Icon name="schedule" className="text-sm" />
+                {form.trialEndDate
+                  ? `First charge on ${new Date(form.trialEndDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                  : `First charge in ${form.trialDays} day${form.trialDays === 1 ? '' : 's'} (${new Date(Date.now() + form.trialDays * 86400000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})`
+                }
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {existingBillingGroups.length > 0 && (
         <div className={`p-4 rounded-lg ${isDark ? 'bg-blue-900/20 border border-blue-700' : 'bg-blue-50 border border-blue-200'}`}>
           <label className="flex items-center gap-3 cursor-pointer">
@@ -481,7 +564,7 @@ export function MemberFormStep({
 
       <button
         onClick={handleReviewCharges}
-        disabled={!form.tierId || !form.firstName || !form.lastName || !form.email || !form.phone}
+        disabled={!form.tierId || !form.firstName || !form.lastName || !form.email || !form.phone || (form.freeTrialEnabled && !form.trialDays && !form.trialEndDate)}
         className="w-full py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed tactile-btn"
       >
         Review Charges
