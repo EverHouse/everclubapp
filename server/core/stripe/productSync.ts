@@ -526,3 +526,116 @@ export async function archiveAllStalePrices(): Promise<{ totalArchived: number; 
 
   return { totalArchived, totalErrors, productsProcessed, productsSkipped };
 }
+
+export interface DeduplicationResult {
+  productId: string;
+  productName: string;
+  action: 'archived' | 'kept' | 'error';
+  reason: string;
+}
+
+export async function deduplicateStripeProducts(): Promise<{
+  success: boolean;
+  archived: number;
+  kept: number;
+  errors: number;
+  results: DeduplicationResult[];
+}> {
+  const results: DeduplicationResult[] = [];
+  let archived = 0;
+  let kept = 0;
+  let errors = 0;
+
+  try {
+    const stripe = await getStripeClient();
+
+    const tiers = await db.select().from(membershipTiers).where(eq(membershipTiers.isActive, true));
+    const linkedProductIds = new Set(tiers.map(t => t.stripeProductId).filter(Boolean) as string[]);
+
+    const cafeRows = await db.select({
+      stripeProductId: cafeItems.stripeProductId,
+    }).from(cafeItems).where(
+      and(
+        eq(cafeItems.isActive, true),
+        isNotNull(cafeItems.stripeProductId)
+      )
+    );
+    for (const row of cafeRows) {
+      if (row.stripeProductId) linkedProductIds.add(row.stripeProductId);
+    }
+
+    const productsByName = new Map<string, Array<{ id: string; name: string; created: number }>>();
+    let hasMore = true;
+    let startingAfter: string | undefined;
+
+    while (hasMore) {
+      const params: StripePaginationParams = { limit: 100, active: true };
+      if (startingAfter) params.starting_after = startingAfter;
+      const products = await stripe.products.list(params);
+
+      for (const product of products.data) {
+        const isFromApp = product.metadata?.source === 'ever_house_app';
+        const hasTierSlug = !!product.metadata?.tier_slug;
+        const hasCafeItemId = !!product.metadata?.cafe_item_id;
+
+        if (!isFromApp && !hasTierSlug && !hasCafeItemId) continue;
+
+        const group = productsByName.get(product.name) || [];
+        group.push({ id: product.id, name: product.name, created: product.created });
+        productsByName.set(product.name, group);
+      }
+
+      hasMore = products.has_more;
+      if (products.data.length > 0) {
+        startingAfter = products.data[products.data.length - 1].id;
+      }
+    }
+
+    for (const [name, group] of productsByName) {
+      if (group.length <= 1) continue;
+
+      const linkedInGroup = group.filter(p => linkedProductIds.has(p.id));
+      const unlinked = group.filter(p => !linkedProductIds.has(p.id));
+
+      if (linkedInGroup.length === 0) {
+        group.sort((a, b) => b.created - a.created);
+        const [newest, ...rest] = group;
+        results.push({ productId: newest.id, productName: name, action: 'kept', reason: 'No DB link found; kept newest' });
+        kept++;
+        for (const dup of rest) {
+          try {
+            markAppOriginated(dup.id);
+            await stripe.products.update(dup.id, { active: false });
+            results.push({ productId: dup.id, productName: name, action: 'archived', reason: 'Duplicate (no DB link, older)' });
+            archived++;
+          } catch (err: unknown) {
+            results.push({ productId: dup.id, productName: name, action: 'error', reason: getErrorMessage(err) });
+            errors++;
+          }
+        }
+      } else {
+        for (const linked of linkedInGroup) {
+          results.push({ productId: linked.id, productName: name, action: 'kept', reason: 'Linked in database' });
+          kept++;
+        }
+        for (const dup of unlinked) {
+          try {
+            markAppOriginated(dup.id);
+            await stripe.products.update(dup.id, { active: false });
+            results.push({ productId: dup.id, productName: name, action: 'archived', reason: 'Duplicate (not linked in DB)' });
+            archived++;
+          } catch (err: unknown) {
+            results.push({ productId: dup.id, productName: name, action: 'error', reason: getErrorMessage(err) });
+            errors++;
+          }
+        }
+      }
+    }
+
+    logger.info(`[Stripe Dedup] Complete: ${archived} archived, ${kept} kept, ${errors} errors`);
+    return { success: true, archived, kept, errors, results };
+  } catch (error: unknown) {
+    logger.error('[Stripe Dedup] Fatal error:', { error: getErrorMessage(error) });
+    return { success: false, archived, kept, errors, results };
+  }
+}

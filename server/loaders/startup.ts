@@ -481,6 +481,15 @@ export async function runStartupTasks(): Promise<void> {
       }
 
       try {
+        const dedup = await products.deduplicateStripeProducts();
+        if (dedup.archived > 0) {
+          logger.info(`[Stripe] Deduplicated products: ${dedup.archived} archived, ${dedup.kept} kept`, { extra: { results: dedup.results } });
+        }
+      } catch (err: unknown) {
+        logger.error('[Stripe] Product deduplication failed', { error: getErrorMessage(err) });
+      }
+
+      try {
         const { syncStripeCustomersForMindBodyMembers } = await import('../core/stripe/customerSync.js');
         const result = await syncStripeCustomersForMindBodyMembers();
         if (result.updated > 0 || result.relinked > 0 || result.staleFound > 0) {
