@@ -3,7 +3,6 @@ import { logger } from '../logger';
 import { formatTime12Hour } from '../../utils/dateUtils';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { ACTIVE_BOOKING_STATUSES } from '../../../shared/constants/statuses';
-import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 
 function isUndefinedTableError(err: unknown): boolean {
   return getErrorCode(err) === '42P01';
@@ -29,7 +28,8 @@ async function queryWithSavepoint(
       });
       throw new BookingConflictError(503, { error: 'Unable to verify slot availability. Please try again.' });
     }
-    if (isUndefinedTableError(err)) {
+    if (isUndefinedTableError(err) && process.env.NODE_ENV !== 'production') {
+      logger.warn(`[BookingGuard] ${logLabel}: table does not exist (42P01) — returning empty result (dev only)`);
       return { rows: [] };
     }
     logger.error(`[BookingGuard] Failed to check ${logLabel}`, { extra: { error: getErrorMessage(err) } });
@@ -78,6 +78,8 @@ interface BookingCreationGuardParams {
 }
 
 const OCCUPIED_STATUSES = [...ACTIVE_BOOKING_STATUSES, 'checked_in', 'attended', 'cancellation_pending'];
+const OCCUPIED_STATUS_ARRAY = `{${OCCUPIED_STATUSES.map(s => `"${s}"`).join(',')}}`;
+
 
 export async function acquireBookingLocks(
   tx: { execute: (query: unknown) => Promise<{ rows: Record<string, unknown>[] }> },
@@ -89,15 +91,13 @@ export async function acquireBookingLocks(
   const needsUserLock = !isStaffRequest || isViewAsMode;
 
   if (resourceId) {
-    const resourceLockId = `resource::${String(resourceId)}::${requestDate}`;
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${resourceLockId}))`);
-    logger.debug('[BookingGuard] Acquired resource lock', { extra: { lockId: resourceLockId } });
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('resource' || ${String(resourceId)}), hashtext(${requestDate}))`);
+    logger.debug('[BookingGuard] Acquired resource lock', { extra: { resourceId, requestDate } });
   }
 
   if (needsUserLock) {
-    const userLockId = `user::${normalizedEmail}`;
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${userLockId}))`);
-    logger.debug('[BookingGuard] Acquired user lock', { extra: { lockId: userLockId } });
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('user'), hashtext(${normalizedEmail}))`);
+    logger.debug('[BookingGuard] Acquired user lock', { extra: { email: normalizedEmail } });
   }
 
   if (needsUserLock && resourceType !== 'conference_room') {
@@ -126,7 +126,7 @@ export async function checkResourceOverlap(
       SELECT id, start_time, end_time FROM booking_requests 
       WHERE resource_id = ${resourceId} 
       AND request_date = ${requestDate} 
-      AND status = ANY(${toTextArrayLiteral(OCCUPIED_STATUSES)}::text[])
+      AND status = ANY(${OCCUPIED_STATUS_ARRAY}::text[])
       AND start_time < ${endTime} AND end_time > ${startTime}
       ORDER BY id ASC
       FOR UPDATE

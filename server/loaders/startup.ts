@@ -613,6 +613,38 @@ export async function runStartupTasks(): Promise<void> {
   }
 
   try {
+    const orphanedDeductions = await db.execute(sql`
+      SELECT stripe_payment_intent_id, stripe_customer_id, amount_cents, user_id, status
+      FROM stripe_payment_intents
+      WHERE status IN ('balance_pending', 'balance_deducted')
+        AND created_at < NOW() - INTERVAL '5 minutes'
+    `);
+    const orphanRows = orphanedDeductions.rows as unknown as { stripe_payment_intent_id: string; stripe_customer_id: string; amount_cents: number; user_id: string; status: string }[];
+    if (orphanRows.length > 0) {
+      const { getStripeClient } = await import('../core/stripe/client.js');
+      const stripe = await getStripeClient();
+      for (const row of orphanRows) {
+        if (row.status === 'balance_deducted') {
+          try {
+            await stripe.customers.createBalanceTransaction(row.stripe_customer_id, {
+              amount: -row.amount_cents,
+              currency: 'usd',
+              description: 'Startup recovery: rollback orphaned balance deduction',
+            });
+            logger.info(`[Startup] Rolled back orphaned balance deduction: $${(row.amount_cents / 100).toFixed(2)} for customer ${row.stripe_customer_id}`);
+          } catch (rollbackErr: unknown) {
+            logger.error(`[Startup] Failed to roll back orphaned balance deduction for ${row.stripe_customer_id}`, { error: getErrorMessage(rollbackErr) });
+          }
+        }
+        await db.execute(sql`DELETE FROM stripe_payment_intents WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
+      }
+      logger.info(`[Startup] Cleaned up ${orphanRows.length} orphaned balance deduction record(s)`);
+    }
+  } catch (err: unknown) {
+    logger.warn('[Startup] Orphaned balance deduction cleanup failed (non-critical)', { error: getErrorMessage(err) });
+  }
+
+  try {
     const mismatchedSessions = await db.execute(sql`
       SELECT active_br.session_id,
              active_br.user_id AS correct_user_id,

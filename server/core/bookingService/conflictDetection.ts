@@ -2,7 +2,6 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { logger } from '../logger';
 import { ACTIVE_BOOKING_STATUSES } from '../../../shared/constants/statuses';
-import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 
 interface UserIdRow {
   id: number;
@@ -97,6 +96,8 @@ export async function findConflictingBookings(
     const memberRows = memberResult.rows as unknown as UserIdRow[];
     const memberId = memberRows[0]?.id;
 
+    const statusArray = `{${OCCUPIED_STATUSES.map(s => `"${s}"`).join(',')}}`;
+
     const [ownerResult, participantResult, linkedMemberResult] = await Promise.all([
       db.execute(sql`
         SELECT 
@@ -111,7 +112,8 @@ export async function findConflictingBookings(
         LEFT JOIN resources r ON br.resource_id = r.id
         WHERE LOWER(br.user_email) = LOWER(${normalizedEmail})
           AND br.request_date = ${date}
-          AND br.status = ANY(${toTextArrayLiteral(OCCUPIED_STATUSES)}::text[])
+          AND br.status = ANY(${statusArray}::text[])
+          AND br.start_time < ${endTime} AND br.end_time > ${startTime}
           ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
       `),
 
@@ -132,7 +134,8 @@ export async function findConflictingBookings(
         WHERE bp.user_id = ${memberId}
           AND bs.session_date = ${date}
           AND bp.invite_status = 'accepted'
-          AND br.status = ANY(${toTextArrayLiteral(OCCUPIED_STATUSES)}::text[])
+          AND br.status = ANY(${statusArray}::text[])
+          AND bs.start_time < ${endTime} AND bs.end_time > ${startTime}
           ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
       `) : Promise.resolve({ rows: [] }),
 
@@ -153,14 +156,30 @@ export async function findConflictingBookings(
         WHERE LOWER(u.email) = LOWER(${normalizedEmail})
           AND bp.invite_status = 'accepted'
           AND br.request_date = ${date}
-          AND br.status = ANY(${toTextArrayLiteral(OCCUPIED_STATUSES)}::text[])
+          AND br.status = ANY(${statusArray}::text[])
+          AND br.start_time < ${endTime} AND br.end_time > ${startTime}
           ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
       `)
     ]);
 
     const ownerRows = ownerResult.rows as unknown as BookingConflictRow[];
     for (const row of ownerRows) {
-      if (timePeriodsOverlap(startTime, endTime, String(row.start_time), String(row.end_time))) {
+      conflicts.push({
+        bookingId: row.booking_id,
+        resourceName: row.resource_name,
+        requestDate: String(row.request_date),
+        startTime: String(row.start_time),
+        endTime: String(row.end_time),
+        ownerName: row.owner_name,
+        ownerEmail: row.owner_email,
+        conflictType: 'owner'
+      });
+    }
+
+    const participantRows = participantResult.rows as unknown as ParticipantConflictRow[];
+    for (const row of participantRows) {
+      const isDuplicate = conflicts.some(c => c.bookingId === row.booking_id);
+      if (!isDuplicate) {
         conflicts.push({
           bookingId: row.booking_id,
           resourceName: row.resource_name,
@@ -169,46 +188,25 @@ export async function findConflictingBookings(
           endTime: String(row.end_time),
           ownerName: row.owner_name,
           ownerEmail: row.owner_email,
-          conflictType: 'owner'
+          conflictType: 'participant'
         });
-      }
-    }
-
-    const participantRows = participantResult.rows as unknown as ParticipantConflictRow[];
-    for (const row of participantRows) {
-      if (timePeriodsOverlap(startTime, endTime, String(row.start_time), String(row.end_time))) {
-        const isDuplicate = conflicts.some(c => c.bookingId === row.booking_id);
-        if (!isDuplicate) {
-          conflicts.push({
-            bookingId: row.booking_id,
-            resourceName: row.resource_name,
-            requestDate: String(row.request_date),
-            startTime: String(row.start_time),
-            endTime: String(row.end_time),
-            ownerName: row.owner_name,
-            ownerEmail: row.owner_email,
-            conflictType: 'participant'
-          });
-        }
       }
     }
 
     const linkedRows = linkedMemberResult.rows as unknown as BookingConflictRow[];
     for (const row of linkedRows) {
-      if (timePeriodsOverlap(startTime, endTime, String(row.start_time), String(row.end_time))) {
-        const isDuplicate = conflicts.some(c => c.bookingId === row.booking_id);
-        if (!isDuplicate) {
-          conflicts.push({
-            bookingId: row.booking_id,
-            resourceName: row.resource_name,
-            requestDate: String(row.request_date),
-            startTime: String(row.start_time),
-            endTime: String(row.end_time),
-            ownerName: row.owner_name,
-            ownerEmail: row.owner_email,
-            conflictType: 'participant'
-          });
-        }
+      const isDuplicate = conflicts.some(c => c.bookingId === row.booking_id);
+      if (!isDuplicate) {
+        conflicts.push({
+          bookingId: row.booking_id,
+          resourceName: row.resource_name,
+          requestDate: String(row.request_date),
+          startTime: String(row.start_time),
+          endTime: String(row.end_time),
+          ownerName: row.owner_name,
+          ownerEmail: row.owner_email,
+          conflictType: 'participant'
+        });
       }
     }
 

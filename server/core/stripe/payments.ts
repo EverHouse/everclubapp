@@ -109,7 +109,6 @@ export async function createPaymentIntent(
     const existingIntentResult = await db.execute(sql`SELECT stripe_payment_intent_id, status, amount_cents 
        FROM stripe_payment_intents 
        WHERE booking_id = ${bookingId} 
-       AND amount_cents = ${amountCents}
        AND purpose IN ('prepayment', 'booking_fee')
        AND status NOT IN ('canceled', 'cancelled', 'refunded', 'failed', 'succeeded')
        LIMIT 1`);
@@ -117,6 +116,17 @@ export async function createPaymentIntent(
     if (existingIntentResult.rows.length > 0) {
       const existingIntent = existingIntentResult.rows[0] as unknown as ExistingIntentRow;
       const stripeClient = await getStripeClient();
+
+      if (existingIntent.amount_cents !== amountCents) {
+        await stripeClient.paymentIntents.update(existingIntent.stripe_payment_intent_id, {
+          amount: amountCents,
+        });
+        await db.execute(sql`UPDATE stripe_payment_intents 
+           SET amount_cents = ${amountCents}, updated_at = NOW() 
+           WHERE stripe_payment_intent_id = ${existingIntent.stripe_payment_intent_id}`);
+        logger.info(`[Stripe] Updated existing PaymentIntent ${existingIntent.stripe_payment_intent_id} amount from $${(existingIntent.amount_cents / 100).toFixed(2)} to $${(amountCents / 100).toFixed(2)} for booking #${bookingId}`);
+      }
+
       const existingPI = await stripeClient.paymentIntents.retrieve(existingIntent.stripe_payment_intent_id);
       logger.info(`[Stripe] Reusing existing PaymentIntent ${existingPI.id} for booking #${bookingId}`);
       return {
@@ -627,20 +637,37 @@ export async function createBalanceAwarePayment(params: {
       };
     }
 
-    // Case 2: Need card payment
-    // Consume credit synchronously before creating the payment intent
+    // Case 2: Need card payment (partial or no credit)
+    // Record pending balance deduction BEFORE calling Stripe to enable crash recovery
     let balanceTransactionId: string | undefined;
-    if (balanceToApply > 0) {
-      const balanceTxn = await stripe.customers.createBalanceTransaction(
-        stripeCustomerId,
-        {
-          amount: balanceToApply,
-          currency: 'usd',
-          description: `Applied account credit: ${description}`,
-        }
-      );
-      balanceTransactionId = balanceTxn.id;
-      logger.info(`[Stripe] Credit consumed synchronously: $${(balanceToApply / 100).toFixed(2)} for ${email}, txn: ${balanceTxn.id}`);
+    const pendingDeductionId = balanceToApply > 0 ? `pending-balance-${crypto.randomUUID()}` : null;
+
+    if (balanceToApply > 0 && pendingDeductionId) {
+      await db.execute(sql`INSERT INTO stripe_payment_intents
+         (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
+         VALUES (${userId}, ${pendingDeductionId}, ${stripeCustomerId}, ${balanceToApply}, ${purpose}, ${bookingId ?? null}, ${sessionId ?? null}, ${description}, 'balance_pending')`);
+
+      try {
+        const balanceTxn = await stripe.customers.createBalanceTransaction(
+          stripeCustomerId,
+          {
+            amount: balanceToApply,
+            currency: 'usd',
+            description: `Applied account credit: ${description}`,
+          }
+        );
+        balanceTransactionId = balanceTxn.id;
+
+        await db.execute(sql`UPDATE stripe_payment_intents 
+           SET status = 'balance_deducted', 
+               stripe_payment_intent_id = ${`balance-deduction-${balanceTxn.id}`}
+           WHERE stripe_payment_intent_id = ${pendingDeductionId}`);
+
+        logger.info(`[Stripe] Credit consumed: $${(balanceToApply / 100).toFixed(2)} for ${email}, txn: ${balanceTxn.id}`);
+      } catch (balanceErr: unknown) {
+        await db.execute(sql`DELETE FROM stripe_payment_intents WHERE stripe_payment_intent_id = ${pendingDeductionId}`);
+        throw balanceErr;
+      }
     }
 
     const stripeMetadata: Record<string, string> = {
@@ -688,12 +715,19 @@ export async function createBalanceAwarePayment(params: {
               description: `Rollback credit for failed payment: ${description}`,
             }
           );
+          const deductionRecordId = `balance-deduction-${balanceTransactionId}`;
+          await db.execute(sql`DELETE FROM stripe_payment_intents WHERE stripe_payment_intent_id = ${deductionRecordId}`);
           logger.info(`[Stripe] Rolled back credit consumption of $${(balanceToApply / 100).toFixed(2)} for ${email}`);
         } catch (rollbackErr: unknown) {
-          logger.error(`[Stripe] CRITICAL: Failed to roll back credit consumption for ${email}`, { error: getErrorMessage(rollbackErr) });
+          logger.error(`[Stripe] CRITICAL: Failed to roll back credit consumption for ${email}. Balance txn: ${balanceTransactionId}, amount: $${(balanceToApply / 100).toFixed(2)}`, { error: getErrorMessage(rollbackErr) });
         }
       }
       throw piError;
+    }
+
+    if (balanceTransactionId) {
+      const deductionRecordId = `balance-deduction-${balanceTransactionId}`;
+      await db.execute(sql`DELETE FROM stripe_payment_intents WHERE stripe_payment_intent_id = ${deductionRecordId}`);
     }
 
     await db.execute(sql`INSERT INTO stripe_payment_intents 
