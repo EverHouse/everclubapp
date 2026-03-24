@@ -220,7 +220,7 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
       .from(cafeItems)
       .where(eq(cafeItems.id, numericId));
     if (existing.length === 0) {
-      return res.status(404).json({ error: 'Cafe item not found' });
+      return res.json({ success: true, alreadyDeleted: true });
     }
 
     if (existing[0].stripeProductId) {
