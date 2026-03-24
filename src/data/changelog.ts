@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.14",
+    date: "2026-03-24",
+    title: "Production Bug Fixes",
+    changes: [
+      "Fixed: Google Calendar closures no longer crash when start time equals or exceeds end time",
+      "Fixed: Database startup tasks (sync exclusions, member sync) now retry on connection timeouts instead of failing silently",
+    ]
+  },
+  {
     version: "8.97.13",
     date: "2026-03-24",
     title: "Bug Fixes",

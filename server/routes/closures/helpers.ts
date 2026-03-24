@@ -261,6 +261,13 @@ export async function createClosureCalendarEvents(
     const hasSpecificTimes = startTime && endTime;
     
     if (hasSpecificTimes) {
+      const startDT = new Date(getPacificISOString(startDate, startTime));
+      const endDT = new Date(getPacificISOString(startDate, endTime));
+      if (endDT <= startDT) {
+        logger.warn('[Closures] Skipping calendar event — end time must be after start time', { extra: { startTime, endTime, startDate } });
+        return null;
+      }
+      
       const dates = getDatesBetween(startDate, endDate);
       const eventIds: string[] = [];
       
@@ -351,6 +358,15 @@ export async function patchClosureCalendarEvents(
   const ids = eventIds.split(',').filter(id => id.trim());
   const hasSpecificTimes = startTime && endTime;
   const dates = getDatesBetween(startDate, endDate || startDate);
+  
+  if (hasSpecificTimes) {
+    const startDT = new Date(getPacificISOString(startDate, startTime));
+    const endDT = new Date(getPacificISOString(startDate, endTime));
+    if (endDT <= startDT) {
+      logger.warn('[Closures] Skipping calendar patch — end time must be after start time', { extra: { startTime, endTime, startDate } });
+      return false;
+    }
+  }
   
   for (let i = 0; i < ids.length; i++) {
     const eventId = ids[i].trim();

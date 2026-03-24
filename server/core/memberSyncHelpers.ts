@@ -174,14 +174,22 @@ export function setLastSyncTime(val: number): void {
 export { isProduction };
 
 export async function initMemberSyncSettings(): Promise<void> {
-  try {
-    const result = await db.execute(sql`SELECT value FROM system_settings WHERE key = 'last_member_sync_time'`);
-    if (result.rows.length > 0 && result.rows[0].value) {
-      lastSyncTime = parseInt(result.rows[0].value as string, 10);
-      logger.info(`[MemberSync] Loaded last sync time: ${new Date(lastSyncTime).toISOString()}`);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const result = await db.execute(sql`SELECT value FROM system_settings WHERE key = 'last_member_sync_time'`);
+      if (result.rows.length > 0 && result.rows[0].value) {
+        lastSyncTime = parseInt(result.rows[0].value as string, 10);
+        logger.info(`[MemberSync] Loaded last sync time: ${new Date(lastSyncTime).toISOString()}`);
+      }
+      return;
+    } catch (err: unknown) {
+      if (attempt < 3) {
+        logger.warn(`[MemberSync] Failed to load sync time (attempt ${attempt}/3), retrying...`, { error: getErrorMessage(err) });
+        await new Promise(r => setTimeout(r, attempt * 500));
+      } else {
+        logger.error('[MemberSync] Failed to load last sync time:', { error: getErrorMessage(err) });
+      }
     }
-  } catch (err: unknown) {
-    logger.error('[MemberSync] Failed to load last sync time:', { error: getErrorMessage(err) });
   }
 }
 

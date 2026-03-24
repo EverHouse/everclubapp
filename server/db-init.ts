@@ -219,19 +219,27 @@ export async function cleanupOrphanedRecords(): Promise<{ notifications: number;
 }
 
 export async function createSyncExclusionsTable(): Promise<void> {
-  try {
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS sync_exclusions (
-        id SERIAL PRIMARY KEY,
-        email TEXT NOT NULL UNIQUE,
-        reason TEXT DEFAULT 'permanent_delete',
-        excluded_by TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      )
-    `);
-    logger.info('[DB Init] sync_exclusions table created/verified');
-  } catch (error: unknown) {
-    logger.error('[DB Init] Failed to create sync_exclusions:', { extra: { errorMessage: getErrorMessage(error) } });
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS sync_exclusions (
+          id SERIAL PRIMARY KEY,
+          email TEXT NOT NULL UNIQUE,
+          reason TEXT DEFAULT 'permanent_delete',
+          excluded_by TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+      logger.info('[DB Init] sync_exclusions table created/verified');
+      return;
+    } catch (error: unknown) {
+      if (attempt < 3) {
+        logger.warn(`[DB Init] sync_exclusions creation failed (attempt ${attempt}/3), retrying...`, { extra: { errorMessage: getErrorMessage(error) } });
+        await new Promise(r => setTimeout(r, attempt * 500));
+      } else {
+        logger.error('[DB Init] Failed to create sync_exclusions:', { extra: { errorMessage: getErrorMessage(error) } });
+      }
+    }
   }
 }
 

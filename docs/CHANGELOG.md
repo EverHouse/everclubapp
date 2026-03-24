@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.14] - 2026-03-24
+
+### Production Bug Fixes: Closure Calendar Validation & Startup Resilience
+- **Closure calendar time validation**: Added validation in `createClosureCalendarEvents` and `patchClosureCalendarEvents` (`server/routes/closures/helpers.ts`) to check that `endTime > startTime` before calling Google Calendar API. Previously, creating a closure where start_time == end_time would throw "The specified time range is empty" from Google Calendar (production closure #2690 hit this). Now logs a warning and gracefully skips the calendar event while still saving the closure.
+- **DB startup retry logic**: Added 3-attempt retry with backoff to `createSyncExclusionsTable` (`server/db-init.ts`) and `initMemberSyncSettings` (`server/core/memberSyncHelpers.ts`). These startup tasks intermittently failed during deployment due to cold database connection timeouts. Previously failed silently on first attempt; now retries up to 3 times with 500ms/1000ms delays.
+- **Files changed**: `server/routes/closures/helpers.ts`, `server/db-init.ts`, `server/core/memberSyncHelpers.ts`
+
 ## [8.97.13] - 2026-03-24
 
 ### Bug Fixes: Missing Icons & Stripe Product Initialization
