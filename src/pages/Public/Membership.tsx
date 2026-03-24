@@ -128,13 +128,19 @@ const MembershipOverview: React.FC = () => {
       </Link>
 
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-content-enter-delay-2">
-        {tiers.filter(t => t.tier_type !== 'corporate').map((tier) => {
-          const suffix = extractSuffix(tier.price_string);
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 animate-content-enter-delay-2">
+        {tiers.map((tier) => {
+          const isCorporate = tier.tier_type === 'corporate';
+          const suffix = isCorporate ? '/mo per employee' : extractSuffix(tier.price_string);
           const handleClick = () => {
-            navigate('/membership/apply');
+            if (isCorporate) {
+              startNavigation();
+              navigate('corporate');
+            } else {
+              navigate('/membership/apply');
+            }
           };
-          const btnText = tier.button_text;
+          const btnText = isCorporate ? 'Get a Quote' : tier.button_text;
 
           if (tier.is_popular) {
             return (
@@ -161,12 +167,14 @@ const MembershipOverview: React.FC = () => {
                     </li>
                   ))}
                 </ul>
-                <button 
-                  onClick={handleClick}
-                  className="w-full relative z-10 py-4 px-6 rounded-[4px] bg-white/95 backdrop-blur text-primary font-bold text-sm tracking-widest uppercase hover:bg-white/80 transition-all duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
-                >
-                  {btnText}
-                </button>
+                <div className="mt-auto relative z-10">
+                  <button 
+                    onClick={handleClick}
+                    className="w-full py-4 px-6 rounded-[4px] bg-white/95 backdrop-blur text-primary font-bold text-sm tracking-widest uppercase hover:bg-white/80 transition-all duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
+                  >
+                    {btnText}
+                  </button>
+                </div>
               </div>
             );
           } else {
@@ -185,35 +193,6 @@ const MembershipOverview: React.FC = () => {
           }
         })}
       </div>
-
-      {tiers.filter(t => t.tier_type === 'corporate').map((tier) => (
-        <div key={tier.id} className="mt-5 animate-content-enter-delay-2">
-          <div className="relative flex flex-col lg:flex-row lg:items-center gap-6 p-6 bg-white/50 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:scale-[1.01] transition-all duration-[400ms]">
-            <div className="flex-1 min-w-0">
-              <h2 className="text-xl font-semibold text-primary dark:text-white mb-2">{tier.name} Membership</h2>
-              <p className="text-sm text-primary/70 dark:text-white/70 leading-relaxed font-light">{tier.description}</p>
-            </div>
-            <div className="flex items-baseline gap-1 lg:px-6 shrink-0">
-              <span className="text-4xl font-semibold text-primary dark:text-white tracking-tight">{extractPrice(tier.price_string)}</span>
-              <span className="text-sm font-medium text-primary/60 dark:text-white/60">/mo per employee</span>
-            </div>
-            <ul className="flex-1 min-w-0 flex flex-col gap-3 lg:border-l lg:border-primary/10 dark:lg:border-white/10 lg:pl-6">
-              {tier.highlighted_features.map((f: string, i: number) => (
-                <li key={i} className="flex gap-3 text-sm text-primary/80 dark:text-white/80 font-light">
-                  <Icon name="check_circle" className="text-[18px] text-primary/60 dark:text-white/60 shrink-0 font-light" />
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-            <button
-              onClick={() => { startNavigation(); navigate('corporate'); }}
-              className="shrink-0 lg:self-center py-4 px-8 rounded-[4px] bg-primary dark:bg-white/15 text-white font-bold text-sm tracking-widest uppercase hover:bg-primary/90 dark:hover:bg-white/25 transition-all duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.3)] border border-transparent dark:border-white/20"
-            >
-              Get a Quote
-            </button>
-          </div>
-        </div>
-      ))}
 
       <div className="text-center py-6 px-4 animate-content-enter-delay-3">
         <p className="text-xs text-primary/50 dark:text-white/50 uppercase tracking-[0.15em] font-medium mb-1">
@@ -352,9 +331,11 @@ const MembershipCard: React.FC<{ title: string; price: string; suffix?: string; 
         </li>
       ))}
     </ul>
-    <button onClick={onClick} className="w-full py-4 px-6 rounded-[4px] bg-primary dark:bg-white/15 text-white font-bold text-sm tracking-widest uppercase hover:bg-primary/90 dark:hover:bg-white/25 transition-all duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.3)] border border-transparent dark:border-white/20">
-      {btnText}
-    </button>
+    <div className="mt-auto">
+      <button onClick={onClick} className="w-full py-4 px-6 rounded-[4px] bg-primary dark:bg-white/15 text-white font-bold text-sm tracking-widest uppercase hover:bg-primary/90 dark:hover:bg-white/25 transition-all duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.3)] border border-transparent dark:border-white/20">
+        {btnText}
+      </button>
+    </div>
   </div>
 );
 
