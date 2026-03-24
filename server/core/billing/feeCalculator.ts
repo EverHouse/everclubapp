@@ -52,7 +52,7 @@ export async function calculateAndCacheParticipantFees(
          LEFT JOIN membership_tiers mt ON mt.id = booking_member.tier_id
          LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id 
            AND (
-             ul.member_id = bp.user_id 
+             ul.member_id = bp.user_id::text 
              OR LOWER(ul.member_id) = LOWER(u.email)
              OR (bp.user_id IS NULL AND bp.participant_type != 'guest' AND LOWER(ul.member_id) = LOWER(br.user_email))
            )

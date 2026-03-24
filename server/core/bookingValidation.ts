@@ -58,7 +58,7 @@ export function hasTimeOverlap(start1: number, end1: number, start2: number, end
 
 async function getActiveClosuresForDate(bookingDate: string, txClient?: { select: typeof db.select, execute: typeof db.execute }): Promise<Record<string, unknown>[]> {
   if (txClient) {
-    return txClient
+    return await txClient
       .select()
       .from(facilityClosures)
       .where(and(
@@ -106,7 +106,7 @@ export async function checkClosureConflict(
     const bookingEndMinutes = parseTimeToMinutes(endTime);
 
     const allAffectedIds = await parseAffectedAreasBatch(
-      activeClosures.map(c => c.affectedAreas as string)
+      activeClosures.map(c => (c.affectedAreas as string | null) ?? null)
     );
 
     for (let i = 0; i < activeClosures.length; i++) {
@@ -186,14 +186,16 @@ export async function checkBookingConflict(
       )
     ];
 
+    if (excludeBookingId) {
+      conditions.push(sql`${bookingRequests.id} != ${excludeBookingId}`);
+    }
+
     const existingBookings = await db
       .select()
       .from(bookingRequests)
       .where(and(...conditions));
 
-    const conflicts = excludeBookingId
-      ? existingBookings.filter(b => b.id !== excludeBookingId)
-      : existingBookings;
+    const conflicts = existingBookings;
 
     if (conflicts.length > 0) {
       return { hasConflict: true, conflictingBooking: conflicts[0], conflictSource: 'booking_request' };
@@ -205,7 +207,7 @@ export async function checkBookingConflict(
         WHERE resource_id = ${resourceId}
         AND slot_date = ${bookingDate}
         AND status = 'booked'
-        AND start_time < ${endTime} AND end_time > ${startTime}
+        AND start_time < ${endTime}::time AND end_time > ${startTime}::time
         LIMIT 1
       `);
       if (trackmanBayResult.rows.length > 0) {
@@ -229,7 +231,7 @@ export async function checkBookingConflict(
           SELECT 1 FROM booking_requests br
           WHERE br.trackman_booking_id = tub.trackman_booking_id::text
         )
-        AND tub.start_time < ${endTime} AND tub.end_time > ${startTime}
+        AND tub.start_time < ${endTime}::time AND tub.end_time > ${startTime}::time
         LIMIT 1
       `);
       if (unmatchedResult.rows.length > 0) {
@@ -247,7 +249,7 @@ export async function checkBookingConflict(
         SELECT bs.id, bs.start_time, bs.end_time FROM booking_sessions bs
         WHERE bs.resource_id = ${resourceId}
         AND bs.session_date = ${bookingDate}
-        AND bs.start_time < ${endTime} AND bs.end_time > ${startTime}
+        AND bs.start_time < ${endTime}::time AND bs.end_time > ${startTime}::time
         AND EXISTS (
           SELECT 1 FROM booking_requests br
           WHERE br.session_id = bs.id
