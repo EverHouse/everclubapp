@@ -179,7 +179,7 @@ export function useDeleteCafeItem() {
       allCaches.forEach(([key]) => {
         queryClient.setQueryData<CafeItem[]>(key, (old) => {
           if (!old) return old;
-          return old.filter(i => i.id !== id);
+          return old.filter(i => String(i.id) !== String(id));
         });
       });
       return { snapshots: allCaches };
