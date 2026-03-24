@@ -2,7 +2,8 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { getStripeClient } from './client';
 import { getErrorMessage, getErrorCode, isStripeResourceMissing } from '../../utils/errorUtils';
-
+import { systemSettings } from '../../../shared/models/system';
+import { eq } from 'drizzle-orm';
 import { logger } from '../logger';
 export interface CustomerSyncResult {
   success: boolean;
@@ -119,7 +120,7 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
           }
 
           if (!relinked) {
-            logger.warn(`[Stripe Customer Sync] Customer ${staleId} for "${memberEmail}" not found in Stripe and no match by email — NOT auto-clearing (use Data Integrity tools to review)`);
+            logger.debug(`[Stripe Customer Sync] Customer ${staleId} for "${memberEmail}" not found in Stripe and no match by email — NOT auto-clearing`);
             result.staleFound++;
             result.details.push({
               email: memberEmail,
@@ -140,6 +141,34 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
       }
     }
     
+    if (result.staleFound > 0) {
+      const staleDetails = result.details.filter(d => d.action === 'stale');
+      const sampleEmails = staleDetails.slice(0, 5).map(d => d.email).join(', ');
+      const moreCount = staleDetails.length > 5 ? ` and ${staleDetails.length - 5} more` : '';
+      logger.warn(`[Stripe Customer Sync] ${result.staleFound} orphaned Stripe customer IDs detected (not auto-cleared). Sample: ${sampleEmails}${moreCount}. Use Data Integrity tools to review.`);
+
+      try {
+        const orphanedData = JSON.stringify({
+          count: result.staleFound,
+          detectedAt: new Date().toISOString(),
+          customers: staleDetails.map(d => ({ email: d.email, stripeCustomerId: d.customerId })),
+        });
+        await db.insert(systemSettings)
+          .values({ key: 'orphaned_stripe_customers', value: orphanedData, category: 'stripe_sync', updatedAt: new Date() })
+          .onConflictDoUpdate({
+            target: systemSettings.key,
+            set: { value: orphanedData, updatedAt: new Date() },
+          });
+      } catch (cacheErr: unknown) {
+        logger.debug(`[Stripe Customer Sync] Failed to cache orphaned customer data: ${getErrorMessage(cacheErr)}`);
+      }
+    } else {
+      try {
+        await db.delete(systemSettings).where(eq(systemSettings.key, 'orphaned_stripe_customers'));
+      } catch {
+      }
+    }
+
     const parts = [`updated=${result.updated}`];
     if (result.relinked > 0) parts.push(`relinked=${result.relinked}`);
     if (result.staleFound > 0) parts.push(`stale_detected=${result.staleFound}`);
@@ -177,4 +206,21 @@ export async function getCustomerSyncStatus(): Promise<{
     alreadySynced: parseInt(result.rows[0].already_synced as string, 10) || 0,
     total: parseInt(result.rows[0].total as string, 10) || 0,
   };
+}
+
+export async function getCachedOrphanedStripeCustomers(): Promise<{
+  count: number;
+  detectedAt: string;
+  customers: Array<{ email: string; stripeCustomerId: string }>;
+} | null> {
+  try {
+    const result = await db.select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'orphaned_stripe_customers'))
+      .limit(1);
+    if (result.length === 0 || !result[0].value) return null;
+    return JSON.parse(result[0].value);
+  } catch {
+    return null;
+  }
 }

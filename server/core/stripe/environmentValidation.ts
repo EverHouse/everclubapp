@@ -161,8 +161,25 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
     if (staleCafeItems.length > 0 && cafeChecked > 0) {
       const ratio = staleCafeItems.length / cafeChecked;
       if (ratio > MASS_WIPE_THRESHOLD) {
-        const logLevel = isProduction ? 'warn' : 'info';
-        logger[logLevel](`[Stripe Env] ${staleCafeItems.length}/${cafeChecked} (${Math.round(ratio * 100)}%) cafe items have stale Stripe IDs (likely environment switch). Clearing stale IDs and triggering auto-resync...`);
+        const isFreshEnvironment = ratio === 1;
+        let stripeHasZeroCafeProducts = false;
+        if (isFreshEnvironment) {
+          try {
+            const existingProducts = await stripe.products.list({ limit: 1, active: true });
+            const cafeProducts = existingProducts.data.filter(
+              p => p.metadata?.app_category === 'cafe'
+            );
+            stripeHasZeroCafeProducts = cafeProducts.length === 0;
+          } catch {
+            stripeHasZeroCafeProducts = false;
+          }
+        }
+        if (isFreshEnvironment && stripeHasZeroCafeProducts) {
+          logger.info(`[Stripe Env] Fresh environment detected: all ${cafeChecked} cafe items have no matching Stripe products. Clearing stale IDs and auto-creating products...`);
+        } else {
+          const logLevel = isProduction ? 'warn' : 'info';
+          logger[logLevel](`[Stripe Env] ${staleCafeItems.length}/${cafeChecked} (${Math.round(ratio * 100)}%) cafe items have stale Stripe IDs (likely environment switch). Clearing stale IDs and triggering auto-resync...`);
+        }
         for (const item of staleCafeItems) {
           await db.execute(
             sql`UPDATE cafe_items SET stripe_product_id = NULL, stripe_price_id = NULL WHERE id = ${item.id}`

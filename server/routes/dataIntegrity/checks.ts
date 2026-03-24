@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { runAllIntegrityChecks, getIntegritySummary, getIntegrityHistory, resolveIssue, getAuditLog, createIgnoreRule, createBulkIgnoreRules, removeIgnoreRule, getIgnoredIssues, getCachedIntegrityResults } from '../../core/dataIntegrity';
+import { getCachedOrphanedStripeCustomers } from '../../core/stripe/customerSync';
 import { logger, isAdmin, validateQuery, validateBody, sendFixError, getSessionUser } from './shared';
 import type { Request } from 'express';
 import { resolveIssueSchema, ignoreIssueSchema, bulkIgnoreSchema } from '../../../shared/validators/dataIntegrity';
@@ -182,6 +183,27 @@ router.post('/api/data-integrity/ignore-bulk', isAdmin, validateBody(bulkIgnoreS
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Bulk ignore error', { error: error instanceof Error ? error : new Error(String(error)) });
     sendFixError(res, error, 'Failed to create bulk ignore rules');
+  }
+});
+
+router.get('/api/data-integrity/orphaned-stripe-customers', isAdmin, async (req, res) => {
+  try {
+    const cached = await getCachedOrphanedStripeCustomers();
+    if (!cached) {
+      return res.json({
+        success: true,
+        hasData: false,
+        message: 'No orphaned Stripe customer data cached. Run Stripe Customer Sync to detect orphaned IDs.',
+      });
+    }
+    res.json({
+      success: true,
+      hasData: true,
+      ...cached,
+    });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Orphaned Stripe customers error', { error: error instanceof Error ? error : new Error(String(error)) });
+    sendFixError(res, error, 'Failed to get orphaned Stripe customers');
   }
 });
 
