@@ -148,7 +148,7 @@ const MembershipOverview: React.FC = () => {
                 <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl pointer-events-none"></div>
                 <div className="flex justify-between items-start mb-4 relative z-10">
                   <div className="pr-2">
-                    <h2 className="text-xl font-semibold mb-2">{tier.name} Membership</h2>
+                    <h2 className="text-xl font-semibold mb-2">{tier.name}</h2>
                     <p className="text-sm text-white/70 leading-relaxed font-light">{tier.description}</p>
                   </div>
                   <span className="shrink-0 w-fit px-2 py-1 bg-accent/90 backdrop-blur text-primary text-[10px] font-bold rounded-[4px] uppercase tracking-widest shadow-sm border border-white/20 mt-1">
@@ -181,7 +181,7 @@ const MembershipOverview: React.FC = () => {
             return (
               <MembershipCard
                 key={tier.id}
-                title={`${tier.name} Membership`}
+                title={tier.name}
                 price={extractPrice(tier.price_string)}
                 suffix={suffix}
                 desc={tier.description}
