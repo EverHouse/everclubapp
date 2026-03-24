@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.17] - 2026-03-24
+
+### Performance & Stability Fixes (Task #221/#223 gap-fills)
+- **CLS min-heights**: Added `minHeight: 200px` to `ScheduleSection` and `minHeight: 100px` to BookGolf header section — these were promised by Task #221 commit but not actually applied.
+- **Stripe orphaned customer log demotion**: Changed `logger.warn` to `logger.debug` for orphaned Stripe customer ID detection in `customerSync.ts` — Task #223 was supposed to demote this but left it at warn level, causing continued log noise.
+- **Files changed**: `src/pages/Member/Dashboard/ScheduleSection.tsx`, `src/pages/Member/BookGolf/index.tsx`, `server/core/stripe/customerSync.ts`
+
 ## [8.97.16] - 2026-03-24
 
 ### Payment Safety & Booking Guard Hardening

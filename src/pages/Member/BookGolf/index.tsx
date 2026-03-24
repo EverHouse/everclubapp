@@ -46,7 +46,7 @@ const BookGolf: React.FC = () => {
   return (
     <AnimatedPage>
     <SwipeablePage className="px-6 lg:px-8 xl:px-12 relative">
-      <section className="mb-8 pt-6 md:pt-4 animate-content-enter-delay-1">
+      <section className="mb-8 pt-6 md:pt-4 animate-content-enter-delay-1" style={{ minHeight: '100px' }}>
         <h1 className={`leading-none mb-3 text-4xl md:text-5xl ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)' }}>
           Your <span className="italic">{activeTab === 'simulator' ? 'Session' : 'Room'}</span>
         </h1>

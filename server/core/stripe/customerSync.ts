@@ -145,7 +145,7 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
       const staleDetails = result.details.filter(d => d.action === 'stale');
       const sampleEmails = staleDetails.slice(0, 5).map(d => d.email).join(', ');
       const moreCount = staleDetails.length > 5 ? ` and ${staleDetails.length - 5} more` : '';
-      logger.warn(`[Stripe Customer Sync] ${result.staleFound} orphaned Stripe customer IDs detected (not auto-cleared). Sample: ${sampleEmails}${moreCount}. Use Data Integrity tools to review.`);
+      logger.debug(`[Stripe Customer Sync] ${result.staleFound} orphaned Stripe customer IDs detected (not auto-cleared). Sample: ${sampleEmails}${moreCount}. Use Data Integrity tools to review.`);
 
       try {
         const orphanedData = JSON.stringify({

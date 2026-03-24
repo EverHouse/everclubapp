@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.17",
+    date: "2026-03-24",
+    title: "Performance & Stability Fixes",
+    changes: [
+      "Improved: Page loading stability — reduced layout shifts on the Dashboard and Book Golf pages",
+      "Fixed: Reduced unnecessary warning noise in background system logs",
+    ]
+  },
+  {
     version: "8.97.16",
     date: "2026-03-24",
     title: "Payment Safety & Booking Guard Hardening",
