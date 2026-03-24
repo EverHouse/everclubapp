@@ -2,6 +2,18 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.12] - 2026-03-24
+
+### Codebase Cleanup — Dead Code Removal & Optimization
+- **22 dead files removed** across frontend, server, and shared code:
+  - Frontend (10): `Confetti.tsx`, `StaffDirectAddModal.tsx`, `OverduePaymentsSection.tsx`, `useAppMutation.ts`, `usePrefetchOnHover.ts`, `useBookGolfQueries.ts`, `useDashboardActions.ts`, plus 3 unused barrel `index.ts` files (staff-command-center, ui, Admin/layout)
+  - Server (9): `feeCalculator.ts` (superseded by unifiedFeeService), `mindbody/import.ts` + `mindbody/index.ts` (dead module), `resource/index.ts` + `trackman/index.ts` (unused barrel re-exports), `batch/index.ts` + `batch/utils.ts` (unused replit integration helpers), `admin-roster-management.ts` + `admin-roster-shared.ts` (dead trackman routes)
+  - Shared (3): `constants/index.ts` (unused barrel), `constants/products.ts` (unused DAY_PASS_PRODUCTS), `models/users.ts` (unused Zod user schema)
+- **Empty directories cleaned**: `server/core/mindbody/`, `server/replit_integrations/batch/`
+- **Stale comment fixed**: Removed reference to deleted `feeCalculator.ts` in `unifiedFeeService.ts`
+- **Zero TypeScript errors** confirmed after all removals
+- **Production build verified** — all 1238 modules transform successfully
+
 ## [8.97.11] - 2026-03-23
 
 ### Fix: Cafe Menu Stripe Resilience — Delete, Edit, and Reverse Sync

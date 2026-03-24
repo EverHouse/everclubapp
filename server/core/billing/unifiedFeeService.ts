@@ -680,7 +680,6 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       
       // Only charge guest fee if participant has NO user_id (i.e., not a member)
       // Members incorrectly marked as guests should not be charged guest fees
-      // This matches the logic in feeCalculator.ts for consistency
       const isActualGuest = !participant.userId;
       const hasRealGuestId = !!participant.guestId;
       const isPlaceholderGuest = isPlaceholderGuestName(participant.displayName);

@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.12",
+    date: "2026-03-24",
+    title: "Codebase Cleanup",
+    changes: [
+      "Removed 22 unused files and dead code modules across the app for a cleaner, faster codebase",
+    ]
+  },
+  {
     version: "8.97.11",
     date: "2026-03-23",
     title: "Cafe Menu Stripe Resilience",
