@@ -27,6 +27,15 @@
    - 5.9 [Check-In System](#59-check-in-system)
    - 5.10 [Digital Wallet Pass](#510-digital-wallet-pass)
    - 5.11 [Cafe & Amenities](#511-cafe--amenities)
+   - 5.12 [Public Website & Marketing Pages](#512-public-website--marketing-pages)
+   - 5.13 [Waiver & Legal Management](#513-waiver--legal-management)
+   - 5.14 [Tour Booking System](#514-tour-booking-system)
+   - 5.15 [Trackman Reconciliation Tools](#515-trackman-reconciliation-tools)
+   - 5.16 [Data Integrity & System Health](#516-data-integrity--system-health)
+   - 5.17 [Member Communications & Support](#517-member-communications--support)
+   - 5.18 [Admin Settings & Configuration](#518-admin-settings--configuration)
+   - 5.19 [Data Privacy & Export](#519-data-privacy--export)
+   - 5.20 [Private Hire & Venue Rental](#520-private-hire--venue-rental)
 6. [Membership Tiers & Pricing](#6-membership-tiers--pricing)
 7. [Third-Party Integrations](#7-third-party-integrations)
 8. [Data Model Overview](#8-data-model-overview)
@@ -158,6 +167,10 @@ To provide an elegant, frictionless digital experience that mirrors the elevated
 - View subscription details and tier information
 - Payment modal with Stripe Payment Element integration
 
+#### Updates / Changelog
+- Member-facing changelog showing recent app updates and improvements (`/updates`)
+- Versioned entries with dates and descriptions
+
 ### 5.2 Staff & Admin Portal (Command Center)
 
 #### Staff Command Center
@@ -212,12 +225,19 @@ To provide an elegant, frictionless digital experience that mirrors the elevated
 
 #### Simulator Bookings
 - Real-time availability view of all simulator bays
-- Duration selection with daily minute tracking
+- Date picker strip → duration selection → time slot grid → bay/resource selection flow
+- Duration filtered by player count (1 player: 30–240 min; 4 players: 120–240 min)
 - Tier-based booking windows (how far in advance a member can book)
-- Participant management (add members and guests to a session)
-- Conflict detection for overlapping bookings (checks both owner and participants)
+- Participant management via Player Slot Editor (up to 4 players per session)
+  - Search and add other club members by name/email
+  - Add guests by name and email
+  - Warning for unfilled slots (not tracked, may incur guest fees)
+  - Guardian consent form triggered for minor members (under 18)
+- Conflict detection for overlapping bookings (checks both owner and all participants)
+- Bay preference selection (specific bay or any available)
 - Auto-complete scheduler for sessions past their end time
 - Stale pending booking expiration
+- Haptic feedback and success sounds on booking confirmation
 
 #### Conference Room Bookings
 - Separate booking flow for conference rooms
@@ -229,6 +249,13 @@ To provide an elegant, frictionless digital experience that mirrors the elevated
 - Bidirectional sync with Google Calendar
 - Facility closures sync to prevent bookings during closed periods
 - Staff golf lessons create availability blocks (not closures)
+
+#### Booking Cancellation & Modifications
+- Members can cancel pending requests (immediate cancellation) or confirmed bookings (triggers cancellation flow)
+- Guest passes automatically refunded if cancellation is more than 1 hour before start time
+- Prepayments automatically queued for Stripe refund on cancellation
+- Direct booking editing is not available to members — cancel and re-book, or staff handles modifications
+- Cancellation cascade: DB status change → guest pass refund → usage ledger cleanup → Stripe refund → calendar deletion
 
 #### Booking Status Lifecycle
 Valid status transitions enforced at the database level:
@@ -413,9 +440,190 @@ Valid status transitions enforced at the database level:
 ### 5.11 Cafe & Amenities
 
 #### Cafe Menu
-- Digital menu display accessible via app
+- Digital menu display accessible via app (farm-to-table breakfast, lunch, specialty coffee)
 - Menu items synced as Stripe products
 - Ordering support through POS register
+- Publicly accessible at `/menu`
+
+### 5.12 Public Website & Marketing Pages
+
+#### Informational Pages
+- **Landing Page** (`/`): "Office. Course. Club." value proposition, press features (Forbes, Hypebeast, Fox 11), membership tier highlights
+- **Membership Overview** (`/membership`): Tier details (Social, Core, Premium, Corporate) with "How to Join" guide
+- **Membership Comparison** (`/membership/compare`): Side-by-side feature comparison of all tiers
+- **Corporate Membership** (`/membership/corporate`): Volume discounts and per-employee pricing for teams
+- **About** (`/about`): Club mission and philosophy
+- **FAQ** (`/faq`): Common questions about membership, facility, and simulators
+- **Contact** (`/contact`): Location, hours of operation, and contact information
+- **Gallery** (`/gallery`): Masonry grid photo gallery with filtered views (simulators, lounge, cafe, workspace)
+- **What's On** (`/whats-on`): Public event calendar with Eventbrite integration
+
+#### Conversion Flows
+- **Membership Application** (`/membership/apply`): Multi-step application form for prospective members
+- **Book a Tour** (`/tour`): Schedule a 30-minute private guided tour with available time slots
+- **Day Pass Purchase** (`/day-pass`): Purchase workspace or golf sim day passes with Stripe checkout; issues QR code for entry
+- **Checkout** (`/checkout`): Unified checkout for public purchases
+
+#### Legal
+- **Privacy Policy** (`/privacy`) and **Terms of Service** (`/terms`)
+
+### 5.13 Waiver & Legal Management
+
+#### Versioned Membership Agreements
+- Digital waiver/membership agreement system with version tracking (e.g., v1.0, v2.0)
+- Members sign waivers directly in the app
+- Signed agreement emailed to the member as formatted HTML
+- Version updates identify affected members and require re-signing before facility access
+
+#### Staff Waiver Tools
+- Admin can update the current active waiver version
+- Manual override to mark waivers as signed
+- Stale waiver detection and review reminders
+- Waiver compliance check integrated into check-in flow
+
+### 5.14 Tour Booking System
+
+- Dedicated tour scheduling for prospective members
+- Available time slot selection (30-minute slots)
+- Contact information capture (name, email, phone)
+- Integration with HubSpot for lead tracking
+- Tour confirmation and reminder emails via Resend
+- Auto-expiration of stale/no-show tours
+- Staff management interface for viewing and managing tour bookings
+
+### 5.15 Trackman Reconciliation Tools
+
+#### Webhook Processing
+- Real-time webhook receiver for Trackman simulator activity
+- Automatic session matching to app bookings by email, bay, and time (5-minute tolerance)
+- Refuses ambiguous matches when multiple candidates exist
+
+#### Unmatched Session Management
+- Dedicated admin interface for resolving "ghost" sessions (Trackman activity with no app booking)
+- Manual member matching tools
+- Roster reconciliation comparing Trackman player count vs. app roster
+
+#### CSV Import
+- Manual upload of Trackman booking exports
+- Session owner mismatch correction
+- Placeholder merge for unmatched-to-matched transitions
+- All Trackman-sourced participants get waived payment status (usage-tracking only, not billed)
+
+#### Historical Backfill
+- Tools and scripts for rescanning historical Trackman data
+- Ensures all sessions are accounted for and properly attributed
+
+### 5.16 Data Integrity & System Health
+
+#### Automated Health Checks
+- System health grid monitoring: Database, Stripe, HubSpot, Resend, Google Calendar
+- 23 integrity checks: 8 external-system (Stripe subscription sync, billing orphans, HubSpot, Trackman, MindBody) + 15 DB-enforced/internal
+- Scheduled runs for external-system checks; manual trigger for internal checks
+
+#### Resolution Dashboard (Admin)
+- Detailed issue list with categories: HubSpot Sync Mismatch, Subscription Status Drift, Orphaned Records, etc.
+- "Quick Fix" buttons for one-click resolution (sync, merge, cleanup)
+- Bulk fix capabilities
+
+#### Audit Logging
+- Comprehensive tracking of all staff/admin actions
+- Filter by actor, resource type, and date range
+- Categories: Bookings, Members, Payments, Settings
+
+#### Sync & Maintenance Tools
+- Resync individual member data from external systems
+- Stripe customer cleanup (delete empty records with zero transactions)
+- Stripe cache backfill (re-fetch recent payments and invoices)
+- Duplicate account detection in local app and HubSpot
+- Stale visitor archiving
+- Ghost fee and ghost booking cleanup
+- Metadata synchronization for Stripe and HubSpot
+- Google Calendar extended property backfilling
+
+#### System Monitoring
+- Scheduled tasks monitor: status, last run, and results for all 28 background schedulers with master toggle
+- Job queue monitor: pending, processing, completed, and failed background jobs
+- HubSpot sync queue: retry counts and error logs
+- Webhook monitor: incoming webhook log (Trackman, Stripe, Resend) with processing status
+- Email delivery health: sent, delivered, bounced, and complained metrics via Resend webhooks
+- Marketing contacts audit: identify HubSpot contacts safe to remove for billing optimization
+
+### 5.17 Member Communications & Support
+
+#### Staff Communication Logs
+- Log interactions with members (calls, emails, in-person meetings)
+- Visible on member profile for all staff
+- Timestamped and attributed to the staff member who logged it
+
+#### Member Notes
+- Dedicated "Notes" tab on each member's staff-facing profile
+- Internal commentary and context for staff use
+
+#### Bug Reporting
+- Built-in modal for members to report app issues
+- Admin dashboard for staff to track and resolve reported bugs
+- Status tracking for reported issues
+
+#### Inquiry Management
+- Pipeline for managing general inquiries and private hire requests
+- Integration with HubSpot form submissions
+
+### 5.18 Admin Settings & Configuration
+
+#### General Settings
+- Club contact information (phone, email, address)
+- Social media links (Instagram, TikTok, LinkedIn)
+- Operational hours (daily open/close times)
+- Slot duration configuration for Golf, Conference Rooms, and Tours
+
+#### Integration Configuration
+- HubSpot Form IDs (Membership, Private Hire, etc.)
+- HubSpot tier and status mapping
+- Apple Messages for Business ID
+- Apple Wallet Pass Type ID and Team ID
+
+#### Scheduling Configuration
+- Daily reminder send time
+- Morning closure notification time
+- Onboarding nudge frequency
+- Grace period settings
+
+#### Security Settings
+- Kiosk exit passcode
+- Notification retention duration
+
+#### Email Template Management
+- Category-level master toggles (Welcome, Booking, Passes, etc.)
+- Rendered HTML previews for all system email templates
+
+#### Resource Management
+- Bay/simulator configuration
+- Conference room setup
+- Closure reasons and notice types
+
+#### ID Scanner
+- Integration for scanning member IDs to verify identity
+- Save ID images to member profiles
+
+#### Staff Training Library
+- Training materials and internal documentation for staff
+
+### 5.19 Data Privacy & Export
+
+#### Member Data Export
+- Members can request and download their personal data (GDPR/CCPA compliance)
+- Packaged export of profile, booking history, and payment records
+
+#### Account Deletion
+- Formal workflow for members to request account removal
+- Cascading cleanup of associated data
+
+### 5.20 Private Hire & Venue Rental
+
+#### Private Hire Information
+- Public page with venue rental and full club buyout details (`/private-hire`)
+- Inquiry form for event planning (`/private-hire/inquire`)
+- Lead capture integrated with HubSpot
 
 ---
 
@@ -479,6 +687,7 @@ Tiers are dynamically managed in the database with the following default hierarc
 | **OpenAI** | AI-powered features | Outbound |
 | **Replit Object Storage** | File and asset storage | Bidirectional |
 | **Google Sheets** | Data export/reporting | Outbound |
+| **Mindbody** | Legacy data migration — historical member data, visit history, founding member tiers | Inbound (CSV import) |
 
 ---
 
@@ -509,6 +718,16 @@ Tiers are dynamically managed in the database with the following default hierarc
 | Linked Emails | `user_linked_emails` | Alternate email addresses mapped to primary accounts |
 | Billing Groups | `billing_groups` | Corporate/family billing group definitions |
 | Group Members | `group_members` | Sub-members linked to billing groups |
+| Waivers | `membership_agreements` | Versioned waiver/agreement tracking and member signatures |
+| Tours | `tours` | Tour bookings for prospective members |
+| Bug Reports | `bug_reports` | Member-submitted bug reports with status tracking |
+| Member Notes | `member_notes` | Staff notes on individual member profiles |
+| Communication Logs | `communication_logs` | Logged staff-member interactions |
+| Failed Side Effects | `failed_side_effects` | Tracks cancellation side-effect failures for staff recovery |
+| Subscription Locks | `subscription_locks` | Per-email operation locks preventing duplicate subscriptions |
+| Magic Links | `magic_links` | OTP tokens for passwordless authentication |
+| Sessions | `sessions` | User session storage for authentication |
+| Passkeys | `passkeys` | WebAuthn credentials for passwordless login |
 
 ### External System Tables
 
@@ -649,8 +868,9 @@ All schedulers have overlap protection, catch-up windows, and error alerting.
 - Bottom navigation for mobile, navigation rail for tablet/desktop
 - Haptic feedback on mutations
 
-### Timezone
+### Timezone & Operating Hours
 - All date/time operations use Pacific Time (`America/Los_Angeles`)
+- Default operating hours: Tue–Thu 8:30 AM–8 PM, Fri–Sat 8:30 AM–10 PM, Sun 10 AM–6 PM, Closed Monday (configurable via admin settings)
 
 ### Availability
 - Real-time health monitoring via Supabase heartbeat
