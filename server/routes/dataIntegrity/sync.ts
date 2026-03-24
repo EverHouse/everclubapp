@@ -193,7 +193,6 @@ router.post('/api/data-integrity/resync-from-production', isAdmin, async (req, r
     logger.info(`[DevSync] Export verified: ${csvFiles.length} CSV files, all critical tables present. Starting import...`);
 
     const DEV_ONLY_TABLES = [
-      'stripe_products',
       'stripe_transaction_cache',
       'stripe_payment_intents',
       'webhook_processed_events',
@@ -202,38 +201,47 @@ router.post('/api/data-integrity/resync-from-production', isAdmin, async (req, r
 
     interface StripeMapping {
       matchKey: string;
-      stripeProductId?: string | null;
-      stripePriceId?: string | null;
-      stripeCustomerId?: string | null;
+      cols: Record<string, string | null>;
     }
     const savedStripeMappings: Record<string, StripeMapping[]> = {};
 
-    const stripePreserveQueries: Record<string, string> = {
-      users: `SELECT email AS match_key, stripe_customer_id FROM users WHERE stripe_customer_id IS NOT NULL`,
-      membership_tiers: `SELECT slug AS match_key, stripe_product_id, stripe_price_id FROM membership_tiers WHERE stripe_product_id IS NOT NULL OR stripe_price_id IS NOT NULL`,
-      cafe_items: `SELECT name AS match_key, stripe_product_id, stripe_price_id FROM cafe_items WHERE stripe_product_id IS NOT NULL OR stripe_price_id IS NOT NULL`,
-      billing_groups: `SELECT id::text AS match_key, stripe_customer_id FROM billing_groups WHERE stripe_customer_id IS NOT NULL`,
-      family_add_on_products: `SELECT name AS match_key, stripe_product_id, stripe_price_id FROM family_add_on_products WHERE stripe_product_id IS NOT NULL OR stripe_price_id IS NOT NULL`,
-      day_pass_purchases: `SELECT id::text AS match_key, stripe_product_id, stripe_price_id FROM day_pass_purchases WHERE stripe_product_id IS NOT NULL OR stripe_price_id IS NOT NULL`,
+    const stripePreserveQueries: Record<string, { query: string; cols: string[] }> = {
+      users: {
+        query: `SELECT email AS match_key, stripe_customer_id, stripe_subscription_id FROM users WHERE stripe_customer_id IS NOT NULL OR stripe_subscription_id IS NOT NULL`,
+        cols: ['stripe_customer_id', 'stripe_subscription_id'],
+      },
+      membership_tiers: {
+        query: `SELECT slug AS match_key, stripe_product_id, stripe_price_id FROM membership_tiers WHERE stripe_product_id IS NOT NULL OR stripe_price_id IS NOT NULL`,
+        cols: ['stripe_product_id', 'stripe_price_id'],
+      },
+      cafe_items: {
+        query: `SELECT name AS match_key, stripe_product_id, stripe_price_id FROM cafe_items WHERE stripe_product_id IS NOT NULL OR stripe_price_id IS NOT NULL`,
+        cols: ['stripe_product_id', 'stripe_price_id'],
+      },
+      billing_groups: {
+        query: `SELECT id::text AS match_key, stripe_customer_id, primary_stripe_customer_id, primary_stripe_subscription_id FROM billing_groups WHERE stripe_customer_id IS NOT NULL OR primary_stripe_customer_id IS NOT NULL OR primary_stripe_subscription_id IS NOT NULL`,
+        cols: ['stripe_customer_id', 'primary_stripe_customer_id', 'primary_stripe_subscription_id'],
+      },
+      stripe_products: {
+        query: `SELECT stripe_product_id AS match_key, stripe_price_id FROM stripe_products WHERE stripe_product_id IS NOT NULL`,
+        cols: ['stripe_price_id'],
+      },
     };
 
-    for (const [table, query] of Object.entries(stripePreserveQueries)) {
+    for (const [table, config] of Object.entries(stripePreserveQueries)) {
       try {
         const { stdout } = await execFileAsync('psql', [
-          localUrl, '-t', '-A', '-F', '|', '-c', query
+          localUrl, '-t', '-A', '-F', '|', '-c', config.query
         ], { timeout: 10000 });
         const rows = stdout.trim().split('\n').filter(Boolean);
         if (rows.length > 0) {
           savedStripeMappings[table] = rows.map(row => {
             const parts = row.split('|');
-            if (table === 'users' || table === 'billing_groups') {
-              return { matchKey: parts[0], stripeCustomerId: parts[1] || null };
-            }
-            return {
-              matchKey: parts[0],
-              stripeProductId: parts[1] || null,
-              stripePriceId: parts[2] || null,
-            };
+            const cols: Record<string, string | null> = {};
+            config.cols.forEach((col, i) => {
+              cols[col] = parts[i + 1] || null;
+            });
+            return { matchKey: parts[0], cols };
           });
           logger.info(`[DevSync] Saved ${rows.length} Stripe mappings from ${table}`);
         }
@@ -294,44 +302,28 @@ router.post('/api/data-integrity/resync-from-production', isAdmin, async (req, r
       }
     }
 
-    const stripeRestoreQueries: Record<string, (m: StripeMapping) => string> = {
-      users: (m) => `UPDATE users SET stripe_customer_id = '${m.stripeCustomerId}' WHERE email = '${m.matchKey.replace(/'/g, "''")}' AND (stripe_customer_id IS NULL OR stripe_customer_id != '${m.stripeCustomerId}')`,
-      membership_tiers: (m) => {
-        const sets: string[] = [];
-        if (m.stripeProductId) sets.push(`stripe_product_id = '${m.stripeProductId}'`);
-        if (m.stripePriceId) sets.push(`stripe_price_id = '${m.stripePriceId}'`);
-        return sets.length > 0 ? `UPDATE membership_tiers SET ${sets.join(', ')} WHERE slug = '${m.matchKey.replace(/'/g, "''")}'` : '';
-      },
-      cafe_items: (m) => {
-        const sets: string[] = [];
-        if (m.stripeProductId) sets.push(`stripe_product_id = '${m.stripeProductId}'`);
-        if (m.stripePriceId) sets.push(`stripe_price_id = '${m.stripePriceId}'`);
-        return sets.length > 0 ? `UPDATE cafe_items SET ${sets.join(', ')} WHERE name = '${m.matchKey.replace(/'/g, "''")}'` : '';
-      },
-      billing_groups: (m) => `UPDATE billing_groups SET stripe_customer_id = '${m.stripeCustomerId}' WHERE id = ${m.matchKey}`,
-      family_add_on_products: (m) => {
-        const sets: string[] = [];
-        if (m.stripeProductId) sets.push(`stripe_product_id = '${m.stripeProductId}'`);
-        if (m.stripePriceId) sets.push(`stripe_price_id = '${m.stripePriceId}'`);
-        return sets.length > 0 ? `UPDATE family_add_on_products SET ${sets.join(', ')} WHERE name = '${m.matchKey.replace(/'/g, "''")}'` : '';
-      },
-      day_pass_purchases: (m) => {
-        const sets: string[] = [];
-        if (m.stripeProductId) sets.push(`stripe_product_id = '${m.stripeProductId}'`);
-        if (m.stripePriceId) sets.push(`stripe_price_id = '${m.stripePriceId}'`);
-        return sets.length > 0 ? `UPDATE day_pass_purchases SET ${sets.join(', ')} WHERE id = ${m.matchKey}` : '';
-      },
+    const matchKeyColumn: Record<string, string> = {
+      users: 'email',
+      membership_tiers: 'slug',
+      cafe_items: 'name',
+      billing_groups: 'id',
+      stripe_products: 'stripe_product_id',
     };
 
     let restoredCount = 0;
     for (const [table, mappings] of Object.entries(savedStripeMappings)) {
-      const builder = stripeRestoreQueries[table];
-      if (!builder) continue;
+      const keyCol = matchKeyColumn[table];
+      if (!keyCol) continue;
+      const isNumericKey = keyCol === 'id';
       for (const mapping of mappings) {
-        const sql = builder(mapping);
-        if (!sql) continue;
+        const sets = Object.entries(mapping.cols)
+          .filter(([, v]) => v != null)
+          .map(([col, val]) => `${col} = '${val}'`);
+        if (sets.length === 0) continue;
+        const whereVal = isNumericKey ? mapping.matchKey : `'${mapping.matchKey.replace(/'/g, "''")}'`;
+        const restoreSql = `UPDATE "${table}" SET ${sets.join(', ')} WHERE ${keyCol} = ${whereVal}`;
         try {
-          await execFileAsync('psql', [localUrl, '-c', sql], { timeout: 10000 });
+          await execFileAsync('psql', [localUrl, '-c', restoreSql], { timeout: 10000 });
           restoredCount++;
         } catch (restoreErr: unknown) {
           logger.warn(`[DevSync] Failed to restore Stripe mapping for ${table}/${mapping.matchKey}: ${getErrorMessage(restoreErr)}`);
