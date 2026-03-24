@@ -240,6 +240,11 @@ export function TerminalPayment({
       return;
     }
 
+    if (subscriptionId == null && !existingPaymentIntentId && !isSaveCard && !cartItems?.length) {
+      onError('Subscription is still being created. Please wait a moment and try again.');
+      return;
+    }
+
     setProcessing(true);
     processingRef.current = true;
     setStatus('waiting');

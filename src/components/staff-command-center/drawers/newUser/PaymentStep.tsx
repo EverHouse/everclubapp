@@ -307,6 +307,13 @@ export function PaymentStep({
                     Try Again
                   </button>
                 </div>
+              ) : stripeLoading || (!form.joinExistingGroup && !subscriptionId) ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                  <WalkingGolferSpinner size="sm" />
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Setting up subscription...
+                  </p>
+                </div>
               ) : (
                 <TerminalPayment
                   amount={totalPrice}
