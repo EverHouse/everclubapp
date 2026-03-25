@@ -30,9 +30,9 @@ const WalkingGolferSpinner: React.FC<WalkingGolferSpinnerProps> = ({
   }, [variant]);
 
   const sizeStyles = {
-    sm: { width: '24px' },
-    md: { width: '48px' },
-    lg: { width: '80px' }
+    sm: { width: '24px', height: '24px' },
+    md: { width: '48px', height: '48px' },
+    lg: { width: '80px', height: '80px' }
   };
 
   let imageSrc: string;

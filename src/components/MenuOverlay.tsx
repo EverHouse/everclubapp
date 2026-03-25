@@ -114,6 +114,8 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
                     src={isDark ? "/assets/logos/mascot-white.webp" : "/assets/logos/mascot-dark.webp"}
                     alt="Ever Club mascot character"
                     className="h-10 w-auto object-contain"
+                    width={40}
+                    height={40}
                   />
                 </button>
                 <button 

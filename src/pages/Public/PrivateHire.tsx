@@ -57,6 +57,8 @@ const PrivateHire: React.FC = () => {
              className={`absolute inset-0 w-full h-[120%] object-cover object-[center_35%] will-change-transform ${heroAnimPlayed ? '' : 'animate-hero-bg'}`}
              loading="eager"
              fetchPriority="high"
+             width={1920}
+             height={1080}
              style={{ 
                transform: 'translateY(0px) scale(1.05)',
                opacity: 1

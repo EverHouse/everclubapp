@@ -295,12 +295,14 @@ export const DirectoryTabSkeleton: React.FC<SkeletonCardProps> = ({ isDark = fal
 export const CommandCenterCardSkeleton: React.FC<SkeletonCardProps> = ({ isDark = false }) => {
   const bg = isDark ? bgDark : bgAuto;
   return (
-    <div className={`rounded-xl p-4 bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 border`}>
+    <div className={`rounded-xl p-4 bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 border min-h-[280px]`}>
       <div className="flex items-center justify-between mb-4">
         <div className={`${shimmerClass} ${bg} h-5 w-32 rounded`} />
         <div className={`${shimmerClass} ${bg} h-4 w-20 rounded`} />
       </div>
       <div className="space-y-3">
+        <div className={`${shimmerClass} ${bg} h-16 w-full rounded-xl`} />
+        <div className={`${shimmerClass} ${bg} h-16 w-full rounded-xl`} />
         <div className={`${shimmerClass} ${bg} h-16 w-full rounded-xl`} />
         <div className={`${shimmerClass} ${bg} h-16 w-full rounded-xl`} />
       </div>
