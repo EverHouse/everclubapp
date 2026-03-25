@@ -600,13 +600,13 @@ const KioskCheckin: React.FC = () => {
               Scanner Active
             </div>
 
-            <div className="relative w-full max-w-sm">
+            <div className="relative w-full max-w-sm mx-auto">
               <div className="absolute -top-2 -left-2 w-7 h-7 border-t-2 border-l-2 z-10" style={{ borderColor: OLIVE_ACCENT }} />
               <div className="absolute -top-2 -right-2 w-7 h-7 border-t-2 border-r-2 z-10" style={{ borderColor: OLIVE_ACCENT }} />
               <div className="absolute -bottom-2 -left-2 w-7 h-7 border-b-2 border-l-2 z-10" style={{ borderColor: OLIVE_ACCENT }} />
               <div className="absolute -bottom-2 -right-2 w-7 h-7 border-b-2 border-r-2 z-10" style={{ borderColor: OLIVE_ACCENT }} />
 
-              <div className="rounded-lg overflow-hidden bg-black/40 kiosk-scanner-container" style={{ border: `1px solid ${CARD_BORDER}` }}>
+              <div className="rounded-lg overflow-hidden bg-black/40 kiosk-scanner-container" style={{ border: `1px solid ${CARD_BORDER}`, aspectRatio: '1', maxHeight: 'min(400px, 50vh)' }}>
                 <style>{`
                   .kiosk-scanner-container [id$="__scan_region"] ~ div,
                   .kiosk-scanner-container > div > div > div[style*="border-width"] {
@@ -614,9 +614,11 @@ const KioskCheckin: React.FC = () => {
                   }
                   .kiosk-scanner-container video {
                     object-fit: cover !important;
+                    width: 100% !important;
+                    height: 100% !important;
                   }
                 `}</style>
-                <div id={elementId} className="w-full" style={{ height: 'min(350px, 45vh)' }} />
+                <div id={elementId} className="w-full h-full" />
               </div>
 
               {cameraError && (
