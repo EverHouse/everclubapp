@@ -216,7 +216,9 @@ router.delete('/api/cafe-menu/inactive/all', isAdmin, async (req, res) => {
   try {
     const inactive = await db.select({ id: cafeItems.id, name: cafeItems.name, stripeProductId: cafeItems.stripeProductId })
       .from(cafeItems)
-      .where(eq(cafeItems.isActive, false));
+      .where(sql`${cafeItems.isActive} IS NOT TRUE`);
+
+    logger.info(`[Cafe] Bulk delete inactive: found ${inactive.length} items with is_active != true`);
 
     if (inactive.length === 0) {
       return res.json({ success: true, deleted: 0 });
@@ -240,13 +242,14 @@ router.delete('/api/cafe-menu/inactive/all', isAdmin, async (req, res) => {
       }
     }
 
-    await db.delete(cafeItems).where(eq(cafeItems.isActive, false));
+    const deleteResult = await db.delete(cafeItems).where(sql`${cafeItems.isActive} IS NOT TRUE`);
     invalidateCache(CAFE_CACHE_KEY);
     broadcastCafeMenuUpdate('deleted');
     logFromRequest(req, 'bulk_delete_inactive_cafe', 'cafe', 'all_inactive', `Deleted ${inactive.length} inactive items`, {});
+    logger.info(`[Cafe] Bulk delete complete: removed ${inactive.length} inactive items`);
     res.json({ success: true, deleted: inactive.length });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Bulk delete inactive cafe items error', { error: getErrorMessage(error) });
+    logger.error('[Cafe] Bulk delete inactive cafe items error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to delete inactive items' });
   }
 });
