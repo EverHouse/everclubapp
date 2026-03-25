@@ -85,8 +85,22 @@ export const Footer: React.FC<FooterProps> = ({ hideCta = false }) => {
      
      <div className="w-full max-w-xs mx-auto h-px bg-[#E7E7DC]/10 mb-8"></div>
      
-     <div className="flex justify-center gap-6 mb-6 text-xs">
+     <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mb-4 text-xs">
+        <Link to="/" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">Home</Link>
+        <Link to="/membership" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">Membership</Link>
+        <Link to="/membership/compare" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">Compare Plans</Link>
+        <Link to="/membership/apply" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">Apply</Link>
+        <Link to="/day-pass" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">Day Pass</Link>
+        <Link to="/tour" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">Book a Tour</Link>
+        <Link to="/private-hire" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">Private Events</Link>
+        <Link to="/whats-on" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">Events</Link>
+        <Link to="/menu" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">Café Menu</Link>
+        <Link to="/gallery" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">Gallery</Link>
+     </div>
+     <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mb-6 text-xs">
         <Link to="/about" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">About</Link>
+        <Link to="/faq" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">FAQ</Link>
+        <Link to="/contact" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">Contact</Link>
         <Link to="/privacy" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">Privacy Policy</Link>
         <Link to="/terms" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">Terms of Service</Link>
      </div>

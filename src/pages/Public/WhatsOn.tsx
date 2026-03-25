@@ -163,9 +163,10 @@ const WhatsOn: React.FC = () => {
     <AnimatedPage>
       <SEO
         title="Events & Happenings in OC | Ever Club"
-        description="Discover golf tournaments, social nights, wellness classes & curated events at Ever Club in Tustin, OC. See what's on and RSVP."
+        description="Discover golf tournaments, social nights, wellness classes & curated events at Ever Club in Tustin, OC. Browse upcoming events and RSVP today."
         url="/whats-on"
         image="/images/events-crowd-optimized.webp"
+        keywords="golf club events Tustin, indoor golf tournament Orange County, social events OC golf club, Ever Club events Tustin"
       />
     <div 
       className="full-bleed-page flex flex-col bg-[#EAEBE6] dark:bg-[#141414] overflow-x-hidden"

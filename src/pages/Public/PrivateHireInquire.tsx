@@ -171,7 +171,7 @@ const PrivateHireInquire: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#141414] animate-page-enter">
-      <SEO title="Private Event Inquiry | Ever Club — OC Venue" description="Submit an inquiry for private events at Ever Club in Tustin, OC. Golf simulator parties, corporate events, celebrations & more." url="/private-hire/inquire" />
+      <SEO title="Private Event Inquiry | Ever Club — OC Venue" description="Submit an inquiry for private events at Ever Club in Tustin, OC. Golf simulator parties, corporate gatherings, celebrations & custom event packages." url="/private-hire/inquire" keywords="private event inquiry Tustin, book golf simulator party Orange County, corporate event booking OC, Ever Club event inquiry" />
       <div className="pt-4 px-4 pb-4 animate-content-enter">
         <Link 
           to="/private-hire" 

@@ -186,7 +186,7 @@ const MembershipApply: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#141414] animate-page-enter">
-      <SEO title="Apply for Membership | Ever Club — OC Golf Club" description="Join OC's premier indoor golf & social club. Apply for membership at Ever Club in Tustin — Trackman simulators, workspace, wellness & community." url="/membership/apply" />
+      <SEO title="Apply for Membership | Ever Club — OC Golf Club" description="Join OC's premier indoor golf & social club. Apply for membership at Ever Club in Tustin — Trackman simulators, workspace, wellness & community." url="/membership/apply" keywords="apply golf club membership Tustin, join indoor golf club Orange County, Ever Club membership application, private golf club OC" />
       <div className="pt-4 px-4 pb-4 animate-content-enter">
         <Link 
           to="/membership" 

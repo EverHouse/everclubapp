@@ -7,7 +7,7 @@ import SEO from '../../components/SEO';
 import Icon from '../../components/icons/Icon';
 
 const OFFERINGS = [
-  { icon: 'sports_golf', title: 'Indoor Golf', description: 'State-of-the-art Trackman 4 simulators for practice, play, and entertainment. All skill levels welcome.' },
+  { icon: 'sports_golf', title: 'Indoor Golf Simulators', description: 'State-of-the-art Trackman 4 golf simulators for practice, play, and entertainment in Orange County. All skill levels welcome.' },
   { icon: 'work', title: 'Premium Workspace', description: 'Focused coworking spaces and bookable conference rooms for members who work differently.' },
   { icon: 'restaurant', title: 'Chef-Driven Café', description: 'Thoughtfully crafted food and beverages to fuel your day, from morning coffee to evening cocktails.' },
   { icon: 'celebration', title: 'Curated Events', description: 'From networking nights to golf tournaments, our events bring the community together.' },
@@ -31,9 +31,10 @@ const About: React.FC = () => {
   return (
     <AnimatedPage>
       <SEO
-        title="About Ever Club | Indoor Golf & Social Club in Tustin"
+        title="About Ever Club | Golf & Social Club, Tustin OC"
         description="Learn about Ever Club, Orange County's premier indoor golf & social club in Tustin. Trackman simulators, coworking, café, events & wellness."
         url="/about"
+        keywords="indoor golf Orange County, golf simulator Tustin, Ever Club about, Even House, private social club OC"
       />
       <div
         className="full-bleed-page flex flex-col bg-bone dark:bg-[#141414] overflow-x-hidden"
@@ -41,10 +42,10 @@ const About: React.FC = () => {
         <div className="full-bleed-bg" aria-hidden="true" />
         <section className="px-6 pt-8 md:pt-12 pb-10 text-center animate-content-enter">
           <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>
-            About Ever Club
+            About Ever Club — Tustin, Orange County
           </h1>
           <p className="text-base text-primary/70 dark:text-white/70 font-medium max-w-md mx-auto leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>
-            Orange County's Premier Indoor Golf & Social Club
+            Orange County's Premier Indoor Golf Simulator & Social Club
           </p>
         </section>
 
@@ -55,10 +56,10 @@ const About: React.FC = () => {
             </h2>
             <div className="space-y-4 text-base text-primary/70 dark:text-white/70 leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>
               <p>
-                Ever Club, formerly known as Even House, is a private members club located in Tustin, in the heart of Orange County, California. Founded to create a refined third space where ambitious professionals come together, the club offers an experience unlike any other in the region.
+                Ever Club, formerly known as Even House, is a private indoor golf simulator and social club located in Tustin, in the heart of Orange County, California. Founded to create a refined third space where ambitious professionals come together, the club offers the best indoor golf experience in OC alongside premium workspace and community.
               </p>
               <p>
-                We combine premium Trackman golf simulators with a professional workspace, a chef-driven café, and a calendar of curated social events — all under one roof. Whether you're perfecting your swing, closing a deal, or catching up with friends over craft cocktails, Ever Club is the place where work, play, and community converge.
+                We combine premium Trackman golf simulators with a professional workspace, a chef-driven café, and a calendar of curated social events — all under one roof in Tustin, CA. Whether you're perfecting your swing on our indoor golf simulators, closing a deal in our coworking space, or catching up with friends over craft cocktails, Ever Club is where work, play, and community converge in Orange County.
               </p>
               <p>
                 Our home at 15771 Red Hill Ave, Ste 500, Tustin, CA 92780 was designed from the ground up to serve the modern professional — someone who values quality, connection, and experiences that go beyond the ordinary.

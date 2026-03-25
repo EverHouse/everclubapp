@@ -542,6 +542,7 @@ async function initializeApp() {
       'Disallow: /history',
       'Disallow: /auth/',
       'Disallow: /reset-password',
+      'Disallow: /join',
       'Disallow: /nfc-checkin',
       'Disallow: /dev-preview/',
       'Disallow: /_health',
@@ -581,6 +582,7 @@ async function initializeApp() {
       { path: '/menu', priority: '0.6', changefreq: 'monthly' },
       { path: '/tour', priority: '0.8', changefreq: 'monthly' },
       { path: '/day-pass', priority: '0.7', changefreq: 'monthly' },
+      { path: '/membership/compare', priority: '0.7', changefreq: 'monthly' },
       { path: '/faq', priority: '0.5', changefreq: 'monthly' },
       { path: '/privacy', priority: '0.3', changefreq: 'yearly' },
       { path: '/terms', priority: '0.3', changefreq: 'yearly' },
@@ -724,12 +726,12 @@ async function initializeApp() {
   if (isProduction) {
     const SEO_META: Record<string, { title: string; description: string }> = {
       '/': {
-        title: 'Ever Club | Indoor Golf & Social Club in Tustin, OC',
-        description: 'Orange County\'s premier indoor golf & social club, formerly Even House. Trackman simulators, coworking, café & wellness in Tustin. Book a tour today.',
+        title: 'Ever Club | Golf Simulator & Social Club, Tustin OC',
+        description: 'Orange County\'s premier indoor golf simulator club in Tustin, CA. Trackman simulators, coworking, farm-to-table café & wellness. Book a tour today.',
       },
       '/membership': {
-        title: 'Membership Plans & Pricing | Ever Club — Tustin, OC',
-        description: 'Explore membership tiers at Ever Club in OC. Social, Core, Premium & Corporate plans with Trackman access, coworking, wellness & exclusive events.',
+        title: 'Membership Plans & Pricing | Ever Club — Tustin OC',
+        description: 'Explore membership tiers at Ever Club. Social, Core, Premium & Corporate plans with Trackman golf simulator access, coworking & events in Tustin, OC.',
       },
       '/membership/apply': {
         title: 'Apply for Membership | Ever Club — OC Golf Club',
@@ -741,7 +743,7 @@ async function initializeApp() {
       },
       '/whats-on': {
         title: 'Events & Happenings in OC | Ever Club',
-        description: 'Discover golf tournaments, social nights, wellness classes & curated events at Ever Club in Tustin, OC. See what\'s on and RSVP.',
+        description: 'Discover golf tournaments, social nights, wellness classes & curated events at Ever Club in Tustin, OC. Browse upcoming events and RSVP today.',
       },
       '/menu': {
         title: 'Café Menu | Ever Club — Tustin, OC',
@@ -757,11 +759,11 @@ async function initializeApp() {
       },
       '/tour': {
         title: 'Book a Tour | Ever Club — Golf & Social Club, OC',
-        description: 'Schedule a free 30-min tour of Ever Club in Tustin. See Trackman simulators, coworking, café & wellness at OC\'s top private club.',
+        description: 'Schedule a free 30-minute tour of Ever Club in Tustin. See Trackman golf simulators, coworking, café & wellness spaces at OC\'s top private club.',
       },
       '/day-pass': {
-        title: 'Day Pass — Golf Simulator & Coworking | Ever Club',
-        description: 'No membership needed. Buy a day pass for Trackman golf simulators or coworking at Ever Club in Tustin, OC. Walk in & experience the club.',
+        title: 'Day Pass — Golf Simulator & Coworking | Ever Club OC',
+        description: 'No membership needed. Buy a day pass for Trackman indoor golf simulators or premium coworking at Ever Club in Tustin, Orange County. Walk in & play.',
       },
       '/faq': {
         title: 'FAQ — Frequently Asked Questions | Ever Club',
@@ -769,19 +771,23 @@ async function initializeApp() {
       },
       '/privacy': {
         title: 'Privacy Policy | Ever Members Club',
-        description: 'Read the Ever Members Club privacy policy. Learn how we collect, use, and protect your personal data from bookings, payments, and membership at our Tustin, CA club.',
+        description: 'Read the Ever Members Club privacy policy. How we collect, use, and protect your personal data from bookings, payments & membership in Tustin, CA.',
       },
       '/terms': {
         title: 'Terms of Service | Ever Members Club',
-        description: 'Review the Ever Members Club terms of service — membership agreements, monthly fees, cancellation policy, liability waivers, and guest pass rules in Tustin, OC.',
+        description: 'Ever Members Club terms of service — membership agreements, monthly fees, cancellation policy, liability waivers & guest pass rules at our Tustin, OC club.',
       },
       '/private-hire/inquire': {
         title: 'Private Event Inquiry | Ever Club — OC Venue',
-        description: 'Submit an inquiry for private events at Ever Club in Tustin, OC. Golf simulator parties, corporate events, celebrations & more.',
+        description: 'Submit an inquiry for private events at Ever Club in Tustin, OC. Golf simulator parties, corporate gatherings, celebrations & custom event packages.',
       },
       '/about': {
-        title: 'About Ever Club | Indoor Golf & Social Club in Tustin',
+        title: 'About Ever Club | Golf & Social Club, Tustin OC',
         description: 'Learn about Ever Club, Orange County\'s premier indoor golf & social club in Tustin. Trackman simulators, coworking, café, events & wellness.',
+      },
+      '/membership/compare': {
+        title: 'Compare Membership Plans | Ever Club — Tustin OC',
+        description: 'Compare Ever Club membership tiers side-by-side. Features, pricing & benefits for Social, Core, Premium & Corporate plans at our Tustin, OC golf club.',
       },
     };
 
@@ -816,6 +822,8 @@ async function initializeApp() {
         "geoRadius": "30 mi"
       },
       "priceRange": "$$$",
+      "paymentAccepted": "Credit Card, Debit Card",
+      "currenciesAccepted": "USD",
       "openingHoursSpecification": [
         {
           "@type": "OpeningHoursSpecification",
@@ -950,6 +958,201 @@ async function initializeApp() {
 
     const GEO_META_TAGS = `<meta name="geo.region" content="US-CA" />\n<meta name="geo.placename" content="Tustin, California" />\n<meta name="geo.position" content="33.709;-117.8272" />\n<meta name="ICBM" content="33.709, -117.8272" />`;
 
+    const NAV_LINKS = `<nav aria-label="Site Navigation"><ul>
+<li><a href="/">Home</a></li>
+<li><a href="/membership">Membership Plans</a></li>
+<li><a href="/membership/compare">Compare Memberships</a></li>
+<li><a href="/membership/apply">Apply for Membership</a></li>
+<li><a href="/tour">Book a Tour</a></li>
+<li><a href="/day-pass">Day Pass</a></li>
+<li><a href="/private-hire">Private Events</a></li>
+<li><a href="/whats-on">Events &amp; Happenings</a></li>
+<li><a href="/menu">Caf&eacute; Menu</a></li>
+<li><a href="/gallery">Gallery</a></li>
+<li><a href="/about">About Ever Club</a></li>
+<li><a href="/faq">FAQ</a></li>
+<li><a href="/contact">Contact Us</a></li>
+<li><a href="/privacy">Privacy Policy</a></li>
+<li><a href="/terms">Terms of Service</a></li>
+</ul></nav>`;
+
+    const FOOTER_BLOCK = `<footer>
+<p>Ever Members Club &mdash; Indoor Golf &amp; Social Club</p>
+<p>15771 Red Hill Ave, Ste 500, Tustin, CA 92780 | (949) 545-5855 | info@joinever.club</p>
+<p>Hours: Tue&ndash;Thu 8:30 AM&ndash;8 PM | Fri&ndash;Sat 8:30 AM&ndash;10 PM | Sun 8:30 AM&ndash;6 PM | Mon Closed</p>
+${NAV_LINKS}
+</footer>`;
+
+    const SSR_CONTENT: Record<string, string> = {
+      '/': `<div role="main">
+<h1>Ever Club &mdash; Indoor Golf Simulator &amp; Social Club in Tustin, Orange County</h1>
+<p>Ever Club (formerly Even House) is Orange County&rsquo;s premier private indoor golf and social club, located in Tustin, CA. Experience state-of-the-art Trackman golf simulators, premium coworking spaces, a chef-driven farm-to-table caf&eacute;, curated events, and wellness programming &mdash; all under one roof.</p>
+<h2>Trackman Golf Simulators in Orange County</h2>
+<p>Play year-round on four Trackman 4 simulator bays delivering tour-level ball and club data. Practice your swing, compete on 100+ championship courses, or host a league night. Our indoor golf simulators near Tustin offer the best golf simulator experience in OC &mdash; rain or shine, no tee time required.</p>
+<h2>Premium Coworking &amp; Private Offices</h2>
+<p>Thoughtfully designed workspaces with high-speed fiber, private offices, conference rooms, and open lounges built for focus and creative collaboration in Orange County.</p>
+<h2>Farm-to-Table Caf&eacute; &amp; Bar</h2>
+<p>From morning espresso to craft cocktails, our chef-driven caf&eacute; serves locally-sourced dishes in a relaxed club atmosphere.</p>
+<h2>Curated Events &amp; Wellness</h2>
+<p>Wine tastings, golf socials, wellness workshops, and chef-led dinners designed to build connection and community every week.</p>
+<h2>Membership Plans</h2>
+<p>Choose from Social, Core, Premium, and Corporate membership tiers. Each offers different levels of access to golf simulators, coworking, events, and wellness programs. <a href="/membership">Explore membership options</a> or <a href="/tour">book a private tour</a>.</p>
+<h2>Private Events &amp; Venue Hire in OC</h2>
+<p>Host corporate events, celebrations, and social gatherings at Ever Club. <a href="/private-hire">Learn about private events</a>.</p>
+<p>As seen in <strong>Forbes</strong>, <strong>Hypebeast</strong>, and <strong>Fox 11</strong>.</p>
+<p><a href="/tour">Book a Tour</a> | <a href="/membership">Explore Membership</a> | <a href="/day-pass">Get a Day Pass</a></p>
+${FOOTER_BLOCK}
+</div>`,
+
+      '/membership': `<div role="main">
+<h1>Membership Plans &amp; Pricing &mdash; Ever Club Indoor Golf Club, Tustin OC</h1>
+<p>Join Orange County&rsquo;s premier indoor golf and social club. Ever Club offers flexible membership tiers designed for professionals who want Trackman golf simulator access, premium coworking, curated events, and wellness programming in Tustin, CA.</p>
+<h2>Social Membership</h2>
+<p>Access to social events, caf&eacute;, and lounge areas at Ever Club. Perfect for those who want community and connection.</p>
+<h2>Core Membership</h2>
+<p>Includes golf simulator access, coworking spaces, and all social events. The most popular plan for professionals in Orange County.</p>
+<h2>Premium Membership</h2>
+<p>Full access including priority booking, extended simulator sessions, wellness programs, and exclusive member dinners.</p>
+<h2>Corporate Membership</h2>
+<p>Volume-discounted plans for teams. Includes Premium-level benefits for every employee with group booking and guest passes.</p>
+<h2>Day Passes Available</h2>
+<p>No membership needed &mdash; try Ever Club with a <a href="/day-pass">golf simulator or coworking day pass</a>.</p>
+<p><a href="/membership/compare">Compare all tiers</a> | <a href="/membership/apply">Apply now</a> | <a href="/tour">Book a tour</a></p>
+${FOOTER_BLOCK}
+</div>`,
+
+      '/about': `<div role="main">
+<h1>About Ever Club &mdash; Indoor Golf &amp; Social Club in Tustin, Orange County</h1>
+<p>Ever Club, formerly known as Even House, is a private members club located at 15771 Red Hill Ave, Ste 500, Tustin, CA 92780, in the heart of Orange County. Founded to create a refined third space where ambitious professionals come together, the club offers an experience unlike any other in the region.</p>
+<h2>What We Offer</h2>
+<ul>
+<li><strong>Indoor Golf Simulators</strong> &mdash; State-of-the-art Trackman 4 simulators for practice, play, and entertainment in Orange County.</li>
+<li><strong>Premium Workspace</strong> &mdash; Focused coworking spaces and bookable conference rooms for professionals.</li>
+<li><strong>Chef-Driven Caf&eacute;</strong> &mdash; Farm-to-table food and craft beverages from morning coffee to evening cocktails.</li>
+<li><strong>Curated Events</strong> &mdash; Networking nights, golf tournaments, wine tastings, and social gatherings.</li>
+<li><strong>Wellness Programs</strong> &mdash; Services and programming designed for the modern professional.</li>
+<li><strong>Private Hire</strong> &mdash; Host corporate events, birthdays, and team outings in our versatile OC venue.</li>
+</ul>
+<h2>Our Values</h2>
+<p>Community First &mdash; Quality Over Quantity &mdash; Inclusive Excellence. Whether you shoot a 70 or have never held a club, you belong here.</p>
+<p><a href="/tour">Book a Tour</a> | <a href="/membership">Explore Membership</a></p>
+${FOOTER_BLOCK}
+</div>`,
+
+      '/day-pass': `<div role="main">
+<h1>Day Pass &mdash; Golf Simulator &amp; Coworking in Tustin, Orange County</h1>
+<p>No membership required. Experience Ever Club with a day pass for Trackman golf simulators or premium coworking in Tustin, OC.</p>
+<h2>Golf Simulator Day Pass</h2>
+<p>Book a 60-minute session on our Trackman 4 indoor golf simulators. Play championship courses, analyze your swing data, or just have fun with friends. The best indoor golf experience near you in Orange County.</p>
+<h2>Coworking Day Pass</h2>
+<p>Full-day access to our premium workspace with high-speed internet, espresso, and a professional atmosphere in Tustin, CA.</p>
+<p>Want unlimited access? <a href="/membership">Explore membership plans</a> or <a href="/tour">book a tour</a> to see the full club.</p>
+${FOOTER_BLOCK}
+</div>`,
+
+      '/contact': `<div role="main">
+<h1>Contact Ever Club &mdash; Indoor Golf &amp; Social Club, Tustin OC</h1>
+<h2>Visit Us</h2>
+<p>15771 Red Hill Ave, Ste 500, Tustin, CA 92780</p>
+<h2>Call Us</h2>
+<p>(949) 545-5855</p>
+<h2>Email Us</h2>
+<p>info@joinever.club</p>
+<h2>Hours of Operation</h2>
+<p>Monday: Closed | Tuesday&ndash;Thursday: 8:30 AM&ndash;8:00 PM | Friday&ndash;Saturday: 8:30 AM&ndash;10:00 PM | Sunday: 8:30 AM&ndash;6:00 PM</p>
+<p><a href="/tour">Book a private tour</a> | <a href="/membership">Apply for membership</a></p>
+${FOOTER_BLOCK}
+</div>`,
+
+      '/tour': `<div role="main">
+<h1>Book a Tour &mdash; Ever Club Indoor Golf &amp; Social Club, Tustin OC</h1>
+<p>Schedule a free 30-minute tour of Orange County&rsquo;s premier indoor golf and social club. See our Trackman golf simulators, premium coworking spaces, chef-driven caf&eacute;, and wellness facilities firsthand.</p>
+<p>Located at 15771 Red Hill Ave, Ste 500, Tustin, CA 92780.</p>
+<p><a href="/membership">Explore membership</a> | <a href="/day-pass">Try a day pass</a></p>
+${FOOTER_BLOCK}
+</div>`,
+
+      '/private-hire': `<div role="main">
+<h1>Private Events &amp; Venue Hire &mdash; Ever Club, Tustin, Orange County</h1>
+<p>Host your next private event at Ever Club in Tustin, OC. Our versatile spaces include Trackman golf simulator bays, conference rooms, and elegant event areas perfect for corporate gatherings, celebrations, team outings, and social events.</p>
+<h2>Event Spaces</h2>
+<p>Full club buyouts, private simulator bays, and dedicated event areas with catering from our chef-driven kitchen.</p>
+<p><a href="/private-hire/inquire">Submit an event inquiry</a> | <a href="/contact">Contact us</a></p>
+${FOOTER_BLOCK}
+</div>`,
+
+      '/private-hire/inquire': `<div role="main">
+<h1>Private Event Inquiry &mdash; Ever Club, Tustin OC</h1>
+<p>Submit an inquiry for your next private event at Ever Club in Orange County. Golf simulator parties, corporate events, team outings, celebrations, and more.</p>
+<p><a href="/private-hire">Learn about our event spaces</a> | <a href="/contact">Contact us</a></p>
+${FOOTER_BLOCK}
+</div>`,
+
+      '/faq': `<div role="main">
+<h1>Frequently Asked Questions &mdash; Ever Club, Tustin OC</h1>
+<h2>What is Ever Members Club?</h2>
+<p>Ever Members Club is Orange County&rsquo;s premier private indoor golf and social club, located in Tustin, CA. We combine Trackman golf simulators, premium coworking spaces, a caf&eacute;, wellness programs, and curated social events under one roof.</p>
+<h2>Where is Ever Members Club located?</h2>
+<p>15771 Red Hill Ave, Ste 500, Tustin, CA 92780, in the heart of Orange County.</p>
+<h2>What golf simulators do you use?</h2>
+<p>We use Trackman golf simulators, the industry-leading technology used by PGA Tour professionals.</p>
+<h2>Do I need a membership to visit?</h2>
+<p>You can experience the club with a <a href="/day-pass">Day Pass</a> or <a href="/tour">book a private tour</a>.</p>
+<h2>What membership options are available?</h2>
+<p>We offer Social, Core, Premium, and Corporate membership tiers. <a href="/membership">See all plans</a>.</p>
+<h2>Can I host a private event?</h2>
+<p>Yes! <a href="/private-hire">Learn about private events</a> at Ever Club.</p>
+${FOOTER_BLOCK}
+</div>`,
+
+      '/gallery': `<div role="main">
+<h1>Gallery &amp; Photos &mdash; Ever Club Indoor Golf &amp; Social Club, OC</h1>
+<p>See inside Ever Club in Tustin, Orange County. Photos of our Trackman golf simulators, lounge, caf&eacute;, coworking spaces, and member events at OC&rsquo;s private social club.</p>
+<p><a href="/tour">Book a tour</a> to experience it in person | <a href="/membership">Explore membership</a></p>
+${FOOTER_BLOCK}
+</div>`,
+
+      '/menu': `<div role="main">
+<h1>Caf&eacute; Menu &mdash; Ever Club, Tustin OC</h1>
+<p>Explore the Ever Club caf&eacute; menu. Farm-to-table breakfast, artisan lunch, craft coffee, and curated beverages at Orange County&rsquo;s premier indoor golf and social club.</p>
+<p><a href="/tour">Book a tour</a> | <a href="/membership">Explore membership</a></p>
+${FOOTER_BLOCK}
+</div>`,
+
+      '/whats-on': `<div role="main">
+<h1>Events &amp; Happenings &mdash; Ever Club, Tustin OC</h1>
+<p>Discover golf tournaments, social nights, wellness classes, and curated events at Ever Club in Tustin, Orange County. See what&rsquo;s on and RSVP.</p>
+<p><a href="/membership">Become a member</a> | <a href="/tour">Book a tour</a></p>
+${FOOTER_BLOCK}
+</div>`,
+
+      '/membership/apply': `<div role="main">
+<h1>Apply for Membership &mdash; Ever Club Indoor Golf Club, Orange County</h1>
+<p>Join OC&rsquo;s premier indoor golf and social club. Apply for membership at Ever Club in Tustin &mdash; Trackman simulators, workspace, wellness, and community.</p>
+<p><a href="/membership">View membership plans</a> | <a href="/tour">Book a tour first</a></p>
+${FOOTER_BLOCK}
+</div>`,
+
+      '/membership/compare': `<div role="main">
+<h1>Compare Membership Plans &mdash; Ever Club Golf Simulator Club, OC</h1>
+<p>Compare Ever Club membership tiers side-by-side. See the full feature table for Social, Core, Premium, and Corporate plans at our Tustin, Orange County indoor golf club.</p>
+<p><a href="/membership">Back to membership overview</a> | <a href="/membership/apply">Apply now</a></p>
+${FOOTER_BLOCK}
+</div>`,
+
+      '/privacy': `<div role="main">
+<h1>Privacy Policy &mdash; Ever Members Club</h1>
+<p>Read the Ever Members Club privacy policy. Learn how we collect, use, and protect your personal data.</p>
+${FOOTER_BLOCK}
+</div>`,
+
+      '/terms': `<div role="main">
+<h1>Terms of Service &mdash; Ever Members Club</h1>
+<p>Review the Ever Members Club terms of service &mdash; membership agreements, fees, cancellation policy, and guest pass rules.</p>
+${FOOTER_BLOCK}
+</div>`,
+    };
+
     function getBreadcrumbs(routePath: string): object {
       const items: { name: string; item: string }[] = [
         { name: "Home", item: "https://www.everclub.app" }
@@ -960,6 +1163,10 @@ async function initializeApp() {
         '/membership/apply': [
           { name: "Membership", item: "https://www.everclub.app/membership" },
           { name: "Apply", item: "https://www.everclub.app/membership/apply" }
+        ],
+        '/membership/compare': [
+          { name: "Membership", item: "https://www.everclub.app/membership" },
+          { name: "Compare Plans", item: "https://www.everclub.app/membership/compare" }
         ],
         '/tour': [{ name: "Book a Tour", item: "https://www.everclub.app/tour" }],
         '/private-hire': [{ name: "Private Events", item: "https://www.everclub.app/private-hire" }],
@@ -1101,6 +1308,17 @@ async function initializeApp() {
         linkHints.push('<https://fonts.gstatic.com>; rel=preconnect; crossorigin');
         res.setHeader('Link', linkHints.join(', '));
 
+        const injectSsrContent = (html: string, route: string): string => {
+          const ssrBlock = SSR_CONTENT[route];
+          if (ssrBlock) {
+            return html.replace(
+              /<noscript>\s*<div role="main">[\s\S]*?<\/div>\s*<\/noscript>/,
+              `<noscript>${ssrBlock}</noscript>`
+            );
+          }
+          return html;
+        };
+
         if (meta) {
           const ogUrl = `${siteOrigin}${routePath === '/' ? '' : routePath}`;
           let html = cachedIndexHtml;
@@ -1113,6 +1331,7 @@ async function initializeApp() {
           html = html.replace(/<meta name="twitter:description"[^>]*>/, `<meta name="twitter:description" content="${meta.description}" />`);
           html = html.replace(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${ogUrl}" />`);
           html = html.replace('</head>', `${GEO_META_TAGS}\n${getJsonLdScripts(routePath)}\n</head>`);
+          html = injectSsrContent(html, routePath);
           return res.send(injectCspNonce(html, nonce));
         }
 
@@ -1121,6 +1340,7 @@ async function initializeApp() {
         html = html.replace(/<meta property="og:url"[^>]*>/, `<meta property="og:url" content="${fallbackUrl}" />`);
         html = html.replace(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${fallbackUrl}" />`);
         html = html.replace('</head>', `${GEO_META_TAGS}\n${getJsonLdScripts(routePath)}\n</head>`);
+        html = injectSsrContent(html, routePath);
         return res.send(injectCspNonce(html, nonce));
       }
       next();

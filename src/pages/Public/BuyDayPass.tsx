@@ -119,11 +119,16 @@ const BuyDayPass: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden animate-page-enter">
-      <SEO title="Day Pass — Golf Simulator & Coworking | Ever Club" description="No membership needed. Buy a day pass for Trackman golf simulators or coworking at Ever Club in Tustin, OC. Walk in & experience the club." url="/day-pass" />
+      <SEO
+        title="Day Pass — Golf Simulator & Coworking | Ever Club OC"
+        description="No membership needed. Buy a day pass for Trackman indoor golf simulators or premium coworking at Ever Club in Tustin, Orange County. Walk in & play."
+        url="/day-pass"
+        keywords="golf simulator day pass Orange County, indoor golf near me Tustin, Trackman day pass OC, coworking day pass Tustin"
+      />
       <div className="px-6 pt-4 md:pt-2 pb-6 text-center animate-pop-in">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Experience the Club</h1>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Day Pass — Tustin, Orange County</h1>
         <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed max-w-xs mx-auto" style={{ fontFamily: 'var(--font-body)' }}>
-          No membership required. Pick a pass and walk in.
+          No membership required. Experience Trackman indoor golf simulators or premium coworking at Ever Club in Tustin, OC.
         </p>
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-primary/60 dark:text-white/60 mt-3">
           <span className="flex items-center gap-1.5">

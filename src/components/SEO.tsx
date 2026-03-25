@@ -48,7 +48,9 @@ export const SEO: React.FC<SEOProps> = ({
     document.title = fullTitle;
 
     setMetaTag('meta[name="description"]', 'name', 'description', description);
-    setMetaTag('meta[name="keywords"]', 'name', 'keywords', keywords || '');
+    if (keywords) {
+      setMetaTag('meta[name="keywords"]', 'name', 'keywords', keywords);
+    }
 
     setMetaTag('meta[property="og:title"]', 'property', 'og:title', fullTitle);
     setMetaTag('meta[property="og:description"]', 'property', 'og:description', description);

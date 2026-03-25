@@ -108,10 +108,11 @@ const Landing: React.FC = () => {
   return (
     <AnimatedPage>
       <SEO
-        title="Ever Club | Indoor Golf & Social Club in Tustin, OC"
-        description="Orange County's premier indoor golf & social club, formerly Even House. Trackman simulators, coworking, café & wellness in Tustin. Book a tour today."
+        title="Ever Club | Golf Simulator & Social Club, Tustin OC"
+        description="Orange County's premier indoor golf simulator club in Tustin, CA. Trackman simulators, coworking, farm-to-table café & wellness. Book a tour today."
         url="/"
         image="/images/hero-lounge-optimized.webp"
+        keywords="golf simulator Orange County, indoor golf Orange County, Trackman simulator Tustin, golf simulator near me, private golf simulator OC, indoor golf OC, Ever Club, Even House"
       />
     <div className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#141414]">
       <div 
@@ -177,7 +178,7 @@ const Landing: React.FC = () => {
             className={`text-sm text-white/60 mb-2 max-w-md leading-[1.8] font-light ${heroAnimPlayed ? '' : 'animate-hero-tagline'}`}
             style={{ fontFamily: 'var(--font-body)' }}
           >
-            Orange County's private club for professionals who work, play, and connect — all under one roof.
+            Orange County's premier indoor golf simulator club for professionals who work, play, and connect — all under one roof in Tustin, CA.
           </p>
           <p
             className={`text-[10px] text-white/30 uppercase tracking-[0.3em] mb-10 ${heroAnimPlayed ? '' : 'animate-hero-tagline'}`}
@@ -203,6 +204,8 @@ const Landing: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <h2 className="sr-only">Indoor Golf Simulator & Social Club in Tustin, Orange County — Trackman Simulators, Coworking & Events</h2>
 
       <div ref={scrollRef} className="scroll-reveal-group bg-bone dark:bg-[#141414]">
 
@@ -267,7 +270,7 @@ const Landing: React.FC = () => {
            tabIndex={0}
            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/private-hire'); }}
          >
-            <div className="absolute inset-0 bg-[url('/images/gallery/gallery-l1050555.webp')] bg-cover bg-center transition-opacity duration-[1200ms] ease-out group-hover:opacity-90"></div>
+            <div className="absolute inset-0 bg-[url('/images/gallery/gallery-l1050555.webp')] bg-cover bg-center transition-opacity duration-[1200ms] ease-out group-hover:opacity-90" role="img" aria-label="Private event space at Ever Club in Tustin, Orange County"></div>
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/25 to-transparent"></div>
             <div className="absolute inset-0 p-10 md:p-16 flex flex-col justify-end items-start text-left">
                 <span
@@ -299,9 +302,9 @@ const Landing: React.FC = () => {
         <EditorialShowcase
           overline="Tour-Level Technology"
           title={<>Trackman Golf <em style={{ fontStyle: 'italic' }}>Simulators</em></>}
-          description="Four state-of-the-art Trackman 4 bays deliver tour-level ball and club data for year-round play. Practice your swing, take on 100+ championship courses, or host a competitive league night — rain or shine, no tee time required."
+          description="Four state-of-the-art Trackman 4 bays deliver tour-level ball and club data for year-round indoor golf in Orange County. Practice your swing, take on 100+ championship courses, or host a competitive league night — rain or shine, no tee time required."
           image="/images/golf-sims-optimized.webp"
-          imageAlt="Trackman golf simulator bay at Ever Club"
+          imageAlt="Trackman indoor golf simulator bay at Ever Club in Tustin, Orange County"
           ctaLabel="Get a Day Pass"
           ctaLink="/checkout?type=day-pass-golf-sim"
           reversed={true}
@@ -312,7 +315,7 @@ const Landing: React.FC = () => {
           title={<>Luxury <em style={{ fontStyle: 'italic' }}>Workspaces</em></>}
           description="Thoughtfully appointed private offices, conference rooms, and open lounges with high-speed fiber, espresso on demand, and an atmosphere built for deep work and creative collaboration."
           image="/images/gallery/gallery-l1050509.webp"
-          imageAlt="Luxury co-working spaces at Ever Club"
+          imageAlt="Premium coworking space at Ever Club in Tustin, Orange County"
           ctaLabel="Get a Day Pass"
           ctaLink="/checkout?type=day-pass-coworking"
           reversed={false}
@@ -323,7 +326,7 @@ const Landing: React.FC = () => {
           title={<>Farm-to-Table <em style={{ fontStyle: 'italic' }}>Dining</em></>}
           description="Thoughtfully crafted dishes and specialty coffee in a relaxed atmosphere. From morning espresso to afternoon bites, fuel your day with locally-sourced ingredients and a menu designed for both quick visits and lingering conversations."
           image="/images/cafe-bar-optimized.webp"
-          imageAlt="Ever Club farm-to-table cafe and bar"
+          imageAlt="Farm-to-table café and bar at Ever Club, Tustin OC"
           ctaLabel="View Menu"
           ctaLink="/menu"
           reversed={true}
@@ -334,7 +337,7 @@ const Landing: React.FC = () => {
           title={<>Events & <em style={{ fontStyle: 'italic' }}>Wellness</em></>}
           description="From intimate wine tastings and chef-led dinners to golf socials and guided wellness workshops, our curated calendar is designed to spark connection and inspire something new every week."
           image="/images/private-dining-optimized.webp"
-          imageAlt="Curated events and wellness programming at Ever Club"
+          imageAlt="Curated events and wellness programming at Ever Club in Orange County"
           ctaLabel="Explore Events"
           ctaLink="/whats-on"
           reversed={false}

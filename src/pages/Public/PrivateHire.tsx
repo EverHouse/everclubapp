@@ -29,7 +29,7 @@ const PrivateHire: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#141414] animate-page-enter">
-       <SEO title="Private Events & Venue Hire | Ever Club, Tustin" description="Host private events, corporate gatherings & celebrations at Ever Club in Tustin. Trackman simulator bays, conference rooms & event spaces in OC." url="/private-hire" />
+       <SEO title="Private Events & Venue Hire | Ever Club, Tustin" description="Host private events, corporate gatherings & celebrations at Ever Club in Tustin. Trackman simulator bays, conference rooms & event spaces in OC." url="/private-hire" keywords="private event venue Tustin, corporate event Orange County, golf simulator party OC, private golf event Tustin, venue hire Orange County" />
        <div 
          className="fixed top-0 left-0 right-0 bg-primary"
          style={{ height: 'env(safe-area-inset-top, 0px)', zIndex: 'var(--z-header)' }}

@@ -102,7 +102,7 @@ const PublicCafe: React.FC = () => {
 
   return (
     <AnimatedPage>
-    <SEO title="Café Menu | Ever Club — Tustin, OC" description="Explore the Ever Club café menu. Farm-to-table breakfast, artisan lunch, craft coffee & curated beverages at OC's premier indoor golf & social club." url="/menu" />
+    <SEO title="Café Menu | Ever Club — Tustin, OC" description="Explore the Ever Club café menu. Farm-to-table breakfast, artisan lunch, craft coffee & curated beverages at OC's premier indoor golf & social club." url="/menu" keywords="Ever Club cafe menu, golf club restaurant Tustin, cafe near Trackman simulator Orange County, indoor golf club dining OC" />
     <div 
       className="full-bleed-page flex flex-col bg-[#EAEBE6] dark:bg-[#141414] overflow-x-hidden w-full max-w-full"
     >

@@ -75,7 +75,7 @@ const FAQ: React.FC = () => {
 
   return (
     <AnimatedPage>
-    <SEO title="FAQ — Frequently Asked Questions | Ever Club" description="Got questions about Ever Club? Find answers about memberships, Trackman golf simulators, events, hours, day passes & more at our Tustin, OC location." url="/faq" />
+    <SEO title="FAQ — Frequently Asked Questions | Ever Club" description="Got questions about Ever Club? Find answers about memberships, Trackman golf simulators, events, hours, day passes & more at our Tustin, OC location." url="/faq" keywords="Ever Club FAQ, golf simulator questions Tustin, indoor golf FAQ Orange County, membership questions OC golf club" />
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema).replace(/</g, '\\u003c') }} />
     <div 
       className="full-bleed-page flex flex-col bg-bone dark:bg-[#141414] overflow-x-hidden"

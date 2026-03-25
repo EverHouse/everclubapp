@@ -85,7 +85,7 @@ const Gallery: React.FC = () => {
 
   return (
     <>
-      <SEO title="Gallery & Photos | Ever Club — Golf Club in OC" description="See inside Ever Club in Tustin. Photos of Trackman golf simulators, lounge, café, coworking spaces & member events at OC's private social club." url="/gallery" />
+      <SEO title="Gallery & Photos | Ever Club — Golf Club in OC" description="See inside Ever Club in Tustin. Photos of Trackman golf simulators, lounge, café, coworking spaces & member events at OC's private social club." url="/gallery" keywords="Ever Club photos, indoor golf simulator Tustin photos, golf club gallery Orange County, Trackman simulator photos OC" />
       <AnimatedPage>
       <div 
         className="full-bleed-page flex flex-col bg-bone dark:bg-[#141414] overflow-x-hidden"
@@ -305,7 +305,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, currentIndex, onClose
         <img
           key={currentIndex}
           src={images[currentIndex]}
-          alt="Gallery full view"
+          alt={`Ever Club gallery photo ${currentIndex + 1} — indoor golf simulator and social club in Tustin, Orange County`}
           loading="lazy"
           className="max-w-full max-h-[80vh] object-contain rounded-xl animate-content-enter"
         />

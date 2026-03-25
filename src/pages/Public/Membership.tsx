@@ -108,17 +108,18 @@ const MembershipOverview: React.FC = () => {
   return (
     <AnimatedPage>
       <SEO
-        title="Membership Plans & Pricing | Ever Club — Tustin, OC"
-        description="Explore membership tiers at Ever Club in OC. Social, Core, Premium & Corporate plans with Trackman access, coworking, wellness & exclusive events."
+        title="Membership Plans & Pricing | Ever Club — Tustin OC"
+        description="Explore membership tiers at Ever Club. Social, Core, Premium & Corporate plans with Trackman golf simulator access, coworking & events in Tustin, OC."
         url="/membership"
         image="/images/hero-lounge-optimized.webp"
+        keywords="golf simulator membership Orange County, indoor golf club Tustin, Trackman membership OC, private golf club Orange County"
       />
     <div className="bg-bone dark:bg-[#141414] min-h-screen overflow-x-hidden">
     <div className="px-4 pt-4 pb-0 flex flex-col gap-8 max-w-6xl mx-auto lg:px-8">
       <div className="text-center px-2 animate-content-enter">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Find Your Membership</h1>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Membership — Tustin, OC</h1>
         <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed max-w-[320px] mx-auto" style={{ fontFamily: 'var(--font-body)' }}>
-          Select the plan that fits how you work, play, and connect.
+          Select the plan that fits how you work, play, and connect at Orange County's premier indoor golf simulator club.
         </p>
       </div>
 

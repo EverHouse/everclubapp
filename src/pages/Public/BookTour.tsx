@@ -176,8 +176,9 @@ const BookTour: React.FC = () => {
     <div className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#141414] animate-page-enter">
       <SEO
         title="Book a Tour | Ever Club — Golf & Social Club, OC"
-        description="Schedule a free 30-min tour of Ever Club in Tustin. See Trackman simulators, coworking, café & wellness at OC's top private club."
+        description="Schedule a free 30-minute tour of Ever Club in Tustin. See Trackman golf simulators, coworking, café & wellness spaces at OC's top private club."
         url="/tour"
+        keywords="tour golf simulator club Tustin, visit indoor golf Orange County, Ever Club tour booking, Trackman simulator tour OC"
       />
       <div className="pt-4 px-4 pb-4 animate-content-enter">
         <Link
