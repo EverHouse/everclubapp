@@ -33,6 +33,7 @@ export const DB_STATUS_TO_HUBSPOT_STATUS: Record<string, ContactMembershipStatus
   'suspended': 'Suspended',
   'frozen': 'Froze',
   'non-member': 'Non-Member',
+  'declined': 'Declined',
   'deleted': 'Terminated',
 };
 

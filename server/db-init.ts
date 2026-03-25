@@ -1569,11 +1569,11 @@ export async function ensureDatabaseConstraints() {
             WHEN 'pending' THEN
               valid := NEW.membership_status IN ('active', 'non-member', 'expired', 'cancelled', 'trialing', 'inactive', 'terminated', 'archived', 'merged');
             WHEN 'active' THEN
-              valid := NEW.membership_status IN ('past_due', 'suspended', 'cancelled', 'frozen', 'paused', 'terminated', 'archived', 'merged', 'grace_period', 'inactive', 'expired', 'unpaid', 'non-member');
+              valid := NEW.membership_status IN ('past_due', 'suspended', 'cancelled', 'frozen', 'paused', 'terminated', 'archived', 'merged', 'grace_period', 'inactive', 'expired', 'unpaid', 'declined', 'non-member');
             WHEN 'trialing' THEN
-              valid := NEW.membership_status IN ('active', 'expired', 'cancelled', 'non-member', 'terminated', 'archived', 'merged', 'inactive', 'suspended');
+              valid := NEW.membership_status IN ('active', 'expired', 'cancelled', 'non-member', 'terminated', 'archived', 'merged', 'inactive', 'suspended', 'declined');
             WHEN 'past_due' THEN
-              valid := NEW.membership_status IN ('active', 'suspended', 'cancelled', 'terminated', 'frozen', 'grace_period', 'inactive', 'unpaid', 'archived', 'merged', 'non-member');
+              valid := NEW.membership_status IN ('active', 'suspended', 'cancelled', 'terminated', 'frozen', 'grace_period', 'inactive', 'unpaid', 'declined', 'archived', 'merged', 'non-member');
             WHEN 'grace_period' THEN
               valid := NEW.membership_status IN ('active', 'pending', 'suspended', 'cancelled', 'terminated', 'inactive', 'archived', 'merged', 'non-member');
             WHEN 'paused' THEN
@@ -1594,6 +1594,8 @@ export async function ensureDatabaseConstraints() {
               valid := NEW.membership_status IN ('archived', 'merged', 'non-member', 'active', 'pending');
             WHEN 'former_member' THEN
               valid := NEW.membership_status IN ('active', 'non-member', 'archived', 'merged', 'pending', 'terminated');
+            WHEN 'declined' THEN
+              valid := NEW.membership_status IN ('active', 'pending', 'suspended', 'cancelled', 'terminated', 'inactive', 'archived', 'merged', 'non-member');
             WHEN 'non-member' THEN
               valid := NEW.membership_status IN ('active', 'pending', 'archived', 'merged', 'trialing', 'terminated');
             WHEN 'archived' THEN

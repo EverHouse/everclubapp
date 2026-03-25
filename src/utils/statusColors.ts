@@ -136,6 +136,7 @@ const STATUS_MAP: Record<string, MemberStatusInfo> = {
   overdue: { severity: 'warning', label: 'Overdue', colorClass: { dark: 'bg-orange-500/20 text-orange-300', light: 'bg-orange-500/20 text-orange-700' } },
   past_due: { severity: 'warning', label: 'Past Due', colorClass: { dark: 'bg-orange-500/20 text-orange-300', light: 'bg-orange-500/20 text-orange-700' } },
   frozen: { severity: 'warning', label: 'Frozen', colorClass: { dark: 'bg-orange-500/20 text-orange-300', light: 'bg-orange-500/20 text-orange-700' } },
+  declined: { severity: 'warning', label: 'Declined', colorClass: { dark: 'bg-orange-500/20 text-orange-300', light: 'bg-orange-500/20 text-orange-700' } },
   review: { severity: 'warning', label: 'Under Review', colorClass: { dark: 'bg-orange-500/20 text-orange-300', light: 'bg-orange-500/20 text-orange-700' } },
   
   // Info severity (yellow) - in process
