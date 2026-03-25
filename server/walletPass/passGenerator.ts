@@ -256,7 +256,7 @@ function buildPassJson(data: PassData, config: WalletConfig, colors: TierColors)
       {
         latitude: data.clubLatitude,
         longitude: data.clubLongitude,
-        relevantText: 'Welcome to Ever Club',
+        relevantText: 'Welcome to Ever Club — Tap to check in',
       },
     ];
   }
