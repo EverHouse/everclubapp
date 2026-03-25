@@ -11,7 +11,8 @@ import {
   wellnessClasses, 
   wellnessEnrollments,
   guestPasses,
-  guestCheckIns 
+  guestCheckIns,
+  membershipTiers
 } from '../../../shared/schema';
 import { isStaffOrAdmin, isAuthenticated, isAdmin } from '../../core/middleware';
 import { syncSmsPreferencesToHubSpot, syncProfileDetailsToHubSpot } from '../../core/hubspot/contacts';
@@ -706,15 +707,23 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
       .orderBy(desc(wellnessClasses.date), desc(wellnessEnrollments.createdAt))
       .limit(100);
     
-    const guestPassRaw = await db.select()
-      .from(guestPasses)
-      .where(sql`LOWER(${guestPasses.memberEmail}) = ${normalizedEmail}`)
-      .limit(1);
+    const [guestPassRaw, tierGuestPassResult] = await Promise.all([
+      db.select()
+        .from(guestPasses)
+        .where(sql`LOWER(${guestPasses.memberEmail}) = ${normalizedEmail}`)
+        .limit(1),
+      user.tier ? db.select({ guestPassesPerYear: membershipTiers.guestPassesPerYear })
+        .from(membershipTiers)
+        .where(sql`LOWER(${membershipTiers.name}) = LOWER(${user.tier})`)
+        .limit(1) : Promise.resolve([]),
+    ]);
     
+    const tierGuestTotal = tierGuestPassResult[0]?.guestPassesPerYear ?? null;
+    const effectiveTotal = tierGuestTotal ?? guestPassRaw[0]?.passesTotal ?? null;
     const guestPassInfo = guestPassRaw[0] ? {
-      remainingPasses: guestPassRaw[0].passesTotal - guestPassRaw[0].passesUsed,
+      remainingPasses: Math.max(0, (effectiveTotal ?? 0) - guestPassRaw[0].passesUsed),
       totalUsed: guestPassRaw[0].passesUsed,
-      passesTotal: guestPassRaw[0].passesTotal
+      passesTotal: effectiveTotal ?? guestPassRaw[0].passesTotal
     } : null;
     
     const guestCheckInsHistory = await db.select()

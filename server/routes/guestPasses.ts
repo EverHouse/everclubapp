@@ -390,19 +390,21 @@ export async function refundGuestPass(
 
 export async function getGuestPassesRemaining(memberEmail: string, tier?: string): Promise<number> {
   try {
-    // Normalize email for consistent matching
     const normalizedEmail = memberEmail.toLowerCase();
+    
+    const tierLimits = tier ? await getTierLimits(tier) : null;
+    const tierTotal = tierLimits?.guest_passes_per_year ?? null;
     
     const result = await db.select()
       .from(guestPasses)
       .where(sql`LOWER(${guestPasses.memberEmail}) = ${normalizedEmail}`);
     
     if (result.length === 0) {
-      const tierLimits = tier ? await getTierLimits(tier) : null;
-      return tierLimits?.guest_passes_per_year ?? 0;
+      return tierTotal ?? 0;
     }
     
-    return Math.max(0, result[0].passesTotal - result[0].passesUsed);
+    const effectiveTotal = tierTotal ?? result[0].passesTotal;
+    return Math.max(0, effectiveTotal - result[0].passesUsed);
   } catch (error: unknown) {
     logger.error('[getGuestPassesRemaining] Error', { error: new Error(getErrorMessage(error)) });
     return 0;

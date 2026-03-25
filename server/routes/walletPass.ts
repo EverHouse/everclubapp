@@ -157,6 +157,9 @@ router.get('/api/member/wallet-pass', isAuthenticated, async (req, res) => {
     }
     const guestPassData = guestPassResult.length > 0 ? guestPassResult[0] : null;
 
+    const effectiveGuestTotal = tierData?.guestPassesPerYear ?? guestPassData?.passesTotal ?? null;
+    const effectiveGuestUsed = guestPassData?.passesUsed ?? 0;
+
     let memberSince = '';
     if (user.joinDate) {
       const date = new Date(user.joinDate);
@@ -182,8 +185,8 @@ router.get('/api/member/wallet-pass', isAuthenticated, async (req, res) => {
       memberSince,
       dailySimulatorMinutes: tierData?.dailySimMinutes ?? null,
       dailyConfRoomMinutes: tierData?.dailyConfRoomMinutes ?? null,
-      guestPassesRemaining: guestPassData ? Math.max(0, guestPassData.passesTotal - guestPassData.passesUsed) : null,
-      guestPassesTotal: guestPassData?.passesTotal ?? null,
+      guestPassesRemaining: effectiveGuestTotal !== null ? Math.max(0, effectiveGuestTotal - effectiveGuestUsed) : null,
+      guestPassesTotal: effectiveGuestTotal,
       authenticationToken: authToken,
       webServiceURL: webServiceURL || undefined,
       clubLatitude: clubLat && !isNaN(parseFloat(clubLat)) ? parseFloat(clubLat) : undefined,
