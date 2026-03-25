@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, index, uniqueIndex, jsonb, pgTable, timestamp, varchar, serial, boolean, text, date, time, integer, numeric } from "drizzle-orm/pg-core";
+import type { CommunicationLogStatus } from "../constants/statuses";
 
 // Membership tiers table - centralized tier configuration for marketing and logic
 export const membershipTiers = pgTable("membership_tiers", {
@@ -96,7 +97,7 @@ export const communicationLogs = pgTable("communication_logs", {
   direction: varchar("direction"), // 'inbound', 'outbound'
   subject: varchar("subject"),
   body: text("body"),
-  status: varchar("status"), // 'sent', 'received', 'scheduled', 'draft'
+  status: varchar("status").$type<CommunicationLogStatus>(),
   hubspotEngagementId: varchar("hubspot_engagement_id"), // for HubSpot sync
   hubspotSyncedAt: timestamp("hubspot_synced_at"),
   loggedBy: varchar("logged_by"),

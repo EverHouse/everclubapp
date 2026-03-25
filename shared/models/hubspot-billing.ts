@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { index, uniqueIndex, jsonb, pgTable, timestamp, varchar, serial, boolean, text, integer, numeric } from "drizzle-orm/pg-core";
+import type { HubspotPaymentStatus, HubspotLineItemStatus, HubspotSyncQueueStatus, LegacyImportJobStatus, StripePaymentIntentStatus } from "../constants/statuses";
 
 export const hubspotProductMappings = pgTable("hubspot_product_mappings", {
   id: serial("id").primaryKey(),
@@ -35,7 +36,7 @@ export const hubspotDeals = pgTable("hubspot_deals", {
   pipelineStage: varchar("pipeline_stage"), // HubSpot stage IDs: 'closedwon', '2825519820', 'closedlost'
   isPrimary: boolean("is_primary").default(true), // for members with multiple deals
   lastKnownMindbodyStatus: varchar("last_known_mindbody_status"),
-  lastPaymentStatus: varchar("last_payment_status"), // 'current', 'overdue', 'failed', 'unknown'
+  lastPaymentStatus: varchar("last_payment_status").$type<HubspotPaymentStatus>(),
   lastPaymentCheck: timestamp("last_payment_check"),
   lastStageSyncAt: timestamp("last_stage_sync_at"),
   lastSyncError: text("last_sync_error"),
@@ -58,7 +59,7 @@ export const hubspotLineItems = pgTable("hubspot_line_items", {
   discountPercent: integer("discount_percent").default(0),
   discountReason: varchar("discount_reason"),
   totalAmount: numeric("total_amount", { precision: 10, scale: 2 }),
-  status: varchar("status").default("pending"), // 'pending', 'synced', 'error'
+  status: varchar("status").$type<HubspotLineItemStatus>().default("pending"),
   syncError: text("sync_error"),
   createdBy: varchar("created_by"),
   createdByName: varchar("created_by_name"),
@@ -152,7 +153,7 @@ export const legacyImportJobs = pgTable("legacy_import_jobs", {
   id: serial("id").primaryKey(),
   jobType: varchar("job_type").notNull(), // 'members', 'sales', 'attendance'
   fileName: varchar("file_name"),
-  status: varchar("status").notNull().default("pending"), // 'pending', 'running', 'completed', 'failed'
+  status: varchar("status").$type<LegacyImportJobStatus>().notNull().default("pending"),
   totalRows: integer("total_rows").default(0),
   processedRows: integer("processed_rows").default(0),
   matchedRows: integer("matched_rows").default(0),
@@ -201,7 +202,7 @@ export const stripePaymentIntents = pgTable("stripe_payment_intents", {
   bookingId: integer("booking_id"),
   sessionId: integer("session_id"),
   description: text("description"),
-  status: varchar("status").notNull().default("pending"),
+  status: varchar("status").$type<StripePaymentIntentStatus>().notNull().default("pending"),
   retryCount: integer("retry_count").default(0),
   lastRetryAt: timestamp("last_retry_at"),
   failureReason: text("failure_reason"),
@@ -318,7 +319,7 @@ export const hubspotSyncQueue = pgTable("hubspot_sync_queue", {
   id: serial("id").primaryKey(),
   operation: varchar("operation", { length: 100 }).notNull(),
   payload: jsonb("payload").notNull(),
-  status: varchar("status", { length: 50 }).default("pending"),
+  status: varchar("status", { length: 50 }).$type<HubspotSyncQueueStatus>().default("pending"),
   priority: integer("priority").default(5),
   retryCount: integer("retry_count").default(0),
   maxRetries: integer("max_retries").default(5),

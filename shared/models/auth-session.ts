@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { index, jsonb, pgTable, timestamp, varchar, serial, boolean, text, date, integer, uniqueIndex } from "drizzle-orm/pg-core";
+import type { MembershipStatus, UserRole, MigrationStatus } from "../constants/statuses";
 
 // Session storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
@@ -20,7 +21,7 @@ export const users = pgTable("users", {
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
-  role: varchar("role").default("member"),
+  role: varchar("role").$type<UserRole>().default("member"),
   tier: varchar("tier"),
   tierId: integer("tier_id"),
   tags: jsonb("tags").default(sql`'[]'::jsonb`),
@@ -32,7 +33,7 @@ export const users = pgTable("users", {
   manuallyLinkedEmails: jsonb("manually_linked_emails").default(sql`'[]'::jsonb`),
   dataSource: varchar("data_source"),
   hubspotId: varchar("hubspot_id"),
-  membershipStatus: varchar("membership_status").default("active"),
+  membershipStatus: varchar("membership_status").$type<MembershipStatus>().default("active"),
   billingProvider: varchar("billing_provider").default("stripe"),
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),
@@ -103,7 +104,7 @@ export const users = pgTable("users", {
   migrationBillingStartDate: timestamp("migration_billing_start_date"),
   migrationRequestedBy: text("migration_requested_by"),
   migrationTierSnapshot: text("migration_tier_snapshot"),
-  migrationStatus: text("migration_status"),
+  migrationStatus: text("migration_status").$type<MigrationStatus>(),
   requiresCardUpdate: boolean("requires_card_update").default(false),
   lastManualFixAt: timestamp("last_manual_fix_at"),
   lastManualFixBy: varchar("last_manual_fix_by"),

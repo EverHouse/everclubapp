@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { index, uniqueIndex, jsonb, pgTable, timestamp, varchar, serial, boolean, text, date, time, integer, numeric, pgEnum } from "drizzle-orm/pg-core";
 import { users } from "./auth-session";
+import type { BookingStatus, ReconciliationStatus, TourStatus, InviteStatus, TrackmanUnmatchedStatus } from "../constants/statuses";
 
 export const bookingSourceEnum = pgEnum("booking_source", ["member_request", "staff_manual", "trackman_import", "trackman_webhook"]);
 export const paymentMethodEnum = pgEnum("payment_method", ["guest_pass", "credit_card", "unpaid", "waived"]);
@@ -60,7 +61,7 @@ export const bookingRequests = pgTable("booking_requests", {
   durationMinutes: integer("duration_minutes").notNull(),
   endTime: time("end_time").notNull(),
   notes: text("notes"),
-  status: varchar("status").default("pending"),
+  status: varchar("status").$type<BookingStatus>().default("pending"),
   staffNotes: text("staff_notes"),
   suggestedTime: time("suggested_time"),
   reviewedBy: varchar("reviewed_by"),
@@ -75,7 +76,7 @@ export const bookingRequests = pgTable("booking_requests", {
   declaredPlayerCount: integer("declared_player_count"),
   finalPlayerCount: integer("final_player_count"),
   memberNotes: varchar("member_notes", { length: 280 }),
-  reconciliationStatus: varchar("reconciliation_status"),
+  reconciliationStatus: varchar("reconciliation_status").$type<ReconciliationStatus>(),
   reconciliationNotes: text("reconciliation_notes"),
   reconciledBy: varchar("reconciled_by"),
   reconciledAt: timestamp("reconciled_at"),
@@ -167,7 +168,7 @@ export const trackmanUnmatchedBookings = pgTable("trackman_unmatched_bookings", 
   startTime: time("start_time").notNull(),
   endTime: time("end_time").notNull(),
   durationMinutes: integer("duration_minutes"),
-  status: varchar("status"),
+  status: varchar("status").$type<TrackmanUnmatchedStatus>(),
   bayNumber: varchar("bay_number"),
   playerCount: integer("player_count"),
   notes: text("notes"),
@@ -208,7 +209,7 @@ export const tours = pgTable("tours", {
   startTime: time("start_time").notNull(),
   endTime: time("end_time"),
   notes: text("notes"),
-  status: varchar("status").default("scheduled"),
+  status: varchar("status").$type<TourStatus>().default("scheduled"),
   checkedInAt: timestamp("checked_in_at"),
   checkedInBy: varchar("checked_in_by"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -304,7 +305,7 @@ export const bookingParticipants = pgTable("booking_participants", {
   slotDuration: integer("slot_duration"),
   paymentStatus: participantPaymentStatusEnum("payment_status").default("pending"),
   trackmanPlayerRowId: varchar("trackman_player_row_id"),
-  inviteStatus: varchar("invite_status").default("accepted"),
+  inviteStatus: varchar("invite_status").$type<InviteStatus>().default("accepted"),
   invitedAt: timestamp("invited_at"),
   respondedAt: timestamp("responded_at"),
   inviteExpiresAt: timestamp("invite_expires_at"),

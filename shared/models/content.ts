@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { index, uniqueIndex, jsonb, pgTable, timestamp, varchar, serial, boolean, text, date, time, integer, numeric } from "drizzle-orm/pg-core";
 import { users } from "./auth-session";
+import type { RSVPStatus, FormSubmissionStatus, BugReportStatus, WellnessEnrollmentStatus } from "../constants/statuses";
 
 // Events table - club events
 export const events = pgTable("events", {
@@ -46,7 +47,7 @@ export const eventRsvps = pgTable("event_rsvps", {
   id: serial("id").primaryKey(),
   eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }),
   userEmail: varchar("user_email").notNull(),
-  status: varchar("status").default("confirmed"),
+  status: varchar("status").$type<RSVPStatus>().default("confirmed"),
   source: varchar("source").default("local"), // 'local' or 'eventbrite'
   eventbriteAttendeeId: varchar("eventbrite_attendee_id"), // external ID for deduplication
   matchedUserId: varchar("matched_user_id").references(() => users.id), // link to member if matched
@@ -108,7 +109,7 @@ export const wellnessEnrollments = pgTable("wellness_enrollments", {
   id: serial("id").primaryKey(),
   classId: integer("class_id"), // FK to wellness_classes.id managed by db-init.ts (not schema) to avoid deployment migration conflicts
   userEmail: varchar("user_email").notNull(),
-  status: varchar("status").default("confirmed"),
+  status: varchar("status").$type<WellnessEnrollmentStatus>().default("confirmed"),
   isWaitlisted: boolean("is_waitlisted").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 },
@@ -190,7 +191,7 @@ export const formSubmissions = pgTable("form_submissions", {
   phone: varchar("phone"),
   message: text("message"),
   metadata: jsonb("metadata"),
-  status: varchar("status").default("new"),
+  status: varchar("status").$type<FormSubmissionStatus>().default("new"),
   notes: text("notes"),
   hubspotSubmissionId: varchar("hubspot_submission_id"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -209,7 +210,7 @@ export const bugReports = pgTable("bug_reports", {
   screenshotUrl: text("screenshot_url"),
   pageUrl: varchar("page_url"),
   userAgent: text("user_agent"),
-  status: varchar("status").default("open"),
+  status: varchar("status").$type<BugReportStatus>().default("open"),
   resolvedBy: varchar("resolved_by"),
   resolvedAt: timestamp("resolved_at"),
   staffNotes: text("staff_notes"),

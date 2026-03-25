@@ -11,6 +11,7 @@ import {
   text,
   serial,
 } from "drizzle-orm/pg-core";
+import type { FeeSnapshotStatus, DayPassStatus, ConferencePrepaymentStatus, TerminalPaymentStatus } from "../constants/statuses";
 // FK constraints for booking_fee_snapshots are managed by db-init.ts (not schema .references())
 // to avoid deployment migration conflicts with orphaned production data
 
@@ -84,7 +85,7 @@ export const bookingFeeSnapshots = pgTable(
     participantFees: jsonb("participant_fees").notNull(),
     totalCents: integer("total_cents").notNull(),
     stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
-    status: varchar("status", { length: 20 }).notNull().default("pending"),
+    status: varchar("status", { length: 20 }).$type<FeeSnapshotStatus>().notNull().default("pending"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
     usedAt: timestamp("used_at", { withTimezone: true }),
@@ -114,7 +115,7 @@ export const dayPassPurchases = pgTable(
     amountCents: integer("amount_cents").notNull(),
     quantity: integer("quantity").default(1),
     remainingUses: integer("remaining_uses").default(1),
-    status: varchar("status").default("active"),
+    status: varchar("status").$type<DayPassStatus>().default("active"),
     stripePaymentIntentId: varchar("stripe_payment_intent_id").notNull(),
     stripeCustomerId: varchar("stripe_customer_id"),
     hubspotDealId: varchar("hubspot_deal_id"),
@@ -202,7 +203,7 @@ export const conferencePrepayments = pgTable(
     paymentType: varchar("payment_type", { length: 20 }).notNull().default('stripe'),
     paymentIntentId: varchar("payment_intent_id", { length: 255 }),
     creditReferenceId: varchar("credit_reference_id", { length: 255 }),
-    status: varchar("status", { length: 20 }).notNull().default('pending'),
+    status: varchar("status", { length: 20 }).$type<ConferencePrepaymentStatus>().notNull().default('pending'),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
@@ -234,7 +235,7 @@ export const terminalPayments = pgTable(
     currency: varchar("currency", { length: 10 }).default("usd"),
     readerId: varchar("reader_id", { length: 255 }),
     readerLabel: varchar("reader_label", { length: 255 }),
-    status: varchar("status", { length: 50 }).notNull().default("succeeded"),
+    status: varchar("status", { length: 50 }).$type<TerminalPaymentStatus>().notNull().default("succeeded"),
     refundedAt: timestamp("refunded_at", { withTimezone: true }),
     refundAmountCents: integer("refund_amount_cents"),
     disputedAt: timestamp("disputed_at", { withTimezone: true }),
