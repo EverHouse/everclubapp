@@ -5,6 +5,7 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { notifyMember } from '../../core/notificationService';
 import { getGuestPassesRemaining, useGuestPass, ensureGuestPassRecord } from '../guestPasses';
+import { getAvailableGuestPasses } from '../../core/billing/guestPassHoldService';
 import { getMemberTierByEmail, getTierLimits } from '../../core/tierService';
 import { computeFeeBreakdown, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { logFromRequest } from '../../core/auditLog';
@@ -77,7 +78,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       if (ownerTier) {
         ownerTierLimits = await getTierLimits(ownerTier);
       }
-      ownerGuestPassesRemaining = await getGuestPassesRemaining(ownerEmail as string, ownerTier || undefined);
+      ownerGuestPassesRemaining = await getAvailableGuestPasses(ownerEmail as string, ownerTier || undefined);
     }
     
     const _targetPlayerCount = declaredPlayerCount || trackmanPlayerCount || 1;
