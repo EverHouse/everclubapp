@@ -96,6 +96,8 @@ export async function getStripeSync() {
         connectionString: effectiveUrl,
         max: 2,
         ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
+        statement_timeout: 30000,
+        query_timeout: 30000,
       },
       stripeSecretKey: secretKey,
     });

@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.36",
+    date: "2026-03-25",
+    title: "Stability Improvements",
+    changes: [
+      "Fixed: Resolved a startup issue that could prevent payment processing from initializing properly during high-traffic periods",
+    ]
+  },
+  {
     version: "8.97.35",
     date: "2026-03-25",
     title: "SEO & Accessibility Improvements",

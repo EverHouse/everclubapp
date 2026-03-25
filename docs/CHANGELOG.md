@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.36] - 2026-03-25
+
+### Fix Stripe Initialization Timeout in Production
+- **Root cause**: The `StripeSync` library's internal database pool had no `statement_timeout` configured. The production database's default statement timeout was canceling long-running `findOrCreateManagedWebhook` queries during startup, causing Stripe initialization to fail after 3 retries.
+- **Fix**: Added `statement_timeout: 30000` and `query_timeout: 30000` to the StripeSync pool config in `server/core/stripe/client.ts`, matching the 30-second timeout already used for Stripe schema migrations.
+- **Impact**: Stripe webhooks were not being configured on deployment, which could cause missed payment events until a successful retry on next deploy.
+- **Files changed**: `server/core/stripe/client.ts`
+
 ## [8.97.35] - 2026-03-25
 
 ### SEO & Accessibility Improvements
