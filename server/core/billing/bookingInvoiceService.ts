@@ -986,7 +986,16 @@ export async function finalizeInvoicePaidOutOfBand(params: {
     }
 
     if (terminalPaymentIntentId) {
-      await stripe.invoices.pay(invoiceId, { payment_intent: terminalPaymentIntentId });
+      const terminalPi = await stripe.paymentIntents.retrieve(terminalPaymentIntentId);
+      const terminalPm = typeof terminalPi.payment_method === 'string'
+        ? terminalPi.payment_method
+        : terminalPi.payment_method?.id;
+      if (terminalPm) {
+        await stripe.invoices.pay(invoiceId, { payment_method: terminalPm });
+      } else {
+        logger.warn(`[BookingInvoice] Terminal PI ${terminalPaymentIntentId} has no payment_method, falling back to paid_out_of_band`);
+        await stripe.invoices.pay(invoiceId, { paid_out_of_band: true });
+      }
     } else {
       await stripe.invoices.pay(invoiceId, { paid_out_of_band: true });
     }
