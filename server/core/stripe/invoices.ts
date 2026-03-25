@@ -3,7 +3,7 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import Stripe from 'stripe';
 import { createHash } from 'crypto';
-import { getErrorMessage } from '../../utils/errorUtils';
+import { getErrorMessage, isStripeResourceMissing } from '../../utils/errorUtils';
 
 import { logger } from '../logger';
 export interface InvoiceItem {
@@ -190,6 +190,7 @@ export async function listCustomerInvoices(customerId: string): Promise<{
   success: boolean;
   invoices?: InvoiceResult[];
   error?: string;
+  isCustomerMissing?: boolean;
 }> {
   try {
     const stripe = await getStripeClient();
@@ -207,6 +208,14 @@ export async function listCustomerInvoices(customerId: string): Promise<{
       invoices: invoices.data.map(mapInvoice),
     };
   } catch (error: unknown) {
+    if (isStripeResourceMissing(error)) {
+      logger.warn(`[Stripe Invoices] Customer ${customerId} not found in Stripe`);
+      return {
+        success: false,
+        error: getErrorMessage(error),
+        isCustomerMissing: true,
+      };
+    }
     logger.error('[Stripe Invoices] Error listing invoices:', { error: getErrorMessage(error) });
     return {
       success: false,

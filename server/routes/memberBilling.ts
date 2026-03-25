@@ -11,7 +11,7 @@ import { getBillingGroupByMemberEmail } from '../core/stripe/groupBilling';
 import { listCustomerInvoices, getCustomerPaymentHistory } from '../core/stripe/invoices';
 import { listCustomerSubscriptions } from '../core/stripe/subscriptions';
 import { logFromRequest } from '../core/auditLog';
-import { getErrorMessage, safeErrorDetail } from '../utils/errorUtils';
+import { getErrorMessage, safeErrorDetail, isStripeResourceMissing } from '../utils/errorUtils';
 import { getAppBaseUrl } from '../utils/urlUtils';
 import { formatDatePacific } from '../utils/dateUtils';
 import { notifyMember, notifyAllStaff } from '../core/notificationService';
@@ -198,8 +198,14 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
           billingInfo.customerBalanceDollars = balanceCents / 100;
         }
       } catch (stripeError: unknown) {
-        logger.error('[MemberBilling] Stripe API error', { extra: { stripeError: getErrorMessage(stripeError) } });
-        billingInfo.stripeError = getErrorMessage(stripeError);
+        if (isStripeResourceMissing(stripeError)) {
+          logger.warn(`[MemberBilling] Stale Stripe customer ${member.stripe_customer_id} for ${email} on billing fetch, clearing`);
+          await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${email.toLowerCase()}`);
+          billingInfo.stripeCustomerId = null;
+        } else {
+          logger.error('[MemberBilling] Stripe API error', { extra: { stripeError: getErrorMessage(stripeError) } });
+          billingInfo.stripeError = getErrorMessage(stripeError);
+        }
       }
     } else if (member.billing_provider === 'mindbody') {
       billingInfo.mindbodyClientId = member.mindbody_client_id;
@@ -241,7 +247,12 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
           });
           billingInfo.paymentMethods = normalizedPMs;
         } catch (stripeError: unknown) {
-          logger.error('[MemberBilling] Stripe lookup for MindBody member failed', { extra: { email, stripeCustomerId: member.stripe_customer_id, stripeError: getErrorMessage(stripeError) } });
+          if (isStripeResourceMissing(stripeError)) {
+            logger.warn(`[MemberBilling] Stale Stripe customer ${member.stripe_customer_id} for MindBody member ${email}, clearing`);
+            await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${email.toLowerCase()}`);
+          } else {
+            logger.error('[MemberBilling] Stripe lookup for MindBody member failed', { extra: { email, stripeCustomerId: member.stripe_customer_id, stripeError: getErrorMessage(stripeError) } });
+          }
         }
       }
     } else if (member.billing_provider === 'family_addon') {
@@ -892,6 +903,11 @@ router.get('/api/member-billing/:email/invoices', isStaffOrAdmin, async (req, re
     const result = await listCustomerInvoices(member.stripe_customer_id);
 
     if (!result.success) {
+      if (result.isCustomerMissing) {
+        logger.warn(`[MemberBilling] Stale Stripe customer ${member.stripe_customer_id} for ${email} on invoices fetch, clearing`);
+        await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${email.toLowerCase()}`);
+        return res.json({ invoices: [] });
+      }
       return res.status(500).json({ error: result.error });
     }
 

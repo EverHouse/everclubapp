@@ -2,6 +2,17 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.46] - 2026-03-25
+
+### Billing Page Reliability — Stale Stripe Customer Handling
+- **Invoices endpoint 500 for stale customers**: `/api/my/billing/invoices` returned HTTP 500 when a member's `stripe_customer_id` referenced a deleted/nonexistent Stripe customer. Now detects missing customers via `isCustomerMissing` flag from `listCustomerInvoices`, auto-clears the stale ID from the DB, and returns empty invoices gracefully.
+- **Main billing endpoint stale customer handling**: `/api/my/billing` caught Stripe errors but didn't distinguish stale customers from real failures — logged as ERROR and returned a generic error string. Now uses `isStripeResourceMissing()` to detect deleted customers, auto-clears the stale `stripe_customer_id`, and returns clean billing data without the error.
+- **Staff billing endpoint stale customer handling**: `/api/member-billing/:email` and `/api/member-billing/:email/invoices` had the same issue. Now both handle stale customers by clearing the DB reference and returning safe defaults.
+- **MindBody member Stripe lookup**: MindBody members with stale Stripe customer IDs would get silent errors on payment method lookups. Now auto-clears stale IDs.
+- **`listCustomerInvoices` structured error**: Added `isCustomerMissing` boolean flag to the return type. Uses `isStripeResourceMissing()` for detection instead of fragile string matching. All 6 callers updated.
+- **Stripe invoices route**: `/api/stripe/invoices/:customerId` and `/api/stripe/my-invoices` also handle missing customers gracefully now.
+- **Files changed**: `server/core/stripe/invoices.ts`, `server/routes/myBilling.ts`, `server/routes/memberBilling.ts`, `server/routes/stripe/invoices.ts`
+
 ## [8.97.45] - 2026-03-25
 
 ### Background Sync Reliability

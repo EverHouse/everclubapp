@@ -130,8 +130,14 @@ router.get('/api/my/billing', requireAuth, validateQuery(optionalEmailSchema), a
           billingInfo.customerBalance = (customer as Stripe.Customer).balance || 0;
         }
       } catch (stripeError: unknown) {
-        logger.error('[MyBilling] Stripe error', { extra: { stripeError: getErrorMessage(stripeError) } });
-        billingInfo.stripeError = 'Unable to load billing details';
+        if (isStripeResourceMissing(stripeError)) {
+          logger.warn(`[MyBilling] Stale Stripe customer ${member.stripe_customer_id} for ${email} on billing fetch, clearing`);
+          await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${email.toLowerCase()}`);
+          billingInfo.stripeCustomerId = null;
+        } else {
+          logger.error('[MyBilling] Stripe error', { extra: { stripeError: getErrorMessage(stripeError) } });
+          billingInfo.stripeError = 'Unable to load billing details';
+        }
       }
     }
     
@@ -179,6 +185,11 @@ router.get('/api/my/billing/invoices', requireAuth, validateQuery(optionalEmailS
     const invoicesResult = await listCustomerInvoices(member.stripe_customer_id as string);
     
     if (!invoicesResult.success) {
+      if (invoicesResult.isCustomerMissing) {
+        logger.warn(`[MyBilling] Stale Stripe customer ${member.stripe_customer_id} for ${email} on invoices fetch, clearing`);
+        await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${email.toLowerCase()}`);
+        return res.json({ invoices: [] });
+      }
       return res.status(500).json({ error: 'Failed to load invoices' });
     }
     

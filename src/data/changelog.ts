@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.46",
+    date: "2026-03-25",
+    title: "Billing Page Reliability",
+    changes: [
+      "Fixed: Billing and invoices pages no longer show errors for members with outdated payment records — they now load smoothly with correct information",
+    ]
+  },
+  {
     version: "8.97.45",
     date: "2026-03-25",
     title: "Background Sync Reliability",
