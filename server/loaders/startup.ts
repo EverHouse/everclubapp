@@ -26,6 +26,29 @@ async function retryWithBackoff<T>(fn: () => Promise<T>, label: string, maxRetri
   throw new Error('unreachable');
 }
 
+async function runWithConcurrency(tasks: Array<() => Promise<void>>, limit: number): Promise<PromiseSettledResult<void>[]> {
+  if (tasks.length === 0) return [];
+  const effectiveLimit = Math.max(1, limit);
+  const results: PromiseSettledResult<void>[] = [];
+  let index = 0;
+
+  async function runNext(): Promise<void> {
+    while (index < tasks.length) {
+      const currentIndex = index++;
+      try {
+        await tasks[currentIndex]();
+        results[currentIndex] = { status: 'fulfilled', value: undefined };
+      } catch (err) {
+        results[currentIndex] = { status: 'rejected', reason: err };
+      }
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(effectiveLimit, tasks.length) }, () => runNext());
+  await Promise.all(workers);
+  return results;
+}
+
 interface StartupHealth {
   database: 'ok' | 'failed' | 'pending';
   stripe: 'ok' | 'failed' | 'pending';
@@ -106,8 +129,8 @@ export async function runStartupTasks(): Promise<void> {
     logger.info('[Startup] Google auth configured (GOOGLE_CLIENT_ID present)');
   }
 
-  const parallelDbTasks = [
-    (async () => {
+  const parallelDbTasks: Array<() => Promise<void>> = [
+    async () => {
       try {
         await setupEmailNormalization();
         const { updated } = await normalizeExistingEmails();
@@ -118,23 +141,23 @@ export async function runStartupTasks(): Promise<void> {
         logger.error('[Startup] Email normalization failed', { error: getErrorMessage(err) });
         startupHealth.warnings.push(`Email normalization: ${getErrorMessage(err)}`);
       }
-    })(),
-    (async () => {
+    },
+    async () => {
       try {
         await setupInstantDataTriggers();
       } catch (err: unknown) {
         logger.error('[Startup] Instant data triggers failed', { error: getErrorMessage(err) });
         startupHealth.warnings.push(`Instant data triggers: ${getErrorMessage(err)}`);
       }
-    })(),
-    (async () => {
+    },
+    async () => {
       try {
         await fixFunctionSearchPaths();
       } catch (err: unknown) {
         logger.warn(`[Startup] Function search_path fix failed (non-critical): ${getErrorMessage(err)}`);
       }
-    })(),
-    (async () => {
+    },
+    async () => {
       try {
         await createSyncExclusionsTable();
       } catch (err: unknown) {
@@ -177,16 +200,16 @@ export async function runStartupTasks(): Promise<void> {
         logger.error('[Startup] Tier hierarchy validation failed', { error: getErrorMessage(err) });
         startupHealth.warnings.push(`Tier validation: ${getErrorMessage(err)}`);
       }
-    })(),
-    (async () => {
+    },
+    async () => {
       try {
         await initMemberSyncSettings();
       } catch (err: unknown) {
         logger.error('[Startup] Member sync settings init failed', { error: getErrorMessage(err) });
         startupHealth.warnings.push(`Member sync settings: ${getErrorMessage(err)}`);
       }
-    })(),
-    (async () => {
+    },
+    async () => {
       try {
         await retryWithBackoff(() => seedTrainingSections(), 'Training sections');
         logger.info('[Startup] Training sections synced');
@@ -194,8 +217,8 @@ export async function runStartupTasks(): Promise<void> {
         logger.error('[Startup] Seeding training sections failed', { error: getErrorMessage(err) });
         startupHealth.warnings.push(`Training sections: ${getErrorMessage(err)}`);
       }
-    })(),
-    (async () => {
+    },
+    async () => {
       try {
         await db.execute(sql`
           INSERT INTO system_settings (key, value, category, updated_at, updated_by)
@@ -207,8 +230,8 @@ export async function runStartupTasks(): Promise<void> {
       } catch (err: unknown) {
         logger.warn('[Startup] Membership agreement version upsert failed (non-critical)', { error: getErrorMessage(err) });
       }
-    })(),
-    (async () => {
+    },
+    async () => {
       try {
         await db.execute(sql`
           INSERT INTO system_settings (key, value, category, updated_at, updated_by)
@@ -224,16 +247,16 @@ export async function runStartupTasks(): Promise<void> {
       } catch (err: unknown) {
         logger.warn('[Startup] Onboarding nudge settings seed failed (non-critical)', { error: getErrorMessage(err) });
       }
-    })(),
-    (async () => {
+    },
+    async () => {
       try {
         await createStripeTransactionCache();
       } catch (err: unknown) {
         logger.error('[Startup] Creating stripe transaction cache failed', { error: getErrorMessage(err) });
         startupHealth.warnings.push(`Stripe transaction cache: ${getErrorMessage(err)}`);
       }
-    })(),
-    (async () => {
+    },
+    async () => {
       try {
         const result = await retryWithBackoff(async () => {
           return db.execute(sql`
@@ -250,8 +273,8 @@ export async function runStartupTasks(): Promise<void> {
         logger.error('[Startup] Visitor tier cleanup failed', { error: getErrorMessage(err) });
         startupHealth.warnings.push(`Visitor tier cleanup: ${getErrorMessage(err)}`);
       }
-    })(),
-    (async () => {
+    },
+    async () => {
       await retryWithBackoff(async () => {
         const result = await db.execute(sql`
           UPDATE users SET archived_at = NULL, archived_by = NULL, updated_at = NOW()
@@ -269,8 +292,8 @@ export async function runStartupTasks(): Promise<void> {
       }, 'Archived staff check').catch((err: unknown) => {
         logger.warn('[Startup] Archived staff check failed after retries (non-critical):', { error: getErrorMessage(err) });
       });
-    })(),
-    (async () => {
+    },
+    async () => {
       await retryWithBackoff(async () => {
         const cleanupResult = await db.execute(sql`
           UPDATE users SET stripe_customer_id = NULL, stripe_subscription_id = NULL, updated_at = NOW()
@@ -283,8 +306,8 @@ export async function runStartupTasks(): Promise<void> {
       }, 'Merged user Stripe ID cleanup').catch((err: unknown) => {
         logger.warn('[Startup] Merged user Stripe ID cleanup failed after retries (non-critical):', { error: getErrorMessage(err) });
       });
-    })(),
-    (async () => {
+    },
+    async () => {
       try {
         const fixResult = await db.execute(sql`
           UPDATE membership_tiers SET product_type = 'one_time', updated_at = NOW()
@@ -299,10 +322,10 @@ export async function runStartupTasks(): Promise<void> {
       } catch (err: unknown) {
         logger.warn(`[Startup] Tier product_type fix failed (non-critical): ${getErrorMessage(err)}`);
       }
-    })(),
+    },
   ];
 
-  await Promise.allSettled(parallelDbTasks);
+  await runWithConcurrency(parallelDbTasks, 5);
   logger.info('[Startup] Parallel DB initialization tasks complete');
 
   try {

@@ -78,7 +78,8 @@ function appendSearchPath(connString: string | undefined): string | undefined {
 
 const mainConnString = appendSearchPath(usingPooler ? poolerUrl : directUrl);
 
-const poolMax = parseInt(process.env.DB_POOL_MAX || '25', 10);
+const defaultPoolMax = isProduction ? 40 : 25;
+const poolMax = parseInt(process.env.DB_POOL_MAX || String(defaultPoolMax), 10);
 
 const basePool = new Pool({
   connectionString: mainConnString,
@@ -94,10 +95,13 @@ const basePool = new Pool({
 
 logger.info(`[Database] Pool configured: max=${poolMax}, connectionTimeout=30s, idle=30s`);
 
+let lastPoolWarnTime = 0;
 basePool.on('connect', () => {
   const { totalCount, idleCount, waitingCount } = basePool;
   const activeCount = totalCount - idleCount;
-  if (waitingCount > 0 || activeCount >= poolMax - 2) {
+  const now = Date.now();
+  if ((waitingCount > 3 || activeCount >= poolMax) && now - lastPoolWarnTime > 10_000) {
+    lastPoolWarnTime = now;
     logger.warn('[Database] Pool near exhaustion', {
       extra: { total: totalCount, idle: idleCount, active: activeCount, waiting: waitingCount, max: poolMax },
     });

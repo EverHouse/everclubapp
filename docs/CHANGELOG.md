@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.48] - 2026-03-25
+
+### Database Pool Exhaustion Fixes (Part 2)
+- **Startup concurrency limiting**: `server/loaders/startup.ts` was firing all 13 parallel DB init tasks simultaneously via `Promise.allSettled()`, consuming 15-20 connections during startup while user requests and schedulers also needed connections. Converted to lazy task functions executed through `runWithConcurrency(tasks, 5)` — at most 5 tasks run simultaneously, leaving connections available for user requests.
+- **Pool max increased for production**: Default pool size increased from 25 to 40 in production (`server/core/db.ts`). 25 was too tight for 26 active schedulers + startup tasks + user requests. Dev stays at 25.
+- **Pool warning noise reduction**: The "Pool near exhaustion" warning was too aggressive — firing when `waitingCount > 0` (any single waiting request) or `activeCount >= poolMax - 2`. Now only fires when `waitingCount > 3` AND rate-limited to once per 10 seconds, preventing log flooding during transient spikes.
+- **Files changed**: `server/core/db.ts`, `server/loaders/startup.ts`
+
 ## [8.97.47] - 2026-03-25
 
 ### Database Pool Exhaustion Fixes
