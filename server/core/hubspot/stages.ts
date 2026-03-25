@@ -1,6 +1,6 @@
 import { db } from '../../db';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
-import { getHubSpotClient } from '../integrations';
+import { getHubSpotClient, getHubSpotClientWithFallback } from '../integrations';
 import { eq, sql } from 'drizzle-orm';
 import { retryableHubSpotRequest } from './request';
 import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
@@ -332,7 +332,10 @@ export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean
   const errors: string[] = [];
   
   try {
-    const hubspot = await getHubSpotClient();
+    const { client: hubspot, source } = await getHubSpotClientWithFallback();
+    if (source === 'private_app') {
+      logger.info('[HubSpot] Using legacy private app token for property sync (has broader scopes)');
+    }
     
     const billingProviderOptions = [
       { label: 'Stripe', value: 'stripe', displayOrder: 1 },
