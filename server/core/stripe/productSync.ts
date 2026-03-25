@@ -428,6 +428,7 @@ export async function cleanupOrphanStripeProducts(): Promise<{
 export async function archiveStalePricesForProduct(stripeProductId: string, currentPriceId: string): Promise<{ archived: number; errors: number; skipped: boolean; relinkedPriceId?: string }> {
   let archived = 0;
   let errors = 0;
+  let defaultPriceSkips = 0;
   let keepPriceId = currentPriceId;
   try {
     const stripe = await getStripeClient();
@@ -503,8 +504,14 @@ export async function archiveStalePricesForProduct(stripeProductId: string, curr
           archived++;
           logger.info(`[Stale Price Cleanup] Archived stale price ${price.id} on product ${stripeProductId}`);
         } catch (err: unknown) {
-          errors++;
-          logger.error(`[Stale Price Cleanup] Failed to archive price ${price.id}:`, { error: getErrorMessage(err) });
+          const errMsg = getErrorMessage(err);
+          if (errMsg.includes('default price')) {
+            defaultPriceSkips++;
+            logger.debug(`[Stale Price Cleanup] Skipped default price ${price.id} on product ${stripeProductId}`);
+          } else {
+            errors++;
+            logger.error(`[Stale Price Cleanup] Failed to archive price ${price.id}:`, { error: errMsg });
+          }
         }
       }
 

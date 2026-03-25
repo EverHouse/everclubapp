@@ -222,13 +222,18 @@ function encodeAllFeatureEntry(featureName: string, value: AllFeatureValue): str
   const payload = JSON.stringify({ k: featureName, v: value });
   const encoded = `${prefix}${payload}`;
   if (encoded.length <= 80) return encoded;
-  const valueJson = JSON.stringify(value);
-  const overhead = prefix.length + '{"k":"","v":}'.length + valueJson.length - 2;
-  const maxNameLen = Math.max(0, 80 - overhead);
-  if (maxNameLen < 3) {
-    return `${prefix}${JSON.stringify({ k: featureName.substring(0, 3), v: true })}`.substring(0, 80);
+
+  let truncatedName = featureName;
+  while (truncatedName.length > 1) {
+    truncatedName = truncatedName.substring(0, truncatedName.length - 1);
+    const attempt = `${prefix}${JSON.stringify({ k: truncatedName, v: value })}`;
+    if (attempt.length <= 80) return attempt;
   }
-  return `${prefix}${JSON.stringify({ k: featureName.substring(0, maxNameLen), v: value })}`;
+
+  const simpleFallback = `${prefix}${JSON.stringify({ k: featureName.substring(0, 3), v: true })}`;
+  return simpleFallback.length <= 80
+    ? simpleFallback
+    : simpleFallback.substring(0, 80);
 }
 
 function decodeV2Entry(raw: string): { featureName: string; value: AllFeatureValue } | null {
