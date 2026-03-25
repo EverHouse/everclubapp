@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.40",
+    date: "2026-03-25",
+    title: "Payment Reliability & Dispute Handling Fixes",
+    changes: [
+      "Fixed: Refund processing now correctly restores usage minutes — previously the member lookup used the wrong identifier type and always failed silently",
+      "Fixed: Failed payment attempts are now always recorded in the database — previously first-time failures were silently lost",
+      "Fixed: Winning a payment dispute no longer erases partial refund history — the system now preserves the correct payment status",
+    ]
+  },
+  {
     version: "8.97.39",
     date: "2026-03-25",
     title: "Critical Payment & Booking Fixes",

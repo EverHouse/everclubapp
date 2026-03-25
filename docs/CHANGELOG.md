@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.40] - 2026-03-25
+
+### Payment Reliability & Dispute Handling Fixes
+- **Refund usage ledger restore broken**: `handleChargeRefunded` deleted usage_ledger rows by comparing `member_id` (a UUID) against `user_email` (an email string). Since UUIDs never match emails, the DELETE always returned 0 rows, meaning simulator usage minutes were never restored when a payment was refunded. Fixed by looking up the user's UUID from the `users` table before the DELETE.
+- **Failed payments silently lost**: `handlePaymentIntentFailed` used an UPDATE to record failed payment attempts, but if the payment intent was never previously recorded (e.g., first-time card decline), the UPDATE matched 0 rows and the failure went unrecorded. Changed to `INSERT ... ON CONFLICT DO UPDATE` to ensure every failure is tracked, matching the pattern used in the success handler.
+- **Dispute wins overwrite partial refunds**: When a dispute was won, `handleChargeDisputeClosed` forcefully set the terminal payment status to `succeeded`, erasing the `partially_refunded` status if a partial refund had been intentionally issued before the dispute. Fixed with a CASE expression that preserves `partially_refunded` status when a dispute is won.
+- **Files changed**: `server/core/stripe/webhooks/handlers/payments.ts`
+
 ## [8.97.39] - 2026-03-25
 
 ### Critical Payment & Booking Fixes

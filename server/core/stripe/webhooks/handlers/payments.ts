@@ -163,7 +163,7 @@ export async function handleChargeRefunded(client: PoolClient, charge: Stripe.Ch
           WHERE id = ANY($1::int[])
           RETURNING id, session_id, user_id
         )
-        SELECT updated.id, updated.session_id, u.email AS user_email
+        SELECT updated.id, updated.session_id, updated.user_id, u.email AS user_email
         FROM updated
         LEFT JOIN users u ON u.id = updated.user_id`,
         [lockedIds]
@@ -214,10 +214,14 @@ export async function handleChargeRefunded(client: PoolClient, charge: Stripe.Ch
           logger.info(`[Stripe Webhook] Refunded guest pass for participant ${row.id} (guest: ${guestName}) back to ${bookingOwnerEmail} (manual Stripe refund teardown)`);
         }
 
-        const ledgerDelete = await client.query(
-          `DELETE FROM usage_ledger WHERE session_id = $1 AND LOWER(member_id) = LOWER($2) RETURNING minutes_charged`,
-          [row.session_id, row.user_email?.toLowerCase()]
-        );
+        const userIdLookup = row.user_id || (row.user_email ? (await client.query(
+          `SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+          [row.user_email]
+        )).rows[0]?.id : null);
+        const ledgerDelete = userIdLookup ? await client.query(
+          `DELETE FROM usage_ledger WHERE session_id = $1 AND member_id = $2 RETURNING minutes_charged`,
+          [row.session_id, userIdLookup]
+        ) : { rows: [], rowCount: 0 };
         if (ledgerDelete.rowCount && ledgerDelete.rowCount > 0) {
           const minutesRestored = ledgerDelete.rows.reduce((sum: number, r: { minutes_charged: number }) => sum + (r.minutes_charged || 0), 0);
           logger.info(`[Stripe Webhook] Restored ${minutesRestored} usage_ledger minutes for ${row.user_email} session ${row.session_id} (manual Stripe refund teardown)`);
@@ -440,10 +444,14 @@ export async function handleChargeDisputeClosed(client: PoolClient, dispute: Str
     const terminalPaymentResult = await client.query(
       `UPDATE terminal_payments 
        SET dispute_status = $1, dispute_id = $2, disputed_at = COALESCE(disputed_at, NOW()), 
-           status = $3, updated_at = NOW()
+           status = CASE
+             WHEN $3 = true AND status = 'partially_refunded' THEN 'partially_refunded'
+             WHEN $3 = true THEN 'succeeded'
+             ELSE 'disputed_lost'
+           END, updated_at = NOW()
        WHERE stripe_payment_intent_id = $4 AND status IN ('succeeded', 'partially_refunded', 'disputed')
        RETURNING id, user_id, user_email, stripe_subscription_id, amount_cents`,
-      [status, id, disputeWon ? 'succeeded' : 'disputed_lost', paymentIntentId]
+      [status, id, disputeWon, paymentIntentId]
     );
     
     if (terminalPaymentResult.rowCount && terminalPaymentResult.rowCount > 0) {
@@ -1240,17 +1248,26 @@ export async function handlePaymentIntentFailed(client: PoolClient, paymentInten
   const newRetryCount = currentRetryCount + 1;
   const requiresCardUpdate = newRetryCount >= MAX_RETRY_ATTEMPTS;
 
+  const userIdFromMeta = metadata?.email || metadata?.memberEmail || '';
+  const bookingIdFromMeta = metadata?.bookingId ? parseInt(metadata.bookingId, 10) : NaN;
+  const sessionIdFromMeta = metadata?.sessionId ? parseInt(metadata.sessionId, 10) : NaN;
+
   await client.query(
-    `UPDATE stripe_payment_intents 
-     SET status = 'failed', 
-         updated_at = NOW(),
-         retry_count = $2,
-         last_retry_at = NOW(),
-         failure_reason = $3,
-         dunning_notified_at = NOW(),
-         requires_card_update = $4
-     WHERE stripe_payment_intent_id = $1`,
-    [id, newRetryCount, reason, requiresCardUpdate]
+    `INSERT INTO stripe_payment_intents
+       (stripe_payment_intent_id, user_id, amount_cents, status, retry_count, last_retry_at, failure_reason, dunning_notified_at, requires_card_update, booking_id, session_id, purpose, created_at, updated_at)
+     VALUES ($1, $2, $3, 'failed', $4, NOW(), $5, NOW(), $6, $7, $8, $9, NOW(), NOW())
+     ON CONFLICT (stripe_payment_intent_id) DO UPDATE SET
+       status = 'failed',
+       updated_at = NOW(),
+       retry_count = $4,
+       last_retry_at = NOW(),
+       failure_reason = $5,
+       dunning_notified_at = NOW(),
+       requires_card_update = $6`,
+    [id, userIdFromMeta, amount, newRetryCount, reason, requiresCardUpdate,
+     isNaN(bookingIdFromMeta) ? null : bookingIdFromMeta,
+     isNaN(sessionIdFromMeta) ? null : sessionIdFromMeta,
+     metadata?.paymentType || 'unknown']
   );
 
   await client.query(
