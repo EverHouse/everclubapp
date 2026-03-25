@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { changelog } from '../../../data/changelog';
 import EmptyState from '../../../components/EmptyState';
 import { formatRelativeTime } from '../../../utils/dateUtils';
-import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
+import PageLoadingSpinner from '../../../components/PageLoadingSpinner';
 import { AnimatedPage } from '../../../components/motion';
 import { useAuthData } from '../../../contexts/DataContext';
 import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
@@ -845,9 +845,7 @@ const ChangelogTab: React.FC = () => {
     const renderActivityTab = () => {
         if (loading && entries.length === 0) {
             return (
-                <div className="flex items-center justify-center py-20">
-                    <WalkingGolferSpinner size="lg" />
-                </div>
+                <PageLoadingSpinner />
             );
         }
 

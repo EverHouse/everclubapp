@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithCredentials, putWithCredentials } from '../../../hooks/queries/useFetch';
 import Toggle from '../../../components/Toggle';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
+import PageLoadingSpinner from '../../../components/PageLoadingSpinner';
 import Icon from '../../../components/icons/Icon';
 
 interface EmailTemplate {
@@ -173,9 +174,7 @@ const EmailTemplatesTab: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <WalkingGolferSpinner size="sm" />
-      </div>
+      <PageLoadingSpinner />
     );
   }
 

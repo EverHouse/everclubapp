@@ -3,7 +3,7 @@ import AvailabilityBlocksContent from '../../components/AvailabilityBlocksConten
 import { AnimatedPage } from '../../../../components/motion';
 import { TabTransition } from '../../../../components/motion/TabTransition';
 import FloatingActionButton from '../../../../components/FloatingActionButton';
-import WalkingGolferSpinner from '../../../../components/WalkingGolferSpinner';
+import PageLoadingSpinner from '../../../../components/PageLoadingSpinner';
 import { useBlocksData } from './useBlocksData';
 import { NoticeList } from './NoticeList';
 import { ClosureFormDrawer } from './ClosureFormDrawer';
@@ -17,9 +17,7 @@ const BlocksTab: React.FC = () => {
 
     if (data.isLoading && data.closuresLoading) {
         return (
-            <div className="flex items-center justify-center py-12">
-                <WalkingGolferSpinner size="sm" />
-            </div>
+            <PageLoadingSpinner />
         );
     }
 
