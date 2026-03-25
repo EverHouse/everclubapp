@@ -707,7 +707,7 @@ export async function pullCafeItemsFromStripe(): Promise<{
           } else {
             const dupeCheck = await db.execute(sql`SELECT id FROM cafe_items WHERE LOWER(name) = LOWER(${product.name}) AND LOWER(category) = LOWER(${category}) AND id != ${existingId} LIMIT 1`);
             if (dupeCheck.rows.length > 0) {
-              const dupeId = (dupeCheck.rows[0] as any).id;
+              const dupeId = (dupeCheck.rows[0] as unknown as { id: number }).id;
               await db.execute(sql`DELETE FROM cafe_items WHERE id = ${dupeId}`);
               logger.info(`[Reverse Sync] Removed duplicate cafe item id=${dupeId} (same name/category as id=${existingId})`);
             }

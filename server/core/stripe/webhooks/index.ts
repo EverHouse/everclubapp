@@ -3,7 +3,7 @@ import { getStripeSync, getStripeClient } from '../client';
 import { updateFamilyDiscountPercent } from '../../billing/pricingConfig';
 import { pool, safeRelease } from '../../db';
 import { logger } from '../../logger';
-import type { DeferredAction, StripeProductWithMarketingFeatures, InvoiceWithLegacyFields } from './types';
+import type { DeferredAction, StripeProductWithMarketingFeatures, InvoiceWithLegacyFields, SubscriptionPreviousAttributes } from './types';
 import {
   extractResourceId,
   tryClaimEvent,
@@ -73,58 +73,74 @@ import {
   handleSetupIntentFailed,
 } from './handlers/customers';
 
+type StripeWebhookDataObject =
+  | Stripe.PaymentIntent
+  | Stripe.Charge
+  | Stripe.Invoice
+  | Stripe.Subscription
+  | Stripe.Checkout.Session
+  | Stripe.Product
+  | Stripe.Price
+  | Stripe.Coupon
+  | Stripe.CreditNote
+  | Stripe.Customer
+  | Stripe.PaymentMethod
+  | Stripe.Dispute
+  | Stripe.SetupIntent
+  | Stripe.SubscriptionSchedule
+  | StripeProductWithMarketingFeatures
+  | InvoiceWithLegacyFields;
+
 async function dispatchWebhookEvent(
   client: import('pg').PoolClient,
   eventType: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dataObject: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  previousAttributes?: any
+  dataObject: StripeWebhookDataObject,
+  previousAttributes?: Partial<SubscriptionPreviousAttributes>
 ): Promise<DeferredAction[]> {
   if (eventType === 'payment_intent.created') {
     return [];
   } else if (eventType === 'payment_intent.processing' || eventType === 'payment_intent.requires_action') {
-    return handlePaymentIntentStatusUpdate(client, dataObject);
+    return handlePaymentIntentStatusUpdate(client, dataObject as Stripe.PaymentIntent);
   } else if (eventType === 'payment_intent.succeeded') {
-    return handlePaymentIntentSucceeded(client, dataObject);
+    return handlePaymentIntentSucceeded(client, dataObject as Stripe.PaymentIntent);
   } else if (eventType === 'payment_intent.payment_failed') {
-    return handlePaymentIntentFailed(client, dataObject);
+    return handlePaymentIntentFailed(client, dataObject as Stripe.PaymentIntent);
   } else if (eventType === 'payment_intent.canceled') {
-    return handlePaymentIntentCanceled(client, dataObject);
+    return handlePaymentIntentCanceled(client, dataObject as Stripe.PaymentIntent);
   } else if (eventType === 'charge.refunded') {
-    return handleChargeRefunded(client, dataObject);
+    return handleChargeRefunded(client, dataObject as Stripe.Charge);
   } else if (eventType === 'invoice.payment_succeeded') {
-    return handleInvoicePaymentSucceeded(client, dataObject);
+    return handleInvoicePaymentSucceeded(client, dataObject as InvoiceWithLegacyFields);
   } else if (eventType === 'invoice.payment_failed') {
-    return handleInvoicePaymentFailed(client, dataObject);
+    return handleInvoicePaymentFailed(client, dataObject as InvoiceWithLegacyFields);
   } else if (eventType === 'invoice.created' || eventType === 'invoice.finalized' || eventType === 'invoice.updated') {
-    return handleInvoiceLifecycle(client, dataObject, eventType);
+    return handleInvoiceLifecycle(client, dataObject as InvoiceWithLegacyFields, eventType);
   } else if (eventType === 'invoice.voided' || eventType === 'invoice.marked_uncollectible') {
-    return handleInvoiceVoided(client, dataObject, eventType);
+    return handleInvoiceVoided(client, dataObject as InvoiceWithLegacyFields, eventType);
   } else if (eventType === 'checkout.session.completed') {
-    return handleCheckoutSessionCompleted(client, dataObject);
+    return handleCheckoutSessionCompleted(client, dataObject as Stripe.Checkout.Session);
   } else if (eventType === 'customer.subscription.created') {
-    return handleSubscriptionCreated(client, dataObject);
+    return handleSubscriptionCreated(client, dataObject as Stripe.Subscription);
   } else if (eventType === 'customer.subscription.updated') {
-    return handleSubscriptionUpdated(client, dataObject, previousAttributes);
+    return handleSubscriptionUpdated(client, dataObject as Stripe.Subscription, previousAttributes);
   } else if (eventType === 'customer.subscription.paused') {
-    return handleSubscriptionPaused(client, dataObject);
+    return handleSubscriptionPaused(client, dataObject as Stripe.Subscription);
   } else if (eventType === 'customer.subscription.resumed') {
-    return handleSubscriptionResumed(client, dataObject);
+    return handleSubscriptionResumed(client, dataObject as Stripe.Subscription);
   } else if (eventType === 'customer.subscription.deleted') {
-    return handleSubscriptionDeleted(client, dataObject);
+    return handleSubscriptionDeleted(client, dataObject as Stripe.Subscription);
   } else if (eventType === 'charge.dispute.created') {
-    return handleChargeDisputeCreated(client, dataObject);
+    return handleChargeDisputeCreated(client, dataObject as Stripe.Dispute);
   } else if (eventType === 'charge.dispute.closed') {
-    return handleChargeDisputeClosed(client, dataObject);
+    return handleChargeDisputeClosed(client, dataObject as Stripe.Dispute);
   } else if (eventType === 'product.updated') {
     return handleProductUpdated(client, dataObject as StripeProductWithMarketingFeatures);
   } else if (eventType === 'product.created') {
     return handleProductCreated(client, dataObject as StripeProductWithMarketingFeatures);
   } else if (eventType === 'product.deleted') {
-    return handleProductDeleted(client, dataObject);
+    return handleProductDeleted(client, dataObject as Stripe.Product);
   } else if (eventType === 'price.updated' || eventType === 'price.created') {
-    return handlePriceChange(client, dataObject);
+    return handlePriceChange(client, dataObject as Stripe.Price);
   } else if (eventType === 'price.deleted') {
     return handlePriceDeleted(client, dataObject as Stripe.Price);
   } else if (eventType === 'coupon.updated' || eventType === 'coupon.created') {

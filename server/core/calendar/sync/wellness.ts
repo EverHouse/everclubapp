@@ -1,6 +1,7 @@
 import { db } from '../../../db';
 import { pool, queryWithRetry } from '../../db';
 import { sql, eq, isNull, gte, asc, and } from 'drizzle-orm';
+import { calendar_v3 } from 'googleapis';
 import { getErrorMessage } from '../../../utils/errorUtils';
 import { getGoogleCalendarClient } from '../../integrations';
 import { wellnessClasses } from '../../../../shared/models/auth';
@@ -91,8 +92,7 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
     const oneYearAgo = getPacificMidnightUTC();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const events: any[] = [];
+    const events: calendar_v3.Schema$Event[] = [];
     let pageToken: string | undefined;
     do {
       const response = await withCalendarRetry(() => calendar.events.list({

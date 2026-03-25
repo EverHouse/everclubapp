@@ -46,8 +46,7 @@ interface LogContext {
   dbErrorDetail?: string;
   dbErrorTable?: string;
   dbErrorConstraint?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- index signatures for extensible log context require any
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 function formatTimestamp(): string {

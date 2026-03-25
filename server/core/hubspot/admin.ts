@@ -1,11 +1,11 @@
 import { db } from '../../db';
-import { discountRules } from '../../../shared/schema';
+import { discountRules, type DiscountRule } from '../../../shared/models/hubspot-billing';
 import { eq, sql } from 'drizzle-orm';
 
 import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getAllDiscountRules(): Promise<any[]> {
+
+export async function getAllDiscountRules(): Promise<DiscountRule[]> {
   try {
     const rules = await db.select().from(discountRules).orderBy(discountRules.discountPercent);
     return rules;
@@ -36,15 +36,26 @@ export async function updateDiscountRule(
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getBillingAuditLog(memberEmail: string, limit: number = 50): Promise<any[]> {
+interface BillingAuditLogEntry {
+  id: number;
+  action: string;
+  actor_email: string | null;
+  actor_type: string | null;
+  resource_type: string;
+  resource_id: string;
+  resource_name: string | null;
+  details: Record<string, unknown> | null;
+  created_at: Date | string;
+}
+
+export async function getBillingAuditLog(memberEmail: string, limit: number = 50): Promise<BillingAuditLogEntry[]> {
   try {
     const result = await db.execute(sql`SELECT id, action, actor_email, actor_type, resource_type, resource_id, resource_name, details, created_at FROM admin_audit_log 
        WHERE resource_type = 'billing'
        AND resource_id = ${memberEmail.toLowerCase()} 
        ORDER BY created_at DESC 
        LIMIT ${limit}`);
-    return result.rows;
+    return result.rows as unknown as BillingAuditLogEntry[];
   } catch (error: unknown) {
     logger.error('[HubSpotDeals] Error fetching billing audit log:', { error: getErrorMessage(error) });
     return [];

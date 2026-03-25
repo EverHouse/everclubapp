@@ -1,5 +1,6 @@
 import { db } from '../../../db';
 import { sql } from 'drizzle-orm';
+import { calendar_v3 } from 'googleapis';
 import { getGoogleCalendarClient } from '../../integrations';
 import { events } from '../../../../shared/models/auth';
 import { and, isNotNull, eq } from 'drizzle-orm';
@@ -92,8 +93,7 @@ export async function syncGoogleCalendarEvents(options?: { suppressAlert?: boole
     const oneYearAgo = getPacificMidnightUTC();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const calendarEvents: any[] = [];
+    const calendarEvents: calendar_v3.Schema$Event[] = [];
     let pageToken: string | undefined;
     do {
       const response = await withCalendarRetry(() => calendar.events.list({

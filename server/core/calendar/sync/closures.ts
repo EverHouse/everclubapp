@@ -1,5 +1,6 @@
 import { db } from '../../../db';
 import { sql, type SQL } from 'drizzle-orm';
+import { calendar_v3 } from 'googleapis';
 import { getGoogleCalendarClient } from '../../integrations';
 import { CALENDAR_CONFIG } from '../config';
 import { getCalendarIdByName, discoverCalendarIds } from '../cache';
@@ -304,8 +305,7 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
     // Use Pacific midnight for consistent timezone handling
     const pacificMidnight = getPacificMidnightUTC();
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const events: any[] = [];
+    const events: calendar_v3.Schema$Event[] = [];
     let pageToken: string | undefined;
     do {
       const response = await withCalendarRetry(() => calendar.events.list({
