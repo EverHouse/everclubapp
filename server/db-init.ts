@@ -3,6 +3,12 @@ import { db } from './db';
 import { getErrorMessage } from './utils/errorUtils';
 import { logger } from './core/logger';
 
+function safeIdentifier(name: string): string {
+  const sanitized = name.replace(/[^a-zA-Z0-9_]/g, '');
+  if (sanitized !== name) throw new Error(`Invalid SQL identifier: ${name}`);
+  return sanitized;
+}
+
 export async function setupEmailNormalization(): Promise<void> {
   try {
     await db.execute(sql`
@@ -41,10 +47,12 @@ export async function setupEmailNormalization(): Promise<void> {
     for (const { table, column } of tables) {
       if (!allowedTables.has(table) || !allowedColumns.has(column)) continue;
       try {
+        const safeTable = safeIdentifier(table);
+        const safeCol = safeIdentifier(column);
         await db.execute(sql`
-          DROP TRIGGER IF EXISTS normalize_email_trigger ON ${sql.raw(table)};
+          DROP TRIGGER IF EXISTS normalize_email_trigger ON ${sql.raw(safeTable)};
           CREATE TRIGGER normalize_email_trigger
-          BEFORE INSERT OR UPDATE OF ${sql.raw(column)} ON ${sql.raw(table)}
+          BEFORE INSERT OR UPDATE OF ${sql.raw(safeCol)} ON ${sql.raw(safeTable)}
           FOR EACH ROW
           EXECUTE FUNCTION normalize_email();
         `);
@@ -1299,7 +1307,7 @@ export async function ensureDatabaseConstraints() {
       for (const fk of legacyFKNames) {
         if (!allowedFKTables.has(fk.table) || !allowedFKConstraints.has(fk.constraint)) continue;
         try {
-          await db.execute(sql`ALTER TABLE ${sql.raw(fk.table)} DROP CONSTRAINT IF EXISTS ${sql.raw(fk.constraint)}`);
+          await db.execute(sql`ALTER TABLE ${sql.raw(safeIdentifier(fk.table))} DROP CONSTRAINT IF EXISTS ${sql.raw(safeIdentifier(fk.constraint))}`);
         } catch (err: unknown) {
           logger.warn(`[DB Init] Could not drop legacy ${fk.constraint}: ${getErrorMessage(err)}`);
         }
@@ -1423,11 +1431,13 @@ export async function ensureDatabaseConstraints() {
       const allowedEmailCols = new Set(emailTables.map(t => t.col));
       for (const { table, col } of emailTables) {
         if (!allowedEmailTables.has(table) || !allowedEmailCols.has(col)) continue;
-        const triggerName = `trg_validate_email_${table}`;
+        const safeTable = safeIdentifier(table);
+        const safeCol = safeIdentifier(col);
+        const triggerName = safeIdentifier(`trg_validate_email_${table}`);
         await db.execute(sql`
-          DROP TRIGGER IF EXISTS ${sql.raw(triggerName)} ON ${sql.raw(table)};
+          DROP TRIGGER IF EXISTS ${sql.raw(triggerName)} ON ${sql.raw(safeTable)};
           CREATE TRIGGER ${sql.raw(triggerName)}
-          BEFORE INSERT OR UPDATE OF ${sql.raw(col)} ON ${sql.raw(table)}
+          BEFORE INSERT OR UPDATE OF ${sql.raw(safeCol)} ON ${sql.raw(safeTable)}
           FOR EACH ROW
           EXECUTE FUNCTION validate_email_exists_in_users();
         `);
@@ -1766,10 +1776,12 @@ export async function ensureDatabaseConstraints() {
       const protectedTables = ['booking_requests', 'event_rsvps', 'wellness_enrollments', 'guest_pass_holds', 'push_subscriptions'];
       for (const tbl of protectedTables) {
         try {
+          const safeTbl = safeIdentifier(tbl);
+          const safeTrigger = safeIdentifier(`trg_prevent_archived_${tbl}`);
           await db.execute(sql`
-            DROP TRIGGER IF EXISTS ${sql.raw(`trg_prevent_archived_${tbl}`)} ON ${sql.raw(tbl)};
-            CREATE TRIGGER ${sql.raw(`trg_prevent_archived_${tbl}`)}
-              BEFORE INSERT ON ${sql.raw(tbl)}
+            DROP TRIGGER IF EXISTS ${sql.raw(safeTrigger)} ON ${sql.raw(safeTbl)};
+            CREATE TRIGGER ${sql.raw(safeTrigger)}
+              BEFORE INSERT ON ${sql.raw(safeTbl)}
               FOR EACH ROW
               EXECUTE FUNCTION prevent_archived_member_writes();
           `);

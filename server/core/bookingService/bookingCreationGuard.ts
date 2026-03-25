@@ -16,12 +16,13 @@ async function queryWithSavepoint(
   query: ReturnType<typeof sql>,
   logLabel: string,
 ): Promise<{ rows: Record<string, unknown>[] }> {
+  const safeName = savepointName.replace(/[^a-zA-Z0-9_]/g, '');
   try {
-    await tx.execute(sql.raw(`SAVEPOINT ${savepointName}`));
+    await tx.execute(sql.raw(`SAVEPOINT ${safeName}`));
     return await tx.execute(query);
   } catch (err: unknown) {
     try {
-      await tx.execute(sql.raw(`ROLLBACK TO SAVEPOINT ${savepointName}`));
+      await tx.execute(sql.raw(`ROLLBACK TO SAVEPOINT ${safeName}`));
     } catch (rollbackErr: unknown) {
       logger.error(`[BookingGuard] ${logLabel}: ROLLBACK TO SAVEPOINT failed — transaction may be unrecoverable`, {
         extra: { rollbackError: getErrorMessage(rollbackErr), originalError: getErrorMessage(err) }
