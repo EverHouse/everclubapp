@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 interface AppleSignInButtonProps {
   onSuccess: (data: { identityToken: string; user?: { name?: { firstName?: string; lastName?: string }; email?: string } }) => void;
@@ -51,6 +51,33 @@ function ensureAppleSDK(): Promise<void> {
   });
 }
 
+const Spinner: React.FC<{ size?: number }> = ({ size = 14 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    className="animate-spin"
+  >
+    <circle
+      cx="12"
+      cy="12"
+      r="10"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      className="opacity-25"
+    />
+    <path
+      d="M12 2a10 10 0 0 1 10 10"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      className="opacity-75"
+    />
+  </svg>
+);
+
 const AppleSignInButton: React.FC<AppleSignInButtonProps> = ({
   onSuccess,
   onError,
@@ -58,14 +85,18 @@ const AppleSignInButton: React.FC<AppleSignInButtonProps> = ({
   compact = false,
   label,
 }) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const isDisabled = disabled || isLoading;
+
   useEffect(() => {
     if (!APPLE_CLIENT_ID) return;
     ensureAppleSDK().catch(err => console.warn('[AppleSignIn] Failed to preload Apple SDK:', err));
   }, []);
 
   const handleClick = useCallback(async () => {
-    if (disabled || !APPLE_CLIENT_ID) return;
+    if (isDisabled || !APPLE_CLIENT_ID) return;
 
+    setIsLoading(true);
     try {
       if (!window.AppleID) {
         await ensureAppleSDK();
@@ -100,26 +131,32 @@ const AppleSignInButton: React.FC<AppleSignInButtonProps> = ({
       }
       const detail = error?.error || error?.message || (typeof err === 'string' ? err : '');
       onError?.(detail ? `Apple sign-in failed: ${detail}` : 'Apple sign-in failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-  }, [disabled, onSuccess, onError]);
+  }, [isDisabled, onSuccess, onError]);
 
   if (!APPLE_CLIENT_ID) return null;
 
   const compactLabel = label || 'Sign in';
   const fullLabel = label ? `${label} with Apple` : 'Sign in with Apple';
 
+  const appleIcon = (
+    <svg width={compact ? 12 : 18} height={compact ? 12 : 18} viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M13.014 9.504c-.024-2.31 1.884-3.42 1.968-3.474-1.074-1.572-2.742-1.788-3.336-1.812-1.416-.144-2.772.84-3.492.84-.72 0-1.836-.822-3.018-.798-1.548.024-2.982.906-3.78 2.298-1.614 2.808-.414 6.966 1.158 9.246.774 1.116 1.692 2.37 2.898 2.328 1.164-.048 1.602-.75 3.006-.75 1.404 0 1.8.75 3.012.726 1.254-.024 2.04-1.134 2.802-2.256.888-1.29 1.254-2.544 1.272-2.61-.03-.012-2.436-.936-2.49-3.738zM10.698 2.85c.636-.78 1.068-1.854.948-2.934-.918.042-2.04.618-2.7 1.386-.588.684-1.11 1.788-.972 2.838 1.026.078 2.076-.516 2.724-1.29z" fill="currentColor"/>
+    </svg>
+  );
+
   if (compact) {
     return (
       <button
         type="button"
         onClick={handleClick}
-        disabled={disabled}
+        disabled={isDisabled}
         className="flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/20 bg-black dark:bg-white px-3 py-1.5 text-xs font-medium text-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90 transition-all duration-fast disabled:opacity-50"
         style={{ minHeight: 32 }}
       >
-        <svg width="12" height="12" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M13.014 9.504c-.024-2.31 1.884-3.42 1.968-3.474-1.074-1.572-2.742-1.788-3.336-1.812-1.416-.144-2.772.84-3.492.84-.72 0-1.836-.822-3.018-.798-1.548.024-2.982.906-3.78 2.298-1.614 2.808-.414 6.966 1.158 9.246.774 1.116 1.692 2.37 2.898 2.328 1.164-.048 1.602-.75 3.006-.75 1.404 0 1.8.75 3.012.726 1.254-.024 2.04-1.134 2.802-2.256.888-1.29 1.254-2.544 1.272-2.61-.03-.012-2.436-.936-2.49-3.738zM10.698 2.85c.636-.78 1.068-1.854.948-2.934-.918.042-2.04.618-2.7 1.386-.588.684-1.11 1.788-.972 2.838 1.026.078 2.076-.516 2.724-1.29z" fill="currentColor"/>
-        </svg>
+        {isLoading ? <Spinner size={12} /> : appleIcon}
         {compactLabel}
       </button>
     );
@@ -129,14 +166,12 @@ const AppleSignInButton: React.FC<AppleSignInButtonProps> = ({
     <button
       type="button"
       onClick={handleClick}
-      disabled={disabled}
+      disabled={isDisabled}
       className="tactile-btn flex w-full items-center justify-center gap-3 rounded-full border border-black/10 dark:border-white/20 bg-white dark:bg-black px-4 py-3 text-sm font-medium text-black dark:text-white hover:bg-gray-50 dark:hover:bg-white/10 transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
       style={{ minHeight: 44 }}
     >
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M13.014 9.504c-.024-2.31 1.884-3.42 1.968-3.474-1.074-1.572-2.742-1.788-3.336-1.812-1.416-.144-2.772.84-3.492.84-.72 0-1.836-.822-3.018-.798-1.548.024-2.982.906-3.78 2.298-1.614 2.808-.414 6.966 1.158 9.246.774 1.116 1.692 2.37 2.898 2.328 1.164-.048 1.602-.75 3.006-.75 1.404 0 1.8.75 3.012.726 1.254-.024 2.04-1.134 2.802-2.256.888-1.29 1.254-2.544 1.272-2.61-.03-.012-2.436-.936-2.49-3.738zM10.698 2.85c.636-.78 1.068-1.854.948-2.934-.918.042-2.04.618-2.7 1.386-.588.684-1.11 1.788-.972 2.838 1.026.078 2.076-.516 2.724-1.29z" fill="currentColor"/>
-      </svg>
-      {fullLabel}
+      {isLoading ? <Spinner size={18} /> : appleIcon}
+      {isLoading ? 'Signing in...' : fullLabel}
     </button>
   );
 };
