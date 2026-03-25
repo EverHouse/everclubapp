@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.19",
+    date: "2026-03-25",
+    title: "Membership State Machine Fix",
+    changes: [
+      "Fixed: Suspended members can now resubscribe — the membership status state machine was blocking the suspended-to-pending transition needed when a new Stripe subscription is created",
+      "Fixed: Also added pending as a valid transition target from paused, frozen, unpaid, and grace_period states for resubscription scenarios",
+    ]
+  },
+  {
     version: "8.97.18",
     date: "2026-03-25",
     title: "Terminal Payment & Stripe Cleanup Fixes",

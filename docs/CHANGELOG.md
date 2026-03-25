@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.19] - 2026-03-25
+
+### Membership State Machine Fix
+- **Suspended → Pending transition**: The membership status state machine trigger in the database was missing `pending` as a valid target from `suspended`. When a suspended member created a new Stripe subscription, the `subscription.created` webhook tried to set their status to `pending`, which was rejected by the trigger, causing the entire webhook to roll back. The member's status stayed stuck at `suspended` despite having a new active subscription.
+- **Same fix for paused, frozen, unpaid, grace_period**: Added `pending` as a valid transition target from these states too, since all of them represent scenarios where a member could resubscribe and need to go through `pending` before `active`.
+- **Files changed**: `server/db-init.ts`
+
 ## [8.97.18] - 2026-03-25
 
 ### Terminal Payment & Stripe Cleanup Fixes

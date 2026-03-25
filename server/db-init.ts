@@ -1558,15 +1558,15 @@ export async function ensureDatabaseConstraints() {
             WHEN 'past_due' THEN
               valid := NEW.membership_status IN ('active', 'suspended', 'cancelled', 'terminated', 'frozen', 'grace_period', 'inactive', 'unpaid', 'archived', 'merged', 'non-member');
             WHEN 'grace_period' THEN
-              valid := NEW.membership_status IN ('active', 'suspended', 'cancelled', 'terminated', 'inactive', 'archived', 'merged', 'non-member');
+              valid := NEW.membership_status IN ('active', 'pending', 'suspended', 'cancelled', 'terminated', 'inactive', 'archived', 'merged', 'non-member');
             WHEN 'paused' THEN
-              valid := NEW.membership_status IN ('active', 'cancelled', 'terminated', 'archived', 'merged', 'inactive', 'non-member');
+              valid := NEW.membership_status IN ('active', 'pending', 'cancelled', 'terminated', 'archived', 'merged', 'inactive', 'non-member');
             WHEN 'suspended' THEN
-              valid := NEW.membership_status IN ('active', 'cancelled', 'terminated', 'frozen', 'archived', 'merged', 'inactive', 'non-member');
+              valid := NEW.membership_status IN ('active', 'pending', 'cancelled', 'terminated', 'frozen', 'archived', 'merged', 'inactive', 'non-member');
             WHEN 'frozen' THEN
-              valid := NEW.membership_status IN ('active', 'cancelled', 'terminated', 'suspended', 'archived', 'merged', 'inactive', 'non-member');
+              valid := NEW.membership_status IN ('active', 'pending', 'cancelled', 'terminated', 'suspended', 'archived', 'merged', 'inactive', 'non-member');
             WHEN 'unpaid' THEN
-              valid := NEW.membership_status IN ('active', 'suspended', 'cancelled', 'terminated', 'archived', 'merged', 'inactive', 'non-member');
+              valid := NEW.membership_status IN ('active', 'pending', 'suspended', 'cancelled', 'terminated', 'archived', 'merged', 'inactive', 'non-member');
             WHEN 'cancelled' THEN
               valid := NEW.membership_status IN ('active', 'non-member', 'archived', 'merged', 'terminated', 'former_member', 'inactive', 'pending');
             WHEN 'inactive' THEN
