@@ -376,7 +376,13 @@ export async function getOrCreateStripeCustomer(
   if (firstName) metadata.firstName = firstName;
   if (lastName) metadata.lastName = lastName;
   if (linkedEmails.length > 0) {
-    metadata.linkedEmails = linkedEmails.slice(0, 5).join(',');
+    let joined = '';
+    for (const email of linkedEmails.slice(0, 5)) {
+      const candidate = joined ? `${joined},${email}` : email;
+      if (candidate.length > 80) break;
+      joined = candidate;
+    }
+    if (joined) metadata.linkedEmails = joined;
   }
 
   try {

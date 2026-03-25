@@ -218,8 +218,17 @@ const ALL_FEATURES_PREFIX_V2 = '⌁af2:';
 export type AllFeatureValue = boolean | { label?: string; value?: string | boolean; included?: boolean };
 
 function encodeAllFeatureEntry(featureName: string, value: AllFeatureValue): string {
+  const prefix = ALL_FEATURES_PREFIX_V2;
   const payload = JSON.stringify({ k: featureName, v: value });
-  return `${ALL_FEATURES_PREFIX_V2}${payload}`;
+  const encoded = `${prefix}${payload}`;
+  if (encoded.length <= 80) return encoded;
+  const valueJson = JSON.stringify(value);
+  const overhead = prefix.length + '{"k":"","v":}'.length + valueJson.length - 2;
+  const maxNameLen = Math.max(0, 80 - overhead);
+  if (maxNameLen < 3) {
+    return `${prefix}${JSON.stringify({ k: featureName.substring(0, 3), v: true })}`.substring(0, 80);
+  }
+  return `${prefix}${JSON.stringify({ k: featureName.substring(0, maxNameLen), v: value })}`;
 }
 
 function decodeV2Entry(raw: string): { featureName: string; value: AllFeatureValue } | null {
@@ -262,7 +271,7 @@ export function buildMergedMarketingFeatures(
   if (Array.isArray(highlightedFeatures)) {
     for (const f of highlightedFeatures) {
       if (f && f.trim()) {
-        result.push({ name: f });
+        result.push({ name: f.length > 80 ? f.substring(0, 77) + '...' : f });
       }
     }
   }

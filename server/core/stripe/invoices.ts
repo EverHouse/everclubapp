@@ -746,9 +746,23 @@ export async function finalizeInvoicePaidOutOfBand(invoiceId: string, options?: 
     const terminalPiId = options?.terminalPaymentIntentId;
     let paidInvoice: Stripe.Invoice;
     if (terminalPiId) {
-      paidInvoice = await stripe.invoices.pay(invoiceId, {
-        payment_intent: terminalPiId,
-      });
+      const terminalPi = await stripe.paymentIntents.retrieve(terminalPiId);
+      const terminalPm = typeof terminalPi.payment_method === 'string'
+        ? terminalPi.payment_method
+        : terminalPi.payment_method?.id;
+      if (!terminalPm) {
+        logger.warn(`[Stripe Invoices] Terminal PI ${terminalPiId} has no payment_method, falling back to paid_out_of_band`);
+        paidInvoice = await stripe.invoices.pay(invoiceId, { paid_out_of_band: true });
+        try {
+          await stripe.invoices.update(invoiceId, {
+            metadata: { terminal_payment_intent: terminalPiId, paid_out_of_band_reason: 'terminal_pi_no_payment_method' }
+          });
+        } catch { /* best effort */ }
+      } else {
+        paidInvoice = await stripe.invoices.pay(invoiceId, {
+          payment_method: terminalPm,
+        });
+      }
       logger.info(`[Stripe Invoices] Invoice ${invoiceId} finalized and paid via terminal PI ${terminalPiId}`, {
         extra: { status: paidInvoice.status, terminalPaymentIntentId: terminalPiId }
       });
