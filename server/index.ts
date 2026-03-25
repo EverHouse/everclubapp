@@ -656,16 +656,8 @@ async function initializeApp() {
         const fs = await import('fs');
         const filePath = path.join(__dirname, '../dist/assets', req.path);
         if (!fs.existsSync(filePath)) {
-          logger.info(`[Stale Asset] 404 for /assets${req.path} - sending reload response`);
-          if (req.path.endsWith('.css') || req.path.endsWith('.css.br')) {
-            res.status(200).setHeader('Content-Type', 'text/css').send(
-              '/* stale asset - page will reload */ body { display: none !important; }'
-            );
-          } else {
-            res.status(200).setHeader('Content-Type', 'application/javascript').send(
-              'window.location.reload(true);'
-            );
-          }
+          logger.info(`[Stale Asset] 404 for /assets${req.path} - returning 404 (error boundary will handle reload)`);
+          res.status(404).setHeader('Cache-Control', 'no-store').send('');
           return;
         }
       }

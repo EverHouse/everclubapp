@@ -298,7 +298,7 @@ const WaiverGate: React.FC = () => {
   const [currentVersion, setCurrentVersion] = useState('1.0');
   const queryClient = useQueryClient();
 
-  const { data: waiverStatus, isError, isLoading } = useQuery<{ needsWaiverUpdate?: boolean; currentVersion?: string }>({
+  const { data: waiverStatus, isError, isPending } = useQuery<{ needsWaiverUpdate?: boolean; currentVersion?: string }>({
     queryKey: ['waiverStatus'],
     queryFn: () => fetchWithCredentials<{ needsWaiverUpdate?: boolean; currentVersion?: string }>('/api/waivers/status'),
     enabled: !!user?.email,
@@ -311,12 +311,12 @@ const WaiverGate: React.FC = () => {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentVersion(waiverStatus.currentVersion || '1.0');
       setShowWaiverModal(true);
-    } else {
+    } else if (waiverStatus !== undefined) {
       setShowWaiverModal(false);
     }
   }, [waiverStatus]);
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
         <div className="bg-white dark:bg-surface-dark-200 rounded-xl p-6 max-w-sm mx-4 text-center shadow-xl">
