@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.38] - 2026-03-25
+
+### Bug Fixes & Stability Improvements
+- **Falsy numeric conditional rendering**: Fixed `{value && <Component />}` pattern in `UnifiedBookingSheet.tsx` (guest_passes_per_year), `SimulatorTab/index.tsx` (declared_player_count), and `HubSpotQueuePanel.tsx` (queueLag) where a numeric value of 0 would render literal "0" text in the DOM instead of hiding the section. Changed to explicit `!= null && > 0` or `!= null && !== ''` guards.
+- **Analytics dashboard crash**: `fetchRevenueFromStripe()` inside `Promise.all` in `GET /api/analytics/extended-stats` had no `.catch()`. If Stripe API failed, the entire dashboard returned 500. Added `.catch()` that returns empty data and logs the error, so other stats still load.
+- **HubSpot webhook suspension risk**: Error handlers in `server/routes/hubspot/webhooks.ts` returned HTTP 500, which causes HubSpot to suspend webhook subscriptions after repeated failures. Changed to always return 200 (acknowledging receipt) while still logging errors.
+- **Files changed**: `src/components/staff-command-center/modals/UnifiedBookingSheet.tsx`, `src/pages/Admin/tabs/SimulatorTab/index.tsx`, `src/pages/Admin/tabs/dataIntegrity/HubSpotQueuePanel.tsx`, `server/routes/analytics.ts`, `server/routes/hubspot/webhooks.ts`
+
 ## [8.97.37] - 2026-03-25
 
 ### Fix Member History Endpoint Crash

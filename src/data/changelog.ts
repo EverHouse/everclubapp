@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.38",
+    date: "2026-03-25",
+    title: "Bug Fixes & Stability",
+    changes: [
+      "Fixed: Guest pass and player count displays no longer show incorrectly in booking details",
+      "Fixed: Analytics dashboard no longer breaks if payment data is temporarily unavailable",
+      "Improved: HubSpot connection stability — webhook processing is now more resilient to temporary errors",
+    ]
+  },
+  {
     version: "8.97.37",
     date: "2026-03-25",
     title: "Bug Fix",

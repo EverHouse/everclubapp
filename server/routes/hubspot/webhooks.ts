@@ -326,17 +326,15 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
     }
   } catch (error: unknown) {
     logger.error('[HubSpot Webhook] Error processing event', { error: getErrorMessage(error) });
-    if (!res.headersSent) {
-      return res.status(500).json({ error: 'Webhook processing failed' });
-    }
-    return;
   }
 
-  res.status(200).send('OK');
+  if (!res.headersSent) {
+    res.status(200).send('OK');
+  }
   } catch (error: unknown) {
     logger.error('[HubSpot Webhook] Unhandled error', { error: getErrorMessage(error) });
     if (!res.headersSent) {
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(200).json({ received: true, error: 'Processing failed but acknowledged' });
     }
   }
 });

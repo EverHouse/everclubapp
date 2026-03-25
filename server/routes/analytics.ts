@@ -267,6 +267,9 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
       fetchRevenueFromStripe().then(months => {
         const sortedMonths = Object.keys(months).sort();
         return { rows: sortedMonths.map(month => ({ month, ...months[month] })) };
+      }).catch(err => {
+        logger.error('[Analytics] Failed to fetch Stripe revenue data', { error: getErrorMessage(err) });
+        return { rows: [] };
       }),
 
       db.execute(sql`

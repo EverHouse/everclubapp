@@ -1138,7 +1138,7 @@ const SimulatorTab: React.FC = () => {
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                             {selectedRequest && formatDateShortAdmin(selectedRequest.request_date)} • {selectedRequest && formatTime12Hour(selectedRequest.start_time)} - {selectedRequest && formatTime12Hour(selectedRequest.end_time)}
                         </p>
-                        {selectedRequest?.declared_player_count && (
+                        {selectedRequest?.declared_player_count != null && selectedRequest.declared_player_count > 0 && (
                             <div className="flex items-center gap-1 mt-2 text-sm text-accent-dark dark:text-accent">
                                 <Icon name="group" className="text-base" />
                                 <span>{selectedRequest?.declared_player_count} {selectedRequest?.declared_player_count === 1 ? 'player' : 'players'}</span>

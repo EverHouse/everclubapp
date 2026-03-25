@@ -95,7 +95,7 @@ const HubSpotQueuePanel: React.FC<Props> = ({ isOpen, onToggle }) => {
             </div>
           </div>
 
-          {data?.queueLag && (
+          {data?.queueLag != null && data.queueLag !== '' && (
             <p className="text-xs text-gray-500 dark:text-gray-400">Queue lag: {data.queueLag}</p>
           )}
 
