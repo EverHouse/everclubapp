@@ -36,7 +36,7 @@ const MINIMUM_LOADER_DISPLAY_MS = 2000;
 
 const isInitialLandingLoad = () => {
   if (typeof window === 'undefined') return false;
-  return window.location.pathname === '/';
+  return true;
 };
 
 const InitialLoadingScreen: React.FC<{ children: React.ReactNode }> = ({ children }) => {
