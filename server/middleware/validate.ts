@@ -36,7 +36,8 @@ export function validateQuery<T>(schema: ZodSchema<T>) {
 function formatZodError(error: ZodError): string {
   const issues = error.issues;
   if (issues.length === 0) return 'Invalid input';
-  const first = issues[0];
-  const path = first.path.length > 0 ? first.path.join('.') : undefined;
-  return path ? `${path}: ${first.message}` : first.message;
+  return issues.map(issue => {
+    const path = issue.path.length > 0 ? issue.path.join('.') : undefined;
+    return path ? `${path}: ${issue.message}` : issue.message;
+  }).join(', ');
 }

@@ -6,6 +6,7 @@ import { pool, safeRelease } from '../core/db';
 import type { PoolClient } from 'pg';
 import { sql } from 'drizzle-orm';
 import { getErrorMessage } from '../utils/errorUtils';
+import { PgRateLimitStore } from './pgRateLimitStore';
 
 const getClientKey = (req: Request): string => {
   const userId = req.session?.user?.id;
@@ -27,6 +28,7 @@ export const globalRateLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: getClientKey,
   validate: false,
+  store: new PgRateLimitStore('global'),
   handler: (req: Request, res: Response) => {
     logger.warn(`[RateLimit] Global limit exceeded for ${getClientKey(req)} on ${req.path}`);
     res.status(429).json({ error: 'Too many requests. Please slow down.' });
@@ -52,6 +54,7 @@ export const paymentRateLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: getClientKey,
   validate: false,
+  store: new PgRateLimitStore('payment'),
   handler: (req: Request, res: Response) => {
     logger.warn(`[RateLimit] Payment limit exceeded for ${getClientKey(req)} on ${req.path}`);
     res.status(429).json({ error: 'Too many payment requests. Please wait a moment.' });
@@ -65,6 +68,7 @@ export const bookingRateLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: getClientKey,
   validate: false,
+  store: new PgRateLimitStore('booking'),
   handler: (req: Request, res: Response) => {
     logger.warn(`[RateLimit] Booking limit exceeded for ${getClientKey(req)} on ${req.path}`);
     res.status(429).json({ error: 'Too many booking requests. Please wait a moment.' });
@@ -78,6 +82,7 @@ export const authRateLimiterByIp = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => `auth-ip:${req.ip || 'unknown'}`,
   validate: false,
+  store: new PgRateLimitStore('auth-ip'),
   handler: (req: Request, res: Response) => {
     logger.warn(`[RateLimit] Auth IP limit exceeded for ${req.ip}`);
     res.status(429).json({ error: 'Too many login attempts from this location. Please try again in 15 minutes.' });
@@ -91,6 +96,7 @@ export const authRateLimiterByEmail = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => `auth-email:${String(req.body?.email || 'unknown').toLowerCase()}`,
   validate: false,
+  store: new PgRateLimitStore('auth-email'),
   handler: (req: Request, res: Response) => {
     logger.warn(`[RateLimit] Auth email limit exceeded for ${req.body?.email || 'unknown'}`);
     res.status(429).json({ error: 'Too many login attempts for this account. Please try again in 15 minutes.' });
@@ -106,6 +112,7 @@ export const sensitiveActionRateLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: getClientKey,
   validate: false,
+  store: new PgRateLimitStore('sensitive'),
   handler: (req: Request, res: Response) => {
     logger.warn(`[RateLimit] Sensitive action limit exceeded for ${getClientKey(req)} on ${req.path}`);
     res.status(429).json({ error: 'Too many requests for this action. Please wait.' });
@@ -129,6 +136,7 @@ export const checkoutRateLimiter = rateLimit({
     return `checkout:${String(req.ip || 'unknown')}`;
   },
   validate: false,
+  store: new PgRateLimitStore('checkout'),
   handler: (req: Request, res: Response) => {
     logger.warn(`[RateLimit] Checkout limit exceeded for ${req.body?.email || 'unknown'} on ${req.path}`);
     res.status(429).json({ error: 'Too many checkout attempts. Please wait a minute before trying again.' });
@@ -142,6 +150,7 @@ export const subscriptionCreationRateLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: getClientKey,
   validate: false,
+  store: new PgRateLimitStore('sub-create'),
   handler: (req: Request, res: Response) => {
     logger.warn(`[RateLimit] Subscription creation limit exceeded for ${getClientKey(req)} on ${req.path}`);
     res.status(429).json({ error: 'Too many subscription creation attempts. Please wait a moment before trying again.' });
@@ -219,6 +228,7 @@ export const memberLookupRateLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: getClientKey,
   validate: false,
+  store: new PgRateLimitStore('member-lookup'),
   handler: (req: Request, res: Response) => {
     logger.warn(`[RateLimit] Member lookup limit exceeded for ${getClientKey(req)} on ${req.path}`);
     res.status(429).json({ error: 'Too many member lookup requests. Please wait a moment.' });
