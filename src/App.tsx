@@ -799,7 +799,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 setIsMemberMenuOpen(true);
               }
             }}
-            className={`w-10 h-10 flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg`}
+            className={`w-11 h-11 flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg`}
             aria-label="Open menu"
           >
             <Icon name="menu" className="text-[24px]" />
@@ -807,7 +807,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         ) : (
           <button 
             onClick={handleTopLeftClick}
-            className={`w-10 h-10 flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg`}
+            className={`w-11 h-11 flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg`}
             aria-label="Open menu"
           >
             <Icon name="menu" className="text-[24px]" />
@@ -841,7 +841,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         {isMemberRoute && user && (
           <button 
             onClick={() => isStaffOrAdmin && !isViewingAs ? navigate('/admin/updates') : navigate('/updates?tab=activity')}
-            className={`w-10 h-10 flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg relative`}
+            className={`w-11 h-11 flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg relative`}
             aria-label={isStaffOrAdmin && !isViewingAs ? "Updates" : "Notifications"}
           >
             <Icon name={isStaffOrAdmin && !isViewingAs ? 'campaign' : 'notifications'} className="text-[24px]" />
@@ -870,7 +870,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <button 
             onClick={handleTopRightClick}
             disabled={isNavigating}
-            className={`px-1.5 py-0.5 xs:px-2 xs:py-1 sm:px-3 sm:py-1.5 flex items-center justify-center gap-1.5 shrink ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-full backdrop-blur-xl bg-white/15 border border-white/40 shadow-[0_4px_16px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.4)] text-[9px] xs:text-[10px] sm:text-xs font-semibold tracking-wide hover:bg-white/25 hover:border-white/50 transition-all duration-normal ${isNavigating ? 'opacity-70' : ''}`}
+            className={`min-w-[44px] min-h-[44px] px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-center gap-1.5 shrink ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-full backdrop-blur-xl bg-white/15 border border-white/40 shadow-[0_4px_16px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.4)] text-[11px] sm:text-xs font-semibold tracking-wide hover:bg-white/25 hover:border-white/50 transition-all duration-normal ${isNavigating ? 'opacity-70' : ''}`}
             aria-label={user ? 'Go to dashboard' : 'Sign in'}
           >
             {isNavigating && (
@@ -903,15 +903,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         
         <div className={`relative w-full h-auto overflow-visible ${isDarkTheme ? 'text-white' : 'text-primary'}`}>
 
-            <main 
-                id="main-content"
+            <div 
                 className={`relative h-auto overflow-visible dark:bg-[#141414] ${showHeader && !isFullBleedHeroPage ? 'pt-[calc(env(safe-area-inset-top,0px)+88px)]' : ''}`}
             >
                 <PullToRefresh onRefresh={handleLayoutRefresh}>
                   {children}
                 </PullToRefresh>
                 {isMemberRoute && !isAdminRoute && !isProfilePage && <BottomSentinel />}
-            </main>
+            </div>
 
             {isMemberRoute && !isAdminRoute && !isProfilePage && user && (
               <MemberBottomNav currentPath={location.pathname} isDarkTheme={isDarkTheme} />

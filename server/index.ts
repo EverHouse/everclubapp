@@ -523,7 +523,7 @@ async function initializeApp() {
   });
 
   const siteOrigin = isProduction
-    ? 'https://www.everclub.app'
+    ? 'https://everclub.app'
     : `https://${process.env.REPLIT_DEV_DOMAIN || 'localhost:5000'}`;
 
   app.get('/robots.txt', (req, res) => {
@@ -607,6 +607,7 @@ async function initializeApp() {
     '/post-sitemap.xml',
     '/page-sitemap.xml',
     '/wp-sitemap.xml',
+    '/news-sitemap.xml',
   ], (req, res) => {
     res.redirect(301, '/sitemap.xml');
   });
@@ -796,7 +797,7 @@ async function initializeApp() {
       "name": "Ever Members Club",
       "alternateName": ["Ever Club", "Even House"],
       "description": "Orange County's premier private indoor golf & social club featuring Trackman simulators, premium coworking, wellness programs, and curated events.",
-      "url": "https://www.everclub.app",
+      "url": "https://everclub.app",
       "telephone": "+19495455855",
       "email": "info@joinever.club",
       "address": {
@@ -839,7 +840,7 @@ async function initializeApp() {
         }
       ],
       "sameAs": ["https://www.instagram.com/everhouse.app/"],
-      "image": "https://www.everclub.app/images/hero-lounge-optimized.webp",
+      "image": "https://everclub.app/images/hero-lounge-optimized.webp",
       "amenityFeature": [
         {"@type": "LocationFeatureSpecification", "name": "Trackman Golf Simulators", "value": true},
         {"@type": "LocationFeatureSpecification", "name": "Premium Coworking Space", "value": true},
@@ -917,7 +918,7 @@ async function initializeApp() {
       "@type": "TouristAttraction",
       "name": "Ever Members Club",
       "description": "Schedule a free 30-minute tour of Orange County's premier indoor golf & social club featuring Trackman simulators, premium coworking, café & wellness facilities.",
-      "url": "https://www.everclub.app/tour",
+      "url": "https://everclub.app/tour",
       "address": {
         "@type": "PostalAddress",
         "streetAddress": "15771 Red Hill Ave, Ste 500",
@@ -938,7 +939,7 @@ async function initializeApp() {
       "@type": "EventVenue",
       "name": "Ever Members Club — Private Event Venue",
       "description": "Host private events, corporate gatherings & celebrations at Ever Members Club in Tustin. Trackman golf simulator bays, conference rooms & elegant event spaces in Orange County.",
-      "url": "https://www.everclub.app/private-hire",
+      "url": "https://everclub.app/private-hire",
       "address": {
         "@type": "PostalAddress",
         "streetAddress": "15771 Red Hill Ave, Ste 500",
@@ -1155,32 +1156,32 @@ ${FOOTER_BLOCK}
 
     function getBreadcrumbs(routePath: string): object {
       const items: { name: string; item: string }[] = [
-        { name: "Home", item: "https://www.everclub.app" }
+        { name: "Home", item: "https://everclub.app" }
       ];
 
       const breadcrumbMap: Record<string, { name: string; item: string }[]> = {
-        '/membership': [{ name: "Membership", item: "https://www.everclub.app/membership" }],
+        '/membership': [{ name: "Membership", item: "https://everclub.app/membership" }],
         '/membership/apply': [
-          { name: "Membership", item: "https://www.everclub.app/membership" },
-          { name: "Apply", item: "https://www.everclub.app/membership/apply" }
+          { name: "Membership", item: "https://everclub.app/membership" },
+          { name: "Apply", item: "https://everclub.app/membership/apply" }
         ],
         '/membership/compare': [
-          { name: "Membership", item: "https://www.everclub.app/membership" },
-          { name: "Compare Plans", item: "https://www.everclub.app/membership/compare" }
+          { name: "Membership", item: "https://everclub.app/membership" },
+          { name: "Compare Plans", item: "https://everclub.app/membership/compare" }
         ],
-        '/tour': [{ name: "Book a Tour", item: "https://www.everclub.app/tour" }],
-        '/private-hire': [{ name: "Private Events", item: "https://www.everclub.app/private-hire" }],
+        '/tour': [{ name: "Book a Tour", item: "https://everclub.app/tour" }],
+        '/private-hire': [{ name: "Private Events", item: "https://everclub.app/private-hire" }],
         '/private-hire/inquire': [
-          { name: "Private Events", item: "https://www.everclub.app/private-hire" },
-          { name: "Inquire", item: "https://www.everclub.app/private-hire/inquire" }
+          { name: "Private Events", item: "https://everclub.app/private-hire" },
+          { name: "Inquire", item: "https://everclub.app/private-hire/inquire" }
         ],
-        '/whats-on': [{ name: "Events", item: "https://www.everclub.app/whats-on" }],
-        '/menu': [{ name: "Café Menu", item: "https://www.everclub.app/menu" }],
-        '/gallery': [{ name: "Gallery", item: "https://www.everclub.app/gallery" }],
-        '/contact': [{ name: "Contact", item: "https://www.everclub.app/contact" }],
-        '/day-pass': [{ name: "Day Pass", item: "https://www.everclub.app/day-pass" }],
-        '/faq': [{ name: "FAQ", item: "https://www.everclub.app/faq" }],
-        '/about': [{ name: "About", item: "https://www.everclub.app/about" }],
+        '/whats-on': [{ name: "Events", item: "https://everclub.app/whats-on" }],
+        '/menu': [{ name: "Café Menu", item: "https://everclub.app/menu" }],
+        '/gallery': [{ name: "Gallery", item: "https://everclub.app/gallery" }],
+        '/contact': [{ name: "Contact", item: "https://everclub.app/contact" }],
+        '/day-pass': [{ name: "Day Pass", item: "https://everclub.app/day-pass" }],
+        '/faq': [{ name: "FAQ", item: "https://everclub.app/faq" }],
+        '/about': [{ name: "About", item: "https://everclub.app/about" }],
       };
 
       const additionalItems = breadcrumbMap[routePath] || [];
@@ -1201,11 +1202,11 @@ ${FOOTER_BLOCK}
       const graphItems: object[] = [
         {
           "@type": "Organization",
-          "@id": "https://www.everclub.app/#organization",
+          "@id": "https://everclub.app/#organization",
           "name": "Ever Members Club",
           "alternateName": ["Ever Club", "Even House"],
-          "url": "https://www.everclub.app",
-          "logo": "https://www.everclub.app/images/everclub-logo-dark.webp",
+          "url": "https://everclub.app",
+          "logo": "https://everclub.app/images/everclub-logo-dark.webp",
           "sameAs": [
             "https://www.instagram.com/everclub/",
             "https://evenhouse.club",
@@ -1229,17 +1230,17 @@ ${FOOTER_BLOCK}
         },
         {
           "@type": "WebSite",
-          "@id": "https://www.everclub.app/#website",
-          "url": "https://www.everclub.app",
+          "@id": "https://everclub.app/#website",
+          "url": "https://everclub.app",
           "name": "Ever Members Club",
-          "publisher": { "@id": "https://www.everclub.app/#organization" },
+          "publisher": { "@id": "https://everclub.app/#organization" },
           "potentialAction": {
             "@type": "SearchAction",
-            "target": "https://www.everclub.app/faq?q={search_term_string}",
+            "target": "https://everclub.app/faq?q={search_term_string}",
             "query-input": "required name=search_term_string"
           }
         },
-        { ...BASE_JSON_LD, "@id": "https://www.everclub.app/#localbusiness" }
+        { ...BASE_JSON_LD, "@id": "https://everclub.app/#localbusiness" }
       ];
 
       if (routePath === '/faq') {
@@ -1256,7 +1257,7 @@ ${FOOTER_BLOCK}
           "@type": "AboutPage",
           "name": "About Ever Club",
           "description": "Learn about Ever Club, Orange County's premier indoor golf & social club in Tustin.",
-          "url": "https://www.everclub.app/about",
+          "url": "https://everclub.app/about",
           "mainEntity": {
             "@type": "Organization",
             "name": "Ever Members Club"

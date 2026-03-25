@@ -9,7 +9,7 @@ interface SEOProps {
   keywords?: string;
 }
 
-const BASE_URL = 'https://www.everclub.app';
+const BASE_URL = 'https://everclub.app';
 const DEFAULT_IMAGE = '/images/hero-lounge-optimized.webp';
 
 const setMetaTag = (selector: string, attrType: 'name' | 'property', attrValue: string, content: string) => {
