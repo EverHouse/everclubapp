@@ -471,18 +471,18 @@ export async function updateCustomerPaymentMethod(
 export async function syncCustomerMetadataToStripe(
   email: string
 ): Promise<{ success: boolean; error?: string }> {
+  const userResult = await db.execute(sql`SELECT id, tier, stripe_customer_id, first_name, last_name, phone FROM users WHERE LOWER(email) = LOWER(${email})`);
+  
+  if (userResult.rows.length === 0) {
+    return { success: false, error: 'User not found' };
+  }
+  
+  const user = userResult.rows[0] as unknown as UserRow;
+  if (!user.stripe_customer_id) {
+    return { success: false, error: 'No Stripe customer linked' };
+  }
+  
   try {
-    const userResult = await db.execute(sql`SELECT id, tier, stripe_customer_id, first_name, last_name, phone FROM users WHERE LOWER(email) = LOWER(${email})`);
-    
-    if (userResult.rows.length === 0) {
-      return { success: false, error: 'User not found' };
-    }
-    
-    const user = userResult.rows[0] as unknown as UserRow;
-    if (!user.stripe_customer_id) {
-      return { success: false, error: 'No Stripe customer linked' };
-    }
-    
     const stripe = await getStripeClient();
     
     const metadata: Record<string, string> = {
@@ -508,6 +508,11 @@ export async function syncCustomerMetadataToStripe(
     logger.info(`[Stripe] Synced metadata for customer ${user.stripe_customer_id} (tier: ${user.tier})`);
     return { success: true };
   } catch (error: unknown) {
+    if (isStripeResourceMissing(error)) {
+      logger.warn(`[Stripe] Stale customer ${user.stripe_customer_id} for ${email} — clearing from DB`);
+      await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE id = ${user.id}`);
+      return { success: false, error: 'Stale customer ID cleared' };
+    }
     logger.error('[Stripe] Failed to sync customer metadata:', { error: getErrorMessage(error) });
     await alertOnExternalServiceError('Stripe', error as Error, 'sync customer metadata');
     return { success: false, error: getErrorMessage(error) };
@@ -522,6 +527,8 @@ export async function syncAllCustomerMetadata(): Promise<{ synced: number; faile
   
   const stripe = await getStripeClient();
   
+  let staleCleared = 0;
+
   for (const rawUser of result.rows) {
     const user = rawUser as unknown as UserRow;
     try {
@@ -546,12 +553,21 @@ export async function syncAllCustomerMetadata(): Promise<{ synced: number; faile
       await stripe.customers.update(user.stripe_customer_id!, updateParams);
       synced++;
     } catch (error: unknown) {
-      logger.error(`[Stripe] Failed to sync metadata for ${user.email}:`, { extra: { detail: getErrorMessage(error) } });
+      if (isStripeResourceMissing(error)) {
+        logger.warn(`[Stripe] Stale customer ${user.stripe_customer_id} for ${user.email} — clearing from DB`);
+        await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE id = ${user.id}`);
+        staleCleared++;
+      } else {
+        logger.error(`[Stripe] Failed to sync metadata for ${user.email}:`, { extra: { detail: getErrorMessage(error) } });
+      }
       failed++;
     }
   }
   
-  logger.info(`[Stripe] Bulk metadata sync complete: ${synced} synced, ${failed} failed`);
+  if (staleCleared > 0) {
+    logger.warn(`[Stripe] Bulk metadata sync: cleared ${staleCleared} stale customer ID(s) from DB`);
+  }
+  logger.info(`[Stripe] Bulk metadata sync complete: ${synced} synced, ${failed} failed${staleCleared > 0 ? `, ${staleCleared} stale cleared` : ''}`);
   return { synced, failed };
 }
 
