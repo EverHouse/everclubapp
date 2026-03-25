@@ -1,4 +1,5 @@
 import type { Store, Options, IncrementResponse } from 'express-rate-limit';
+import type { Pool } from 'pg';
 import { pool } from '../core/db';
 import { logger } from '../core/logger';
 
@@ -35,6 +36,7 @@ export class PgRateLimitStore implements Store {
   private windowMs: number = 60_000;
   private prefix: string;
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
+  private cleanupRunning = false;
 
   constructor(prefix: string) {
     this.prefix = prefix;
@@ -48,6 +50,7 @@ export class PgRateLimitStore implements Store {
     this.windowMs = options.windowMs;
     ensureTable();
     this.cleanupInterval = setInterval(() => {
+      if (this.cleanupRunning) return;
       this.cleanup().catch(() => {});
     }, Math.max(this.windowMs, 60_000));
     this.cleanupInterval.unref();
@@ -116,14 +119,21 @@ export class PgRateLimitStore implements Store {
   }
 
   private async cleanup(): Promise<void> {
+    if (this.cleanupRunning) return;
+    this.cleanupRunning = true;
     const cutoff = new Date(Date.now() - this.windowMs * 2);
     try {
+      if ((pool as unknown as Pool).waitingCount > 5) {
+        return;
+      }
       await pool.query(
         `DELETE FROM rate_limit_hits WHERE key LIKE $1 AND window_start < $2`,
         [`${this.prefix}:%`, cutoff]
       );
     } catch (err: unknown) {
       logger.warn('[PgRateLimitStore] cleanup failed', { extra: { error: String(err) } });
+    } finally {
+      this.cleanupRunning = false;
     }
   }
 }

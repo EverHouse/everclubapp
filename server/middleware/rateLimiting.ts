@@ -164,13 +164,20 @@ setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of advisoryLockClients.entries()) {
     if (now - entry.acquiredAt > LOCK_TIMEOUT_MS) {
-      logger.warn('[SubscriptionLock] Releasing stale advisory lock', { extra: { email: key } });
-      entry.client.query('SELECT pg_advisory_unlock(hashtext($1))', [key]).catch(() => {});
-      safeRelease(entry.client);
+      logger.warn('[SubscriptionLock] Releasing stale advisory lock', { extra: { email: key, heldMs: now - entry.acquiredAt } });
       advisoryLockClients.delete(key);
+      (async () => {
+        try {
+          await entry.client.query('SELECT pg_advisory_unlock(hashtext($1))', [key]);
+        } catch { /* best-effort */ }
+        try {
+          await entry.client.query(`SET statement_timeout = '0'`);
+        } catch { /* best-effort reset */ }
+        safeRelease(entry.client);
+      })().catch(() => {});
     }
   }
-}, 60_000).unref();
+}, 30_000).unref();
 
 export async function acquireSubscriptionLock(email: string, _lockedBy?: string): Promise<boolean> {
   const key = email.toLowerCase();

@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.47] - 2026-03-25
+
+### Database Pool Exhaustion Fixes
+- **PgRateLimitStore cleanup overlap**: Multiple rate limit store instances were running cleanup queries on overlapping intervals. When the pool was starved (25/25 connections, 24 waiting), these cleanup queries stacked up, further exhausting the pool. Added `cleanupRunning` guard to prevent overlap and pool `waitingCount` backpressure check to skip cleanup when >5 queries are already waiting.
+- **Advisory lock stale-release safety**: The subscription lock reaper was releasing connections unsafely — `pg_advisory_unlock` was not awaited and `statement_timeout` was not reset before releasing the client back to the pool. Now properly awaits unlock, resets statement timeout, then releases client. Stale lock check interval reduced from 60s to 30s for faster detection.
+- **Unsafe non-null assertion in billing**: `server/routes/staffCheckin/billing.ts` used `find()!` which could crash if a participant wasn't found during balance payment audit logging. Now uses safe `find()` with `continue` guard.
+- **Unsafe non-null assertion in dateNormalize**: `server/utils/dateNormalize.ts` used `find()!` on Intl.DateTimeFormat parts. Now uses safe fallback.
+- **Files changed**: `server/middleware/pgRateLimitStore.ts`, `server/middleware/rateLimiting.ts`, `server/routes/staffCheckin/billing.ts`, `server/utils/dateNormalize.ts`
+
 ## [8.97.46] - 2026-03-25
 
 ### Billing Page Reliability — Stale Stripe Customer Handling

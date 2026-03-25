@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.47",
+    date: "2026-03-25",
+    title: "Stability & Connection Reliability",
+    changes: [
+      "Fixed: Improved database connection management to prevent temporary slowdowns during peak usage",
+      "Fixed: Background cleanup tasks no longer compete for database resources when the system is busy",
+    ]
+  },
+  {
     version: "8.97.46",
     date: "2026-03-25",
     title: "Billing Page Reliability",

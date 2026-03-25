@@ -16,7 +16,8 @@ function getCurrentPacificYear(): number {
     timeZone: CLUB_TIMEZONE,
     year: 'numeric'
   }).formatToParts(new Date());
-  return parseInt(parts.find(p => p.type === 'year')!.value, 10);
+  const yearPart = parts.find(p => p.type === 'year');
+  return parseInt(yearPart ? yearPart.value : String(new Date().getFullYear()), 10);
 }
 
 export function normalizeToISODate(input: string | undefined | null): string {

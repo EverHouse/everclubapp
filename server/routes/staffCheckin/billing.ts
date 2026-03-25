@@ -745,7 +745,8 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
       }
 
       for (const pid of fullyPaidIds) {
-        const p = typedPending.find(pp => pp.id === pid)!;
+        const p = typedPending.find(pp => pp.id === pid);
+        if (!p) continue;
         await logPaymentAudit({
           bookingId,
           sessionId,
