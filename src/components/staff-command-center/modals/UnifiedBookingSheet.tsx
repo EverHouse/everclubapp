@@ -158,7 +158,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                   <Icon name="redeem" className="text-emerald-500 text-sm" />
                   <span className="text-primary/70 dark:text-white/70">
                     Guest Passes: <span className="font-semibold text-primary dark:text-white">
-                      {logic.rosterData.ownerGuestPassesRemaining}/{logic.rosterData.tierLimits.guest_passes_per_year}
+                      {logic.rosterData?.ownerGuestPassesRemaining}/{logic.rosterData?.tierLimits?.guest_passes_per_year}
                     </span> remaining
                   </span>
                 </div>

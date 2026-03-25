@@ -46,7 +46,7 @@ export async function consumeGuestPassForParticipant(
     let purchaseId: number | undefined;
     
     await db.transaction(async (tx) => {
-      const alreadyUsed = await tx.execute(sql`SELECT id, used_guest_pass, guest_id FROM booking_participants WHERE id = ${participantId}`);
+      const alreadyUsed = await tx.execute(sql`SELECT id, used_guest_pass, guest_id FROM booking_participants WHERE id = ${participantId} FOR UPDATE`);
       
       if ((alreadyUsed.rows[0] as unknown as GuestPassCheckRow)?.used_guest_pass === true) {
         logger.info(`[GuestPassConsumer] Guest pass already consumed for participant ${participantId}, skipping (idempotency)`);

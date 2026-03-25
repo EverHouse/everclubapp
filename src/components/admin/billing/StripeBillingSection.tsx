@@ -263,8 +263,8 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                 <div className="flex items-center gap-2">
                   <Icon name="sell" className="text-purple-500 text-base" />
                   <span className={`text-sm ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>
-                    {activeSubscription.discount.coupon.name || activeSubscription.discount.coupon.id}
-                    {activeSubscription.discount.coupon.percentOff && ` (${activeSubscription.discount.coupon.percentOff}% off)`}
+                    {activeSubscription.discount?.coupon?.name || activeSubscription.discount?.coupon?.id}
+                    {activeSubscription.discount?.coupon?.percentOff && ` (${activeSubscription.discount.coupon.percentOff}% off)`}
                   </span>
                 </div>
               </div>
@@ -625,8 +625,8 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
             <div className="flex items-center gap-2">
               <Icon name="check_circle" className="text-purple-500 text-base" />
               <span className={`text-sm ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>
-                Active: {activeSubscription.discount.coupon.name || activeSubscription.discount.coupon.id}
-                {activeSubscription.discount.coupon.percentOff && ` (${activeSubscription.discount.coupon.percentOff}% off)`}
+                Active: {activeSubscription.discount?.coupon?.name || activeSubscription.discount?.coupon?.id}
+                {activeSubscription.discount?.coupon?.percentOff && ` (${activeSubscription.discount.coupon.percentOff}% off)`}
               </span>
             </div>
           </div>

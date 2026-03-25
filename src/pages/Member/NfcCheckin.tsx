@@ -25,13 +25,17 @@ const NfcCheckin: React.FC = () => {
     if (checkinAttemptedRef.current) return;
     checkinAttemptedRef.current = true;
 
+    const controller = new AbortController();
+
     fetch('/api/member/nfc-checkin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include'
+      credentials: 'include',
+      signal: controller.signal
     })
       .then(async (res) => {
         const data = await res.json();
+        if (controller.signal.aborted) return;
         if (res.ok && data.success) {
           sessionStorage.setItem('nfc_checkin_result', JSON.stringify({ type: 'success', memberName: data.memberName, tier: data.tier }));
           navigate('/dashboard', { replace: true });
@@ -46,10 +50,13 @@ const NfcCheckin: React.FC = () => {
           setResult('error');
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        if (err?.name === 'AbortError') return;
         setErrorMessage('Unable to connect. Please try again.');
         setResult('error');
       });
+
+    return () => controller.abort();
   }, [sessionChecked, user, navigate]);
 
   useEffect(() => {
