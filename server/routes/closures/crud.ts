@@ -12,6 +12,7 @@ import { notifyMember } from '../../core/notificationService';
 import { logFromRequest } from '../../core/auditLog';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { getTodayPacific, createPacificDate } from '../../utils/dateUtils';
+import { getCached, setCache, invalidateCache } from '../../core/queryCache';
 import {
   sendPushNotificationToAllMembers,
   getAffectedBayIds,
@@ -25,13 +26,20 @@ import {
 
 const router = Router();
 
+const STATIC_CACHE_TTL_MS = 5 * 60 * 1000;
+
 // PUBLIC ROUTE - notice types used by closure forms
 router.get('/api/notice-types', async (req, res) => {
   try {
+    const cacheKey = 'api:notice-types';
+    const cached = getCached<unknown[]>(cacheKey);
+    if (cached) return res.json(cached);
+
     const results = await db
       .select()
       .from(noticeTypes)
       .orderBy(noticeTypes.sortOrder, noticeTypes.name);
+    setCache(cacheKey, results, STATIC_CACHE_TTL_MS);
     res.json(results);
   } catch (error: unknown) {
     if (!isProduction) logger.error('Notice types fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
@@ -60,6 +68,7 @@ router.post('/api/notice-types', isStaffOrAdmin, async (req, res) => {
       return res.json(existing);
     }
     
+    invalidateCache('api:notice-types');
     logFromRequest(req, 'create_notice_type', 'notice_type', String(result.id), result.name, {});
     res.status(201).json(result);
   } catch (error: unknown) {
@@ -102,6 +111,7 @@ router.put('/api/notice-types/:id', isStaffOrAdmin, async (req, res) => {
       .where(eq(noticeTypes.id, noticeTypeId))
       .returning();
     
+    invalidateCache('api:notice-types');
     logFromRequest(req, 'update_notice_type', 'notice_type', String(id), undefined, {});
     res.json(result);
   } catch (error: unknown) {
@@ -135,6 +145,7 @@ router.delete('/api/notice-types/:id', isStaffOrAdmin, async (req, res) => {
       .delete(noticeTypes)
       .where(eq(noticeTypes.id, noticeTypeId));
     
+    invalidateCache('api:notice-types');
     logFromRequest(req, 'delete_notice_type', 'notice_type', String(id), undefined, {});
     res.json({ success: true, message: 'Notice type deleted' });
   } catch (error: unknown) {
@@ -146,6 +157,10 @@ router.delete('/api/notice-types/:id', isStaffOrAdmin, async (req, res) => {
 router.get('/api/closure-reasons', async (req, res) => {
   try {
     const includeInactive = req.query.includeInactive === 'true';
+    const cacheKey = `api:closure-reasons:${includeInactive}`;
+    const cached = getCached<unknown[]>(cacheKey);
+    if (cached) return res.json(cached);
+
     const query = db
       .select()
       .from(closureReasons)
@@ -159,6 +174,7 @@ router.get('/api/closure-reasons', async (req, res) => {
           .where(eq(closureReasons.isActive, true))
           .orderBy(closureReasons.sortOrder, closureReasons.label);
     
+    setCache(cacheKey, results, STATIC_CACHE_TTL_MS);
     res.json(results);
   } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch closure reasons', error);
@@ -181,6 +197,7 @@ router.post('/api/closure-reasons', isStaffOrAdmin, async (req, res) => {
       })
       .returning();
     
+    invalidateCache('api:closure-reasons');
     logFromRequest(req, 'create_closure_reason', 'closure_reason', String(result.id), result.label, {});
     res.status(201).json(result);
   } catch (error: unknown) {
@@ -217,6 +234,7 @@ router.put('/api/closure-reasons/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Closure reason not found' });
     }
     
+    invalidateCache('api:closure-reasons');
     logFromRequest(req, 'update_closure_reason', 'closure_reason', String(id), undefined, {});
     res.json(result);
   } catch (error: unknown) {
@@ -243,6 +261,7 @@ router.delete('/api/closure-reasons/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Closure reason not found' });
     }
     
+    invalidateCache('api:closure-reasons');
     logFromRequest(req, 'delete_closure_reason', 'closure_reason', String(id), undefined, {});
     res.json({ success: true, message: 'Closure reason deactivated' });
   } catch (error: unknown) {

@@ -8,12 +8,19 @@ import { isStaffOrAdmin } from '../core/middleware';
 import { getErrorMessage } from '../utils/errorUtils';
 import { autoPushFeeToStripe } from '../core/stripe/autoPush';
 import { logFromRequest } from '../core/auditLog';
+import { getCached, setCache, invalidateCache } from '../core/queryCache';
 
 const router = Router();
+
+const PRICING_CACHE_KEY = 'api:pricing';
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 // PUBLIC ROUTE - pricing information displayed on public website
 router.get('/api/pricing', async (req, res) => {
   try {
+  const cached = getCached<Record<string, unknown>>(PRICING_CACHE_KEY);
+  if (cached) return res.json(cached);
+
   const response: Record<string, unknown> = {
     guestFeeDollars: PRICING.GUEST_FEE_DOLLARS,
     overageRatePerBlockDollars: PRICING.OVERAGE_RATE_DOLLARS,
@@ -65,6 +72,7 @@ router.get('/api/pricing', async (req, res) => {
     response.dayPassPrices = {};
   }
 
+  setCache(PRICING_CACHE_KEY, response, CACHE_TTL_MS);
   res.json(response);
   } catch (error: unknown) {
     logger.error('Failed to fetch pricing', { error: error instanceof Error ? error : new Error(String(error)) });
@@ -128,6 +136,7 @@ router.put('/api/pricing', isStaffOrAdmin, async (req, res) => {
       }
     });
 
+    invalidateCache('api:pricing');
     res.json({
       guestFeeDollars: PRICING.GUEST_FEE_DOLLARS,
       overageRatePerBlockDollars: PRICING.OVERAGE_RATE_DOLLARS,

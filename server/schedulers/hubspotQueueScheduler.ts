@@ -4,7 +4,7 @@ import { logger } from '../core/logger';
 import { alertOnScheduledTaskFailure } from '../core/dataAlerts';
 import { getErrorMessage } from '../utils/errorUtils';
 
-const PROCESS_INTERVAL_MS = 30 * 1000; // 30 seconds
+const PROCESS_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 let isProcessing = false;
 
 function extractRootError(error: unknown): string {

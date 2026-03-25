@@ -144,7 +144,7 @@ async function gatherMemberData(email: string): Promise<MemberDataExport> {
     FROM notifications 
     WHERE LOWER(user_email) = ${normalizedEmail}
     ORDER BY created_at DESC
-    LIMIT 500
+    LIMIT 200
   `);
   
   const guestPassesResult = await db.execute(sql`
@@ -193,7 +193,7 @@ async function gatherMemberData(email: string): Promise<MemberDataExport> {
     JOIN users u_bp ON bp.user_id = u_bp.id
     WHERE LOWER(u_bp.email) = ${normalizedEmail}
     ORDER BY bp.created_at DESC
-    LIMIT 500
+    LIMIT 200
   `);
   
   const guestCheckInsResult = await db.execute(sql`
@@ -201,7 +201,7 @@ async function gatherMemberData(email: string): Promise<MemberDataExport> {
     FROM guest_check_ins 
     WHERE LOWER(member_email) = ${normalizedEmail}
     ORDER BY check_in_date DESC
-    LIMIT 500
+    LIMIT 200
   `);
   
   const wellnessEnrollmentsResult = await db.execute(sql`

@@ -314,7 +314,7 @@ let schedulerIntervals: NodeJS.Timeout[] = [];
 
 export function startIntegrityScheduler(): NodeJS.Timeout[] {
   stopIntegrityScheduler();
-  const id1 = setInterval(() => { guardedIntegrityCheck().catch((err) => { logger.error('[Integrity Check] Uncaught error:', { error: err as Error }); }); }, 30 * 60 * 1000);
+  const id1 = setInterval(() => { guardedIntegrityCheck().catch((err) => { logger.error('[Integrity Check] Uncaught error:', { error: err as Error }); }); }, 24 * 60 * 60 * 1000);
   const id2 = setInterval(() => { guardedAutoFix().catch((err) => { logger.error('[Auto-Fix] Uncaught error:', { error: err as Error }); }); }, 24 * 60 * 60 * 1000);
   const id3 = setInterval(() => { guardedCleanup().catch((err) => { logger.error('[Auto-Cleanup] Uncaught error:', { error: err as Error }); }); }, 6 * 60 * 60 * 1000);
   setTimeout(() => guardedCleanup().catch((err) => { logger.warn('[Scheduler] Non-critical cleanup failed:', { extra: { error: getErrorMessage(err) } }); }), 60 * 1000);

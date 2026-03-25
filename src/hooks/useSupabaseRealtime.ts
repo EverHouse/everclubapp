@@ -95,11 +95,25 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
       ? { event: '*' as const, schema: 'public', table, filter: `user_email=eq.${userEmail}` }
       : { event: '*' as const, schema: 'public', table };
 
-    const channel = supabase
-      .channel(channelName)
-      .on('postgres_changes', filter, (payload) => {
-        handler(payload);
-      });
+    const narrowToInsertUpdate = table === 'booking_sessions' || table === 'trackman_unmatched_bookings';
+
+    let channel: RealtimeChannel;
+    if (narrowToInsertUpdate) {
+      channel = supabase
+        .channel(channelName)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table }, (payload) => {
+          handler(payload);
+        })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table }, (payload) => {
+          handler(payload);
+        });
+    } else {
+      channel = supabase
+        .channel(channelName)
+        .on('postgres_changes', filter, (payload) => {
+          handler(payload);
+        });
+    }
 
     channel.subscribe((status, err) => {
       if (!mountedRef.current) return;

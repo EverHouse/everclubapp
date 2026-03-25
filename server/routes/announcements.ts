@@ -21,6 +21,7 @@ import {
 } from '../core/googleSheets/announcementSync';
 import { systemSettings } from '../../shared/models/system';
 import { getErrorMessage } from '../utils/errorUtils';
+import { getCached, setCache, invalidateCache } from '../core/queryCache';
 
 interface AnnouncementRow {
   id: number;
@@ -41,10 +42,16 @@ const router = Router();
 
 const BANNER_FIRST = sql`CASE WHEN ${announcements.showAsBanner} = true THEN 0 ELSE 1 END`;
 
+const ANNOUNCEMENTS_CACHE_TTL_MS = 5 * 60 * 1000;
+
 // PUBLIC ROUTE
 router.get('/api/announcements', async (req, res) => {
   try {
     const { active_only } = req.query;
+    const cacheKey = `api:announcements:${active_only || 'all'}`;
+    const cached = getCached<unknown[]>(cacheKey);
+    if (cached) return res.json(cached);
+
     const now = new Date();
     
     let query = db.select().from(announcements);
@@ -82,6 +89,7 @@ router.get('/api/announcements', async (req, res) => {
       showAsBanner: a.showAsBanner === true
     }));
     
+    setCache(cacheKey, formatted, ANNOUNCEMENTS_CACHE_TTL_MS);
     res.json(formatted);
   } catch (error: unknown) {
     logger.error('Announcements fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
@@ -274,6 +282,7 @@ router.post('/api/announcements', isStaffOrAdmin, async (req, res) => {
       }
     }).catch(err => logger.error('[Announcements] Sheet sync error', { extra: { error: getErrorMessage(err) } }));
 
+    invalidateCache('api:announcements');
     res.status(201).json(responseData);
   } catch (error: unknown) {
     logger.error('Announcement create error', { error: error instanceof Error ? error : new Error(String(error)) });
@@ -368,6 +377,7 @@ router.put('/api/announcements/:id', isStaffOrAdmin, async (req, res) => {
       }
     }).catch(err => logger.error('[Announcements] Sheet sync error', { extra: { error: getErrorMessage(err) } }));
 
+    invalidateCache('api:announcements');
     res.json(responseData);
   } catch (error: unknown) {
     logger.error('Announcement update error', { error: error instanceof Error ? error : new Error(String(error)) });
@@ -405,6 +415,7 @@ router.delete('/api/announcements/:id', isStaffOrAdmin, async (req, res) => {
       }
     }).catch(err => logger.error('[Announcements] Sheet sync error', { extra: { error: getErrorMessage(err) } }));
 
+    invalidateCache('api:announcements');
     res.json({ success: true, id });
   } catch (error: unknown) {
     logger.error('Announcement delete error', { error: error instanceof Error ? error : new Error(String(error)) });

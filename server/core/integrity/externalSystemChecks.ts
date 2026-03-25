@@ -13,17 +13,11 @@ export async function checkCrossSystemDrift(): Promise<IntegrityCheckResult> {
     email: string;
     first_name: string | null;
     last_name: string | null;
-    tier: string | null;
-    membership_status: string | null;
-    stripe_customer_id: string | null;
-    hubspot_id: string | null;
-    billing_provider: string | null;
   }
 
   try {
     const activeNoStripeResult = await db.execute(sql`
-      SELECT u.id, u.email, u.first_name, u.last_name, u.tier, u.membership_status,
-             u.stripe_customer_id, u.hubspot_id, u.billing_provider
+      SELECT u.id, u.email, u.first_name, u.last_name
       FROM users u
       WHERE u.membership_status = 'active'
         AND u.stripe_customer_id IS NULL
@@ -54,8 +48,7 @@ export async function checkCrossSystemDrift(): Promise<IntegrityCheckResult> {
     }
 
     const activeNoHubSpotResult = await db.execute(sql`
-      SELECT u.id, u.email, u.first_name, u.last_name, u.tier, u.membership_status,
-             u.stripe_customer_id, u.hubspot_id, u.billing_provider
+      SELECT u.id, u.email, u.first_name, u.last_name
       FROM users u
       WHERE u.membership_status = 'active'
         AND u.hubspot_id IS NULL

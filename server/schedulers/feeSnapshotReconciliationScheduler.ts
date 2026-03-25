@@ -6,7 +6,7 @@ import { PaymentStatusService } from '../core/billing/PaymentStatusService';
 import { getErrorMessage, getErrorCode, isStripeResourceMissing } from '../utils/errorUtils';
 import { logger } from '../core/logger';
 
-const RECONCILIATION_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+const RECONCILIATION_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const _STALE_THRESHOLD_MINUTES = 5;
 
 async function connectWithTimeout(timeoutMs = 15000): Promise<PoolClient> {

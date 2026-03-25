@@ -57,12 +57,12 @@ export function initSchedulers(): void {
   schedulerTracker.registerScheduler('Daily Reminder', 30 * 60 * 1000);
   schedulerTracker.registerScheduler('Morning Closure', 30 * 60 * 1000);
   schedulerTracker.registerScheduler('Weekly Cleanup', 60 * 60 * 1000);
-  schedulerTracker.registerScheduler('Integrity Check', 30 * 60 * 1000);
+  schedulerTracker.registerScheduler('Integrity Check', 24 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Auto-Fix Tiers', 24 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Abandoned Pending Cleanup', 6 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Waiver Review', 4 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Stripe Reconciliation', 60 * 60 * 1000);
-  schedulerTracker.registerScheduler('Fee Snapshot Reconciliation', 15 * 60 * 1000);
+  schedulerTracker.registerScheduler('Fee Snapshot Reconciliation', 30 * 60 * 1000);
   schedulerTracker.registerScheduler('Grace Period', 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Booking Expiry', 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Booking Auto-Complete', 60 * 60 * 1000);
@@ -82,14 +82,14 @@ export function initSchedulers(): void {
   schedulerTracker.registerScheduler('Onboarding Nudge', 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Supabase Heartbeat', 6 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Notification Cleanup', 24 * 60 * 60 * 1000);
-  schedulerTracker.registerScheduler('Job Queue Processor', 5000);
+  schedulerTracker.registerScheduler('Job Queue Processor', 30000);
 
   logger.info(`[Schedulers] Staggering scheduler startup over ~${26 * STAGGER_INTERVAL_MS / 1000}s to prevent DB connection spikes`);
 
   let slot = 0;
 
   // ── Wave 1: Real-time / high-frequency (immediate → +20s) ──
-  staggerStart(slot * STAGGER_INTERVAL_MS, 'Job Queue Processor', () => startJobProcessor(5000));
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Job Queue Processor', () => startJobProcessor(30000));
   slot++;
 
   staggerStart(slot * STAGGER_INTERVAL_MS, 'Supabase Heartbeat', () => startSupabaseHeartbeatScheduler());

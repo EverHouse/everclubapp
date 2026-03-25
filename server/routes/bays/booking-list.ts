@@ -80,6 +80,8 @@ router.get('/api/booking-requests', isAuthenticated, validateQuery(bookingReques
       limit = parseInt(limitParam as string, 10);
       if (isNaN(limit)) return res.status(400).json({ error: 'Invalid limit parameter' });
       limit = Math.min(limit, 500);
+    } else {
+      limit = 100;
     }
     
     let page: number | undefined;
