@@ -81,8 +81,8 @@ export class PgRateLimitStore implements Store {
         resetTime: new Date((row.window_start as Date).getTime() + this.windowMs),
       };
     } catch (err) {
-      logger.error('[PgRateLimitStore] increment failed, falling through', { extra: { error: String(err) } });
-      return { totalHits: 0, resetTime: new Date(Date.now() + this.windowMs) };
+      logger.error('[PgRateLimitStore] increment failed, blocking as precaution', { extra: { error: String(err) } });
+      return { totalHits: Infinity, resetTime: new Date(Date.now() + this.windowMs) };
     }
   }
 

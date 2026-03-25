@@ -11,7 +11,7 @@ import type Stripe from 'stripe';
 
 async function archiveStalePrices(stripe: Stripe, productId: string, activePriceId: string, label: string): Promise<void> {
   try {
-    const prices = await stripe.prices.list({ product: productId, active: true, limit: 50 });
+    const prices = await stripe.prices.list({ product: productId, active: true, limit: 100 });
     const stale = prices.data.filter(p => p.id !== activePriceId);
     if (stale.length === 0) return;
     for (const p of stale) {
